@@ -1,0 +1,32 @@
+{
+    "id": "861E20",
+    "name": "asdf",
+    "hostId": "player_25f618277e5c2f26",
+    "maxPlayers": 8,
+    "isPublic": true,
+    "createdAt": 1770572316.884217,
+    "lastActivity": 1770572337.348921,
+    "players": {
+        "player_25f618277e5c2f26": {
+            "id": "player_25f618277e5c2f26",
+            "name": "asdf",
+            "color": "#BB8FCE",
+            "isHost": true,
+            "isConnected": false,
+            "lastClick": [],
+            "reconnectToken": "c69cdf51813f51b9e26a3f40268b43f7",
+            "lastActivity": 1770572337.348894
+        },
+        "player_3e218b9a4c2d4329": {
+            "id": "player_3e218b9a4c2d4329",
+            "name": "asdf2",
+            "color": "#FFEAA7",
+            "isHost": false,
+            "isConnected": false,
+            "lastClick": [],
+            "reconnectToken": "d8de01b2d80932b8d08ae0fa671cf180",
+            "lastActivity": 1770572337.348919
+        }
+    },
+    "chatHistory": []
+}

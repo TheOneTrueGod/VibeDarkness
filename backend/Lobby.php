@@ -15,12 +15,16 @@ class Lobby
     private string $hostId;
     private array $players = [];
     private array $chatHistory = [];
+    /** @var array<int, array{messageId: int, type: string, timestamp: float, data: array}> */
+    private array $messages = [];
+    private int $lastMessageId = 0;
     private float $createdAt;
     private float $lastActivity;
     private int $maxPlayers;
     private bool $isPublic;
 
     private const MAX_CHAT_HISTORY = 100;
+    private const MAX_MESSAGES = 500;
     private const INACTIVE_TIMEOUT = 3600; // 1 hour
 
     public function __construct(
@@ -229,6 +233,7 @@ class Lobby
         ];
 
         $this->chatHistory[] = $chatEntry;
+        $this->addMessage('chat', $chatEntry);
 
         // Trim history if too long
         if (count($this->chatHistory) > self::MAX_CHAT_HISTORY) {
@@ -236,8 +241,54 @@ class Lobby
         }
 
         $this->updateActivity();
-        
+
         return $chatEntry;
+    }
+
+    /**
+     * Add a message to the lobby log (stored for polling clients).
+     * Returns the new messageId.
+     */
+    public function addMessage(string $type, array $data): int
+    {
+        $this->lastMessageId++;
+        $this->messages[] = [
+            'messageId' => $this->lastMessageId,
+            'type' => $type,
+            'timestamp' => microtime(true),
+            'data' => $data,
+        ];
+        if (count($this->messages) > self::MAX_MESSAGES) {
+            array_shift($this->messages);
+        }
+        $this->updateActivity();
+        return $this->lastMessageId;
+    }
+
+    public function getLastMessageId(): int
+    {
+        return $this->lastMessageId;
+    }
+
+    /**
+     * Get messages for polling. If $afterMessageId is null, return the most recent $limit messages (newest last).
+     * Otherwise return up to $limit messages after the given messageId in ascending messageId order.
+     */
+    public function getMessages(?int $afterMessageId, int $limit = 10): array
+    {
+        if ($afterMessageId === null) {
+            return array_values(array_slice($this->messages, -$limit));
+        }
+        $result = [];
+        foreach ($this->messages as $msg) {
+            if ($msg['messageId'] > $afterMessageId) {
+                $result[] = $msg;
+                if (count($result) >= $limit) {
+                    break;
+                }
+            }
+        }
+        return $result;
     }
 
     /**
@@ -328,5 +379,58 @@ class Lobby
         }
 
         return $data;
+    }
+
+    /**
+     * Export full state for persistence (includes player private data for hydration in WS process)
+     */
+    public function toArrayForStorage(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'hostId' => $this->hostId,
+            'maxPlayers' => $this->maxPlayers,
+            'isPublic' => $this->isPublic,
+            'createdAt' => $this->createdAt,
+            'lastActivity' => $this->lastActivity,
+            'players' => array_map(fn($p) => $p->toArray(true), $this->players),
+            'chatHistory' => $this->chatHistory,
+            'messages' => $this->messages,
+            'lastMessageId' => $this->lastMessageId,
+        ];
+    }
+
+    /**
+     * Create a Lobby from stored array (for hydration from shared storage)
+     */
+    public static function fromArray(array $data): self
+    {
+        $lobby = new self(
+            $data['id'],
+            $data['name'],
+            $data['hostId'],
+            $data['maxPlayers'] ?? 8,
+            $data['isPublic'] ?? true
+        );
+        if (isset($data['createdAt'])) {
+            $lobby->createdAt = (float) $data['createdAt'];
+        }
+        if (isset($data['lastActivity'])) {
+            $lobby->lastActivity = (float) $data['lastActivity'];
+        }
+        foreach ($data['players'] ?? [] as $pData) {
+            $lobby->addPlayer(Player::fromArray($pData));
+        }
+        if (isset($data['chatHistory']) && is_array($data['chatHistory'])) {
+            $lobby->chatHistory = $data['chatHistory'];
+        }
+        if (isset($data['messages']) && is_array($data['messages'])) {
+            $lobby->messages = $data['messages'];
+        }
+        if (isset($data['lastMessageId'])) {
+            $lobby->lastMessageId = (int) $data['lastMessageId'];
+        }
+        return $lobby;
     }
 }

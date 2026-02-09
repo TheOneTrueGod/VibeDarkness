@@ -78,11 +78,23 @@ try {
             => handleJoinLobby($lobbyManager, $matches[1]),
         
         // Leave a lobby
-        $method === 'POST' && preg_match('/^\/api\/lobbies\/([A-Z0-9]+)\/leave$/', $path, $matches) 
+        $method === 'POST' && preg_match('/^\/api\/lobbies\/([A-Z0-9]+)\/leave$/', $path, $matches)
             => handleLeaveLobby($lobbyManager, $matches[1]),
+
+        // Get lobby state (players, clicks, chat) for initial load
+        $method === 'GET' && preg_match('/^\/api\/lobbies\/([A-Z0-9]+)\/state$/', $path, $matches)
+            => handleGetLobbyState($lobbyManager, $matches[1]),
+
+        // Get messages (polling). Query: after (messageId), playerId (required for auth)
+        $method === 'GET' && preg_match('/^\/api\/lobbies\/([A-Z0-9]+)\/messages$/', $path, $matches)
+            => handleGetMessages($lobbyManager, $matches[1]),
+
+        // Send a message (chat or click)
+        $method === 'POST' && preg_match('/^\/api\/lobbies\/([A-Z0-9]+)\/messages$/', $path, $matches)
+            => handlePostMessage($lobbyManager, $matches[1]),
         
         // Get server stats
-        $method === 'GET' && $path === '/api/stats' 
+        $method === 'GET' && $path === '/api/stats'
             => handleStats($lobbyManager),
         
         // 404 for unknown routes
@@ -218,6 +230,98 @@ function handleLeaveLobby(LobbyManager $manager, string $lobbyId): array
         'success' => $success,
         'error' => $success ? null : 'Failed to leave lobby',
     ];
+}
+
+/**
+ * Get lobby state (players, clicks, chat) for initial client load
+ */
+function handleGetLobbyState(LobbyManager $manager, string $lobbyId): array
+{
+    $lobby = $manager->getLobby($lobbyId);
+    if ($lobby === null) {
+        http_response_code(404);
+        return ['success' => false, 'error' => 'Lobby not found'];
+    }
+    $playerId = $_GET['playerId'] ?? null;
+    if ($playerId && !$manager->isPlayerInLobby($lobbyId, $playerId)) {
+        http_response_code(403);
+        return ['success' => false, 'error' => 'Not in lobby'];
+    }
+    return [
+        'success' => true,
+        'gameState' => $lobby->getGameState(),
+        'lastMessageId' => $lobby->getLastMessageId(),
+    ];
+}
+
+/**
+ * Get recent messages (polling). Query: after (messageId), playerId (required)
+ */
+function handleGetMessages(LobbyManager $manager, string $lobbyId): array
+{
+    $playerId = $_GET['playerId'] ?? null;
+    if (!$playerId) {
+        http_response_code(400);
+        return ['success' => false, 'error' => 'playerId required'];
+    }
+    if (!$manager->isPlayerInLobby($lobbyId, $playerId)) {
+        http_response_code(403);
+        return ['success' => false, 'error' => 'Not in lobby'];
+    }
+    $after = isset($_GET['after']) ? (int) $_GET['after'] : null;
+    $messages = $manager->getMessages($lobbyId, $after, 10);
+    return [
+        'success' => true,
+        'messages' => $messages,
+    ];
+}
+
+/**
+ * Post a message (chat or click). Body: { playerId, type, data }
+ */
+function handlePostMessage(LobbyManager $manager, string $lobbyId): array
+{
+    $data = getJsonBody();
+    $playerId = $data['playerId'] ?? null;
+    $type = $data['type'] ?? null;
+    $payload = $data['data'] ?? [];
+
+    if (!$playerId || !$type) {
+        http_response_code(400);
+        return ['success' => false, 'error' => 'playerId and type required'];
+    }
+    if (!$manager->isPlayerInLobby($lobbyId, $playerId)) {
+        http_response_code(403);
+        return ['success' => false, 'error' => 'Not in lobby'];
+    }
+
+    if ($type === 'chat') {
+        $message = $payload['message'] ?? '';
+        $messageId = $manager->addChatMessage($lobbyId, $playerId, $message);
+        if ($messageId === null) {
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Failed to add message'];
+        }
+        return ['success' => true, 'messageId' => $messageId];
+    }
+
+    if ($type === 'click') {
+        $x = isset($payload['x']) ? (float) $payload['x'] : null;
+        $y = isset($payload['y']) ? (float) $payload['y'] : null;
+        if ($x === null || $y === null) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'x and y required'];
+        }
+        $messageId = $manager->recordClick($lobbyId, $playerId, $x, $y);
+        if ($messageId === null) {
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Failed to record click'];
+        }
+        return ['success' => true, 'messageId' => $messageId];
+    }
+
+    http_response_code(400);
+    return ['success' => false, 'error' => 'Unknown message type'];
 }
 
 /**

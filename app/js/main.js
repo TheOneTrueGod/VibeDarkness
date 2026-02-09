@@ -4,18 +4,16 @@
  */
 class GameApp {
     constructor() {
-        // Configuration
-        this.wsUrl = `ws://${window.location.hostname}:8080`;
-        
         // State
         this.currentLobby = null;
         this.currentPlayer = null;
         this.players = {};
-        
+        this.lastMessageId = null;
+        this.pollIntervalId = null;
+
         // Components
         this.ui = new UI();
         this.lobbyClient = new LobbyClient();
-        this.wsClient = null;
         this.chatManager = null;
         this.gameCanvas = null;
 
@@ -29,7 +27,6 @@ class GameApp {
         this.setupUIComponents();
         this.setupEventListeners();
         await this.loadLobbies();
-        this.checkForStoredSession();
     }
 
     /**
@@ -49,17 +46,19 @@ class GameApp {
             document.getElementById('click-markers')
         );
 
-        // Chat send handler
+        // Chat send handler (HTTP POST)
         this.chatManager.on('send', (message) => {
-            if (this.wsClient && this.wsClient.isConnected) {
-                this.wsClient.send(Messages.chat(message));
+            if (this.currentLobby && this.currentPlayer) {
+                this.lobbyClient.sendMessage(this.currentLobby.id, this.currentPlayer.id, 'chat', { message })
+                    .catch(err => this.ui.showToast('Failed to send: ' + err.message, 'error'));
             }
         });
 
-        // Click handler
+        // Click handler (HTTP POST)
         this.gameCanvas.on('click', ({ x, y }) => {
-            if (this.wsClient && this.wsClient.isConnected) {
-                this.wsClient.send(Messages.click(x, y));
+            if (this.currentLobby && this.currentPlayer) {
+                this.lobbyClient.sendMessage(this.currentLobby.id, this.currentPlayer.id, 'click', { x, y })
+                    .catch(() => {});
             }
         });
     }
@@ -104,35 +103,6 @@ class GameApp {
     }
 
     /**
-     * Check for stored session and attempt rejoin
-     */
-    checkForStoredSession() {
-        const session = WebSocketClient.getStoredSession();
-        
-        if (session) {
-            this.ui.showToast('Attempting to reconnect to previous session...', 'info');
-            this.reconnectToSession(session);
-        }
-    }
-
-    /**
-     * Reconnect to a stored session
-     */
-    async reconnectToSession(session) {
-        try {
-            this.wsClient = new WebSocketClient(this.wsUrl);
-            this.setupWebSocketHandlers();
-            
-            await this.wsClient.connect(session.lobbyId, session.playerId, session.token);
-            
-        } catch (error) {
-            console.error('Failed to reconnect:', error);
-            WebSocketClient.clearStoredSession();
-            this.ui.showToast('Could not reconnect to previous session', 'error');
-        }
-    }
-
-    /**
      * Load available lobbies
      */
     async loadLobbies() {
@@ -162,22 +132,23 @@ class GameApp {
             return;
         }
 
+        this.ui.setButtonEnabled('create-lobby-btn', false);
+
         try {
-            this.ui.setButtonEnabled('create-lobby-btn', false);
-            
             const result = await this.lobbyClient.createLobby(lobbyName, playerName);
-            
+
             this.currentLobby = result.lobby;
             this.currentPlayer = result.player;
-            
-            await this.connectToLobby();
-            
+
+            // Show lobby screen and start polling (no WebSocket)
+            this.showLobbyScreenWithConnectingState();
+            await this.startInLobby();
         } catch (error) {
             console.error('Failed to create lobby:', error);
             this.ui.showToast('Failed to create lobby: ' + error.message, 'error');
-        } finally {
             this.ui.setButtonEnabled('create-lobby-btn', true);
         }
+        // Only re-enable button on error; if we showed lobby screen, leave it disabled
     }
 
     /**
@@ -193,12 +164,13 @@ class GameApp {
 
         try {
             const result = await this.lobbyClient.joinLobby(lobbyId, playerName);
-            
+
             this.currentLobby = result.lobby;
             this.currentPlayer = result.player;
-            
-            await this.connectToLobby();
-            
+
+            // Show lobby screen and start polling (no WebSocket)
+            this.showLobbyScreenWithConnectingState();
+            await this.startInLobby();
         } catch (error) {
             console.error('Failed to join lobby:', error);
             this.ui.showToast('Failed to join lobby: ' + error.message, 'error');
@@ -220,187 +192,112 @@ class GameApp {
     }
 
     /**
-     * Connect to WebSocket after joining a lobby
+     * Show the lobby/game screen with "Connecting..." before WebSocket is established
      */
-    async connectToLobby() {
+    showLobbyScreenWithConnectingState() {
+        this.ui.setConnectionStatus('connecting');
+        this.ui.showScreen('game-screen');
+        this.ui.setLobbyInfo(this.currentLobby.name, this.currentLobby.id);
+        this.ui.setPlayerInfo(this.currentPlayer.name, this.currentPlayer.isHost);
+        // Show the host in the player list immediately
+        const initialPlayers = {
+            [this.currentPlayer.id]: {
+                id: this.currentPlayer.id,
+                name: this.currentPlayer.name,
+                color: this.currentPlayer.color,
+                isHost: this.currentPlayer.isHost,
+                isConnected: false,
+            },
+        };
+        this.players = initialPlayers;
+        this.ui.updatePlayerList(this.players, this.currentPlayer.id);
+        this.chatManager.setEnabled(false);
+    }
+
+    /**
+     * Load lobby state and start polling for messages (replaces WebSocket flow)
+     */
+    async startInLobby() {
         try {
-            this.ui.setConnectionStatus('connecting');
-            
-            this.wsClient = new WebSocketClient(this.wsUrl);
-            this.setupWebSocketHandlers();
-            
-            await this.wsClient.connect(
+            const { gameState, lastMessageId } = await this.lobbyClient.getLobbyState(
                 this.currentLobby.id,
-                this.currentPlayer.id,
-                this.currentPlayer.reconnectToken
+                this.currentPlayer.id
             );
-            
+            this.loadGameState(gameState);
+            this.lastMessageId = lastMessageId ?? null;
+
+            this.ui.setConnectionStatus('connected');
+            this.chatManager.setEnabled(true);
+            this.chatManager.addSystemMessage('Connected to lobby');
+
+            this.pollIntervalId = setInterval(() => this.pollMessages(), 1000);
         } catch (error) {
-            console.error('WebSocket connection failed:', error);
-            this.ui.showToast('Failed to connect to game server', 'error');
+            console.error('Failed to load lobby state:', error);
+            this.ui.showToast('Failed to load lobby', 'error');
             this.ui.setConnectionStatus('disconnected');
         }
     }
 
     /**
-     * Set up WebSocket event handlers
+     * Poll for new messages every second
      */
-    setupWebSocketHandlers() {
-        // Connection established
-        this.wsClient.on('connected', (data) => {
-            this.handleConnected(data);
-        });
-
-        // Reconnected
-        this.wsClient.on('reconnected', (data) => {
-            this.handleReconnected(data);
-        });
-
-        // Disconnected
-        this.wsClient.on('disconnected', () => {
-            this.ui.setConnectionStatus('disconnected');
-            this.chatManager.addSystemMessage('Disconnected from server');
-        });
-
-        // Reconnecting
-        this.wsClient.on('reconnecting', ({ attempt }) => {
-            this.ui.setConnectionStatus('connecting');
-            this.chatManager.addSystemMessage(`Reconnecting (attempt ${attempt})...`);
-        });
-
-        // Reconnect failed
-        this.wsClient.on('reconnect_failed', () => {
-            this.ui.showToast('Failed to reconnect. Please refresh the page.', 'error');
-        });
-
-        // Server error
-        this.wsClient.on('server_error', (data) => {
-            this.ui.showToast(data.message, 'error');
-        });
-
-        // Message handlers
-        this.wsClient.on(`message:${MessageType.CHAT}`, (msg) => {
-            this.chatManager.addMessage(msg.data);
-        });
-
-        this.wsClient.on(`message:${MessageType.CLICK}`, (msg) => {
-            this.gameCanvas.setClick(
-                msg.data.playerId,
-                msg.data.playerName,
-                msg.data.color,
-                msg.data.x,
-                msg.data.y
+    async pollMessages() {
+        if (!this.currentLobby || !this.currentPlayer) return;
+        try {
+            const messages = await this.lobbyClient.getMessages(
+                this.currentLobby.id,
+                this.currentPlayer.id,
+                this.lastMessageId
             );
-        });
+            for (const msg of messages) {
+                this.applyMessage(msg);
+                if (msg.messageId != null && (this.lastMessageId == null || msg.messageId > this.lastMessageId)) {
+                    this.lastMessageId = msg.messageId;
+                }
+            }
+        } catch (error) {
+            console.error('Poll error:', error);
+        }
+    }
 
-        this.wsClient.on(`message:${MessageType.PLAYER_JOIN}`, (msg) => {
-            const { playerId, playerName, color, isHost } = msg.data;
-            
-            this.players[playerId] = {
-                id: playerId,
-                name: playerName,
-                color,
-                isHost,
+    /**
+     * Apply a single message from the server to local state and UI
+     */
+    applyMessage(msg) {
+        const { type, data } = msg;
+        if (type === 'chat') {
+            this.chatManager.addMessage(data);
+        } else if (type === 'click') {
+            this.gameCanvas.setClick(data.playerId, data.playerName, data.color, data.x, data.y);
+        } else if (type === 'player_join') {
+            this.players[data.playerId] = {
+                id: data.playerId,
+                name: data.playerName,
+                color: data.color,
+                isHost: data.isHost ?? false,
                 isConnected: true,
             };
-            
             this.ui.updatePlayerList(this.players, this.currentPlayer?.id);
-            this.chatManager.addSystemMessage(`${playerName} joined the game`);
-        });
-
-        this.wsClient.on(`message:${MessageType.PLAYER_LEAVE}`, (msg) => {
-            const { playerId, playerName } = msg.data;
-            
-            if (this.players[playerId]) {
-                this.players[playerId].isConnected = false;
+            this.chatManager.addSystemMessage(`${data.playerName} joined the game`);
+        } else if (type === 'player_leave') {
+            if (this.players[data.playerId]) {
+                this.players[data.playerId].isConnected = false;
             }
-            
             this.ui.updatePlayerList(this.players, this.currentPlayer?.id);
-            this.chatManager.addSystemMessage(`${playerName || 'A player'} disconnected`);
-        });
-
-        this.wsClient.on(`message:${MessageType.PLAYER_REJOIN}`, (msg) => {
-            const { playerId, playerName } = msg.data;
-            
-            if (this.players[playerId]) {
-                this.players[playerId].isConnected = true;
-            }
-            
-            this.ui.updatePlayerList(this.players, this.currentPlayer?.id);
-            this.chatManager.addSystemMessage(`${playerName} reconnected`);
-        });
-
-        this.wsClient.on(`message:${MessageType.HOST_CHANGED}`, (msg) => {
-            const { newHostId } = msg.data;
-            
-            // Update host status
+            this.chatManager.addSystemMessage(`${data.playerName || 'A player'} left`);
+        } else if (type === 'host_changed') {
+            const newHostId = data.newHostId;
             for (const player of Object.values(this.players)) {
                 player.isHost = player.id === newHostId;
             }
-            
             this.ui.updatePlayerList(this.players, this.currentPlayer?.id);
-            
-            // Update own host status
             if (this.currentPlayer && newHostId === this.currentPlayer.id) {
                 this.currentPlayer.isHost = true;
                 this.ui.setPlayerInfo(this.currentPlayer.name, true);
                 this.ui.showToast('You are now the host!', 'info');
             }
-            
             this.chatManager.addSystemMessage('Host has changed');
-        });
-
-        this.wsClient.on(`message:${MessageType.STATE_RESPONSE}`, (msg) => {
-            // Handle full state sync (typically after rejoin)
-            this.loadGameState(msg.data);
-        });
-    }
-
-    /**
-     * Handle successful connection
-     */
-    handleConnected(data) {
-        this.currentLobby = data.lobby;
-        this.currentPlayer = data.player;
-        
-        // Store reconnect token
-        this.wsClient.setReconnectToken(data.player.reconnectToken);
-        
-        // Load initial game state
-        this.loadGameState(data.gameState);
-        
-        // Update UI
-        this.ui.setConnectionStatus('connected');
-        this.ui.showScreen('game-screen');
-        this.ui.setLobbyInfo(this.currentLobby.name, this.currentLobby.id);
-        this.ui.setPlayerInfo(this.currentPlayer.name, this.currentPlayer.isHost);
-        
-        this.chatManager.setEnabled(true);
-        this.chatManager.addSystemMessage('Connected to game');
-        
-        this.ui.showToast('Connected to lobby!', 'success');
-    }
-
-    /**
-     * Handle successful reconnection
-     */
-    handleReconnected(data) {
-        this.currentLobby = data.lobby;
-        this.currentPlayer = data.player;
-        
-        // Load full game state
-        this.loadGameState(data.gameState);
-        
-        // Update UI
-        this.ui.setConnectionStatus('connected');
-        this.ui.showScreen('game-screen');
-        this.ui.setLobbyInfo(this.currentLobby.name, this.currentLobby.id);
-        this.ui.setPlayerInfo(this.currentPlayer.name, this.currentPlayer.isHost);
-        
-        this.chatManager.setEnabled(true);
-        this.chatManager.addSystemMessage('Reconnected to game');
-        
-        this.ui.showToast('Reconnected!', 'success');
+        }
     }
 
     /**
@@ -428,14 +325,10 @@ class GameApp {
         if (!this.currentLobby || !this.currentPlayer) return;
 
         try {
-            // Disconnect WebSocket
-            if (this.wsClient) {
-                this.wsClient.disconnect();
-                this.wsClient = null;
+            if (this.pollIntervalId) {
+                clearInterval(this.pollIntervalId);
+                this.pollIntervalId = null;
             }
-
-            // Clear stored session
-            WebSocketClient.clearStoredSession();
 
             // Notify server
             await this.lobbyClient.leaveLobby(

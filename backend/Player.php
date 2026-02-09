@@ -113,6 +113,39 @@ class Player
         return $this->reconnectToken;
     }
 
+    public function setReconnectToken(string $token): void
+    {
+        $this->reconnectToken = $token;
+    }
+
+    public function setColor(string $color): void
+    {
+        $this->color = $color;
+    }
+
+    /**
+     * Create a Player from stored array (for hydration from shared storage)
+     */
+    public static function fromArray(array $data): self
+    {
+        $player = new self(
+            $data['id'],
+            $data['name'],
+            null,
+            $data['isHost'] ?? false
+        );
+        if (isset($data['reconnectToken'])) {
+            $player->setReconnectToken($data['reconnectToken']);
+        }
+        if (isset($data['color'])) {
+            $player->setColor($data['color']);
+        }
+        if (isset($data['lastClick']) && is_array($data['lastClick'])) {
+            $player->setLastClickFromArray($data['lastClick']);
+        }
+        return $player;
+    }
+
     public function updateActivity(): void
     {
         $this->lastActivity = microtime(true);
@@ -135,6 +168,11 @@ class Player
             'y' => $y,
             'timestamp' => microtime(true),
         ];
+    }
+
+    public function setLastClickFromArray(array $click): void
+    {
+        $this->lastClick = $click;
     }
 
     /**

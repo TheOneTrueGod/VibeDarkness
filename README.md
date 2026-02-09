@@ -1,28 +1,25 @@
 # Multiplayer Game Lobby
 
-A real-time multiplayer game lobby system with WebSocket communication, chat functionality, and click tracking.
+A real-time multiplayer game lobby system using HTTP polling for messages, with chat and click tracking.
 
 ## Features
 
 - **Lobby Management**: Create, join, and list public game lobbies
-- **Real-time Communication**: WebSocket-based messaging between clients
+- **Real-time Communication**: Clients poll the `getMessages` API every second for new messages
 - **Chat System**: In-lobby chat with message history
 - **Click Tracking**: Click anywhere on the game canvas to mark your position (unique colors per player)
-- **Session Persistence**: Automatic reconnection if disconnected
 - **Host Management**: Automatic host reassignment when the host leaves
-- **Strongly Typed Messages**: All messages are validated on both client and server
+- **Message IDs**: Every message has a `messageId` for polling (return up to 10 messages after a given id)
 
 ## Architecture
 
 ```
 MultiplayerLobby/
-├── index.php              # HTTP API entry point
+├── index.php              # HTTP API entry point (lobbies + messages)
 ├── composer.json          # PHP dependencies
 ├── backend/
-│   ├── server.php         # WebSocket server entry point
-│   ├── WebSocketHandler.php
 │   ├── LobbyManager.php   # Lobby management singleton
-│   ├── Lobby.php          # Individual lobby class
+│   ├── Lobby.php          # Individual lobby class (message log)
 │   ├── Player.php         # Player class
 │   ├── Message.php        # Message validation class
 │   └── MessageTypes.php   # Message type enum
@@ -31,11 +28,9 @@ MultiplayerLobby/
     ├── css/
     │   └── style.css      # Styling
     └── js/
-        ├── main.js        # Application entry point
-        ├── MessageTypes.js # Client-side message types
+        ├── main.js        # Application entry point (polling)
         ├── EventEmitter.js # Pub/sub pattern utility
-        ├── WebSocketClient.js
-        ├── LobbyClient.js  # HTTP API client
+        ├── LobbyClient.js  # HTTP API client (getMessages, sendMessage)
         ├── ChatManager.js  # Chat UI management
         ├── GameCanvas.js   # Click tracking
         └── UI.js           # UI utilities
@@ -55,39 +50,17 @@ MultiplayerLobby/
    composer install
    ```
 
-2. **Start the WebSocket server** (in a separate terminal):
-
-   ```bash
-   php backend/server.php
-   ```
-
-   The WebSocket server will run on port 8080 by default.
-
-3. **Start the HTTP server:**
+2. **Start the HTTP server:**
 
    ```bash
    php -S localhost:8000 index.php
    ```
 
-4. **Open the application:**
+3. **Open the application:**
 
    Navigate to `http://localhost:8000` in your browser.
 
-## Configuration
-
-### WebSocket Port
-
-Set the `WS_PORT` environment variable to change the WebSocket server port:
-
-```bash
-WS_PORT=9000 php backend/server.php
-```
-
-Update the WebSocket URL in `app/js/main.js` if you change the port:
-
-```javascript
-this.wsUrl = `ws://${window.location.hostname}:9000`;
-```
+No WebSocket server is required; clients poll for messages over HTTP every second.
 
 ## Usage
 
@@ -112,7 +85,20 @@ this.wsUrl = `ws://${window.location.hostname}:9000`;
 
 - **Chat**: Type messages in the sidebar and press Enter or click Send
 - **Click Tracking**: Click anywhere on the game canvas to place a marker with your color
-- **Player List**: See all connected players and their colors
+- **Player List**: See all players in the lobby
+
+## Message storage (server)
+
+Messages are stored so every member of a lobby can see the same history:
+
+- **Current approach**: Messages are stored in the same lobby file as the rest of the lobby state: `storage/lobbies/{lobbyId}.json`. The `messages` array holds up to 500 entries per lobby, each with `messageId`, `type`, `timestamp`, and `data`. This keeps all state in one place and works with the existing file-based persistence used for create/join across requests.
+
+- **Alternatives** you could use instead:
+  - **Separate message file per lobby**: e.g. `storage/lobbies/{id}/messages.json` (or append-only log). Reduces rewrite size when only messages change.
+  - **Database**: Store messages in a table keyed by `lobby_id` and `message_id` for scale and querying.
+  - **Redis/list**: Append to a per-lobby list with TTL; good for high traffic and optional expiry.
+
+The **getMessages** API returns the last 10 messages when no `messageId` is sent, or up to 10 messages after the given `messageId`, so clients poll once per second and only process new messages.
 
 ## Message Types
 
@@ -197,6 +183,9 @@ The `Lobby` class can be extended to store additional game state:
 | GET | `/api/lobbies` | List public lobbies |
 | POST | `/api/lobbies` | Create a new lobby |
 | GET | `/api/lobbies/{id}` | Get lobby details |
+| GET | `/api/lobbies/{id}/state` | Get lobby state (players, clicks, chat, lastMessageId). Query: `playerId` |
+| GET | `/api/lobbies/{id}/messages` | Get messages (polling). Query: `playerId`, optional `after` (messageId) |
+| POST | `/api/lobbies/{id}/messages` | Send a message. Body: `{ playerId, type, data }` (type: `chat` or `click`) |
 | POST | `/api/lobbies/{id}/join` | Join a lobby |
 | POST | `/api/lobbies/{id}/leave` | Leave a lobby |
 | GET | `/api/stats` | Server statistics |

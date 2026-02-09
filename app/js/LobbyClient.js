@@ -92,6 +92,37 @@ class LobbyClient {
     }
 
     /**
+     * Get lobby state (players, clicks, chat) and lastMessageId for initial load
+     */
+    async getLobbyState(lobbyId, playerId) {
+        const data = await this.request(`/api/lobbies/${lobbyId}/state?playerId=${encodeURIComponent(playerId)}`);
+        return { gameState: data.gameState, lastMessageId: data.lastMessageId };
+    }
+
+    /**
+     * Get recent messages (for polling). If afterMessageId is null, returns last 10; otherwise up to 10 after that id.
+     */
+    async getMessages(lobbyId, playerId, afterMessageId = null) {
+        const params = new URLSearchParams({ playerId });
+        if (afterMessageId != null) {
+            params.set('after', String(afterMessageId));
+        }
+        const data = await this.request(`/api/lobbies/${lobbyId}/messages?${params}`);
+        return data.messages;
+    }
+
+    /**
+     * Send a message (chat or click)
+     */
+    async sendMessage(lobbyId, playerId, type, data) {
+        const res = await this.request(`/api/lobbies/${lobbyId}/messages`, {
+            method: 'POST',
+            body: JSON.stringify({ playerId, type, data }),
+        });
+        return res.messageId;
+    }
+
+    /**
      * Get server stats
      */
     async getStats() {

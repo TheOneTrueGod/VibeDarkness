@@ -1,0 +1,169 @@
+{
+    "id": "66CCFD",
+    "name": "asdf",
+    "hostId": "player_d7388bdf83e31359",
+    "maxPlayers": 8,
+    "isPublic": true,
+    "createdAt": 1770599959.861034,
+    "lastActivity": 1770600005.113772,
+    "players": {
+        "player_d7388bdf83e31359": {
+            "id": "player_d7388bdf83e31359",
+            "name": "asdf",
+            "color": "#FF6B6B",
+            "isHost": true,
+            "isConnected": false,
+            "lastClick": {
+                "x": 44.11231884057971,
+                "y": 42.24079378672888,
+                "timestamp": 1770600005.113769
+            },
+            "reconnectToken": "b165e45bc98a7d34930268102e30c9a2",
+            "lastActivity": 1770600005.113746
+        },
+        "player_91e0527dbe855a97": {
+            "id": "player_91e0527dbe855a97",
+            "name": "asdf2",
+            "color": "#45B7D1",
+            "isHost": false,
+            "isConnected": false,
+            "lastClick": {
+                "x": 65.76086956521739,
+                "y": 63.975430410772816,
+                "timestamp": 1770600003.654931
+            },
+            "reconnectToken": "23bbfeb90bf39fbc7a1218f1d2ad6008",
+            "lastActivity": 1770600005.113759
+        }
+    },
+    "chatHistory": [
+        {
+            "playerId": "player_91e0527dbe855a97",
+            "playerName": "asdf2",
+            "playerColor": "#45B7D1",
+            "message": "test",
+            "timestamp": 1770599975.926532
+        }
+    ],
+    "messages": [
+        {
+            "messageId": 1,
+            "type": "player_join",
+            "timestamp": 1770599959.862495,
+            "data": {
+                "playerId": "player_d7388bdf83e31359",
+                "playerName": "asdf",
+                "color": "#FF6B6B",
+                "isHost": true
+            }
+        },
+        {
+            "messageId": 2,
+            "type": "player_join",
+            "timestamp": 1770599972.685019,
+            "data": {
+                "playerId": "player_91e0527dbe855a97",
+                "playerName": "asdf2",
+                "color": "#45B7D1",
+                "isHost": false
+            }
+        },
+        {
+            "messageId": 3,
+            "type": "chat",
+            "timestamp": 1770599975.926544,
+            "data": {
+                "playerId": "player_91e0527dbe855a97",
+                "playerName": "asdf2",
+                "playerColor": "#45B7D1",
+                "message": "test",
+                "timestamp": 1770599975.926532
+            }
+        },
+        {
+            "messageId": 4,
+            "type": "click",
+            "timestamp": 1770599991.999983,
+            "data": {
+                "playerId": "player_d7388bdf83e31359",
+                "playerName": "asdf",
+                "color": "#FF6B6B",
+                "x": 51.177536231884055,
+                "y": 33.35794229690222
+            }
+        },
+        {
+            "messageId": 5,
+            "type": "click",
+            "timestamp": 1770599995.299283,
+            "data": {
+                "playerId": "player_d7388bdf83e31359",
+                "playerName": "asdf",
+                "color": "#FF6B6B",
+                "x": 41.84782608695652,
+                "y": 62.557954109204736
+            }
+        },
+        {
+            "messageId": 6,
+            "type": "click",
+            "timestamp": 1770599996.732916,
+            "data": {
+                "playerId": "player_d7388bdf83e31359",
+                "playerName": "asdf",
+                "color": "#FF6B6B",
+                "x": 63.632246376811594,
+                "y": 39.027847503174556
+            }
+        },
+        {
+            "messageId": 7,
+            "type": "click",
+            "timestamp": 1770599998.33766,
+            "data": {
+                "playerId": "player_91e0527dbe855a97",
+                "playerName": "asdf2",
+                "color": "#45B7D1",
+                "x": 34.8731884057971,
+                "y": 50.17866107551014
+            }
+        },
+        {
+            "messageId": 8,
+            "type": "click",
+            "timestamp": 1770599999.950838,
+            "data": {
+                "playerId": "player_91e0527dbe855a97",
+                "playerName": "asdf2",
+                "color": "#45B7D1",
+                "x": 74.59239130434783,
+                "y": 37.98836488202463
+            }
+        },
+        {
+            "messageId": 9,
+            "type": "click",
+            "timestamp": 1770600003.654934,
+            "data": {
+                "playerId": "player_91e0527dbe855a97",
+                "playerName": "asdf2",
+                "color": "#45B7D1",
+                "x": 65.76086956521739,
+                "y": 63.975430410772816
+            }
+        },
+        {
+            "messageId": 10,
+            "type": "click",
+            "timestamp": 1770600005.113771,
+            "data": {
+                "playerId": "player_d7388bdf83e31359",
+                "playerName": "asdf",
+                "color": "#FF6B6B",
+                "x": 44.11231884057971,
+                "y": 42.24079378672888
+            }
+        }
+    ],
+    "lastMessageId": 10
+}

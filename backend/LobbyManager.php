@@ -43,7 +43,14 @@ class LobbyManager
         $lobby->addPlayer($hostPlayer);
         
         $this->lobbies[$lobbyId] = $lobby;
-        
+        $lobby->addMessage('player_join', [
+            'playerId' => $hostPlayer->getId(),
+            'playerName' => $hostPlayer->getName(),
+            'color' => $hostPlayer->getColor(),
+            'isHost' => true,
+        ]);
+        $this->persistLobby($lobby);
+
         return [
             'lobby' => $lobby->toArray(true),
             'player' => $hostPlayer->toArray(true),
@@ -51,11 +58,14 @@ class LobbyManager
     }
 
     /**
-     * Get a lobby by ID
+     * Get a lobby by ID. If not in memory (e.g. created via HTTP), load from shared storage.
      */
     public function getLobby(string $lobbyId): ?Lobby
     {
-        return $this->lobbies[$lobbyId] ?? null;
+        if (isset($this->lobbies[$lobbyId])) {
+            return $this->lobbies[$lobbyId];
+        }
+        return $this->loadLobbyFromStorage($lobbyId);
     }
 
     /**
@@ -104,7 +114,15 @@ class LobbyManager
         if (!$lobby->addPlayer($player)) {
             return ['error' => 'Failed to join lobby'];
         }
-        
+
+        $lobby->addMessage('player_join', [
+            'playerId' => $player->getId(),
+            'playerName' => $player->getName(),
+            'color' => $player->getColor(),
+            'isHost' => false,
+        ]);
+        $this->persistLobby($lobby);
+
         return [
             'lobby' => $lobby->toArray(true),
             'player' => $player->toArray(true),
@@ -158,6 +176,10 @@ class LobbyManager
         }
 
         $player = $lobby->getPlayer($playerId);
+        // Player may have joined via HTTP; try to add them from storage without replacing the in-memory lobby
+        if ($player === null) {
+            $player = $this->addPlayerFromStorage($lobbyId, $playerId, $lobby);
+        }
         
         if ($player === null) {
             return null;
@@ -214,23 +236,97 @@ class LobbyManager
     public function leavelobby(string $lobbyId, string $playerId): bool
     {
         $lobby = $this->getLobby($lobbyId);
-        
+
         if ($lobby === null) {
             return false;
         }
 
-        $player = $lobby->removePlayer($playerId);
-        
+        $player = $lobby->getPlayer($playerId);
         if ($player === null) {
             return false;
         }
 
-        // Remove lobby if empty
+        $playerName = $player->getName();
+        $wasHost = $player->isHost();
+        $lobby->addMessage('player_leave', ['playerId' => $playerId, 'playerName' => $playerName]);
+        $lobby->removePlayer($playerId);
+
+        if ($wasHost && !$lobby->isEmpty()) {
+            $newHost = $lobby->getHost();
+            if ($newHost !== null) {
+                $lobby->addMessage('host_changed', ['newHostId' => $newHost->getId()]);
+            }
+        }
+
+        $this->persistLobby($lobby);
+
         if ($lobby->isEmpty()) {
             unset($this->lobbies[$lobbyId]);
         }
 
         return true;
+    }
+
+    /**
+     * Get recent messages for a lobby (for polling clients).
+     * If $afterMessageId is null, returns the most recent $limit messages.
+     * Otherwise returns up to $limit messages after that id.
+     */
+    public function getMessages(string $lobbyId, ?int $afterMessageId, int $limit = 10): array
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null) {
+            return [];
+        }
+        return $lobby->getMessages($afterMessageId, $limit);
+    }
+
+    /**
+     * Add a chat message and persist (for HTTP clients).
+     */
+    public function addChatMessage(string $lobbyId, string $playerId, string $message): ?int
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null) {
+            return null;
+        }
+        $lobby->addChatMessage($playerId, $message);
+        $this->persistLobby($lobby);
+        return $lobby->getLastMessageId();
+    }
+
+    /**
+     * Record a click and add to message log (for HTTP clients).
+     */
+    public function recordClick(string $lobbyId, string $playerId, float $x, float $y): ?int
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null) {
+            return null;
+        }
+        $player = $lobby->getPlayer($playerId);
+        if ($player === null) {
+            return null;
+        }
+        $player->setLastClick($x, $y);
+        $messageId = $lobby->addMessage('click', [
+            'playerId' => $player->getId(),
+            'playerName' => $player->getName(),
+            'color' => $player->getColor(),
+            'x' => $x,
+            'y' => $y,
+        ]);
+        $this->persistLobby($lobby);
+        return $messageId;
+    }
+
+    /**
+     * Verify a player is in the lobby (for message API auth).
+     */
+    public function isPlayerInLobby(string $lobbyId, string $playerId): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        return $lobby !== null && $lobby->getPlayer($playerId) !== null;
     }
 
     /**
@@ -269,12 +365,73 @@ class LobbyManager
      */
     private function generateLobbyId(): string
     {
+        $storageDir = $this->getStoragePath();
         do {
-            // Generate a 6-character alphanumeric code
             $id = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
-        } while (isset($this->lobbies[$id]));
+        } while (isset($this->lobbies[$id]) || (is_dir($storageDir) && file_exists($storageDir . '/' . $id . '.json')));
         
         return $id;
+    }
+
+    private function getStoragePath(): string
+    {
+        $path = dirname(__DIR__) . '/storage/lobbies';
+        if (!is_dir($path)) {
+            mkdir($path, 0755, true);
+        }
+        return $path;
+    }
+
+    /**
+     * Persist lobby to shared storage so the WebSocket process can load it
+     */
+    private function persistLobby(Lobby $lobby): void
+    {
+        $path = $this->getStoragePath() . '/' . $lobby->getId() . '.json';
+        file_put_contents($path, json_encode($lobby->toArrayForStorage(), JSON_PRETTY_PRINT));
+    }
+
+    /**
+     * Load a lobby from shared storage (used when WS server receives connect for HTTP-created lobby)
+     */
+    private function loadLobbyFromStorage(string $lobbyId): ?Lobby
+    {
+        $path = $this->getStoragePath() . '/' . $lobbyId . '.json';
+        if (!is_file($path)) {
+            return null;
+        }
+        $json = file_get_contents($path);
+        $data = json_decode($json, true);
+        if (!is_array($data)) {
+            return null;
+        }
+        $lobby = Lobby::fromArray($data);
+        $this->lobbies[$lobbyId] = $lobby;
+        return $lobby;
+    }
+
+    /**
+     * Add a player to an in-memory lobby from storage (e.g. they joined via HTTP). Returns the player if found and added.
+     */
+    private function addPlayerFromStorage(string $lobbyId, string $playerId, Lobby $lobby): ?Player
+    {
+        $path = $this->getStoragePath() . '/' . $lobbyId . '.json';
+        if (!is_file($path)) {
+            return null;
+        }
+        $json = file_get_contents($path);
+        $data = json_decode($json, true);
+        if (!is_array($data) || empty($data['players'])) {
+            return null;
+        }
+        foreach ($data['players'] as $pData) {
+            if (($pData['id'] ?? '') === $playerId) {
+                $player = Player::fromArray($pData);
+                $lobby->addPlayer($player);
+                return $player;
+            }
+        }
+        return null;
     }
 
     /**
