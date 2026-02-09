@@ -192,7 +192,7 @@ class GameApp {
     }
 
     /**
-     * Show the lobby/game screen with "Connecting..." before WebSocket is established
+     * Show the lobby/game screen with "Connecting..." before state is loaded
      */
     showLobbyScreenWithConnectingState() {
         this.ui.setConnectionStatus('connecting');
@@ -215,7 +215,7 @@ class GameApp {
     }
 
     /**
-     * Load lobby state and start polling for messages (replaces WebSocket flow)
+     * Load lobby state and start polling for messages
      */
     async startInLobby() {
         try {

@@ -149,22 +149,13 @@ The system uses strongly-typed messages for all communication:
    });
    ```
 
-3. **Handle the message** (`backend/WebSocketHandler.php`):
-   ```php
-   private function processMessage(Lobby $lobby, Player $player, Message $message): void
-   {
-       match($type) {
-           MessageType::YOUR_TYPE => $this->handleYourType($lobby, $player, $message),
-           // ...
-       };
-   }
-   ```
+3. **Add message to log** where appropriate (e.g. in `index.php` for new POST types, or in `LobbyManager`/`Lobby`). Use `$lobby->addMessage('your_type', $data)` so polling clients receive it.
 
-4. **Listen on client** (`app/js/main.js`):
+4. **Handle on client** (`app/js/main.js` in `applyMessage()`):
    ```javascript
-   this.wsClient.on(`message:${MessageType.YOUR_TYPE}`, (msg) => {
-       // Handle the message
-   });
+   } else if (type === 'your_type') {
+       // Handle the message using msg.data
+   }
    ```
 
 ### Adding Game State
@@ -192,23 +183,11 @@ The `Lobby` class can be extended to store additional game state:
 
 ## Troubleshooting
 
-### WebSocket Connection Failed
-
-- Ensure the WebSocket server is running (`php backend/server.php`)
-- Check that port 8080 is not blocked by a firewall
-- Verify the WebSocket URL in `main.js` matches your server configuration
-
 ### "Lobby not found" Error
 
 - Lobbies expire after 1 hour of inactivity
 - Empty lobbies are automatically removed
 - Lobby codes are case-insensitive (automatically uppercased)
-
-### Reconnection Issues
-
-- Session data is stored in browser sessionStorage
-- Closing the browser tab clears the session
-- Reconnect tokens are valid until the lobby expires
 
 ## License
 

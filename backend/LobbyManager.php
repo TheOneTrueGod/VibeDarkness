@@ -2,17 +2,14 @@
 
 namespace App;
 
-use Ratchet\ConnectionInterface;
-
 /**
  * Singleton manager for all game lobbies.
- * Handles lobby creation, lookup, and cleanup.
+ * Handles lobby creation, lookup, and cleanup. All communication is HTTP (polling).
  */
 class LobbyManager
 {
     private static ?LobbyManager $instance = null;
     private array $lobbies = [];
-    private array $connectionToLobby = [];
 
     private function __construct() {}
 
@@ -39,7 +36,7 @@ class LobbyManager
         $lobby = new Lobby($lobbyId, $name, $hostPlayerId, $maxPlayers, $isPublic);
         
         // Create the host player
-        $hostPlayer = new Player($hostPlayerId, $hostPlayerName, null, true);
+        $hostPlayer = new Player($hostPlayerId, $hostPlayerName, true);
         $lobby->addPlayer($hostPlayer);
         
         $this->lobbies[$lobbyId] = $lobby;
@@ -127,106 +124,6 @@ class LobbyManager
             'lobby' => $lobby->toArray(true),
             'player' => $player->toArray(true),
             'isRejoin' => false,
-        ];
-    }
-
-    /**
-     * Rejoin a lobby using a reconnect token
-     */
-    public function rejoinLobby(
-        string $lobbyId,
-        string $reconnectToken,
-        ConnectionInterface $connection
-    ): ?array {
-        $lobby = $this->getLobby($lobbyId);
-        
-        if ($lobby === null) {
-            return null;
-        }
-
-        $player = $lobby->getPlayerByReconnectToken($reconnectToken);
-        
-        if ($player === null) {
-            return null;
-        }
-
-        // Reconnect the player
-        $player->setConnection($connection);
-        $this->connectionToLobby[$connection->resourceId] = $lobbyId;
-
-        return [
-            'lobby' => $lobby->toArray(true),
-            'player' => $player->toArray(true),
-            'gameState' => $lobby->getGameState(),
-        ];
-    }
-
-    /**
-     * Connect a player to their WebSocket
-     */
-    public function connectPlayer(
-        string $lobbyId,
-        string $playerId,
-        ConnectionInterface $connection
-    ): ?array {
-        $lobby = $this->getLobby($lobbyId);
-        
-        if ($lobby === null) {
-            return null;
-        }
-
-        $player = $lobby->getPlayer($playerId);
-        // Player may have joined via HTTP; try to add them from storage without replacing the in-memory lobby
-        if ($player === null) {
-            $player = $this->addPlayerFromStorage($lobbyId, $playerId, $lobby);
-        }
-        
-        if ($player === null) {
-            return null;
-        }
-
-        $player->setConnection($connection);
-        $this->connectionToLobby[$connection->resourceId] = $lobbyId;
-
-        return [
-            'lobby' => $lobby->toArray(true),
-            'player' => $player->toArray(true),
-        ];
-    }
-
-    /**
-     * Handle a player disconnection
-     */
-    public function handleDisconnect(ConnectionInterface $connection): ?array
-    {
-        $resourceId = $connection->resourceId;
-        
-        if (!isset($this->connectionToLobby[$resourceId])) {
-            return null;
-        }
-
-        $lobbyId = $this->connectionToLobby[$resourceId];
-        unset($this->connectionToLobby[$resourceId]);
-
-        $lobby = $this->getLobby($lobbyId);
-        
-        if ($lobby === null) {
-            return null;
-        }
-
-        $player = $lobby->getPlayerByConnection($connection);
-        
-        if ($player === null) {
-            return null;
-        }
-
-        // Don't remove the player, just disconnect them (allows rejoin)
-        $player->setConnection(null);
-
-        return [
-            'lobbyId' => $lobbyId,
-            'playerId' => $player->getId(),
-            'playerName' => $player->getName(),
         ];
     }
 
@@ -330,20 +227,6 @@ class LobbyManager
     }
 
     /**
-     * Get lobby by connection
-     */
-    public function getLobbyByConnection(ConnectionInterface $connection): ?Lobby
-    {
-        $resourceId = $connection->resourceId;
-        
-        if (!isset($this->connectionToLobby[$resourceId])) {
-            return null;
-        }
-
-        return $this->getLobby($this->connectionToLobby[$resourceId]);
-    }
-
-    /**
      * Clean up inactive lobbies
      */
     public function cleanupInactiveLobbies(): int
@@ -383,7 +266,7 @@ class LobbyManager
     }
 
     /**
-     * Persist lobby to shared storage so the WebSocket process can load it
+     * Persist lobby to shared storage (used for getLobby when not in memory)
      */
     private function persistLobby(Lobby $lobby): void
     {
@@ -392,7 +275,7 @@ class LobbyManager
     }
 
     /**
-     * Load a lobby from shared storage (used when WS server receives connect for HTTP-created lobby)
+     * Load a lobby from shared storage (e.g. lobby created in another request)
      */
     private function loadLobbyFromStorage(string $lobbyId): ?Lobby
     {
@@ -411,46 +294,17 @@ class LobbyManager
     }
 
     /**
-     * Add a player to an in-memory lobby from storage (e.g. they joined via HTTP). Returns the player if found and added.
-     */
-    private function addPlayerFromStorage(string $lobbyId, string $playerId, Lobby $lobby): ?Player
-    {
-        $path = $this->getStoragePath() . '/' . $lobbyId . '.json';
-        if (!is_file($path)) {
-            return null;
-        }
-        $json = file_get_contents($path);
-        $data = json_decode($json, true);
-        if (!is_array($data) || empty($data['players'])) {
-            return null;
-        }
-        foreach ($data['players'] as $pData) {
-            if (($pData['id'] ?? '') === $playerId) {
-                $player = Player::fromArray($pData);
-                $lobby->addPlayer($player);
-                return $player;
-            }
-        }
-        return null;
-    }
-
-    /**
      * Get statistics
      */
     public function getStats(): array
     {
         $totalPlayers = 0;
-        $connectedPlayers = 0;
-        
         foreach ($this->lobbies as $lobby) {
             $totalPlayers += $lobby->getPlayerCount();
-            $connectedPlayers += count($lobby->getConnectedPlayers());
         }
-        
         return [
             'totalLobbies' => count($this->lobbies),
             'totalPlayers' => $totalPlayers,
-            'connectedPlayers' => $connectedPlayers,
         ];
     }
 }

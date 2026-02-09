@@ -2,11 +2,9 @@
 
 namespace App;
 
-use Ratchet\ConnectionInterface;
-
 /**
  * Represents a game lobby containing multiple players.
- * Manages player connections, game state, and message routing.
+ * Manages players, game state, and message log for HTTP polling.
  */
 class Lobby
 {
@@ -156,19 +154,6 @@ class Lobby
     }
 
     /**
-     * Get a player by their WebSocket connection
-     */
-    public function getPlayerByConnection(ConnectionInterface $conn): ?Player
-    {
-        foreach ($this->players as $player) {
-            if ($player->getConnection() === $conn) {
-                return $player;
-            }
-        }
-        return null;
-    }
-
-    /**
      * Get all players
      */
     public function getPlayers(): array
@@ -177,44 +162,20 @@ class Lobby
     }
 
     /**
-     * Get connected players only
-     */
-    public function getConnectedPlayers(): array
-    {
-        return array_filter($this->players, fn($p) => $p->isConnected());
-    }
-
-    /**
-     * Assign a new host (first connected player)
+     * Assign a new host (first player in lobby when previous host left)
      */
     private function assignNewHost(): void
     {
-        $connectedPlayers = $this->getConnectedPlayers();
-        
-        if (empty($connectedPlayers)) {
-            // Use any player if none are connected
-            $newHost = reset($this->players);
-        } else {
-            $newHost = reset($connectedPlayers);
+        $newHost = reset($this->players);
+        if (!$newHost) {
+            return;
         }
-
-        if ($newHost) {
-            $oldHostId = $this->hostId;
-            
-            // Update host status
-            if (isset($this->players[$oldHostId])) {
-                $this->players[$oldHostId]->setHost(false);
-            }
-            
-            $this->hostId = $newHost->getId();
-            $newHost->setHost(true);
-
-            // Notify all players of host change
-            $this->broadcast(Message::create(
-                MessageType::HOST_CHANGED,
-                ['newHostId' => $this->hostId]
-            ));
+        $oldHostId = $this->hostId;
+        if (isset($this->players[$oldHostId])) {
+            $this->players[$oldHostId]->setHost(false);
         }
+        $this->hostId = $newHost->getId();
+        $newHost->setHost(true);
     }
 
     /**
@@ -322,29 +283,7 @@ class Lobby
     }
 
     /**
-     * Broadcast a message to all connected players
-     */
-    public function broadcast(Message $message, ?string $excludePlayerId = null): void
-    {
-        foreach ($this->players as $player) {
-            if ($excludePlayerId !== null && $player->getId() === $excludePlayerId) {
-                continue;
-            }
-            $player->send($message);
-        }
-    }
-
-    /**
-     * Send a message to the host only
-     */
-    public function sendToHost(Message $message): bool
-    {
-        $host = $this->getHost();
-        return $host?->send($message) ?? false;
-    }
-
-    /**
-     * Get current game state (for new/rejoining players)
+     * Get current game state (for initial load / polling clients)
      */
     public function getGameState(): array
     {
@@ -382,7 +321,7 @@ class Lobby
     }
 
     /**
-     * Export full state for persistence (includes player private data for hydration in WS process)
+     * Export full state for persistence
      */
     public function toArrayForStorage(): array
     {

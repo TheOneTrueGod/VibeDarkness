@@ -2,18 +2,15 @@
 
 namespace App;
 
-use Ratchet\ConnectionInterface;
-
 /**
  * Represents a player in the lobby system.
- * Manages player state and WebSocket connection.
+ * Manages player state (no connection; communication is HTTP polling).
  */
 class Player
 {
     private string $id;
     private string $name;
     private string $color;
-    private ?ConnectionInterface $connection;
     private bool $isHost;
     private float $lastActivity;
     private ?string $reconnectToken;
@@ -35,15 +32,10 @@ class Player
         '#58D68D', // Emerald
     ];
 
-    public function __construct(
-        string $id,
-        string $name,
-        ?ConnectionInterface $connection = null,
-        bool $isHost = false
-    ) {
+    public function __construct(string $id, string $name, bool $isHost = false)
+    {
         $this->id = $id;
         $this->name = $name;
-        $this->connection = $connection;
         $this->isHost = $isHost;
         $this->lastActivity = microtime(true);
         $this->reconnectToken = bin2hex(random_bytes(16));
@@ -76,20 +68,12 @@ class Player
         return $this->color;
     }
 
-    public function getConnection(): ?ConnectionInterface
-    {
-        return $this->connection;
-    }
-
-    public function setConnection(?ConnectionInterface $connection): void
-    {
-        $this->connection = $connection;
-        $this->updateActivity();
-    }
-
+    /**
+     * Whether the player is considered present in the lobby (always true when in roster).
+     */
     public function isConnected(): bool
     {
-        return $this->connection !== null;
+        return true;
     }
 
     public function isHost(): bool
@@ -131,7 +115,6 @@ class Player
         $player = new self(
             $data['id'],
             $data['name'],
-            null,
             $data['isHost'] ?? false
         );
         if (isset($data['reconnectToken'])) {
@@ -173,23 +156,6 @@ class Player
     public function setLastClickFromArray(array $click): void
     {
         $this->lastClick = $click;
-    }
-
-    /**
-     * Send a message to this player
-     */
-    public function send(Message $message): bool
-    {
-        if (!$this->isConnected()) {
-            return false;
-        }
-
-        try {
-            $this->connection->send($message->toJson());
-            return true;
-        } catch (\Exception $e) {
-            return false;
-        }
     }
 
     /**

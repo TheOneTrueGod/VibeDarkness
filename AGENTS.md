@@ -5,10 +5,10 @@ This document describes the codebase for AI agents working on this project.
 ## Project Overview
 
 A real-time multiplayer game lobby system with:
-- PHP backend using Ratchet for WebSocket communication
+- PHP backend (HTTP only; no WebSockets)
 - Vanilla JavaScript frontend (no frameworks)
-- HTTP API for lobby management, WebSocket for real-time game communication
-- Strongly typed message system mirrored between client and server
+- HTTP API for lobby management and message polling
+- Clients poll `getMessages` every second; chat and clicks are sent via HTTP POST
 
 ## Architecture
 
@@ -16,36 +16,30 @@ A real-time multiplayer game lobby system with:
 Backend (PHP 8.1+)          Frontend (Vanilla JS)
 ─────────────────           ─────────────────────
 index.php (HTTP API)        app/js/main.js (entry point)
-backend/server.php (WS)     app/js/WebSocketClient.js
-backend/WebSocketHandler    app/js/LobbyClient.js (HTTP)
-backend/LobbyManager        app/js/ChatManager.js
-backend/Lobby               app/js/GameCanvas.js
-backend/Player              app/js/MessageTypes.js
+backend/LobbyManager        app/js/LobbyClient.js (HTTP)
+backend/Lobby               app/js/ChatManager.js
+backend/Player              app/js/GameCanvas.js
 backend/Message             app/js/EventEmitter.js
 backend/MessageTypes        app/js/UI.js
 ```
 
 ## Key Patterns
 
-### Message System
-Messages are strongly typed on both ends. When adding a new message type:
-
-1. Add to `backend/MessageTypes.php` enum with required fields
-2. Mirror in `app/js/MessageTypes.js` with matching schema
-3. Handle in `backend/WebSocketHandler.php` `processMessage()` method
-4. Listen in `app/js/main.js` via `wsClient.on('message:TYPE', ...)`
+### Message System (HTTP polling)
+- Messages are stored on the server in each lobby's message log (with `messageId`).
+- Clients call `GET /api/lobbies/{id}/messages?playerId=...&after=...` every second.
+- If no `after`, returns last 10 messages; otherwise up to 10 messages after that id.
+- To send: `POST /api/lobbies/{id}/messages` with `{ playerId, type, data }` (type: `chat` or `click`).
 
 ### State Management
 - `LobbyManager` is a singleton managing all active lobbies
-- `Lobby` stores players, chat history, and click positions
-- `Player` tracks connection, reconnect token, and last click
+- `Lobby` stores players, chat history, clicks, and a message log
+- `Player` tracks name, color, host status, last click (no connection object)
 - Frontend state lives in `GameApp` class in `main.js`
 
-### Reconnection Flow
-1. Player receives `reconnectToken` on join
-2. Token stored in `sessionStorage`
-3. On disconnect, `WebSocketClient` attempts reconnect with token
-4. Server validates token and restores player connection
+### Adding a new message type (for polling)
+1. Add type to backend message log in the appropriate handler (e.g. `Lobby::addMessage`, or in `index.php` for new POST types)
+2. Handle the type in `main.js` in `applyMessage()`
 
 ## Coding Conventions
 
@@ -65,30 +59,24 @@ Messages are strongly typed on both ends. When adding a new message type:
 | File | Purpose |
 |------|---------|
 | `index.php` | HTTP API routes + static file serving |
-| `backend/server.php` | Starts Ratchet WebSocket server |
-| `backend/WebSocketHandler.php` | Routes WS messages, manages connections |
-| `backend/LobbyManager.php` | CRUD operations for lobbies |
-| `backend/Lobby.php` | Single lobby state (players, chat, clicks) |
-| `backend/Player.php` | Player state and WS connection |
+| `backend/LobbyManager.php` | CRUD for lobbies; getMessages, addChatMessage, recordClick |
+| `backend/Lobby.php` | Single lobby state (players, chat, messages) |
+| `backend/Player.php` | Player state (no connection) |
 | `backend/Message.php` | Message validation and construction |
-| `backend/MessageTypes.php` | Enum of all message types |
-| `app/js/main.js` | Application orchestration |
-| `app/js/WebSocketClient.js` | WS connection with auto-reconnect |
-| `app/js/LobbyClient.js` | HTTP API client |
+| `backend/MessageTypes.php` | Enum of message types |
+| `app/js/main.js` | Application orchestration, polling, applyMessage |
+| `app/js/LobbyClient.js` | HTTP API client (getMessages, sendMessage, getLobbyState) |
 | `app/js/ChatManager.js` | Chat UI and message rendering |
 | `app/js/GameCanvas.js` | Click tracking and marker display |
-| `app/js/MessageTypes.js` | Client-side message type definitions |
+| `app/js/UI.js` | Screen transitions, player list, toasts |
 
 ## Common Tasks
-
-### Adding a new message type
-See "Message System" above. Ensure both PHP enum and JS schema match exactly.
 
 ### Adding game state
 1. Add property to `Lobby.php`
 2. Include in `getGameState()` method
-3. Handle sync in `STATE_RESPONSE` message
-4. Update frontend state in `loadGameState()`
+3. Update frontend in `loadGameState()` in `main.js`
+4. If it should sync via messages, add a message type and handle in `applyMessage()`
 
 ### Adding UI components
 1. Add HTML to `app/index.html`
@@ -100,8 +88,7 @@ See "Message System" above. Ensure both PHP enum and JS schema match exactly.
 
 ```bash
 composer install
-php backend/server.php          # Terminal 1 - WebSocket on :8080
-php -S localhost:8000 index.php # Terminal 2 - HTTP on :8000
+php -S localhost:8000 index.php
 ```
 
-Open multiple browser tabs to test multiplayer functionality.
+Open multiple browser tabs to test multiplayer. No WebSocket server is required.
