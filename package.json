@@ -1,0 +1,12 @@
+{
+  "name": "multiplayer-lobby",
+  "version": "1.0.0",
+  "description": "Multiplayer game lobby - frontend",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.0"
+  }
+}

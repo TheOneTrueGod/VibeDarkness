@@ -3,34 +3,24 @@
  * Used for decoupling components
  */
 class EventEmitter {
-    constructor() {
-        this.events = new Map();
-    }
+    private events = new Map<string, Set<(...args: unknown[]) => void>>();
 
     /**
      * Subscribe to an event
-     * @param {string} event - Event name
-     * @param {Function} callback - Callback function
-     * @returns {Function} Unsubscribe function
      */
-    on(event, callback) {
+    on(event: string, callback: (...args: unknown[]) => void): () => void {
         if (!this.events.has(event)) {
             this.events.set(event, new Set());
         }
-        
-        this.events.get(event).add(callback);
-        
-        // Return unsubscribe function
+        this.events.get(event)!.add(callback);
         return () => this.off(event, callback);
     }
 
     /**
      * Subscribe to an event once
-     * @param {string} event - Event name
-     * @param {Function} callback - Callback function
      */
-    once(event, callback) {
-        const wrapper = (...args) => {
+    once(event: string, callback: (...args: unknown[]) => void): void {
+        const wrapper = (...args: unknown[]) => {
             this.off(event, wrapper);
             callback(...args);
         };
@@ -39,23 +29,19 @@ class EventEmitter {
 
     /**
      * Unsubscribe from an event
-     * @param {string} event - Event name
-     * @param {Function} callback - Callback function
      */
-    off(event, callback) {
+    off(event: string, callback: (...args: unknown[]) => void): void {
         if (this.events.has(event)) {
-            this.events.get(event).delete(callback);
+            this.events.get(event)!.delete(callback);
         }
     }
 
     /**
      * Emit an event
-     * @param {string} event - Event name
-     * @param {...any} args - Arguments to pass to callbacks
      */
-    emit(event, ...args) {
+    emit(event: string, ...args: unknown[]): void {
         if (this.events.has(event)) {
-            for (const callback of this.events.get(event)) {
+            for (const callback of this.events.get(event)!) {
                 try {
                     callback(...args);
                 } catch (error) {
@@ -67,18 +53,12 @@ class EventEmitter {
 
     /**
      * Remove all listeners for an event (or all events)
-     * @param {string} [event] - Event name (optional)
      */
-    removeAllListeners(event) {
+    removeAllListeners(event?: string): void {
         if (event) {
             this.events.delete(event);
         } else {
             this.events.clear();
         }
     }
-}
-
-// Export for module usage
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = EventEmitter;
 }

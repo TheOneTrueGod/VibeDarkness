@@ -64,11 +64,11 @@ backend/MessageTypes        app/js/UI.js
 | `backend/Player.php` | Player state (no connection) |
 | `backend/Message.php` | Message validation and construction |
 | `backend/MessageTypes.php` | Enum of message types |
-| `app/js/main.js` | Application orchestration, polling, applyMessage |
-| `app/js/LobbyClient.js` | HTTP API client (getMessages, sendMessage, getLobbyState) |
-| `app/js/ChatManager.js` | Chat UI and message rendering |
-| `app/js/GameCanvas.js` | Click tracking and marker display |
-| `app/js/UI.js` | Screen transitions, player list, toasts |
+| `app/js/main.ts` | Application orchestration, polling, applyMessage (compiles to `app/js-out/`) |
+| `app/js/LobbyClient.ts` | HTTP API client (getMessages, sendMessage, getLobbyState) |
+| `app/js/ChatManager.ts` | Chat UI and message rendering |
+| `app/js/GameCanvas.ts` | Click tracking and marker display |
+| `app/js/UI.ts` | Screen transitions, player list, toasts |
 
 ## Common Tasks
 
@@ -88,7 +88,9 @@ backend/MessageTypes        app/js/UI.js
 
 ```bash
 composer install
+npm install
+npm run build    # or npm run watch for auto-recompile on change
 php -S localhost:8000 index.php
 ```
 
-Open multiple browser tabs to test multiplayer. No WebSocket server is required.
+Open multiple browser tabs to test multiplayer. No WebSocket server is required. Frontend source is TypeScript in `app/js/*.ts`; compiled output goes to `app/js-out/`.

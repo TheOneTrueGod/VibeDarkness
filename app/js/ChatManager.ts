@@ -2,27 +2,49 @@
  * Chat Manager
  * Handles chat UI and message display
  */
+
+interface ChatMessageEntry {
+    playerId?: string;
+    playerName?: string;
+    playerColor?: string;
+    message?: string;
+    timestamp?: number;
+}
+
+interface SystemMessageEntry {
+    system: true;
+    message: string;
+    timestamp: number;
+}
+
+type MessageEntry = ChatMessageEntry | SystemMessageEntry;
+
+function isSystemEntry(entry: MessageEntry): entry is SystemMessageEntry {
+    return 'system' in entry && entry.system === true;
+}
+
 class ChatManager extends EventEmitter {
-    constructor(containerElement, inputElement, sendButton) {
+    private container: HTMLElement;
+    private input: HTMLInputElement;
+    private sendButton: HTMLButtonElement;
+    private messages: MessageEntry[] = [];
+    private maxMessages = 100;
+
+    constructor(
+        containerElement: HTMLElement,
+        inputElement: HTMLInputElement,
+        sendButton: HTMLButtonElement
+    ) {
         super();
         this.container = containerElement;
         this.input = inputElement;
         this.sendButton = sendButton;
-        this.messages = [];
-        this.maxMessages = 100;
-
         this.setupEventListeners();
     }
 
-    /**
-     * Set up DOM event listeners
-     */
-    setupEventListeners() {
-        // Send on button click
+    private setupEventListeners(): void {
         this.sendButton.addEventListener('click', () => this.sendMessage());
-
-        // Send on Enter key
-        this.input.addEventListener('keypress', (e) => {
+        this.input.addEventListener('keypress', (e: KeyboardEvent) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this.sendMessage();
@@ -30,101 +52,66 @@ class ChatManager extends EventEmitter {
         });
     }
 
-    /**
-     * Send a chat message
-     */
-    sendMessage() {
+    sendMessage(): void {
         const message = this.input.value.trim();
-        
         if (!message) return;
-
         this.emit('send', message);
         this.input.value = '';
         this.input.focus();
     }
 
-    /**
-     * Add a chat message to the display
-     */
-    addMessage(data) {
-        const { playerId, playerName, playerColor, message, timestamp } = data;
-        
-        const entry = {
-            playerId,
-            playerName,
-            playerColor,
-            message,
-            timestamp,
+    addMessage(data: ChatMessageEntry): void {
+        const entry: ChatMessageEntry = {
+            playerId: data.playerId,
+            playerName: data.playerName,
+            playerColor: data.playerColor,
+            message: data.message,
+            timestamp: data.timestamp,
         };
-        
         this.messages.push(entry);
-        
-        // Trim old messages
         if (this.messages.length > this.maxMessages) {
             this.messages.shift();
-            this.container.removeChild(this.container.firstChild);
+            this.container.removeChild(this.container.firstChild!);
         }
-
         this.renderMessage(entry);
         this.scrollToBottom();
     }
 
-    /**
-     * Add a system message
-     */
-    addSystemMessage(message) {
-        const entry = {
+    addSystemMessage(message: string): void {
+        const entry: SystemMessageEntry = {
             system: true,
             message,
             timestamp: Date.now() / 1000,
         };
-        
         this.messages.push(entry);
         this.renderSystemMessage(entry);
         this.scrollToBottom();
     }
 
-    /**
-     * Render a chat message
-     */
-    renderMessage(entry) {
+    private renderMessage(entry: ChatMessageEntry): void {
         const div = document.createElement('div');
         div.className = 'chat-message';
-        div.style.borderLeftColor = entry.playerColor;
-
-        const time = this.formatTime(entry.timestamp);
-
+        div.style.borderLeftColor = entry.playerColor ?? '';
+        const time = this.formatTime(entry.timestamp ?? 0);
         div.innerHTML = `
-            <div class="sender" style="color: ${entry.playerColor}">${this.escapeHtml(entry.playerName)}</div>
-            <div class="content">${this.escapeHtml(entry.message)}</div>
+            <div class="sender" style="color: ${entry.playerColor ?? ''}">${this.escapeHtml(entry.playerName ?? '')}</div>
+            <div class="content">${this.escapeHtml(entry.message ?? '')}</div>
             <div class="timestamp">${time}</div>
         `;
-
         this.container.appendChild(div);
     }
 
-    /**
-     * Render a system message
-     */
-    renderSystemMessage(entry) {
+    private renderSystemMessage(entry: SystemMessageEntry): void {
         const div = document.createElement('div');
         div.className = 'chat-message system';
-
-        div.innerHTML = `
-            <div class="content">${this.escapeHtml(entry.message)}</div>
-        `;
-
+        div.innerHTML = `<div class="content">${this.escapeHtml(entry.message)}</div>`;
         this.container.appendChild(div);
     }
 
-    /**
-     * Load chat history
-     */
-    loadHistory(history) {
+    loadHistory(history: MessageEntry[]): void {
         this.clear();
-        
         for (const entry of history) {
-            if (entry.system) {
+            if (isSystemEntry(entry)) {
                 this.renderSystemMessage(entry);
             } else {
                 this.renderMessage({
@@ -136,53 +123,32 @@ class ChatManager extends EventEmitter {
                 });
             }
         }
-        
         this.messages = [...history];
         this.scrollToBottom();
     }
 
-    /**
-     * Clear all messages
-     */
-    clear() {
+    clear(): void {
         this.container.innerHTML = '';
         this.messages = [];
     }
 
-    /**
-     * Scroll to the bottom of the chat
-     */
-    scrollToBottom() {
+    private scrollToBottom(): void {
         this.container.scrollTop = this.container.scrollHeight;
     }
 
-    /**
-     * Format timestamp
-     */
-    formatTime(timestamp) {
+    private formatTime(timestamp: number): string {
         const date = new Date(timestamp * 1000);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    /**
-     * Escape HTML to prevent XSS
-     */
-    escapeHtml(text) {
+    private escapeHtml(text: string): string {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
-    /**
-     * Enable/disable input
-     */
-    setEnabled(enabled) {
+    setEnabled(enabled: boolean): void {
         this.input.disabled = !enabled;
         this.sendButton.disabled = !enabled;
     }
-}
-
-// Export for module usage
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ChatManager;
 }
