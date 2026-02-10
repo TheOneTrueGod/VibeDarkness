@@ -9,7 +9,9 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
+use App\AccountService;
 use App\LobbyManager;
+use App\Storage\FlatFilePlayerAccountStorage;
 
 // Enable CORS for development
 header('Access-Control-Allow-Origin: *');
@@ -58,16 +60,22 @@ if (preg_match('/^\/(app|css|js)\//', $path)) {
 
 // API Routes
 $lobbyManager = LobbyManager::getInstance();
+$accountStorage = new FlatFilePlayerAccountStorage();
+$accountService = new AccountService($accountStorage);
 
 try {
     $response = match(true) {
+        // Sign in: get or create player account by name
+        $method === 'POST' && $path === '/api/account/signin'
+            => handleSignIn($accountService),
+
         // List all public lobbies
         $method === 'GET' && $path === '/api/lobbies' 
             => handleListLobbies($lobbyManager),
         
         // Create a new lobby
         $method === 'POST' && $path === '/api/lobbies' 
-            => handleCreateLobby($lobbyManager),
+            => handleCreateLobby($lobbyManager, $accountService),
         
         // Get specific lobby details
         $method === 'GET' && preg_match('/^\/api\/lobbies\/([A-Z0-9]+)$/', $path, $matches) 
@@ -75,7 +83,7 @@ try {
         
         // Join a lobby
         $method === 'POST' && preg_match('/^\/api\/lobbies\/([A-Z0-9]+)\/join$/', $path, $matches) 
-            => handleJoinLobby($lobbyManager, $matches[1]),
+            => handleJoinLobby($lobbyManager, $accountService, $matches[1]),
         
         // Leave a lobby
         $method === 'POST' && preg_match('/^\/api\/lobbies\/([A-Z0-9]+)\/leave$/', $path, $matches)
@@ -112,6 +120,29 @@ try {
 }
 
 /**
+ * Sign in: get or create account by name. Returns account with id, name, and resources.
+ */
+function handleSignIn(AccountService $accountService): array
+{
+    $data = getJsonBody();
+    $name = $data['name'] ?? null;
+    if (!$name || trim($name) === '') {
+        http_response_code(400);
+        return ['success' => false, 'error' => 'Name is required'];
+    }
+    try {
+        $account = $accountService->signIn(trim($name));
+        return [
+            'success' => true,
+            'account' => $account->toArray(),
+        ];
+    } catch (\InvalidArgumentException $e) {
+        http_response_code(400);
+        return ['success' => false, 'error' => $e->getMessage()];
+    }
+}
+
+/**
  * List all public lobbies
  */
 function handleListLobbies(LobbyManager $manager): array
@@ -125,12 +156,12 @@ function handleListLobbies(LobbyManager $manager): array
 /**
  * Create a new lobby
  */
-function handleCreateLobby(LobbyManager $manager): array
+function handleCreateLobby(LobbyManager $manager, AccountService $accountService): array
 {
     $data = getJsonBody();
     
     $name = $data['name'] ?? null;
-    $playerName = $data['playerName'] ?? null;
+    $accountId = isset($data['accountId']) ? (int) $data['accountId'] : null;
     $maxPlayers = $data['maxPlayers'] ?? 8;
     $isPublic = $data['isPublic'] ?? true;
     
@@ -139,20 +170,25 @@ function handleCreateLobby(LobbyManager $manager): array
         return ['success' => false, 'error' => 'Lobby name is required'];
     }
     
-    if (!$playerName) {
+    if ($accountId === null || $accountId < 1) {
         http_response_code(400);
-        return ['success' => false, 'error' => 'Player name is required'];
+        return ['success' => false, 'error' => 'Valid accountId is required (sign in first)'];
     }
     
-    // Generate a unique player ID
-    $playerId = generatePlayerId();
+    $account = $accountService->getAccountById($accountId);
+    if ($account === null) {
+        http_response_code(404);
+        return ['success' => false, 'error' => 'Account not found'];
+    }
     
-    $result = $manager->createLobby($name, $playerId, $playerName, $maxPlayers, $isPublic);
+    $playerId = (string) $account->getId();
+    $result = $manager->createLobby($name, $playerId, $account->getName(), $maxPlayers, $isPublic);
     
     return [
         'success' => true,
         'lobby' => $result['lobby'],
         'player' => $result['player'],
+        'account' => $account->toArray(),
     ];
 }
 
@@ -177,20 +213,25 @@ function handleGetLobby(LobbyManager $manager, string $lobbyId): array
 /**
  * Join a lobby
  */
-function handleJoinLobby(LobbyManager $manager, string $lobbyId): array
+function handleJoinLobby(LobbyManager $manager, AccountService $accountService, string $lobbyId): array
 {
     $data = getJsonBody();
     
-    $playerName = $data['playerName'] ?? null;
+    $accountId = isset($data['accountId']) ? (int) $data['accountId'] : null;
     
-    if (!$playerName) {
+    if ($accountId === null || $accountId < 1) {
         http_response_code(400);
-        return ['success' => false, 'error' => 'Player name is required'];
+        return ['success' => false, 'error' => 'Valid accountId is required (sign in first)'];
     }
     
-    $playerId = generatePlayerId();
+    $account = $accountService->getAccountById($accountId);
+    if ($account === null) {
+        http_response_code(404);
+        return ['success' => false, 'error' => 'Account not found'];
+    }
     
-    $result = $manager->joinLobby($lobbyId, $playerId, $playerName);
+    $playerId = (string) $account->getId();
+    $result = $manager->joinLobby($lobbyId, $playerId, $account->getName());
     
     if ($result === null) {
         http_response_code(404);
@@ -206,6 +247,7 @@ function handleJoinLobby(LobbyManager $manager, string $lobbyId): array
         'success' => true,
         'lobby' => $result['lobby'],
         'player' => $result['player'],
+        'account' => $account->toArray(),
         'isRejoin' => $result['isRejoin'] ?? false,
     ];
 }

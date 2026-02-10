@@ -3,6 +3,23 @@
  * Handles screen transitions, player lists, and toast notifications
  */
 
+import { escapeHtml } from './utils/domUtils.js';
+
+/** Colour for each resource type (used in lobby resource display) */
+const RESOURCE_COLORS: Record<string, string> = {
+    fire: '#E74C3C',
+    water: '#3498DB',
+    earth: '#27AE60',
+    air: '#9B59B6',
+};
+
+interface ResourceDisplay {
+    fire: number;
+    water: number;
+    earth: number;
+    air: number;
+}
+
 interface PlayerDisplay {
     id: string;
     name: string;
@@ -18,7 +35,7 @@ interface LobbyListItem {
     maxPlayers: number;
 }
 
-class UI {
+export class UI {
     private currentScreen = 'lobby-screen';
     private toastContainer: HTMLElement;
 
@@ -67,7 +84,7 @@ class UI {
             const li = document.createElement('li');
             li.className = player.isConnected !== false ? '' : 'disconnected';
             let html = `<span class="player-dot" style="background-color: ${player.color}"></span>`;
-            html += `<span>${this.escapeHtml(player.name)}</span>`;
+            html += `<span>${escapeHtml(player.name)}</span>`;
             if (player.isHost) {
                 html += `<span class="host-indicator">HOST</span>`;
             }
@@ -99,6 +116,36 @@ class UI {
         }
     }
 
+    updateResources(resources: ResourceDisplay): void {
+        const container = document.getElementById('player-resources');
+        if (!container) return;
+        container.innerHTML = '';
+        const order: (keyof ResourceDisplay)[] = ['fire', 'water', 'earth', 'air'];
+        for (const key of order) {
+            const value = resources[key];
+            const span = document.createElement('span');
+            span.className = 'resource-pill';
+            span.setAttribute('data-resource', key);
+            span.style.setProperty('--resource-color', RESOURCE_COLORS[key] ?? '#888');
+            span.title = key.charAt(0).toUpperCase() + key.slice(1) + ': ' + value;
+            const crystal = document.createElement('span');
+            crystal.className = 'resource-crystal';
+            crystal.innerHTML = this.getCrystalSvg();
+            span.appendChild(crystal);
+            span.appendChild(document.createTextNode(String(value)));
+            container.appendChild(span);
+        }
+    }
+
+    /** SVG path for a diamond crystal icon (single path, fill controlled by CSS --resource-color) */
+    private getCrystalSvg(): string {
+        return (
+            '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+            '<path d="M12 2L22 12L12 22L2 12Z"/>' +
+            '</svg>'
+        );
+    }
+
     renderLobbyList(lobbies: LobbyListItem[], onJoinClick: (lobbyId: string) => void): void {
         const listEl = document.getElementById('lobby-list');
         if (!listEl) return;
@@ -112,7 +159,7 @@ class UI {
             div.className = 'lobby-item';
             div.innerHTML = `
                 <div class="lobby-item-info">
-                    <span class="lobby-item-name">${this.escapeHtml(lobby.name)}</span>
+                    <span class="lobby-item-name">${escapeHtml(lobby.name)}</span>
                     <span class="lobby-item-players">${lobby.playerCount}/${lobby.maxPlayers} players</span>
                 </div>
             `;
@@ -124,12 +171,6 @@ class UI {
             div.appendChild(joinBtn);
             listEl.appendChild(div);
         }
-    }
-
-    private escapeHtml(text: string): string {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
 
     getInputValue(id: string): string {

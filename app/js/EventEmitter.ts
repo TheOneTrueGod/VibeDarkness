@@ -2,7 +2,7 @@
  * Simple EventEmitter for pub/sub pattern
  * Used for decoupling components
  */
-class EventEmitter {
+export class EventEmitter {
     private events = new Map<string, Set<(...args: unknown[]) => void>>();
 
     /**

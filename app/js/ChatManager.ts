@@ -3,6 +3,9 @@
  * Handles chat UI and message display
  */
 
+import { EventEmitter } from './EventEmitter.js';
+import { escapeHtml } from './utils/domUtils.js';
+
 interface ChatMessageEntry {
     playerId?: string;
     playerName?: string;
@@ -23,7 +26,7 @@ function isSystemEntry(entry: MessageEntry): entry is SystemMessageEntry {
     return 'system' in entry && entry.system === true;
 }
 
-class ChatManager extends EventEmitter {
+export class ChatManager extends EventEmitter {
     private container: HTMLElement;
     private input: HTMLInputElement;
     private sendButton: HTMLButtonElement;
@@ -94,8 +97,8 @@ class ChatManager extends EventEmitter {
         div.style.borderLeftColor = entry.playerColor ?? '';
         const time = this.formatTime(entry.timestamp ?? 0);
         div.innerHTML = `
-            <div class="sender" style="color: ${entry.playerColor ?? ''}">${this.escapeHtml(entry.playerName ?? '')}</div>
-            <div class="content">${this.escapeHtml(entry.message ?? '')}</div>
+            <div class="sender" style="color: ${entry.playerColor ?? ''}">${escapeHtml(entry.playerName ?? '')}</div>
+            <div class="content">${escapeHtml(entry.message ?? '')}</div>
             <div class="timestamp">${time}</div>
         `;
         this.container.appendChild(div);
@@ -104,7 +107,7 @@ class ChatManager extends EventEmitter {
     private renderSystemMessage(entry: SystemMessageEntry): void {
         const div = document.createElement('div');
         div.className = 'chat-message system';
-        div.innerHTML = `<div class="content">${this.escapeHtml(entry.message)}</div>`;
+        div.innerHTML = `<div class="content">${escapeHtml(entry.message)}</div>`;
         this.container.appendChild(div);
     }
 
@@ -139,12 +142,6 @@ class ChatManager extends EventEmitter {
     private formatTime(timestamp: number): string {
         const date = new Date(timestamp * 1000);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    private escapeHtml(text: string): string {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
 
     setEnabled(enabled: boolean): void {

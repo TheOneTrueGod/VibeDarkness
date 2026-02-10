@@ -3,6 +3,11 @@
  * Ties all components together
  */
 
+import { ChatManager } from './ChatManager.js';
+import { GameCanvas } from './GameCanvas.js';
+import { LobbyClient } from './LobbyClient.js';
+import { UI } from './UI.js';
+
 interface LobbyState {
     id: string;
     name: string;
@@ -14,6 +19,15 @@ interface PlayerState {
     color: string;
     isHost?: boolean;
     isConnected?: boolean;
+}
+
+interface AccountState {
+    id: number;
+    name: string;
+    fire: number;
+    water: number;
+    earth: number;
+    air: number;
 }
 
 interface GameStatePayload {
@@ -31,6 +45,7 @@ interface PollMessagePayload {
 class GameApp {
     private currentLobby: LobbyState | null = null;
     private currentPlayer: PlayerState | null = null;
+    private currentAccount: AccountState | null = null;
     private players: Record<string, PlayerState> = {};
     private lastMessageId: number | null = null;
     private pollIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -119,7 +134,7 @@ class GameApp {
     private async loadLobbies(): Promise<void> {
         try {
             const lobbies = await this.lobbyClient.listLobbies();
-            this.ui.renderLobbyList(lobbies, (lobbyId) => this.joinLobby(lobbyId));
+            this.ui.renderLobbyList(lobbies, (lobbyId: string) => this.joinLobby(lobbyId));
         } catch (error) {
             console.error('Failed to load lobbies:', error);
             this.ui.showToast('Failed to load lobbies', 'error');
@@ -141,7 +156,9 @@ class GameApp {
 
         this.ui.setButtonEnabled('create-lobby-btn', false);
         try {
-            const result = await this.lobbyClient.createLobby(lobbyName, playerName);
+            const account = await this.lobbyClient.signIn(playerName);
+            this.currentAccount = account;
+            const result = await this.lobbyClient.createLobby(lobbyName, account.id);
             this.currentLobby = result.lobby;
             this.currentPlayer = result.player;
             this.showLobbyScreenWithConnectingState();
@@ -163,7 +180,9 @@ class GameApp {
             return;
         }
         try {
-            const result = await this.lobbyClient.joinLobby(lobbyId, playerName);
+            const account = await this.lobbyClient.signIn(playerName);
+            this.currentAccount = account;
+            const result = await this.lobbyClient.joinLobby(lobbyId, account.id);
             this.currentLobby = result.lobby;
             this.currentPlayer = result.player;
             this.showLobbyScreenWithConnectingState();
@@ -192,6 +211,9 @@ class GameApp {
         this.ui.showScreen('game-screen');
         this.ui.setLobbyInfo(this.currentLobby.name, this.currentLobby.id);
         this.ui.setPlayerInfo(this.currentPlayer.name, this.currentPlayer.isHost ?? false);
+        if (this.currentAccount) {
+            this.ui.updateResources(this.currentAccount);
+        }
         const initialPlayers: Record<string, PlayerState> = {
             [this.currentPlayer.id]: {
                 id: this.currentPlayer.id,
@@ -316,6 +338,7 @@ class GameApp {
         }
         this.currentLobby = null;
         this.currentPlayer = null;
+        this.currentAccount = null;
         this.players = {};
         this.gameCanvas!.clear();
         this.chatManager!.clear();

@@ -52,15 +52,22 @@
                 <!-- Main Game Area -->
                 <div class="game-area">
                     <div class="game-header">
-                        <div class="lobby-info">
-                            <span id="game-lobby-name">Lobby Name</span>
-                            <span id="game-lobby-code" class="lobby-code"></span>
+                        <div class="game-header-left">
+                            <div class="player-info">
+                                <span id="game-player-name"></span>
+                                <span id="host-badge" class="badge hidden">HOST</span>
+                            </div>
                         </div>
-                        <div class="player-info">
-                            <span id="game-player-name"></span>
-                            <span id="host-badge" class="badge hidden">HOST</span>
+                        <div class="game-header-center">
+                            <div class="lobby-info">
+                                <span id="game-lobby-name">Lobby Name</span>
+                                <span id="game-lobby-code" class="lobby-code"></span>
+                            </div>
                         </div>
-                        <button id="leave-lobby-btn" class="btn btn-danger btn-small">Leave</button>
+                        <div class="game-header-right">
+                            <div id="player-resources" class="player-resources" aria-label="Your resources"></div>
+                            <button id="leave-lobby-btn" class="btn btn-danger btn-small">Leave</button>
+                        </div>
                     </div>
                     
                     <div id="game-canvas-container" class="game-canvas-container">
@@ -95,12 +102,7 @@
     <!-- Notification Toast -->
     <div id="toast-container"></div>
     
-    <!-- Scripts (compiled from app/js/*.ts) -->
-    <script src="/app/js-out/EventEmitter.js"></script>
-    <script src="/app/js-out/LobbyClient.js"></script>
-    <script src="/app/js-out/ChatManager.js"></script>
-    <script src="/app/js-out/GameCanvas.js"></script>
-    <script src="/app/js-out/UI.js"></script>
-    <script src="/app/js-out/main.js"></script>
+    <!-- Scripts (compiled from app/js/*.ts); main.js loads the rest via ES modules -->
+    <script type="module" src="/app/js-out/main.js"></script>
 </body>
 </html>

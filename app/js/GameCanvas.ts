@@ -3,6 +3,8 @@
  * Handles the game area, click tracking, and marker display
  */
 
+import { EventEmitter } from './EventEmitter.js';
+
 interface ClickData {
     playerName: string;
     color: string;
@@ -19,7 +21,7 @@ interface ClickDataFromState {
     y: number;
 }
 
-class GameCanvas extends EventEmitter {
+export class GameCanvas extends EventEmitter {
     private container: HTMLElement;
     private markersContainer: HTMLElement;
     private clicks = new Map<string, ClickData>();

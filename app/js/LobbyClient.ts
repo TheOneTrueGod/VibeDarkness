@@ -6,6 +6,7 @@
 interface ApiResponse {
     success: boolean;
     error?: string;
+    account?: AccountInfo;
     lobbies?: LobbySummary[];
     lobby?: LobbyState;
     player?: PlayerInfo;
@@ -40,14 +41,25 @@ interface PlayerInfo {
     [key: string]: unknown;
 }
 
+interface AccountInfo {
+    id: number;
+    name: string;
+    fire: number;
+    water: number;
+    earth: number;
+    air: number;
+}
+
 interface CreateLobbyResult {
     lobby: LobbyState;
     player: PlayerInfo;
+    account: AccountInfo;
 }
 
 interface JoinLobbyResult {
     lobby: LobbyState;
     player: PlayerInfo;
+    account: AccountInfo;
     isRejoin?: boolean;
 }
 
@@ -62,7 +74,7 @@ interface PollMessage {
     data: Record<string, unknown>;
 }
 
-class LobbyClient {
+export class LobbyClient {
     private baseUrl: string;
 
     constructor(baseUrl = '') {
@@ -82,6 +94,14 @@ class LobbyClient {
         return data;
     }
 
+    async signIn(name: string): Promise<AccountInfo> {
+        const data = await this.request('/api/account/signin', {
+            method: 'POST',
+            body: JSON.stringify({ name: name.trim() }),
+        });
+        return data.account as AccountInfo;
+    }
+
     async listLobbies(): Promise<LobbySummary[]> {
         const data = await this.request('/api/lobbies');
         return data.lobbies as LobbySummary[];
@@ -89,15 +109,19 @@ class LobbyClient {
 
     async createLobby(
         lobbyName: string,
-        playerName: string,
+        accountId: number,
         maxPlayers = 8,
         isPublic = true
     ): Promise<CreateLobbyResult> {
         const data = await this.request('/api/lobbies', {
             method: 'POST',
-            body: JSON.stringify({ name: lobbyName, playerName, maxPlayers, isPublic }),
+            body: JSON.stringify({ name: lobbyName, accountId, maxPlayers, isPublic }),
         });
-        return { lobby: data.lobby as LobbyState, player: data.player as PlayerInfo };
+        return {
+            lobby: data.lobby as LobbyState,
+            player: data.player as PlayerInfo,
+            account: data.account as AccountInfo,
+        };
     }
 
     async getLobby(lobbyId: string): Promise<LobbyState> {
@@ -105,14 +129,15 @@ class LobbyClient {
         return data.lobby as LobbyState;
     }
 
-    async joinLobby(lobbyId: string, playerName: string): Promise<JoinLobbyResult> {
+    async joinLobby(lobbyId: string, accountId: number): Promise<JoinLobbyResult> {
         const data = await this.request(`/api/lobbies/${lobbyId}/join`, {
             method: 'POST',
-            body: JSON.stringify({ playerName }),
+            body: JSON.stringify({ accountId }),
         });
         return {
             lobby: data.lobby as LobbyState,
             player: data.player as PlayerInfo,
+            account: data.account as AccountInfo,
             isRejoin: data.isRejoin as boolean | undefined,
         };
     }

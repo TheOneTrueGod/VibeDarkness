@@ -1,0 +1,34 @@
+{
+    "id": "EE860A",
+    "name": "1771B3",
+    "hostId": "2",
+    "maxPlayers": 8,
+    "isPublic": true,
+    "createdAt": 1770695290.813985,
+    "lastActivity": 1770695297.931048,
+    "players": [],
+    "chatHistory": [],
+    "messages": [
+        {
+            "messageId": 1,
+            "type": "player_join",
+            "timestamp": 1770695290.814031,
+            "data": {
+                "playerId": "2",
+                "playerName": "Test",
+                "color": "#4ECDC4",
+                "isHost": true
+            }
+        },
+        {
+            "messageId": 2,
+            "type": "player_leave",
+            "timestamp": 1770695297.931045,
+            "data": {
+                "playerId": "2",
+                "playerName": "Test"
+            }
+        }
+    ],
+    "lastMessageId": 2
+}
