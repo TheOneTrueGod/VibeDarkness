@@ -1,0 +1,258 @@
+{
+    "id": "24E36B",
+    "name": "test",
+    "hostId": "3",
+    "maxPlayers": 8,
+    "isPublic": true,
+    "createdAt": 1770701151.820343,
+    "lastActivity": 1770703641.679976,
+    "players": {
+        "3": {
+            "id": "3",
+            "name": "test1",
+            "color": "#F7DC6F",
+            "isHost": true,
+            "isConnected": true,
+            "lastClick": {
+                "x": 53.2608695652174,
+                "y": 21.734636624043944,
+                "timestamp": 1770701164.415913
+            },
+            "reconnectToken": "18168ffd2dd5f108fa6f6628b5674f65",
+            "lastActivity": 1770703641.679943
+        },
+        "4": {
+            "id": "4",
+            "name": "test2",
+            "color": "#FFEAA7",
+            "isHost": false,
+            "isConnected": true,
+            "lastClick": {
+                "x": 40.94202898550724,
+                "y": 34.586421758261224,
+                "timestamp": 1770701162.349172
+            },
+            "reconnectToken": "33cedfe21afee0e72af914d14ef4d947",
+            "lastActivity": 1770703641.679957
+        },
+        "1": {
+            "id": "1",
+            "name": "Jer",
+            "color": "#58D68D",
+            "isHost": false,
+            "isConnected": true,
+            "lastClick": {
+                "x": 62.00181159420289,
+                "y": 31.089980214393293,
+                "timestamp": 1770703641.679971
+            },
+            "reconnectToken": "fc6fc969c785a62965bca2dc816e7e25",
+            "lastActivity": 1770703641.679961
+        }
+    },
+    "chatHistory": [],
+    "messages": [
+        {
+            "messageId": 1,
+            "type": "player_join",
+            "timestamp": 1770701151.820422,
+            "data": {
+                "playerId": "3",
+                "playerName": "test1",
+                "color": "#F7DC6F",
+                "isHost": true
+            }
+        },
+        {
+            "messageId": 2,
+            "type": "player_join",
+            "timestamp": 1770701161.299981,
+            "data": {
+                "playerId": "4",
+                "playerName": "test2",
+                "color": "#FFEAA7",
+                "isHost": false
+            }
+        },
+        {
+            "messageId": 3,
+            "type": "click",
+            "timestamp": 1770701162.075676,
+            "data": {
+                "playerId": "4",
+                "playerName": "test2",
+                "color": "#FFEAA7",
+                "x": 63.360507246376805,
+                "y": 49.89516581519653
+            }
+        },
+        {
+            "messageId": 4,
+            "type": "click",
+            "timestamp": 1770701162.349175,
+            "data": {
+                "playerId": "4",
+                "playerName": "test2",
+                "color": "#FFEAA7",
+                "x": 40.94202898550724,
+                "y": 34.586421758261224
+            }
+        },
+        {
+            "messageId": 5,
+            "type": "click",
+            "timestamp": 1770701163.665406,
+            "data": {
+                "playerId": "3",
+                "playerName": "test1",
+                "color": "#F7DC6F",
+                "x": 62.95289855072463,
+                "y": 61.70746832826388
+            }
+        },
+        {
+            "messageId": 6,
+            "type": "click",
+            "timestamp": 1770701164.065562,
+            "data": {
+                "playerId": "3",
+                "playerName": "test1",
+                "color": "#F7DC6F",
+                "x": 66.84782608695652,
+                "y": 22.67962082508933
+            }
+        },
+        {
+            "messageId": 7,
+            "type": "click",
+            "timestamp": 1770701164.415916,
+            "data": {
+                "playerId": "3",
+                "playerName": "test1",
+                "color": "#F7DC6F",
+                "x": 53.2608695652174,
+                "y": 21.734636624043944
+            }
+        },
+        {
+            "messageId": 8,
+            "type": "player_join",
+            "timestamp": 1770702231.850894,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "isHost": false
+            }
+        },
+        {
+            "messageId": 9,
+            "type": "click",
+            "timestamp": 1770703527.604778,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 60.64311594202898,
+                "y": 42.99678114756519
+            }
+        },
+        {
+            "messageId": 10,
+            "type": "click",
+            "timestamp": 1770703528.728493,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 33.016304347826086,
+                "y": 34.208428077843074
+            }
+        },
+        {
+            "messageId": 11,
+            "type": "click",
+            "timestamp": 1770703529.409908,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 84.10326086956522,
+                "y": 35.15341227888846
+            }
+        },
+        {
+            "messageId": 12,
+            "type": "click",
+            "timestamp": 1770703529.88698,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 62.77173913043478,
+                "y": 55.37607418125978
+            }
+        },
+        {
+            "messageId": 13,
+            "type": "click",
+            "timestamp": 1770703531.508248,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 65.03623188405797,
+                "y": 31.278977054602368
+            }
+        },
+        {
+            "messageId": 14,
+            "type": "click",
+            "timestamp": 1770703639.150122,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 59.28442028985508,
+                "y": 50.084162655405606
+            }
+        },
+        {
+            "messageId": 15,
+            "type": "click",
+            "timestamp": 1770703639.60519,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 80.88768115942028,
+                "y": 18.33269350028054
+            }
+        },
+        {
+            "messageId": 16,
+            "type": "click",
+            "timestamp": 1770703640.502874,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 32.47282608695652,
+                "y": 62.65245252930928
+            }
+        },
+        {
+            "messageId": 17,
+            "type": "click",
+            "timestamp": 1770703641.679974,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 62.00181159420289,
+                "y": 31.089980214393293
+            }
+        }
+    ],
+    "lastMessageId": 17
+}

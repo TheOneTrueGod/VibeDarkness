@@ -130,7 +130,7 @@ class LobbyManager
     /**
      * Permanently remove a player from a lobby
      */
-    public function leavelobby(string $lobbyId, string $playerId): bool
+    public function leaveLobby(string $lobbyId, string $playerId): bool
     {
         $lobby = $this->getLobby($lobbyId);
 

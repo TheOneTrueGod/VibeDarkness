@@ -3,7 +3,7 @@
  * Strongly typed message definitions for client-server communication
  */
 
-const MessageType = Object.freeze({
+export const MessageType = Object.freeze({
     CHAT: 'chat',
     CLICK: 'click',
     STATE_REQUEST: 'state_request',
@@ -94,7 +94,7 @@ export class Message {
     }
 }
 
-const Messages = {
+export const Messages = {
     chat(message: string) {
         return new Message(MessageType.CHAT as MessageTypeValue, { message });
     },

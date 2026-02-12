@@ -5,7 +5,7 @@
     "maxPlayers": 8,
     "isPublic": true,
     "createdAt": 1770695164.074324,
-    "lastActivity": 1770695307.880138,
+    "lastActivity": 1770699252.537998,
     "players": {
         "1": {
             "id": "1",
@@ -14,12 +14,12 @@
             "isHost": true,
             "isConnected": true,
             "lastClick": {
-                "x": 41.1231884057971,
-                "y": 35.720402799515696,
-                "timestamp": 1770695176.354862
+                "x": 68.56884057971014,
+                "y": 32.88545019637953,
+                "timestamp": 1770699252.537992
             },
             "reconnectToken": "705484765beb3efce6f5e277d7b03115",
-            "lastActivity": 1770695307.880114
+            "lastActivity": 1770699252.537967
         },
         "2": {
             "id": "2",
@@ -33,7 +33,7 @@
                 "timestamp": 1770695307.880135
             },
             "reconnectToken": "76d2a66f4aad8c8c38429a292dfb2e96",
-            "lastActivity": 1770695307.880126
+            "lastActivity": 1770699252.537981
         }
     },
     "chatHistory": [],
@@ -239,7 +239,19 @@
                 "x": 46.24094202898551,
                 "y": 65.10941145202729
             }
+        },
+        {
+            "messageId": 18,
+            "type": "click",
+            "timestamp": 1770699252.537996,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 68.56884057971014,
+                "y": 32.88545019637953
+            }
         }
     ],
-    "lastMessageId": 17
+    "lastMessageId": 18
 }
