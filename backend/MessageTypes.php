@@ -32,6 +32,10 @@ enum MessageType: string
     case LOBBY_UPDATE = 'lobby_update';
     case HOST_CHANGED = 'host_changed';
     
+    // Minion Battles game messages
+    case MISSION_VOTE = 'mission_vote';
+    case GAME_PHASE_CHANGED = 'game_phase_changed';
+    
     /**
      * Get the required fields for each message type
      */
@@ -50,6 +54,8 @@ enum MessageType: string
             self::PONG => [],
             self::LOBBY_UPDATE => ['players'],
             self::HOST_CHANGED => ['newHostId'],
+            self::MISSION_VOTE => ['playerId', 'missionId'],
+            self::GAME_PHASE_CHANGED => ['gamePhase'],
         };
     }
     
@@ -75,7 +81,8 @@ enum MessageType: string
         return match($this) {
             self::CHAT, self::CLICK, self::PLAYER_JOIN, 
             self::PLAYER_LEAVE, self::PLAYER_REJOIN,
-            self::LOBBY_UPDATE, self::HOST_CHANGED => true,
+            self::LOBBY_UPDATE, self::HOST_CHANGED,
+            self::MISSION_VOTE, self::GAME_PHASE_CHANGED => true,
             default => false,
         };
     }

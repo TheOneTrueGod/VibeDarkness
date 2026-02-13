@@ -49,6 +49,69 @@ class PostMessageHandler
             return ['success' => true, 'messageId' => $messageId];
         }
 
+        if ($type === 'mission_vote') {
+            $missionId = $payload['missionId'] ?? null;
+            if (!$missionId || !is_string($missionId)) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'missionId required'];
+            }
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+            $gameId = $lobby->getGameId();
+            if (!$gameId) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'No active game'];
+            }
+            
+            // Get current game state
+            $gameState = $manager->getGameStateData($lobbyId, $gameId);
+            if ($gameState === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Game state not found'];
+            }
+            
+            // Update mission votes
+            $missionVotes = $gameState['missionVotes'] ?? $gameState['mission_votes'] ?? [];
+            $missionVotes[$playerId] = $missionId;
+            $manager->updateGameState($lobbyId, $gameId, $lobby->getHostId(), ['missionVotes' => $missionVotes]);
+            
+            // Broadcast vote message
+            $messageId = $lobby->addMessage('mission_vote', [
+                'playerId' => $playerId,
+                'missionId' => $missionId,
+            ]);
+            $manager->persistLobby($lobby);
+            
+            // Note: Phase change is handled by the host client calling updateGameState API
+            // The host will check for unanimous votes and update the phase
+            
+            return ['success' => true, 'messageId' => $messageId];
+        }
+
+        if ($type === 'game_phase_changed') {
+            $gamePhase = $payload['gamePhase'] ?? null;
+            if (!$gamePhase || !is_string($gamePhase)) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'gamePhase required'];
+            }
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+            
+            // Broadcast phase change message
+            $messageId = $lobby->addMessage('game_phase_changed', [
+                'gamePhase' => $gamePhase,
+            ]);
+            $manager->persistLobby($lobby);
+            
+            return ['success' => true, 'messageId' => $messageId];
+        }
+
         http_response_code(400);
         return ['success' => false, 'error' => 'Unknown message type'];
     }

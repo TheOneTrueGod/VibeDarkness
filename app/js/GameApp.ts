@@ -534,7 +534,7 @@ export class GameApp {
             const GameClass = mod.default;
             if (typeof GameClass === 'function') {
                 const options = { gameId, gameType: gameTypeId, gameData: gameData ?? undefined };
-                this.currentGameInstance = new GameClass(container, options) as { destroy?: () => void };
+                this.currentGameInstance = new GameClass(container, options) as { destroy?: () => void; updateFromMessage?: (type: string, data: Record<string, unknown>) => void };
             }
         } catch (error) {
             console.error('Failed to load game:', error);

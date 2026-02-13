@@ -1,0 +1,15 @@
+{
+    "lobby_id": "135799",
+    "players": [
+        1
+    ],
+    "hands": {
+        "1": []
+    },
+    "gamePhase": "character_select",
+    "missionVotes": {
+        "1": "dark_awakening"
+    },
+    "gameId": "698ed165abfcf0_96870228",
+    "gameType": "minion_battles"
+}

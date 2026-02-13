@@ -9,7 +9,7 @@ class MinionBattlesGame extends BaseGame
 {
     /**
      * @param array<string> $playerIds
-     * @return array{lobby_id: string, players: array<string>, hands: array<string, array<string>>}
+     * @return array{lobby_id: string, players: array<string>, hands: array<string, array<string>>, gamePhase: string, missionVotes: array<string, string>}
      */
     public static function createInitialState(string $lobbyId, array $playerIds): array
     {
@@ -20,6 +20,8 @@ class MinionBattlesGame extends BaseGame
         }
         return array_merge($base, [
             'hands' => $hands,
+            'gamePhase' => 'mission_select',
+            'missionVotes' => [],
         ]);
     }
 }

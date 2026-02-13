@@ -16,6 +16,8 @@ export const MessageType = Object.freeze({
     PONG: 'pong',
     LOBBY_UPDATE: 'lobby_update',
     HOST_CHANGED: 'host_changed',
+    MISSION_VOTE: 'mission_vote',
+    GAME_PHASE_CHANGED: 'game_phase_changed',
 } as const);
 
 type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
@@ -41,6 +43,8 @@ const MessageSchema: Record<string, SchemaDef> = Object.freeze({
     [MessageType.PONG]: { required: [], optional: [] },
     [MessageType.LOBBY_UPDATE]: { required: ['players'], optional: [] },
     [MessageType.HOST_CHANGED]: { required: ['newHostId'], optional: [] },
+    [MessageType.MISSION_VOTE]: { required: ['playerId', 'missionId'], optional: [] },
+    [MessageType.GAME_PHASE_CHANGED]: { required: ['gamePhase'], optional: [] },
 });
 
 export class Message {

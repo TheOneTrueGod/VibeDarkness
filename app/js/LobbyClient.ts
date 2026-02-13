@@ -17,6 +17,7 @@ interface ApiResponse {
     messages?: PollMessage[];
     messageId?: number;
     stats?: unknown;
+    gameStateData?: Record<string, unknown>;
 }
 
 interface LobbySummary {
@@ -200,5 +201,18 @@ export class LobbyClient {
     async getStats(): Promise<unknown> {
         const data = await this.request('/api/stats');
         return data.stats;
+    }
+
+    async updateGameState(
+        lobbyId: string,
+        gameId: string,
+        playerId: string,
+        updates: Record<string, unknown>
+    ): Promise<Record<string, unknown>> {
+        const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/state`, {
+            method: 'POST',
+            body: JSON.stringify({ playerId, updates }),
+        });
+        return (data.gameStateData as Record<string, unknown>) ?? {};
     }
 }

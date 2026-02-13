@@ -73,5 +73,17 @@ export function handlePollMessage(msg: PollMessagePayload, context: PollMessageH
             showToast('You are now the host!', 'info');
         }
         addSystemMessage('Host has changed');
+    } else if (type === MessageType.MISSION_VOTE) {
+        // Notify game instance if it exists
+        const app = (window as { app?: { currentGameInstance?: { updateFromMessage?: (type: string, data: Record<string, unknown>) => void } } }).app;
+        if (app?.currentGameInstance?.updateFromMessage) {
+            app.currentGameInstance.updateFromMessage(type, data);
+        }
+    } else if (type === MessageType.GAME_PHASE_CHANGED) {
+        // Notify game instance if it exists
+        const app = (window as { app?: { currentGameInstance?: { updateFromMessage?: (type: string, data: Record<string, unknown>) => void } } }).app;
+        if (app?.currentGameInstance?.updateFromMessage) {
+            app.currentGameInstance.updateFromMessage(type, data);
+        }
     }
 }

@@ -339,7 +339,7 @@ class LobbyManager
     /**
      * Persist lobby to shared storage (used for getLobby when not in memory)
      */
-    private function persistLobby(Lobby $lobby): void
+    public function persistLobby(Lobby $lobby): void
     {
         $path = $this->getStoragePath() . '/' . $lobby->getId() . '.json';
         file_put_contents($path, json_encode($lobby->toArrayForStorage(), JSON_PRETTY_PRINT));
@@ -376,6 +376,33 @@ class LobbyManager
         $json = file_get_contents($path);
         $data = json_decode($json, true);
         return is_array($data) ? $data : null;
+    }
+
+    /**
+     * Update game state (host only). Merges provided data with existing state.
+     */
+    public function updateGameState(string $lobbyId, string $gameId, string $playerId, array $updates): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null) {
+            return false;
+        }
+        $player = $lobby->getPlayer($playerId);
+        if ($player === null || !$player->isHost()) {
+            return false;
+        }
+        if ($lobby->getGameId() !== $gameId) {
+            return false;
+        }
+
+        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        if ($currentState === null) {
+            return false;
+        }
+
+        $newState = array_merge($currentState, $updates);
+        $this->persistGameState($lobbyId, $gameId, $newState);
+        return true;
     }
 
     /**

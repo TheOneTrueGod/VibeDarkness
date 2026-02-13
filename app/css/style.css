@@ -840,3 +840,130 @@ input[type="text"]::placeholder {
 .debug-game-state-json code {
     font-family: inherit;
 }
+
+/* Minion Battles Game Phases */
+.minion-battles-game .phase-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.minion-battles-game .phase-title {
+    font-size: 32px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 30px;
+    color: var(--text-color);
+}
+
+.minion-battles-game .mission-select-phase {
+    width: 100%;
+}
+
+.minion-battles-game .mission-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+    margin-top: 20px;
+}
+
+.minion-battles-game .mission-card {
+    background: var(--surface-color);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.minion-battles-game .mission-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.minion-battles-game .mission-card.selected {
+    border-color: var(--primary-color);
+    background: var(--surface-light);
+    box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+}
+
+.minion-battles-game .mission-hero {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--background-color);
+}
+
+.minion-battles-game .mission-hero svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.minion-battles-game .mission-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+}
+
+.minion-battles-game .mission-description {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin: 0;
+    flex: 1;
+}
+
+.minion-battles-game .mission-votes {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.minion-battles-game .vote-indicators {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.minion-battles-game .vote-indicator {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+}
+
+.minion-battles-game .vote-count {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.minion-battles-game .phase-transition-message {
+    text-align: center;
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--success-color);
+    color: white;
+    border-radius: var(--radius);
+    font-weight: 500;
+}
+
+.minion-battles-game .character-select-phase {
+    width: 100%;
+}
+
+.minion-battles-game .character-select-phase .phase-description {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 18px;
+    margin-top: 20px;
+}
