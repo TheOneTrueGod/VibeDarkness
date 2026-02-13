@@ -347,6 +347,98 @@ input[type="text"]::placeholder {
     font-weight: 700;
 }
 
+.lobby-central {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.game-list-container {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    background-color: var(--surface-color);
+    border-radius: var(--radius-lg);
+}
+
+.game-list-container.hidden,
+.game-slot.hidden {
+    display: none !important;
+}
+
+.game-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    list-style: none;
+}
+
+.game-list-card {
+    background: var(--surface-light);
+    border-radius: var(--radius);
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.game-list-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow);
+}
+
+.game-list-card.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.game-list-card.disabled:hover {
+    border-color: var(--border-color);
+    box-shadow: none;
+}
+
+.game-list-card img {
+    width: 100%;
+    aspect-ratio: 16/10;
+    object-fit: cover;
+    border-radius: 4px;
+    background: var(--surface-color);
+}
+
+.game-list-card h3 {
+    margin: 12px 0 8px;
+    font-size: 16px;
+}
+
+.game-list-card p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.game-slot {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--surface-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    min-height: 0;
+}
+
+.minion-battles-game .game-container {
+    text-align: center;
+}
+
+.game-load-error {
+    padding: 20px;
+    color: var(--danger-color);
+}
+
 .game-canvas-container {
     flex: 1;
     position: relative;

@@ -149,6 +149,18 @@ export class LobbyClient {
         });
     }
 
+    async setLobbyState(
+        lobbyId: string,
+        playerId: string,
+        state: 'home' | 'in_game',
+        gameId?: string
+    ): Promise<void> {
+        await this.request(`/api/lobbies/${lobbyId}/state`, {
+            method: 'POST',
+            body: JSON.stringify({ playerId, state, gameId: state === 'in_game' ? gameId : undefined }),
+        });
+    }
+
     async getLobbyState(lobbyId: string, playerId: string): Promise<LobbyStateResult> {
         const data = await this.request(
             `/api/lobbies/${lobbyId}/state?playerId=${encodeURIComponent(playerId)}`

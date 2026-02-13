@@ -1,0 +1,38 @@
+{
+    "id": "6AA88E",
+    "name": "asdf",
+    "hostId": "1",
+    "maxPlayers": 8,
+    "isPublic": true,
+    "createdAt": 1770949407.199785,
+    "lastActivity": 1770950523.605358,
+    "players": {
+        "1": {
+            "id": "1",
+            "name": "Jer",
+            "color": "#58D68D",
+            "isHost": true,
+            "isConnected": true,
+            "lastClick": [],
+            "reconnectToken": "efcdd073f90004e2ca4907e255652c81",
+            "lastActivity": 1770950523.605336
+        }
+    },
+    "chatHistory": [],
+    "messages": [
+        {
+            "messageId": 1,
+            "type": "player_join",
+            "timestamp": 1770949407.257462,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "isHost": true
+            }
+        }
+    ],
+    "lastMessageId": 1,
+    "lobbyState": "in_game",
+    "gameId": "minion_battles"
+}

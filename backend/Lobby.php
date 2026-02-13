@@ -20,6 +20,8 @@ class Lobby
     private float $lastActivity;
     private int $maxPlayers;
     private bool $isPublic;
+    private string $lobbyState = 'home';
+    private ?string $gameId = null;
 
     private const MAX_CHAT_HISTORY = 100;
     private const MAX_MESSAGES = 500;
@@ -69,6 +71,26 @@ class Lobby
     public function getMaxPlayers(): int
     {
         return $this->maxPlayers;
+    }
+
+    public function getLobbyState(): string
+    {
+        return $this->lobbyState;
+    }
+
+    public function getGameId(): ?string
+    {
+        return $this->gameId;
+    }
+
+    /**
+     * Set lobby state (host only). state: 'home' | 'in_game', gameId required when in_game.
+     */
+    public function setLobbyState(string $state, ?string $gameId = null): void
+    {
+        $this->lobbyState = $state;
+        $this->gameId = $gameId;
+        $this->updateActivity();
     }
 
     public function getPlayerCount(): int
@@ -291,6 +313,8 @@ class Lobby
             'lobbyId' => $this->id,
             'lobbyName' => $this->name,
             'hostId' => $this->hostId,
+            'lobbyState' => $this->lobbyState,
+            'gameId' => $this->gameId,
             'players' => array_map(fn($p) => $p->toArray(), $this->players),
             'clicks' => $this->getAllClicks(),
             'chatHistory' => $this->chatHistory,
@@ -337,6 +361,8 @@ class Lobby
             'chatHistory' => $this->chatHistory,
             'messages' => $this->messages,
             'lastMessageId' => $this->lastMessageId,
+            'lobbyState' => $this->lobbyState,
+            'gameId' => $this->gameId,
         ];
     }
 
@@ -369,6 +395,12 @@ class Lobby
         }
         if (isset($data['lastMessageId'])) {
             $lobby->lastMessageId = (int) $data['lastMessageId'];
+        }
+        if (isset($data['lobbyState'])) {
+            $lobby->lobbyState = $data['lobbyState'];
+        }
+        if (array_key_exists('gameId', $data)) {
+            $lobby->gameId = $data['gameId'];
         }
         return $lobby;
     }

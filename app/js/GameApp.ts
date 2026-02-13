@@ -11,6 +11,10 @@ import { LobbyClient } from './LobbyClient.js';
 import { Messages } from './MessageTypes.js';
 import { UI } from './UI.js';
 import type { AccountState, GameStatePayload, LobbyState, PlayerState, PollMessagePayload } from './types.js';
+import { GAMES, getGameById } from './games/list.js';
+
+/** Lobby page state: 'home' (game list) or 'in_game' (game loaded) */
+type LobbyPageState = 'home' | 'in_game';
 
 export class GameApp {
     private currentLobby: LobbyState | null = null;
@@ -19,6 +23,12 @@ export class GameApp {
     private players: Record<string, PlayerState> = {};
     private lastMessageId: number | null = null;
     private pollIntervalId: ReturnType<typeof setInterval> | null = null;
+    private lobbyStatusIntervalId: ReturnType<typeof setInterval> | null = null;
+
+    /** Lobby page state and selected game (from server) */
+    private lobbyPageState: LobbyPageState = 'home';
+    private lobbyGameId: string | null = null;
+    private currentGameInstance: { destroy?: () => void } | null = null;
 
     private ui: UI;
     private lobbyClient: LobbyClient;
@@ -32,12 +42,69 @@ export class GameApp {
     }
 
     private static readonly PLAYER_NAME_STORAGE_KEY = 'playerName';
+    private static readonly LOBBY_PATH_PREFIX = '/lobby/';
 
     private async init(): Promise<void> {
         this.setupUIComponents();
         this.setupEventListeners();
+
+        const lobbyCode = this.getLobbyCodeFromPath();
+        if (lobbyCode) {
+            const storedName = this.getStoredPlayerName();
+            if (storedName) {
+                await this.rejoinLobbyFromPath(lobbyCode, storedName);
+                return;
+            }
+            window.location.href = '/';
+            return;
+        }
+
         this.restorePlayerName();
         await this.loadLobbies();
+    }
+
+    private getLobbyCodeFromPath(): string | null {
+        const match = window.location.pathname.match(/^\/lobby\/([A-Za-z0-9]+)$/);
+        return match ? match[1].toUpperCase() : null;
+    }
+
+    private getStoredPlayerName(): string | null {
+        try {
+            const name = localStorage.getItem(GameApp.PLAYER_NAME_STORAGE_KEY);
+            return name && name.trim() ? name.trim() : null;
+        } catch {
+            return null;
+        }
+    }
+
+    private async rejoinLobbyFromPath(lobbyCode: string, playerName: string): Promise<void> {
+        this.ui.setInputValue('player-name', playerName);
+        try {
+            const account = await this.lobbyClient.signIn(playerName);
+            this.savePlayerName(playerName);
+            this.currentAccount = account;
+            const result = await this.lobbyClient.joinLobby(lobbyCode, account.id);
+            this.currentLobby = result.lobby;
+            this.currentPlayer = result.player;
+            this.showLobbyScreenWithConnectingState();
+            await this.startInLobby();
+        } catch (error) {
+            console.error('Failed to rejoin lobby:', error);
+            this.ui.showToast(
+                'Failed to rejoin lobby: ' + (error instanceof Error ? error.message : 'Unknown error'),
+                'error'
+            );
+            window.location.href = '/';
+        }
+    }
+
+    private updateLobbyUrl(lobbyCode?: string): void {
+        const url = lobbyCode ? `${GameApp.LOBBY_PATH_PREFIX}${lobbyCode}` : '/';
+        if (lobbyCode) {
+            window.history.pushState(null, '', url);
+        } else {
+            window.history.replaceState(null, '', url);
+        }
     }
 
     private restorePlayerName(): void {
@@ -106,6 +173,12 @@ export class GameApp {
         const leaveBtn = document.getElementById('leave-lobby-btn');
         const lobbyCodeInput = document.getElementById('lobby-code');
         const lobbyNameInput = document.getElementById('lobby-name');
+
+        window.addEventListener('popstate', () => {
+            if (this.currentLobby && window.location.pathname === '/') {
+                this.leaveLobby();
+            }
+        });
 
         if (createBtn) createBtn.addEventListener('click', () => this.createLobby());
         if (joinBtn) joinBtn.addEventListener('click', () => this.joinLobbyByCode());
@@ -203,6 +276,7 @@ export class GameApp {
         if (!this.currentLobby || !this.currentPlayer) return;
         this.ui.setConnectionStatus('connecting');
         this.ui.showScreen('game-screen');
+        this.updateLobbyUrl(this.currentLobby.id);
         this.ui.setLobbyInfo(this.currentLobby.name, this.currentLobby.id);
         this.ui.setPlayerInfo(this.currentPlayer.name, this.currentPlayer.isHost ?? false);
         if (this.currentAccount) {
@@ -235,6 +309,7 @@ export class GameApp {
             this.chatManager!.setEnabled(true);
             this.chatManager!.addSystemMessage('Connected to lobby');
             this.pollIntervalId = setInterval(() => this.pollMessages(), 1000);
+            this.startLobbyStatusPoll();
         } catch (error) {
             console.error('Failed to load lobby state:', error);
             this.ui.showToast('Failed to load lobby', 'error');
@@ -291,6 +366,8 @@ export class GameApp {
     }
 
     private loadGameState(state: GameStatePayload): void {
+        this.lobbyPageState = (state.lobbyState === 'in_game' ? 'in_game' : 'home') as LobbyPageState;
+        this.lobbyGameId = state.gameId ?? null;
         this.players = {};
         for (const player of Object.values(state.players)) {
             this.players[player.id] = player;
@@ -298,6 +375,137 @@ export class GameApp {
         this.ui.updatePlayerList(this.players, this.currentPlayer?.id);
         this.gameCanvas!.loadClicks(state.clicks);
         this.chatManager!.loadHistory(state.chatHistory as Parameters<ChatManager['loadHistory']>[0]);
+        this.updateLobbyCentralView();
+    }
+
+    private startLobbyStatusPoll(): void {
+        this.stopLobbyStatusPoll();
+        this.lobbyStatusIntervalId = setInterval(() => this.fetchLobbyStatus(), 5000);
+    }
+
+    private stopLobbyStatusPoll(): void {
+        if (this.lobbyStatusIntervalId) {
+            clearInterval(this.lobbyStatusIntervalId);
+            this.lobbyStatusIntervalId = null;
+        }
+    }
+
+    private async fetchLobbyStatus(): Promise<void> {
+        if (!this.currentLobby || !this.currentPlayer) return;
+        try {
+            const { gameState } = await this.lobbyClient.getLobbyState(
+                this.currentLobby.id,
+                this.currentPlayer.id
+            );
+            const payload = gameState as GameStatePayload;
+            const newState = (payload.lobbyState === 'in_game' ? 'in_game' : 'home') as LobbyPageState;
+            const newGameId = payload.gameId ?? null;
+            if (newState !== this.lobbyPageState || newGameId !== this.lobbyGameId) {
+                this.lobbyPageState = newState;
+                this.lobbyGameId = newGameId;
+                this.updateLobbyCentralView();
+            }
+        } catch {
+            // ignore; keep current view
+        }
+    }
+
+    private updateLobbyCentralView(): void {
+        const listEl = document.getElementById('game-list-container');
+        const slotEl = document.getElementById('game-slot');
+        const canvasEl = document.getElementById('game-canvas-container');
+        if (!listEl || !slotEl || !canvasEl) return;
+
+        listEl.classList.add('hidden');
+        slotEl.classList.add('hidden');
+        canvasEl.classList.add('hidden');
+
+        if (this.lobbyPageState === 'home') {
+            listEl.classList.remove('hidden');
+            this.renderGameList(listEl);
+            this.destroyCurrentGame();
+        } else {
+            slotEl.classList.remove('hidden');
+            if (this.lobbyGameId) {
+                this.loadGameIntoSlot(slotEl, this.lobbyGameId);
+            }
+        }
+    }
+
+    private renderGameList(container: HTMLElement): void {
+        const isHost = this.currentPlayer?.isHost ?? false;
+        container.innerHTML = `
+            <ul class="game-list">
+                ${GAMES.map(
+                    (game) => `
+                    <li class="game-list-card ${game.enabled ? '' : 'disabled'}" data-game-id="${game.id}">
+                        ${game.image ? `<img src="${game.image}" alt="">` : '<div style="width:100%;aspect-ratio:16/10;background:var(--surface-color);border-radius:4px;"></div>'}
+                        <h3>${this.escapeHtml(game.title)}</h3>
+                        <p>${this.escapeHtml(game.description)}</p>
+                    </li>
+                `
+                ).join('')}
+            </ul>
+        `;
+        container.querySelectorAll('.game-list-card').forEach((el) => {
+            const card = el as HTMLElement;
+            const gameId = card.dataset.gameId!;
+            const game = getGameById(gameId);
+            if (!game?.enabled || !isHost) return;
+            card.addEventListener('click', () => this.onHostSelectGame(gameId));
+        });
+    }
+
+    private escapeHtml(s: string): string {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    private async onHostSelectGame(gameId: string): Promise<void> {
+        if (!this.currentLobby || !this.currentPlayer?.isHost) return;
+        const game = getGameById(gameId);
+        if (!game?.enabled) return;
+        try {
+            await this.lobbyClient.setLobbyState(
+                this.currentLobby.id,
+                this.currentPlayer.id,
+                'in_game',
+                gameId
+            );
+            this.lobbyPageState = 'in_game';
+            this.lobbyGameId = gameId;
+            this.updateLobbyCentralView();
+        } catch (error) {
+            this.ui.showToast(
+                'Failed to start game: ' + (error instanceof Error ? error.message : 'Unknown error'),
+                'error'
+            );
+        }
+    }
+
+    private destroyCurrentGame(): void {
+        if (this.currentGameInstance?.destroy) {
+            this.currentGameInstance.destroy();
+        }
+        this.currentGameInstance = null;
+    }
+
+    private async loadGameIntoSlot(container: HTMLElement, gameId: string): Promise<void> {
+        const game = getGameById(gameId);
+        if (!game) return;
+        this.destroyCurrentGame();
+        container.innerHTML = '';
+        try {
+            const mod = await import(`./games/${gameId}/game.js`);
+            const GameClass = mod.default;
+            if (typeof GameClass === 'function') {
+                this.currentGameInstance = new GameClass(container) as { destroy?: () => void };
+            }
+        } catch (error) {
+            console.error('Failed to load game:', error);
+            container.innerHTML = `<p class="game-load-error">Failed to load game: ${this.escapeHtml(game.title)}</p>`;
+        }
     }
 
     private async leaveLobby(): Promise<void> {
@@ -307,6 +515,8 @@ export class GameApp {
                 clearInterval(this.pollIntervalId);
                 this.pollIntervalId = null;
             }
+            this.stopLobbyStatusPoll();
+            this.destroyCurrentGame();
             await this.lobbyClient.leaveLobby(this.currentLobby.id, this.currentPlayer.id);
         } catch (error) {
             console.error('Error leaving lobby:', error);
@@ -315,9 +525,12 @@ export class GameApp {
         this.currentPlayer = null;
         this.currentAccount = null;
         this.players = {};
+        this.lobbyPageState = 'home';
+        this.lobbyGameId = null;
         this.gameCanvas!.clear();
         this.chatManager!.clear();
         this.ui.setConnectionStatus('disconnected');
+        this.updateLobbyUrl();
         this.ui.showScreen('lobby-screen');
         await this.loadLobbies();
         this.ui.showToast('Left the lobby', 'info');

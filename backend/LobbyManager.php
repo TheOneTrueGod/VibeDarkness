@@ -227,6 +227,24 @@ class LobbyManager
     }
 
     /**
+     * Set lobby state (host only). state: 'home' | 'in_game', gameId required when in_game.
+     */
+    public function setLobbyState(string $lobbyId, string $playerId, string $state, ?string $gameId = null): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null) {
+            return false;
+        }
+        $player = $lobby->getPlayer($playerId);
+        if ($player === null || !$player->isHost()) {
+            return false;
+        }
+        $lobby->setLobbyState($state, $gameId);
+        $this->persistLobby($lobby);
+        return true;
+    }
+
+    /**
      * Clean up inactive lobbies
      */
     public function cleanupInactiveLobbies(): int

@@ -25,6 +25,8 @@ export interface AccountState {
 }
 
 export interface GameStatePayload {
+    lobbyState?: string;
+    gameId?: string | null;
     players: Record<string, PlayerState>;
     clicks: Record<string, { playerId: string; playerName: string; color: string; x: number; y: number }>;
     chatHistory: unknown[];

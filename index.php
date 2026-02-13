@@ -29,8 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Static: app root and index
-if ($path === '/' || $path === '/index.html') {
+// Static: app root, index, and lobby deep-link (SPA routes)
+if ($path === '/' || $path === '/index.html' || preg_match('#^/lobby/[A-Za-z0-9]+$#', $path)) {
     header('Content-Type: text/html');
     readfile(__DIR__ . '/app/index.html');
     exit;
