@@ -26,7 +26,12 @@ export interface AccountState {
 
 export interface GameStatePayload {
     lobbyState?: string;
+    /** Unique game instance id (for save file and API) */
     gameId?: string | null;
+    /** Game type id (e.g. minion_battles) used to load the game UI module */
+    gameType?: string | null;
+    /** Game-specific state (when in game); contents of game save file */
+    game?: Record<string, unknown>;
     players: Record<string, PlayerState>;
     clicks: Record<string, { playerId: string; playerName: string; color: string; x: number; y: number }>;
     chatHistory: unknown[];

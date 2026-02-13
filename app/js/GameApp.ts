@@ -12,6 +12,7 @@ import { Messages } from './MessageTypes.js';
 import { UI } from './UI.js';
 import type { AccountState, GameStatePayload, LobbyState, PlayerState, PollMessagePayload } from './types.js';
 import { GAMES, getGameById } from './games/list.js';
+import { updateDebugGameState } from './DebugConsole.js';
 
 /** Lobby page state: 'home' (game list) or 'in_game' (game loaded) */
 type LobbyPageState = 'home' | 'in_game';
@@ -27,7 +28,12 @@ export class GameApp {
 
     /** Lobby page state and selected game (from server) */
     private lobbyPageState: LobbyPageState = 'home';
+    /** Unique game instance id (from server) */
     private lobbyGameId: string | null = null;
+    /** Game type id for loading the game module (e.g. minion_battles) */
+    private lobbyGameType: string | null = null;
+    /** Game-specific state from server (when in game) */
+    private lobbyGameData: Record<string, unknown> | null = null;
     private currentGameInstance: { destroy?: () => void } | null = null;
 
     private ui: UI;
@@ -368,6 +374,8 @@ export class GameApp {
     private loadGameState(state: GameStatePayload): void {
         this.lobbyPageState = (state.lobbyState === 'in_game' ? 'in_game' : 'home') as LobbyPageState;
         this.lobbyGameId = state.gameId ?? null;
+        this.lobbyGameType = state.gameType ?? null;
+        this.lobbyGameData = state.game ?? null;
         this.players = {};
         for (const player of Object.values(state.players)) {
             this.players[player.id] = player;
@@ -375,6 +383,7 @@ export class GameApp {
         this.ui.updatePlayerList(this.players, this.currentPlayer?.id);
         this.gameCanvas!.loadClicks(state.clicks);
         this.chatManager!.loadHistory(state.chatHistory as Parameters<ChatManager['loadHistory']>[0]);
+        updateDebugGameState(state);
         this.updateLobbyCentralView();
     }
 
@@ -398,11 +407,20 @@ export class GameApp {
                 this.currentPlayer.id
             );
             const payload = gameState as GameStatePayload;
+            updateDebugGameState(payload);
             const newState = (payload.lobbyState === 'in_game' ? 'in_game' : 'home') as LobbyPageState;
             const newGameId = payload.gameId ?? null;
-            if (newState !== this.lobbyPageState || newGameId !== this.lobbyGameId) {
+            const newGameType = payload.gameType ?? null;
+            const newGameData = payload.game ?? null;
+            if (
+                newState !== this.lobbyPageState ||
+                newGameId !== this.lobbyGameId ||
+                newGameType !== this.lobbyGameType
+            ) {
                 this.lobbyPageState = newState;
                 this.lobbyGameId = newGameId;
+                this.lobbyGameType = newGameType;
+                this.lobbyGameData = newGameData;
                 this.updateLobbyCentralView();
             }
         } catch {
@@ -426,8 +444,8 @@ export class GameApp {
             this.destroyCurrentGame();
         } else {
             slotEl.classList.remove('hidden');
-            if (this.lobbyGameId) {
-                this.loadGameIntoSlot(slotEl, this.lobbyGameId);
+            if (this.lobbyGameType) {
+                this.loadGameIntoSlot(slotEl, this.lobbyGameType, this.lobbyGameId, this.lobbyGameData);
             }
         }
     }
@@ -462,19 +480,29 @@ export class GameApp {
         return div.innerHTML;
     }
 
-    private async onHostSelectGame(gameId: string): Promise<void> {
+    private async onHostSelectGame(gameTypeId: string): Promise<void> {
         if (!this.currentLobby || !this.currentPlayer?.isHost) return;
-        const game = getGameById(gameId);
+        const game = getGameById(gameTypeId);
         if (!game?.enabled) return;
         try {
             await this.lobbyClient.setLobbyState(
                 this.currentLobby.id,
                 this.currentPlayer.id,
                 'in_game',
-                gameId
+                gameTypeId
             );
             this.lobbyPageState = 'in_game';
-            this.lobbyGameId = gameId;
+            this.lobbyGameType = gameTypeId;
+            this.lobbyGameId = null;
+            this.lobbyGameData = null;
+            const { gameState } = await this.lobbyClient.getLobbyState(
+                this.currentLobby.id,
+                this.currentPlayer.id
+            );
+            const payload = gameState as GameStatePayload;
+            this.lobbyGameId = payload.gameId ?? null;
+            this.lobbyGameData = payload.game ?? null;
+            updateDebugGameState(payload);
             this.updateLobbyCentralView();
         } catch (error) {
             this.ui.showToast(
@@ -491,16 +519,22 @@ export class GameApp {
         this.currentGameInstance = null;
     }
 
-    private async loadGameIntoSlot(container: HTMLElement, gameId: string): Promise<void> {
-        const game = getGameById(gameId);
+    private async loadGameIntoSlot(
+        container: HTMLElement,
+        gameTypeId: string,
+        gameId: string | null = null,
+        gameData: Record<string, unknown> | null = null
+    ): Promise<void> {
+        const game = getGameById(gameTypeId);
         if (!game) return;
         this.destroyCurrentGame();
         container.innerHTML = '';
         try {
-            const mod = await import(`./games/${gameId}/game.js`);
+            const mod = await import(`./games/${gameTypeId}/game.js`);
             const GameClass = mod.default;
             if (typeof GameClass === 'function') {
-                this.currentGameInstance = new GameClass(container) as { destroy?: () => void };
+                const options = { gameId, gameType: gameTypeId, gameData: gameData ?? undefined };
+                this.currentGameInstance = new GameClass(container, options) as { destroy?: () => void };
             }
         } catch (error) {
             console.error('Failed to load game:', error);
@@ -527,6 +561,8 @@ export class GameApp {
         this.players = {};
         this.lobbyPageState = 'home';
         this.lobbyGameId = null;
+        this.lobbyGameType = null;
+        this.lobbyGameData = null;
         this.gameCanvas!.clear();
         this.chatManager!.clear();
         this.ui.setConnectionStatus('disconnected');

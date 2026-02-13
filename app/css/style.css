@@ -720,3 +720,123 @@ input[type="text"]::placeholder {
         font-size: 1.8rem;
     }
 }
+
+/* Debug Console (bottom-center, tilde x3 to enable) */
+.debug-console {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: rgba(22, 33, 62, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius) var(--radius) 0 0;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width 0.2s ease, height 0.2s ease;
+}
+
+.debug-console-collapsed {
+    width: auto;
+    height: auto;
+    max-height: 60px;
+}
+
+.debug-console-collapsed .debug-console-body {
+    display: none;
+}
+
+.debug-console-expanded {
+    width: 50vw;
+    height: 50vh;
+}
+
+.debug-console-expanded .debug-console-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.debug-console-header {
+    padding: 8px;
+    flex-shrink: 0;
+}
+
+.debug-console-toggle {
+    background: var(--surface-light);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.debug-console-toggle:hover {
+    background: var(--border-color);
+}
+
+.debug-console-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 8px 0;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.debug-tab {
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.debug-tab:hover {
+    color: var(--text-color);
+}
+
+.debug-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.debug-console-tab-panels {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.debug-tab-panel {
+    display: none;
+    height: 100%;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.debug-tab-panel.active {
+    display: flex;
+}
+
+.debug-game-state-scroll {
+    flex: 1;
+    overflow: auto;
+    padding: 12px;
+    min-height: 0;
+}
+
+.debug-game-state-json {
+    margin: 0;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-color);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.debug-game-state-json code {
+    font-family: inherit;
+}

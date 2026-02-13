@@ -2,6 +2,9 @@
 
 namespace App;
 
+use App\Game\BaseGame;
+use App\Game\MinionBattlesGame;
+
 /**
  * Singleton manager for all game lobbies.
  * Handles lobby creation, lookup, and cleanup. All communication is HTTP (polling).
@@ -227,7 +230,17 @@ class LobbyManager
     }
 
     /**
-     * Set lobby state (host only). state: 'home' | 'in_game', gameId required when in_game.
+     * Registry: game type id => class with static createInitialState(string $lobbyId, array $playerIds).
+     * @var array<string, class-string<BaseGame>>
+     */
+    private const GAME_REGISTRY = [
+        'minion_battles' => MinionBattlesGame::class,
+    ];
+
+    /**
+     * Set lobby state (host only). state: 'home' | 'in_game'.
+     * When in_game, $gameId is treated as game type id (e.g. minion_battles); a unique instance id is generated
+     * and the game state file is created at storage/lobbies/<lobby_id>/game_<instance_id>.json.
      */
     public function setLobbyState(string $lobbyId, string $playerId, string $state, ?string $gameId = null): bool
     {
@@ -239,9 +252,49 @@ class LobbyManager
         if ($player === null || !$player->isHost()) {
             return false;
         }
-        $lobby->setLobbyState($state, $gameId);
+        if ($state === 'in_game') {
+            if (empty($gameId) || !is_string($gameId)) {
+                return false;
+            }
+            $gameTypeId = $gameId;
+            $gameClass = self::GAME_REGISTRY[$gameTypeId] ?? null;
+            if ($gameClass === null) {
+                return false;
+            }
+            $instanceId = $this->generateGameInstanceId($lobbyId);
+            $playerIds = array_keys($lobby->getPlayers());
+            $initialState = $gameClass::createInitialState($lobbyId, $playerIds);
+            $initialState['gameId'] = $instanceId;
+            $initialState['gameType'] = $gameTypeId;
+            $this->persistGameState($lobbyId, $instanceId, $initialState);
+            $lobby->setLobbyState('in_game', $instanceId, $gameTypeId);
+        } else {
+            $lobby->setLobbyState($state, null, null);
+        }
         $this->persistLobby($lobby);
         return true;
+    }
+
+    private function generateGameInstanceId(string $lobbyId): string
+    {
+        $dir = $this->getStoragePath() . '/' . $lobbyId;
+        if (!is_dir($dir)) {
+            return preg_replace('/[^a-zA-Z0-9_-]/', '_', str_replace('.', '_', uniqid('', true)));
+        }
+        do {
+            $id = preg_replace('/[^a-zA-Z0-9_-]/', '_', str_replace('.', '_', uniqid('', true)));
+        } while (is_file($dir . '/game_' . $id . '.json'));
+        return $id;
+    }
+
+    private function persistGameState(string $lobbyId, string $gameId, array $state): void
+    {
+        $dir = $this->getStoragePath() . '/' . $lobbyId;
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        $path = $dir . '/game_' . $gameId . '.json';
+        file_put_contents($path, json_encode($state, JSON_PRETTY_PRINT));
     }
 
     /**
@@ -309,6 +362,20 @@ class LobbyManager
         $lobby = Lobby::fromArray($data);
         $this->lobbies[$lobbyId] = $lobby;
         return $lobby;
+    }
+
+    /**
+     * Load game state from storage (for inclusion in lobby state response when in game).
+     */
+    public function getGameStateData(string $lobbyId, string $gameId): ?array
+    {
+        $path = $this->getStoragePath() . '/' . $lobbyId . '/game_' . $gameId . '.json';
+        if (!is_file($path)) {
+            return null;
+        }
+        $json = file_get_contents($path);
+        $data = json_decode($json, true);
+        return is_array($data) ? $data : null;
     }
 
     /**

@@ -22,6 +22,7 @@ class Lobby
     private bool $isPublic;
     private string $lobbyState = 'home';
     private ?string $gameId = null;
+    private ?string $gameType = null;
 
     private const MAX_CHAT_HISTORY = 100;
     private const MAX_MESSAGES = 500;
@@ -83,13 +84,20 @@ class Lobby
         return $this->gameId;
     }
 
+    public function getGameType(): ?string
+    {
+        return $this->gameType;
+    }
+
     /**
-     * Set lobby state (host only). state: 'home' | 'in_game', gameId required when in_game.
+     * Set lobby state (host only). state: 'home' | 'in_game'.
+     * When in_game: $gameId = unique instance id, $gameType = game type id (e.g. minion_battles).
      */
-    public function setLobbyState(string $state, ?string $gameId = null): void
+    public function setLobbyState(string $state, ?string $gameId = null, ?string $gameType = null): void
     {
         $this->lobbyState = $state;
         $this->gameId = $gameId;
+        $this->gameType = $gameType;
         $this->updateActivity();
     }
 
@@ -315,6 +323,7 @@ class Lobby
             'hostId' => $this->hostId,
             'lobbyState' => $this->lobbyState,
             'gameId' => $this->gameId,
+            'gameType' => $this->gameType,
             'players' => array_map(fn($p) => $p->toArray(), $this->players),
             'clicks' => $this->getAllClicks(),
             'chatHistory' => $this->chatHistory,
@@ -363,6 +372,7 @@ class Lobby
             'lastMessageId' => $this->lastMessageId,
             'lobbyState' => $this->lobbyState,
             'gameId' => $this->gameId,
+            'gameType' => $this->gameType,
         ];
     }
 
@@ -401,6 +411,9 @@ class Lobby
         }
         if (array_key_exists('gameId', $data)) {
             $lobby->gameId = $data['gameId'];
+        }
+        if (array_key_exists('gameType', $data)) {
+            $lobby->gameType = $data['gameType'];
         }
         return $lobby;
     }

@@ -90,6 +90,12 @@ backend/MessageTypes        app/js/MessageTypes.ts (MessageType constants, Messa
 3. Create manager class extending `EventEmitter`
 4. Initialize in `GameApp.setupUIComponents()`
 
+## Project Skills
+
+| Skill | When to use |
+|-------|-------------|
+| **working-on-minion-battles** | When working on anything called minion battles; work primarily in `app/js/games/minion_battles/`. See `.cursor/skills/working-on-minion-battles/SKILL.md`. |
+
 ## Testing Locally
 
 ```bash
