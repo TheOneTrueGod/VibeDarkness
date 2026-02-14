@@ -20,6 +20,10 @@ interface CharacterSelectPhaseProps {
     isHost: boolean;
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
+    /** Set a local override for instant UI feedback (path relative to game state root). */
+    setLocalOverride?: (path: string, value: unknown) => void;
+    /** Remove a local override (e.g. on request failure to revert optimistic update). */
+    removeLocalOverride?: (path: string) => void;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
 }
 
@@ -31,6 +35,8 @@ export default function CharacterSelectPhase({
     isHost,
     players,
     characterSelections,
+    setLocalOverride,
+    removeLocalOverride,
     onPhaseChange,
 }: CharacterSelectPhaseProps) {
     const mbPlayer = useMemo(() => {
@@ -59,6 +65,10 @@ export default function CharacterSelectPhase({
             if (!char || !char.enabled) return;
             if (!mbPlayer || !mbPlayer.isCharacterUnlocked(characterId)) return;
 
+            // Optimistic update: show the selection immediately
+            const overridePath = `characterSelections.${playerId}`;
+            setLocalOverride?.(overridePath, characterId);
+
             try {
                 // Update game state with the selection
                 await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
@@ -69,10 +79,12 @@ export default function CharacterSelectPhase({
                     characterId,
                 });
             } catch (error) {
+                // Revert the optimistic update on failure
+                removeLocalOverride?.(overridePath);
                 console.error('Failed to select character:', error);
             }
         },
-        [lobbyClient, lobbyId, gameId, playerId, mbPlayer]
+        [lobbyClient, lobbyId, gameId, playerId, mbPlayer, setLocalOverride, removeLocalOverride]
     );
 
     const handleStartGame = useCallback(async () => {

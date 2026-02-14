@@ -45,6 +45,10 @@ interface MissionSelectPhaseProps {
     isHost: boolean;
     players: Record<string, PlayerState>;
     missionVotes: Record<string, string>;
+    /** Set a local override for instant UI feedback (path relative to game state root). */
+    setLocalOverride?: (path: string, value: unknown) => void;
+    /** Remove a local override (e.g. on request failure to revert optimistic update). */
+    removeLocalOverride?: (path: string) => void;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
 }
 
@@ -56,6 +60,8 @@ export default function MissionSelectPhase({
     isHost,
     players,
     missionVotes,
+    setLocalOverride,
+    removeLocalOverride,
     onPhaseChange,
 }: MissionSelectPhaseProps) {
     const playerVote = missionVotes[playerId];
@@ -67,15 +73,21 @@ export default function MissionSelectPhase({
 
     const handleMissionClick = useCallback(
         async (missionId: string) => {
+            // Optimistic update: show the vote immediately
+            const overridePath = `missionVotes.${playerId}`;
+            setLocalOverride?.(overridePath, missionId);
+
             try {
                 await lobbyClient.sendMessage(lobbyId, playerId, MessageType.MISSION_VOTE, {
                     missionId,
                 });
             } catch (error) {
+                // Revert the optimistic update on failure
+                removeLocalOverride?.(overridePath);
                 console.error('Failed to vote for mission:', error);
             }
         },
-        [lobbyClient, lobbyId, playerId]
+        [lobbyClient, lobbyId, playerId, setLocalOverride, removeLocalOverride]
     );
 
     // Host auto-transitions when all vote the same
