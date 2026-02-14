@@ -34,6 +34,7 @@ enum MessageType: string
     
     // Minion Battles game messages
     case MISSION_VOTE = 'mission_vote';
+    case CHARACTER_SELECT = 'character_select';
     case GAME_PHASE_CHANGED = 'game_phase_changed';
     
     /**
@@ -55,6 +56,7 @@ enum MessageType: string
             self::LOBBY_UPDATE => ['players'],
             self::HOST_CHANGED => ['newHostId'],
             self::MISSION_VOTE => ['playerId', 'missionId'],
+            self::CHARACTER_SELECT => ['playerId', 'characterId'],
             self::GAME_PHASE_CHANGED => ['gamePhase'],
         };
     }
@@ -82,7 +84,8 @@ enum MessageType: string
             self::CHAT, self::CLICK, self::PLAYER_JOIN, 
             self::PLAYER_LEAVE, self::PLAYER_REJOIN,
             self::LOBBY_UPDATE, self::HOST_CHANGED,
-            self::MISSION_VOTE, self::GAME_PHASE_CHANGED => true,
+            self::MISSION_VOTE, self::CHARACTER_SELECT,
+            self::GAME_PHASE_CHANGED => true,
             default => false,
         };
     }

@@ -44,23 +44,39 @@ MultiplayerLobby/
 
 ## Installation
 
-1. **Install PHP dependencies:**
+1. **Install dependencies:**
 
    ```bash
    composer install
+   npm install
    ```
 
-2. **Start the HTTP server:**
+2. **Start the PHP API server** (with auto-restart on file changes):
 
    ```bash
-   php -S localhost:8000 index.php
+   npm run php
    ```
 
-3. **Open the application:**
+3. **Start the Vite frontend dev server** (in a second terminal):
 
-   Navigate to `http://localhost:8000` in your browser.
+   ```bash
+   npm run dev
+   ```
+
+4. **Open the application:**
+
+   Navigate to `http://localhost:5173` in your browser (Vite dev server proxies API calls to the PHP server).
 
 No WebSocket server is required; clients poll for messages over HTTP every second.
+
+### Production Build
+
+```bash
+npm run build
+php -S localhost:8000 index.php
+```
+
+This builds the frontend to `dist/` and the PHP server serves both the API and the built frontend at `http://localhost:8000`.
 
 ## Usage
 

@@ -1,0 +1,91 @@
+{
+    "id": "3436A1",
+    "name": "fff",
+    "hostId": "1",
+    "maxPlayers": 8,
+    "isPublic": true,
+    "createdAt": 1771088846.701227,
+    "lastActivity": 1771088904.774147,
+    "players": {
+        "1": {
+            "id": "1",
+            "name": "Jer",
+            "color": "#58D68D",
+            "isHost": true,
+            "isConnected": true,
+            "lastClick": [],
+            "reconnectToken": "f009dd33132017978f3424fd1125129b",
+            "lastActivity": 1771088904.774117
+        }
+    },
+    "chatHistory": [],
+    "messages": [
+        {
+            "messageId": 1,
+            "type": "player_join",
+            "timestamp": 1771088846.701299,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "isHost": true
+            }
+        },
+        {
+            "messageId": 2,
+            "type": "mission_vote",
+            "timestamp": 1771088855.15798,
+            "data": {
+                "playerId": "1",
+                "missionId": "dark_awakening"
+            }
+        },
+        {
+            "messageId": 3,
+            "type": "game_phase_changed",
+            "timestamp": 1771088855.790165,
+            "data": {
+                "gamePhase": "character_select"
+            }
+        },
+        {
+            "messageId": 4,
+            "type": "character_select",
+            "timestamp": 1771088857.712581,
+            "data": {
+                "playerId": "1",
+                "characterId": "warrior"
+            }
+        },
+        {
+            "messageId": 5,
+            "type": "character_select",
+            "timestamp": 1771088858.758642,
+            "data": {
+                "playerId": "1",
+                "characterId": "mage"
+            }
+        },
+        {
+            "messageId": 6,
+            "type": "character_select",
+            "timestamp": 1771088860.994874,
+            "data": {
+                "playerId": "1",
+                "characterId": "warrior"
+            }
+        },
+        {
+            "messageId": 7,
+            "type": "game_phase_changed",
+            "timestamp": 1771088904.774146,
+            "data": {
+                "gamePhase": "battle"
+            }
+        }
+    ],
+    "lastMessageId": 7,
+    "lobbyState": "in_game",
+    "gameId": "6990abd3acae73_42415876",
+    "gameType": "minion_battles"
+}

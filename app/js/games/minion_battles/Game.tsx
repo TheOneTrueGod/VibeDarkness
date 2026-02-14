@@ -2,13 +2,14 @@
  * Minion Battles - React game component
  * Manages game phases and state, receives props from the lobby.
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { PlayerState } from '../../types';
 import { LobbyClient } from '../../LobbyClient';
 import { MessageType } from '../../MessageTypes';
-import type { GamePhase, MinionBattlesState } from './state';
+import type { GamePhase } from './state';
 import MissionSelectPhase from './phases/MissionSelectPhase';
 import CharacterSelectPhase from './phases/CharacterSelectPhase';
+import BattlePhase from './phases/BattlePhase';
 
 interface MinionBattlesGameProps {
     lobbyClient: LobbyClient;
@@ -39,6 +40,11 @@ export default function MinionBattlesGame({
             (raw.mission_votes as Record<string, string>) ??
             {}
     );
+    const [characterSelections, setCharacterSelections] = useState<Record<string, string>>(
+        (raw.characterSelections as Record<string, string>) ??
+            (raw.character_selections as Record<string, string>) ??
+            {}
+    );
 
     // Periodically refresh game state from server
     useEffect(() => {
@@ -51,8 +57,12 @@ export default function MinionBattlesGame({
                     const newVotes = (gd.missionVotes ?? gd.mission_votes) as
                         | Record<string, string>
                         | undefined;
+                    const newCharSel = (gd.characterSelections ?? gd.character_selections) as
+                        | Record<string, string>
+                        | undefined;
                     if (newPhase) setGamePhase(newPhase);
                     if (newVotes) setMissionVotes(newVotes);
+                    if (newCharSel) setCharacterSelections(newCharSel);
                 }
             } catch {
                 // Silently fail
@@ -69,6 +79,10 @@ export default function MinionBattlesGame({
                     | Record<string, string>
                     | undefined;
                 if (nv) setMissionVotes(nv);
+                const nc = (newGameState.characterSelections ?? newGameState.character_selections) as
+                    | Record<string, string>
+                    | undefined;
+                if (nc) setCharacterSelections(nc);
             }
         },
         []
@@ -88,13 +102,27 @@ export default function MinionBattlesGame({
                     onPhaseChange={handlePhaseChange}
                 />
             )}
-            {gamePhase === 'character_select' && <CharacterSelectPhase />}
-            {gamePhase !== 'mission_select' && gamePhase !== 'character_select' && (
-                <div className="text-center p-5">
-                    <h2 className="text-2xl font-bold">Minion Battles</h2>
-                    <p className="text-muted mt-2">Phase: {gamePhase}</p>
-                </div>
+            {gamePhase === 'character_select' && (
+                <CharacterSelectPhase
+                    lobbyClient={lobbyClient}
+                    lobbyId={lobbyId}
+                    gameId={gameId}
+                    playerId={playerId}
+                    isHost={isHost}
+                    players={players}
+                    characterSelections={characterSelections}
+                    onPhaseChange={handlePhaseChange}
+                />
             )}
+            {gamePhase === 'battle' && <BattlePhase />}
+            {gamePhase !== 'mission_select' &&
+                gamePhase !== 'character_select' &&
+                gamePhase !== 'battle' && (
+                    <div className="text-center p-5">
+                        <h2 className="text-2xl font-bold">Minion Battles</h2>
+                        <p className="text-muted mt-2">Phase: {gamePhase}</p>
+                    </div>
+                )}
         </div>
     );
 }

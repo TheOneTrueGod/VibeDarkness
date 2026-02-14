@@ -1,0 +1,81 @@
+{
+    "id": "87B6BD",
+    "name": "asdf2",
+    "hostId": "1",
+    "maxPlayers": 8,
+    "isPublic": true,
+    "createdAt": 1771088762.46372,
+    "lastActivity": 1771088844.029718,
+    "players": [],
+    "chatHistory": [],
+    "messages": [
+        {
+            "messageId": 1,
+            "type": "player_join",
+            "timestamp": 1771088762.463821,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "isHost": true
+            }
+        },
+        {
+            "messageId": 2,
+            "type": "mission_vote",
+            "timestamp": 1771088778.857964,
+            "data": {
+                "playerId": "1",
+                "missionId": "dark_awakening"
+            }
+        },
+        {
+            "messageId": 3,
+            "type": "game_phase_changed",
+            "timestamp": 1771088780.400886,
+            "data": {
+                "gamePhase": "character_select"
+            }
+        },
+        {
+            "messageId": 4,
+            "type": "character_select",
+            "timestamp": 1771088782.430934,
+            "data": {
+                "playerId": "1",
+                "characterId": "warrior"
+            }
+        },
+        {
+            "messageId": 5,
+            "type": "character_select",
+            "timestamp": 1771088815.943783,
+            "data": {
+                "playerId": "1",
+                "characterId": "mage"
+            }
+        },
+        {
+            "messageId": 6,
+            "type": "character_select",
+            "timestamp": 1771088818.833951,
+            "data": {
+                "playerId": "1",
+                "characterId": "warrior"
+            }
+        },
+        {
+            "messageId": 7,
+            "type": "player_leave",
+            "timestamp": 1771088844.029715,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer"
+            }
+        }
+    ],
+    "lastMessageId": 7,
+    "lobbyState": "in_game",
+    "gameId": "6990ab7c4d03b3_53632187",
+    "gameType": "minion_battles"
+}

@@ -1,5 +1,5 @@
 {
-    "lobby_id": "4ED979",
+    "lobby_id": "171F7D",
     "players": [
         1
     ],
@@ -10,7 +10,10 @@
     "missionVotes": {
         "1": "dark_awakening"
     },
-    "gameId": "69900a183fada0_80258216",
+    "gameId": "69901b42aa6800_47411975",
     "gameType": "minion_battles",
-    "characterSelections.1": "warrior"
+    "characterSelections.1": "warrior",
+    "characterSelections": {
+        "1": "warrior"
+    }
 }

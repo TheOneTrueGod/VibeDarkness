@@ -17,6 +17,7 @@ export const MessageType = Object.freeze({
     LOBBY_UPDATE: 'lobby_update',
     HOST_CHANGED: 'host_changed',
     MISSION_VOTE: 'mission_vote',
+    CHARACTER_SELECT: 'character_select',
     GAME_PHASE_CHANGED: 'game_phase_changed',
 } as const);
 
@@ -44,6 +45,7 @@ const MessageSchema: Record<string, SchemaDef> = Object.freeze({
     [MessageType.LOBBY_UPDATE]: { required: ['players'], optional: [] },
     [MessageType.HOST_CHANGED]: { required: ['newHostId'], optional: [] },
     [MessageType.MISSION_VOTE]: { required: ['playerId', 'missionId'], optional: [] },
+    [MessageType.CHARACTER_SELECT]: { required: ['playerId', 'characterId'], optional: [] },
     [MessageType.GAME_PHASE_CHANGED]: { required: ['gamePhase'], optional: [] },
 });
 

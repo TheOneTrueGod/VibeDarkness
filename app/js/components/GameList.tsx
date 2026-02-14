@@ -1,7 +1,7 @@
 /**
  * Game selection list - shown when lobby is in 'home' state
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GAMES } from '../games/list';
 
 interface GameListProps {
@@ -10,10 +10,15 @@ interface GameListProps {
 }
 
 export default function GameList({ isHost, onSelectGame }: GameListProps) {
+    const sortedGames = useMemo(
+        () => [...GAMES].sort((a, b) => Number(b.enabled) - Number(a.enabled)),
+        []
+    );
+
     return (
         <div className="flex-1 overflow-auto p-4 bg-surface rounded-lg">
             <ul className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-5 list-none p-0">
-                {GAMES.map((game) => (
+                {sortedGames.map((game) => (
                     <li
                         key={game.id}
                         className={`bg-surface-light rounded p-4 border border-border-custom transition-all ${

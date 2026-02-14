@@ -2,7 +2,7 @@
  * Minion Battles game state (from server or createInitialState).
  * Server sends snake_case (lobby_id, players, hands); we accept both for compatibility.
  */
-export type GamePhase = 'start' | 'mission_select' | 'character_select' | 'in_mission';
+export type GamePhase = 'start' | 'mission_select' | 'character_select' | 'battle' | 'in_mission';
 
 export interface MinionBattlesState {
     lobbyId?: string;
@@ -13,6 +13,9 @@ export interface MinionBattlesState {
     game_phase?: GamePhase;
     missionVotes?: Record<string, string>;
     mission_votes?: Record<string, string>;
+    /** Map of playerId -> characterId for character selections */
+    characterSelections?: Record<string, string>;
+    character_selections?: Record<string, string>;
 }
 
 export interface MinionBattlesGameOptions {
