@@ -1,0 +1,56 @@
+{
+    "id": "DDF57B",
+    "name": "asdf",
+    "hostId": "1",
+    "maxPlayers": 8,
+    "isPublic": true,
+    "createdAt": 1771037824.239711,
+    "lastActivity": 1771037833.327847,
+    "players": {
+        "1": {
+            "id": "1",
+            "name": "Jer",
+            "color": "#58D68D",
+            "isHost": true,
+            "isConnected": true,
+            "lastClick": [],
+            "reconnectToken": "23a5fd2d9e2ea12fc14171db44496ee2",
+            "lastActivity": 1771037833.327826
+        }
+    },
+    "chatHistory": [],
+    "messages": [
+        {
+            "messageId": 1,
+            "type": "player_join",
+            "timestamp": 1771037824.242282,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "isHost": true
+            }
+        },
+        {
+            "messageId": 2,
+            "type": "mission_vote",
+            "timestamp": 1771037832.827237,
+            "data": {
+                "playerId": "1",
+                "missionId": "dark_awakening"
+            }
+        },
+        {
+            "messageId": 3,
+            "type": "game_phase_changed",
+            "timestamp": 1771037833.327846,
+            "data": {
+                "gamePhase": "character_select"
+            }
+        }
+    ],
+    "lastMessageId": 3,
+    "lobbyState": "in_game",
+    "gameId": "698fe4823e4496_09768584",
+    "gameType": "minion_battles"
+}

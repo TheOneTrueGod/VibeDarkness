@@ -1,5 +1,5 @@
-import type { CardDef } from './types.js';
-import exampleCard from './example_card.js';
+import type { CardDef } from './types';
+import exampleCard from './example_card';
 
 const cardDefs: CardDef[] = [exampleCard];
 
