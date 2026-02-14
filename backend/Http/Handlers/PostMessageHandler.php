@@ -151,6 +151,28 @@ class PostMessageHandler
             return ['success' => true, 'messageId' => $messageId];
         }
 
+        if ($type === 'battle_orders_ready') {
+            $snapshotIndex = $payload['snapshotIndex'] ?? null;
+            if ($snapshotIndex === null) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'snapshotIndex required'];
+            }
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+
+            // Broadcast orders-ready message so other clients can fetch immediately
+            $messageId = $lobby->addMessage('battle_orders_ready', [
+                'playerId' => $playerId,
+                'snapshotIndex' => $snapshotIndex,
+            ]);
+            $manager->persistLobby($lobby);
+
+            return ['success' => true, 'messageId' => $messageId];
+        }
+
         http_response_code(400);
         return ['success' => false, 'error' => 'Unknown message type'];
     }

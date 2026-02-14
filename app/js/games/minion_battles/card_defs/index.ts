@@ -1,7 +1,7 @@
 import type { CardDef } from './types';
-import exampleCard from './example_card';
+import throwKnifeCard from './throw_knife_card';
 
-const cardDefs: CardDef[] = [exampleCard];
+const cardDefs: CardDef[] = [throwKnifeCard];
 
 /** Map card ID -> card definition for resolving hands (arrays of card IDs) to card data. */
 export const CARD_DEF_MAP: Map<string, CardDef> = new Map(cardDefs.map((c) => [c.id, c]));
@@ -10,4 +10,4 @@ export function getCardDef(id: string): CardDef | undefined {
     return CARD_DEF_MAP.get(id);
 }
 
-export type { CardDef } from './types.js';
+export type { CardDef } from './types';

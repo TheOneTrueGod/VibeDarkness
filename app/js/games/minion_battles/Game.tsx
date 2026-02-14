@@ -16,6 +16,23 @@ import MissionSelectPhase from './phases/MissionSelectPhase';
 import CharacterSelectPhase from './phases/CharacterSelectPhase';
 import BattlePhase from './phases/BattlePhase';
 
+/** Determine the winning mission from votes (most votes, or first alphabetically on tie). */
+function getSelectedMission(votes: Record<string, string>): string {
+    const counts: Record<string, number> = {};
+    for (const missionId of Object.values(votes)) {
+        counts[missionId] = (counts[missionId] ?? 0) + 1;
+    }
+    let best = 'dark_awakening';
+    let bestCount = 0;
+    for (const [missionId, count] of Object.entries(counts)) {
+        if (count > bestCount || (count === bestCount && missionId < best)) {
+            best = missionId;
+            bestCount = count;
+        }
+    }
+    return best;
+}
+
 interface MinionBattlesGameProps {
     lobbyClient: LobbyClient;
     lobbyId: string;
@@ -123,7 +140,7 @@ export default function MinionBattlesGame({
     );
 
     return (
-        <div className="w-full h-full overflow-auto">
+        <div className={`w-full h-full ${gamePhase === 'battle' ? 'overflow-hidden' : 'overflow-auto'}`}>
             {gamePhase === 'mission_select' && (
                 <MissionSelectPhase
                     lobbyClient={lobbyClient}
@@ -152,7 +169,18 @@ export default function MinionBattlesGame({
                     onPhaseChange={handlePhaseChange}
                 />
             )}
-            {gamePhase === 'battle' && <BattlePhase />}
+            {gamePhase === 'battle' && (
+                <BattlePhase
+                    lobbyClient={lobbyClient}
+                    lobbyId={lobbyId}
+                    gameId={gameId}
+                    playerId={playerId}
+                    isHost={isHost}
+                    players={players}
+                    characterSelections={effective.characterSelections as Record<string, string>}
+                    missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
+                />
+            )}
             {gamePhase !== 'mission_select' &&
                 gamePhase !== 'character_select' &&
                 gamePhase !== 'battle' && (

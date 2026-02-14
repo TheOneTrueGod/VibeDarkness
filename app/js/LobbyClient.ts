@@ -215,4 +215,70 @@ export class LobbyClient {
         });
         return (data.gameStateData as Record<string, unknown>) ?? {};
     }
+
+    // ---- Battle Phase: Snapshots & Orders ----
+
+    async saveGameStateSnapshot(
+        lobbyId: string,
+        gameId: string,
+        index: number,
+        state: Record<string, unknown>,
+    ): Promise<void> {
+        await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshots`, {
+            method: 'POST',
+            body: JSON.stringify({
+                playerId: this._currentPlayerId ?? '',
+                index,
+                state,
+            }),
+        });
+    }
+
+    async getGameStateSnapshot(
+        lobbyId: string,
+        gameId: string,
+        index?: number,
+    ): Promise<Record<string, unknown> | null> {
+        const endpoint = index !== undefined
+            ? `/api/lobbies/${lobbyId}/games/${gameId}/snapshots/${index}`
+            : `/api/lobbies/${lobbyId}/games/${gameId}/snapshots`;
+        const params = new URLSearchParams({ playerId: this._currentPlayerId ?? '' });
+        const data = await this.request(`${endpoint}?${params}`);
+        return (data as unknown as Record<string, unknown>).snapshot as Record<string, unknown> | null;
+    }
+
+    async saveGameOrders(
+        lobbyId: string,
+        gameId: string,
+        index: number,
+        orders: Record<string, unknown>,
+    ): Promise<void> {
+        await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/orders/${index}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                playerId: this._currentPlayerId ?? '',
+                orders,
+            }),
+        });
+    }
+
+    async getGameOrders(
+        lobbyId: string,
+        gameId: string,
+        index: number,
+    ): Promise<Record<string, unknown> | null> {
+        const params = new URLSearchParams({ playerId: this._currentPlayerId ?? '' });
+        const data = await this.request(
+            `/api/lobbies/${lobbyId}/games/${gameId}/orders/${index}?${params}`,
+        );
+        return (data as unknown as Record<string, unknown>).orders as Record<string, unknown> | null;
+    }
+
+    // ---- Player ID tracking (set by the app after join) ----
+
+    private _currentPlayerId: string | null = null;
+
+    setCurrentPlayerId(playerId: string): void {
+        this._currentPlayerId = playerId;
+    }
 }

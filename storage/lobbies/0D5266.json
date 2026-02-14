@@ -5,19 +5,8 @@
     "maxPlayers": 8,
     "isPublic": true,
     "createdAt": 1771089881.324737,
-    "lastActivity": 1771089954.377397,
-    "players": {
-        "1": {
-            "id": "1",
-            "name": "Jer",
-            "color": "#58D68D",
-            "isHost": true,
-            "isConnected": true,
-            "lastClick": [],
-            "reconnectToken": "a204c187692eb7a55d1effccc442c3b5",
-            "lastActivity": 1771089954.377372
-        }
-    },
+    "lastActivity": 1771092204.939809,
+    "players": [],
     "chatHistory": [],
     "messages": [
         {
@@ -100,9 +89,18 @@
             "data": {
                 "gamePhase": "battle"
             }
+        },
+        {
+            "messageId": 10,
+            "type": "player_leave",
+            "timestamp": 1771092204.939806,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer"
+            }
         }
     ],
-    "lastMessageId": 9,
+    "lastMessageId": 10,
     "lobbyState": "in_game",
     "gameId": "6990afda412554_71548140",
     "gameType": "minion_battles"

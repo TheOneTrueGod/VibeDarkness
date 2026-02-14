@@ -36,6 +36,7 @@ enum MessageType: string
     case MISSION_VOTE = 'mission_vote';
     case CHARACTER_SELECT = 'character_select';
     case GAME_PHASE_CHANGED = 'game_phase_changed';
+    case BATTLE_ORDERS_READY = 'battle_orders_ready';
     
     /**
      * Get the required fields for each message type
@@ -58,6 +59,7 @@ enum MessageType: string
             self::MISSION_VOTE => ['playerId', 'missionId'],
             self::CHARACTER_SELECT => ['playerId', 'characterId'],
             self::GAME_PHASE_CHANGED => ['gamePhase'],
+            self::BATTLE_ORDERS_READY => ['snapshotIndex'],
         };
     }
     
@@ -85,7 +87,8 @@ enum MessageType: string
             self::PLAYER_LEAVE, self::PLAYER_REJOIN,
             self::LOBBY_UPDATE, self::HOST_CHANGED,
             self::MISSION_VOTE, self::CHARACTER_SELECT,
-            self::GAME_PHASE_CHANGED => true,
+            self::GAME_PHASE_CHANGED,
+            self::BATTLE_ORDERS_READY => true,
             default => false,
         };
     }
