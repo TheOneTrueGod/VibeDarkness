@@ -1,0 +1,72 @@
+{
+    "id": "4ED979",
+    "name": "asdf",
+    "hostId": "1",
+    "maxPlayers": 8,
+    "isPublic": true,
+    "createdAt": 1771047442.319271,
+    "lastActivity": 1771047452.295468,
+    "players": {
+        "1": {
+            "id": "1",
+            "name": "Jer",
+            "color": "#58D68D",
+            "isHost": true,
+            "isConnected": true,
+            "lastClick": {
+                "x": 41.51260504201681,
+                "y": 68.4044233807267,
+                "timestamp": 1771047446.548358
+            },
+            "reconnectToken": "68e52acad0d073e5cf4a76f5e591a8fd",
+            "lastActivity": 1771047452.295447
+        }
+    },
+    "chatHistory": [],
+    "messages": [
+        {
+            "messageId": 1,
+            "type": "player_join",
+            "timestamp": 1771047442.319345,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "isHost": true
+            }
+        },
+        {
+            "messageId": 2,
+            "type": "click",
+            "timestamp": 1771047446.54836,
+            "data": {
+                "playerId": "1",
+                "playerName": "Jer",
+                "color": "#58D68D",
+                "x": 41.51260504201681,
+                "y": 68.4044233807267
+            }
+        },
+        {
+            "messageId": 3,
+            "type": "mission_vote",
+            "timestamp": 1771047451.516465,
+            "data": {
+                "playerId": "1",
+                "missionId": "dark_awakening"
+            }
+        },
+        {
+            "messageId": 4,
+            "type": "game_phase_changed",
+            "timestamp": 1771047452.295467,
+            "data": {
+                "gamePhase": "character_select"
+            }
+        }
+    ],
+    "lastMessageId": 4,
+    "lobbyState": "in_game",
+    "gameId": "69900a183fada0_80258216",
+    "gameType": "minion_battles"
+}
