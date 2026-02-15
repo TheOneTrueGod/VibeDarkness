@@ -3,6 +3,7 @@
  */
 
 import type { TeamId } from './teams';
+import type { AISettings } from '../objects/Unit';
 
 /** Snapshot of engine timing state. */
 export interface GameTime {
@@ -45,6 +46,8 @@ export interface BattleOrder {
     unitId: string;
     abilityId: string;
     targets: ResolvedTarget[];
+    /** Optional move target set by right-click; unit walks here at its speed. */
+    moveTarget?: { x: number; y: number } | null;
 }
 
 /** A resolved target from the targeting system. */
@@ -65,6 +68,8 @@ export interface UnitSpawnConfig {
     teamId: TeamId;
     ownerId: string; // playerId or 'ai'
     abilities: string[];
+    /** AI behavior settings (range preferences, etc.). */
+    aiSettings?: AISettings;
 }
 
 /** Scheduled action (e.g. delayed projectile spawn). */

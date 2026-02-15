@@ -14,8 +14,10 @@ interface BattleCanvasProps {
     engine: GameEngine;
     camera: Camera;
     renderer: GameRenderer;
-    /** Called when the user clicks on the canvas (screen-space coords). */
+    /** Called when the user left-clicks on the canvas (screen-space coords). */
     onCanvasClick?: (screenX: number, screenY: number) => void;
+    /** Called when the user right-clicks on the canvas (screen-space coords). */
+    onCanvasRightClick?: (screenX: number, screenY: number) => void;
     /** Called when the mouse moves on the canvas (screen-space coords). */
     onCanvasMouseMove?: (screenX: number, screenY: number) => void;
 }
@@ -25,6 +27,7 @@ export default function BattleCanvas({
     camera,
     renderer,
     onCanvasClick,
+    onCanvasRightClick,
     onCanvasMouseMove,
 }: BattleCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +97,17 @@ export default function BattleCanvas({
         [onCanvasClick],
     );
 
+    const handleContextMenu = useCallback(
+        (e: React.MouseEvent<HTMLCanvasElement>) => {
+            e.preventDefault();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const screenX = e.clientX - rect.left;
+            const screenY = e.clientY - rect.top;
+            onCanvasRightClick?.(screenX, screenY);
+        },
+        [onCanvasRightClick],
+    );
+
     const handleMouseMove = useCallback(
         (e: React.MouseEvent<HTMLCanvasElement>) => {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -123,6 +137,7 @@ export default function BattleCanvas({
                 ref={canvasRef}
                 className="w-full h-full block"
                 onClick={handleClick}
+                onContextMenu={handleContextMenu}
                 onMouseMove={handleMouseMove}
                 onTouchEnd={handleTouchEnd}
             />

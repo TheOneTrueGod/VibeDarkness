@@ -21,11 +21,14 @@ const ALLY_GLOW_COLOR = 0x22c55e; // green-500
 const ENEMY_GLOW_COLOR = 0xef4444; // red-500
 /** Glow radius around units. */
 const GLOW_RADIUS = 6;
+/** Color for move target markers. */
+const MOVE_TARGET_COLOR = 0x60a5fa; // blue-400
 
 export class GameRenderer {
     app: Application;
     private gameContainer: Container;
     private unitVisuals: Map<string, Container> = new Map();
+    private moveTargetVisuals: Map<string, Graphics> = new Map();
     private projectileVisuals: Map<string, Graphics> = new Map();
     private effectVisuals: Map<string, Graphics> = new Map();
     private initialized: boolean = false;
@@ -67,6 +70,7 @@ export class GameRenderer {
         this.gameContainer.y = -camera.y + camera.viewportHeight / 2;
 
         this.renderUnits(engine.units);
+        this.renderMoveTargets(engine.units);
         this.renderProjectiles(engine.projectiles);
         this.renderEffects(engine.effects);
         this.cleanupStaleVisuals(engine);
@@ -172,6 +176,56 @@ export class GameRenderer {
     }
 
     // ========================================================================
+    // Move Targets
+    // ========================================================================
+
+    private renderMoveTargets(units: Unit[]): void {
+        const activeIds = new Set<string>();
+
+        for (const unit of units) {
+            if (!unit.active || !unit.targetPosition) continue;
+            // Only show move targets for player-controlled units on the local team
+            if (!unit.isPlayerControlled() || areEnemies(this.localTeamId, unit.teamId)) continue;
+
+            const key = `mt_${unit.id}`;
+            activeIds.add(key);
+
+            let visual = this.moveTargetVisuals.get(key);
+            if (!visual) {
+                visual = new Graphics();
+                this.moveTargetVisuals.set(key, visual);
+                // Insert below units so it doesn't obscure them
+                this.gameContainer.addChildAt(visual, 0);
+            }
+
+            visual.clear();
+            visual.visible = true;
+            visual.x = unit.targetPosition.x;
+            visual.y = unit.targetPosition.y;
+
+            // Outer ring
+            visual.circle(0, 0, 8);
+            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 0.7 });
+
+            // Inner dot
+            visual.circle(0, 0, 2);
+            visual.fill({ color: MOVE_TARGET_COLOR, alpha: 0.9 });
+
+            // Dashed-line effect: draw a thin line from unit to target
+            visual.moveTo(unit.x - unit.targetPosition.x, unit.y - unit.targetPosition.y);
+            visual.lineTo(0, 0);
+            visual.stroke({ color: MOVE_TARGET_COLOR, width: 1, alpha: 0.3 });
+        }
+
+        // Hide visuals for units that no longer have a move target
+        for (const [key, visual] of this.moveTargetVisuals) {
+            if (!activeIds.has(key)) {
+                visual.visible = false;
+            }
+        }
+    }
+
+    // ========================================================================
     // Projectiles
     // ========================================================================
 
@@ -231,6 +285,16 @@ export class GameRenderer {
             }
         }
 
+        // Clean up move target visuals for dead/removed units
+        for (const [key, visual] of this.moveTargetVisuals) {
+            const unitId = key.replace('mt_', '');
+            if (!activeUnitIds.has(unitId)) {
+                this.gameContainer.removeChild(visual);
+                visual.destroy();
+                this.moveTargetVisuals.delete(key);
+            }
+        }
+
         const activeProjIds = new Set(engine.projectiles.map((p) => p.id));
         for (const [id, visual] of this.projectileVisuals) {
             if (!activeProjIds.has(id)) {
@@ -253,9 +317,11 @@ export class GameRenderer {
     /** Full cleanup. */
     destroy(): void {
         for (const visual of this.unitVisuals.values()) visual.destroy();
+        for (const visual of this.moveTargetVisuals.values()) visual.destroy();
         for (const visual of this.projectileVisuals.values()) visual.destroy();
         for (const visual of this.effectVisuals.values()) visual.destroy();
         this.unitVisuals.clear();
+        this.moveTargetVisuals.clear();
         this.projectileVisuals.clear();
         this.effectVisuals.clear();
         this.gameContainer.destroy();

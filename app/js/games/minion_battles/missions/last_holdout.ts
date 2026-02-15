@@ -18,6 +18,7 @@ export const LAST_HOLDOUT: MissionBattleConfig = {
             position: { x: 950, y: 250 },
             teamId: 'enemy',
             abilities: ['throw_knife'],
+            aiSettings: { minRange: 100, maxRange: 180 },
         },
         {
             characterId: 'warrior',
@@ -27,6 +28,7 @@ export const LAST_HOLDOUT: MissionBattleConfig = {
             position: { x: 1050, y: 400 },
             teamId: 'enemy',
             abilities: ['throw_knife'],
+            aiSettings: { minRange: 30, maxRange: 80 },
         },
         {
             characterId: 'ranger',
@@ -36,6 +38,7 @@ export const LAST_HOLDOUT: MissionBattleConfig = {
             position: { x: 1000, y: 550 },
             teamId: 'enemy',
             abilities: ['throw_knife'],
+            aiSettings: { minRange: 120, maxRange: 200 },
         },
         {
             characterId: 'warrior',
@@ -45,6 +48,7 @@ export const LAST_HOLDOUT: MissionBattleConfig = {
             position: { x: 1100, y: 400 },
             teamId: 'enemy',
             abilities: ['throw_knife'],
+            aiSettings: { minRange: 40, maxRange: 100 },
         },
     ],
 };

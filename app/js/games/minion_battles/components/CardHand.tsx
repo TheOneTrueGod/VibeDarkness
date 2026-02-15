@@ -26,6 +26,8 @@ interface CardHandProps {
     selectedCardIndex: number | null;
     /** Called when a card is selected. */
     onSelectCard: (handIndex: number, ability: AbilityStatic) => void;
+    /** Called when the player clicks the Wait button. */
+    onWait?: () => void;
     /** Current game state for dynamic descriptions. */
     gameState?: unknown;
 }
@@ -36,6 +38,7 @@ export default function CardHand({
     isMyTurn,
     selectedCardIndex,
     onSelectCard,
+    onWait,
     gameState,
 }: CardHandProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
@@ -86,9 +89,23 @@ export default function CardHand({
         <div className="relative bg-dark-900/80 border-t border-dark-700 px-4 py-2">
             {/* Cooldown indicator + card row */}
             <div className="flex items-center gap-3">
-                {/* Cooldown indicator on far left */}
+                {/* Cooldown indicator + Wait button on far left */}
                 {playerUnit && (
-                    <CooldownIndicator unit={playerUnit} size={48} />
+                    <div className="flex flex-col items-center gap-1">
+                        <CooldownIndicator unit={playerUnit} size={48} />
+                        <button
+                            onClick={onWait}
+                            disabled={!isMyTurn}
+                            className={`text-xs px-3 py-1 rounded border transition-colors ${
+                                isMyTurn
+                                    ? 'bg-dark-700 border-dark-500 text-gray-200 hover:bg-dark-600 hover:border-gray-400'
+                                    : 'bg-dark-800 border-dark-700 text-gray-600 cursor-not-allowed'
+                            }`}
+                            title="Wait (Space)"
+                        >
+                            Wait
+                        </button>
+                    </div>
                 )}
 
                 {/* Cards */}

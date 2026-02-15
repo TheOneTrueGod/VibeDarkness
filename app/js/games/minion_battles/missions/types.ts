@@ -5,6 +5,7 @@
  */
 
 import type { TeamId } from '../engine/teams';
+import type { AISettings } from '../objects/Unit';
 
 /** Config for a single enemy spawn. */
 export interface EnemySpawnDef {
@@ -22,6 +23,8 @@ export interface EnemySpawnDef {
     teamId: TeamId;
     /** Ability IDs available to this enemy. */
     abilities: string[];
+    /** AI behavior settings (range preferences, etc.). */
+    aiSettings?: AISettings;
 }
 
 /** Full battle configuration for a mission. */

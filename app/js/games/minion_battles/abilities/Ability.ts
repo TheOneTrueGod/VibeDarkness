@@ -16,6 +16,14 @@ export interface ResourceCost {
     amount: number;
 }
 
+/** AI-specific settings that control when the AI will use this ability. */
+export interface AbilityAISettings {
+    /** Minimum distance (px) to target for the AI to consider using this ability. */
+    minRange: number;
+    /** Maximum distance (px) to target for the AI to consider using this ability. */
+    maxRange: number;
+}
+
 /** The shape every static ability class must implement. */
 export interface AbilityStatic {
     /** Unique ability ID. */
@@ -32,6 +40,8 @@ export interface AbilityStatic {
     readonly rechargeTurns: number;
     /** Ordered list of targets the player must select. */
     readonly targets: TargetDef[];
+    /** AI settings controlling when this ability is used (range check). */
+    readonly aiSettings?: AbilityAISettings;
 
     /**
      * Get the ability description, potentially varying with game state.

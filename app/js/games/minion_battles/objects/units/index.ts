@@ -67,6 +67,7 @@ export function createUnitFromSpawnConfig(
         teamId: TeamId;
         ownerId: string;
         abilities?: string[];
+        aiSettings?: import('../Unit').AISettings | null;
     },
     eventBus: EventBus,
 ): Unit {
@@ -89,6 +90,9 @@ export function createUnitFromSpawnConfig(
         unit.hp = config.hp;
         unit.maxHp = config.hp;
         unit.speed = config.speed;
+        if (config.aiSettings) {
+            unit.aiSettings = config.aiSettings;
+        }
         return unit;
     }
     return createGenericEnemy(config, eventBus);

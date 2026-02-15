@@ -6,6 +6,7 @@
  */
 
 import { Unit } from '../Unit';
+import type { AISettings } from '../Unit';
 import type { TeamId } from '../../engine/teams';
 import type { EventBus } from '../../engine/EventBus';
 
@@ -19,6 +20,7 @@ export function createGenericEnemy(config: {
     characterId: string;
     name: string;
     abilities?: string[];
+    aiSettings?: AISettings | null;
 }, _eventBus: EventBus): Unit {
     const unit = new Unit({
         ...config,

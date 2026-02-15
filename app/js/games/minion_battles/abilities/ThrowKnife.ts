@@ -35,6 +35,7 @@ export const ThrowKnife: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 1,
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
+    aiSettings: { minRange: 0, maxRange: 200 },
 
     getDescription(_gameState?: unknown): string {
         return 'Throw a knife toward a target location. Deals 5 damage to the first enemy hit. Range: 200px.';

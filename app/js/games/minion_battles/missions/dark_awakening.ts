@@ -18,6 +18,7 @@ export const DARK_AWAKENING: MissionBattleConfig = {
             position: { x: 1000, y: 300 },
             teamId: 'enemy',
             abilities: ['throw_knife'],
+            aiSettings: { minRange: 30, maxRange: 80 },
         },
         {
             characterId: 'warrior',
@@ -27,6 +28,7 @@ export const DARK_AWAKENING: MissionBattleConfig = {
             position: { x: 1050, y: 500 },
             teamId: 'enemy',
             abilities: ['throw_knife'],
+            aiSettings: { minRange: 30, maxRange: 80 },
         },
         {
             characterId: 'mage',
@@ -36,6 +38,7 @@ export const DARK_AWAKENING: MissionBattleConfig = {
             position: { x: 1100, y: 400 },
             teamId: 'enemy',
             abilities: ['throw_knife'],
+            aiSettings: { minRange: 150, maxRange: 250 },
         },
     ],
 };

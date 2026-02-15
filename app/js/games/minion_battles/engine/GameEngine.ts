@@ -273,12 +273,24 @@ export class GameEngine {
     }
 
     /**
-     * Apply a battle order (ability use) from a player.
+     * Apply a battle order (ability use, wait, or move) from a player.
      * Resumes the game afterwards.
      */
     applyOrder(order: BattleOrder): void {
         const unit = this.getUnit(order.unitId);
         if (!unit || !unit.isAlive()) {
+            this.resumeAfterOrders();
+            return;
+        }
+
+        // Apply move target if provided
+        if (order.moveTarget !== undefined) {
+            unit.targetPosition = order.moveTarget;
+        }
+
+        // Wait action: do nothing, just set a 1s cooldown
+        if (order.abilityId === 'wait') {
+            unit.startCooldown(1);
             this.resumeAfterOrders();
             return;
         }
@@ -346,41 +358,110 @@ export class GameEngine {
     // ========================================================================
 
     private executeAITurn(unit: Unit): void {
-        // Simple AI: use first available ability on a random enemy
-        if (unit.abilities.length === 0) {
-            unit.startCooldown(2); // idle cooldown
-            return;
-        }
-
-        const abilityId = unit.abilities[0];
-        const ability = getAbility(abilityId);
-        if (!ability) {
-            unit.startCooldown(2);
-            return;
-        }
-
-        // Find a random enemy target
+        // Find all living enemies
         const enemies = this.units.filter(
             (u) => u.isAlive() && areEnemies(unit.teamId, u.teamId),
         );
         if (enemies.length === 0) {
-            unit.startCooldown(2);
+            unit.startCooldown(1); // wait cooldown
             return;
         }
 
-        const target = enemies[Math.floor(Math.random() * enemies.length)];
-        const resolvedTargets: ResolvedTarget[] = ability.targets.map((t) => {
-            if (t.type === 'pixel') {
-                return { type: 'pixel', position: { x: target.x, y: target.y } };
-            }
-            if (t.type === 'unit') {
-                return { type: 'unit', unitId: target.id };
-            }
-            return { type: 'player', playerId: target.ownerId, unitId: target.id };
+        // Pick a random target for movement decisions
+        const moveTarget = enemies[Math.floor(Math.random() * enemies.length)];
+
+        // Set move target based on unit AI range settings
+        if (unit.aiSettings) {
+            this.applyAIMovement(unit, moveTarget);
+        }
+
+        // Try each ability and find one with a valid target in range
+        for (const abilityId of unit.abilities) {
+            const ability = getAbility(abilityId);
+            if (!ability) continue;
+
+            // Find a target within this ability's AI range
+            const validTarget = this.findAIAbilityTarget(unit, ability, enemies);
+            if (!validTarget) continue;
+
+            // Build resolved targets aimed at the valid target
+            const resolvedTargets: ResolvedTarget[] = ability.targets.map((t) => {
+                if (t.type === 'pixel') {
+                    return { type: 'pixel', position: { x: validTarget.x, y: validTarget.y } };
+                }
+                if (t.type === 'unit') {
+                    return { type: 'unit', unitId: validTarget.id };
+                }
+                return { type: 'player', playerId: validTarget.ownerId, unitId: validTarget.id };
+            });
+
+            this.executeAbility(unit, ability, resolvedTargets);
+            this.eventBus.emit('turn_end', { unitId: unit.id });
+            return;
+        }
+
+        // No ability had a valid target in range — wait
+        unit.startCooldown(1);
+        this.eventBus.emit('turn_end', { unitId: unit.id });
+    }
+
+    /**
+     * Find a random enemy target that is within an ability's AI range.
+     * If the ability has no aiSettings, any enemy is valid.
+     * Returns null if no target is in range.
+     */
+    private findAIAbilityTarget(unit: Unit, ability: AbilityStatic, enemies: Unit[]): Unit | null {
+        const ai = ability.aiSettings;
+
+        // No AI settings on the ability — pick a random enemy
+        if (!ai) {
+            return enemies[Math.floor(Math.random() * enemies.length)] ?? null;
+        }
+
+        // Filter enemies within the ability's range
+        const inRange = enemies.filter((e) => {
+            const dx = e.x - unit.x;
+            const dy = e.y - unit.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            return dist >= ai.minRange && dist <= ai.maxRange;
         });
 
-        this.executeAbility(unit, ability, resolvedTargets);
-        this.eventBus.emit('turn_end', { unitId: unit.id });
+        if (inRange.length === 0) return null;
+        return inRange[Math.floor(Math.random() * inRange.length)];
+    }
+
+    /**
+     * Set a move target on an AI unit so it stays within its preferred range
+     * of the given target. Moves toward the midpoint of min/max range.
+     */
+    private applyAIMovement(unit: Unit, target: Unit): void {
+        const ai = unit.aiSettings;
+        if (!ai) return;
+
+        const dx = target.x - unit.x;
+        const dy = target.y - unit.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist === 0) return; // exactly on top; skip to avoid division by zero
+
+        const idealRange = (ai.minRange + ai.maxRange) / 2;
+
+        if (dist > ai.maxRange) {
+            // Too far — move toward target, stopping at ideal range
+            const moveToDistance = dist - idealRange;
+            unit.targetPosition = {
+                x: unit.x + (dx / dist) * moveToDistance,
+                y: unit.y + (dy / dist) * moveToDistance,
+            };
+        } else if (dist < ai.minRange) {
+            // Too close — back away from target to ideal range
+            const retreatDistance = idealRange - dist;
+            unit.targetPosition = {
+                x: unit.x - (dx / dist) * retreatDistance,
+                y: unit.y - (dy / dist) * retreatDistance,
+            };
+        }
+        // If within range, no movement needed
     }
 
     // ========================================================================

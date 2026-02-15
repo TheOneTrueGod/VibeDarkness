@@ -10,6 +10,14 @@ import type { TeamId } from '../engine/teams';
 import type { Resource } from '../resources/Resource';
 import type { EventBus } from '../engine/EventBus';
 
+/** AI behavior settings for enemy units. */
+export interface AISettings {
+    /** Minimum desired distance (px) to target. AI backs away if closer. */
+    minRange: number;
+    /** Maximum desired distance (px) to target. AI approaches if farther. */
+    maxRange: number;
+}
+
 export class Unit extends GameObject {
     hp: number;
     maxHp: number;
@@ -37,6 +45,9 @@ export class Unit extends GameObject {
     /** Visual radius for collision and rendering. */
     radius: number = 20;
 
+    /** AI behavior settings (only used for AI-controlled units). */
+    aiSettings: AISettings | null = null;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -49,6 +60,7 @@ export class Unit extends GameObject {
         characterId: string;
         name: string;
         abilities?: string[];
+        aiSettings?: AISettings | null;
     }) {
         super(config.id ?? generateGameObjectId('unit'), config.x, config.y);
         this.hp = config.hp;
@@ -59,6 +71,7 @@ export class Unit extends GameObject {
         this.characterId = config.characterId;
         this.name = config.name;
         this.abilities = config.abilities ?? [];
+        this.aiSettings = config.aiSettings ?? null;
     }
 
     /** Attach a resource and subscribe its event listeners. */
@@ -175,6 +188,7 @@ export class Unit extends GameObject {
             targetPosition: this.targetPosition,
             abilities: this.abilities,
             radius: this.radius,
+            aiSettings: this.aiSettings,
             resources: this.resources.map((r) => r.toJSON()),
         };
     }
@@ -198,6 +212,7 @@ export class Unit extends GameObject {
         unit.cooldownTotal = (data.cooldownTotal as number) ?? 0;
         unit.targetPosition = data.targetPosition as { x: number; y: number } | null;
         unit.radius = (data.radius as number) ?? 20;
+        unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
 
         // Resources are reattached by the unit subclass factory
         return unit;

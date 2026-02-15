@@ -68,6 +68,7 @@ export default function BattlePhase({
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
     const [myCards, setMyCards] = useState<CardInstance[]>([]);
     const [syncError, setSyncError] = useState<string | null>(null);
+    const [pendingMoveTarget, setPendingMoveTarget] = useState<{ x: number; y: number } | null>(null);
     const [, forceRender] = useState(0);
 
     // Polling refs
@@ -123,6 +124,7 @@ export default function BattlePhase({
         engine.setOnWaitingForOrders((info) => {
             setWaitingForOrders(info);
             setIsPaused(true);
+            setPendingMoveTarget(null);
             updateCardState(engine);
 
             // Host: save game state snapshot
@@ -225,6 +227,53 @@ export default function BattlePhase({
         forceRender((n) => n + 1);
     }, []);
 
+    /** Submit a "wait" order: do nothing for 1s, but allow movement. */
+    const handleWait = useCallback(() => {
+        const engine = engineRef.current;
+        if (!engine || !isMyTurn || !waitingForOrders) return;
+
+        submitOrder(engine, 'wait', []);
+        setSelectedCardIndex(null);
+        setSelectedAbility(null);
+        setCurrentTargets([]);
+    }, [isMyTurn, waitingForOrders]);
+
+    // ========================================================================
+    // Keyboard shortcuts
+    // ========================================================================
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.code === 'Space' && !e.repeat) {
+                e.preventDefault();
+                handleWait();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleWait]);
+
+    const handleCanvasRightClick = useCallback((screenX: number, screenY: number) => {
+        const engine = engineRef.current;
+        const camera = cameraRef.current;
+        if (!engine || !camera || !isMyTurn || !waitingForOrders) return;
+
+        // Convert screen coords to world coords
+        const worldPos = camera.screenToWorld(screenX, screenY);
+
+        // Clamp to world bounds
+        const clampedX = Math.max(0, Math.min(worldPos.x, 1200));
+        const clampedY = Math.max(0, Math.min(worldPos.y, 800));
+
+        setPendingMoveTarget({ x: clampedX, y: clampedY });
+
+        // Also set it on the unit immediately for visual feedback (locally)
+        const unit = engine.getUnit(waitingForOrders.unitId);
+        if (unit) {
+            unit.targetPosition = { x: clampedX, y: clampedY };
+        }
+    }, [isMyTurn, waitingForOrders]);
+
     // ========================================================================
     // Order submission
     // ========================================================================
@@ -236,12 +285,14 @@ export default function BattlePhase({
             unitId: waitingForOrders.unitId,
             abilityId,
             targets,
+            moveTarget: pendingMoveTarget,
         };
 
         // Apply locally and resume
         engine.applyOrder(order);
         setWaitingForOrders(null);
         setIsPaused(false);
+        setPendingMoveTarget(null);
         updateCardState(engine);
 
         // Save order to server
@@ -386,6 +437,7 @@ export default function BattlePhase({
                 camera={camera}
                 renderer={renderer}
                 onCanvasClick={handleCanvasClick}
+                onCanvasRightClick={handleCanvasRightClick}
                 onCanvasMouseMove={handleCanvasMouseMove}
             />
 
@@ -396,6 +448,7 @@ export default function BattlePhase({
                 isMyTurn={isMyTurn}
                 selectedCardIndex={selectedCardIndex}
                 onSelectCard={handleSelectCard}
+                onWait={handleWait}
             />
         </div>
     );
