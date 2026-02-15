@@ -42,6 +42,12 @@ export interface AbilityStatic {
     readonly targets: TargetDef[];
     /** AI settings controlling when this ability is used (range check). */
     readonly aiSettings?: AbilityAISettings;
+    /**
+     * Time in seconds before the ability's main effect fires.
+     * The engine calls doCardEffect each tick until prefireTime is reached.
+     * Use 0 for instant abilities.
+     */
+    readonly prefireTime: number;
 
     /**
      * Get the ability description, potentially varying with game state.
@@ -49,10 +55,16 @@ export interface AbilityStatic {
     getDescription(gameState?: unknown): string;
 
     /**
-     * Execute the ability's effect in the game engine.
-     * Called when the card is played and all targets are resolved.
+     * Execute the ability's effect over time using threshold checks.
+     *
+     * Called each tick while the ability is active. `prevTime` and `currentTime`
+     * are seconds elapsed since the ability started. The ability should check
+     * thresholds (e.g. `prevTime < 0.3 && currentTime >= 0.3`) to decide
+     * what to do. The ability is cleared once `currentTime >= prefireTime`.
+     *
+     * On the first tick, prevTime is 0.
      */
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[]): void;
+    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void;
 
     /**
      * Render a targeting preview on the canvas.

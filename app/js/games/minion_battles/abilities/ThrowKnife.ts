@@ -16,8 +16,6 @@ import { Projectile } from '../objects/Projectile';
 // The engine is passed as `unknown` and cast at call site.
 interface GameEngineLike {
     addProjectile(projectile: Projectile): void;
-    scheduleAction(delay: number, action: () => void): void;
-    gameTime: number;
 }
 
 const THROW_KNIFE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -34,6 +32,7 @@ export const ThrowKnife: AbilityStatic = {
     cooldownTime: 2,
     resourceCost: null,
     rechargeTurns: 1,
+    prefireTime: 0.3,
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: 200 },
 
@@ -41,20 +40,16 @@ export const ThrowKnife: AbilityStatic = {
         return 'Throw a knife toward a target location. Deals 5 damage to the first enemy hit. Range: 200px.';
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[]): void {
-        const eng = engine as GameEngineLike;
-        const target = targets[0];
-        if (!target || target.type !== 'pixel' || !target.position) return;
+    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+        // Fire projectile when the 0.3s threshold is crossed
+        if (prevTime < 0.3 && currentTime >= 0.3) {
+            const eng = engine as GameEngineLike;
+            const target = targets[0];
+            if (!target || target.type !== 'pixel' || !target.position) return;
 
-        const startX = caster.x;
-        const startY = caster.y;
-        const targetX = target.position.x;
-        const targetY = target.position.y;
-
-        // Schedule projectile creation after 0.3s delay
-        eng.scheduleAction(0.3, () => {
-            const dx = targetX - startX;
-            const dy = targetY - startY;
+            // Use caster's current position so movement during windup is respected
+            const dx = target.position.x - caster.x;
+            const dy = target.position.y - caster.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist === 0) return;
 
@@ -63,8 +58,8 @@ export const ThrowKnife: AbilityStatic = {
             const velocityY = (dy / dist) * speed;
 
             const projectile = new Projectile({
-                x: startX,
-                y: startY,
+                x: caster.x,
+                y: caster.y,
                 velocityX,
                 velocityY,
                 damage: 5,
@@ -74,7 +69,7 @@ export const ThrowKnife: AbilityStatic = {
             });
 
             eng.addProjectile(projectile);
-        });
+        }
     },
 
     renderPreview(

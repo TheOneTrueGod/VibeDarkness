@@ -72,10 +72,12 @@ export interface UnitSpawnConfig {
     aiSettings?: AISettings;
 }
 
-/** Scheduled action (e.g. delayed projectile spawn). */
-export interface ScheduledAction {
-    /** Game time at which to execute. */
-    executeAt: number;
-    /** Callback to run. */
-    action: () => void;
+/** An ability actively being executed by a unit (tracked for tick-based effects). */
+export interface ActiveAbility {
+    /** The ability being used. */
+    abilityId: string;
+    /** Game time when the ability was activated. */
+    startTime: number;
+    /** Resolved targets for this ability. */
+    targets: ResolvedTarget[];
 }

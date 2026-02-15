@@ -13,7 +13,6 @@ import type {
     SerializedCardInstance,
     BattleOrder,
     ResolvedTarget,
-    ScheduledAction,
     UnitSpawnConfig,
 } from './types';
 import { Unit } from '../objects/Unit';
@@ -66,9 +65,6 @@ export class GameEngine {
 
     // -- Cards per player --
     cards: Record<string, CardInstance[]> = {};
-
-    // -- Scheduled actions (delayed effects) --
-    private scheduledActions: ScheduledAction[] = [];
 
     // -- Loop state --
     private accumulator: number = 0;
@@ -220,8 +216,8 @@ export class GameEngine {
             this.roundNumber++;
         }
 
-        // Execute scheduled actions
-        this.processScheduledActions();
+        // Process active abilities on all units
+        this.processActiveAbilities(dt);
 
         // Update units
         for (const unit of this.units) {
@@ -327,8 +323,12 @@ export class GameEngine {
         // Set cooldown
         unit.startCooldown(ability.cooldownTime);
 
-        // Fire the ability effect
-        ability.doCardEffect(this, unit, targets);
+        // Register the ability as active — the tick loop will call doCardEffect each frame
+        unit.activeAbilities.push({
+            abilityId: ability.id,
+            startTime: this.gameTime,
+            targets: targets.map((t) => ({ ...t })),
+        });
 
         // Emit event
         this.eventBus.emit('ability_used', {
@@ -465,22 +465,42 @@ export class GameEngine {
     }
 
     // ========================================================================
-    // Scheduled Actions
+    // Active Ability Processing
     // ========================================================================
 
-    /** Schedule an action to run after a delay (in seconds of game time). */
-    scheduleAction(delay: number, action: () => void): void {
-        this.scheduledActions.push({
-            executeAt: this.gameTime + delay,
-            action,
-        });
-    }
+    /**
+     * Tick all active abilities on all units. Calls doCardEffect with
+     * time-since-start thresholds so abilities can fire effects at the
+     * right moment. Removes abilities once prefireTime is reached.
+     */
+    private processActiveAbilities(dt: number): void {
+        for (const unit of this.units) {
+            if (unit.activeAbilities.length === 0) continue;
 
-    private processScheduledActions(): void {
-        const ready = this.scheduledActions.filter((a) => this.gameTime >= a.executeAt);
-        this.scheduledActions = this.scheduledActions.filter((a) => this.gameTime < a.executeAt);
-        for (const a of ready) {
-            a.action();
+            const completed: number[] = [];
+
+            for (let i = 0; i < unit.activeAbilities.length; i++) {
+                const active = unit.activeAbilities[i];
+                const ability = getAbility(active.abilityId);
+                if (!ability) {
+                    completed.push(i);
+                    continue;
+                }
+
+                const currentTime = this.gameTime - active.startTime;
+                const prevTime = currentTime - dt;
+
+                ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime);
+
+                if (currentTime >= ability.prefireTime) {
+                    completed.push(i);
+                }
+            }
+
+            // Remove completed abilities (iterate in reverse to preserve indices)
+            for (let i = completed.length - 1; i >= 0; i--) {
+                unit.activeAbilities.splice(completed[i], 1);
+            }
         }
     }
 
@@ -635,7 +655,6 @@ export class GameEngine {
         this.units = [];
         this.projectiles = [];
         this.effects = [];
-        this.scheduledActions = [];
     }
 }
 

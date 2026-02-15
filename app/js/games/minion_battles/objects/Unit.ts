@@ -7,6 +7,7 @@
 
 import { GameObject, generateGameObjectId } from './GameObject';
 import type { TeamId } from '../engine/teams';
+import type { ActiveAbility } from '../engine/types';
 import type { Resource } from '../resources/Resource';
 import type { EventBus } from '../engine/EventBus';
 
@@ -41,6 +42,9 @@ export class Unit extends GameObject {
 
     /** Ability IDs available to this unit. */
     abilities: string[] = [];
+
+    /** Abilities currently being executed (tick-based effects in progress). */
+    activeAbilities: ActiveAbility[] = [];
 
     /** Visual radius for collision and rendering. */
     radius: number = 20;
@@ -187,6 +191,7 @@ export class Unit extends GameObject {
             cooldownTotal: this.cooldownTotal,
             targetPosition: this.targetPosition,
             abilities: this.abilities,
+            activeAbilities: this.activeAbilities.map((a) => ({ ...a, targets: a.targets.map((t) => ({ ...t })) })),
             radius: this.radius,
             aiSettings: this.aiSettings,
             resources: this.resources.map((r) => r.toJSON()),
@@ -213,6 +218,7 @@ export class Unit extends GameObject {
         unit.targetPosition = data.targetPosition as { x: number; y: number } | null;
         unit.radius = (data.radius as number) ?? 20;
         unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
+        unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
 
         // Resources are reattached by the unit subclass factory
         return unit;
