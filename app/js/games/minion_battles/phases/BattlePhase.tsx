@@ -125,8 +125,14 @@ export default function BattlePhase({
         engine.setOnWaitingForOrders((info) => {
             setWaitingForOrders(info);
             setIsPaused(true);
-            pendingMoveTargetRef.current = null;
-            setPendingMoveTarget(null);
+
+            // Preserve the unit's existing movement target so it carries
+            // over into the next order (unit keeps walking between turns).
+            const unit = engine.getUnit(info.unitId);
+            const existingTarget = unit?.targetPosition ?? null;
+            pendingMoveTargetRef.current = existingTarget;
+            setPendingMoveTarget(existingTarget);
+
             updateCardState(engine);
 
             // Host: save game state snapshot
