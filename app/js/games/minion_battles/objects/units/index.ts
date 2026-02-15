@@ -47,7 +47,7 @@ export function createUnitByCharacterId(
     }
     // Fallback: generic enemy with default stats
     return createGenericEnemy(
-        { ...config, hp: 50, speed: 40, characterId },
+        { ...config, hp: 50, speed: 120, characterId },
         eventBus,
     );
 }

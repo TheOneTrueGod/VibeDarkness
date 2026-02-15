@@ -9,7 +9,7 @@ import type { EventBus } from '../../engine/EventBus';
 
 export const HEALER_DEFAULTS = {
     hp: 70,
-    speed: 35,
+    speed: 105,
     radius: 18,
 };
 

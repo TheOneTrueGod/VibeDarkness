@@ -69,6 +69,7 @@ export default function BattlePhase({
     const [myCards, setMyCards] = useState<CardInstance[]>([]);
     const [syncError, setSyncError] = useState<string | null>(null);
     const [pendingMoveTarget, setPendingMoveTarget] = useState<{ x: number; y: number } | null>(null);
+    const pendingMoveTargetRef = useRef<{ x: number; y: number } | null>(null);
     const [, forceRender] = useState(0);
 
     // Polling refs
@@ -124,6 +125,7 @@ export default function BattlePhase({
         engine.setOnWaitingForOrders((info) => {
             setWaitingForOrders(info);
             setIsPaused(true);
+            pendingMoveTargetRef.current = null;
             setPendingMoveTarget(null);
             updateCardState(engine);
 
@@ -265,7 +267,9 @@ export default function BattlePhase({
         const clampedX = Math.max(0, Math.min(worldPos.x, 1200));
         const clampedY = Math.max(0, Math.min(worldPos.y, 800));
 
-        setPendingMoveTarget({ x: clampedX, y: clampedY });
+        const moveTarget = { x: clampedX, y: clampedY };
+        pendingMoveTargetRef.current = moveTarget;
+        setPendingMoveTarget(moveTarget);
 
         // Also set it on the unit immediately for visual feedback (locally)
         const unit = engine.getUnit(waitingForOrders.unitId);
@@ -281,17 +285,22 @@ export default function BattlePhase({
     function submitOrder(engine: GameEngine, abilityId: string, targets: ResolvedTarget[]) {
         if (!waitingForOrders) return;
 
+        // Read move target from ref to avoid stale closure when
+        // right-click (move) and left-click (ability) happen in quick succession
+        const moveTarget = pendingMoveTargetRef.current;
+
         const order: BattleOrder = {
             unitId: waitingForOrders.unitId,
             abilityId,
             targets,
-            moveTarget: pendingMoveTarget,
+            moveTarget,
         };
 
         // Apply locally and resume
         engine.applyOrder(order);
         setWaitingForOrders(null);
         setIsPaused(false);
+        pendingMoveTargetRef.current = null;
         setPendingMoveTarget(null);
         updateCardState(engine);
 
