@@ -24,6 +24,7 @@ export interface WaitingForOrders {
 /** Serialized game state for server sync. */
 export interface SerializedGameState {
     gameTime: number;
+    gameTick: number;
     roundNumber: number;
     snapshotIndex: number;
     units: Record<string, unknown>[];

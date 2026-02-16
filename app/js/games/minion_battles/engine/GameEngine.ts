@@ -54,6 +54,7 @@ export class GameEngine {
     // -- Core state --
     readonly eventBus: EventBus = new EventBus();
     gameTime: number = 0;
+    gameTick: number = 0;
     roundNumber: number = 1;
     snapshotIndex: number = 0;
     isPaused: boolean = false;
@@ -211,8 +212,9 @@ export class GameEngine {
     }
 
     private fixedUpdate(dt: number): void {
-        // Update game time
+        // Update game time and tick counter
         this.gameTime += dt;
+        this.gameTick++;
 
         // Check for round end
         const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
@@ -598,6 +600,7 @@ export class GameEngine {
     toJSON(): SerializedGameState {
         return {
             gameTime: this.gameTime,
+            gameTick: this.gameTick,
             roundNumber: this.roundNumber,
             snapshotIndex: this.snapshotIndex,
             units: this.units.map((u) => u.toJSON()),
@@ -618,6 +621,7 @@ export class GameEngine {
         engine.localPlayerId = localPlayerId;
         engine.terrainManager = terrainManager ?? null;
         engine.gameTime = data.gameTime;
+        engine.gameTick = data.gameTick ?? 0;
         engine.roundNumber = data.roundNumber;
         engine.snapshotIndex = data.snapshotIndex;
         engine.waitingForOrders = data.waitingForOrders;

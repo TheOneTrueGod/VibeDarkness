@@ -9,7 +9,7 @@ A real-time multiplayer game lobby system with:
 - React + Tailwind CSS frontend (TypeScript)
 - Vite build toolchain
 - HTTP API for lobby management and message polling
-- Clients poll `getMessages` every second; chat and clicks are sent via HTTP POST
+- Clients poll `getMessages` every 5 seconds; chat and clicks are sent via HTTP POST
 
 ## Architecture
 
@@ -30,7 +30,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 
 ### Message System (HTTP polling)
 - Messages are stored on the server in each lobby's message log (with `messageId`).
-- Clients call `GET /api/lobbies/{id}/messages?playerId=...&after=...` every second.
+- Clients call `GET /api/lobbies/{id}/messages?playerId=...&after=...` every 5 seconds.
 - If no `after`, returns last 10 messages; otherwise up to 10 messages after that id.
 - To send: `POST /api/lobbies/{id}/messages` with `{ playerId, type, data }` (type: `chat` or `click`).
 

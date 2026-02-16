@@ -233,7 +233,7 @@ function AppInner() {
     useEffect(() => {
         if (!currentLobby || !currentPlayer) return;
 
-        pollIntervalRef.current = setInterval(pollMessages, 1000);
+        pollIntervalRef.current = setInterval(pollMessages, 5000);
         statusIntervalRef.current = setInterval(fetchLobbyStatus, 5000);
 
         return () => {
