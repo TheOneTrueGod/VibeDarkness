@@ -24,6 +24,19 @@ export interface AccountState {
     air: number;
 }
 
+/** Info pushed from a game component into the chat sidebar. */
+export interface GameSidebarInfo {
+    turnIndicator: { visible: boolean; text: string };
+    playerUnits: {
+        playerId: string;
+        playerName: string;
+        characterId: string;
+        hp: number;
+        maxHp: number;
+        isAlive: boolean;
+    }[];
+}
+
 export interface GameStatePayload {
     lobbyState?: string;
     /** Unique game instance id (for save file and API) */

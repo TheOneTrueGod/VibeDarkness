@@ -7,7 +7,7 @@
  * for the server round-trip.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { PlayerState } from '../../types';
+import type { PlayerState, GameSidebarInfo } from '../../types';
 import { LobbyClient } from '../../LobbyClient';
 import { MessageType } from '../../MessageTypes';
 import { useLocalOverrides } from '../../hooks/useLocalOverrides';
@@ -41,6 +41,7 @@ interface MinionBattlesGameProps {
     isHost: boolean;
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
+    onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
 }
 
 export default function MinionBattlesGame({
@@ -51,6 +52,7 @@ export default function MinionBattlesGame({
     isHost,
     players,
     gameData,
+    onSidebarInfoChange,
 }: MinionBattlesGameProps) {
     const raw = gameData ?? {};
 
@@ -179,6 +181,7 @@ export default function MinionBattlesGame({
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
+                    onSidebarInfoChange={onSidebarInfoChange}
                 />
             )}
             {gamePhase !== 'mission_select' &&

@@ -9,7 +9,7 @@ import type { EventBus } from '../../engine/EventBus';
 
 export const WARRIOR_DEFAULTS = {
     hp: 100,
-    speed: 150,
+    speed: 100,
     radius: 22,
 };
 

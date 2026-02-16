@@ -9,7 +9,7 @@ import type { EventBus } from '../../engine/EventBus';
 
 export const MAGE_DEFAULTS = {
     hp: 60,
-    speed: 90,
+    speed: 60,
     radius: 18,
 };
 

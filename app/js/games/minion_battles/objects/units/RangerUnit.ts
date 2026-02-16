@@ -8,7 +8,7 @@ import type { EventBus } from '../../engine/EventBus';
 
 export const RANGER_DEFAULTS = {
     hp: 75,
-    speed: 135,
+    speed: 90,
     radius: 18,
 };
 

@@ -24,7 +24,7 @@ export default function CardDescription({
 }: CardDescriptionProps) {
     if (isMobileOverlay) {
         return (
-            <div className="absolute inset-x-0 bottom-0 bg-dark-900/95 border-t border-dark-600 p-4 z-50">
+            <div className="absolute inset-x-0 bottom-0 bg-black border-t border-dark-600 p-4 z-50">
                 <div className="flex justify-between items-start mb-2">
                     <h3 className="text-white font-bold text-sm">{abilityName}</h3>
                     <button
@@ -41,7 +41,7 @@ export default function CardDescription({
 
     // Desktop tooltip
     return (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-dark-900 border border-dark-600 rounded-lg p-3 shadow-lg pointer-events-none z-50">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-black border border-dark-600 rounded-lg p-3 shadow-lg pointer-events-none z-50">
             <h3 className="text-white font-bold text-xs mb-1">{abilityName}</h3>
             <p className="text-muted text-xs leading-relaxed">{description}</p>
         </div>

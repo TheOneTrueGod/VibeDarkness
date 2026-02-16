@@ -1,7 +1,7 @@
 /**
  * Game screen - shown when inside a lobby
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Chat from './Chat';
 import type { MessageEntry } from './Chat';
 import PlayerList from './PlayerList';
@@ -9,7 +9,7 @@ import GameCanvas from './GameCanvas';
 import type { ClickData } from './GameCanvas';
 import ResourceDisplay from './ResourceDisplay';
 import GameList from './GameList';
-import type { PlayerState, AccountState, LobbyState } from '../types';
+import type { PlayerState, AccountState, LobbyState, GameSidebarInfo } from '../types';
 import { LobbyClient } from '../LobbyClient';
 import { getGameById } from '../games/list';
 
@@ -37,6 +37,7 @@ export interface GameComponentProps {
     isHost: boolean;
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
+    onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
 }
 
 interface GameScreenProps {
@@ -80,6 +81,7 @@ export default function GameScreen({
 }: GameScreenProps) {
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
     const [gameLoadError, setGameLoadError] = useState<string | null>(null);
+    const [gameSidebarInfo, setGameSidebarInfo] = useState<GameSidebarInfo | null>(null);
 
     // Load game component dynamically when game type changes
     useEffect(() => {
@@ -146,11 +148,73 @@ export default function GameScreen({
         wasMobileOrTablet.current = isMobileOrTablet;
     }, [isMobileOrTablet]);
 
-    const chatTopContent = account ? (
-        <div className="flex flex-wrap items-center gap-2">
-            <ResourceDisplay resources={account} />
-        </div>
-    ) : null;
+    const chatTopContent = useMemo(() => {
+        const hasResources = !!account;
+        const hasSidebar = !!gameSidebarInfo;
+        if (!hasResources && !hasSidebar) return null;
+
+        return (
+            <div className="flex flex-col gap-2">
+                {hasResources && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ResourceDisplay resources={account} />
+                    </div>
+                )}
+                {hasSidebar && (
+                    <>
+                        {/* Turn indicator - always occupies space; invisible when not your turn */}
+                        <div
+                            className={`text-sm px-3 py-2 rounded-lg bg-green-700 text-white font-medium text-center border border-green-500 ${
+                                gameSidebarInfo.turnIndicator.visible ? '' : 'invisible'
+                            }`}
+                        >
+                            {gameSidebarInfo.turnIndicator.text}
+                        </div>
+                        {/* Player unit health list */}
+                        <div className="flex flex-col gap-1.5">
+                            {gameSidebarInfo.playerUnits.map((pu) => {
+                                const pState = players[pu.playerId];
+                                const hpPct = pu.maxHp > 0 ? Math.round((pu.hp / pu.maxHp) * 100) : 0;
+                                const barColor = !pu.isAlive
+                                    ? 'bg-gray-600'
+                                    : hpPct > 60
+                                      ? 'bg-green-500'
+                                      : hpPct > 30
+                                        ? 'bg-yellow-500'
+                                        : 'bg-red-500';
+                                return (
+                                    <div key={pu.playerId} className="flex flex-col gap-0.5">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span
+                                                className="font-medium truncate"
+                                                style={{ color: pState?.color ?? '#fff' }}
+                                            >
+                                                {pu.playerName}
+                                            </span>
+                                            <span className="text-muted capitalize text-[11px]">
+                                                {pu.characterId}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="flex-1 h-1.5 bg-dark-700 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full transition-all ${barColor}`}
+                                                    style={{ width: `${hpPct}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-[10px] text-muted w-12 text-right">
+                                                {pu.hp}/{pu.maxHp}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+            </div>
+        );
+    }, [account, gameSidebarInfo, players]);
 
     const chatHeaderLeaveButton = (
         <button
@@ -223,6 +287,7 @@ export default function GameScreen({
                                     isHost={isHost}
                                     players={players}
                                     gameData={lobbyGameData}
+                                    onSidebarInfoChange={setGameSidebarInfo}
                                 />
                             ) : (
                                 <p className="text-muted">Loading game...</p>

@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import type { PlayerState } from '../../../types';
+import type { PlayerState, GameSidebarInfo } from '../../../types';
 import type { LobbyClient } from '../../../LobbyClient';
 import { GameEngine } from '../engine/GameEngine';
 import type { CardInstance } from '../engine/GameEngine';
@@ -41,6 +41,7 @@ interface BattlePhaseProps {
     missionId: string;
     /** Initial game state from server (if reconnecting). */
     initialGameState?: Record<string, unknown> | null;
+    onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
 }
 
 export default function BattlePhase({
@@ -53,6 +54,7 @@ export default function BattlePhase({
     characterSelections,
     missionId,
     initialGameState,
+    onSidebarInfoChange,
 }: BattlePhaseProps) {
     // Refs for objects that persist across renders
     const engineRef = useRef<GameEngine | null>(null);
@@ -82,6 +84,50 @@ export default function BattlePhase({
     const playerUnit = useMemo(() => {
         return engineRef.current?.getLocalPlayerUnit() ?? null;
     }, [waitingForOrders, roundNumber]); // re-evaluate when state changes
+
+    // ========================================================================
+    // Sidebar info (turn indicator + player health)
+    // ========================================================================
+
+    const onSidebarInfoChangeRef = useRef(onSidebarInfoChange);
+    onSidebarInfoChangeRef.current = onSidebarInfoChange;
+
+    useEffect(() => {
+        const update = () => {
+            const engine = engineRef.current;
+            if (!engine || !onSidebarInfoChangeRef.current) return;
+
+            const playerUnits = engine.units
+                .filter((u) => u.isPlayerControlled())
+                .map((u) => ({
+                    playerId: u.ownerId,
+                    playerName: players[u.ownerId]?.name ?? 'Unknown',
+                    characterId: u.characterId,
+                    hp: u.hp,
+                    maxHp: u.maxHp,
+                    isAlive: u.isAlive(),
+                }));
+
+            onSidebarInfoChangeRef.current({
+                turnIndicator: {
+                    visible: isMyTurn,
+                    text: 'Your turn! Select a card to play.',
+                },
+                playerUnits,
+            });
+        };
+
+        update();
+        const interval = setInterval(update, 500);
+        return () => clearInterval(interval);
+    }, [isMyTurn, roundNumber, players]);
+
+    // Clear sidebar info on unmount
+    useEffect(() => {
+        return () => {
+            onSidebarInfoChangeRef.current?.(null);
+        };
+    }, []);
 
     // ========================================================================
     // Initialize engine
@@ -454,13 +500,6 @@ export default function BattlePhase({
             {isPaused && !isMyTurn && waitingForOrders && (
                 <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 bg-dark-900/90 text-yellow-300 text-sm px-4 py-2 rounded-lg border border-yellow-600/30">
                     Waiting for {players[waitingForOrders.ownerId]?.name ?? 'player'}...
-                </div>
-            )}
-
-            {/* Your turn indicator */}
-            {isMyTurn && (
-                <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 bg-dark-900/90 text-green-300 text-sm px-4 py-2 rounded-lg border border-green-600/30 animate-pulse">
-                    Your turn! Select a card to play.
                 </div>
             )}
 
