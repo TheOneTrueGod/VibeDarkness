@@ -20,6 +20,7 @@ import { DARK_AWAKENING } from '../missions/dark_awakening';
 import { LAST_HOLDOUT } from '../missions/last_holdout';
 import type { MissionBattleConfig } from '../missions/types';
 import type { UnitSpawnConfig } from '../engine/types';
+import { TerrainManager } from '../terrain/TerrainManager';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import RoundProgressBar from '../components/RoundProgressBar';
@@ -107,19 +108,27 @@ export default function BattlePhase({
             name: players[pid]?.name ?? 'Unknown',
         }));
 
-        // Get mission enemies
+        // Get mission config
         const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
         const enemySpawns: UnitSpawnConfig[] = mission.enemies.map((e) => ({
             ...e,
             ownerId: 'ai',
         }));
 
-        // Initialize
+        // Create terrain from mission config
+        const terrainGrid = mission.createTerrain();
+        const terrainManager = new TerrainManager(terrainGrid);
+
+        // Initialize engine with terrain
         engine.initialize({
             playerUnits,
             enemySpawns,
             localPlayerId: playerId,
+            terrainManager,
         });
+
+        // Set terrain on renderer (will be cached as a sprite)
+        renderer.setTerrain(terrainGrid);
 
         // Set up callbacks
         engine.setOnWaitingForOrders((info) => {
@@ -277,10 +286,10 @@ export default function BattlePhase({
         pendingMoveTargetRef.current = moveTarget;
         setPendingMoveTarget(moveTarget);
 
-        // Also set it on the unit immediately for visual feedback (locally)
+        // Set it on the unit immediately for visual feedback (with pathfinding)
         const unit = engine.getUnit(waitingForOrders.unitId);
         if (unit) {
-            unit.targetPosition = { x: clampedX, y: clampedY };
+            unit.setMoveTarget(clampedX, clampedY, engine.terrainManager);
         }
     }, [isMyTurn, waitingForOrders]);
 

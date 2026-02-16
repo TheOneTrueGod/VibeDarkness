@@ -28,6 +28,7 @@ import type { TeamId } from './teams';
 import { Rage } from '../resources/Rage';
 import { Mana } from '../resources/Mana';
 import type { Resource } from '../resources/Resource';
+import type { TerrainManager } from '../terrain/TerrainManager';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
@@ -63,6 +64,9 @@ export class GameEngine {
     projectiles: Projectile[] = [];
     effects: Effect[] = [];
 
+    // -- Terrain --
+    terrainManager: TerrainManager | null = null;
+
     // -- Cards per player --
     cards: Record<string, CardInstance[]> = {};
 
@@ -85,14 +89,16 @@ export class GameEngine {
     // ========================================================================
 
     /**
-     * Initialize the engine with player characters and enemy spawns.
+     * Initialize the engine with player characters, enemy spawns, and terrain.
      */
     initialize(config: {
         playerUnits: { playerId: string; characterId: string; name: string }[];
         enemySpawns: UnitSpawnConfig[];
         localPlayerId: string;
+        terrainManager?: TerrainManager | null;
     }): void {
         this.localPlayerId = config.localPlayerId;
+        this.terrainManager = config.terrainManager ?? null;
         resetGameObjectIdCounter(1);
 
         // Place player units on the left side, spaced vertically
@@ -279,9 +285,11 @@ export class GameEngine {
             return;
         }
 
-        // Apply move target if provided
-        if (order.moveTarget !== undefined) {
-            unit.targetPosition = order.moveTarget;
+        // Apply move target if provided (with pathfinding)
+        if (order.moveTarget !== undefined && order.moveTarget !== null) {
+            unit.setMoveTarget(order.moveTarget.x, order.moveTarget.y, this.terrainManager);
+        } else if (order.moveTarget === null) {
+            unit.clearMoveTarget();
         }
 
         // Wait action: do nothing, just set a 1s cooldown
@@ -433,6 +441,7 @@ export class GameEngine {
     /**
      * Set a move target on an AI unit so it stays within its preferred range
      * of the given target. Moves toward the midpoint of min/max range.
+     * Uses pathfinding to navigate around terrain obstacles.
      */
     private applyAIMovement(unit: Unit, target: Unit): void {
         const ai = unit.aiSettings;
@@ -445,23 +454,27 @@ export class GameEngine {
         if (dist === 0) return; // exactly on top; skip to avoid division by zero
 
         const idealRange = (ai.minRange + ai.maxRange) / 2;
+        let destX: number | null = null;
+        let destY: number | null = null;
 
         if (dist > ai.maxRange) {
             // Too far — move toward target, stopping at ideal range
             const moveToDistance = dist - idealRange;
-            unit.targetPosition = {
-                x: unit.x + (dx / dist) * moveToDistance,
-                y: unit.y + (dy / dist) * moveToDistance,
-            };
+            destX = unit.x + (dx / dist) * moveToDistance;
+            destY = unit.y + (dy / dist) * moveToDistance;
         } else if (dist < ai.minRange) {
             // Too close — back away from target to ideal range
             const retreatDistance = idealRange - dist;
-            unit.targetPosition = {
-                x: unit.x - (dx / dist) * retreatDistance,
-                y: unit.y - (dy / dist) * retreatDistance,
-            };
+            destX = unit.x - (dx / dist) * retreatDistance;
+            destY = unit.y - (dy / dist) * retreatDistance;
         }
-        // If within range, no movement needed
+
+        if (destX !== null && destY !== null) {
+            // Clamp to world bounds
+            destX = Math.max(0, Math.min(WORLD_WIDTH, destX));
+            destY = Math.max(0, Math.min(WORLD_HEIGHT, destY));
+            unit.setMoveTarget(destX, destY, this.terrainManager);
+        }
     }
 
     // ========================================================================
@@ -599,9 +612,10 @@ export class GameEngine {
         };
     }
 
-    static fromJSON(data: SerializedGameState, localPlayerId: string): GameEngine {
+    static fromJSON(data: SerializedGameState, localPlayerId: string, terrainManager?: TerrainManager | null): GameEngine {
         const engine = new GameEngine();
         engine.localPlayerId = localPlayerId;
+        engine.terrainManager = terrainManager ?? null;
         engine.gameTime = data.gameTime;
         engine.roundNumber = data.roundNumber;
         engine.snapshotIndex = data.snapshotIndex;

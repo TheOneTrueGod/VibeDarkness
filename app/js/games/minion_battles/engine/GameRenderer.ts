@@ -6,7 +6,7 @@
  * engine objects with camera offsets applied.
  */
 
-import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Text, TextStyle } from 'pixi.js';
 import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
 import type { Unit } from '../objects/Unit';
@@ -14,6 +14,8 @@ import type { Projectile } from '../objects/Projectile';
 import type { Effect } from '../objects/Effect';
 import { areEnemies } from './teams';
 import type { TeamId } from './teams';
+import type { TerrainGrid } from '../terrain/TerrainGrid';
+import { TerrainRenderer } from '../terrain/TerrainRenderer';
 
 /** Color for allied unit glows. */
 const ALLY_GLOW_COLOR = 0x22c55e; // green-500
@@ -36,6 +38,11 @@ export class GameRenderer {
     /** The team ID used to determine friend/foe glow colors. */
     localTeamId: TeamId = 'player';
 
+    /** Terrain renderer (builds and caches the terrain sprite). */
+    private terrainRenderer: TerrainRenderer = new TerrainRenderer();
+    private terrainSprite: Sprite | null = null;
+    private pendingTerrainGrid: TerrainGrid | null = null;
+
     constructor() {
         this.app = new Application();
         this.gameContainer = new Container();
@@ -53,6 +60,35 @@ export class GameRenderer {
         });
         this.app.stage.addChild(this.gameContainer);
         this.initialized = true;
+
+        // Build terrain sprite if it was queued before init completed
+        if (this.pendingTerrainGrid) {
+            this.buildTerrainSprite(this.pendingTerrainGrid);
+            this.pendingTerrainGrid = null;
+        }
+    }
+
+    /**
+     * Set the terrain to render. If the renderer is already initialized,
+     * builds the sprite immediately; otherwise queues it for after init.
+     */
+    setTerrain(terrainGrid: TerrainGrid): void {
+        if (this.initialized) {
+            this.buildTerrainSprite(terrainGrid);
+        } else {
+            this.pendingTerrainGrid = terrainGrid;
+        }
+    }
+
+    /** Build the cached terrain sprite and add it at the bottom of the scene. */
+    private buildTerrainSprite(terrainGrid: TerrainGrid): void {
+        if (this.terrainSprite) {
+            this.gameContainer.removeChild(this.terrainSprite);
+        }
+
+        this.terrainSprite = this.terrainRenderer.buildSprite(terrainGrid);
+        // Insert terrain at the very bottom of the game container
+        this.gameContainer.addChildAt(this.terrainSprite, 0);
     }
 
     /** Resize the renderer (e.g. on window resize). */
@@ -324,6 +360,8 @@ export class GameRenderer {
         this.moveTargetVisuals.clear();
         this.projectileVisuals.clear();
         this.effectVisuals.clear();
+        this.terrainRenderer.destroy();
+        this.terrainSprite = null;
         this.gameContainer.destroy();
         this.app.destroy();
         this.initialized = false;

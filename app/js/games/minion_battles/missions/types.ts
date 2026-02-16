@@ -1,11 +1,13 @@
 /**
  * Mission battle configuration types.
  *
- * Each mission defines what enemies to spawn when the battle starts.
+ * Each mission defines what enemies to spawn when the battle starts,
+ * along with the terrain layout for the battlefield.
  */
 
 import type { TeamId } from '../engine/teams';
 import type { AISettings } from '../objects/Unit';
+import type { TerrainGrid } from '../terrain/TerrainGrid';
 
 /** Config for a single enemy spawn. */
 export interface EnemySpawnDef {
@@ -35,4 +37,6 @@ export interface MissionBattleConfig {
     name: string;
     /** List of enemies to spawn. */
     enemies: EnemySpawnDef[];
+    /** Create the terrain grid for this mission's battlefield. */
+    createTerrain: () => TerrainGrid;
 }
