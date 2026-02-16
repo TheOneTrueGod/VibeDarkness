@@ -471,7 +471,8 @@ export class GameEngine {
     /**
      * Tick all active abilities on all units. Calls doCardEffect with
      * time-since-start thresholds so abilities can fire effects at the
-     * right moment. Removes abilities once prefireTime is reached.
+     * right moment. Removes abilities once prefireTime is reached AND
+     * getAbilityStates returns empty (no lingering states like movement penalty).
      */
     private processActiveAbilities(dt: number): void {
         for (const unit of this.units) {
@@ -490,9 +491,13 @@ export class GameEngine {
                 const currentTime = this.gameTime - active.startTime;
                 const prevTime = currentTime - dt;
 
-                ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime);
+                // Only call doCardEffect while prefireTime hasn't been reached
+                if (currentTime < ability.prefireTime || prevTime < ability.prefireTime) {
+                    ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime);
+                }
 
-                if (currentTime >= ability.prefireTime) {
+                // Remove once prefire is done AND no lingering ability states remain
+                if (currentTime >= ability.prefireTime && ability.getAbilityStates(currentTime).length === 0) {
                     completed.push(i);
                 }
             }

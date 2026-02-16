@@ -10,6 +10,8 @@ import type { TeamId } from '../engine/teams';
 import type { ActiveAbility } from '../engine/types';
 import type { Resource } from '../resources/Resource';
 import type { EventBus } from '../engine/EventBus';
+import { getAbility } from '../abilities/AbilityRegistry';
+import { AbilityState } from '../abilities/Ability';
 
 /** AI behavior settings for enemy units. */
 export interface AISettings {
@@ -131,7 +133,7 @@ export class Unit extends GameObject {
         return actual;
     }
 
-    update(dt: number, _engine: unknown): void {
+    update(dt: number, engine: unknown): void {
         // Decrement cooldown
         if (this.cooldownRemaining > 0) {
             this.cooldownRemaining = Math.max(0, this.cooldownRemaining - dt);
@@ -143,13 +145,17 @@ export class Unit extends GameObject {
             const dy = this.targetPosition.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
+            // Use effective speed (accounting for movement penalties from active abilities)
+            const gameTime = (engine as { gameTime: number }).gameTime;
+            const effectiveSpeed = this.getEffectiveSpeed(gameTime);
+
             if (dist < 1) {
                 // Arrived
                 this.x = this.targetPosition.x;
                 this.y = this.targetPosition.y;
                 this.targetPosition = null;
             } else {
-                const step = this.speed * dt;
+                const step = effectiveSpeed * dt;
                 if (step >= dist) {
                     this.x = this.targetPosition.x;
                     this.y = this.targetPosition.y;
@@ -160,6 +166,30 @@ export class Unit extends GameObject {
                 }
             }
         }
+    }
+
+    /**
+     * Get the unit's effective speed accounting for movement penalties
+     * from all active abilities. Takes the lowest penalty multiplier.
+     */
+    getEffectiveSpeed(gameTime: number): number {
+        let lowestPenalty = 1;
+
+        for (const active of this.activeAbilities) {
+            const ability = getAbility(active.abilityId);
+            if (!ability) continue;
+
+            const currentTime = gameTime - active.startTime;
+            const states = ability.getAbilityStates(currentTime);
+
+            for (const entry of states) {
+                if (entry.state === AbilityState.MOVEMENT_PENALTY) {
+                    lowestPenalty = Math.min(lowestPenalty, entry.data.amount);
+                }
+            }
+        }
+
+        return this.speed * lowestPenalty;
     }
 
     /** Whether the unit's cooldown has finished and it can act. */

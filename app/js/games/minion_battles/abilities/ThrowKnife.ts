@@ -6,7 +6,8 @@
  * Cooldown: 2s. No resource cost. Recharge: 1 round.
  */
 
-import type { AbilityStatic } from './Ability';
+import { AbilityState } from './Ability';
+import type { AbilityStatic, AbilityStateEntry } from './Ability';
 import type { TargetDef } from './targeting';
 import type { ResolvedTarget } from '../engine/types';
 import type { Unit } from '../objects/Unit';
@@ -40,6 +41,14 @@ export const ThrowKnife: AbilityStatic = {
         return 'Throw a knife toward a target location. Deals 5 damage to the first enemy hit. Range: 200px.';
     },
 
+    getAbilityStates(currentTime: number): AbilityStateEntry[] {
+        const states: AbilityStateEntry[] = [];
+        if (currentTime < 0.6) {
+            states.push({ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } });
+        }
+        return states;
+    },
+
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         // Fire projectile when the 0.3s threshold is crossed
         if (prevTime < 0.3 && currentTime >= 0.3) {
@@ -53,7 +62,7 @@ export const ThrowKnife: AbilityStatic = {
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist === 0) return;
 
-            const speed = 300; // pixels per second
+            const speed = 900; // pixels per second
             const velocityX = (dx / dist) * speed;
             const velocityY = (dy / dist) * speed;
 

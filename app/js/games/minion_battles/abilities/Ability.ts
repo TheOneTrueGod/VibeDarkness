@@ -16,6 +16,16 @@ export interface ResourceCost {
     amount: number;
 }
 
+/** Possible ability states returned by getAbilityStates. */
+export enum AbilityState {
+    /** Slows the caster's movement. Data: { amount: number } (speed multiplier, e.g. 0.3 = 30% speed). */
+    MOVEMENT_PENALTY = 'movement_penalty',
+}
+
+/** A single active state produced by an ability at a given time. */
+export type AbilityStateEntry =
+    | { state: AbilityState.MOVEMENT_PENALTY; data: { amount: number } };
+
 /** AI-specific settings that control when the AI will use this ability. */
 export interface AbilityAISettings {
     /** Minimum distance (px) to target for the AI to consider using this ability. */
@@ -65,6 +75,14 @@ export interface AbilityStatic {
      * On the first tick, prevTime is 0.
      */
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void;
+
+    /**
+     * Return a list of active ability states at the given elapsed time.
+     * Used by the engine to apply effects like movement penalties.
+     * The active ability stays alive until both prefireTime is reached
+     * and this returns an empty array.
+     */
+    getAbilityStates(currentTime: number): AbilityStateEntry[];
 
     /**
      * Render a targeting preview on the canvas.
