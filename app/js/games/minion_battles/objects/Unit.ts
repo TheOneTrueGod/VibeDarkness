@@ -164,6 +164,34 @@ export class Unit extends GameObject {
         this.movement = null;
     }
 
+    /**
+     * Move the unit toward a world position by at most maxDistance.
+     * If the unit has a movement path, checks whether a new step (current grid cell)
+     * needs to be prepended to the path so pathfinding stays valid after the move.
+     * Returns the actual distance moved.
+     */
+    moveUnit(towardX: number, towardY: number, maxDistance: number): number {
+        const dx = towardX - this.x;
+        const dy = towardY - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist === 0) return 0;
+
+        const step = Math.min(maxDistance, dist);
+        this.x += (dx / dist) * step;
+        this.y += (dy / dist) * step;
+
+        if (this.movement && this.movement.path.length > 0) {
+            const currentCol = Math.floor(this.x / CELL_SIZE);
+            const currentRow = Math.floor(this.y / CELL_SIZE);
+            const first = this.movement.path[0];
+            if (currentCol !== first.col || currentRow !== first.row) {
+                this.movement.path.unshift({ col: currentCol, row: currentRow });
+            }
+        }
+
+        return step;
+    }
+
     update(dt: number, engine: unknown): void {
         // Decrement cooldown
         if (this.cooldownRemaining > 0) {

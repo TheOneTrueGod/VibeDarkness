@@ -164,7 +164,7 @@ export const CHARACTERS: CharacterDef[] = [
         name: 'Warrior',
         picture: generateWarriorSVG(),
         enabled: true,
-        cards: ['example_card'],
+        cards: ['0101', 'example_card'],
     },
     {
         id: 'mage',

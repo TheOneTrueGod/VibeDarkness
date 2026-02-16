@@ -107,6 +107,8 @@ export class GameEngine {
         const playerSpacing = WORLD_HEIGHT / (playerCount + 1);
         for (let i = 0; i < playerCount; i++) {
             const pu = config.playerUnits[i];
+            const isWarrior = pu.characterId === 'warrior';
+            const abilities = isWarrior ? ['throw_knife', '0101'] : ['throw_knife'];
             const unit = createUnitByCharacterId(
                 pu.characterId,
                 {
@@ -115,19 +117,25 @@ export class GameEngine {
                     teamId: 'player',
                     ownerId: pu.playerId,
                     name: pu.name,
-                    abilities: ['throw_knife'],
+                    abilities,
                 },
                 this.eventBus,
             );
             this.units.push(unit);
 
-            // Give each player 4x ThrowKnife cards
-            this.cards[pu.playerId] = [
+            const hand: CardInstance[] = [
                 { cardDefId: 'throw_knife_1', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
                 { cardDefId: 'throw_knife_2', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
                 { cardDefId: 'throw_knife_3', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
                 { cardDefId: 'throw_knife_4', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
             ];
+            if (isWarrior) {
+                hand.push(
+                    { cardDefId: '0101_1', abilityId: '0101', location: 'hand', exileRounds: 0 },
+                    { cardDefId: '0101_2', abilityId: '0101', location: 'hand', exileRounds: 0 },
+                );
+            }
+            this.cards[pu.playerId] = hand;
         }
 
         // Place enemy units from spawn config
