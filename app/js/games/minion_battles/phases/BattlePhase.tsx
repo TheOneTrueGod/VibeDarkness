@@ -71,6 +71,7 @@ export default function BattlePhase({
     const [syncError, setSyncError] = useState<string | null>(null);
     const [pendingMoveTarget, setPendingMoveTarget] = useState<{ x: number; y: number } | null>(null);
     const pendingMoveTargetRef = useRef<{ x: number; y: number } | null>(null);
+    const pendingMoveWaypointsRef = useRef<{ x: number; y: number }[]>([]);
     const [, forceRender] = useState(0);
 
     // Polling refs
@@ -135,11 +136,12 @@ export default function BattlePhase({
             setWaitingForOrders(info);
             setIsPaused(true);
 
-            // Preserve the unit's existing movement target so it carries
-            // over into the next order (unit keeps walking between turns).
+            // Preserve the unit's existing movement target and waypoints so they
+            // carry over into the next order (unit keeps walking between turns).
             const unit = engine.getUnit(info.unitId);
             const existingTarget = unit?.targetPosition ?? null;
             pendingMoveTargetRef.current = existingTarget;
+            pendingMoveWaypointsRef.current = unit?.pathWaypoints ?? [];
             setPendingMoveTarget(existingTarget);
 
             updateCardState(engine);
@@ -286,10 +288,11 @@ export default function BattlePhase({
         pendingMoveTargetRef.current = moveTarget;
         setPendingMoveTarget(moveTarget);
 
-        // Set it on the unit immediately for visual feedback (with pathfinding)
+        // Compute the path once and store it for visual feedback + order submission
         const unit = engine.getUnit(waitingForOrders.unitId);
         if (unit) {
-            unit.setMoveTarget(clampedX, clampedY, engine.terrainManager);
+            const waypoints = unit.setMoveTarget(clampedX, clampedY, engine.terrainManager);
+            pendingMoveWaypointsRef.current = waypoints;
         }
     }, [isMyTurn, waitingForOrders]);
 
@@ -300,15 +303,17 @@ export default function BattlePhase({
     function submitOrder(engine: GameEngine, abilityId: string, targets: ResolvedTarget[]) {
         if (!waitingForOrders) return;
 
-        // Read move target from ref to avoid stale closure when
+        // Read move target + waypoints from refs to avoid stale closures when
         // right-click (move) and left-click (ability) happen in quick succession
         const moveTarget = pendingMoveTargetRef.current;
+        const moveWaypoints = pendingMoveWaypointsRef.current;
 
         const order: BattleOrder = {
             unitId: waitingForOrders.unitId,
             abilityId,
             targets,
             moveTarget,
+            moveWaypoints: moveTarget ? moveWaypoints : undefined,
         };
 
         // Apply locally and resume
@@ -316,6 +321,7 @@ export default function BattlePhase({
         setWaitingForOrders(null);
         setIsPaused(false);
         pendingMoveTargetRef.current = null;
+        pendingMoveWaypointsRef.current = [];
         setPendingMoveTarget(null);
         updateCardState(engine);
 

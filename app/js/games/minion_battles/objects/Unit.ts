@@ -142,11 +142,11 @@ export class Unit extends GameObject {
     }
 
     /**
-     * Set a movement target, optionally computing a pathfinding route.
-     * If a terrainManager is provided and terrain exists, A* pathfinding
-     * is used; otherwise the unit moves in a straight line.
+     * Set a movement target, computing a pathfinding route via the
+     * terrain manager. Returns the computed waypoints (or an empty
+     * array if pathfinding is unavailable / finds no path).
      */
-    setMoveTarget(x: number, y: number, terrainManager?: TerrainManager | null): void {
+    setMoveTarget(x: number, y: number, terrainManager?: TerrainManager | null): { x: number; y: number }[] {
         this.targetPosition = { x, y };
         this.pathWaypoints = [];
         this.currentWaypointIndex = 0;
@@ -155,9 +155,21 @@ export class Unit extends GameObject {
             const path = terrainManager.findPath(this.x, this.y, x, y);
             if (path && path.length > 0) {
                 this.pathWaypoints = path;
-                this.currentWaypointIndex = 0;
             }
         }
+
+        return this.pathWaypoints;
+    }
+
+    /**
+     * Set a movement target with pre-computed waypoints.
+     * Used when applying orders from remote clients so the path is
+     * not recomputed (ensuring determinism).
+     */
+    setMoveTargetWithWaypoints(x: number, y: number, waypoints: { x: number; y: number }[]): void {
+        this.targetPosition = { x, y };
+        this.pathWaypoints = waypoints;
+        this.currentWaypointIndex = 0;
     }
 
     /** Clear movement target and any active path. */

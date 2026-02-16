@@ -24,7 +24,7 @@ const ENEMY_GLOW_COLOR = 0xef4444; // red-500
 /** Glow radius around units. */
 const GLOW_RADIUS = 6;
 /** Color for move target markers. */
-const MOVE_TARGET_COLOR = 0x60a5fa; // blue-400
+const MOVE_TARGET_COLOR = 0x000000
 
 export class GameRenderer {
     app: Application;
@@ -230,27 +230,40 @@ export class GameRenderer {
             if (!visual) {
                 visual = new Graphics();
                 this.moveTargetVisuals.set(key, visual);
-                // Insert below units so it doesn't obscure them
-                this.gameContainer.addChildAt(visual, 0);
+                // Insert above terrain but below units
+                this.gameContainer.addChildAt(visual, this.terrainSprite ? 1 : 0);
             }
 
             visual.clear();
             visual.visible = true;
-            visual.x = unit.targetPosition.x;
-            visual.y = unit.targetPosition.y;
+            // Position at origin so we can draw in world coordinates
+            visual.x = 0;
+            visual.y = 0;
 
-            // Outer ring
-            visual.circle(0, 0, 8);
-            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 0.7 });
+            const dest = unit.targetPosition;
 
-            // Inner dot
-            visual.circle(0, 0, 2);
-            visual.fill({ color: MOVE_TARGET_COLOR, alpha: 0.9 });
+            // Draw path line along waypoints (or straight to target if no waypoints)
+            if (unit.pathWaypoints.length > 0 && unit.currentWaypointIndex < unit.pathWaypoints.length) {
+                // Draw from unit position along remaining waypoints
+                visual.moveTo(unit.x, unit.y);
+                for (let i = unit.currentWaypointIndex; i < unit.pathWaypoints.length; i++) {
+                    visual.lineTo(unit.pathWaypoints[i].x, unit.pathWaypoints[i].y);
+                }
+                visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 0.4 });
+            } else {
+                // No waypoints: straight line from unit to target
+                visual.moveTo(unit.x, unit.y);
+                visual.lineTo(dest.x, dest.y);
+                visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 0.4 });
+            }
 
-            // Dashed-line effect: draw a thin line from unit to target
-            visual.moveTo(unit.x - unit.targetPosition.x, unit.y - unit.targetPosition.y);
-            visual.lineTo(0, 0);
-            visual.stroke({ color: MOVE_TARGET_COLOR, width: 1, alpha: 0.3 });
+            // Outer ring at destination
+            visual.circle(dest.x, dest.y, 8);
+            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
+
+            // Inner dot at destination
+            visual.circle(dest.x, dest.y, 2);
+            visual.fill({ color: MOVE_TARGET_COLOR });
         }
 
         // Hide visuals for units that no longer have a move target

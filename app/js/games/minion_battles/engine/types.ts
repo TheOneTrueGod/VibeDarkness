@@ -48,6 +48,8 @@ export interface BattleOrder {
     targets: ResolvedTarget[];
     /** Optional move target set by right-click; unit walks here at its speed. */
     moveTarget?: { x: number; y: number } | null;
+    /** Pre-computed pathfinding waypoints for the move target. */
+    moveWaypoints?: { x: number; y: number }[];
 }
 
 /** A resolved target from the targeting system. */

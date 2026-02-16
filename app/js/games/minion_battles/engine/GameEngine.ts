@@ -285,9 +285,10 @@ export class GameEngine {
             return;
         }
 
-        // Apply move target if provided (with pathfinding)
+        // Apply move target with pre-computed waypoints (path was computed once on click)
         if (order.moveTarget !== undefined && order.moveTarget !== null) {
-            unit.setMoveTarget(order.moveTarget.x, order.moveTarget.y, this.terrainManager);
+            const waypoints = order.moveWaypoints ?? [];
+            unit.setMoveTargetWithWaypoints(order.moveTarget.x, order.moveTarget.y, waypoints);
         } else if (order.moveTarget === null) {
             unit.clearMoveTarget();
         }
