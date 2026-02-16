@@ -14,6 +14,7 @@ import type { EventBus } from '../engine/EventBus';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { AbilityState } from '../abilities/Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
+import { CELL_SIZE } from '../terrain/TerrainGrid';
 
 /** AI behavior settings for enemy units. */
 export interface AISettings {
@@ -21,6 +22,16 @@ export interface AISettings {
     minRange: number;
     /** Maximum desired distance (px) to target. AI approaches if farther. */
     maxRange: number;
+}
+
+/** Movement state for a unit. */
+export interface UnitMovement {
+    /** Grid cells to traverse, each exactly 1 cell (cardinal or diagonal) from the previous. */
+    path: { col: number; row: number }[];
+    /** ID of the unit being pursued (undefined for ground-move orders). */
+    targetUnitId: string | undefined;
+    /** The gameTick when pathfinding was last computed. */
+    pathfindingTick: number;
 }
 
 export class Unit extends GameObject {
@@ -41,14 +52,8 @@ export class Unit extends GameObject {
     /** Total duration of the current cooldown (for progress display). */
     cooldownTotal: number = 0;
 
-    /** Movement target; unit walks toward this at `speed` px/s. */
-    targetPosition: { x: number; y: number } | null = null;
-
-    /** Waypoints from A* pathfinding. Unit follows these in order. */
-    pathWaypoints: { x: number; y: number }[] = [];
-
-    /** Current index into pathWaypoints. */
-    currentWaypointIndex: number = 0;
+    /** Movement state: grid path, optional target unit, and pathfinding tick. */
+    movement: UnitMovement | null = null;
 
     /** Ability IDs available to this unit. */
     abilities: string[] = [];
@@ -141,42 +146,22 @@ export class Unit extends GameObject {
         return actual;
     }
 
-    /**
-     * Set a movement target, computing a pathfinding route via the
-     * terrain manager. Returns the computed waypoints (or an empty
-     * array if pathfinding is unavailable / finds no path).
-     */
-    setMoveTarget(x: number, y: number, terrainManager?: TerrainManager | null): { x: number; y: number }[] {
-        this.targetPosition = { x, y };
-        this.pathWaypoints = [];
-        this.currentWaypointIndex = 0;
-
-        if (terrainManager) {
-            const path = terrainManager.findPath(this.x, this.y, x, y);
-            if (path && path.length > 0) {
-                this.pathWaypoints = path;
-            }
+    /** Set movement state with a grid-cell path. Clears movement if path is empty. */
+    setMovement(path: { col: number; row: number }[], targetUnitId: string | undefined, pathfindingTick: number): void {
+        if (path.length === 0) {
+            this.movement = null;
+            return;
         }
-
-        return this.pathWaypoints;
+        this.movement = {
+            path: path.map((p) => ({ ...p })),
+            targetUnitId,
+            pathfindingTick,
+        };
     }
 
-    /**
-     * Set a movement target with pre-computed waypoints.
-     * Used when applying orders from remote clients so the path is
-     * not recomputed (ensuring determinism).
-     */
-    setMoveTargetWithWaypoints(x: number, y: number, waypoints: { x: number; y: number }[]): void {
-        this.targetPosition = { x, y };
-        this.pathWaypoints = waypoints;
-        this.currentWaypointIndex = 0;
-    }
-
-    /** Clear movement target and any active path. */
-    clearMoveTarget(): void {
-        this.targetPosition = null;
-        this.pathWaypoints = [];
-        this.currentWaypointIndex = 0;
+    /** Clear all movement state. */
+    clearMovement(): void {
+        this.movement = null;
     }
 
     update(dt: number, engine: unknown): void {
@@ -185,25 +170,19 @@ export class Unit extends GameObject {
             this.cooldownRemaining = Math.max(0, this.cooldownRemaining - dt);
         }
 
-        // Move toward target (following waypoints if available)
-        if (!this.isAlive() || (!this.targetPosition && this.pathWaypoints.length === 0)) return;
+        // Move along grid path
+        if (!this.isAlive() || !this.movement || this.movement.path.length === 0) return;
 
         const gameTime = (engine as { gameTime: number }).gameTime;
         const terrainManager = (engine as { terrainManager?: TerrainManager }).terrainManager ?? null;
 
-        // Determine the immediate movement target
-        let moveTarget: { x: number; y: number } | null = null;
+        // Target: center of the next grid cell in the path
+        const nextCell = this.movement.path[0];
+        const targetX = nextCell.col * CELL_SIZE + CELL_SIZE / 2;
+        const targetY = nextCell.row * CELL_SIZE + CELL_SIZE / 2;
 
-        if (this.pathWaypoints.length > 0 && this.currentWaypointIndex < this.pathWaypoints.length) {
-            moveTarget = this.pathWaypoints[this.currentWaypointIndex];
-        } else if (this.targetPosition) {
-            moveTarget = this.targetPosition;
-        }
-
-        if (!moveTarget) return;
-
-        const dx = moveTarget.x - this.x;
-        const dy = moveTarget.y - this.y;
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         // Compute effective speed: base × ability penalties × terrain modifier
@@ -212,45 +191,24 @@ export class Unit extends GameObject {
             effectiveSpeed *= terrainManager.getSpeedMultiplier(this.x, this.y);
         }
 
-        if (dist < 1) {
-            // Arrived at current waypoint / target
-            this.x = moveTarget.x;
-            this.y = moveTarget.y;
-            this.advanceWaypoint();
+        // Move toward the next cell center
+        const step = effectiveSpeed * dt;
+        if (step >= dist) {
+            this.x = targetX;
+            this.y = targetY;
         } else {
-            const step = effectiveSpeed * dt;
-            if (step >= dist) {
-                this.x = moveTarget.x;
-                this.y = moveTarget.y;
-                this.advanceWaypoint();
-            } else {
-                const newX = this.x + (dx / dist) * step;
-                const newY = this.y + (dy / dist) * step;
-
-                // Terrain passability check (safety net — paths should already be valid)
-                if (terrainManager && !terrainManager.isPassable(newX, newY)) {
-                    // Blocked: stop moving
-                    this.clearMoveTarget();
-                } else {
-                    this.x = newX;
-                    this.y = newY;
-                }
-            }
+            this.x += (dx / dist) * step;
+            this.y += (dy / dist) * step;
         }
-    }
 
-    /** Advance to the next waypoint or clear the path when done. */
-    private advanceWaypoint(): void {
-        if (this.pathWaypoints.length > 0 && this.currentWaypointIndex < this.pathWaypoints.length) {
-            this.currentWaypointIndex++;
-            if (this.currentWaypointIndex >= this.pathWaypoints.length) {
-                // Finished all waypoints
-                this.pathWaypoints = [];
-                this.currentWaypointIndex = 0;
-                this.targetPosition = null;
+        // Check if we've entered the front cell's grid coordinate
+        const currentCol = Math.floor(this.x / CELL_SIZE);
+        const currentRow = Math.floor(this.y / CELL_SIZE);
+        if (currentCol === nextCell.col && currentRow === nextCell.row) {
+            this.movement.path.shift();
+            if (this.movement.path.length === 0) {
+                this.movement = null;
             }
-        } else {
-            this.targetPosition = null;
         }
     }
 
@@ -305,9 +263,11 @@ export class Unit extends GameObject {
             name: this.name,
             cooldownRemaining: this.cooldownRemaining,
             cooldownTotal: this.cooldownTotal,
-            targetPosition: this.targetPosition,
-            pathWaypoints: this.pathWaypoints.map((p) => ({ ...p })),
-            currentWaypointIndex: this.currentWaypointIndex,
+            movement: this.movement ? {
+                path: this.movement.path.map((p) => ({ ...p })),
+                targetUnitId: this.movement.targetUnitId,
+                pathfindingTick: this.movement.pathfindingTick,
+            } : null,
             abilities: this.abilities,
             activeAbilities: this.activeAbilities.map((a) => ({ ...a, targets: a.targets.map((t) => ({ ...t })) })),
             radius: this.radius,
@@ -333,9 +293,21 @@ export class Unit extends GameObject {
         unit.active = data.active as boolean;
         unit.cooldownRemaining = data.cooldownRemaining as number;
         unit.cooldownTotal = (data.cooldownTotal as number) ?? 0;
-        unit.targetPosition = data.targetPosition as { x: number; y: number } | null;
-        unit.pathWaypoints = (data.pathWaypoints as { x: number; y: number }[]) ?? [];
-        unit.currentWaypointIndex = (data.currentWaypointIndex as number) ?? 0;
+
+        // Restore movement
+        const movementData = data.movement as {
+            path: { col: number; row: number }[];
+            targetUnitId: string | undefined;
+            pathfindingTick: number;
+        } | null;
+        if (movementData && movementData.path && movementData.path.length > 0) {
+            unit.movement = {
+                path: movementData.path.map((p) => ({ ...p })),
+                targetUnitId: movementData.targetUnitId,
+                pathfindingTick: movementData.pathfindingTick,
+            };
+        }
+
         unit.radius = (data.radius as number) ?? 20;
         unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
         unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];

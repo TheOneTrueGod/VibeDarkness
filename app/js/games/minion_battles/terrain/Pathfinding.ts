@@ -38,14 +38,65 @@ const DIRS: { dc: number; dr: number }[] = [
 export class Pathfinder {
     private grid: TerrainGrid;
     private cache: Map<string, { x: number; y: number }[] | null> = new Map();
+    private gridCache: Map<string, { col: number; row: number }[] | null> = new Map();
 
     constructor(grid: TerrainGrid) {
         this.grid = grid;
     }
 
-    /** Clear the path cache (call if terrain changes). */
+    /** Clear all path caches (call if terrain changes). */
     clearCache(): void {
         this.cache.clear();
+        this.gridCache.clear();
+    }
+
+    /**
+     * Find a grid-cell path between two grid positions.
+     * Returns an array of grid cells to traverse (excluding the start cell),
+     * each exactly 1 cell (cardinal or diagonal) from the previous.
+     * Returns null if no path exists, or an empty array if already at destination.
+     */
+    findGridPath(
+        fromCol: number,
+        fromRow: number,
+        toCol: number,
+        toRow: number,
+    ): { col: number; row: number }[] | null {
+        let endCol = toCol;
+        let endRow = toRow;
+
+        // If destination is impassable, find nearest passable cell
+        if (!TERRAIN_PROPERTIES[this.grid.get(endCol, endRow)].passable) {
+            const nearest = this.findNearestPassable(endCol, endRow);
+            if (!nearest) return null;
+            endCol = nearest.col;
+            endRow = nearest.row;
+        }
+
+        // Same cell — already at destination
+        if (fromCol === endCol && fromRow === endRow) {
+            return [];
+        }
+
+        // Check cache
+        const cacheKey = `${fromCol},${fromRow}->${endCol},${endRow}`;
+        if (this.gridCache.has(cacheKey)) {
+            const cached = this.gridCache.get(cacheKey)!;
+            return cached ? cached.map((p) => ({ ...p })) : null;
+        }
+
+        // Run A*
+        const gridPath = this.astar(fromCol, fromRow, endCol, endRow);
+
+        if (gridPath) {
+            // Skip the start cell (unit is already there)
+            const result = gridPath.slice(1);
+            this.gridCache.set(cacheKey, result);
+            return result.map((p) => ({ ...p }));
+        }
+
+        this.gridCache.set(cacheKey, null);
+        return null;
     }
 
     /**

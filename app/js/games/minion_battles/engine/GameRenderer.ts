@@ -15,6 +15,7 @@ import type { Effect } from '../objects/Effect';
 import { areEnemies } from './teams';
 import type { TeamId } from './teams';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
+import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainRenderer } from '../terrain/TerrainRenderer';
 
 /** Color for allied unit glows. */
@@ -219,7 +220,7 @@ export class GameRenderer {
         const activeIds = new Set<string>();
 
         for (const unit of units) {
-            if (!unit.active || !unit.targetPosition) continue;
+            if (!unit.active || !unit.movement || unit.movement.path.length === 0) continue;
             // Only show move targets for player-controlled units on the local team
             if (!unit.isPlayerControlled() || areEnemies(this.localTeamId, unit.teamId)) continue;
 
@@ -240,29 +241,28 @@ export class GameRenderer {
             visual.x = 0;
             visual.y = 0;
 
-            const dest = unit.targetPosition;
+            const path = unit.movement.path;
 
-            // Draw path line along waypoints (or straight to target if no waypoints)
-            if (unit.pathWaypoints.length > 0 && unit.currentWaypointIndex < unit.pathWaypoints.length) {
-                // Draw from unit position along remaining waypoints
-                visual.moveTo(unit.x, unit.y);
-                for (let i = unit.currentWaypointIndex; i < unit.pathWaypoints.length; i++) {
-                    visual.lineTo(unit.pathWaypoints[i].x, unit.pathWaypoints[i].y);
-                }
-                visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 0.4 });
-            } else {
-                // No waypoints: straight line from unit to target
-                visual.moveTo(unit.x, unit.y);
-                visual.lineTo(dest.x, dest.y);
-                visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 0.4 });
+            // Draw path line from unit position through grid cell centers
+            visual.moveTo(unit.x, unit.y);
+            for (const cell of path) {
+                const wx = cell.col * CELL_SIZE + CELL_SIZE / 2;
+                const wy = cell.row * CELL_SIZE + CELL_SIZE / 2;
+                visual.lineTo(wx, wy);
             }
+            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 0.4 });
+
+            // Destination marker at last cell
+            const lastCell = path[path.length - 1];
+            const destX = lastCell.col * CELL_SIZE + CELL_SIZE / 2;
+            const destY = lastCell.row * CELL_SIZE + CELL_SIZE / 2;
 
             // Outer ring at destination
-            visual.circle(dest.x, dest.y, 8);
+            visual.circle(destX, destY, 8);
             visual.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
 
             // Inner dot at destination
-            visual.circle(dest.x, dest.y, 2);
+            visual.circle(destX, destY, 2);
             visual.fill({ color: MOVE_TARGET_COLOR });
         }
 

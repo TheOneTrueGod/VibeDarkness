@@ -287,12 +287,11 @@ export class GameEngine {
             return;
         }
 
-        // Apply move target with pre-computed waypoints (path was computed once on click)
-        if (order.moveTarget !== undefined && order.moveTarget !== null) {
-            const waypoints = order.moveWaypoints ?? [];
-            unit.setMoveTargetWithWaypoints(order.moveTarget.x, order.moveTarget.y, waypoints);
-        } else if (order.moveTarget === null) {
-            unit.clearMoveTarget();
+        // Apply movement from grid-cell path
+        if (order.movePath !== undefined && order.movePath !== null && order.movePath.length > 0) {
+            unit.setMovement(order.movePath, undefined, this.gameTick);
+        } else if (order.movePath === null) {
+            unit.clearMovement();
         }
 
         // Wait action: do nothing, just set a 1s cooldown
@@ -442,13 +441,14 @@ export class GameEngine {
     }
 
     /**
-     * Set a move target on an AI unit so it stays within its preferred range
-     * of the given target. Moves toward the midpoint of min/max range.
-     * Uses pathfinding to navigate around terrain obstacles.
+     * Set movement on an AI unit so it stays within its preferred range
+     * of the given target. Reuses existing paths when possible.
      */
     private applyAIMovement(unit: Unit, target: Unit): void {
         const ai = unit.aiSettings;
-        if (!ai) return;
+        if (!ai || !this.terrainManager) return;
+
+        const grid = this.terrainManager.grid;
 
         const dx = target.x - unit.x;
         const dy = target.y - unit.y;
@@ -472,11 +472,73 @@ export class GameEngine {
             destY = unit.y - (dy / dist) * retreatDistance;
         }
 
-        if (destX !== null && destY !== null) {
-            // Clamp to world bounds
-            destX = Math.max(0, Math.min(WORLD_WIDTH, destX));
-            destY = Math.max(0, Math.min(WORLD_HEIGHT, destY));
-            unit.setMoveTarget(destX, destY, this.terrainManager);
+        if (destX === null || destY === null) return; // Already in range
+
+        // Clamp to world bounds
+        destX = Math.max(0, Math.min(WORLD_WIDTH, destX));
+        destY = Math.max(0, Math.min(WORLD_HEIGHT, destY));
+
+        const destGrid = grid.worldToGrid(destX, destY);
+
+        // Try to reuse existing path if tracking the same target
+        if (
+            unit.movement &&
+            unit.movement.targetUnitId === target.id &&
+            unit.movement.path.length > 0
+        ) {
+            const pathEnd = unit.movement.path[unit.movement.path.length - 1];
+
+            // Path already leads to the right destination cell
+            if (pathEnd.col === destGrid.col && pathEnd.row === destGrid.row) {
+                return;
+            }
+
+            // Compute sub-path from end of current path to new destination
+            const subPath = this.terrainManager.findGridPath(
+                pathEnd.col, pathEnd.row,
+                destGrid.col, destGrid.row,
+            );
+
+            if (subPath && subPath.length > 0) {
+                // Remove overlapping cells: if the sub-path backtracks through
+                // cells already in the current path, trim from both ends.
+                let currentTrimAt = unit.movement.path.length;
+                let subPathStart = 0;
+
+                for (let s = 0; s < subPath.length; s++) {
+                    let found = false;
+                    for (let c = currentTrimAt - 1; c >= 0; c--) {
+                        if (
+                            unit.movement.path[c].col === subPath[s].col &&
+                            unit.movement.path[c].row === subPath[s].row
+                        ) {
+                            currentTrimAt = c;
+                            subPathStart = s + 1;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) break;
+                }
+
+                unit.movement.path.length = currentTrimAt;
+                unit.movement.path.push(...subPath.slice(subPathStart));
+                unit.movement.pathfindingTick = this.gameTick;
+                return;
+            }
+        }
+
+        // Fresh path from unit's current position to destination
+        const unitGrid = grid.worldToGrid(unit.x, unit.y);
+        const path = this.terrainManager.findGridPath(
+            unitGrid.col, unitGrid.row,
+            destGrid.col, destGrid.row,
+        );
+
+        if (path && path.length > 0) {
+            unit.setMovement(path, target.id, this.gameTick);
+        } else {
+            unit.clearMovement();
         }
     }
 

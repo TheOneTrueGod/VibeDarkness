@@ -47,10 +47,8 @@ export interface BattleOrder {
     unitId: string;
     abilityId: string;
     targets: ResolvedTarget[];
-    /** Optional move target set by right-click; unit walks here at its speed. */
-    moveTarget?: { x: number; y: number } | null;
-    /** Pre-computed pathfinding waypoints for the move target. */
-    moveWaypoints?: { x: number; y: number }[];
+    /** Grid-cell path for movement (from pathfinding). Null clears movement. */
+    movePath?: { col: number; row: number }[] | null;
 }
 
 /** A resolved target from the targeting system. */

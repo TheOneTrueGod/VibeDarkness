@@ -69,9 +69,7 @@ export default function BattlePhase({
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
     const [myCards, setMyCards] = useState<CardInstance[]>([]);
     const [syncError, setSyncError] = useState<string | null>(null);
-    const [pendingMoveTarget, setPendingMoveTarget] = useState<{ x: number; y: number } | null>(null);
-    const pendingMoveTargetRef = useRef<{ x: number; y: number } | null>(null);
-    const pendingMoveWaypointsRef = useRef<{ x: number; y: number }[]>([]);
+    const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     const [, forceRender] = useState(0);
 
     // Polling refs
@@ -136,13 +134,13 @@ export default function BattlePhase({
             setWaitingForOrders(info);
             setIsPaused(true);
 
-            // Preserve the unit's existing movement target and waypoints so they
-            // carry over into the next order (unit keeps walking between turns).
+            // Preserve the unit's existing movement path so it carries over
+            // into the next order (unit keeps walking between turns).
             const unit = engine.getUnit(info.unitId);
-            const existingTarget = unit?.targetPosition ?? null;
-            pendingMoveTargetRef.current = existingTarget;
-            pendingMoveWaypointsRef.current = unit?.pathWaypoints ?? [];
-            setPendingMoveTarget(existingTarget);
+            const existingPath = unit?.movement?.path;
+            pendingMovePathRef.current = existingPath && existingPath.length > 0
+                ? existingPath.map((p) => ({ ...p }))
+                : null;
 
             updateCardState(engine);
 
@@ -276,23 +274,32 @@ export default function BattlePhase({
         const engine = engineRef.current;
         const camera = cameraRef.current;
         if (!engine || !camera || !isMyTurn || !waitingForOrders) return;
+        if (!engine.terrainManager) return;
+
+        const grid = engine.terrainManager.grid;
 
         // Convert screen coords to world coords
         const worldPos = camera.screenToWorld(screenX, screenY);
 
         // Clamp to world bounds
-        const clampedX = Math.max(0, Math.min(worldPos.x, 1200));
-        const clampedY = Math.max(0, Math.min(worldPos.y, 800));
+        const clampedX = Math.max(0, Math.min(worldPos.x, WORLD_WIDTH));
+        const clampedY = Math.max(0, Math.min(worldPos.y, WORLD_HEIGHT));
 
-        const moveTarget = { x: clampedX, y: clampedY };
-        pendingMoveTargetRef.current = moveTarget;
-        setPendingMoveTarget(moveTarget);
-
-        // Compute the path once and store it for visual feedback + order submission
+        // Compute grid path from unit to click destination
         const unit = engine.getUnit(waitingForOrders.unitId);
-        if (unit) {
-            const waypoints = unit.setMoveTarget(clampedX, clampedY, engine.terrainManager);
-            pendingMoveWaypointsRef.current = waypoints;
+        if (!unit) return;
+
+        const unitGrid = grid.worldToGrid(unit.x, unit.y);
+        const destGrid = grid.worldToGrid(clampedX, clampedY);
+        const gridPath = engine.terrainManager.findGridPath(
+            unitGrid.col, unitGrid.row,
+            destGrid.col, destGrid.row,
+        );
+
+        if (gridPath) {
+            pendingMovePathRef.current = gridPath;
+            // Set movement on the unit immediately for visual feedback
+            unit.setMovement(gridPath, undefined, engine.gameTick);
         }
     }, [isMyTurn, waitingForOrders]);
 
@@ -303,26 +310,22 @@ export default function BattlePhase({
     function submitOrder(engine: GameEngine, abilityId: string, targets: ResolvedTarget[]) {
         if (!waitingForOrders) return;
 
-        // Read move target + waypoints from refs to avoid stale closures when
+        // Read move path from ref to avoid stale closures when
         // right-click (move) and left-click (ability) happen in quick succession
-        const moveTarget = pendingMoveTargetRef.current;
-        const moveWaypoints = pendingMoveWaypointsRef.current;
+        const movePath = pendingMovePathRef.current;
 
         const order: BattleOrder = {
             unitId: waitingForOrders.unitId,
             abilityId,
             targets,
-            moveTarget,
-            moveWaypoints: moveTarget ? moveWaypoints : undefined,
+            movePath: movePath ?? undefined,
         };
 
         // Apply locally and resume
         engine.applyOrder(order);
         setWaitingForOrders(null);
         setIsPaused(false);
-        pendingMoveTargetRef.current = null;
-        pendingMoveWaypointsRef.current = [];
-        setPendingMoveTarget(null);
+        pendingMovePathRef.current = null;
         updateCardState(engine);
 
         // Save order to server

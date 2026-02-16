@@ -51,6 +51,20 @@ export class TerrainManager {
         return this.pathfinder.findPath(fromX, fromY, toX, toY);
     }
 
+    /**
+     * Find a grid-cell path between two grid positions.
+     * Returns an array of grid cells to traverse (excluding start),
+     * each exactly 1 cell apart, or null if unreachable.
+     */
+    findGridPath(
+        fromCol: number,
+        fromRow: number,
+        toCol: number,
+        toRow: number,
+    ): { col: number; row: number }[] | null {
+        return this.pathfinder.findGridPath(fromCol, fromRow, toCol, toRow);
+    }
+
     /** Clear the pathfinding cache. */
     clearPathCache(): void {
         this.pathfinder.clearCache();
