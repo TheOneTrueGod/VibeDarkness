@@ -8,6 +8,7 @@
 import type { AbilityStatic } from './Ability';
 import { ThrowKnife } from './ThrowKnife';
 import { DodgeAbility } from '../card_defs/0101_Dodge/0101Ability';
+import { EnemyArcherShotAbility } from '../card_defs/0001_EnemyArcherShot/0001Ability';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
 
@@ -18,6 +19,7 @@ function register(ability: AbilityStatic): void {
 // -- Register all abilities --
 register(ThrowKnife);
 register(DodgeAbility);
+register(EnemyArcherShotAbility);
 
 /** Look up an ability by its ID. */
 export function getAbility(id: string): AbilityStatic | undefined {

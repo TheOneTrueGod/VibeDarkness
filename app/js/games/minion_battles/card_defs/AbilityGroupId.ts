@@ -1,8 +1,9 @@
 /**
  * Character/group IDs for ability card numbering.
- * First 2 digits of a 4-digit card id (e.g. 01 = warrior, 02 = ranger).
+ * First 2 digits of a 4-digit card id (e.g. 00 = enemy, 01 = warrior, 02 = ranger).
  */
 export enum AbilityGroupId {
+    Enemy = 0,
     Warrior = 1,
     Ranger = 2,
     Mage = 3,

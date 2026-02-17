@@ -10,6 +10,7 @@ import { Application, Container, Graphics, Sprite, Text, TextStyle } from 'pixi.
 import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
 import type { Unit } from '../objects/Unit';
+import { getAbility } from '../abilities/AbilityRegistry';
 import type { Projectile } from '../objects/Projectile';
 import type { Effect } from '../objects/Effect';
 import { areEnemies } from './teams';
@@ -34,6 +35,7 @@ export class GameRenderer {
     private moveTargetVisuals: Map<string, Graphics> = new Map();
     private projectileVisuals: Map<string, Graphics> = new Map();
     private effectVisuals: Map<string, Graphics> = new Map();
+    private abilityPreviewGraphics: Graphics = new Graphics();
     private initialized: boolean = false;
 
     /** The team ID used to determine friend/foe glow colors. */
@@ -60,6 +62,9 @@ export class GameRenderer {
             autoDensity: true,
         });
         this.app.stage.addChild(this.gameContainer);
+        this.gameContainer.sortableChildren = true;
+        this.abilityPreviewGraphics.zIndex = 100;
+        this.gameContainer.addChild(this.abilityPreviewGraphics);
         this.initialized = true;
 
         // Build terrain sprite if it was queued before init completed
@@ -110,6 +115,7 @@ export class GameRenderer {
         this.renderMoveTargets(engine.units);
         this.renderProjectiles(engine.projectiles);
         this.renderEffects(engine.effects);
+        this.renderActiveAbilityPreviews(engine);
         this.cleanupStaleVisuals(engine);
     }
 
@@ -275,6 +281,28 @@ export class GameRenderer {
     }
 
     // ========================================================================
+    // Active ability previews (e.g. enemy telegraphs, visible to all players)
+    // ========================================================================
+
+    private renderActiveAbilityPreviews(engine: GameEngine): void {
+        this.abilityPreviewGraphics.clear();
+        for (const unit of engine.units) {
+            if (!unit.isAlive()) continue;
+            for (const active of unit.activeAbilities) {
+                const ability = getAbility(active.abilityId);
+                if (ability?.renderActivePreview) {
+                    ability.renderActivePreview(
+                        this.abilityPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics,
+                        unit,
+                        active,
+                        engine.gameTime,
+                    );
+                }
+            }
+        }
+    }
+
+    // ========================================================================
     // Projectiles
     // ========================================================================
 
@@ -365,6 +393,7 @@ export class GameRenderer {
 
     /** Full cleanup. */
     destroy(): void {
+        this.abilityPreviewGraphics.destroy();
         for (const visual of this.unitVisuals.values()) visual.destroy();
         for (const visual of this.moveTargetVisuals.values()) visual.destroy();
         for (const visual of this.projectileVisuals.values()) visual.destroy();

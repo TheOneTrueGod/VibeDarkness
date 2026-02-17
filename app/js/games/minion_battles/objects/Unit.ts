@@ -9,6 +9,7 @@
 import { GameObject, generateGameObjectId } from './GameObject';
 import type { TeamId } from '../engine/teams';
 import type { ActiveAbility } from '../engine/types';
+import type { AbilityNote } from '../engine/AbilityNote';
 import type { Resource } from '../resources/Resource';
 import type { EventBus } from '../engine/EventBus';
 import { getAbility } from '../abilities/AbilityRegistry';
@@ -60,6 +61,9 @@ export class Unit extends GameObject {
 
     /** Abilities currently being executed (tick-based effects in progress). */
     activeAbilities: ActiveAbility[] = [];
+
+    /** Note set by the currently executing ability (e.g. stored target position). Cleared when ability ends or is overwritten. */
+    abilityNote: AbilityNote | null = null;
 
     /** Visual radius for collision and rendering. */
     radius: number = 20;
@@ -264,6 +268,25 @@ export class Unit extends GameObject {
         return this.speed * lowestPenalty;
     }
 
+    /**
+     * Whether the unit currently has invincibility frames from any active ability.
+     * When true, projectiles should not deal damage to this unit.
+     */
+    hasIFrames(gameTime: number): boolean {
+        for (const active of this.activeAbilities) {
+            const ability = getAbility(active.abilityId);
+            if (!ability) continue;
+
+            const currentTime = gameTime - active.startTime;
+            const states = ability.getAbilityStates(currentTime);
+
+            for (const entry of states) {
+                if (entry.state === AbilityState.IFRAMES) return true;
+            }
+        }
+        return false;
+    }
+
     /** Whether the unit's cooldown has finished and it can act. */
     canAct(): boolean {
         return this.cooldownRemaining <= 0 && this.isAlive();
@@ -273,6 +296,16 @@ export class Unit extends GameObject {
     startCooldown(duration: number): void {
         this.cooldownRemaining = duration;
         this.cooldownTotal = duration;
+    }
+
+    /** Set the ability note (overwrites any existing). Used by abilities during execution. */
+    setAbilityNote(note: AbilityNote | null): void {
+        this.abilityNote = note;
+    }
+
+    /** Clear the ability note. */
+    clearAbilityNote(): void {
+        this.abilityNote = null;
     }
 
     toJSON(): Record<string, unknown> {
@@ -298,6 +331,7 @@ export class Unit extends GameObject {
             } : null,
             abilities: this.abilities,
             activeAbilities: this.activeAbilities.map((a) => ({ ...a, targets: a.targets.map((t) => ({ ...t })) })),
+            abilityNote: this.abilityNote,
             radius: this.radius,
             aiSettings: this.aiSettings,
             resources: this.resources.map((r) => r.toJSON()),
@@ -339,6 +373,7 @@ export class Unit extends GameObject {
         unit.radius = (data.radius as number) ?? 20;
         unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
         unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
+        unit.abilityNote = (data.abilityNote as AbilityNote | null) ?? null;
 
         // Resources are reattached by the unit subclass factory
         return unit;

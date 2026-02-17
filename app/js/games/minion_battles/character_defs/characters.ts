@@ -178,7 +178,7 @@ export const CHARACTERS: CharacterDef[] = [
         name: 'Ranger',
         picture: generateRangerSVG(),
         enabled: true,
-        cards: ['example_card'],
+        cards: ['0001'],
     },
     {
         id: 'healer',

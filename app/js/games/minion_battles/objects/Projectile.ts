@@ -58,9 +58,10 @@ export class Projectile extends GameObject {
 
     /**
      * Check collision against a list of units and deal damage to the first enemy hit.
-     * Returns the unit that was hit, or null.
+     * Units with IFrames (e.g. during Dodge) are not hit; the projectile is consumed but no damage is dealt.
+     * Returns the unit that was hit and took damage, or null.
      */
-    checkCollision(units: Unit[], eventBus: EventBus): Unit | null {
+    checkCollision(units: Unit[], eventBus: EventBus, gameTime: number): Unit | null {
         if (!this.active) return null;
 
         for (const unit of units) {
@@ -73,6 +74,10 @@ export class Projectile extends GameObject {
             const collisionDist = this.radius + unit.radius;
 
             if (dist <= collisionDist) {
+                if (unit.hasIFrames(gameTime)) {
+                    this.active = false;
+                    return null;
+                }
                 unit.takeDamage(this.damage, this.sourceUnitId, eventBus);
                 eventBus.emit('projectile_hit', {
                     projectileId: this.id,

@@ -108,7 +108,12 @@ export class GameEngine {
         for (let i = 0; i < playerCount; i++) {
             const pu = config.playerUnits[i];
             const isWarrior = pu.characterId === 'warrior';
-            const abilities = isWarrior ? ['throw_knife', '0101'] : ['throw_knife'];
+            const isRanger = pu.characterId === 'ranger';
+            const abilities = isWarrior
+                ? ['throw_knife', '0101']
+                : isRanger
+                  ? ['0001']
+                  : ['throw_knife'];
             const unit = createUnitByCharacterId(
                 pu.characterId,
                 {
@@ -123,17 +128,27 @@ export class GameEngine {
             );
             this.units.push(unit);
 
-            const hand: CardInstance[] = [
-                { cardDefId: 'throw_knife_1', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-                { cardDefId: 'throw_knife_2', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-                { cardDefId: 'throw_knife_3', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-                { cardDefId: 'throw_knife_4', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-            ];
-            if (isWarrior) {
-                hand.push(
-                    { cardDefId: '0101_1', abilityId: '0101', location: 'hand', exileRounds: 0 },
-                    { cardDefId: '0101_2', abilityId: '0101', location: 'hand', exileRounds: 0 },
-                );
+            let hand: CardInstance[];
+            if (isRanger) {
+                hand = [
+                    { cardDefId: '0001_1', abilityId: '0001', location: 'hand', exileRounds: 0 },
+                    { cardDefId: '0001_2', abilityId: '0001', location: 'hand', exileRounds: 0 },
+                    { cardDefId: '0001_3', abilityId: '0001', location: 'hand', exileRounds: 0 },
+                    { cardDefId: '0001_4', abilityId: '0001', location: 'hand', exileRounds: 0 },
+                ];
+            } else {
+                hand = [
+                    { cardDefId: 'throw_knife_1', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
+                    { cardDefId: 'throw_knife_2', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
+                    { cardDefId: 'throw_knife_3', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
+                    { cardDefId: 'throw_knife_4', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
+                ];
+                if (isWarrior) {
+                    hand.push(
+                        { cardDefId: '0101_1', abilityId: '0101', location: 'hand', exileRounds: 0 },
+                        { cardDefId: '0101_2', abilityId: '0101', location: 'hand', exileRounds: 0 },
+                    );
+                }
             }
             this.cards[pu.playerId] = hand;
         }
@@ -256,7 +271,7 @@ export class GameEngine {
         for (const proj of this.projectiles) {
             if (!proj.active) continue;
             proj.update(dt, this);
-            proj.checkCollision(this.units, this.eventBus);
+            proj.checkCollision(this.units, this.eventBus, this.gameTime);
         }
 
         // Update effects
@@ -577,10 +592,7 @@ export class GameEngine {
                 const currentTime = this.gameTime - active.startTime;
                 const prevTime = currentTime - dt;
 
-                // Only call doCardEffect while prefireTime hasn't been reached
-                if (currentTime < ability.prefireTime || prevTime < ability.prefireTime) {
-                    ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime);
-                }
+                ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime);
 
                 // Remove once prefire is done AND no lingering ability states remain
                 if (currentTime >= ability.prefireTime && ability.getAbilityStates(currentTime).length === 0) {

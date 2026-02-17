@@ -25,7 +25,7 @@ export const DodgeAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Dodge',
     image: DODGE_IMAGE,
-    cooldownTime: 1.5,
+    cooldownTime: 3.0,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DODGE_DURATION,
@@ -36,11 +36,17 @@ export const DodgeAbility: AbilityStatic = {
         return `Dash toward the target location, moving up to ${DODGE_MAX_DISTANCE}px over ${DODGE_DURATION}s.`;
     },
 
-    getAbilityStates(_currentTime: number): AbilityStateEntry[] {
+    getAbilityStates(currentTime: number): AbilityStateEntry[] {
+        if (currentTime < DODGE_DURATION) {
+            return [{ state: AbilityState.IFRAMES }];
+        }
         return [];
     },
 
     doCardEffect(_engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+        // Only apply movement during the dodge window; doCardEffect is called every tick
+        if (currentTime >= DODGE_DURATION) return;
+
         const target = targets[0];
         if (!target || target.type !== 'pixel' || !target.position) return;
 

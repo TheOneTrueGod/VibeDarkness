@@ -8,7 +8,16 @@
 
 import type { TargetDef } from './targeting';
 import type { ResolvedTarget } from '../engine/types';
+import type { ActiveAbility } from '../engine/types';
 import type { Unit } from '../objects/Unit';
+
+/** Minimal graphics interface for drawing active-ability previews (Pixi Graphics–compatible). */
+export interface IAbilityPreviewGraphics {
+    clear(): void;
+    moveTo(x: number, y: number): void;
+    lineTo(x: number, y: number): void;
+    stroke(options: { color: number; width: number; alpha?: number }): void;
+}
 
 /** Resource cost for using an ability. */
 export interface ResourceCost {
@@ -20,11 +29,14 @@ export interface ResourceCost {
 export enum AbilityState {
     /** Slows the caster's movement. Data: { amount: number } (speed multiplier, e.g. 0.3 = 30% speed). */
     MOVEMENT_PENALTY = 'movement_penalty',
+    /** Unit cannot be hit by projectiles. No data. */
+    IFRAMES = 'iframes',
 }
 
 /** A single active state produced by an ability at a given time. */
 export type AbilityStateEntry =
-    | { state: AbilityState.MOVEMENT_PENALTY; data: { amount: number } };
+    | { state: AbilityState.MOVEMENT_PENALTY; data: { amount: number } }
+    | { state: AbilityState.IFRAMES; data?: Record<string, never> };
 
 /** AI-specific settings that control when the AI will use this ability. */
 export interface AbilityAISettings {
@@ -54,7 +66,7 @@ export interface AbilityStatic {
     readonly aiSettings?: AbilityAISettings;
     /**
      * Time in seconds before the ability's main effect fires.
-     * The engine calls doCardEffect each tick until prefireTime is reached.
+     * The engine calls doCardEffect every tick while the ability is active.
      * Use 0 for instant abilities.
      */
     readonly prefireTime: number;
@@ -67,10 +79,12 @@ export interface AbilityStatic {
     /**
      * Execute the ability's effect over time using threshold checks.
      *
-     * Called each tick while the ability is active. `prevTime` and `currentTime`
+     * Called every tick while the ability is active. `prevTime` and `currentTime`
      * are seconds elapsed since the ability started. The ability should check
-     * thresholds (e.g. `prevTime < 0.3 && currentTime >= 0.3`) to decide
-     * what to do. The ability is cleared once `currentTime >= prefireTime`.
+     * thresholds (e.g. `prevTime < 0.3 && currentTime >= 0.3`) to fire one-shot
+     * effects, and guard with `currentTime < prefireTime` (or similar) for
+     * per-tick effects. The ability is removed once `currentTime >= prefireTime`
+     * and getAbilityStates returns empty.
      *
      * On the first tick, prevTime is 0.
      */
@@ -93,6 +107,17 @@ export interface AbilityStatic {
         caster: Unit,
         currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
+    ): void;
+
+    /**
+     * Optional. Render a preview while the ability is active (e.g. enemy telegraph).
+     * Visible to all players. Called each frame until the ability ends.
+     */
+    renderActivePreview?(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        activeAbility: ActiveAbility,
+        gameTime: number,
     ): void;
 }
 
