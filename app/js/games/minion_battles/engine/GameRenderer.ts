@@ -6,27 +6,28 @@
  * engine objects with camera offsets applied.
  */
 
-import { Application, Container, Graphics, Sprite, Text, TextStyle } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
 import type { Unit } from '../objects/Unit';
 import { getAbility } from '../abilities/AbilityRegistry';
-import type { Projectile } from '../objects/Projectile';
+import { Projectile } from '../objects/Projectile';
 import type { Effect } from '../objects/Effect';
 import { areEnemies } from './teams';
 import type { TeamId } from './teams';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainRenderer } from '../terrain/TerrainRenderer';
+import { renderUnit, updateUnitHpBar, type IUnitRenderContext } from './unitDef';
+import { createEffectVisual, updateEffectVisual } from './effectDef';
 
-/** Color for allied unit glows. */
-const ALLY_GLOW_COLOR = 0x22c55e; // green-500
-/** Color for enemy unit glows. */
-const ENEMY_GLOW_COLOR = 0xef4444; // red-500
-/** Glow radius around units. */
-const GLOW_RADIUS = 6;
 /** Color for move target markers. */
-const MOVE_TARGET_COLOR = 0x000000
+const MOVE_TARGET_COLOR = 0x000000;
+
+/** Ranged enemy character sprite: displayed slightly smaller than the unit hitbox circle. */
+const BOWMAN_SVG_URL = new URL('../assets/characters/bowman.svg', import.meta.url).href;
+/** Melee enemy character sprite (swordwoman). */
+const SWORDWOMAN_SVG_URL = new URL('../assets/characters/swordwoman.svg', import.meta.url).href;
 
 export class GameRenderer {
     app: Application;
@@ -45,6 +46,11 @@ export class GameRenderer {
     private terrainRenderer: TerrainRenderer = new TerrainRenderer();
     private terrainSprite: Sprite | null = null;
     private pendingTerrainGrid: TerrainGrid | null = null;
+
+    /** Cached texture for ranged enemy (bowman) character sprite. */
+    private bowmanTexture: Texture | null = null;
+    /** Cached texture for melee enemy (swordwoman) character sprite. */
+    private swordwomanTexture: Texture | null = null;
 
     constructor() {
         this.app = new Application();
@@ -66,6 +72,17 @@ export class GameRenderer {
         this.abilityPreviewGraphics.zIndex = 100;
         this.gameContainer.addChild(this.abilityPreviewGraphics);
         this.initialized = true;
+
+        try {
+            this.bowmanTexture = (await Assets.load(BOWMAN_SVG_URL)) as Texture;
+        } catch {
+            // Non-fatal: ranged enemies will show the default circle + initial
+        }
+        try {
+            this.swordwomanTexture = (await Assets.load(SWORDWOMAN_SVG_URL)) as Texture;
+        } catch {
+            // Non-fatal: melee enemies will show the default circle + initial
+        }
 
         // Build terrain sprite if it was queued before init completed
         if (this.pendingTerrainGrid) {
@@ -123,11 +140,23 @@ export class GameRenderer {
     // Units
     // ========================================================================
 
+    private getUnitRenderContext(): IUnitRenderContext {
+        return {
+            localTeamId: this.localTeamId,
+            getCharacterTexture: (characterId: string) => {
+                if (characterId === 'enemy_ranged') return this.bowmanTexture;
+                if (characterId === 'enemy_melee') return this.swordwomanTexture;
+                return null;
+            },
+        };
+    }
+
     private renderUnits(units: Unit[]): void {
+        const context = this.getUnitRenderContext();
         for (const unit of units) {
             let visual = this.unitVisuals.get(unit.id);
             if (!visual) {
-                visual = this.createUnitVisual(unit);
+                visual = renderUnit(unit, context);
                 this.unitVisuals.set(unit.id, visual);
                 this.gameContainer.addChild(visual);
             }
@@ -135,86 +164,7 @@ export class GameRenderer {
             visual.y = unit.y;
             visual.visible = unit.active;
 
-            // Update HP bar
-            this.updateUnitHpBar(visual, unit);
-        }
-    }
-
-    private createUnitVisual(unit: Unit): Container {
-        const container = new Container();
-
-        // Glow circle
-        const glow = new Graphics();
-        const isEnemy = areEnemies(this.localTeamId, unit.teamId);
-        const glowColor = isEnemy ? ENEMY_GLOW_COLOR : ALLY_GLOW_COLOR;
-
-        glow.circle(0, 0, unit.radius + GLOW_RADIUS);
-        glow.fill({ color: glowColor, alpha: 0.3 });
-        glow.label = 'glow';
-        container.addChild(glow);
-
-        // Player color ring (if player-owned)
-        if (unit.isPlayerControlled()) {
-            const playerRing = new Graphics();
-            playerRing.circle(0, 0, unit.radius + 2);
-            playerRing.stroke({ color: 0xffffff, width: 2, alpha: 0.5 });
-            playerRing.label = 'playerRing';
-            container.addChild(playerRing);
-        }
-
-        // Body circle
-        const body = new Graphics();
-        const bodyColor = this.getUnitColor(unit);
-        body.circle(0, 0, unit.radius);
-        body.fill(bodyColor);
-        body.stroke({ color: 0x000000, width: 1 });
-        body.label = 'body';
-        container.addChild(body);
-
-        // Character initial label
-        const style = new TextStyle({
-            fontSize: 14,
-            fontWeight: 'bold',
-            fill: 0xffffff,
-        });
-        const label = new Text({ text: unit.name.charAt(0).toUpperCase(), style });
-        label.anchor.set(0.5, 0.5);
-        label.label = 'label';
-        container.addChild(label);
-
-        // HP bar background
-        const hpBg = new Graphics();
-        hpBg.rect(-unit.radius, -unit.radius - 10, unit.radius * 2, 6);
-        hpBg.fill({ color: 0x333333, alpha: 0.8 });
-        hpBg.label = 'hpBg';
-        container.addChild(hpBg);
-
-        // HP bar fill
-        const hpFill = new Graphics();
-        hpFill.label = 'hpFill';
-        container.addChild(hpFill);
-
-        return container;
-    }
-
-    private updateUnitHpBar(visual: Container, unit: Unit): void {
-        const hpFill = visual.children.find((c) => c.label === 'hpFill') as Graphics | undefined;
-        if (!hpFill) return;
-        hpFill.clear();
-        const ratio = unit.hp / unit.maxHp;
-        const barWidth = unit.radius * 2 * ratio;
-        const barColor = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
-        hpFill.rect(-unit.radius, -unit.radius - 10, barWidth, 6);
-        hpFill.fill(barColor);
-    }
-
-    private getUnitColor(unit: Unit): number {
-        switch (unit.characterId) {
-            case 'warrior': return 0x8b0000;
-            case 'mage': return 0x4a148c;
-            case 'ranger': return 0x2e7d32;
-            case 'healer': return 0xf5f5dc;
-            default: return 0x555555;
+            updateUnitHpBar(visual, unit);
         }
     }
 
@@ -310,10 +260,7 @@ export class GameRenderer {
         for (const proj of projectiles) {
             let visual = this.projectileVisuals.get(proj.id);
             if (!visual) {
-                visual = new Graphics();
-                visual.circle(0, 0, proj.radius);
-                visual.fill(0xc0c0c0);
-                visual.stroke({ color: 0xffffff, width: 1 });
+                visual = Projectile.createVisual(proj);
                 this.projectileVisuals.set(proj.id, visual);
                 this.gameContainer.addChild(visual);
             }
@@ -331,20 +278,14 @@ export class GameRenderer {
         for (const effect of effects) {
             let visual = this.effectVisuals.get(effect.id);
             if (!visual) {
-                visual = new Graphics();
+                visual = createEffectVisual(effect);
                 this.effectVisuals.set(effect.id, visual);
                 this.gameContainer.addChild(visual);
             }
-            visual.clear();
             visual.x = effect.x;
             visual.y = effect.y;
             visual.visible = effect.active;
-
-            // Simple expanding ring effect
-            const alpha = 1 - effect.progress;
-            const radius = 10 + effect.progress * 30;
-            visual.circle(0, 0, radius);
-            visual.stroke({ color: 0xffd700, width: 2, alpha });
+            updateEffectVisual(visual, effect);
         }
     }
 

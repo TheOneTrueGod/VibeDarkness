@@ -8,6 +8,7 @@
  */
 
 import type { MissionBattleConfig } from './types';
+import { ENEMY_MELEE, ENEMY_RANGED } from './enemyTypes';
 import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainType } from '../terrain/TerrainType';
 
@@ -99,45 +100,9 @@ export const LAST_HOLDOUT: MissionBattleConfig = {
     name: 'The Last Holdout',
     createTerrain,
     enemies: [
-        {
-            characterId: 'ranger',
-            name: 'Raider Scout',
-            hp: 40,
-            speed: 100,
-            position: { x: 950, y: 250 },
-            teamId: 'enemy',
-            abilities: ['0001'],
-            aiSettings: { minRange: 100, maxRange: 180 },
-        },
-        {
-            characterId: 'warrior',
-            name: 'Raider Brute',
-            hp: 70,
-            speed: 60,
-            position: { x: 1050, y: 400 },
-            teamId: 'enemy',
-            abilities: ['0002'],
-            aiSettings: { minRange: 30, maxRange: 80 },
-        },
-        {
-            characterId: 'ranger',
-            name: 'Raider Archer',
-            hp: 35,
-            speed: 30,
-            position: { x: 1000, y: 550 },
-            teamId: 'enemy',
-            abilities: ['0001'],
-            aiSettings: { minRange: 120, maxRange: 200 },
-        },
-        {
-            characterId: 'warrior',
-            name: 'Raider Captain',
-            hp: 80,
-            speed: 70,
-            position: { x: 1100, y: 400 },
-            teamId: 'enemy',
-            abilities: ['0002'],
-            aiSettings: { minRange: 40, maxRange: 100 },
-        },
+        { ...ENEMY_RANGED, name: 'Raider Scout', hp: 40, speed: 100, position: { x: 950, y: 250 }, aiSettings: { minRange: 100, maxRange: 180 } },
+        { ...ENEMY_MELEE, name: 'Raider Brute', hp: 70, speed: 60, position: { x: 1050, y: 400 } },
+        { ...ENEMY_RANGED, name: 'Raider Archer', hp: 35, speed: 30, position: { x: 1000, y: 550 }, aiSettings: { minRange: 120, maxRange: 200 } },
+        { ...ENEMY_MELEE, name: 'Raider Captain', hp: 80, speed: 70, position: { x: 1100, y: 400 }, aiSettings: { minRange: 40, maxRange: 100 } },
     ],
 };

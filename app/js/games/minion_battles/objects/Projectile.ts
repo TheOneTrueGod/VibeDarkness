@@ -5,6 +5,7 @@
  * dealing damage to the first enemy hit, then deactivating.
  */
 
+import { Graphics } from 'pixi.js';
 import { GameObject, generateGameObjectId } from './GameObject';
 import type { TeamId } from '../engine/teams';
 import { areEnemies } from '../engine/teams';
@@ -54,6 +55,15 @@ export class Projectile extends GameObject {
         if (this.distanceTraveled >= this.maxDistance) {
             this.active = false;
         }
+    }
+
+    /** Create the Pixi Graphics for this projectile. The projectile owns its own visual representation. */
+    static createVisual(projectile: Projectile): Graphics {
+        const visual = new Graphics();
+        visual.circle(0, 0, projectile.radius);
+        visual.fill(0xc0c0c0);
+        visual.stroke({ color: 0xffffff, width: 1 });
+        return visual;
     }
 
     /**
