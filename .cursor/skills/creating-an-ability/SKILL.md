@@ -48,6 +48,7 @@ Define (or reuse) an `AbilityGroupId` enum map in the codebase and format group 
 
 - **Ability**: An object implementing `AbilityStatic` (from `abilities/Ability.ts`). Use the same 4-digit id as the ability id (e.g. `id: '0201'`) so cards and abilities match.
 - **CardDef**: An object implementing `CardDef` (from `card_defs/types.ts`) with the same `id` and `abilityId` pointing at that ability id.
+- Any static values that are used in multiple places in an ability should be defined in a constant at the top of the file
 
 Both live in the same file. Export the ability for `AbilityRegistry` and the card def for `card_defs/index.ts`.
 

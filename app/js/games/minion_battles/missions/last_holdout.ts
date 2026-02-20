@@ -116,7 +116,7 @@ export const LAST_HOLDOUT: MissionBattleConfig = {
             speed: 60,
             position: { x: 1050, y: 400 },
             teamId: 'enemy',
-            abilities: ['throw_knife'],
+            abilities: ['0002'],
             aiSettings: { minRange: 30, maxRange: 80 },
         },
         {
@@ -136,7 +136,7 @@ export const LAST_HOLDOUT: MissionBattleConfig = {
             speed: 70,
             position: { x: 1100, y: 400 },
             teamId: 'enemy',
-            abilities: ['throw_knife'],
+            abilities: ['0002'],
             aiSettings: { minRange: 40, maxRange: 100 },
         },
     ],

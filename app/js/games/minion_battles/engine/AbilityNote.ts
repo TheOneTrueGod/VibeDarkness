@@ -6,6 +6,7 @@
 /** Map of ability ID -> note payload. Extend this when adding abilities that set notes. */
 export interface AbilityNoteMap {
     '0001': { position: { x: number; y: number } };
+    '0002': { position: { x: number; y: number } };
 }
 
 /** Discriminated union: { abilityId: K, abilityNote: AbilityNoteMap[K] } for each K. */
@@ -20,6 +21,6 @@ export type AbilityNoteType<K extends keyof AbilityNoteMap> = AbilityNoteMap[K];
 export function isAbilityNote<K extends keyof AbilityNoteMap>(
     note: AbilityNote | null,
     abilityId: K,
-): note is { abilityId: K; abilityNote: AbilityNoteMap[K] } {
+): note is Extract<AbilityNote, { abilityId: K }> {
     return note !== null && note.abilityId === abilityId;
 }

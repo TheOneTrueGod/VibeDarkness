@@ -16,6 +16,7 @@ export interface IAbilityPreviewGraphics {
     clear(): void;
     moveTo(x: number, y: number): void;
     lineTo(x: number, y: number): void;
+    fill(options: { color: number; alpha?: number }): void;
     stroke(options: { color: number; width: number; alpha?: number }): void;
 }
 
