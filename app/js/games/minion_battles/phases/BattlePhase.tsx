@@ -19,14 +19,15 @@ import { resolveClick, validateAndResolveTarget } from '../abilities/targeting';
 import type { AbilityStatic } from '../abilities/Ability';
 import { DARK_AWAKENING } from '../missions/dark_awakening';
 import { LAST_HOLDOUT } from '../missions/last_holdout';
-import type { MissionBattleConfig } from '../missions/types';
-import type { UnitSpawnConfig } from '../engine/types';
+import type { IBaseMissionDef } from '../missions/BaseMissionDef';
 import { TerrainManager } from '../terrain/TerrainManager';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import RoundProgressBar from '../components/RoundProgressBar';
+import { throwError } from '../utils/errors';
+import { diffSnapshotFields } from '../utils/snapshotDiff';
 
-const MISSION_MAP: Record<string, MissionBattleConfig> = {
+const MISSION_MAP: Record<string, IBaseMissionDef> = {
     dark_awakening: DARK_AWAKENING,
     last_holdout: LAST_HOLDOUT,
 };
@@ -162,6 +163,7 @@ export default function BattlePhase({
             if (engine.waitingForOrders) setIsPaused(true);
         } else {
             engine = new GameEngine();
+            engine.prepareForNewGame({ localPlayerId: playerId, terrainManager });
             const selections = Object.keys(characterSelections).length > 0
                 ? characterSelections
                 : ((init?.characterSelections ?? init?.character_selections) as Record<string, string>) ?? {};
@@ -170,11 +172,99 @@ export default function BattlePhase({
                 characterId: charId,
                 name: players[pid]?.name ?? 'Unknown',
             }));
-            const enemySpawns: UnitSpawnConfig[] = mission.enemies.map((e) => ({ ...e, ownerId: 'ai' }));
-            engine.initialize({ playerUnits, enemySpawns, localPlayerId: playerId, terrainManager });
+            mission.initializeGameState(engine, {
+                playerUnits,
+                localPlayerId: playerId,
+                eventBus: engine.eventBus,
+                terrainManager,
+            });
         }
 
         engineRef.current = engine;
+
+        async function performDesyncCheck(currentEngine: GameEngine) {
+            try {
+                const snapshot = await lobbyClient.getGameStateSnapshot(lobbyId, gameId);
+                if (!snapshot?.state) return;
+
+                const clientState = currentEngine.toJSON() as unknown as Record<string, unknown>;
+                const serverState = snapshot.state as Record<string, unknown>;
+                const diffPaths = diffSnapshotFields(clientState, serverState);
+
+                if (diffPaths.length > 0) {
+                    throwError({
+                        severity: 'medium',
+                        message: 'Client Snapshot desync',
+                        details: { fields: diffPaths },
+                    });
+                    await reloadEngineFromSnapshot(snapshot);
+                }
+            } catch (err) {
+                // Non-critical: log and continue (e.g. network error)
+                console.warn('Desync check failed:', err);
+            }
+        }
+
+        function reloadEngineFromSnapshot(
+            serverSnapshot: { gameTick: number; state: Record<string, unknown>; orders: Array<{ gameTick: number; order: Record<string, unknown> }> },
+        ) {
+            const oldEngine = engineRef.current;
+            if (!oldEngine || !oldEngine.terrainManager) return;
+
+            const mergedState: Record<string, unknown> = {
+                ...serverSnapshot.state,
+                orders: serverSnapshot.orders,
+            };
+            const newEngine = GameEngine.fromJSON(
+                mergedState as unknown as SerializedGameState,
+                playerId,
+                oldEngine.terrainManager,
+            );
+            oldEngine.destroy();
+            engineRef.current = newEngine;
+
+            newEngine.setOnWaitingForOrders((info) => {
+                setWaitingForOrders(info);
+                setIsPaused(true);
+                const unit = newEngine.getUnit(info.unitId);
+                const existingPath = unit?.movement?.path;
+                pendingMovePathRef.current = existingPath && existingPath.length > 0
+                    ? existingPath.map((p) => ({ ...p }))
+                    : null;
+                updateCardState(newEngine);
+                if (info.ownerId === playerId) {
+                    performDesyncCheck(newEngine);
+                } else {
+                    const nextTick = newEngine.gameTick + 1;
+                    const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+                    startOrderPolling(checkpointGameTick);
+                }
+            });
+            newEngine.setOnCheckpoint((gameTick, state, orders) => {
+                if (!isHost) return;
+                saveCheckpoint(gameTick, state as unknown as Record<string, unknown>, orders);
+            });
+            newEngine.setOnRoundEnd((rn) => {
+                setRoundNumber(rn + 1);
+                updateCardState(newEngine);
+                if (rn % 2 === 0) performSyncCheck(newEngine);
+            });
+            newEngine.setOnStateChanged(() => {
+                setRoundProgress(newEngine.roundProgress);
+                setRoundNumber(newEngine.roundNumber);
+            });
+
+            setRoundNumber(newEngine.roundNumber);
+            setRoundProgress(newEngine.roundProgress);
+            setWaitingForOrders(newEngine.waitingForOrders);
+            updateCardState(newEngine);
+
+            const myUnit = newEngine.getLocalPlayerUnit();
+            if (myUnit && cameraRef.current) {
+                cameraRef.current.snapTo(myUnit.x, myUnit.y);
+            }
+            newEngine.start();
+        }
 
         // Set up callbacks
         engine.setOnWaitingForOrders((info) => {
@@ -191,8 +281,11 @@ export default function BattlePhase({
 
             updateCardState(engine);
 
-            // If not our turn: start polling for orders at the checkpoint that contains the next tick
-            if (info.ownerId !== playerId) {
+            // If our turn: run desync check before player acts
+            if (info.ownerId === playerId) {
+                performDesyncCheck(engine);
+            } else {
+                // If not our turn: start polling for orders at the checkpoint that contains the next tick
                 const nextTick = engine.gameTick + 1;
                 const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
                 startOrderPolling(checkpointGameTick);
@@ -201,7 +294,7 @@ export default function BattlePhase({
 
         engine.setOnCheckpoint((gameTick, state, orders) => {
             if (!isHost) return;
-            saveCheckpoint(gameTick, state, orders);
+            saveCheckpoint(gameTick, state as unknown as Record<string, unknown>, orders);
         });
 
         engine.setOnRoundEnd((rn) => {
@@ -399,13 +492,13 @@ export default function BattlePhase({
     async function saveCheckpoint(gameTick: number, state: Record<string, unknown>, orders: OrderAtTick[]) {
         try {
             const existing = await lobbyClient.getGameStateSnapshot(lobbyId, gameId, gameTick);
-            const mergedOrders = existing?.orders?.length
-                ? [...(existing.orders as OrderAtTick[]), ...orders]
-                : orders;
+            const existingOrders = existing?.orders ?? [];
+            const newOrdersFormatted = orders.map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
+            const mergedOrders = [...existingOrders, ...newOrdersFormatted];
             await lobbyClient.saveGameStateSnapshot(
                 lobbyId, gameId, gameTick,
                 state,
-                mergedOrders.map((o) => ({ gameTick: o.gameTick, order: o.order as Record<string, unknown> })),
+                mergedOrders,
             );
         } catch (err) {
             console.error('Failed to save checkpoint:', err);
@@ -415,9 +508,10 @@ export default function BattlePhase({
     async function saveOrder(atTick: number, order: BattleOrder) {
         try {
             const checkpointGameTick = Math.floor(atTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+            const orderRecord: Record<string, unknown> = JSON.parse(JSON.stringify(order));
             await lobbyClient.saveGameOrders(
                 lobbyId, gameId, checkpointGameTick, atTick,
-                order as unknown as Record<string, unknown>,
+                orderRecord,
             );
         } catch (err) {
             console.error('Failed to save order:', err);

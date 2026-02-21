@@ -1,0 +1,28 @@
+---
+description: Run test suite after file create/save/delete; fix failures up to 2 times
+alwaysApply: true
+---
+
+# Post-Change Test Hook
+
+Whenever you finish a command where **files have been created, saved, or deleted**, do the following **before returning to the user**:
+
+## Workflow
+
+1. **Run the test suite**: `npm run test` (Vitest)
+
+2. **If all tests pass**:
+   - Return your normal response to the user
+   - At the end, append: `All (#) tests have passed` (replace # with the actual count)
+
+3. **If any tests fail**:
+   - Attempt to fix the failing tests
+   - Re-run `npm run test`
+   - Repeat up to **2 fix attempts** total
+   - If tests pass after a fix: return with `All (#) tests have passed` as above
+   - If tests still fail after 2 attempts: stop fixing, return to the user with your response and at the end say in **red text**: `<span style="color: red">(#) tests failed</span>` (replace # with the failure count). Use this exact phrasing so the failure is clearly visible.
+
+## When to Skip
+
+- Skip this hook if **no files** were created, saved, or deleted during the command
+- Skip for purely informational or exploratory requests (e.g. "what does X do?", "explain Y")

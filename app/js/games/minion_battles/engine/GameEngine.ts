@@ -14,13 +14,11 @@ import type {
     BattleOrder,
     OrderAtTick,
     ResolvedTarget,
-    UnitSpawnConfig,
 } from './types';
 import { Unit } from '../objects/Unit';
 import { Projectile } from '../objects/Projectile';
 import { Effect } from '../objects/Effect';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
-import { createUnitByCharacterId, createUnitFromSpawnConfig } from '../objects/units/index';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { spendAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
@@ -99,83 +97,13 @@ export class GameEngine {
     // ========================================================================
 
     /**
-     * Initialize the engine with player characters, enemy spawns, and terrain.
+     * Prepare the engine for a new game (before mission.initializeGameState populates it).
+     * Sets localPlayerId, terrainManager, resets object IDs, and subscribes to round_end.
      */
-    initialize(config: {
-        playerUnits: { playerId: string; characterId: string; name: string }[];
-        enemySpawns: UnitSpawnConfig[];
-        localPlayerId: string;
-        terrainManager?: TerrainManager | null;
-    }): void {
+    prepareForNewGame(config: { localPlayerId: string; terrainManager?: TerrainManager | null }): void {
         this.localPlayerId = config.localPlayerId;
         this.terrainManager = config.terrainManager ?? null;
         resetGameObjectIdCounter(1);
-
-        // Place player units on the left side, spaced vertically
-        const playerCount = config.playerUnits.length;
-        const playerSpacing = WORLD_HEIGHT / (playerCount + 1);
-        for (let i = 0; i < playerCount; i++) {
-            const pu = config.playerUnits[i];
-            const isWarrior = pu.characterId === 'warrior';
-            const isRanger = pu.characterId === 'ranger';
-            const abilities = isWarrior
-                ? ['throw_knife', '0101']
-                : isRanger
-                  ? ['0001']
-                  : ['throw_knife'];
-            const unit = createUnitByCharacterId(
-                pu.characterId,
-                {
-                    x: 150,
-                    y: playerSpacing * (i + 1),
-                    teamId: 'player',
-                    ownerId: pu.playerId,
-                    name: pu.name,
-                    abilities,
-                },
-                this.eventBus,
-            );
-            this.units.push(unit);
-
-            let hand: CardInstance[];
-            if (isRanger) {
-                hand = [
-                    { cardDefId: '0001_1', abilityId: '0001', location: 'hand', exileRounds: 0 },
-                    { cardDefId: '0001_2', abilityId: '0001', location: 'hand', exileRounds: 0 },
-                    { cardDefId: '0001_3', abilityId: '0001', location: 'hand', exileRounds: 0 },
-                    { cardDefId: '0001_4', abilityId: '0001', location: 'hand', exileRounds: 0 },
-                ];
-            } else {
-                hand = [
-                    { cardDefId: 'throw_knife_1', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-                    { cardDefId: 'throw_knife_2', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-                    { cardDefId: 'throw_knife_3', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-                    { cardDefId: 'throw_knife_4', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-                ];
-                if (isWarrior) {
-                    hand.push(
-                        { cardDefId: '0101_1', abilityId: '0101', location: 'hand', exileRounds: 0 },
-                        { cardDefId: '0101_2', abilityId: '0101', location: 'hand', exileRounds: 0 },
-                    );
-                }
-            }
-            this.cards[pu.playerId] = hand;
-        }
-
-        // Place enemy units from spawn config
-        for (const spawn of config.enemySpawns) {
-            const unit = createUnitFromSpawnConfig(
-                {
-                    ...spawn,
-                    x: spawn.position.x,
-                    y: spawn.position.y,
-                },
-                this.eventBus,
-            );
-            this.units.push(unit);
-        }
-
-        // Subscribe to round_end for card recharge
         this.eventBus.on('round_end', (data) => {
             this.handleRoundEnd(data.roundNumber);
         });

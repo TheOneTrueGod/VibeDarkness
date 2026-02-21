@@ -6,7 +6,7 @@
  * and one large irregular rock formation in the center.
  */
 
-import type { MissionBattleConfig } from './types';
+import { BaseMissionDef } from './BaseMissionDef';
 import { ENEMY_MELEE, ENEMY_RANGED } from './enemyTypes';
 import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainType } from '../terrain/TerrainType';
@@ -78,13 +78,18 @@ function createTerrain(): TerrainGrid {
     return grid;
 }
 
-export const DARK_AWAKENING: MissionBattleConfig = {
-    missionId: 'dark_awakening',
-    name: 'A Dark Awakening',
-    createTerrain,
-    enemies: [
-        { ...ENEMY_MELEE, name: 'Skeleton Warrior', hp: 50, speed: 80, position: { x: 1000, y: 300 } },
-        { ...ENEMY_MELEE, name: 'Skeleton Guard', hp: 60, speed: 70, position: { x: 1050, y: 500 } },
-        { ...ENEMY_RANGED, name: 'Dark Mage', hp: 30, speed: 50, position: { x: 1100, y: 400 }, aiSettings: { minRange: 150, maxRange: 250 } },
-    ],
-};
+const ENEMIES = [
+    { ...ENEMY_MELEE, name: 'Skeleton Warrior', hp: 50, speed: 80, position: { x: 1000, y: 300 } },
+    { ...ENEMY_MELEE, name: 'Skeleton Guard', hp: 60, speed: 70, position: { x: 1050, y: 500 } },
+    { ...ENEMY_RANGED, name: 'Dark Mage', hp: 30, speed: 50, position: { x: 1100, y: 400 }, aiSettings: { minRange: 150, maxRange: 250 } },
+];
+
+export class DarkAwakeningMission extends BaseMissionDef {
+    missionId = 'dark_awakening';
+    name = 'A Dark Awakening';
+    enemies = ENEMIES;
+    createTerrain = createTerrain;
+}
+
+/** Mission instance for use in MISSION_MAP and mission select. */
+export const DARK_AWAKENING = new DarkAwakeningMission();

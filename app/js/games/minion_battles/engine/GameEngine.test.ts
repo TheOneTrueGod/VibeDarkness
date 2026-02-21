@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { GameEngine } from './GameEngine';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
+import { DARK_AWAKENING } from '../missions/dark_awakening';
 
 describe('GameEngine', () => {
     it('serializes and restores game state with units, projectiles, effects, and orders', () => {
@@ -19,10 +20,11 @@ describe('GameEngine', () => {
             { gameTick: 331, order: { unitId: 'unit_1', abilityId: 'wait', targets: [] } },
         ];
 
-        engine.initialize({
+        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        DARK_AWAKENING.initializeGameState(engine, {
             playerUnits: [{ playerId: 'p1', characterId: 'warrior', name: 'P1' }],
-            enemySpawns: [],
             localPlayerId: 'p1',
+            eventBus: engine.eventBus,
         });
 
         const json = engine.toJSON();
@@ -51,11 +53,11 @@ describe('GameEngine', () => {
     it('restores units with same ids and positions', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
-        engine.localPlayerId = 'p1';
-        engine.initialize({
+        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        DARK_AWAKENING.initializeGameState(engine, {
             playerUnits: [{ playerId: 'p1', characterId: 'warrior', name: 'P1' }],
-            enemySpawns: [],
             localPlayerId: 'p1',
+            eventBus: engine.eventBus,
         });
         const json = engine.toJSON();
         const restored = GameEngine.fromJSON(json, 'p1', null);

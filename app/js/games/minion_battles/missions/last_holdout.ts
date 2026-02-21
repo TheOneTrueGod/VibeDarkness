@@ -7,7 +7,7 @@
  * enemies approach from. Scattered patches of rocks and thick grass.
  */
 
-import type { MissionBattleConfig } from './types';
+import { BaseMissionDef } from './BaseMissionDef';
 import { ENEMY_MELEE, ENEMY_RANGED } from './enemyTypes';
 import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainType } from '../terrain/TerrainType';
@@ -95,14 +95,19 @@ function createTerrain(): TerrainGrid {
     return grid;
 }
 
-export const LAST_HOLDOUT: MissionBattleConfig = {
-    missionId: 'last_holdout',
-    name: 'The Last Holdout',
-    createTerrain,
-    enemies: [
-        { ...ENEMY_RANGED, name: 'Raider Scout', hp: 40, speed: 100, position: { x: 950, y: 250 }, aiSettings: { minRange: 100, maxRange: 180 } },
-        { ...ENEMY_MELEE, name: 'Raider Brute', hp: 70, speed: 60, position: { x: 1050, y: 400 } },
-        { ...ENEMY_RANGED, name: 'Raider Archer', hp: 35, speed: 30, position: { x: 1000, y: 550 }, aiSettings: { minRange: 120, maxRange: 200 } },
-        { ...ENEMY_MELEE, name: 'Raider Captain', hp: 80, speed: 70, position: { x: 1100, y: 400 }, aiSettings: { minRange: 40, maxRange: 100 } },
-    ],
-};
+const ENEMIES = [
+    { ...ENEMY_RANGED, name: 'Raider Scout', hp: 40, speed: 100, position: { x: 950, y: 250 }, aiSettings: { minRange: 100, maxRange: 180 } },
+    { ...ENEMY_MELEE, name: 'Raider Brute', hp: 70, speed: 60, position: { x: 1050, y: 400 } },
+    { ...ENEMY_RANGED, name: 'Raider Archer', hp: 35, speed: 30, position: { x: 1000, y: 550 }, aiSettings: { minRange: 120, maxRange: 200 } },
+    { ...ENEMY_MELEE, name: 'Raider Captain', hp: 80, speed: 70, position: { x: 1100, y: 400 }, aiSettings: { minRange: 40, maxRange: 100 } },
+];
+
+export class LastHoldoutMission extends BaseMissionDef {
+    missionId = 'last_holdout';
+    name = 'The Last Holdout';
+    enemies = ENEMIES;
+    createTerrain = createTerrain;
+}
+
+/** Mission instance for use in MISSION_MAP and mission select. */
+export const LAST_HOLDOUT = new LastHoldoutMission();
