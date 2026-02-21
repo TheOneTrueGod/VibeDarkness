@@ -56,10 +56,19 @@ export default function MinionBattlesGame({
 }: MinionBattlesGameProps) {
     const raw = gameData ?? {};
 
+    // Infer battle phase when gamePhase is missing but engine state (units, gameTick) exists.
+    // This happens when loading from checkpoints that lack phase metadata.
+    const inferredPhase = (): GamePhase => {
+        const explicit = (raw.gamePhase ?? raw.game_phase) as GamePhase | undefined;
+        if (explicit) return explicit;
+        const hasBattleData =
+            (Array.isArray(raw.units) && raw.units.length > 0) ||
+            typeof (raw.gameTick ?? raw.game_tick) === 'number';
+        return hasBattleData ? 'battle' : 'mission_select';
+    };
+
     // ---- Server-authoritative state (updated by polling) ------------------
-    const [gamePhase, setGamePhase] = useState<GamePhase>(
-        (raw.gamePhase as GamePhase) ?? (raw.game_phase as GamePhase) ?? 'mission_select'
-    );
+    const [gamePhase, setGamePhase] = useState<GamePhase>(inferredPhase);
     const [missionVotes, setMissionVotes] = useState<Record<string, string>>(
         (raw.missionVotes as Record<string, string>) ??
             (raw.mission_votes as Record<string, string>) ??
@@ -94,7 +103,13 @@ export default function MinionBattlesGame({
                 const { gameState } = await lobbyClient.getLobbyState(lobbyId, playerId);
                 const gd = (gameState as { game?: Record<string, unknown> }).game;
                 if (gd) {
-                    const newPhase = (gd.gamePhase ?? gd.game_phase) as GamePhase | undefined;
+                    let newPhase = (gd.gamePhase ?? gd.game_phase) as GamePhase | undefined;
+                    if (!newPhase) {
+                        const hasBattleData =
+                            (Array.isArray(gd.units) && gd.units.length > 0) ||
+                            typeof (gd.gameTick ?? gd.game_tick) === 'number';
+                        if (hasBattleData) newPhase = 'battle';
+                    }
                     const newVotes = (gd.missionVotes ?? gd.mission_votes) as
                         | Record<string, string>
                         | undefined;

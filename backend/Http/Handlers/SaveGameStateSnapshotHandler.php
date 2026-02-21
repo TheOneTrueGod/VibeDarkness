@@ -8,8 +8,9 @@ use App\AccountService;
 /**
  * POST /api/lobbies/{id}/games/{gameId}/snapshots
  *
- * Host saves an indexed game state snapshot during battle pauses.
- * Body: { playerId, index, state }
+ * Host saves a checkpoint at a specific game tick.
+ * Body: { playerId, gameTick, state, orders? }
+ * Saves to storage as game_<gameId>_<gameTick>.json
  */
 class SaveGameStateSnapshotHandler
 {
@@ -20,12 +21,18 @@ class SaveGameStateSnapshotHandler
         $data = \getJsonBody();
 
         $playerId = $data['playerId'] ?? null;
-        $index = $data['index'] ?? null;
+        $gameTick = $data['gameTick'] ?? null;
         $state = $data['state'] ?? null;
+        $orders = $data['orders'] ?? [];
 
-        if (!$playerId || $index === null || !is_array($state)) {
+        if (!$playerId || $gameTick === null || !is_array($state)) {
             http_response_code(400);
-            return ['success' => false, 'error' => 'playerId, index, and state are required'];
+            return ['success' => false, 'error' => 'playerId, gameTick, and state are required'];
+        }
+
+        $gameTick = (int) $gameTick;
+        if (!is_array($orders)) {
+            $orders = [];
         }
 
         // Verify player is host
@@ -37,18 +44,18 @@ class SaveGameStateSnapshotHandler
         $player = $lobby->getPlayer($playerId);
         if ($player === null || !$player->isHost()) {
             http_response_code(403);
-            return ['success' => false, 'error' => 'Only the host can save snapshots'];
+            return ['success' => false, 'error' => 'Only the host can save checkpoints'];
         }
 
-        // Save to storage/lobbies/<lobbyId>/game_<gameId>/gamestate_<index>.json
         $dir = self::getGameDir($lobbyId, $gameId);
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
-        $path = $dir . '/gamestate_' . intval($index) . '.json';
-        file_put_contents($path, json_encode($state, JSON_PRETTY_PRINT));
+        $path = $dir . '/game_' . $gameId . '_' . $gameTick . '.json';
+        $payload = ['gameTick' => $gameTick, 'state' => $state, 'orders' => $orders];
+        file_put_contents($path, json_encode($payload, JSON_PRETTY_PRINT));
 
-        return ['success' => true];
+        return ['success' => true, 'gameTick' => $gameTick];
     }
 
     private static function getGameDir(string $lobbyId, string $gameId): string

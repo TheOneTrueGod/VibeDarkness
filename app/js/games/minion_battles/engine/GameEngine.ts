@@ -12,6 +12,7 @@ import type {
     SerializedGameState,
     SerializedCardInstance,
     BattleOrder,
+    OrderAtTick,
     ResolvedTarget,
     UnitSpawnConfig,
 } from './types';
@@ -35,6 +36,9 @@ const ROUND_DURATION = 10;
 
 /** Fixed time step (seconds): 60 ticks/second. */
 const FIXED_DT = 1 / 60;
+
+/** Save a checkpoint to the server every this many game ticks. */
+export const CHECKPOINT_INTERVAL = 10;
 
 /** Game world dimensions. */
 export const WORLD_WIDTH = 1200;
@@ -71,6 +75,9 @@ export class GameEngine {
     // -- Cards per player --
     cards: Record<string, CardInstance[]> = {};
 
+    /** Orders scheduled to be applied at specific game ticks (from players or AI). */
+    pendingOrders: OrderAtTick[] = [];
+
     // -- Loop state --
     private accumulator: number = 0;
     private lastTimestamp: number = 0;
@@ -81,6 +88,8 @@ export class GameEngine {
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
     private onRoundEnd: ((roundNumber: number) => void) | null = null;
     private onStateChanged: EngineStateCallback | null = null;
+    /** Called when a checkpoint should be saved (every CHECKPOINT_INTERVAL ticks). Receives gameTick, serialized state, and pending orders. */
+    private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
 
     /** The local player's ID. Used to decide which unit to center camera on. */
     localPlayerId: string = '';
@@ -187,6 +196,11 @@ export class GameEngine {
         this.onStateChanged = cb;
     }
 
+    /** Set callback for checkpoint saves (every CHECKPOINT_INTERVAL ticks). */
+    setOnCheckpoint(cb: (gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void): void {
+        this.onCheckpoint = cb;
+    }
+
     // ========================================================================
     // Game Loop
     // ========================================================================
@@ -235,9 +249,16 @@ export class GameEngine {
     }
 
     private fixedUpdate(dt: number): void {
-        // Update game time and tick counter
+        // Advance game time and tick (only when game is advancing)
         this.gameTime += dt;
         this.gameTick++;
+
+        // Apply any orders scheduled for this tick
+        const toApply = this.pendingOrders.filter((o) => o.gameTick === this.gameTick);
+        this.pendingOrders = this.pendingOrders.filter((o) => o.gameTick !== this.gameTick);
+        for (const { order } of toApply) {
+            this.applyOrderLogic(order);
+        }
 
         // Check for round end
         const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
@@ -284,6 +305,13 @@ export class GameEngine {
         this.units = this.units.filter((u) => u.active);
         this.projectiles = this.projectiles.filter((p) => p.active);
         this.effects = this.effects.filter((e) => e.active);
+
+        // Checkpoint: host syncs every CHECKPOINT_INTERVAL ticks
+        if (this.gameTick > 0 && this.gameTick % CHECKPOINT_INTERVAL === 0) {
+            const state = this.toJSON();
+            const orders = [...this.pendingOrders];
+            this.onCheckpoint?.(this.gameTick, state, orders);
+        }
     }
 
     // ========================================================================
@@ -300,15 +328,37 @@ export class GameEngine {
     }
 
     /**
-     * Apply a battle order (ability use, wait, or move) from a player.
-     * Resumes the game afterwards.
+     * Queue an order to be applied at a specific game tick. If the order is for the current tick
+     * (e.g. AI issuing in the same tick), it is applied immediately.
+     * When the engine is waiting for orders, the order is scheduled for gameTick + 1 and the game resumes.
      */
     applyOrder(order: BattleOrder): void {
-        const unit = this.getUnit(order.unitId);
-        if (!unit || !unit.isAlive()) {
+        const atTick = this.waitingForOrders ? this.gameTick + 1 : this.gameTick;
+        this.queueOrder(atTick, order);
+
+        if (this.waitingForOrders) {
             this.resumeAfterOrders();
-            return;
         }
+    }
+
+    /**
+     * Schedule an order at a specific game tick. If atTick === current gameTick, apply immediately.
+     */
+    queueOrder(atTick: number, order: BattleOrder): void {
+        const entry: OrderAtTick = { gameTick: atTick, order };
+        this.pendingOrders.push(entry);
+
+        if (atTick === this.gameTick) {
+            this.applyOrderLogic(order);
+        }
+    }
+
+    /**
+     * Apply a single battle order (ability use, wait, or move). Used when playing out orders at their tick.
+     */
+    private applyOrderLogic(order: BattleOrder): void {
+        const unit = this.getUnit(order.unitId);
+        if (!unit || !unit.isAlive()) return;
 
         // Apply movement from grid-cell path
         if (order.movePath !== undefined && order.movePath !== null && order.movePath.length > 0) {
@@ -320,21 +370,17 @@ export class GameEngine {
         // Wait action: do nothing, just set a 1s cooldown
         if (order.abilityId === 'wait') {
             unit.startCooldown(1);
-            this.resumeAfterOrders();
             return;
         }
 
         const ability = getAbility(order.abilityId);
-        if (!ability) {
-            this.resumeAfterOrders();
-            return;
-        }
+        if (!ability) return;
 
         this.executeAbility(unit, ability, order.targets);
-        this.resumeAfterOrders();
     }
 
-    private resumeAfterOrders(): void {
+    /** Resume simulation after orders (e.g. when remote order is received). Public for BattlePhase. */
+    resumeAfterOrders(): void {
         const prev = this.waitingForOrders;
         this.waitingForOrders = null;
 
@@ -397,6 +443,7 @@ export class GameEngine {
         );
         if (enemies.length === 0) {
             unit.startCooldown(1); // wait cooldown
+            this.eventBus.emit('turn_end', { unitId: unit.id });
             return;
         }
 
@@ -428,13 +475,21 @@ export class GameEngine {
                 return { type: 'player', playerId: validTarget.ownerId, unitId: validTarget.id };
             });
 
-            this.executeAbility(unit, ability, resolvedTargets);
+            // Queue order at current tick so it is recorded and applied in this tick
+            const order: BattleOrder = {
+                unitId: unit.id,
+                abilityId: ability.id,
+                targets: resolvedTargets,
+                movePath: unit.movement?.path ? [...unit.movement.path] : undefined,
+            };
+            this.queueOrder(this.gameTick, order);
             this.eventBus.emit('turn_end', { unitId: unit.id });
             return;
         }
 
         // No ability had a valid target in range — wait
-        unit.startCooldown(1);
+        const waitOrder: BattleOrder = { unitId: unit.id, abilityId: 'wait', targets: [] };
+        this.queueOrder(this.gameTick, waitOrder);
         this.eventBus.emit('turn_end', { unitId: unit.id });
     }
 
@@ -695,6 +750,7 @@ export class GameEngine {
                 ]),
             ),
             waitingForOrders: this.waitingForOrders,
+            orders: this.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
         };
     }
 
@@ -707,6 +763,10 @@ export class GameEngine {
         engine.roundNumber = data.roundNumber;
         engine.snapshotIndex = data.snapshotIndex;
         engine.waitingForOrders = data.waitingForOrders;
+        engine.pendingOrders = (data.orders ?? []).map((o) => ({
+            gameTick: o.gameTick,
+            order: { ...o.order, targets: (o.order.targets ?? []).map((t) => ({ ...t })) },
+        }));
 
         // Restore units
         for (const unitData of data.units) {

@@ -8,9 +8,10 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { PlayerState, GameSidebarInfo } from '../../../types';
 import type { LobbyClient } from '../../../LobbyClient';
-import { GameEngine } from '../engine/GameEngine';
+import { GameEngine, CHECKPOINT_INTERVAL } from '../engine/GameEngine';
 import type { CardInstance } from '../engine/GameEngine';
 import { GameRenderer } from '../engine/GameRenderer';
+import type { OrderAtTick } from '../engine/types';
 import { Camera } from '../engine/Camera';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../engine/GameEngine';
 import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../engine/types';
@@ -190,15 +191,17 @@ export default function BattlePhase({
 
             updateCardState(engine);
 
-            // Host: save game state snapshot
-            if (isHost) {
-                saveSnapshot(engine);
-            }
-
-            // If not our turn: start polling for orders
+            // If not our turn: start polling for orders at the checkpoint that contains the next tick
             if (info.ownerId !== playerId) {
-                startOrderPolling(engine.snapshotIndex);
+                const nextTick = engine.gameTick + 1;
+                const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+                startOrderPolling(checkpointGameTick);
             }
+        });
+
+        engine.setOnCheckpoint((gameTick, state, orders) => {
+            if (!isHost) return;
+            saveCheckpoint(gameTick, state, orders);
         });
 
         engine.setOnRoundEnd((rn) => {
@@ -367,41 +370,46 @@ export default function BattlePhase({
             movePath: movePath ?? undefined,
         };
 
-        // Apply locally and resume
+        // Apply locally and resume (order is queued for gameTick + 1)
         engine.applyOrder(order);
         setWaitingForOrders(null);
         setIsPaused(false);
         pendingMovePathRef.current = null;
         updateCardState(engine);
 
-        // Save order to server
-        saveOrder(engine.snapshotIndex, order);
+        const atTick = engine.gameTick + 1; // order is scheduled for next tick
+        saveOrder(atTick, order);
 
-        // Notify other clients
         lobbyClient.sendMessage(lobbyId, playerId, 'battle_orders_ready', {
-            snapshotIndex: engine.snapshotIndex,
+            gameTick: atTick,
         }).catch(() => {});
     }
 
     // ========================================================================
-    // Server sync: snapshots and orders
+    // Server sync: checkpoints (every CHECKPOINT_INTERVAL ticks) and orders
     // ========================================================================
 
-    async function saveSnapshot(engine: GameEngine) {
+    async function saveCheckpoint(gameTick: number, state: Record<string, unknown>, orders: OrderAtTick[]) {
         try {
+            const existing = await lobbyClient.getGameStateSnapshot(lobbyId, gameId, gameTick);
+            const mergedOrders = existing?.orders?.length
+                ? [...(existing.orders as OrderAtTick[]), ...orders]
+                : orders;
             await lobbyClient.saveGameStateSnapshot(
-                lobbyId, gameId, engine.snapshotIndex,
-                engine.toJSON() as unknown as Record<string, unknown>,
+                lobbyId, gameId, gameTick,
+                state,
+                mergedOrders.map((o) => ({ gameTick: o.gameTick, order: o.order as Record<string, unknown> })),
             );
         } catch (err) {
-            console.error('Failed to save snapshot:', err);
+            console.error('Failed to save checkpoint:', err);
         }
     }
 
-    async function saveOrder(snapshotIndex: number, order: BattleOrder) {
+    async function saveOrder(atTick: number, order: BattleOrder) {
         try {
+            const checkpointGameTick = Math.floor(atTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
             await lobbyClient.saveGameOrders(
-                lobbyId, gameId, snapshotIndex,
+                lobbyId, gameId, checkpointGameTick, atTick,
                 order as unknown as Record<string, unknown>,
             );
         } catch (err) {
@@ -409,16 +417,18 @@ export default function BattlePhase({
         }
     }
 
-    function startOrderPolling(snapshotIndex: number) {
+    function startOrderPolling(checkpointGameTick: number) {
         stopOrderPolling();
         orderPollRef.current = setInterval(async () => {
             try {
-                const orders = await lobbyClient.getGameOrders(lobbyId, gameId, snapshotIndex);
-                if (orders) {
-                    // Orders received! Apply and resume.
+                const result = await lobbyClient.getGameOrders(lobbyId, gameId, checkpointGameTick);
+                if (result?.orders?.length) {
                     const engine = engineRef.current;
                     if (engine) {
-                        engine.applyOrder(orders as unknown as BattleOrder);
+                        for (const { gameTick: atTick, order } of result.orders) {
+                            engine.queueOrder(atTick, order as unknown as BattleOrder);
+                        }
+                        engine.resumeAfterOrders();
                         setWaitingForOrders(null);
                         setIsPaused(false);
                         updateCardState(engine);
@@ -440,13 +450,12 @@ export default function BattlePhase({
 
     async function performSyncCheck(engine: GameEngine) {
         try {
-            const serverState = await lobbyClient.getGameStateSnapshot(lobbyId, gameId);
-            if (!serverState) return;
+            const checkpoint = await lobbyClient.getGameStateSnapshot(lobbyId, gameId);
+            if (!checkpoint?.state) return;
 
             const local = engine.toJSON();
-            const server = serverState as Record<string, unknown>;
+            const server = checkpoint.state;
 
-            // Compare key fields
             if (
                 local.roundNumber !== server.roundNumber ||
                 Math.abs(local.gameTime - (server.gameTime as number)) > 0.5

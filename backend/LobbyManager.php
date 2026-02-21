@@ -366,10 +366,65 @@ class LobbyManager
 
     /**
      * Load game state from storage (for inclusion in lobby state response when in game).
+     * Returns the most recent checkpoint snapshot if any exist, otherwise falls back to game_<gameId>.json.
      */
     public function getGameStateData(string $lobbyId, string $gameId): ?array
     {
-        $path = $this->getStoragePath() . '/' . $lobbyId . '/game_' . $gameId . '.json';
+        $basePath = $this->getStoragePath() . '/' . $lobbyId;
+        $checkpointDir = $basePath . '/game_' . $gameId;
+        $prefix = 'game_' . $gameId . '_';
+        $suffix = '.json';
+
+        // Look for the latest checkpoint
+        if (is_dir($checkpointDir)) {
+            $latestTick = -1;
+            $latestFile = null;
+            foreach (scandir($checkpointDir) as $file) {
+                if (strpos($file, $prefix) === 0 && substr($file, -strlen($suffix)) === $suffix) {
+                    $tickStr = substr($file, strlen($prefix), -strlen($suffix));
+                    if (ctype_digit($tickStr)) {
+                        $t = (int) $tickStr;
+                        if ($t > $latestTick) {
+                            $latestTick = $t;
+                            $latestFile = $file;
+                        }
+                    }
+                }
+            }
+            if ($latestFile !== null) {
+                $json = file_get_contents($checkpointDir . '/' . $latestFile);
+                $checkpoint = json_decode($json, true);
+                if (is_array($checkpoint)) {
+                    $state = $checkpoint['state'] ?? [];
+                    $result = array_merge($state, [
+                        'gameTick' => $checkpoint['gameTick'] ?? $latestTick,
+                        'orders' => $checkpoint['orders'] ?? [],
+                    ]);
+                    // Merge phase metadata from main game file (checkpoints only have engine state)
+                    $basePathFile = $basePath . '/game_' . $gameId . '.json';
+                    if (is_file($basePathFile)) {
+                        $baseData = json_decode(file_get_contents($basePathFile), true);
+                        if (is_array($baseData)) {
+                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections'] as $key) {
+                                if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
+                                    $result[$key] = $baseData[$key];
+                                }
+                            }
+                            // Also merge dotted keys like characterSelections.1
+                            foreach (array_keys($baseData) as $key) {
+                                if (strpos($key, 'characterSelections.') === 0 || strpos($key, 'character_selections.') === 0) {
+                                    $result[$key] = $baseData[$key];
+                                }
+                            }
+                        }
+                    }
+                    return $result;
+                }
+            }
+        }
+
+        // Fall back to legacy game_<gameId>.json
+        $path = $basePath . '/game_' . $gameId . '.json';
         if (!is_file($path)) {
             return null;
         }

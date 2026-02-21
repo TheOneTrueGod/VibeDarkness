@@ -32,6 +32,8 @@ export interface SerializedGameState {
     effects: Record<string, unknown>[];
     cards: Record<string, SerializedCardInstance[]>;
     waitingForOrders: WaitingForOrders | null;
+    /** Orders scheduled for future ticks (included in checkpoints). */
+    orders?: OrderAtTick[];
 }
 
 /** Serialized card instance. */
@@ -49,6 +51,12 @@ export interface BattleOrder {
     targets: ResolvedTarget[];
     /** Grid-cell path for movement (from pathfinding). Null clears movement. */
     movePath?: { col: number; row: number }[] | null;
+}
+
+/** An order scheduled to be applied at a specific game tick. */
+export interface OrderAtTick {
+    gameTick: number;
+    order: BattleOrder;
 }
 
 /** A resolved target from the targeting system. */
