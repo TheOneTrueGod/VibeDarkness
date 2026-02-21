@@ -297,6 +297,9 @@ export class GameEngine {
 
         // Wait action: do nothing, just set a 1s cooldown
         if (order.abilityId === 'wait') {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cbf947fa-3cd1-4ede-9663-15ab42cb01ad',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameEngine.ts:305',message:'wait order applied',data:{unitId:order.unitId,gameTick:this.gameTick},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             unit.startCooldown(1);
             return;
         }

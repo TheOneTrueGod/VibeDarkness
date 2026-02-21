@@ -232,9 +232,10 @@ export default function BattlePhase({
                     ? existingPath.map((p) => ({ ...p }))
                     : null;
                 updateCardState(newEngine);
-                if (info.ownerId === playerId) {
+                // Host skips desync check (host saves checkpoints; server state lags)
+                if (info.ownerId === playerId && !isHost) {
                     performDesyncCheck(newEngine);
-                } else {
+                } else if (info.ownerId !== playerId) {
                     const nextTick = newEngine.gameTick + 1;
                     const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
                     startOrderPolling(checkpointGameTick);
@@ -281,10 +282,10 @@ export default function BattlePhase({
 
             updateCardState(engine);
 
-            // If our turn: run desync check before player acts
-            if (info.ownerId === playerId) {
+            // Host skips desync check (host saves checkpoints; server state lags)
+            if (info.ownerId === playerId && !isHost) {
                 performDesyncCheck(engine);
-            } else {
+            } else if (info.ownerId !== playerId) {
                 // If not our turn: start polling for orders at the checkpoint that contains the next tick
                 const nextTick = engine.gameTick + 1;
                 const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
