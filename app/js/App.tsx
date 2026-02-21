@@ -223,6 +223,9 @@ function AppInner() {
                 setLobbyGameId(newGameId);
                 setLobbyGameType(newGameType);
                 setLobbyGameData(newGameData);
+            } else if (newState === 'in_game' && newGameData != null) {
+                // In-game: always update game data so other players get orders via the next poll
+                setLobbyGameData(newGameData);
             }
         } catch {
             // ignore

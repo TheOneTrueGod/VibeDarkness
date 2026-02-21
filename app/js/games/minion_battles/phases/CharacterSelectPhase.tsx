@@ -70,11 +70,8 @@ export default function CharacterSelectPhase({
             setLocalOverride?.(overridePath, characterId);
 
             try {
-                // Update game state with the selection
-                await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
-                    [`characterSelections.${playerId}`]: characterId,
-                });
-                // Broadcast so other clients pick it up via polling
+                // Character selection is persisted via message handler (works for host and non-host).
+                // The direct updateGameState API is host-only, so we use sendMessage instead.
                 await lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHARACTER_SELECT, {
                     characterId,
                 });
@@ -84,7 +81,7 @@ export default function CharacterSelectPhase({
                 console.error('Failed to select character:', error);
             }
         },
-        [lobbyClient, lobbyId, gameId, playerId, mbPlayer, setLocalOverride, removeLocalOverride]
+        [lobbyClient, lobbyId, playerId, mbPlayer, setLocalOverride, removeLocalOverride]
     );
 
     const handleStartGame = useCallback(async () => {

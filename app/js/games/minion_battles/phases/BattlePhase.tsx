@@ -424,28 +424,41 @@ export default function BattlePhase({
         }
     }
 
+    async function pollForOrders(checkpointGameTick: number): Promise<void> {
+        try {
+            const result = await lobbyClient.getGameOrders(lobbyId, gameId, checkpointGameTick);
+            if (!result?.orders?.length) return;
+
+            const engine = engineRef.current;
+            if (!engine) return;
+
+            // Only apply orders for ticks we haven't processed yet (avoids re-applying stale orders)
+            const newOrders = result.orders.filter(
+                (o) => o.gameTick > engine.gameTick,
+            );
+            if (newOrders.length === 0) return;
+
+            for (const { gameTick: atTick, order } of newOrders) {
+                engine.queueOrder(atTick, order as unknown as BattleOrder);
+            }
+            engine.resumeAfterOrders();
+            setWaitingForOrders(null);
+            setIsPaused(false);
+            updateCardState(engine);
+            stopOrderPolling();
+        } catch {
+            // Silently retry
+        }
+    }
+
     function startOrderPolling(checkpointGameTick: number) {
         stopOrderPolling();
-        orderPollRef.current = setInterval(async () => {
-            try {
-                const result = await lobbyClient.getGameOrders(lobbyId, gameId, checkpointGameTick);
-                if (result?.orders?.length) {
-                    const engine = engineRef.current;
-                    if (engine) {
-                        for (const { gameTick: atTick, order } of result.orders) {
-                            engine.queueOrder(atTick, order as unknown as BattleOrder);
-                        }
-                        engine.resumeAfterOrders();
-                        setWaitingForOrders(null);
-                        setIsPaused(false);
-                        updateCardState(engine);
-                    }
-                    stopOrderPolling();
-                }
-            } catch {
-                // Silently retry
-            }
-        }, 1000);
+        // Poll immediately, then every 1 second (avoids 1s delay if order already on server)
+        pollForOrders(checkpointGameTick);
+        orderPollRef.current = setInterval(
+            () => pollForOrders(checkpointGameTick),
+            1000,
+        );
     }
 
     function stopOrderPolling() {
