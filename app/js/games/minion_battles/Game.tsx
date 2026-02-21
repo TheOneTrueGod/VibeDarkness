@@ -196,6 +196,7 @@ export default function MinionBattlesGame({
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
+                    initialGameState={raw}
                     onSidebarInfoChange={onSidebarInfoChange}
                 />
             )}

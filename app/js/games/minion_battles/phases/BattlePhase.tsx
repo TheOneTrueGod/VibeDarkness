@@ -11,7 +11,7 @@ import type { LobbyClient } from '../../../LobbyClient';
 import { GameEngine, CHECKPOINT_INTERVAL } from '../engine/GameEngine';
 import type { CardInstance } from '../engine/GameEngine';
 import { GameRenderer } from '../engine/GameRenderer';
-import type { OrderAtTick } from '../engine/types';
+import type { OrderAtTick, SerializedGameState } from '../engine/types';
 import { Camera } from '../engine/Camera';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../engine/GameEngine';
 import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../engine/types';
@@ -138,43 +138,43 @@ export default function BattlePhase({
         // Ensure lobbyClient knows our playerId for snapshot/order API calls
         lobbyClient.setCurrentPlayerId(playerId);
 
-        // Create engine, renderer, camera
-        const engine = new GameEngine();
+        // Create renderer and camera
         const renderer = new GameRenderer();
         const camera = new Camera(800, 600, WORLD_WIDTH, WORLD_HEIGHT);
-
-        engineRef.current = engine;
         rendererRef.current = renderer;
         cameraRef.current = camera;
 
-        // Build player unit configs from character selections
-        const playerUnits = Object.entries(characterSelections).map(([pid, charId]) => ({
-            playerId: pid,
-            characterId: charId,
-            name: players[pid]?.name ?? 'Unknown',
-        }));
-
-        // Get mission config
+        // Get mission config and terrain (needed for both init paths)
         const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-        const enemySpawns: UnitSpawnConfig[] = mission.enemies.map((e) => ({
-            ...e,
-            ownerId: 'ai',
-        }));
-
-        // Create terrain from mission config
         const terrainGrid = mission.createTerrain();
         const terrainManager = new TerrainManager(terrainGrid);
-
-        // Initialize engine with terrain
-        engine.initialize({
-            playerUnits,
-            enemySpawns,
-            localPlayerId: playerId,
-            terrainManager,
-        });
-
-        // Set terrain on renderer (will be cached as a sprite)
         renderer.setTerrain(terrainGrid);
+
+        const init = initialGameState as Record<string, unknown> | null | undefined;
+        const hasSnapshot = init && Array.isArray(init.units) && (init.units as unknown[]).length > 0 && typeof (init.gameTick ?? init.game_tick) === 'number';
+
+        let engine: GameEngine;
+        if (hasSnapshot && init) {
+            engine = GameEngine.fromJSON(init as unknown as SerializedGameState, playerId, terrainManager);
+            setRoundNumber(engine.roundNumber);
+            setRoundProgress(engine.roundProgress);
+            setWaitingForOrders(engine.waitingForOrders);
+            if (engine.waitingForOrders) setIsPaused(true);
+        } else {
+            engine = new GameEngine();
+            const selections = Object.keys(characterSelections).length > 0
+                ? characterSelections
+                : ((init?.characterSelections ?? init?.character_selections) as Record<string, string>) ?? {};
+            const playerUnits = Object.entries(selections).map(([pid, charId]) => ({
+                playerId: pid,
+                characterId: charId,
+                name: players[pid]?.name ?? 'Unknown',
+            }));
+            const enemySpawns: UnitSpawnConfig[] = mission.enemies.map((e) => ({ ...e, ownerId: 'ai' }));
+            engine.initialize({ playerUnits, enemySpawns, localPlayerId: playerId, terrainManager });
+        }
+
+        engineRef.current = engine;
 
         // Set up callbacks
         engine.setOnWaitingForOrders((info) => {
@@ -227,6 +227,13 @@ export default function BattlePhase({
 
         // Update initial card state
         updateCardState(engine);
+
+        // If restored and waiting for another player's orders, start polling
+        if (hasSnapshot && engine.waitingForOrders && engine.waitingForOrders.ownerId !== playerId) {
+            const nextTick = engine.gameTick + 1;
+            const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+            startOrderPolling(checkpointGameTick);
+        }
 
         // Start the engine
         engine.start();
