@@ -86,7 +86,7 @@ export class GameEngine {
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
     private onRoundEnd: ((roundNumber: number) => void) | null = null;
     private onStateChanged: EngineStateCallback | null = null;
-    /** Called when a checkpoint should be saved (every CHECKPOINT_INTERVAL ticks). Receives gameTick, serialized state, and pending orders. */
+    /** Called when a checkpoint should be saved (when a unit is about to take a turn). Receives gameTick, serialized state, and pending orders. */
     private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
 
     /** The local player's ID. Used to decide which unit to center camera on. */
@@ -124,7 +124,7 @@ export class GameEngine {
         this.onStateChanged = cb;
     }
 
-    /** Set callback for checkpoint saves (every CHECKPOINT_INTERVAL ticks). */
+    /** Set callback for checkpoint saves (when a unit is about to take a turn). */
     setOnCheckpoint(cb: (gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void): void {
         this.onCheckpoint = cb;
     }
@@ -233,13 +233,6 @@ export class GameEngine {
         this.units = this.units.filter((u) => u.active);
         this.projectiles = this.projectiles.filter((p) => p.active);
         this.effects = this.effects.filter((e) => e.active);
-
-        // Checkpoint: host syncs every CHECKPOINT_INTERVAL ticks
-        if (this.gameTick > 0 && this.gameTick % CHECKPOINT_INTERVAL === 0) {
-            const state = this.toJSON();
-            const orders = [...this.pendingOrders];
-            this.onCheckpoint?.(this.gameTick, state, orders);
-        }
     }
 
     // ========================================================================

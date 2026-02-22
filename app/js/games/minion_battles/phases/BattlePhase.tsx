@@ -487,19 +487,16 @@ export default function BattlePhase({
     }
 
     // ========================================================================
-    // Server sync: checkpoints (every CHECKPOINT_INTERVAL ticks) and orders
+    // Server sync: checkpoints (on turn start) and orders
     // ========================================================================
 
     async function saveCheckpoint(gameTick: number, state: Record<string, unknown>, orders: OrderAtTick[]) {
         try {
-            const existing = await lobbyClient.getGameStateSnapshot(lobbyId, gameId, gameTick);
-            const existingOrders = existing?.orders ?? [];
-            const newOrdersFormatted = orders.map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
-            const mergedOrders = [...existingOrders, ...newOrdersFormatted];
+            const ordersFormatted = orders.map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
             await lobbyClient.saveGameStateSnapshot(
                 lobbyId, gameId, gameTick,
                 state,
-                mergedOrders,
+                ordersFormatted,
             );
         } catch (err) {
             console.error('Failed to save checkpoint:', err);
