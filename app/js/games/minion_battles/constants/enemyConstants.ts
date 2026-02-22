@@ -4,13 +4,13 @@
  * Missions spread these and override name, hp, speed, position as needed.
  */
 
-import type { EnemySpawnDef } from './types';
+import type { EnemySpawnDef } from '../missions/types';
 
 /** Melee enemy: knows ability 0002 (Enemy Melee Attack). */
 export const ENEMY_MELEE: EnemySpawnDef = {
     characterId: 'enemy_melee',
     name: 'Melee Enemy',
-    hp: 50,
+    hp: 12,
     speed: 80,
     position: { x: 0, y: 0 },
     teamId: 'enemy',
@@ -22,7 +22,7 @@ export const ENEMY_MELEE: EnemySpawnDef = {
 export const ENEMY_RANGED: EnemySpawnDef = {
     characterId: 'enemy_ranged',
     name: 'Ranged Enemy',
-    hp: 40,
+    hp: 10,
     speed: 60,
     position: { x: 0, y: 0 },
     teamId: 'enemy',

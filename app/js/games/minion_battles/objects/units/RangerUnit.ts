@@ -5,6 +5,7 @@
 import { Unit } from '../Unit';
 import type { TeamId } from '../../engine/teams';
 import type { EventBus } from '../../engine/EventBus';
+import { getDefaultHp, getDefaultSpeed } from '../../engine/unitDef';
 
 export const RANGER_DEFAULTS = {
     hp: 75,
@@ -20,11 +21,13 @@ export function createRangerUnit(config: {
     ownerId: string;
     name: string;
     abilities?: string[];
+    hp?: number;
+    speed?: number;
 }, _eventBus: EventBus): Unit {
     const unit = new Unit({
         ...config,
-        hp: RANGER_DEFAULTS.hp,
-        speed: RANGER_DEFAULTS.speed,
+        hp: config.hp ?? getDefaultHp('ranger'),
+        speed: config.speed ?? getDefaultSpeed('ranger'),
         characterId: 'ranger',
     });
     unit.radius = RANGER_DEFAULTS.radius;

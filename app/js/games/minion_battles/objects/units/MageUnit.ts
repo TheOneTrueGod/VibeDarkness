@@ -3,9 +3,10 @@
  */
 
 import { Unit } from '../Unit';
-import { Mana } from '../../resources/Mana';
+import { Mana } from '../../resources/Mana.ts';
 import type { TeamId } from '../../engine/teams';
 import type { EventBus } from '../../engine/EventBus';
+import { getDefaultHp, getDefaultSpeed } from '../../engine/unitDef';
 
 export const MAGE_DEFAULTS = {
     hp: 60,
@@ -21,11 +22,13 @@ export function createMageUnit(config: {
     ownerId: string;
     name: string;
     abilities?: string[];
+    hp?: number;
+    speed?: number;
 }, eventBus: EventBus): Unit {
     const unit = new Unit({
         ...config,
-        hp: MAGE_DEFAULTS.hp,
-        speed: MAGE_DEFAULTS.speed,
+        hp: config.hp ?? getDefaultHp('mage'),
+        speed: config.speed ?? getDefaultSpeed('mage'),
         characterId: 'mage',
     });
     unit.radius = MAGE_DEFAULTS.radius;

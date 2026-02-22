@@ -8,7 +8,7 @@
  */
 
 import { BaseMissionDef } from './BaseMissionDef';
-import { ENEMY_MELEE, ENEMY_RANGED } from './enemyTypes';
+import { ENEMY_MELEE, ENEMY_RANGED } from '../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainType } from '../terrain/TerrainType';
 

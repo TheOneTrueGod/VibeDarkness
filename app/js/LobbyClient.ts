@@ -31,6 +31,9 @@ interface LobbySummary {
 interface LobbyState {
     id: string;
     name: string;
+    playerCount?: number;
+    lobbyState?: 'home' | 'in_game';
+    gameType?: string | null;
     [key: string]: unknown;
 }
 
@@ -50,6 +53,7 @@ interface AccountInfo {
     water: number;
     earth: number;
     air: number;
+    recentLobbies?: string[];
 }
 
 interface CreateLobbyResult {

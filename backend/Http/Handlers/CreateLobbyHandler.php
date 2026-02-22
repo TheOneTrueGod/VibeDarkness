@@ -31,6 +31,8 @@ class CreateLobbyHandler
         $playerId = (string) $account->getId();
         $result = $manager->createLobby($name, $playerId, $account->getName(), $maxPlayers, $isPublic);
 
+        $accountService->recordRecentLobby($accountId, $result['lobby']['id']);
+
         return [
             'success' => true,
             'lobby' => $result['lobby'],

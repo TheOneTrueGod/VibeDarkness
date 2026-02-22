@@ -23,6 +23,7 @@ export interface AccountState {
     water: number;
     earth: number;
     air: number;
+    recentLobbies?: string[];
 }
 
 /** Info pushed from a game component into the chat sidebar. */

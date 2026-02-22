@@ -342,6 +342,8 @@ class Lobby
             'maxPlayers' => $this->maxPlayers,
             'isPublic' => $this->isPublic,
             'hostId' => $this->hostId,
+            'lobbyState' => $this->lobbyState,
+            'gameType' => $this->gameType,
         ];
 
         if ($includeDetails) {

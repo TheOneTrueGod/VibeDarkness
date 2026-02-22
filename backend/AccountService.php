@@ -74,4 +74,15 @@ class AccountService
     {
         return $this->storage->findById($id);
     }
+
+    /** Record that the user visited a lobby (add to recent list, limit 10) */
+    public function recordRecentLobby(int $accountId, string $lobbyId): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->addRecentLobby($lobbyId);
+        $this->storage->save($account);
+    }
 }

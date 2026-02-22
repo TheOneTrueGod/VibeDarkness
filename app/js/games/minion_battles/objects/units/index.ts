@@ -8,6 +8,7 @@
 import type { Unit } from '../Unit';
 import type { TeamId } from '../../engine/teams';
 import type { EventBus } from '../../engine/EventBus';
+import { getDefaultHp, getDefaultSpeed } from '../../engine/unitDef';
 import { createWarriorUnit } from './WarriorUnit';
 import { createMageUnit } from './MageUnit';
 import { createRangerUnit } from './RangerUnit';
@@ -22,6 +23,10 @@ export type UnitFactoryConfig = {
     ownerId: string;
     name: string;
     abilities?: string[];
+    /** Override default HP for this unit. Uses getDefaultHp(characterId) when not set. */
+    hp?: number;
+    /** Override default speed for this unit. Uses getDefaultSpeed(characterId) when not set. */
+    speed?: number;
 };
 
 type UnitFactory = (config: UnitFactoryConfig, eventBus: EventBus) => Unit;
@@ -45,9 +50,9 @@ export function createUnitByCharacterId(
     if (factory) {
         return factory(config, eventBus);
     }
-    // Fallback: generic enemy with default stats
+    // Fallback: generic enemy with default stats from unit def (config.hp/speed override)
     return createGenericEnemy(
-        { ...config, hp: 50, speed: 120, characterId },
+        { ...config, hp: config.hp ?? getDefaultHp(characterId), speed: config.speed ?? getDefaultSpeed(characterId), characterId },
         eventBus,
     );
 }

@@ -31,8 +31,8 @@ export interface IUnitDef {
     createVisual(unit: Unit, context: IUnitRenderContext): Container;
 }
 
-/** Body color and optional character sprite key for default rendering. */
-const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string }> = {
+/** Body color, optional character sprite key, and optional default HP/speed for unit creation. */
+const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string; hp?: number; speed?: number }> = {
     warrior: { bodyColor: 0x8b0000 },
     mage: { bodyColor: 0x4a148c },
     ranger: { bodyColor: 0x2e7d32 },
@@ -124,6 +124,16 @@ const defaultUnitDef = new DefaultUnitDef();
 /** Get the unit def for a character ID. */
 export function getUnitDef(characterId: string): IUnitDef {
     return defaultUnitDef;
+}
+
+/** Default HP for a character ID. Used when creating units without explicit hp. Returns 50 if not configured. */
+export function getDefaultHp(characterId: string): number {
+    return UNIT_DEFS[characterId]?.hp ?? 50;
+}
+
+/** Default speed for a character ID. Used when creating units without explicit speed. Returns 100 if not configured. */
+export function getDefaultSpeed(characterId: string): number {
+    return UNIT_DEFS[characterId]?.speed ?? 100;
 }
 
 /**

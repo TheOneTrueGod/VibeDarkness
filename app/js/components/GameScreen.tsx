@@ -3,6 +3,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Chat from './Chat';
+import LobbyIdBadge from './LobbyIdBadge';
 import type { MessageEntry } from './Chat';
 import PlayerList from './PlayerList';
 import GameCanvas from './GameCanvas';
@@ -243,9 +244,7 @@ export default function GameScreen({
                     <div className="flex-shrink-0 flex items-center justify-center min-w-0 max-w-[50%] sm:max-w-none">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                             <span className="text-lg sm:text-xl font-semibold truncate">{lobby.name}</span>
-                            <span className="px-2 py-1 bg-surface-light rounded font-mono text-xs sm:text-sm shrink-0 hidden sm:inline">
-                                {lobby.id}
-                            </span>
+                            <LobbyIdBadge id={lobby.id} className="hidden sm:inline" />
                         </div>
                     </div>
                     <div className="flex-1 flex justify-end items-center gap-2 sm:gap-3 min-w-0">

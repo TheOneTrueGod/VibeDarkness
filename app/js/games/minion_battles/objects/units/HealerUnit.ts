@@ -3,9 +3,10 @@
  */
 
 import { Unit } from '../Unit';
-import { Mana } from '../../resources/Mana';
+import { Mana } from '../../resources/Mana.ts';
 import type { TeamId } from '../../engine/teams';
 import type { EventBus } from '../../engine/EventBus';
+import { getDefaultHp } from '../../engine/unitDef';
 
 export const HEALER_DEFAULTS = {
     hp: 70,
@@ -21,11 +22,13 @@ export function createHealerUnit(config: {
     ownerId: string;
     name: string;
     abilities?: string[];
+    hp?: number;
+    speed?: number;
 }, eventBus: EventBus): Unit {
     const unit = new Unit({
         ...config,
-        hp: HEALER_DEFAULTS.hp,
-        speed: HEALER_DEFAULTS.speed,
+        hp: config.hp ?? getDefaultHp('healer'),
+        speed: config.speed ?? getDefaultSpeed('healer'),
         characterId: 'healer',
     });
     unit.radius = HEALER_DEFAULTS.radius;

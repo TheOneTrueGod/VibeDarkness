@@ -37,6 +37,8 @@ class JoinLobbyHandler
             return ['success' => false, 'error' => $result['error']];
         }
 
+        $accountService->recordRecentLobby($accountId, $lobbyId);
+
         return [
             'success' => true,
             'lobby' => $result['lobby'],

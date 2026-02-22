@@ -19,6 +19,8 @@ class PlayerAccount
     private int $water;
     private int $earth;
     private int $air;
+    /** @var string[] Most recent lobby IDs (newest first), max 10 */
+    private array $recentLobbies;
 
     public function __construct(
         int $id,
@@ -28,7 +30,8 @@ class PlayerAccount
         int $fire,
         int $water,
         int $earth,
-        int $air
+        int $air,
+        array $recentLobbies = []
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -38,6 +41,24 @@ class PlayerAccount
         $this->water = $water;
         $this->earth = $earth;
         $this->air = $air;
+        $this->recentLobbies = $recentLobbies;
+    }
+
+    public function getRecentLobbies(): array
+    {
+        return $this->recentLobbies;
+    }
+
+    /** Add lobby ID to recent list (newest first), limit to 10 */
+    public function addRecentLobby(string $lobbyId): void
+    {
+        $id = strtoupper(trim($lobbyId));
+        if ($id === '') {
+            return;
+        }
+        $list = array_values(array_filter($this->recentLobbies, fn ($x) => strtoupper((string) $x) !== $id));
+        array_unshift($list, $id);
+        $this->recentLobbies = array_slice($list, 0, 10);
     }
 
     public function getId(): int
@@ -107,7 +128,7 @@ class PlayerAccount
         ];
     }
 
-    /** Full array for storage (includes password hash) */
+    /** Full array for storage (includes password hash and recentLobbies) */
     public function toStorageArray(): array
     {
         return array_merge($this->toArray(), ['passwordHash' => $this->passwordHash]);
@@ -117,6 +138,8 @@ class PlayerAccount
     {
         $passwordHash = $data['passwordHash'] ?? $data['password_hash'] ?? '';
         $role = $data['role'] ?? self::ROLE_USER;
+        $recent = $data['recentLobbies'] ?? [];
+        $recent = is_array($recent) ? array_values(array_map('strval', $recent)) : [];
         return new self(
             (int) $data['id'],
             $data['name'],
@@ -125,7 +148,8 @@ class PlayerAccount
             (int) ($data['fire'] ?? 0),
             (int) ($data['water'] ?? 0),
             (int) ($data['earth'] ?? 0),
-            (int) ($data['air'] ?? 0)
+            (int) ($data['air'] ?? 0),
+            $recent
         );
     }
 

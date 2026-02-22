@@ -74,6 +74,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 /** Inner app component that uses Toast context */
 function AppInner() {
     const { showToast } = useToast();
+    const { refetch: refetchUser } = useUser();
     const lobbyClient = useMemo(() => new LobbyClient(), []);
 
     // Screen
@@ -397,8 +398,9 @@ function AppInner() {
         lastMessageIdRef.current = null;
         window.history.replaceState(null, '', '/');
         setScreen('lobby');
+        refetchUser();
         showToast('Left the lobby', 'info');
-    }, [currentLobby, currentPlayer, lobbyClient, showToast]);
+    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser]);
 
     // ==================== Chat and canvas handlers ====================
 
