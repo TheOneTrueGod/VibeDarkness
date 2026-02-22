@@ -15,6 +15,9 @@ require __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/backend/Http/helpers.php';
 
 use App\AccountService;
+use App\SessionHelper;
+
+SessionHelper::start();
 use App\LobbyManager;
 use App\Router;
 use App\Storage\FlatFilePlayerAccountStorage;

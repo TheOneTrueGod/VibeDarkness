@@ -1,5 +1,5 @@
 {
-    "nextId": 8,
+    "nextId": 12,
     "byName": {
         "Jer": 1,
         "Test": 2,
@@ -7,6 +7,10 @@
         "test2": 4,
         "JerHost": 5,
         "Jer2": 6,
-        "Jerclient": 7
+        "Jerclient": 7,
+        "TheOneTrueGod": 8,
+        "Guest": 9,
+        "Guest2": 10,
+        "Guest3": 11
     }
 }

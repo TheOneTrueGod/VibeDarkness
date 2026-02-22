@@ -15,6 +15,7 @@ import type { CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { areEnemies } from '../../engine/teams';
+import type { EventBus } from '../../engine/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
 const PREFIRE_TIME = 0.5;
@@ -35,7 +36,7 @@ interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
     addEffect(effect: Effect): void;
     gameTime: number;
-    eventBus: { emit: (event: string, data: unknown) => void };
+    eventBus: EventBus;
 }
 
 const BASH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">

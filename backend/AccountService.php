@@ -5,7 +5,7 @@ namespace App;
 use App\Storage\PlayerAccountStorageInterface;
 
 /**
- * Service for sign-in and account lookup.
+ * Service for login, account creation, and account lookup.
  * Uses storage abstraction so the persistence layer can be swapped.
  */
 class AccountService
@@ -15,25 +15,52 @@ class AccountService
     ) {}
 
     /**
-     * Get existing account by name or create a new one with random resources.
+     * Log in with username and password. Returns account on success.
      */
-    public function signIn(string $name): PlayerAccount
+    public function login(string $username, string $password): PlayerAccount
     {
-        $name = trim($name);
-        if ($name === '') {
-            throw new \InvalidArgumentException('Name is required');
+        $username = trim($username);
+        if ($username === '') {
+            throw new \InvalidArgumentException('Username is required');
         }
 
-        $existing = $this->storage->findByName($name);
+        $account = $this->storage->findByName($username);
+        if ($account === null) {
+            throw new \InvalidArgumentException('Invalid username or password');
+        }
+
+        if (! $account->verifyPassword($password)) {
+            throw new \InvalidArgumentException('Invalid username or password');
+        }
+
+        return $account;
+    }
+
+    /**
+     * Create a new account with username and password.
+     */
+    public function createAccount(string $username, string $password): PlayerAccount
+    {
+        $username = trim($username);
+        if ($username === '') {
+            throw new \InvalidArgumentException('Username is required');
+        }
+        if (strlen($password) < 1) {
+            throw new \InvalidArgumentException('Password is required');
+        }
+
+        $existing = $this->storage->findByName($username);
         if ($existing !== null) {
-            return $existing;
+            throw new \InvalidArgumentException('Username already exists');
         }
 
         $id = $this->storage->nextId();
         $resources = PlayerAccount::randomResources();
         $account = new PlayerAccount(
             $id,
-            $name,
+            $username,
+            PlayerAccount::hashPassword($password),
+            PlayerAccount::ROLE_USER,
             $resources['fire'],
             $resources['water'],
             $resources['earth'],

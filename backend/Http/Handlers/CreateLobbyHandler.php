@@ -4,6 +4,7 @@ namespace App\Http\Handlers;
 
 use App\LobbyManager;
 use App\AccountService;
+use App\SessionHelper;
 
 class CreateLobbyHandler
 {
@@ -11,19 +12,13 @@ class CreateLobbyHandler
     {
         $data = \getJsonBody();
 
-        $name = $data['name'] ?? null;
-        $accountId = isset($data['accountId']) ? (int) $data['accountId'] : null;
+        $accountId = SessionHelper::getAccountId();
         $maxPlayers = $data['maxPlayers'] ?? 8;
         $isPublic = $data['isPublic'] ?? true;
 
-        if (!$name) {
-            http_response_code(400);
-            return ['success' => false, 'error' => 'Lobby name is required'];
-        }
-
         if ($accountId === null || $accountId < 1) {
-            http_response_code(400);
-            return ['success' => false, 'error' => 'Valid accountId is required (sign in first)'];
+            http_response_code(401);
+            return ['success' => false, 'error' => 'Not logged in'];
         }
 
         $account = $accountService->getAccountById($accountId);
@@ -32,6 +27,7 @@ class CreateLobbyHandler
             return ['success' => false, 'error' => 'Account not found'];
         }
 
+        $name = trim($data['name'] ?? '') ?: $account->getName() . "'s Lobby";
         $playerId = (string) $account->getId();
         $result = $manager->createLobby($name, $playerId, $account->getName(), $maxPlayers, $isPublic);
 

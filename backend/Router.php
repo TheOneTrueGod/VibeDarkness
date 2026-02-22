@@ -2,13 +2,17 @@
 
 namespace App;
 
+use App\Http\Handlers\CreateAccountHandler;
 use App\Http\Handlers\CreateLobbyHandler;
+use App\Http\Handlers\GetCurrentUserHandler;
 use App\Http\Handlers\GetLobbyHandler;
 use App\Http\Handlers\GetLobbyStateHandler;
 use App\Http\Handlers\GetMessagesHandler;
 use App\Http\Handlers\JoinLobbyHandler;
 use App\Http\Handlers\LeaveLobbyHandler;
 use App\Http\Handlers\ListLobbiesHandler;
+use App\Http\Handlers\LoginHandler;
+use App\Http\Handlers\LogoutHandler;
 use App\Http\Handlers\SetLobbyStateHandler;
 use App\Http\Handlers\UpdateGameStateHandler;
 use App\Http\Handlers\SaveGameStateSnapshotHandler;
@@ -17,7 +21,6 @@ use App\Http\Handlers\SaveGameOrdersHandler;
 use App\Http\Handlers\GetGameOrdersHandler;
 use App\Http\Handlers\NotFoundHandler;
 use App\Http\Handlers\PostMessageHandler;
-use App\Http\Handlers\SignInHandler;
 use App\Http\Handlers\StatsHandler;
 
 /**
@@ -32,7 +35,10 @@ class Router
     public function __construct()
     {
         $this->routes = [
-            ['POST', '#^/api/account/signin$#', SignInHandler::class],
+            ['POST', '#^/api/account/login$#', LoginHandler::class],
+            ['POST', '#^/api/account/create$#', CreateAccountHandler::class],
+            ['GET', '#^/api/account/me$#', GetCurrentUserHandler::class],
+            ['POST', '#^/api/account/logout$#', LogoutHandler::class],
             ['GET', '#^/api/lobbies$#', ListLobbiesHandler::class],
             ['POST', '#^/api/lobbies$#', CreateLobbyHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/state$#', GetLobbyStateHandler::class],

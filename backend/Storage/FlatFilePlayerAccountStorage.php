@@ -90,7 +90,8 @@ class FlatFilePlayerAccountStorage implements PlayerAccountStorageInterface
         $index = $this->readIndex();
         $index['byName'][$account->getName()] = $account->getId();
         $path = $this->basePath . '/' . $account->getId() . '.json';
-        file_put_contents($path, json_encode($account->toArray(), JSON_PRETTY_PRINT));
+        $data = method_exists($account, 'toStorageArray') ? $account->toStorageArray() : $account->toArray();
+        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT));
         $this->writeIndex($index['nextId'], $index['byName']);
     }
 

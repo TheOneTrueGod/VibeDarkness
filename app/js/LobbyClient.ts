@@ -45,6 +45,7 @@ interface PlayerInfo {
 interface AccountInfo {
     id: number;
     name: string;
+    role: 'user' | 'admin';
     fire: number;
     water: number;
     earth: number;
@@ -86,6 +87,7 @@ export class LobbyClient {
         const url = `${this.baseUrl}${endpoint}`;
         const defaultOptions: RequestInit = {
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
         };
         const response = await fetch(url, { ...defaultOptions, ...options });
         const data = (await response.json()) as ApiResponse;
@@ -95,12 +97,29 @@ export class LobbyClient {
         return data;
     }
 
-    async signIn(name: string): Promise<AccountInfo> {
-        const data = await this.request('/api/account/signin', {
+    async login(username: string, password: string): Promise<AccountInfo> {
+        const data = await this.request('/api/account/login', {
             method: 'POST',
-            body: JSON.stringify({ name: name.trim() }),
+            body: JSON.stringify({ username: username.trim(), password }),
         });
         return data.account as AccountInfo;
+    }
+
+    async createAccount(username: string, password: string): Promise<AccountInfo> {
+        const data = await this.request('/api/account/create', {
+            method: 'POST',
+            body: JSON.stringify({ username: username.trim(), password }),
+        });
+        return data.account as AccountInfo;
+    }
+
+    async getMe(): Promise<AccountInfo | null> {
+        const data = await this.request('/api/account/me');
+        return data.user ?? null;
+    }
+
+    async logout(): Promise<void> {
+        await this.request('/api/account/logout', { method: 'POST' });
     }
 
     async listLobbies(): Promise<LobbySummary[]> {
@@ -130,10 +149,10 @@ export class LobbyClient {
         return data.lobby as LobbyState;
     }
 
-    async joinLobby(lobbyId: string, accountId: number): Promise<JoinLobbyResult> {
+    async joinLobby(lobbyId: string): Promise<JoinLobbyResult> {
         const data = await this.request(`/api/lobbies/${lobbyId}/join`, {
             method: 'POST',
-            body: JSON.stringify({ accountId }),
+            body: JSON.stringify({}),
         });
         return {
             lobby: data.lobby as LobbyState,

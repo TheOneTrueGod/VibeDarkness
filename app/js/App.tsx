@@ -4,7 +4,9 @@
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ToastProvider, useToast } from './contexts/ToastContext';
+import { UserProvider, useUser } from './contexts/UserContext';
 import LobbyScreen from './components/LobbyScreen';
+import LoginScreen from './components/LoginScreen';
 import GameScreen from './components/GameScreen';
 import type { MessageEntry } from './components/Chat';
 import type { ClickData } from './components/GameCanvas';
@@ -21,31 +23,52 @@ import type {
     ChatMessageData,
 } from './types';
 
-const PLAYER_NAME_STORAGE_KEY = 'playerName';
 const LOBBY_PATH_PREFIX = '/lobby/';
-
-function getStoredPlayerName(): string {
-    try {
-        const name = localStorage.getItem(PLAYER_NAME_STORAGE_KEY);
-        return name?.trim() || '';
-    } catch {
-        return '';
-    }
-}
-
-function savePlayerName(name: string): void {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    try {
-        localStorage.setItem(PLAYER_NAME_STORAGE_KEY, trimmed);
-    } catch {
-        // ignore
-    }
-}
 
 function getLobbyCodeFromPath(): string | null {
     const match = window.location.pathname.match(/^\/lobby\/([A-Za-z0-9]+)$/);
     return match ? match[1].toUpperCase() : null;
+}
+
+function getNextRedirect(): string {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get('next');
+    return next && next.startsWith('/') ? next : '/';
+}
+
+/** Auth gate: redirects unauthenticated users, shows LoginScreen or children */
+function AuthGate({ children }: { children: React.ReactNode }) {
+    const { user, loading, refetch } = useUser();
+    const lobbyClient = useMemo(() => new LobbyClient(), []);
+
+    const handleLogin = useCallback(
+        async (account: AccountState) => {
+            await refetch();
+            const next = getNextRedirect();
+            window.location.href = next;
+        },
+        [refetch]
+    );
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center text-muted">
+                Loading...
+            </div>
+        );
+    }
+
+    if (!user) {
+        const path = window.location.pathname;
+        if (path !== '/' && path !== '/index.html') {
+            const next = encodeURIComponent(path + window.location.search);
+            window.location.replace('/?next=' + next);
+            return null;
+        }
+        return <LoginScreen lobbyClient={lobbyClient} onLogin={handleLogin} />;
+    }
+
+    return <>{children}</>;
 }
 
 /** Inner app component that uses Toast context */
@@ -301,14 +324,13 @@ function AppInner() {
     );
 
     const handleCreateLobby = useCallback(
-        async (playerName: string, lobbyName: string) => {
+        async () => {
             try {
-                const account = await lobbyClient.signIn(playerName);
-                savePlayerName(playerName);
-                setCurrentAccount(account as AccountState);
-                const result = await lobbyClient.createLobby(lobbyName, account.id);
+                const result = await lobbyClient.createLobby();
                 const lobby = result.lobby as LobbyState;
                 const player = result.player as PlayerState;
+                const account = result.account as AccountState;
+                setCurrentAccount(account);
                 setCurrentLobby(lobby);
                 setCurrentPlayer(player);
                 setConnectionStatus('connecting');
@@ -328,14 +350,13 @@ function AppInner() {
     );
 
     const handleJoinLobby = useCallback(
-        async (playerName: string, lobbyId: string) => {
+        async (lobbyId: string) => {
             try {
-                const account = await lobbyClient.signIn(playerName);
-                savePlayerName(playerName);
-                setCurrentAccount(account as AccountState);
-                const result = await lobbyClient.joinLobby(lobbyId, account.id);
+                const result = await lobbyClient.joinLobby(lobbyId);
                 const lobby = result.lobby as LobbyState;
                 const player = result.player as PlayerState;
+                const account = result.account as AccountState;
+                setCurrentAccount(account);
                 setCurrentLobby(lobby);
                 setCurrentPlayer(player);
                 setConnectionStatus('connecting');
@@ -426,41 +447,34 @@ function AppInner() {
     );
 
     // ==================== Auto-rejoin from URL ====================
-
+    // User is already logged in (session) when this runs; joinLobby uses session
     useEffect(() => {
         const lobbyCode = getLobbyCodeFromPath();
-        if (lobbyCode) {
-            const storedName = getStoredPlayerName();
-            if (storedName) {
-                (async () => {
-                    try {
-                        const account = await lobbyClient.signIn(storedName);
-                        savePlayerName(storedName);
-                        setCurrentAccount(account as AccountState);
-                        const result = await lobbyClient.joinLobby(lobbyCode, account.id);
-                        const lobby = result.lobby as LobbyState;
-                        const player = result.player as PlayerState;
-                        setCurrentLobby(lobby);
-                        setCurrentPlayer(player);
-                        setConnectionStatus('connecting');
-                        setScreen('game');
-                        setChatEnabled(false);
-                        setPlayers({ [player.id]: { ...player, isConnected: false } });
-                        await startInLobby(lobby, player);
-                    } catch (error) {
-                        console.error('Failed to rejoin lobby:', error);
-                        showToast(
-                            'Failed to rejoin lobby: ' +
-                                (error instanceof Error ? error.message : 'Unknown error'),
-                            'error'
-                        );
-                        window.history.replaceState(null, '', '/');
-                    }
-                })();
-            } else {
+        if (!lobbyCode) return;
+        (async () => {
+            try {
+                const result = await lobbyClient.joinLobby(lobbyCode);
+                const lobby = result.lobby as LobbyState;
+                const player = result.player as PlayerState;
+                const account = result.account as AccountState;
+                setCurrentAccount(account);
+                setCurrentLobby(lobby);
+                setCurrentPlayer(player);
+                setConnectionStatus('connecting');
+                setScreen('game');
+                setChatEnabled(false);
+                setPlayers({ [player.id]: { ...player, isConnected: false } });
+                await startInLobby(lobby, player);
+            } catch (error) {
+                console.error('Failed to rejoin lobby:', error);
+                showToast(
+                    'Failed to rejoin lobby: ' +
+                        (error instanceof Error ? error.message : 'Unknown error'),
+                    'error'
+                );
                 window.history.replaceState(null, '', '/');
             }
-        }
+        })();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ==================== Browser back button ====================
@@ -482,7 +496,6 @@ function AppInner() {
             {screen === 'lobby' && (
                 <LobbyScreen
                     lobbyClient={lobbyClient}
-                    storedPlayerName={getStoredPlayerName()}
                     onCreateLobby={handleCreateLobby}
                     onJoinLobby={handleJoinLobby}
                 />
@@ -514,9 +527,15 @@ function AppInner() {
 }
 
 export default function App() {
+    const lobbyClient = useMemo(() => new LobbyClient(), []);
+
     return (
         <ToastProvider>
-            <AppInner />
+            <UserProvider lobbyClient={lobbyClient}>
+                <AuthGate>
+                    <AppInner />
+                </AuthGate>
+            </UserProvider>
         </ToastProvider>
     );
 }

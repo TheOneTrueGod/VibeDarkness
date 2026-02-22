@@ -18,6 +18,7 @@ export interface PlayerState {
 export interface AccountState {
     id: number;
     name: string;
+    role: 'user' | 'admin';
     fire: number;
     water: number;
     earth: number;

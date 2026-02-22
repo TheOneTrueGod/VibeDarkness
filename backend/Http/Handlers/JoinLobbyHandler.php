@@ -4,19 +4,18 @@ namespace App\Http\Handlers;
 
 use App\LobbyManager;
 use App\AccountService;
+use App\SessionHelper;
 
 class JoinLobbyHandler
 {
     public static function handle(LobbyManager $manager, AccountService $accountService, array $matches): array
     {
         $lobbyId = $matches[1];
-        $data = \getJsonBody();
-
-        $accountId = isset($data['accountId']) ? (int) $data['accountId'] : null;
+        $accountId = SessionHelper::getAccountId();
 
         if ($accountId === null || $accountId < 1) {
-            http_response_code(400);
-            return ['success' => false, 'error' => 'Valid accountId is required (sign in first)'];
+            http_response_code(401);
+            return ['success' => false, 'error' => 'Not logged in'];
         }
 
         $account = $accountService->getAccountById($accountId);
