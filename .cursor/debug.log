@@ -1,548 +1,361 @@
-{"location":"GameEngine.ts:257","message":"onWaitingForOrders firing","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H3","timestamp":1771701926586}
-{"location":"BattlePhase.tsx:271","message":"onWaitingForOrders callback setWaitingForOrders","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H1","timestamp":1771701926587}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701926596}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701926600}
-{"location":"GameEngine.ts:208","message":"pauseForOrders called","data":{"unitId":"unit_1","ownerId":"5","gameTick":1},"hypothesisId":"H2","timestamp":1771701926581}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701927131}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701927168}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701927605}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701927645}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701928104}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701928146}
-{"location":"BattlePhase.tsx:358","message":"submitOrder clearing waitingForOrders","data":{"abilityId":"wait"},"hypothesisId":"H1","timestamp":1771701928290}
-{"location":"GameEngine.ts:314","message":"resumeAfterOrders clearing waitingForOrders","data":{"hadPrev":true,"gameTick":1},"hypothesisId":"H3","timestamp":1771701928290}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701928292}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":2},"hypothesisId":"H2","timestamp":1771701928299}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":2},"hypothesisId":"H2","timestamp":1771701928301}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":2},"hypothesisId":"H2","timestamp":1771701928302}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":2},"hypothesisId":"H2","timestamp":1771701928303}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701928798}
-{"location":"GameEngine.ts:257","message":"onWaitingForOrders firing","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H3","timestamp":1771701929281}
-{"location":"GameEngine.ts:208","message":"pauseForOrders called","data":{"unitId":"unit_1","ownerId":"5","gameTick":61},"hypothesisId":"H2","timestamp":1771701929280}
-{"location":"BattlePhase.tsx:271","message":"onWaitingForOrders callback setWaitingForOrders","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H1","timestamp":1771701929281}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701929286}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701929299}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701929788}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701929812}
-{"location":"BattlePhase.tsx:358","message":"submitOrder clearing waitingForOrders","data":{"abilityId":"wait"},"hypothesisId":"H1","timestamp":1771701930063}
-{"location":"GameEngine.ts:314","message":"resumeAfterOrders clearing waitingForOrders","data":{"hadPrev":true,"gameTick":61},"hypothesisId":"H3","timestamp":1771701930064}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701930067}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":62},"hypothesisId":"H2","timestamp":1771701930070}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":63},"hypothesisId":"H2","timestamp":1771701930083}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":63},"hypothesisId":"H2","timestamp":1771701930084}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":63},"hypothesisId":"H2","timestamp":1771701930085}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701930572}
-{"location":"GameEngine.ts:257","message":"onWaitingForOrders firing","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H3","timestamp":1771701931050}
-{"location":"GameEngine.ts:208","message":"pauseForOrders called","data":{"unitId":"unit_1","ownerId":"5","gameTick":121},"hypothesisId":"H2","timestamp":1771701931049}
-{"location":"BattlePhase.tsx:271","message":"onWaitingForOrders callback setWaitingForOrders","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H1","timestamp":1771701931050}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701931054}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701931068}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701931570}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701931585}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701932067}
-{"location":"BattlePhase.tsx:358","message":"submitOrder clearing waitingForOrders","data":{"abilityId":"throw_knife"},"hypothesisId":"H1","timestamp":1771701932096}
-{"location":"GameEngine.ts:314","message":"resumeAfterOrders clearing waitingForOrders","data":{"hadPrev":true,"gameTick":121},"hypothesisId":"H3","timestamp":1771701932096}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701932102}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":124},"hypothesisId":"H2","timestamp":1771701932134}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":124},"hypothesisId":"H2","timestamp":1771701932133}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":124},"hypothesisId":"H2","timestamp":1771701932133}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701932604}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701933106}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":184},"hypothesisId":"H2","timestamp":1771701933136}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":184},"hypothesisId":"H2","timestamp":1771701933137}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":184},"hypothesisId":"H2","timestamp":1771701933138}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701933603}
-{"location":"GameEngine.ts:257","message":"onWaitingForOrders firing","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H3","timestamp":1771701934102}
-{"location":"GameEngine.ts:208","message":"pauseForOrders called","data":{"unitId":"unit_1","ownerId":"5","gameTick":242},"hypothesisId":"H2","timestamp":1771701934101}
-{"location":"BattlePhase.tsx:271","message":"onWaitingForOrders callback setWaitingForOrders","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H1","timestamp":1771701934103}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701934107}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701934108}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701934120}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701934610}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701934636}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701935119}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701935151}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701935621}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701935653}
-{"location":"BattlePhase.tsx:358","message":"submitOrder clearing waitingForOrders","data":{"abilityId":"wait"},"hypothesisId":"H1","timestamp":1771701935704}
-{"location":"GameEngine.ts:314","message":"resumeAfterOrders clearing waitingForOrders","data":{"hadPrev":true,"gameTick":242},"hypothesisId":"H3","timestamp":1771701935705}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701935709}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":243},"hypothesisId":"H2","timestamp":1771701935719}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":245},"hypothesisId":"H2","timestamp":1771701935758}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":245},"hypothesisId":"H2","timestamp":1771701935759}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":245},"hypothesisId":"H2","timestamp":1771701935759}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701936213}
-{"location":"GameEngine.ts:257","message":"onWaitingForOrders firing","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H3","timestamp":1771701936705}
-{"location":"GameEngine.ts:208","message":"pauseForOrders called","data":{"unitId":"unit_1","ownerId":"5","gameTick":302},"hypothesisId":"H2","timestamp":1771701936703}
-{"location":"BattlePhase.tsx:271","message":"onWaitingForOrders callback setWaitingForOrders","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H1","timestamp":1771701936705}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701936708}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701936722}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701937220}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701937236}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701937727}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701937742}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701938214}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701938258}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701938712}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701938772}
-{"location":"BattlePhase.tsx:358","message":"submitOrder clearing waitingForOrders","data":{"abilityId":"0102"},"hypothesisId":"H1","timestamp":1771701938889}
-{"location":"GameEngine.ts:314","message":"resumeAfterOrders clearing waitingForOrders","data":{"hadPrev":true,"gameTick":302},"hypothesisId":"H3","timestamp":1771701938891}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701938894}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":306},"hypothesisId":"H2","timestamp":1771701938956}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":306},"hypothesisId":"H2","timestamp":1771701938958}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":306},"hypothesisId":"H2","timestamp":1771701938956}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701939396}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701939909}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":366},"hypothesisId":"H2","timestamp":1771701939956}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":366},"hypothesisId":"H2","timestamp":1771701939958}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701940401}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701940897}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":426},"hypothesisId":"H2","timestamp":1771701940958}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":426},"hypothesisId":"H2","timestamp":1771701940959}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701941401}
-{"location":"GameEngine.ts:208","message":"pauseForOrders called","data":{"unitId":"unit_1","ownerId":"5","gameTick":453},"hypothesisId":"H2","timestamp":1771701941409}
-{"location":"GameEngine.ts:257","message":"onWaitingForOrders firing","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H3","timestamp":1771701941410}
-{"location":"BattlePhase.tsx:271","message":"onWaitingForOrders callback setWaitingForOrders","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H1","timestamp":1771701941411}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701941414}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701941428}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701941917}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701941940}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701942417}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701942441}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701942915}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701942945}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701943430}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701943461}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701943926}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701943976}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701944416}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701944479}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701944929}
-{"location":"BattlePhase.tsx:358","message":"submitOrder clearing waitingForOrders","data":{"abilityId":"0102"},"hypothesisId":"H1","timestamp":1771701944973}
-{"location":"GameEngine.ts:314","message":"resumeAfterOrders clearing waitingForOrders","data":{"hadPrev":true,"gameTick":453},"hypothesisId":"H3","timestamp":1771701944973}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701944975}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701945479}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":487},"hypothesisId":"H2","timestamp":1771701945531}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":487},"hypothesisId":"H2","timestamp":1771701945530}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701945981}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":518},"hypothesisId":"H2","timestamp":1771701946045}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701946481}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":547},"hypothesisId":"H2","timestamp":1771701946530}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":547},"hypothesisId":"H2","timestamp":1771701946531}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701946976}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":578},"hypothesisId":"H2","timestamp":1771701947046}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701947417}
-{"location":"BattlePhase.tsx:271","message":"onWaitingForOrders callback setWaitingForOrders","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H1","timestamp":1771701947479}
-{"location":"GameEngine.ts:257","message":"onWaitingForOrders firing","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H3","timestamp":1771701947479}
-{"location":"GameEngine.ts:208","message":"pauseForOrders called","data":{"unitId":"unit_1","ownerId":"5","gameTick":604},"hypothesisId":"H2","timestamp":1771701947478}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701947481}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701947496}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701947983}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701947997}
-{"location":"BattlePhase.tsx:358","message":"submitOrder clearing waitingForOrders","data":{"abilityId":"wait"},"hypothesisId":"H1","timestamp":1771701948397}
-{"location":"GameEngine.ts:314","message":"resumeAfterOrders clearing waitingForOrders","data":{"hadPrev":true,"gameTick":604},"hypothesisId":"H3","timestamp":1771701948398}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701948401}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":605},"hypothesisId":"H2","timestamp":1771701948414}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":608},"hypothesisId":"H2","timestamp":1771701948464}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":608},"hypothesisId":"H2","timestamp":1771701948465}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701948902}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":639},"hypothesisId":"H2","timestamp":1771701948980}
-{"location":"GameEngine.ts:208","message":"pauseForOrders called","data":{"unitId":"unit_1","ownerId":"5","gameTick":664},"hypothesisId":"H2","timestamp":1771701949398}
-{"location":"GameEngine.ts:257","message":"onWaitingForOrders firing","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H3","timestamp":1771701949399}
-{"location":"BattlePhase.tsx:271","message":"onWaitingForOrders callback setWaitingForOrders","data":{"unitId":"unit_1","ownerId":"5"},"hypothesisId":"H1","timestamp":1771701949400}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":false,"waitingForOrdersOwnerId":null},"hypothesisId":"H4","timestamp":1771701949403}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701949403}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701949418}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701949915}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701949931}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701950412}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701950448}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701950916}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701950949}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701951416}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701951465}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701951912}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701951982}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701952413}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701952501}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701952912}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701953017}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701953409}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701953519}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701953909}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701954035}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701954405}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701954536}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701954908}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701955225}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701955404}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701955735}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701955907}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701956252}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701956409}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701956769}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701956904}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701957286}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701957405}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701957788}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701957906}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701958304}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701958406}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701958821}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701958906}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701959338}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701959407}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701959846}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701959907}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701960356}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701960408}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701960858}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701960910}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701961374}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701961407}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701961890}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701961909}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701962407}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701962409}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701962908}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701962907}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701963409}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701963426}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701963908}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701963942}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701964407}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701964443}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701964912}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701964945}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701965412}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701965462}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701965904}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701965979}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701966408}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701966499}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701966913}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701967017}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701967414}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701967530}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701967915}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701968032}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701968412}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701968547}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701968909}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701969049}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701969409}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701969565}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701969917}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701970083}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701970413}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701970601}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701970906}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701971116}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701971407}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701971620}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701971908}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701972121}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701972406}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701972634}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701972918}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701973135}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701973408}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701973637}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701973908}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701974161}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701974410}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701974670}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701974916}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701975190}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701975406}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701975691}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701975906}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701976206}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701976405}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701976708}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701976905}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701977222}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701977407}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701977739}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701977905}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701978255}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701978406}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701978773}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701978908}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701979277}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701979403}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701979792}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701979904}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701980308}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701980408}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701980824}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701980909}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701981326}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701981409}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701981827}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701981910}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701982340}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701982404}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701982845}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701982915}
-{"location":"GameEngine.ts:161","message":"not accumulating","data":{"isPaused":false,"hasWaitingForOrders":true},"hypothesisId":"H5","timestamp":1771701983360}
-{"location":"BattlePhase.tsx:101","message":"sidebar update","data":{"isMyTurn":true,"waitingForOrdersOwnerId":"5"},"hypothesisId":"H4","timestamp":1771701983406}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":2},"hypothesisId":"H2","timestamp":1771746244917}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":2},"hypothesisId":"H2","timestamp":1771746244915}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":2},"hypothesisId":"H2","timestamp":1771746244914}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":2},"hypothesisId":"H2","timestamp":1771746244912}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":63},"hypothesisId":"H2","timestamp":1771746300123}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":63},"hypothesisId":"H2","timestamp":1771746300122}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":62},"hypothesisId":"H2","timestamp":1771746300107}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":63},"hypothesisId":"H2","timestamp":1771746300122}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":122},"hypothesisId":"H2","timestamp":1771746301390}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":124},"hypothesisId":"H2","timestamp":1771746301423}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":124},"hypothesisId":"H2","timestamp":1771746301424}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":124},"hypothesisId":"H2","timestamp":1771746301425}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":182},"hypothesisId":"H2","timestamp":1771746302575}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":185},"hypothesisId":"H2","timestamp":1771746302624}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":185},"hypothesisId":"H2","timestamp":1771746302625}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":185},"hypothesisId":"H2","timestamp":1771746302623}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":242},"hypothesisId":"H2","timestamp":1771746303958}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":246},"hypothesisId":"H2","timestamp":1771746304025}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":246},"hypothesisId":"H2","timestamp":1771746304026}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":246},"hypothesisId":"H2","timestamp":1771746304027}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":307},"hypothesisId":"H2","timestamp":1771746306228}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":307},"hypothesisId":"H2","timestamp":1771746306229}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":307},"hypothesisId":"H2","timestamp":1771746306230}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":367},"hypothesisId":"H2","timestamp":1771746307229}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":423},"hypothesisId":"H2","timestamp":1771746308562}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":428},"hypothesisId":"H2","timestamp":1771746308647}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":2},"hypothesisId":"H2","timestamp":1771749441680}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":2},"hypothesisId":"H2","timestamp":1771749441682}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":2},"hypothesisId":"H2","timestamp":1771749441683}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":2},"hypothesisId":"H2","timestamp":1771749441684}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":62},"hypothesisId":"H2","timestamp":1771749442816}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":63},"hypothesisId":"H2","timestamp":1771749442831}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":63},"hypothesisId":"H2","timestamp":1771749442832}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":63},"hypothesisId":"H2","timestamp":1771749442833}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":122},"hypothesisId":"H2","timestamp":1771749443818}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":124},"hypothesisId":"H2","timestamp":1771749443849}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":124},"hypothesisId":"H2","timestamp":1771749443850}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":124},"hypothesisId":"H2","timestamp":1771749443850}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":185},"hypothesisId":"H2","timestamp":1771749444950}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":182},"hypothesisId":"H2","timestamp":1771749444902}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":185},"hypothesisId":"H2","timestamp":1771749444949}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":185},"hypothesisId":"H2","timestamp":1771749444950}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":242},"hypothesisId":"H2","timestamp":1771749446481}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":246},"hypothesisId":"H2","timestamp":1771749446542}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":246},"hypothesisId":"H2","timestamp":1771749446544}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":246},"hypothesisId":"H2","timestamp":1771749446545}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":307},"hypothesisId":"H2","timestamp":1771749450755}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":307},"hypothesisId":"H2","timestamp":1771749450756}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":307},"hypothesisId":"H2","timestamp":1771749450757}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":367},"hypothesisId":"H2","timestamp":1771749451754}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":428},"hypothesisId":"H2","timestamp":1771749454508}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":488},"hypothesisId":"H2","timestamp":1771749455510}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":548},"hypothesisId":"H2","timestamp":1771749456511}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":2},"hypothesisId":"H2","timestamp":1771750133810}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":2},"hypothesisId":"H2","timestamp":1771750133807}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":2},"hypothesisId":"H2","timestamp":1771750133811}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":2},"hypothesisId":"H2","timestamp":1771750133805}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":62},"hypothesisId":"H2","timestamp":1771750134923}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":63},"hypothesisId":"H2","timestamp":1771750134938}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":63},"hypothesisId":"H2","timestamp":1771750134939}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":63},"hypothesisId":"H2","timestamp":1771750134936}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":122},"hypothesisId":"H2","timestamp":1771750136208}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":124},"hypothesisId":"H2","timestamp":1771750136239}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":124},"hypothesisId":"H2","timestamp":1771750136240}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":124},"hypothesisId":"H2","timestamp":1771750136241}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":182},"hypothesisId":"H2","timestamp":1771750137459}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":185},"hypothesisId":"H2","timestamp":1771750137506}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":185},"hypothesisId":"H2","timestamp":1771750137507}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":185},"hypothesisId":"H2","timestamp":1771750137508}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":242},"hypothesisId":"H2","timestamp":1771750139482}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":246},"hypothesisId":"H2","timestamp":1771750139549}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":246},"hypothesisId":"H2","timestamp":1771750139551}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":246},"hypothesisId":"H2","timestamp":1771750139552}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":307},"hypothesisId":"H2","timestamp":1771750142594}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":307},"hypothesisId":"H2","timestamp":1771750142595}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":307},"hypothesisId":"H2","timestamp":1771750142596}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":367},"hypothesisId":"H2","timestamp":1771750143595}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":423},"hypothesisId":"H2","timestamp":1771750145363}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":428},"hypothesisId":"H2","timestamp":1771750145447}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":489},"hypothesisId":"H2","timestamp":1771750147698}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":520},"hypothesisId":"H2","timestamp":1771750148214}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":549},"hypothesisId":"H2","timestamp":1771750148700}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":580},"hypothesisId":"H2","timestamp":1771750149214}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":610},"hypothesisId":"H2","timestamp":1771750151403}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":641},"hypothesisId":"H2","timestamp":1771750151919}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":670},"hypothesisId":"H2","timestamp":1771750152401}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":701},"hypothesisId":"H2","timestamp":1771750152919}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":730},"hypothesisId":"H2","timestamp":1771750153404}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":755},"hypothesisId":"H2","timestamp":1771750156980}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":762},"hypothesisId":"H2","timestamp":1771750157092}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":791},"hypothesisId":"H2","timestamp":1771750157577}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":823},"hypothesisId":"H2","timestamp":1771750159274}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":852},"hypothesisId":"H2","timestamp":1771750159759}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":883},"hypothesisId":"H2","timestamp":1771750160277}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":912},"hypothesisId":"H2","timestamp":1771750160758}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":943},"hypothesisId":"H2","timestamp":1771750161280}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":2},"hypothesisId":"H2","timestamp":1771750444074}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":2},"hypothesisId":"H2","timestamp":1771750444075}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":2},"hypothesisId":"H2","timestamp":1771750444077}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":5},"hypothesisId":"H2","timestamp":1771750554515}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":62},"hypothesisId":"H2","timestamp":1771750555461}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":62},"hypothesisId":"H2","timestamp":1771750555462}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":62},"hypothesisId":"H2","timestamp":1771750555463}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":65},"hypothesisId":"H2","timestamp":1771750555846}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":123},"hypothesisId":"H2","timestamp":1771750556812}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":123},"hypothesisId":"H2","timestamp":1771750556813}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":123},"hypothesisId":"H2","timestamp":1771750556814}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":125},"hypothesisId":"H2","timestamp":1771750557246}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":185},"hypothesisId":"H2","timestamp":1771750558598}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":185},"hypothesisId":"H2","timestamp":1771750558599}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":185},"hypothesisId":"H2","timestamp":1771750558599}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":185},"hypothesisId":"H2","timestamp":1771750558600}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":245},"hypothesisId":"H2","timestamp":1771750559852}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":246},"hypothesisId":"H2","timestamp":1771750559866}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":246},"hypothesisId":"H2","timestamp":1771750559867}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":246},"hypothesisId":"H2","timestamp":1771750559868}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":307},"hypothesisId":"H2","timestamp":1771750562604}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":307},"hypothesisId":"H2","timestamp":1771750562605}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":307},"hypothesisId":"H2","timestamp":1771750562607}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":367},"hypothesisId":"H2","timestamp":1771750563602}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":426},"hypothesisId":"H2","timestamp":1771750565394}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":428},"hypothesisId":"H2","timestamp":1771750565423}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":486},"hypothesisId":"H2","timestamp":1771750567089}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":489},"hypothesisId":"H2","timestamp":1771750567143}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":520},"hypothesisId":"H2","timestamp":1771750567654}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":550},"hypothesisId":"H2","timestamp":1771750569206}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":581},"hypothesisId":"H2","timestamp":1771750569723}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":610},"hypothesisId":"H2","timestamp":1771750570209}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":641},"hypothesisId":"H2","timestamp":1771750570709}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":670},"hypothesisId":"H2","timestamp":1771750571192}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":697},"hypothesisId":"H2","timestamp":1771750572844}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":702},"hypothesisId":"H2","timestamp":1771750572926}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":731},"hypothesisId":"H2","timestamp":1771750573409}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":763},"hypothesisId":"H2","timestamp":1771750577331}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":792},"hypothesisId":"H2","timestamp":1771750577814}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":823},"hypothesisId":"H2","timestamp":1771750578332}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":852},"hypothesisId":"H2","timestamp":1771750578816}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":883},"hypothesisId":"H2","timestamp":1771750579333}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":913},"hypothesisId":"H2","timestamp":1771787492828}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":944},"hypothesisId":"H2","timestamp":1771787493345}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":973},"hypothesisId":"H2","timestamp":1771787493830}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1004},"hypothesisId":"H2","timestamp":1771787494346}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":2},"hypothesisId":"H2","timestamp":1771787507910}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":2},"hypothesisId":"H2","timestamp":1771787507913}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":2},"hypothesisId":"H2","timestamp":1771787507912}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":2},"hypothesisId":"H2","timestamp":1771787507914}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":62},"hypothesisId":"H2","timestamp":1771787509543}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":63},"hypothesisId":"H2","timestamp":1771787509563}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":63},"hypothesisId":"H2","timestamp":1771787509564}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":63},"hypothesisId":"H2","timestamp":1771787509565}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":124},"hypothesisId":"H2","timestamp":1771787511613}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":124},"hypothesisId":"H2","timestamp":1771787511614}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":124},"hypothesisId":"H2","timestamp":1771787511614}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":184},"hypothesisId":"H2","timestamp":1771787512611}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":184},"hypothesisId":"H2","timestamp":1771787512612}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":184},"hypothesisId":"H2","timestamp":1771787512613}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":244},"hypothesisId":"H2","timestamp":1771787513615}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":244},"hypothesisId":"H2","timestamp":1771787513616}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":244},"hypothesisId":"H2","timestamp":1771787513616}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":303},"hypothesisId":"H2","timestamp":1771787515269}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":305},"hypothesisId":"H2","timestamp":1771787515300}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":305},"hypothesisId":"H2","timestamp":1771787515300}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":305},"hypothesisId":"H2","timestamp":1771787515301}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":363},"hypothesisId":"H2","timestamp":1771787519952}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":366},"hypothesisId":"H2","timestamp":1771787520002}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":366},"hypothesisId":"H2","timestamp":1771787520003}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":366},"hypothesisId":"H2","timestamp":1771787520004}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":427},"hypothesisId":"H2","timestamp":1771787522154}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":427},"hypothesisId":"H2","timestamp":1771787522155}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":487},"hypothesisId":"H2","timestamp":1771787523153}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":487},"hypothesisId":"H2","timestamp":1771787523153}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":544},"hypothesisId":"H2","timestamp":1771787524607}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":548},"hypothesisId":"H2","timestamp":1771787524671}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":548},"hypothesisId":"H2","timestamp":1771787524672}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":609},"hypothesisId":"H2","timestamp":1771787526906}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":609},"hypothesisId":"H2","timestamp":1771787526908}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":669},"hypothesisId":"H2","timestamp":1771787527909}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":669},"hypothesisId":"H2","timestamp":1771787527908}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":729},"hypothesisId":"H2","timestamp":1771787528908}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":729},"hypothesisId":"H2","timestamp":1771787528909}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":755},"hypothesisId":"H2","timestamp":1771787530124}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":790},"hypothesisId":"H2","timestamp":1771787530710}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":790},"hypothesisId":"H2","timestamp":1771787530711}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":851},"hypothesisId":"H2","timestamp":1771787533462}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":851},"hypothesisId":"H2","timestamp":1771787533463}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":911},"hypothesisId":"H2","timestamp":1771787534464}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":911},"hypothesisId":"H2","timestamp":1771787534462}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":972},"hypothesisId":"H2","timestamp":1771787537268}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":972},"hypothesisId":"H2","timestamp":1771787537268}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":1032},"hypothesisId":"H2","timestamp":1771787538251}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1032},"hypothesisId":"H2","timestamp":1771787538252}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":2},"hypothesisId":"H2","timestamp":1771788973648}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":2},"hypothesisId":"H2","timestamp":1771788973652}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":2},"hypothesisId":"H2","timestamp":1771788973647}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":5},"hypothesisId":"H2","timestamp":1771788975260}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":62},"hypothesisId":"H2","timestamp":1771788976205}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":62},"hypothesisId":"H2","timestamp":1771788976206}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":62},"hypothesisId":"H2","timestamp":1771788976207}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":65},"hypothesisId":"H2","timestamp":1771788982554}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":123},"hypothesisId":"H2","timestamp":1771788983513}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":123},"hypothesisId":"H2","timestamp":1771788983514}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":123},"hypothesisId":"H2","timestamp":1771788983515}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":125},"hypothesisId":"H2","timestamp":1771788983899}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":185},"hypothesisId":"H2","timestamp":1771788985196}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":185},"hypothesisId":"H2","timestamp":1771788985197}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":185},"hypothesisId":"H2","timestamp":1771788985196}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":185},"hypothesisId":"H2","timestamp":1771788985198}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":245},"hypothesisId":"H2","timestamp":1771788986813}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":246},"hypothesisId":"H2","timestamp":1771788986831}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":246},"hypothesisId":"H2","timestamp":1771788986833}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":246},"hypothesisId":"H2","timestamp":1771788986834}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":307},"hypothesisId":"H2","timestamp":1771788989918}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":307},"hypothesisId":"H2","timestamp":1771788989919}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":307},"hypothesisId":"H2","timestamp":1771788989920}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":367},"hypothesisId":"H2","timestamp":1771788990928}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":367},"hypothesisId":"H2","timestamp":1771788990931}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":367},"hypothesisId":"H2","timestamp":1771788990937}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":428},"hypothesisId":"H2","timestamp":1771788993075}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":428},"hypothesisId":"H2","timestamp":1771788993070}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":488},"hypothesisId":"H2","timestamp":1771788994055}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":488},"hypothesisId":"H2","timestamp":1771788994055}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":547},"hypothesisId":"H2","timestamp":1771788995992}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":549},"hypothesisId":"H2","timestamp":1771788996021}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":549},"hypothesisId":"H2","timestamp":1771788996022}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":580},"hypothesisId":"H2","timestamp":1771788996546}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":610},"hypothesisId":"H2","timestamp":1771788998809}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":610},"hypothesisId":"H2","timestamp":1771788998809}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":670},"hypothesisId":"H2","timestamp":1771788999810}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":670},"hypothesisId":"H2","timestamp":1771788999812}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":730},"hypothesisId":"H2","timestamp":1771789000818}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":791},"hypothesisId":"H2","timestamp":1771789005935}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":851},"hypothesisId":"H2","timestamp":1771789006939}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":911},"hypothesisId":"H2","timestamp":1771789007933}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":939},"hypothesisId":"H2","timestamp":1771789010777}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":972},"hypothesisId":"H2","timestamp":1771789011342}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1033},"hypothesisId":"H2","timestamp":1771789014918}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1093},"hypothesisId":"H2","timestamp":1771789015930}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1153},"hypothesisId":"H2","timestamp":1771789016928}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":1180},"hypothesisId":"H2","timestamp":1771790847236}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1214},"hypothesisId":"H2","timestamp":1771790848429}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":1240},"hypothesisId":"H2","timestamp":1771796828588}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1275},"hypothesisId":"H2","timestamp":1771796830561}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":1301},"hypothesisId":"H2","timestamp":1771801783257}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1336},"hypothesisId":"H2","timestamp":1771801784769}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":1365},"hypothesisId":"H2","timestamp":1771801786244}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1397},"hypothesisId":"H2","timestamp":1771801787260}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":1425},"hypothesisId":"H2","timestamp":1771802102493}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1458},"hypothesisId":"H2","timestamp":1771802103046}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":1485},"hypothesisId":"H2","timestamp":1771802104398}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1519},"hypothesisId":"H2","timestamp":1771802104964}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":1545},"hypothesisId":"H2","timestamp":1771802105949}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1580},"hypothesisId":"H2","timestamp":1771802106532}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":1605},"hypothesisId":"H2","timestamp":1771802107468}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1641},"hypothesisId":"H2","timestamp":1771802108066}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":1665},"hypothesisId":"H2","timestamp":1771802111153}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1702},"hypothesisId":"H2","timestamp":1771802111769}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1763},"hypothesisId":"H2","timestamp":1771802114472}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":1823},"hypothesisId":"H2","timestamp":1771802115471}
-{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":1829},"hypothesisId":"H2","timestamp":1771802115572}
+{"location":"App.tsx:loadGameState","message":"loadGameState called","data":{"hasGame":false,"lobbyState":"home","gameKeys":[],"unitsLen":0},"timestamp":1771802854194,"hypothesisId":"H3"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802859424,"hypothesisId":"H1"}
+{"location":"BattlePhase.tsx:useEffect","message":"BattlePhase init","data":{"hasInit":true,"unitsLen":0,"hasSnapshot":false},"timestamp":1771802859428,"hypothesisId":"H2"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802859466,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802859969,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802860466,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802860797,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802861014,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802861472,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802861973,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802862150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802862473,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802862967,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802863473,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802863974,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802864224,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"character_select","hasGameData":true,"unitsLen":0,"phaseMismatch":true},"timestamp":1771802864465,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802864581,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802864965,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802865468,"hypothesisId":"H1"}
+{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":2},"hypothesisId":"H2","timestamp":1771802865479}
+{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":2},"hypothesisId":"H2","timestamp":1771802865482}
+{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":2},"hypothesisId":"H2","timestamp":1771802865484}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802865488,"hypothesisId":"H1"}
+{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":2},"hypothesisId":"H2","timestamp":1771802865476}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802865978,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802866387,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802866465,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802866976,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802867476,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802867965,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802868154,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802868478,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":1,"phaseMismatch":false},"timestamp":1771802868971,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802869206,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802869471,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802869972,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802870159,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802870469,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802870970,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802871474,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802871971,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802872159,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802872472,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802872973,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802873473,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802873965,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802874148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802874238,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802874468,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802874965,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802875467,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802875968,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802876157,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802876468,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802876967,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802877469,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802877969,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802878148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802878465,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802878970,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802879377,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802879467,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802879971,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802880265,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802880471,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802880971,"hypothesisId":"H1"}
+{"location":"App.tsx:loadGameState","message":"loadGameState called","data":{"hasGame":true,"lobbyState":"in_game","gameKeys":["gameTime","gameTick","roundNumber","snapshotIndex","units","projectiles","effects","cards","waitingForOrders","orders","gamePhase","missionVotes","characterSelections"],"unitsLen":4,"gameTick":61},"timestamp":1771802881434,"hypothesisId":"H3"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802881495,"hypothesisId":"H1"}
+{"location":"BattlePhase.tsx:useEffect","message":"BattlePhase init","data":{"hasInit":true,"unitsLen":4,"gameTick":61,"hasSnapshot":true},"timestamp":1771802881498,"hypothesisId":"H2"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802881538,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802882038,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802882542,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802883039,"hypothesisId":"H1"}
+{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_1","gameTick":63},"hypothesisId":"H2","timestamp":1771802883158}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802883168,"hypothesisId":"H1"}
+{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_2","gameTick":64},"hypothesisId":"H2","timestamp":1771802883182}
+{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_3","gameTick":64},"hypothesisId":"H2","timestamp":1771802883185}
+{"location":"GameEngine.ts:305","message":"wait order applied","data":{"unitId":"unit_4","gameTick":64},"hypothesisId":"H2","timestamp":1771802883188}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802883645,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802883887,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802884145,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802884649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":61,"phaseMismatch":false},"timestamp":1771802885148,"hypothesisId":"H1"}
+{"location":"App.tsx:loadGameState","message":"loadGameState called","data":{"hasGame":true,"lobbyState":"in_game","gameKeys":["gameTime","gameTick","roundNumber","snapshotIndex","units","projectiles","effects","cards","waitingForOrders","orders","gamePhase","missionVotes","characterSelections"],"unitsLen":4,"gameTick":122},"timestamp":1771802885521,"hypothesisId":"H3"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802885603,"hypothesisId":"H1"}
+{"location":"BattlePhase.tsx:useEffect","message":"BattlePhase init","data":{"hasInit":true,"unitsLen":4,"gameTick":122,"hasSnapshot":true},"timestamp":1771802885609,"hypothesisId":"H2"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802885646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802886156,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802886649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802887160,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802887651,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802887997,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802888152,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802888650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802889155,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802889648,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802889864,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802890153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":122,"phaseMismatch":false},"timestamp":1771802890646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802891005,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802891148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802891648,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802891666,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802892146,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802892649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802893149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802893650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802893692,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802894150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802894647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802895150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802895594,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802895650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802895660,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802896150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802896651,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802897148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802897647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802897649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802898152,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802898652,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802899147,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802899647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802900083,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802900159,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802900649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802901153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802901326,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802901651,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802902157,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802902493,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802902653,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802903157,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802903659,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802904154,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802904186,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802904650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802905146,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802905649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802906147,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802906646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802907124,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802907154,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802907647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802907716,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802908158,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802908318,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802908655,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802909161,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802909647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802909809,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802910147,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802910647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802910814,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802911153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802911647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802911926,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802912148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802912648,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802913148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802913650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802913779,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802914150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802914650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802915150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802915636,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802915660,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802915692,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802916151,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802916651,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802917153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802917648,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802917734,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802918147,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802918648,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802919153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802919649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802919732,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802920152,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802920649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802920700,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802921153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802921653,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802921746,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802922154,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802922651,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802923149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802923650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802923803,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802924149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802924651,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802925155,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802925655,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802925892,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802925973,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802926153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802926654,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802927154,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802927656,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802928153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802928646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802929140,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802929149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802929646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802930146,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802930204,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802930646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802931152,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802931393,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802931656,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802932148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802932156,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802932650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802933148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802933649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802933897,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802934149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802934651,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802935150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802935652,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802935832,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802936151,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802936208,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802936654,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802937149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802937647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802938153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802938309,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802938654,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802939155,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802939657,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802939828,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802940155,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802940652,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802941111,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802941148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802941654,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802941814,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802942158,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802942658,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802943146,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802943659,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802943749,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802944148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802944648,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802945149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802945656,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802945708,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802945931,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802946152,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802946657,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802947162,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802947649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802947788,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802948149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802948646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802949147,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802949650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802949742,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802950146,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802950649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802950970,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802951148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802951656,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802951795,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802952149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802952650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802953147,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802953647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802953833,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802954150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802954646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802955151,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802955615,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802955652,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802955740,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802956153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802956653,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802957153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802957653,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802957666,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802958154,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802958649,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802959154,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802959659,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802960157,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802960313,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802960656,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802960851,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802961151,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802961648,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802962069,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802962149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802962653,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802963153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802963650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802963730,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802964160,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802964659,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802965160,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802965647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802966150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802966470,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802966651,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802967151,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802967174,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802967657,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802968146,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802968648,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802968840,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802969148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802969647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802970149,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802970574,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802970656,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802971148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802971511,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802971652,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802972150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802972341,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802972646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802973150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802973653,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802974150,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802974212,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802974650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802975152,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802975647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802976158,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802976308,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802976493,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802976648,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802977153,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802977654,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802977743,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802978146,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802978646,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802979156,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802979656,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802980070,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802980151,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802980651,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802980735,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802981157,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802981650,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802981748,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802982158,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802982653,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802983148,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802983647,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802983739,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802984159,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802984659,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802985144,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802985619,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802985645,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802985690,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802986147,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802986644,"hypothesisId":"H1"}
+{"location":"Game.tsx:render","message":"MinionBattlesGame phase","data":{"gamePhase":"battle","inferredPhase":"battle","hasGameData":true,"unitsLen":4,"gameTick":123,"phaseMismatch":false},"timestamp":1771802987146,"hypothesisId":"H1"}

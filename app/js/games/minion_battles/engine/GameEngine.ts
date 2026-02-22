@@ -206,12 +206,14 @@ export class GameEngine {
 
             // Check if a player-owned unit just finished cooldown
             if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive() && !this.waitingForOrders) {
+                this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
                 this.pauseForOrders(unit);
                 return; // Stop processing this tick
             }
 
             // AI units auto-act when cooldown finishes
             if (!unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
+                this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
                 this.executeAITurn(unit);
             }
         }
