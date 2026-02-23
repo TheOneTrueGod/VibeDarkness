@@ -11,11 +11,12 @@ import type { ResolvedTarget } from '../engine/types';
 import type { ActiveAbility } from '../engine/types';
 import type { Unit } from '../objects/Unit';
 
-/** Minimal graphics interface for drawing active-ability previews (Pixi Graphics–compatible). */
+/** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
 export interface IAbilityPreviewGraphics {
     clear(): void;
     moveTo(x: number, y: number): void;
     lineTo(x: number, y: number): void;
+    circle(x: number, y: number, radius: number): void;
     fill(options: { color: number; alpha?: number }): void;
     stroke(options: { color: number; width: number; alpha?: number }): void;
 }
@@ -119,6 +120,24 @@ export interface AbilityStatic {
         caster: Unit,
         activeAbility: ActiveAbility,
         gameTime: number,
+    ): void;
+
+    /**
+     * Optional. If provided, player-targeting range is validated (min/max distance).
+     * For unit targets, distance is caster-to-target-unit center.
+     */
+    getRange?(caster: Unit): { minRange: number; maxRange: number } | null;
+
+    /**
+     * Optional. Render targeting preview using Pixi Graphics (range rings, crosshair, etc.).
+     * Called each frame while the player is selecting a target.
+     */
+    renderTargetingPreview?(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        currentTargets: ResolvedTarget[],
+        mouseWorld: { x: number; y: number },
+        units: Unit[],
     ): void;
 }
 

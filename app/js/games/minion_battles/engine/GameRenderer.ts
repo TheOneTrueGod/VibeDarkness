@@ -37,6 +37,7 @@ export class GameRenderer {
     private projectileVisuals: Map<string, Graphics> = new Map();
     private effectVisuals: Map<string, Graphics> = new Map();
     private abilityPreviewGraphics: Graphics = new Graphics();
+    private targetingPreviewGraphics: Graphics = new Graphics();
     private initialized: boolean = false;
 
     /** The team ID used to determine friend/foe glow colors. */
@@ -71,6 +72,8 @@ export class GameRenderer {
         this.gameContainer.sortableChildren = true;
         this.abilityPreviewGraphics.zIndex = 100;
         this.gameContainer.addChild(this.abilityPreviewGraphics);
+        this.targetingPreviewGraphics.zIndex = 101;
+        this.gameContainer.addChild(this.targetingPreviewGraphics);
         this.initialized = true;
 
         try {
@@ -120,9 +123,28 @@ export class GameRenderer {
         this.app.renderer.resize(width, height);
     }
 
+    /** Targeting state for preview (range rings, crosshair). */
+    private targetingState: {
+        selectedAbility: { renderTargetingPreview?: (gr: unknown, caster: unknown, currentTargets: unknown[], mouseWorld: { x: number; y: number }, units: unknown[]) => void } | null;
+        currentTargets: unknown[];
+        mouseWorld: { x: number; y: number };
+        waitingForOrders: { unitId: string } | null;
+    } | null = null;
+
     /** Main render call: sync all visuals with engine state. */
-    render(engine: GameEngine, camera: Camera): void {
+    render(
+        engine: GameEngine,
+        camera: Camera,
+        targetingState?: {
+            selectedAbility: { renderTargetingPreview?: (gr: unknown, caster: unknown, currentTargets: unknown[], mouseWorld: { x: number; y: number }, units: unknown[]) => void } | null;
+            currentTargets: unknown[];
+            mouseWorld: { x: number; y: number };
+            waitingForOrders: { unitId: string } | null;
+        } | null,
+    ): void {
         if (!this.initialized) return;
+
+        this.targetingState = targetingState ?? null;
 
         // Update game container offset (camera)
         this.gameContainer.x = -camera.x + camera.viewportWidth / 2;
@@ -133,6 +155,7 @@ export class GameRenderer {
         this.renderProjectiles(engine.projectiles);
         this.renderEffects(engine.effects);
         this.renderActiveAbilityPreviews(engine);
+        this.renderTargetingPreview(engine);
         this.cleanupStaleVisuals(engine);
     }
 
@@ -252,6 +275,23 @@ export class GameRenderer {
         }
     }
 
+    private renderTargetingPreview(engine: GameEngine): void {
+        const ts = this.targetingState;
+        if (!ts?.selectedAbility?.renderTargetingPreview || !ts.waitingForOrders) return;
+
+        const caster = engine.getUnit(ts.waitingForOrders.unitId);
+        if (!caster) return;
+
+        this.targetingPreviewGraphics.clear();
+        ts.selectedAbility.renderTargetingPreview!(
+            this.targetingPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics,
+            caster,
+            ts.currentTargets,
+            ts.mouseWorld,
+            engine.units,
+        );
+    }
+
     // ========================================================================
     // Projectiles
     // ========================================================================
@@ -335,6 +375,7 @@ export class GameRenderer {
     /** Full cleanup. */
     destroy(): void {
         this.abilityPreviewGraphics.destroy();
+        this.targetingPreviewGraphics.destroy();
         for (const visual of this.unitVisuals.values()) visual.destroy();
         for (const visual of this.moveTargetVisuals.values()) visual.destroy();
         for (const visual of this.projectileVisuals.values()) visual.destroy();

@@ -7,6 +7,37 @@ import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { DARK_AWAKENING } from '../missions/dark_awakening';
 
 describe('GameEngine', () => {
+    it.each([
+        [1, [{ playerId: 'p1', characterId: 'warrior', name: 'P1' }]],
+        [
+            2,
+            [
+                { playerId: 'p1', characterId: 'warrior', name: 'P1' },
+                { playerId: 'p2', characterId: 'ranger', name: 'P2' },
+            ],
+        ],
+        [
+            3,
+            [
+                { playerId: 'p1', characterId: 'warrior', name: 'P1' },
+                { playerId: 'p2', characterId: 'ranger', name: 'P2' },
+                { playerId: 'p3', characterId: 'warrior', name: 'P3' },
+            ],
+        ],
+    ] as const)('spawns %i player unit(s) when game started with %i player(s)', (expectedCount, playerUnits) => {
+        resetGameObjectIdCounter(1);
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        DARK_AWAKENING.initializeGameState(engine, {
+            playerUnits: [...playerUnits],
+            localPlayerId: 'p1',
+            eventBus: engine.eventBus,
+        });
+        const playerUnitCount = engine.units.filter((u) => u.isPlayerControlled()).length;
+        expect(playerUnitCount).toBe(expectedCount);
+        engine.destroy();
+    });
+
     it('serializes and restores game state with units, projectiles, effects, and orders', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();

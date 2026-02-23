@@ -196,6 +196,20 @@ class LobbyManager
     }
 
     /**
+     * Add an NPC chat message and persist (for level events).
+     */
+    public function addNpcChatMessage(string $lobbyId, string $npcId, string $message): ?int
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null) {
+            return null;
+        }
+        $lobby->addNpcChatMessage($npcId, $message);
+        $this->persistLobby($lobby);
+        return $lobby->getLastMessageId();
+    }
+
+    /**
      * Record a click and add to message log (for HTTP clients).
      */
     public function recordClick(string $lobbyId, string $playerId, float $x, float $y): ?int

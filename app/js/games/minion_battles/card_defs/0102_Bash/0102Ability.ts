@@ -8,28 +8,36 @@
 
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
+import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
-import type { Unit } from '../../objects/Unit';
 import type { CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { areEnemies } from '../../engine/teams';
+import { createUnitTargetPreview } from '../../abilities/previewHelpers';
 import type { EventBus } from '../../engine/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
 const PREFIRE_TIME = 0.5;
-const BASE_RANGE = 50;
+const BASE_MIN_RANGE = 0;
+const BASE_MAX_RANGE = 50;
 const RANGE_BONUS_ON_HIT = 30;
 const DAMAGE = 8;
 const BASH_EFFECT_DURATION = 0.4;
 
-function getCastRange(caster: Unit): number {
-    return BASE_RANGE + caster.radius;
+/** Minimum cast range (caster cannot target closer than this). */
+function getMinRange(_caster: Unit): number {
+    return BASE_MIN_RANGE;
+}
+
+/** Maximum cast range (caster cannot target farther than this). */
+function getMaxRange(caster: Unit): number {
+    return BASE_MAX_RANGE + caster.radius;
 }
 
 function getHitRange(caster: Unit): number {
-    return BASE_RANGE + caster.radius + RANGE_BONUS_ON_HIT;
+    return BASE_MAX_RANGE + caster.radius + RANGE_BONUS_ON_HIT;
 }
 
 interface GameEngineLike {
@@ -54,10 +62,14 @@ export const BashAbility: AbilityStatic = {
     rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,
     targets: [{ type: 'unit', label: 'Target enemy' }] as TargetDef[],
-    aiSettings: { minRange: 0, maxRange: getCastRange({ radius: 20 } as Unit) },
+    aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: 20 } as Unit) },
 
     getDescription(_gameState?: unknown): string {
-        return `Melee attack. Wind up 0.5s (cannot move). If target stays in range, deal ${DAMAGE} damage and create a bash effect. Range: 50 + your size.`;
+        return `Melee attack. Wind up 0.5s (cannot move). If target stays in range, deal ${DAMAGE} damage and create a bash effect. Min range: ${BASE_MIN_RANGE}px, max range: 50 + your size.`;
+    },
+
+    getRange(caster: Unit): { minRange: number; maxRange: number } {
+        return { minRange: getMinRange(caster), maxRange: getMaxRange(caster) };
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
@@ -87,11 +99,20 @@ export const BashAbility: AbilityStatic = {
         if (dist <= hitRange) {
             targetUnit.takeDamage(DAMAGE, caster.id, eng.eventBus);
 
+            const dirX = dist > 0 ? dx / dist : 1;
+            const dirY = dist > 0 ? dy / dist : 0;
+            const startX = caster.x + dirX * (caster.radius * 0.5);
+            const startY = caster.y + dirY * (caster.radius * 0.5);
+            const endX = targetUnit.x - dirX * (targetUnit.radius * 0.5);
+            const endY = targetUnit.y - dirY * (targetUnit.radius * 0.5);
+
             const bashEffect = new Effect({
-                x: targetUnit.x,
-                y: targetUnit.y,
+                x: endX,
+                y: endY,
                 duration: BASH_EFFECT_DURATION,
                 effectType: 'bash',
+                startX,
+                startY,
             });
             eng.addEffect(bashEffect);
         }
@@ -103,13 +124,19 @@ export const BashAbility: AbilityStatic = {
         currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
     ): void {
-        const range = getCastRange(caster);
+        const minR = getMinRange(caster);
+        const maxR = getMaxRange(caster);
         ctx.save();
         ctx.strokeStyle = 'rgba(200, 100, 100, 0.7)';
         ctx.lineWidth = 2;
         ctx.setLineDash([6, 4]);
+        if (minR > 0) {
+            ctx.beginPath();
+            ctx.arc(caster.x, caster.y, minR, 0, Math.PI * 2);
+            ctx.stroke();
+        }
         ctx.beginPath();
-        ctx.arc(caster.x, caster.y, range, 0, Math.PI * 2);
+        ctx.arc(caster.x, caster.y, maxR, 0, Math.PI * 2);
         ctx.stroke();
 
         const target = currentTargets[0];
@@ -130,6 +157,11 @@ export const BashAbility: AbilityStatic = {
         }
         ctx.restore();
     },
+
+    renderTargetingPreview: createUnitTargetPreview({
+        getMinRange,
+        getMaxRange,
+    }),
 };
 
 export const BashCard: CardDef = {

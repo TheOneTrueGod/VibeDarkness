@@ -9,9 +9,10 @@ import type { TeamId } from '../engine/teams';
 import type { AISettings } from '../objects/Unit';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 
-/** Trigger for a spawn wave: either at a round or after elapsed seconds. */
-export type SpawnWaveTrigger =
+/** Trigger for level events: at round, after round (checks start), or after seconds. */
+export type LevelEventTrigger =
     | { atRound: number }
+    | { afterRound: number }
     | { afterSeconds: number };
 
 /** Single enemy entry in a spawn wave (position is computed at spawn time). */
@@ -23,13 +24,36 @@ export interface SpawnWaveEntry {
     aiSettings?: AISettings;
 }
 
-/** A delayed spawn wave: spawns a set of enemies when its trigger fires. */
-export interface SpawnWave {
-    /** When to spawn: at start of round N, or after N seconds. */
-    trigger: SpawnWaveTrigger;
-    /** Enemies to spawn, placed spread around map edges. */
+/** Victory condition: eliminate all enemy units. */
+export interface VictoryConditionEliminateAllEnemies {
+    type: 'eliminateAllEnemies';
+}
+
+export type VictoryCondition = VictoryConditionEliminateAllEnemies;
+
+/** Base fields shared by all level events. */
+interface LevelEventBase {
+    /** Optional message sent to lobby chat when the event triggers. */
+    emittedMessage?: string;
+    /** NPC id (e.g. '1') whose name/color is used when displaying the message. */
+    emittedByNpcId?: string;
+}
+
+/** Spawn wave: spawns enemies around map edges when trigger fires. */
+export interface LevelEventSpawnWave extends LevelEventBase {
+    type: 'spawnWave';
+    trigger: { atRound: number } | { afterSeconds: number };
     spawns: SpawnWaveEntry[];
 }
+
+/** Victory check: runs periodically (every 10 frames + before turns) when trigger is met. */
+export interface LevelEventVictoryCheck extends LevelEventBase {
+    type: 'victoryCheck';
+    trigger: { afterRound: number };
+    conditions: VictoryCondition[];
+}
+
+export type LevelEvent = LevelEventSpawnWave | LevelEventVictoryCheck;
 
 /** Config for a single enemy spawn. */
 export interface EnemySpawnDef {
@@ -59,8 +83,8 @@ export interface MissionBattleConfig {
     name: string;
     /** List of enemies to spawn at battle start. */
     enemies: EnemySpawnDef[];
-    /** Delayed spawn waves (optional). Trigger after rounds or seconds. */
-    spawnWaves?: SpawnWave[];
+    /** Level events: spawn waves, victory checks, etc. */
+    levelEvents?: LevelEvent[];
     /** Create the terrain grid for this mission's battlefield. */
     createTerrain: () => TerrainGrid;
 }

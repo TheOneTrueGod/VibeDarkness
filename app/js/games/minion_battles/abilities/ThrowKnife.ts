@@ -9,6 +9,7 @@
 import { AbilityState } from './Ability';
 import type { AbilityStatic, AbilityStateEntry } from './Ability';
 import type { TargetDef } from './targeting';
+import { createPixelTargetPreview } from './previewHelpers';
 import type { ResolvedTarget } from '../engine/types';
 import type { Unit } from '../objects/Unit';
 import { Projectile } from '../objects/Projectile';
@@ -126,4 +127,6 @@ export const ThrowKnife: AbilityStatic = {
         ctx.stroke();
         ctx.restore();
     },
+
+    renderTargetingPreview: createPixelTargetPreview(200),
 };

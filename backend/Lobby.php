@@ -237,6 +237,36 @@ class Lobby
     }
 
     /**
+     * Add an NPC chat message to history (from level events, etc.)
+     */
+    public function addNpcChatMessage(string $npcId, string $message): array
+    {
+        $npc = \App\NpcRegistry::get($npcId);
+        if ($npc === null) {
+            $npc = ['id' => $npcId, 'name' => 'Unknown', 'color' => '#888888'];
+        }
+
+        $chatEntry = [
+            'playerId' => 'npc:' . $npcId,
+            'playerName' => $npc['name'],
+            'playerColor' => $npc['color'],
+            'message' => $message,
+            'timestamp' => microtime(true),
+        ];
+
+        $this->chatHistory[] = $chatEntry;
+        $this->addMessage('chat', $chatEntry);
+
+        if (count($this->chatHistory) > self::MAX_CHAT_HISTORY) {
+            array_shift($this->chatHistory);
+        }
+
+        $this->updateActivity();
+
+        return $chatEntry;
+    }
+
+    /**
      * Add a message to the lobby log (stored for polling clients).
      * Returns the new messageId.
      */

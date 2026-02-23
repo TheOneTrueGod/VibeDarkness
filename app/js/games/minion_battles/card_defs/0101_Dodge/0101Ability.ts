@@ -5,6 +5,7 @@
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import type { TargetDef } from '../../abilities/targeting';
+import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import type { CardDef } from '../types';
@@ -97,6 +98,8 @@ export const DodgeAbility: AbilityStatic = {
         ctx.stroke();
         ctx.restore();
     },
+
+    renderTargetingPreview: createPixelTargetPreview(DODGE_MAX_DISTANCE),
 };
 
 export const DodgeCard: CardDef = {

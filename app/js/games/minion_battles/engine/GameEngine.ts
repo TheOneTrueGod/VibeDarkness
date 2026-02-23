@@ -29,7 +29,7 @@ import { Rage } from '../resources/Rage';
 import { Mana } from '../resources/Mana';
 import type { Resource } from '../resources/Resource';
 import type { TerrainManager } from '../terrain/TerrainManager';
-import type { SpawnWave } from '../missions/types';
+import type { LevelEvent } from '../missions/types';
 import { getEdgePositions } from '../missions/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../objects/units/index';
 import { ENEMY_MELEE, ENEMY_RANGED } from '../constants/enemyConstants';
@@ -120,10 +120,16 @@ export class GameEngine {
     /** The local player's ID. Used to decide which unit to center camera on. */
     localPlayerId: string = '';
 
-    /** Delayed spawn waves from mission. Cleared on restore. */
-    private spawnWaves: SpawnWave[] = [];
-    /** Indices of spawn waves that have already fired. */
-    private firedWaveIndices: Set<number> = new Set();
+    /** Level events from mission. Cleared on restore. */
+    private levelEvents: LevelEvent[] = [];
+    /** Indices of one-shot events that have already fired (spawnWave). */
+    private firedEventIndices: Set<number> = new Set();
+    /** Indices of victory checks that have emitted their first-attempt message. */
+    private victoryCheckFirstEmitDone: Set<number> = new Set();
+    /** Callback to send a message to the lobby chat (e.g. from emittedMessage). npcId = NPC to display as sender. */
+    private onEmitMessage: ((text: string, npcId?: string) => void) | null = null;
+    /** Callback when victory is achieved. */
+    private onVictory: (() => void) | null = null;
 
     // ========================================================================
     // Lifecycle
@@ -142,10 +148,21 @@ export class GameEngine {
         });
     }
 
-    /** Register delayed spawn waves from the mission. Call from initializeGameState. */
-    registerSpawnWaves(waves: SpawnWave[]): void {
-        this.spawnWaves = waves;
-        this.firedWaveIndices.clear();
+    /** Register level events from the mission. Call from initializeGameState. */
+    registerLevelEvents(events: LevelEvent[]): void {
+        this.levelEvents = events;
+        this.firedEventIndices.clear();
+        this.victoryCheckFirstEmitDone.clear();
+    }
+
+    /** Set callback to send a message to the lobby chat. */
+    setOnEmitMessage(cb: (text: string) => void): void {
+        this.onEmitMessage = cb;
+    }
+
+    /** Set callback when victory is achieved. */
+    setOnVictory(cb: () => void): void {
+        this.onVictory = cb;
     }
 
     /** Set callback for when the engine pauses waiting for player orders. */
@@ -235,8 +252,8 @@ export class GameEngine {
             this.roundNumber++;
         }
 
-        // Process delayed spawn waves (round-based and time-based)
-        this.processSpawnWaves();
+        // Process level events (spawn waves, etc.)
+        this.processLevelEvents();
 
         // Process active abilities on all units
         this.processActiveAbilities(dt);
@@ -248,6 +265,7 @@ export class GameEngine {
 
             // Check if a player-owned unit just finished cooldown
             if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive() && !this.waitingForOrders) {
+                this.runVictoryChecks(); // before turn
                 this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
                 this.pauseForOrders(unit);
                 return; // Stop processing this tick
@@ -255,6 +273,7 @@ export class GameEngine {
 
             // AI units auto-act when cooldown finishes
             if (!unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
+                this.runVictoryChecks(); // before turn
                 this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
                 this.executeAITurn(unit);
             }
@@ -677,44 +696,96 @@ export class GameEngine {
     // Round End / Card Recharge
     // ========================================================================
 
-    /** Process delayed spawn waves: fire any whose trigger has been reached. */
-    private processSpawnWaves(): void {
-        for (let i = 0; i < this.spawnWaves.length; i++) {
-            if (this.firedWaveIndices.has(i)) continue;
+    /** Emit a message to the lobby chat if callback is set. When npcId is set, message appears from that NPC. */
+    private emitMessage(text: string, npcId?: string): void {
+        this.onEmitMessage?.(text, npcId);
+    }
 
-            const wave = this.spawnWaves[i];
-            let shouldFire = false;
-
-            if ('atRound' in wave.trigger) {
-                shouldFire = this.roundNumber >= wave.trigger.atRound;
-            } else if ('afterSeconds' in wave.trigger) {
-                shouldFire = this.gameTime >= wave.trigger.afterSeconds;
+    /** Process level events: spawn waves, run victory checks (periodic). */
+    private processLevelEvents(): void {
+        for (let i = 0; i < this.levelEvents.length; i++) {
+            const evt = this.levelEvents[i];
+            if (evt.type === 'spawnWave') {
+                this.processSpawnWaveEvent(i, evt);
+            } else if (evt.type === 'victoryCheck') {
+                // Victory checks run every 10 frames when round >= afterRound
+                if (this.roundNumber >= evt.trigger.afterRound && this.gameTick % 10 === 0) {
+                    this.runVictoryCheck(i, evt);
+                }
             }
+        }
+    }
 
-            if (!shouldFire) continue;
+    /** Process a single spawn wave event. */
+    private processSpawnWaveEvent(i: number, evt: import('../missions/types').LevelEventSpawnWave): void {
+        if (this.firedEventIndices.has(i)) return;
 
-            this.firedWaveIndices.add(i);
+        let shouldFire = false;
+        if ('atRound' in evt.trigger) {
+            shouldFire = this.roundNumber >= evt.trigger.atRound;
+        } else if ('afterSeconds' in evt.trigger) {
+            shouldFire = this.gameTime >= evt.trigger.afterSeconds;
+        }
+        if (!shouldFire) return;
 
-            const positions = getEdgePositions(wave.spawns.length);
-            const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED };
+        this.firedEventIndices.add(i);
+        if (evt.emittedMessage) this.emitMessage(evt.emittedMessage);
 
-            for (let s = 0; s < wave.spawns.length; s++) {
-                const entry = wave.spawns[s];
-                const cid = entry.characterId;
-                if (cid !== 'enemy_melee' && cid !== 'enemy_ranged') continue;
-                const base = baseDefs[cid];
+        const positions = getEdgePositions(evt.spawns.length);
+        const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED };
 
-                const pos = positions[s] ?? { x: 40, y: 40 };
-                const config = {
-                    ...base,
-                    ...entry,
-                    position: pos,
-                    x: pos.x,
-                    y: pos.y,
-                    ownerId: 'ai' as const,
-                };
-                const unit = createUnitFromSpawnConfig(config, this.eventBus);
-                this.units.push(unit);
+        for (let s = 0; s < evt.spawns.length; s++) {
+            const entry = evt.spawns[s];
+            const cid = entry.characterId;
+            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged') continue;
+            const base = baseDefs[cid];
+
+            const pos = positions[s] ?? { x: 40, y: 40 };
+            const config = {
+                ...base,
+                ...entry,
+                position: pos,
+                x: pos.x,
+                y: pos.y,
+                ownerId: 'ai' as const,
+            };
+            const unit = createUnitFromSpawnConfig(config, this.eventBus);
+            this.units.push(unit);
+        }
+    }
+
+    /** Run all victory checks (called every 10 frames and before turns). */
+    private runVictoryChecks(): void {
+        for (let i = 0; i < this.levelEvents.length; i++) {
+            const evt = this.levelEvents[i];
+            if (evt.type === 'victoryCheck') {
+                if (this.roundNumber >= evt.trigger.afterRound) {
+                    this.runVictoryCheck(i, evt);
+                }
+            }
+        }
+    }
+
+    /** Run a single victory check. */
+    private runVictoryCheck(
+        i: number,
+        evt: import('../missions/types').LevelEventVictoryCheck,
+    ): void {
+        // First time: emit the message if present
+        if (!this.victoryCheckFirstEmitDone.has(i)) {
+            this.victoryCheckFirstEmitDone.add(i);
+            if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
+        }
+
+        for (const cond of evt.conditions) {
+            if (cond.type === 'eliminateAllEnemies') {
+                const hasEnemies = this.units.some(
+                    (u) => u.isAlive() && u.teamId === 'enemy',
+                );
+                if (!hasEnemies) {
+                    this.onVictory?.();
+                    return;
+                }
             }
         }
     }

@@ -14,6 +14,7 @@ interface BattleCanvasProps {
     engine: GameEngine;
     camera: Camera;
     renderer: GameRenderer;
+    targetingStateRef?: React.RefObject<Record<string, unknown> | null>;
     /** Called when the user left-clicks on the canvas (screen-space coords). */
     onCanvasClick?: (screenX: number, screenY: number) => void;
     /** Called when the user right-clicks on the canvas (screen-space coords). */
@@ -26,6 +27,7 @@ export default function BattleCanvas({
     engine,
     camera,
     renderer,
+    targetingStateRef,
     onCanvasClick,
     onCanvasRightClick,
     onCanvasMouseMove,
@@ -55,7 +57,8 @@ export default function BattleCanvas({
                 if (playerUnit) {
                     camera.centerOn(playerUnit.x, playerUnit.y);
                 }
-                renderer.render(engine, camera);
+                const targetingState = targetingStateRef?.current ?? null;
+                renderer.render(engine, camera, targetingState as Parameters<GameRenderer['render']>[2]);
                 rafRef.current = requestAnimationFrame(renderLoop);
             };
             rafRef.current = requestAnimationFrame(renderLoop);
@@ -66,7 +69,7 @@ export default function BattleCanvas({
                 cancelAnimationFrame(rafRef.current);
             }
         };
-    }, [engine, camera, renderer]);
+    }, [engine, camera, renderer, targetingStateRef]);
 
     // Handle resize
     useEffect(() => {

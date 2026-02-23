@@ -9,8 +9,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { PlayerState, GameSidebarInfo } from '../../types';
 import { LobbyClient } from '../../LobbyClient';
-import { MessageType } from '../../MessageTypes';
 import { useLocalOverrides } from '../../hooks/useLocalOverrides';
+import { useToast } from '../../contexts/ToastContext';
 import type { GamePhase } from './state';
 import MissionSelectPhase from './phases/MissionSelectPhase';
 import CharacterSelectPhase from './phases/CharacterSelectPhase';
@@ -54,6 +54,7 @@ export default function MinionBattlesGame({
     gameData,
     onSidebarInfoChange,
 }: MinionBattlesGameProps) {
+    const { showToast } = useToast();
     const raw = gameData ?? {};
 
     // Infer battle phase when gamePhase is missing but engine state (units, gameTick) exists.
@@ -198,6 +199,7 @@ export default function MinionBattlesGame({
                     missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
                     initialGameState={raw}
                     onSidebarInfoChange={onSidebarInfoChange}
+                    onVictory={() => showToast('Victory!', 'success')}
                 />
             )}
             {gamePhase !== 'mission_select' &&

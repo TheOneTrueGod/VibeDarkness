@@ -236,7 +236,7 @@ export class LobbyClient {
             method: 'POST',
             body: JSON.stringify({ playerId, updates }),
         });
-        return (data.gameStateData as Record<string, unknown>) ?? {};
+        return (data.gameState as Record<string, unknown>) ?? {};
     }
 
     // ---- Battle Phase: Checkpoints (game_<id>_<gameTick>.json) & Orders ----

@@ -55,6 +55,27 @@ export function resolveClick(
 }
 
 /**
+ * Find the unit at the given world position (closest if multiple overlap).
+ */
+export function getUnitAtPosition(worldPos: { x: number; y: number }, units: Unit[]): Unit | null {
+    let closestUnit: Unit | null = null;
+    let closestDist = Infinity;
+
+    for (const unit of units) {
+        if (!unit.isAlive()) continue;
+        const dx = unit.x - worldPos.x;
+        const dy = unit.y - worldPos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= unit.radius && dist < closestDist) {
+            closestDist = dist;
+            closestUnit = unit;
+        }
+    }
+
+    return closestUnit;
+}
+
+/**
  * Validate that a click result matches the required target type.
  * Returns a ResolvedTarget if valid, or null if not.
  */

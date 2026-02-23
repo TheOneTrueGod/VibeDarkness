@@ -26,6 +26,7 @@ import CardHand from '../components/CardHand';
 import RoundProgressBar from '../components/RoundProgressBar';
 import { throwError } from '../utils/errors';
 import { diffSnapshotFields } from '../utils/snapshotDiff';
+import { MessageType } from '../../../MessageTypes';
 
 const MISSION_MAP: Record<string, IBaseMissionDef> = {
     dark_awakening: DARK_AWAKENING,
@@ -44,6 +45,8 @@ interface BattlePhaseProps {
     /** Initial game state from server (if reconnecting). */
     initialGameState?: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
+    /** Called when victory is achieved. */
+    onVictory?: () => void;
 }
 
 export default function BattlePhase({
@@ -57,6 +60,7 @@ export default function BattlePhase({
     missionId,
     initialGameState,
     onSidebarInfoChange,
+    onVictory,
 }: BattlePhaseProps) {
     // Refs for objects that persist across renders
     const engineRef = useRef<GameEngine | null>(null);
@@ -72,6 +76,14 @@ export default function BattlePhase({
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
     const [myCards, setMyCards] = useState<CardInstance[]>([]);
+    const mouseWorldRef = useRef({ x: 0, y: 0 });
+    const targetingStateRef = useRef<{
+        selectedAbility: AbilityStatic | null;
+        currentTargets: ResolvedTarget[];
+        mouseWorld: { x: number; y: number };
+        waitingForOrders: WaitingForOrders | null;
+    }>({ selectedAbility: null, currentTargets: [], mouseWorld: { x: 0, y: 0 }, waitingForOrders: null });
+    targetingStateRef.current = { selectedAbility, currentTargets, mouseWorld: mouseWorldRef.current, waitingForOrders };
     const [syncError, setSyncError] = useState<string | null>(null);
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     const [, forceRender] = useState(0);
@@ -255,6 +267,15 @@ export default function BattlePhase({
                 setRoundNumber(newEngine.roundNumber);
             });
 
+            newEngine.setOnEmitMessage((text, npcId) => {
+                if (npcId) {
+                    lobbyClient.sendMessage(lobbyId, playerId, MessageType.NPC_CHAT, { npcId, message: text }).catch(() => {});
+                } else {
+                    lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHAT, { message: text }).catch(() => {});
+                }
+            });
+            if (onVictory) newEngine.setOnVictory(onVictory);
+
             setRoundNumber(newEngine.roundNumber);
             setRoundProgress(newEngine.roundProgress);
             setWaitingForOrders(newEngine.waitingForOrders);
@@ -312,6 +333,14 @@ export default function BattlePhase({
             setRoundProgress(engine.roundProgress);
             setRoundNumber(engine.roundNumber);
         });
+
+        engine.setOnEmitMessage((text) => {
+            lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHAT, { message: text }).catch(() => {});
+        });
+
+        if (onVictory) {
+            engine.setOnVictory(onVictory);
+        }
 
         // Snap camera to player's unit
         const myUnit = engine.getLocalPlayerUnit();
@@ -386,11 +415,13 @@ export default function BattlePhase({
             setSelectedAbility(null);
             setCurrentTargets([]);
         }
-    }, [selectedAbility, currentTargets, isMyTurn]);
+    }, [selectedAbility, currentTargets, isMyTurn, waitingForOrders]);
 
-    const handleCanvasMouseMove = useCallback((_screenX: number, _screenY: number) => {
-        // Preview rendering is handled by the render loop checking selectedAbility
-        // We just need to trigger a re-render for the preview
+    const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
+        const camera = cameraRef.current;
+        if (camera) {
+            mouseWorldRef.current = camera.screenToWorld(screenX, screenY);
+        }
         forceRender((n) => n + 1);
     }, []);
 
@@ -482,7 +513,7 @@ export default function BattlePhase({
         saveOrder(atTick, order);
 
         lobbyClient.sendMessage(lobbyId, playerId, 'battle_orders_ready', {
-            gameTick: atTick,
+            snapshotIndex: engine.snapshotIndex,
         }).catch(() => {});
     }
 
@@ -629,6 +660,7 @@ export default function BattlePhase({
                 engine={engine}
                 camera={camera}
                 renderer={renderer}
+                targetingStateRef={targetingStateRef}
                 onCanvasClick={handleCanvasClick}
                 onCanvasRightClick={handleCanvasRightClick}
                 onCanvasMouseMove={handleCanvasMouseMove}

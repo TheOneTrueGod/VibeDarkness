@@ -5,6 +5,7 @@
 
 export const MessageType = Object.freeze({
     CHAT: 'chat',
+    NPC_CHAT: 'npc_chat',
     CLICK: 'click',
     STATE_REQUEST: 'state_request',
     STATE_RESPONSE: 'state_response',

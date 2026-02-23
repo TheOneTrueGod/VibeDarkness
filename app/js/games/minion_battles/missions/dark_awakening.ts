@@ -7,7 +7,7 @@
  */
 
 import { BaseMissionDef } from './BaseMissionDef';
-import type { SpawnWave } from './types';
+import type { LevelEvent } from './types';
 import { ENEMY_MELEE, ENEMY_RANGED } from '../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainType } from '../terrain/TerrainType';
@@ -85,17 +85,42 @@ const ENEMIES = [
     { ...ENEMY_RANGED, name: 'Dark Mage', speed: 50, position: { x: 1100, y: 400 }, aiSettings: { minRange: 150, maxRange: 250 } },
 ];
 
-const SPAWN_WAVES: SpawnWave[] = [
-    { trigger: { atRound: 2 }, spawns: [{ characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }] },
-    { trigger: { atRound: 4 }, spawns: [{ characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }, { characterId: 'enemy_ranged' }] },
-    { trigger: { atRound: 6 }, spawns: [{ characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }, { characterId: 'enemy_ranged' }] },
+const LEVEL_EVENTS: LevelEvent[] = [
+    {
+        type: 'spawnWave',
+        trigger: { atRound: 4 },
+        spawns: [{ characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }],
+        emittedMessage: 'Reinforcements have arrived!',
+        emittedByNpcId: '1',
+    },
+    {
+        type: 'spawnWave',
+        trigger: { atRound: 5 },
+        spawns: [{ characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }, { characterId: 'enemy_ranged' }],
+        emittedMessage: 'Reinforcements have arrived!',
+        emittedByNpcId: '1',
+    },
+    {
+        type: 'spawnWave',
+        trigger: { atRound: 7 },
+        spawns: [{ characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }, { characterId: 'enemy_ranged' }],
+        emittedMessage: 'Reinforcements have arrived!',
+        emittedByNpcId: '1',
+    },
+    {
+        type: 'victoryCheck',
+        trigger: { afterRound: 6 },
+        conditions: [{ type: 'eliminateAllEnemies' }],
+        emittedMessage: 'Eliminate all enemies to win',
+        emittedByNpcId: '1',
+    },
 ];
 
 export class DarkAwakeningMission extends BaseMissionDef {
     missionId = 'dark_awakening';
     name = 'A Dark Awakening';
     enemies = ENEMIES;
-    spawnWaves = SPAWN_WAVES;
+    levelEvents = LEVEL_EVENTS;
     createTerrain = createTerrain;
 }
 

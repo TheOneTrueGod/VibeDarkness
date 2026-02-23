@@ -34,6 +34,21 @@ class PostMessageHandler
             return ['success' => true, 'messageId' => $messageId];
         }
 
+        if ($type === 'npc_chat') {
+            $npcId = $payload['npcId'] ?? null;
+            $message = $payload['message'] ?? '';
+            if (!$npcId || !is_string($npcId) || $message === '') {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'npcId and message required'];
+            }
+            $messageId = $manager->addNpcChatMessage($lobbyId, $npcId, $message);
+            if ($messageId === null) {
+                http_response_code(500);
+                return ['success' => false, 'error' => 'Failed to add NPC message'];
+            }
+            return ['success' => true, 'messageId' => $messageId];
+        }
+
         if ($type === 'click') {
             $x = isset($payload['x']) ? (float) $payload['x'] : null;
             $y = isset($payload['y']) ? (float) $payload['y'] : null;

@@ -93,12 +93,20 @@ export default function CharacterSelectPhase({
                 gamePhase: 'battle',
             });
             if (onPhaseChange) {
-                onPhaseChange('battle', newGameState);
+                // Merge in current characterSelections as fallback so we never lose them
+                // (avoids race where server response is incomplete or override was cleared)
+                const merged = {
+                    ...newGameState,
+                    characterSelections:
+                        (newGameState.characterSelections ?? newGameState.character_selections) ??
+                        characterSelections,
+                };
+                onPhaseChange('battle', merged);
             }
         } catch (error) {
             console.error('Failed to start game:', error);
         }
-    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange]);
+    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
 
     return (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
