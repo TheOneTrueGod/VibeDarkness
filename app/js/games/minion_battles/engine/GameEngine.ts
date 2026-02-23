@@ -67,8 +67,7 @@ export function createCardInstance(
 export interface CardInstance {
     cardDefId: string;
     abilityId: string;
-    location: 'hand' | 'deck' | 'exile' | 'discard';
-    exileRounds: number;
+    location: 'hand' | 'deck' | 'discard';
     /** Remaining uses before discard. */
     durability: number;
     /** Rounds remaining in discard (rounds-based). */
@@ -696,10 +695,10 @@ export class GameEngine {
                 }
             }
 
-            // Draw at round start: fill hand up to MAX_HAND_SIZE by drawing at random from deck
+            // Draw at round start: draw 1 card per round from deck (if hand has room and deck has cards)
             const handCount = this.cards[playerId].filter((c) => c.location === 'hand').length;
             const deckCards = this.cards[playerId].filter((c) => c.location === 'deck');
-            const toDraw = Math.min(Math.max(MAX_HAND_SIZE - handCount, 1), deckCards.length);
+            const toDraw = Math.min(1, MAX_HAND_SIZE - handCount, deckCards.length);
 
             for (let i = 0; i < toDraw; i++) {
                 const idx = Math.floor(Math.random() * deckCards.length);
@@ -793,12 +792,14 @@ export class GameEngine {
                 pid,
                 cards.map((c) => {
                     const def = getCardDef(c.abilityId);
-                    const loc = c.location === 'exile' ? 'deck' : c.location;
-                    const { exileRounds: _, ...rest } = c as Record<string, unknown>;
+                    const raw = c as SerializedCardInstance & { location?: string; exileRounds?: number };
+                    const { exileRounds: _, ...rest } = raw;
+                    const rawLoc: string = raw.location ?? 'deck';
+                    const loc = rawLoc === 'exile' ? 'deck' : rawLoc;
                     return {
                         ...rest,
                         location: loc,
-                        durability: c.durability ?? def?.durability ?? 1,
+                        durability: raw.durability ?? def?.durability ?? 1,
                     } as CardInstance;
                 }),
             ]),
