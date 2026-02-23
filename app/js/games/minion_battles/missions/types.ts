@@ -9,6 +9,28 @@ import type { TeamId } from '../engine/teams';
 import type { AISettings } from '../objects/Unit';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 
+/** Trigger for a spawn wave: either at a round or after elapsed seconds. */
+export type SpawnWaveTrigger =
+    | { atRound: number }
+    | { afterSeconds: number };
+
+/** Single enemy entry in a spawn wave (position is computed at spawn time). */
+export interface SpawnWaveEntry {
+    characterId: 'enemy_melee' | 'enemy_ranged';
+    name?: string;
+    hp?: number;
+    speed?: number;
+    aiSettings?: AISettings;
+}
+
+/** A delayed spawn wave: spawns a set of enemies when its trigger fires. */
+export interface SpawnWave {
+    /** When to spawn: at start of round N, or after N seconds. */
+    trigger: SpawnWaveTrigger;
+    /** Enemies to spawn, placed spread around map edges. */
+    spawns: SpawnWaveEntry[];
+}
+
 /** Config for a single enemy spawn. */
 export interface EnemySpawnDef {
     /** Character archetype for visuals and resources. */
@@ -35,8 +57,10 @@ export interface MissionBattleConfig {
     missionId: string;
     /** Display name. */
     name: string;
-    /** List of enemies to spawn. */
+    /** List of enemies to spawn at battle start. */
     enemies: EnemySpawnDef[];
+    /** Delayed spawn waves (optional). Trigger after rounds or seconds. */
+    spawnWaves?: SpawnWave[];
     /** Create the terrain grid for this mission's battlefield. */
     createTerrain: () => TerrainGrid;
 }

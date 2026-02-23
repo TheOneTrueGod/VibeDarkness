@@ -29,6 +29,10 @@ import { Rage } from '../resources/Rage';
 import { Mana } from '../resources/Mana';
 import type { Resource } from '../resources/Resource';
 import type { TerrainManager } from '../terrain/TerrainManager';
+import type { SpawnWave } from '../missions/types';
+import { getEdgePositions } from '../missions/edgeSpawns';
+import { createUnitFromSpawnConfig } from '../objects/units/index';
+import { ENEMY_MELEE, ENEMY_RANGED } from '../constants/enemyConstants';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
@@ -116,6 +120,11 @@ export class GameEngine {
     /** The local player's ID. Used to decide which unit to center camera on. */
     localPlayerId: string = '';
 
+    /** Delayed spawn waves from mission. Cleared on restore. */
+    private spawnWaves: SpawnWave[] = [];
+    /** Indices of spawn waves that have already fired. */
+    private firedWaveIndices: Set<number> = new Set();
+
     // ========================================================================
     // Lifecycle
     // ========================================================================
@@ -131,6 +140,12 @@ export class GameEngine {
         this.eventBus.on('round_end', (data) => {
             this.handleRoundEnd(data.roundNumber);
         });
+    }
+
+    /** Register delayed spawn waves from the mission. Call from initializeGameState. */
+    registerSpawnWaves(waves: SpawnWave[]): void {
+        this.spawnWaves = waves;
+        this.firedWaveIndices.clear();
     }
 
     /** Set callback for when the engine pauses waiting for player orders. */
@@ -219,6 +234,9 @@ export class GameEngine {
             this.onRoundEnd?.(this.roundNumber);
             this.roundNumber++;
         }
+
+        // Process delayed spawn waves (round-based and time-based)
+        this.processSpawnWaves();
 
         // Process active abilities on all units
         this.processActiveAbilities(dt);
@@ -658,6 +676,48 @@ export class GameEngine {
     // ========================================================================
     // Round End / Card Recharge
     // ========================================================================
+
+    /** Process delayed spawn waves: fire any whose trigger has been reached. */
+    private processSpawnWaves(): void {
+        for (let i = 0; i < this.spawnWaves.length; i++) {
+            if (this.firedWaveIndices.has(i)) continue;
+
+            const wave = this.spawnWaves[i];
+            let shouldFire = false;
+
+            if ('atRound' in wave.trigger) {
+                shouldFire = this.roundNumber >= wave.trigger.atRound;
+            } else if ('afterSeconds' in wave.trigger) {
+                shouldFire = this.gameTime >= wave.trigger.afterSeconds;
+            }
+
+            if (!shouldFire) continue;
+
+            this.firedWaveIndices.add(i);
+
+            const positions = getEdgePositions(wave.spawns.length);
+            const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED };
+
+            for (let s = 0; s < wave.spawns.length; s++) {
+                const entry = wave.spawns[s];
+                const cid = entry.characterId;
+                if (cid !== 'enemy_melee' && cid !== 'enemy_ranged') continue;
+                const base = baseDefs[cid];
+
+                const pos = positions[s] ?? { x: 40, y: 40 };
+                const config = {
+                    ...base,
+                    ...entry,
+                    position: pos,
+                    x: pos.x,
+                    y: pos.y,
+                    ownerId: 'ai' as const,
+                };
+                const unit = createUnitFromSpawnConfig(config, this.eventBus);
+                this.units.push(unit);
+            }
+        }
+    }
 
     /** Process discard pile: seconds-based cards (called each tick). */
     private processDiscardSeconds(): void {

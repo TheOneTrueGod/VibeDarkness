@@ -8,7 +8,7 @@
 
 import type { GameEngine } from '../engine/GameEngine';
 import type { UnitSpawnConfig } from '../engine/types';
-import type { EnemySpawnDef, MissionBattleConfig } from './types';
+import type { EnemySpawnDef, MissionBattleConfig, SpawnWave } from './types';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../engine/EventBus';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
@@ -43,6 +43,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     abstract name: string;
     abstract enemies: EnemySpawnDef[];
     abstract createTerrain: () => TerrainGrid;
+    /** Optional delayed spawn waves. */
+    spawnWaves?: SpawnWave[];
 
     /**
      * Set up the initial game state with player units, enemies, projectiles, and effects.
@@ -104,6 +106,11 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 }
             }
             engine.cards[pu.playerId] = hand;
+        }
+
+        // Register delayed spawn waves (if any)
+        if (this.spawnWaves && this.spawnWaves.length > 0) {
+            engine.registerSpawnWaves(this.spawnWaves);
         }
 
         // Add enemies
