@@ -179,4 +179,6 @@ export const EnemyArcherShotCard: CardDef = {
     id: CARD_ID,
     name: 'Enemy Archer Shot',
     abilityId: CARD_ID,
+    durability: 2,
+    discardDuration: { duration: 1, unit: 'rounds' },
 };

@@ -20,6 +20,7 @@ import { Projectile } from '../objects/Projectile';
 import { Effect } from '../objects/Effect';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { getAbility } from '../abilities/AbilityRegistry';
+import { getCardDef } from '../card_defs';
 import { spendAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
 import { areEnemies } from './teams';
@@ -44,12 +45,36 @@ export const WORLD_HEIGHT = 800;
 
 export type EngineStateCallback = () => void;
 
+/** Maximum cards in hand. Draw at round start if below this. */
+export const MAX_HAND_SIZE = 6;
+
+/** Create a card instance with defaults (durability from card def). */
+export function createCardInstance(
+    cardDefId: string,
+    abilityId: string,
+    location: CardInstance['location'],
+): CardInstance {
+    const def = getCardDef(abilityId);
+    return {
+        cardDefId,
+        abilityId,
+        location,
+        durability: def?.durability ?? 1,
+    };
+}
+
 /** Card instance tracked per player. */
 export interface CardInstance {
     cardDefId: string;
     abilityId: string;
-    location: 'hand' | 'deck' | 'exile';
+    location: 'hand' | 'deck' | 'exile' | 'discard';
     exileRounds: number;
+    /** Remaining uses before discard. */
+    durability: number;
+    /** Rounds remaining in discard (rounds-based). */
+    discardRoundsRemaining?: number;
+    /** Game time when added to discard (seconds-based). */
+    discardAddedAtTime?: number;
 }
 
 export class GameEngine {
@@ -231,6 +256,9 @@ export class GameEngine {
             effect.update(dt, this);
         }
 
+        // Process discard (seconds-based): move expired cards back to deck
+        this.processDiscardSeconds();
+
         // Cleanup inactive objects
         this.units = this.units.filter((u) => u.active);
         this.projectiles = this.projectiles.filter((p) => p.active);
@@ -341,20 +369,37 @@ export class GameEngine {
             abilityId: ability.id,
         });
 
-        // Move the card to exile (for the unit's owner)
-        this.exileCard(unit.ownerId, ability.id);
+        // Move the card to discard when durability reaches 0 (for the unit's owner)
+        this.onCardUsed(unit.ownerId, ability.id);
     }
 
-    /** Move the first in-hand card matching the ability to exile. */
-    private exileCard(playerId: string, abilityId: string): void {
+    /** Move the first in-hand card matching the ability: decrement durability; if 0, discard. Otherwise card stays in hand. */
+    private onCardUsed(playerId: string, abilityId: string): void {
         const playerCards = this.cards[playerId];
         if (!playerCards) return;
         const card = playerCards.find(
             (c) => c.abilityId === abilityId && c.location === 'hand',
         );
-        if (card) {
-            card.location = 'exile';
-            card.exileRounds = 0;
+        if (!card) return;
+
+        card.durability--;
+        if (card.durability <= 0) {
+            this.moveToDiscard(card);
+        }
+    }
+
+    /** Move a card to discard and set duration tracking. */
+    private moveToDiscard(card: CardInstance): void {
+        const def = getCardDef(card.abilityId);
+        const discardDuration = def?.discardDuration ?? { duration: 1, unit: 'rounds' as const };
+
+        card.location = 'discard';
+        card.durability = 0;
+
+        if (discardDuration.unit === 'rounds') {
+            card.discardRoundsRemaining = discardDuration.duration;
+        } else {
+            card.discardAddedAtTime = this.gameTime;
         }
     }
 
@@ -615,32 +660,53 @@ export class GameEngine {
     // Round End / Card Recharge
     // ========================================================================
 
-    private handleRoundEnd(_roundNumber: number): void {
-        // Process exiled cards: increment exileRounds, recharge if ready
+    /** Process discard pile: seconds-based cards (called each tick). */
+    private processDiscardSeconds(): void {
         for (const playerId of Object.keys(this.cards)) {
             for (const card of this.cards[playerId]) {
-                if (card.location === 'exile') {
-                    card.exileRounds++;
-                    const ability = getAbility(card.abilityId);
-                    if (ability && card.exileRounds >= ability.rechargeTurns) {
-                        card.location = 'deck';
-                        card.exileRounds = 0;
-                    }
+                if (card.location !== 'discard' || card.discardAddedAtTime === undefined) continue;
+
+                const def = getCardDef(card.abilityId);
+                const dd = def?.discardDuration;
+                if (dd?.unit !== 'seconds') continue;
+
+                if (this.gameTime - card.discardAddedAtTime >= dd.duration) {
+                    card.location = 'deck';
+                    card.durability = def?.durability ?? 1;
+                    delete card.discardRoundsRemaining;
+                    delete card.discardAddedAtTime;
+                }
+            }
+        }
+    }
+
+    private handleRoundEnd(_roundNumber: number): void {
+        for (const playerId of Object.keys(this.cards)) {
+            // Process discard (rounds-based): decrement and return to deck when ready
+            for (const card of this.cards[playerId]) {
+                if (card.location !== 'discard' || card.discardRoundsRemaining === undefined) continue;
+
+                const def = getCardDef(card.abilityId);
+                card.discardRoundsRemaining--;
+                if (card.discardRoundsRemaining <= 0) {
+                    card.location = 'deck';
+                    card.durability = def?.durability ?? 1;
+                    delete card.discardRoundsRemaining;
+                    delete card.discardAddedAtTime;
                 }
             }
 
-            // Auto-draw: move deck cards to hand if there's room
-            // (For now we keep it simple: all cards cycle hand -> exile -> deck -> hand)
+            // Draw at round start: fill hand up to MAX_HAND_SIZE by drawing at random from deck
             const handCount = this.cards[playerId].filter((c) => c.location === 'hand').length;
-            if (handCount < 4) {
-                for (const card of this.cards[playerId]) {
-                    if (card.location === 'deck') {
-                        card.location = 'hand';
-                        // Only draw enough to fill up to 4
-                        if (this.cards[playerId].filter((c) => c.location === 'hand').length >= 4) {
-                            break;
-                        }
-                    }
+            const deckCards = this.cards[playerId].filter((c) => c.location === 'deck');
+            const toDraw = Math.min(Math.max(MAX_HAND_SIZE - handCount, 1), deckCards.length);
+
+            for (let i = 0; i < toDraw; i++) {
+                const idx = Math.floor(Math.random() * deckCards.length);
+                const card = deckCards[idx];
+                if (card) {
+                    card.location = 'hand';
+                    deckCards.splice(idx, 1);
                 }
             }
         }
@@ -721,11 +787,20 @@ export class GameEngine {
             engine.effects.push(Effect.fromJSON(fxData as Record<string, unknown>));
         }
 
-        // Restore cards
+        // Restore cards (ensure durability default; migrate legacy exile → deck)
         engine.cards = Object.fromEntries(
             Object.entries(data.cards).map(([pid, cards]) => [
                 pid,
-                cards.map((c) => ({ ...c })),
+                cards.map((c) => {
+                    const def = getCardDef(c.abilityId);
+                    const loc = c.location === 'exile' ? 'deck' : c.location;
+                    const { exileRounds: _, ...rest } = c as Record<string, unknown>;
+                    return {
+                        ...rest,
+                        location: loc,
+                        durability: c.durability ?? def?.durability ?? 1,
+                    } as CardInstance;
+                }),
             ]),
         );
 

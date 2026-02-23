@@ -40,8 +40,13 @@ export interface SerializedGameState {
 export interface SerializedCardInstance {
     cardDefId: string;
     abilityId: string;
-    location: 'hand' | 'deck' | 'exile';
-    exileRounds: number;
+    location: 'hand' | 'deck' | 'discard';
+    /** Remaining uses before discard. Default 1 if omitted (legacy). */
+    durability?: number;
+    /** Rounds remaining in discard (rounds-based). */
+    discardRoundsRemaining?: number;
+    /** Game time when added to discard (seconds-based). */
+    discardAddedAtTime?: number;
 }
 
 /** An order submitted by a player (or AI) for a unit's turn. */

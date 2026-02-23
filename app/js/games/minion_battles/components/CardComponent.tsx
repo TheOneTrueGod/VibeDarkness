@@ -7,10 +7,14 @@
 
 import React, { useState, useCallback } from 'react';
 import type { AbilityStatic } from '../abilities/Ability';
+import type { CardInstance } from '../engine/GameEngine';
+import { getCardDef } from '../card_defs';
 import CardDescription from './CardDescription';
 
 interface CardComponentProps {
     ability: AbilityStatic;
+    /** Card instance for durability display. */
+    card: CardInstance;
     isSelected: boolean;
     isDisabled: boolean;
     onSelect: () => void;
@@ -26,6 +30,7 @@ interface CardComponentProps {
 
 export default function CardComponent({
     ability,
+    card,
     isSelected,
     isDisabled,
     onSelect,
@@ -79,10 +84,23 @@ export default function CardComponent({
                     {ability.name}
                 </span>
 
-                {/* Cooldown indicator */}
-                <span className="text-muted text-[8px]">
-                    {ability.cooldownTime}s
-                </span>
+                {/* Cooldown + durability bar row */}
+                <div className="w-full flex items-center gap-1">
+                    <span className="text-muted text-[8px] shrink-0">
+                        {ability.cooldownTime}s
+                    </span>
+                    <div
+                        className="h-1 flex-1 min-w-0 max-w-[50%] rounded-sm bg-dark-800 overflow-hidden border border-gray-600"
+                        title={`Durability: ${card.durability}/${getCardDef(card.abilityId)?.durability ?? 1}`}
+                    >
+                        <div
+                            className="h-full bg-gray-500 transition-all rounded-[2px]"
+                            style={{
+                                width: `${Math.max(0, Math.min(100, (card.durability / ((getCardDef(card.abilityId)?.durability ?? 1) || 1)) * 100))}%`,
+                            }}
+                        />
+                    </div>
+                </div>
             </button>
 
             {/* Desktop hover description */}

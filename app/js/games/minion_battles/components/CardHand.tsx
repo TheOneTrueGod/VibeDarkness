@@ -121,6 +121,7 @@ export default function CardHand({
                             <CardComponent
                                 key={`${card.cardDefId}_${index}`}
                                 ability={ability}
+                                card={card}
                                 isSelected={selectedCardIndex === index}
                                 isDisabled={isDisabled}
                                 onSelect={() => handleSelectCard(index)}

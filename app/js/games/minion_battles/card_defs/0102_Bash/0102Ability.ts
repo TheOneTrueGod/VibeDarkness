@@ -136,4 +136,6 @@ export const BashCard: CardDef = {
     id: CARD_ID,
     name: 'Bash',
     abilityId: CARD_ID,
+    durability: 2,
+    discardDuration: { duration: 1, unit: 'rounds' },
 };

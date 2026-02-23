@@ -13,7 +13,7 @@ import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../engine/EventBus';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { createUnitByCharacterId, createUnitFromSpawnConfig } from '../objects/units/index';
-import { WORLD_HEIGHT } from '../engine/GameEngine';
+import { createCardInstance, WORLD_HEIGHT } from '../engine/GameEngine';
 
 /** Parameters for initializing game state. */
 export interface InitializeGameStateParams {
@@ -84,22 +84,22 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             let hand: import('../engine/GameEngine').CardInstance[];
             if (isRanger) {
                 hand = [
-                    { cardDefId: '0001_1', abilityId: '0001', location: 'hand', exileRounds: 0 },
-                    { cardDefId: '0001_2', abilityId: '0001', location: 'hand', exileRounds: 0 },
-                    { cardDefId: '0001_3', abilityId: '0001', location: 'hand', exileRounds: 0 },
-                    { cardDefId: '0001_4', abilityId: '0001', location: 'hand', exileRounds: 0 },
+                    createCardInstance('0001_1', '0001', 'hand'),
+                    createCardInstance('0001_2', '0001', 'hand'),
+                    createCardInstance('0001_3', '0001', 'hand'),
+                    createCardInstance('0001_4', '0001', 'hand'),
                 ];
             } else {
                 hand = [
-                    { cardDefId: 'throw_knife_1', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-                    { cardDefId: 'throw_knife_2', abilityId: 'throw_knife', location: 'hand', exileRounds: 0 },
-                    { cardDefId: '0102_1', abilityId: '0102', location: 'hand', exileRounds: 0 },
-                    { cardDefId: '0102_2', abilityId: '0102', location: 'hand', exileRounds: 0 },
+                    createCardInstance('throw_knife_1', 'throw_knife', 'hand'),
+                    createCardInstance('throw_knife_2', 'throw_knife', 'hand'),
+                    createCardInstance('0102_1', '0102', 'hand'),
+                    createCardInstance('0102_2', '0102', 'hand'),
                 ];
                 if (isWarrior) {
                     hand.push(
-                        { cardDefId: '0101_1', abilityId: '0101', location: 'hand', exileRounds: 0 },
-                        { cardDefId: '0101_2', abilityId: '0101', location: 'hand', exileRounds: 0 },
+                        createCardInstance('0101_1', '0101', 'hand'),
+                        createCardInstance('0101_2', '0101', 'hand'),
                     );
                 }
             }
