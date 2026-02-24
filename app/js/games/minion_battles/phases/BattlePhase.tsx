@@ -169,13 +169,17 @@ export default function BattlePhase({
         let engine: GameEngine;
         if (hasSnapshot && init) {
             engine = GameEngine.fromJSON(init as unknown as SerializedGameState, playerId, terrainManager);
+            // Restore level events (not serialized) from mission so spawn waves etc. still fire
+            if (mission.levelEvents && mission.levelEvents.length > 0) {
+                engine.registerLevelEvents(mission.levelEvents);
+            }
             setRoundNumber(engine.roundNumber);
             setRoundProgress(engine.roundProgress);
             setWaitingForOrders(engine.waitingForOrders);
             if (engine.waitingForOrders) setIsPaused(true);
         } else {
             engine = new GameEngine();
-            engine.prepareForNewGame({ localPlayerId: playerId, terrainManager });
+            engine.prepareForNewGame({ localPlayerId: playerId, terrainManager, isHost });
             const selections = Object.keys(characterSelections).length > 0
                 ? characterSelections
                 : ((init?.characterSelections ?? init?.character_selections) as Record<string, string>) ?? {};
@@ -232,6 +236,10 @@ export default function BattlePhase({
                 playerId,
                 oldEngine.terrainManager,
             );
+            // Restore level events (not serialized) from mission so spawn waves etc. still fire
+            if (mission.levelEvents && mission.levelEvents.length > 0) {
+                newEngine.registerLevelEvents(mission.levelEvents);
+            }
             oldEngine.destroy();
             engineRef.current = newEngine;
 
@@ -504,6 +512,10 @@ export default function BattlePhase({
 
         // Apply locally and resume (order is queued for gameTick + 1)
         engine.applyOrder(order);
+        // Clear targeting preview immediately so it doesn't linger between frames
+        targetingStateRef.current.selectedAbility = null;
+        targetingStateRef.current.currentTargets = [];
+        targetingStateRef.current.waitingForOrders = null;
         setWaitingForOrders(null);
         setIsPaused(false);
         pendingMovePathRef.current = null;

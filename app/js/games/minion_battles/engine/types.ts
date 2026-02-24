@@ -23,6 +23,8 @@ export interface WaitingForOrders {
 
 /** Serialized game state for server sync. */
 export interface SerializedGameState {
+    /** Deterministic RNG seed (host-generated before initial sync). */
+    randomSeed?: number;
     gameTime: number;
     gameTick: number;
     roundNumber: number;

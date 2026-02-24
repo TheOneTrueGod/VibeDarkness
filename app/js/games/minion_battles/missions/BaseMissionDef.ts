@@ -80,7 +80,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 },
                 params.eventBus,
             );
-            engine.units.push(unit);
+            engine.addUnit(unit);
 
             // Set up cards for this player
             let hand: import('../engine/GameEngine').CardInstance[];
@@ -124,7 +124,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 },
                 params.eventBus,
             );
-            engine.units.push(unit);
+            engine.addUnit(unit);
         }
 
         // Base implementation adds no projectiles or effects.

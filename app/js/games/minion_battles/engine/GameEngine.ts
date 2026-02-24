@@ -83,6 +83,8 @@ export interface CardInstance {
 export class GameEngine {
     // -- Core state --
     readonly eventBus: EventBus = new EventBus();
+    /** Deterministic RNG seed (host-generated before initial sync). */
+    randomSeed: number = 0;
     gameTime: number = 0;
     gameTick: number = 0;
     roundNumber: number = 1;
@@ -138,11 +140,15 @@ export class GameEngine {
     /**
      * Prepare the engine for a new game (before mission.initializeGameState populates it).
      * Sets localPlayerId, terrainManager, resets object IDs, and subscribes to round_end.
+     * If isHost is true, generates a random seed for deterministic RNG across clients.
      */
-    prepareForNewGame(config: { localPlayerId: string; terrainManager?: TerrainManager | null }): void {
+    prepareForNewGame(config: { localPlayerId: string; terrainManager?: TerrainManager | null; isHost?: boolean }): void {
         this.localPlayerId = config.localPlayerId;
         this.terrainManager = config.terrainManager ?? null;
         resetGameObjectIdCounter(1);
+        if (config.isHost) {
+            this.randomSeed = this.generateHostSeed();
+        }
         this.eventBus.on('round_end', (data) => {
             this.handleRoundEnd(data.roundNumber);
         });
@@ -183,6 +189,38 @@ export class GameEngine {
     /** Set callback for checkpoint saves (when a unit is about to take a turn). */
     setOnCheckpoint(cb: (gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void): void {
         this.onCheckpoint = cb;
+    }
+
+    /**
+     * Generate initial seed for host (before initial sync).
+     * Uses crypto.getRandomValues when available, else Date.now().
+     */
+    private generateHostSeed(): number {
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+            const arr = new Uint32Array(1);
+            crypto.getRandomValues(arr);
+            return arr[0] >>> 0;
+        }
+        return (Date.now() & 0x7fffffff) || 1;
+    }
+
+    /**
+     * Generate a deterministic random number (0..0x7fffffff) and advance the seed.
+     * All clients produce the same sequence given the same initial seed.
+     */
+    generateRandomNumber(): number {
+        this.randomSeed = ((this.randomSeed * 1103515245 + 12345) >>> 0);
+        return this.randomSeed & 0x7fffffff;
+    }
+
+    /**
+     * Generate a random integer in [min, max] (inclusive) using the deterministic RNG.
+     */
+    generateRandomInteger(min: number, max: number): number {
+        if (max < min) return min;
+        const n = this.generateRandomNumber();
+        const range = max - min + 1;
+        return min + (n % range);
     }
 
     // ========================================================================
@@ -261,6 +299,19 @@ export class GameEngine {
         // Update units
         for (const unit of this.units) {
             if (!unit.active) continue;
+
+            // Periodic pathfinding retrigger for AI units with movement targets
+            if (
+                unit.pathfindingRetriggerOffset > 0 &&
+                unit.movement?.targetUnitId &&
+                this.gameTick % unit.pathfindingRetriggerOffset === 0
+            ) {
+                const target = this.getUnit(unit.movement.targetUnitId);
+                if (target?.isAlive()) {
+                    this.applyAIMovement(unit, target);
+                }
+            }
+
             unit.update(dt, this);
 
             // Check if a player-owned unit just finished cooldown
@@ -454,8 +505,8 @@ export class GameEngine {
             return;
         }
 
-        // Pick a random target for movement decisions
-        const moveTarget = enemies[Math.floor(Math.random() * enemies.length)];
+        // Pick a random target for movement decisions (deterministic RNG)
+        const moveTarget = enemies[this.generateRandomInteger(0, enemies.length - 1)];
 
         // Set move target based on unit AI range settings
         if (unit.aiSettings) {
@@ -508,9 +559,9 @@ export class GameEngine {
     private findAIAbilityTarget(unit: Unit, ability: AbilityStatic, enemies: Unit[]): Unit | null {
         const ai = ability.aiSettings;
 
-        // No AI settings on the ability — pick a random enemy
+        // No AI settings on the ability — pick a random enemy (deterministic RNG)
         if (!ai) {
-            return enemies[Math.floor(Math.random() * enemies.length)] ?? null;
+            return enemies[this.generateRandomInteger(0, enemies.length - 1)] ?? null;
         }
 
         // Filter enemies within the ability's range
@@ -522,7 +573,7 @@ export class GameEngine {
         });
 
         if (inRange.length === 0) return null;
-        return inRange[Math.floor(Math.random() * inRange.length)];
+        return inRange[this.generateRandomInteger(0, inRange.length - 1)];
     }
 
     /**
@@ -673,6 +724,12 @@ export class GameEngine {
     // Object Management
     // ========================================================================
 
+    /** Add a unit and assign pathfindingRetriggerOffset from the deterministic RNG. */
+    addUnit(unit: Unit): void {
+        unit.pathfindingRetriggerOffset = this.generateRandomInteger(30, 90);
+        this.units.push(unit);
+    }
+
     addProjectile(projectile: Projectile): void {
         this.projectiles.push(projectile);
     }
@@ -750,7 +807,7 @@ export class GameEngine {
                 ownerId: 'ai' as const,
             };
             const unit = createUnitFromSpawnConfig(config, this.eventBus);
-            this.units.push(unit);
+            this.addUnit(unit);
         }
     }
 
@@ -832,7 +889,7 @@ export class GameEngine {
             const toDraw = Math.min(1, MAX_HAND_SIZE - handCount, deckCards.length);
 
             for (let i = 0; i < toDraw; i++) {
-                const idx = Math.floor(Math.random() * deckCards.length);
+                const idx = this.generateRandomInteger(0, deckCards.length - 1);
                 const card = deckCards[idx];
                 if (card) {
                     card.location = 'hand';
@@ -858,6 +915,7 @@ export class GameEngine {
 
     toJSON(): SerializedGameState {
         return {
+            randomSeed: this.randomSeed,
             gameTime: this.gameTime,
             gameTick: this.gameTick,
             roundNumber: this.roundNumber,
@@ -880,6 +938,7 @@ export class GameEngine {
         const engine = new GameEngine();
         engine.localPlayerId = localPlayerId;
         engine.terrainManager = terrainManager ?? null;
+        engine.randomSeed = data.randomSeed ?? 0;
         engine.gameTime = data.gameTime;
         engine.gameTick = data.gameTick ?? 0;
         engine.roundNumber = data.roundNumber;

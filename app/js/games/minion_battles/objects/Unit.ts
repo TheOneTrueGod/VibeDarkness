@@ -71,6 +71,9 @@ export class Unit extends GameObject {
     /** AI behavior settings (only used for AI-controlled units). */
     aiSettings: AISettings | null = null;
 
+    /** Recalculate pathfinding every N ticks (0 = never). Set at spawn from engine RNG. */
+    pathfindingRetriggerOffset: number = 0;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -334,6 +337,7 @@ export class Unit extends GameObject {
             abilityNote: this.abilityNote,
             radius: this.radius,
             aiSettings: this.aiSettings,
+            pathfindingRetriggerOffset: this.pathfindingRetriggerOffset,
             resources: this.resources.map((r) => r.toJSON()),
         };
     }
@@ -372,6 +376,7 @@ export class Unit extends GameObject {
 
         unit.radius = (data.radius as number) ?? 20;
         unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
+        unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
         unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
         unit.abilityNote = (data.abilityNote as AbilityNote | null) ?? null;
 

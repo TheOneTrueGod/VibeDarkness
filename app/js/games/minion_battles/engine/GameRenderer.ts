@@ -277,10 +277,16 @@ export class GameRenderer {
 
     private renderTargetingPreview(engine: GameEngine): void {
         const ts = this.targetingState;
-        if (!ts?.selectedAbility?.renderTargetingPreview || !ts.waitingForOrders) return;
+        if (!ts?.selectedAbility?.renderTargetingPreview || !ts.waitingForOrders) {
+            this.targetingPreviewGraphics.clear();
+            return;
+        }
 
         const caster = engine.getUnit(ts.waitingForOrders.unitId);
-        if (!caster) return;
+        if (!caster) {
+            this.targetingPreviewGraphics.clear();
+            return;
+        }
 
         this.targetingPreviewGraphics.clear();
         ts.selectedAbility.renderTargetingPreview!(
