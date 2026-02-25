@@ -5,7 +5,7 @@
  */
 
 import { AbilityState } from '../../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import type { Unit } from '../../../objects/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { ResolvedTarget } from '../../../engine/types';
@@ -102,7 +102,7 @@ export const DarkWolfBiteAbility: AbilityStatic = {
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         const eng = engine as GameEngineLike;
 
-        // On first tick, store target and lunge start
+        // On first tick, store target, lunge start, and target position snapshot
         if (prevTime < 0.05 && currentTime >= 0) {
             const targetDef = targets[0];
             if (targetDef?.type === 'unit' && targetDef.unitId) {
@@ -112,6 +112,8 @@ export const DarkWolfBiteAbility: AbilityStatic = {
                         abilityId: '0003',
                         abilityNote: {
                             targetId: targetDef.unitId,
+                            targetX: targetUnit.x,
+                            targetY: targetUnit.y,
                             lungeStartX: caster.x,
                             lungeStartY: caster.y,
                             hitTargetIds: [],
@@ -203,6 +205,36 @@ export const DarkWolfBiteAbility: AbilityStatic = {
         ctx.lineTo(mouseWorld.x, mouseWorld.y);
         ctx.stroke();
         ctx.restore();
+    },
+
+    renderActivePreview(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        activeAbility: { startTime: number; targets: ResolvedTarget[] },
+        gameTime: number,
+    ): void {
+        const elapsed = gameTime - activeAbility.startTime;
+        // Show indicator only during windup (0 to WINDUP_TIME)
+        if (elapsed < 0 || elapsed > WINDUP_TIME) return;
+        if (!isAbilityNote(caster.abilityNote, '0003')) return;
+
+        const note = caster.abilityNote.abilityNote;
+        const dx = note.targetX - note.lungeStartX;
+        const dy = note.targetY - note.lungeStartY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist === 0) return;
+
+        const maxR = getMaxRange(caster);
+        const lineLen = Math.min(dist, maxR);
+        const ux = dx / dist;
+        const uy = dy / dist;
+        const endX = note.lungeStartX + ux * lineLen;
+        const endY = note.lungeStartY + uy * lineLen;
+
+        // 12px thick transparent red indicator line along the lunge path
+        gr.moveTo(note.lungeStartX, note.lungeStartY);
+        gr.lineTo(endX, endY);
+        gr.stroke({ color: 0xff0000, width: 12, alpha: 0.3 });
     },
 
     renderTargetingPreview: createUnitTargetPreview({

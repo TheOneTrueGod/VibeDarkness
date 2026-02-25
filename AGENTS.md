@@ -128,6 +128,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 | Skill | When to use |
 |-------|-------------|
 | **working-on-minion-battles** | When working on anything called minion battles; work primarily in `app/js/games/minion_battles/`. See `.cursor/skills/working-on-minion-battles/SKILL.md`. |
+| **working-on-ai-controllers** | When adding or changing enemy unit AI (UnitAIController, mission AI). See `.cursor/skills/working-on-ai-controllers/SKILL.md`. |
 
 ## Testing Locally
 

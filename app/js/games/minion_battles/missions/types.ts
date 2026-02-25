@@ -84,12 +84,17 @@ export interface SpecialTilePlacement {
     row: number;
 }
 
+/** AI controller ID. Default is 'legacy' when omitted. */
+export type AIControllerId = 'legacy' | 'defensePoints';
+
 /** Full battle configuration for a mission. */
 export interface MissionBattleConfig {
     /** Mission ID (matches the id from MissionSelectPhase). */
     missionId: string;
     /** Display name. */
     name: string;
+    /** AI controller for enemy units. Omitted or 'legacy' uses LegacyAIController. */
+    aiController?: AIControllerId;
     /** List of enemies to spawn at battle start. */
     enemies: EnemySpawnDef[];
     /** Level events: spawn waves, victory checks, etc. */

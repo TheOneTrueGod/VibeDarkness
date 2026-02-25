@@ -96,10 +96,10 @@ function createTerrain(): TerrainGrid {
 }
 
 const ENEMIES = [
-    { ...ENEMY_RANGED, name: 'Raider Scout', hp: 40, speed: 100, position: { x: 950, y: 250 }, aiSettings: { minRange: 100, maxRange: 180 } },
-    { ...ENEMY_MELEE, name: 'Raider Brute', hp: 70, speed: 60, position: { x: 1050, y: 400 } },
-    { ...ENEMY_RANGED, name: 'Raider Archer', hp: 35, speed: 30, position: { x: 1000, y: 550 }, aiSettings: { minRange: 120, maxRange: 200 } },
-    { ...ENEMY_MELEE, name: 'Raider Captain', hp: 80, speed: 70, position: { x: 1100, y: 400 }, aiSettings: { minRange: 40, maxRange: 100 } },
+    { ...ENEMY_RANGED, name: 'Raider Scout', hp: 40, speed: 100, position: { x: 950, y: 250 }, aiSettings: { minRange: 100, maxRange: 180 }, abilities: [...ENEMY_RANGED.abilities, 'channel_darkness'] },
+    { ...ENEMY_MELEE, name: 'Raider Brute', hp: 70, speed: 60, position: { x: 1050, y: 400 }, abilities: [...ENEMY_MELEE.abilities, 'channel_darkness'] },
+    { ...ENEMY_RANGED, name: 'Raider Archer', hp: 35, speed: 30, position: { x: 1000, y: 550 }, aiSettings: { minRange: 120, maxRange: 200 }, abilities: [...ENEMY_RANGED.abilities, 'channel_darkness'] },
+    { ...ENEMY_MELEE, name: 'Raider Captain', hp: 80, speed: 70, position: { x: 1100, y: 400 }, aiSettings: { minRange: 40, maxRange: 100 }, abilities: [...ENEMY_MELEE.abilities, 'channel_darkness'] },
 ];
 
 export class LastHoldoutMission extends BaseMissionDef {
@@ -107,6 +107,7 @@ export class LastHoldoutMission extends BaseMissionDef {
     name = 'The Last Holdout';
     enemies = ENEMIES;
     createTerrain = createTerrain;
+    aiController = 'defensePoints' as const;
 }
 
 /** Mission instance for use in MISSION_MAP and mission select. */

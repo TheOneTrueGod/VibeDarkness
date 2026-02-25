@@ -75,6 +75,12 @@ export class Unit extends GameObject {
     /** Recalculate pathfinding every N ticks (0 = never). Set at spawn from engine RNG. */
     pathfindingRetriggerOffset: number = 0;
 
+    /** AI state: ID of the DefendPoint this unit is moving toward (serialized). */
+    defensePointTarget: string | undefined = undefined;
+
+    /** AI state: ID of the unit this AI is currently targeting in combat (serialized). */
+    aiTargetUnitId: string | undefined = undefined;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -342,6 +348,8 @@ export class Unit extends GameObject {
             radius: this.radius,
             aiSettings: this.aiSettings,
             pathfindingRetriggerOffset: this.pathfindingRetriggerOffset,
+            defensePointTarget: this.defensePointTarget,
+            aiTargetUnitId: this.aiTargetUnitId,
             resources: this.resources.map((r) => r.toJSON()),
         };
     }
@@ -381,6 +389,8 @@ export class Unit extends GameObject {
         unit.radius = (data.radius as number) ?? DEFAULT_UNIT_RADIUS;
         unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
         unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
+        unit.defensePointTarget = data.defensePointTarget as string | undefined;
+        unit.aiTargetUnitId = data.aiTargetUnitId as string | undefined;
         unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
         unit.abilityNote = (data.abilityNote as AbilityNote | null) ?? null;
 

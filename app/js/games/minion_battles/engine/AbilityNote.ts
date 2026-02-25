@@ -9,6 +9,9 @@ export interface AbilityNoteMap {
     '0002': { position: { x: number; y: number } };
     '0003': {
         targetId: string;
+        /** Snapshot of target position at lunge start (for previews without engine context). */
+        targetX: number;
+        targetY: number;
         lungeStartX: number;
         lungeStartY: number;
         hitTargetIds: string[];

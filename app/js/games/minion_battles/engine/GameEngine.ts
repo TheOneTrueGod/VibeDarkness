@@ -23,8 +23,7 @@ import { getAbility } from '../abilities/AbilityRegistry';
 import { getCardDef } from '../card_defs';
 import { spendAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
-import { areEnemies } from './teams';
-import type { TeamId } from './teams';
+import { type TeamId, areEnemies } from './teams';
 import { Rage } from '../resources/Rage';
 import { Mana } from '../resources/Mana';
 import type { Resource } from '../resources/Resource';
@@ -36,6 +35,9 @@ import { ENEMY_MELEE, ENEMY_RANGED, ENEMY_DARK_WOLF } from '../constants/enemyCo
 import type { SpecialTile } from '../objects/SpecialTile';
 import { specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
 import { getSpecialTileDef } from '../missions/specialTileDefs';
+import { buildAIController } from '../missions/ai';
+import type { AIContext } from '../missions/ai';
+import { getPerceptionRange } from './unitDef';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
@@ -127,6 +129,9 @@ export class GameEngine {
     /** The local player's ID. Used to decide which unit to center camera on. */
     localPlayerId: string = '';
 
+    /** AI controller ID for enemy units ('legacy' | 'defensePoints'). Set from mission or restored from snapshot. */
+    aiControllerId: string | null = null;
+
     /** Level events from mission. Cleared on restore. */
     private levelEvents: LevelEvent[] = [];
     /** Indices of one-shot events that have already fired (spawnWave). */
@@ -147,9 +152,10 @@ export class GameEngine {
      * Sets localPlayerId, terrainManager, resets object IDs, and subscribes to round_end.
      * If isHost is true, generates a random seed for deterministic RNG across clients.
      */
-    prepareForNewGame(config: { localPlayerId: string; terrainManager?: TerrainManager | null; isHost?: boolean }): void {
+    prepareForNewGame(config: { localPlayerId: string; terrainManager?: TerrainManager | null; isHost?: boolean; aiControllerId?: string | null }): void {
         this.localPlayerId = config.localPlayerId;
         this.terrainManager = config.terrainManager ?? null;
+        this.aiControllerId = config.aiControllerId ?? null;
         resetGameObjectIdCounter(1);
         if (config.isHost) {
             this.randomSeed = this.generateHostSeed();
@@ -305,15 +311,11 @@ export class GameEngine {
         for (const unit of this.units) {
             if (!unit.active) continue;
 
-            // Periodic pathfinding retrigger for AI units with movement targets
-            if (
-                unit.pathfindingRetriggerOffset > 0 &&
-                unit.movement?.targetUnitId &&
-                this.gameTick % unit.pathfindingRetriggerOffset === 0
-            ) {
-                const target = this.getUnit(unit.movement.targetUnitId);
-                if (target?.isAlive()) {
-                    this.applyAIMovement(unit, target);
+            // Periodic pathfinding retrigger for AI units
+            if (unit.pathfindingRetriggerOffset > 0 && this.gameTick % unit.pathfindingRetriggerOffset === 0) {
+                const controller = buildAIController(this.aiControllerId);
+                if (controller.onPathfindingRetrigger) {
+                    controller.onPathfindingRetrigger(unit, this.buildAIContext());
                 }
             }
 
@@ -331,7 +333,8 @@ export class GameEngine {
             if (!unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
                 this.runVictoryChecks(); // before turn
                 this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
-                this.executeAITurn(unit);
+                const controller = buildAIController(this.aiControllerId);
+                controller.executeTurn(unit, this.buildAIContext());
             }
         }
 
@@ -496,191 +499,27 @@ export class GameEngine {
     }
 
     // ========================================================================
-    // AI
+    // AI (delegates to mission's UnitAIController)
     // ========================================================================
 
-    private executeAITurn(unit: Unit): void {
-        // Find all living enemies
-        const enemies = this.units.filter(
-            (u) => u.isAlive() && areEnemies(unit.teamId, u.teamId),
-        );
-        if (enemies.length === 0) {
-            unit.startCooldown(1); // wait cooldown
-            this.eventBus.emit('turn_end', { unitId: unit.id });
-            return;
-        }
-
-        // Pick a random target for movement decisions (deterministic RNG)
-        const moveTarget = enemies[this.generateRandomInteger(0, enemies.length - 1)];
-
-        // Set move target based on unit AI range settings
-        if (unit.aiSettings) {
-            this.applyAIMovement(unit, moveTarget);
-        }
-
-        // Try each ability and find one with a valid target in range
-        for (const abilityId of unit.abilities) {
-            const ability = getAbility(abilityId);
-            if (!ability) continue;
-
-            // Find a target within this ability's AI range
-            const validTarget = this.findAIAbilityTarget(unit, ability, enemies);
-            if (!validTarget) continue;
-
-            // Build resolved targets aimed at the valid target
-            const resolvedTargets: ResolvedTarget[] = ability.targets.map((t) => {
-                if (t.type === 'pixel') {
-                    return { type: 'pixel', position: { x: validTarget.x, y: validTarget.y } };
-                }
-                if (t.type === 'unit') {
-                    return { type: 'unit', unitId: validTarget.id };
-                }
-                return { type: 'player', playerId: validTarget.ownerId, unitId: validTarget.id };
-            });
-
-            // Queue order at current tick so it is recorded and applied in this tick
-            const order: BattleOrder = {
-                unitId: unit.id,
-                abilityId: ability.id,
-                targets: resolvedTargets,
-                movePath: unit.movement?.path ? [...unit.movement.path] : undefined,
-            };
-            this.queueOrder(this.gameTick, order);
-            this.eventBus.emit('turn_end', { unitId: unit.id });
-            return;
-        }
-
-        // No ability had a valid target in range — wait
-        const waitOrder: BattleOrder = { unitId: unit.id, abilityId: 'wait', targets: [] };
-        this.queueOrder(this.gameTick, waitOrder);
-        this.eventBus.emit('turn_end', { unitId: unit.id });
-    }
-
-    /**
-     * Find a random enemy target that is within an ability's AI range.
-     * If the ability has no aiSettings, any enemy is valid.
-     * Returns null if no target is in range.
-     */
-    private findAIAbilityTarget(unit: Unit, ability: AbilityStatic, enemies: Unit[]): Unit | null {
-        const ai = ability.aiSettings;
-
-        // No AI settings on the ability — pick a random enemy (deterministic RNG)
-        if (!ai) {
-            return enemies[this.generateRandomInteger(0, enemies.length - 1)] ?? null;
-        }
-
-        // Filter enemies within the ability's range
-        const inRange = enemies.filter((e) => {
-            const dx = e.x - unit.x;
-            const dy = e.y - unit.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            return dist >= ai.minRange && dist <= ai.maxRange;
-        });
-
-        if (inRange.length === 0) return null;
-        return inRange[this.generateRandomInteger(0, inRange.length - 1)];
-    }
-
-    /**
-     * Set movement on an AI unit so it stays within its preferred range
-     * of the given target. Reuses existing paths when possible.
-     */
-    private applyAIMovement(unit: Unit, target: Unit): void {
-        const ai = unit.aiSettings;
-        if (!ai || !this.terrainManager) return;
-
-        const grid = this.terrainManager.grid;
-
-        const dx = target.x - unit.x;
-        const dy = target.y - unit.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist === 0) return; // exactly on top; skip to avoid division by zero
-
-        const idealRange = (ai.minRange + ai.maxRange) / 2;
-        let destX: number | null = null;
-        let destY: number | null = null;
-
-        if (dist > ai.maxRange) {
-            // Too far — move toward target, stopping at ideal range
-            const moveToDistance = dist - idealRange;
-            destX = unit.x + (dx / dist) * moveToDistance;
-            destY = unit.y + (dy / dist) * moveToDistance;
-        } else if (dist < ai.minRange) {
-            // Too close — back away from target to ideal range
-            const retreatDistance = idealRange - dist;
-            destX = unit.x - (dx / dist) * retreatDistance;
-            destY = unit.y - (dy / dist) * retreatDistance;
-        }
-
-        if (destX === null || destY === null) return; // Already in range
-
-        // Clamp to world bounds
-        destX = Math.max(0, Math.min(WORLD_WIDTH, destX));
-        destY = Math.max(0, Math.min(WORLD_HEIGHT, destY));
-
-        const destGrid = grid.worldToGrid(destX, destY);
-
-        // Try to reuse existing path if tracking the same target
-        if (
-            unit.movement &&
-            unit.movement.targetUnitId === target.id &&
-            unit.movement.path.length > 0
-        ) {
-            const pathEnd = unit.movement.path[unit.movement.path.length - 1];
-
-            // Path already leads to the right destination cell
-            if (pathEnd.col === destGrid.col && pathEnd.row === destGrid.row) {
-                return;
-            }
-
-            // Compute sub-path from end of current path to new destination
-            const subPath = this.terrainManager.findGridPath(
-                pathEnd.col, pathEnd.row,
-                destGrid.col, destGrid.row,
-            );
-
-            if (subPath && subPath.length > 0) {
-                // Remove overlapping cells: if the sub-path backtracks through
-                // cells already in the current path, trim from both ends.
-                let currentTrimAt = unit.movement.path.length;
-                let subPathStart = 0;
-
-                for (let s = 0; s < subPath.length; s++) {
-                    let found = false;
-                    for (let c = currentTrimAt - 1; c >= 0; c--) {
-                        if (
-                            unit.movement.path[c].col === subPath[s].col &&
-                            unit.movement.path[c].row === subPath[s].row
-                        ) {
-                            currentTrimAt = c;
-                            subPathStart = s + 1;
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) break;
-                }
-
-                unit.movement.path.length = currentTrimAt;
-                unit.movement.path.push(...subPath.slice(subPathStart));
-                unit.movement.pathfindingTick = this.gameTick;
-                return;
-            }
-        }
-
-        // Fresh path from unit's current position to destination
-        const unitGrid = grid.worldToGrid(unit.x, unit.y);
-        const path = this.terrainManager.findGridPath(
-            unitGrid.col, unitGrid.row,
-            destGrid.col, destGrid.row,
-        );
-
-        if (path && path.length > 0) {
-            unit.setMovement(path, target.id, this.gameTick);
-        } else {
-            unit.clearMovement();
-        }
+    private buildAIContext(): AIContext {
+        return {
+            gameTick: this.gameTick,
+            getUnit: (id) => this.getUnit(id),
+            getUnits: () => this.units,
+            getSpecialTiles: () => this.specialTiles,
+            getAliveDefendPoints: () =>
+                this.specialTiles.filter((t) => t.defId === 'DefendPoint' && t.hp > 0),
+            terrainManager: this.terrainManager,
+            queueOrder: (atTick, order) => this.queueOrder(atTick, order),
+            emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId }),
+            generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
+            WORLD_WIDTH,
+            WORLD_HEIGHT,
+            hasLineOfSight: (fromX, fromY, toX, toY) =>
+                this.terrainManager?.grid.hasLineOfSight(fromX, fromY, toX, toY) ?? false,
+            cancelActiveAbility: (unitId, abilityId) => this.cancelActiveAbility(unitId, abilityId),
+        };
     }
 
     // ========================================================================
@@ -709,6 +548,29 @@ export class GameEngine {
 
                 const currentTime = this.gameTime - active.startTime;
                 const prevTime = currentTime - dt;
+
+                // ChannelDarkness: cancel if an enemy appears in perception with LOS
+                if (active.abilityId === 'channel_darkness') {
+                    const perception = getPerceptionRange(unit.characterId);
+                    const hostiles = this.units.filter(
+                        (u) => u.isAlive() && u.id !== unit.id && areEnemies(unit.teamId, u.teamId),
+                    );
+                    const inRangeAndLOS = hostiles.filter((h) => {
+                        const d = Math.hypot(h.x - unit.x, h.y - unit.y);
+                        if (d > perception) return false;
+                        return this.terrainManager?.grid.hasLineOfSight(unit.x, unit.y, h.x, h.y) ?? false;
+                    });
+                    if (inRangeAndLOS.length > 0) {
+                        inRangeAndLOS.sort(
+                            (a, b) =>
+                                Math.hypot(a.x - unit.x, a.y - unit.y) - Math.hypot(b.x - unit.x, b.y - unit.y),
+                        );
+                        unit.aiTargetUnitId = inRangeAndLOS[0]!.id;
+                        unit.activeAbilities.splice(i, 1);
+                        i--;
+                        continue;
+                    }
+                }
 
                 ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime);
 
@@ -749,6 +611,19 @@ export class GameEngine {
 
     getUnit(id: string): Unit | undefined {
         return this.units.find((u) => u.id === id);
+    }
+
+    /** Deal damage to a special tile by id (e.g. DefendPoint). */
+    damageSpecialTile(tileId: string, amount: number): void {
+        const tile = this.specialTiles.find((t) => t.id === tileId);
+        if (tile) tile.hp = Math.max(0, tile.hp - amount);
+    }
+
+    /** Remove an active ability from a unit (e.g. cancel channel when enemy appears). */
+    cancelActiveAbility(unitId: string, abilityId: string): void {
+        const unit = this.getUnit(unitId);
+        if (!unit) return;
+        unit.activeAbilities = unit.activeAbilities.filter((a) => a.abilityId !== abilityId);
     }
 
     /** Get the local player's unit. */
@@ -815,6 +690,9 @@ export class GameEngine {
                 y: pos.y,
                 ownerId: 'ai' as const,
             };
+            if (this.aiControllerId === 'defensePoints') {
+                config.abilities = [...(config.abilities ?? []), 'channel_darkness'];
+            }
             const unit = createUnitFromSpawnConfig(config, this.eventBus);
             this.addUnit(unit);
         }
@@ -941,6 +819,7 @@ export class GameEngine {
             waitingForOrders: this.waitingForOrders,
             orders: this.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
             specialTiles: this.specialTiles.map((t) => specialTileToJSON(t) as unknown as import('./types').SerializedSpecialTile),
+            aiControllerId: this.aiControllerId,
         };
     }
 
@@ -954,6 +833,7 @@ export class GameEngine {
         engine.roundNumber = data.roundNumber;
         engine.snapshotIndex = data.snapshotIndex;
         engine.waitingForOrders = data.waitingForOrders;
+        engine.aiControllerId = data.aiControllerId ?? null;
         engine.pendingOrders = (data.orders ?? []).map((o) => ({
             gameTick: o.gameTick,
             order: { ...o.order, targets: (o.order.targets ?? []).map((t) => ({ ...t })) },

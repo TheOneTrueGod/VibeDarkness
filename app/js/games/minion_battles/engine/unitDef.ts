@@ -31,15 +31,15 @@ export interface IUnitDef {
     createVisual(unit: Unit, context: IUnitRenderContext): Container;
 }
 
-/** Body color, optional character sprite key, and optional default HP/speed for unit creation. */
-const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string; hp?: number; speed?: number }> = {
+/** Body color, optional character sprite key, default HP/speed, and perception range (px) for AI. */
+const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string; hp?: number; speed?: number; perceptionRange?: number }> = {
     warrior: { bodyColor: 0x8b0000 },
     mage: { bodyColor: 0x4a148c },
     ranger: { bodyColor: 0x2e7d32 },
     healer: { bodyColor: 0xf5f5dc },
-    enemy_ranged: { bodyColor: 0x555555, characterSpriteKey: 'enemy_ranged' },
-    enemy_melee: { bodyColor: 0x555555, characterSpriteKey: 'enemy_melee' },
-    dark_wolf: { bodyColor: 0x1a1a2e, characterSpriteKey: 'dark_wolf', hp: 12, speed: 120 },
+    enemy_ranged: { bodyColor: 0x555555, characterSpriteKey: 'enemy_ranged', perceptionRange: 400 },
+    enemy_melee: { bodyColor: 0x555555, characterSpriteKey: 'enemy_melee', perceptionRange: 250 },
+    dark_wolf: { bodyColor: 0x1a1a2e, characterSpriteKey: 'dark_wolf', hp: 12, speed: 100, perceptionRange: 300 },
 };
 
 const DEFAULT_BODY_COLOR = 0x555555;
@@ -135,6 +135,11 @@ export function getDefaultHp(characterId: string): number {
 /** Default speed for a character ID. Used when creating units without explicit speed. Returns 100 if not configured. */
 export function getDefaultSpeed(characterId: string): number {
     return UNIT_DEFS[characterId]?.speed ?? 100;
+}
+
+/** Perception range in px for AI (line-of-sight targeting). Returns 300 if not configured. */
+export function getPerceptionRange(characterId: string): number {
+    return UNIT_DEFS[characterId]?.perceptionRange ?? 300;
 }
 
 /**

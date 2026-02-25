@@ -84,6 +84,23 @@ export class TerrainGrid {
         return TERRAIN_PROPERTIES[this.getAtWorld(worldX, worldY)].projectilePassable;
     }
 
+    /**
+     * True if the line between two world positions does not pass through obstructed terrain.
+     * Only Rock is considered obstructing (blocks line of sight).
+     */
+    hasLineOfSight(fromX: number, fromY: number, toX: number, toY: number): boolean {
+        const from = this.worldToGrid(fromX, fromY);
+        const to = this.worldToGrid(toX, toY);
+        const steps = Math.max(Math.abs(to.col - from.col), Math.abs(to.row - from.row), 1);
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const col = Math.round(from.col + (to.col - from.col) * t);
+            const row = Math.round(from.row + (to.row - from.row) * t);
+            if (this.get(col, row) === TerrainType.Rock) return false;
+        }
+        return true;
+    }
+
     /** World width in pixels. */
     get worldWidth(): number {
         return this.width * this.cellSize;

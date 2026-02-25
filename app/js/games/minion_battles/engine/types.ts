@@ -47,6 +47,8 @@ export interface SerializedGameState {
     orders?: OrderAtTick[];
     /** Special tiles (defend points, etc.) with runtime state. */
     specialTiles?: SerializedSpecialTile[];
+    /** AI controller ID for enemy units (e.g. 'legacy', 'defensePoints'). Omitted => legacy. */
+    aiControllerId?: string | null;
 }
 
 /** Serialized card instance. */
@@ -79,10 +81,12 @@ export interface OrderAtTick {
 
 /** A resolved target from the targeting system. */
 export interface ResolvedTarget {
-    type: 'player' | 'unit' | 'pixel';
+    type: 'player' | 'unit' | 'pixel' | 'specialTile';
     unitId?: string;
     playerId?: string;
     position?: { x: number; y: number };
+    /** For type 'specialTile': the special tile id (e.g. DefendPoint instance id). */
+    specialTileId?: string;
 }
 
 /** Configuration for spawning a unit at battle start. */

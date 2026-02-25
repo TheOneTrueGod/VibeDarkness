@@ -80,9 +80,9 @@ function createTerrain(): TerrainGrid {
 }
 
 const ENEMIES = [
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1000, y: 300 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1050, y: 500 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1100, y: 400 } },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1000, y: 300 }, abilities: [...ENEMY_DARK_WOLF.abilities, 'channel_darkness'] },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1050, y: 500 }, abilities: [...ENEMY_DARK_WOLF.abilities, 'channel_darkness'] },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1100, y: 400 }, abilities: [...ENEMY_DARK_WOLF.abilities, 'channel_darkness'] },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
@@ -126,6 +126,7 @@ export class DarkAwakeningMission extends BaseMissionDef {
     levelEvents = LEVEL_EVENTS;
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
+    aiController = 'defensePoints' as const;
 }
 
 /** Mission instance for use in MISSION_MAP and mission select. */

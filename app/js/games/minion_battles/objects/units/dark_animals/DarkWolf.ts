@@ -11,7 +11,7 @@ import { DEFAULT_UNIT_RADIUS } from '../../../constants/unitConstants';
 const DARK_WOLF_HP = 12;
 /** Default speed is 100; 20% higher = 120. */
 const DARK_WOLF_SPEED = 120;
-const DARK_WOLF_RADIUS = DEFAULT_UNIT_RADIUS * 0.5;
+const DARK_WOLF_RADIUS = DEFAULT_UNIT_RADIUS * 0.75;
 
 export const DARK_WOLF_RADIUS_VALUE = DARK_WOLF_RADIUS;
 

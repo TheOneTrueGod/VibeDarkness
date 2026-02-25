@@ -179,7 +179,12 @@ export default function BattlePhase({
             if (engine.waitingForOrders) setIsPaused(true);
         } else {
             engine = new GameEngine();
-            engine.prepareForNewGame({ localPlayerId: playerId, terrainManager, isHost });
+            engine.prepareForNewGame({
+                localPlayerId: playerId,
+                terrainManager,
+                isHost,
+                aiControllerId: mission.aiController,
+            });
             const selections = Object.keys(characterSelections).length > 0
                 ? characterSelections
                 : ((init?.characterSelections ?? init?.character_selections) as Record<string, string>) ?? {};
