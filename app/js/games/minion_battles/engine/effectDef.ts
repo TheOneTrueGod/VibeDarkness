@@ -65,9 +65,52 @@ const bashEffectDef: IEffectDef = {
     },
 };
 
+/** Bite effect: 4-frame animation of two sets of fangs closing (front view), animal bite. */
+const biteEffectDef: IEffectDef = {
+    createVisual(_effect: Effect): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Graphics, effect: Effect): void {
+        visual.clear();
+        const progress = effect.progress;
+        const size = effect.effectRadius ?? 10;
+        // 4 frames: fangs open (0) -> closed (1). Two V-shapes (top and bottom) closing toward center.
+        const openAmount = (1 - progress) * size * 0.8; // how far the jaws are open
+        const alpha = 0.9 - progress * 0.5;
+
+        // Top fangs: two lines from above meeting toward center
+        const topY = -openAmount;
+        const bottomY = openAmount;
+        const centerX = 0;
+        const leftX = -size * 0.6;
+        const rightX = size * 0.6;
+        const tipY = 0; // meeting point when closed
+
+        // Top jaw: left and right fangs coming down
+        const topLeftTipY = topY + (tipY - topY) * progress;
+        const topRightTipY = topY + (tipY - topY) * progress;
+        visual.moveTo(leftX, topY);
+        visual.lineTo(centerX - size * 0.2, topLeftTipY);
+        visual.moveTo(rightX, topY);
+        visual.lineTo(centerX + size * 0.2, topRightTipY);
+
+        // Bottom jaw: left and right fangs coming up
+        const bottomLeftTipY = bottomY - (bottomY - tipY) * progress;
+        const bottomRightTipY = bottomY - (bottomY - tipY) * progress;
+        visual.moveTo(leftX, bottomY);
+        visual.lineTo(centerX - size * 0.2, bottomLeftTipY);
+        visual.moveTo(rightX, bottomY);
+        visual.lineTo(centerX + size * 0.2, bottomRightTipY);
+
+        visual.stroke({ color: 0xffffff, width: 2, alpha });
+        visual.stroke({ color: 0x444444, width: 1, alpha: alpha * 0.8 });
+    },
+};
+
 const effectDefRegistry: Record<string, IEffectDef> = {
     default: defaultEffectDef,
     bash: bashEffectDef,
+    bite: biteEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

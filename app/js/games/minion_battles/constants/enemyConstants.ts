@@ -29,3 +29,16 @@ export const ENEMY_RANGED: EnemySpawnDef = {
     abilities: ['0001'],
     aiSettings: { minRange: 100, maxRange: 200 },
 };
+
+/** Dark Wolf: small fast enemy with DarkWolfBite (0003). 12 HP, 120 speed, half default size. */
+export const ENEMY_DARK_WOLF: EnemySpawnDef = {
+    characterId: 'dark_wolf',
+    name: 'Dark Wolf',
+    hp: 12,
+    speed: 120,
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['0003'],
+    aiSettings: { minRange: 0, maxRange: 50 },
+    radius: 10,
+};

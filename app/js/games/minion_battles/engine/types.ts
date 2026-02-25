@@ -97,6 +97,8 @@ export interface UnitSpawnConfig {
     abilities: string[];
     /** AI behavior settings (range preferences, etc.). */
     aiSettings?: AISettings;
+    /** Visual/collision radius. Omitted uses unit default for that character. */
+    radius?: number;
 }
 
 /** An ability actively being executed by a unit (tracked for tick-based effects). */

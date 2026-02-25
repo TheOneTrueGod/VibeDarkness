@@ -17,6 +17,7 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { areEnemies } from '../../engine/teams';
 import { createUnitTargetPreview } from '../../abilities/previewHelpers';
 import type { EventBus } from '../../engine/EventBus';
+import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
 const PREFIRE_TIME = 0.5;
@@ -62,7 +63,7 @@ export const BashAbility: AbilityStatic = {
     rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,
     targets: [{ type: 'unit', label: 'Target enemy' }] as TargetDef[],
-    aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: 20 } as Unit) },
+    aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
     getDescription(_gameState?: unknown): string {
         return `Melee attack. Wind up 0.5s (cannot move). If target stays in range, deal ${DAMAGE} damage and create a bash effect. Min range: ${BASE_MIN_RANGE}px, max range: 50 + your size.`;

@@ -14,6 +14,8 @@ export class Effect extends GameObject {
     elapsed: number = 0;
     /** String key the renderer uses to decide how to draw this effect. */
     effectType: string;
+    /** Optional radius for size-dependent effects (e.g. bite). */
+    effectRadius?: number;
     /** When set, effect travels from (startX, startY) to (endX, endY) over its duration. */
     private startX?: number;
     private startY?: number;
@@ -29,10 +31,13 @@ export class Effect extends GameObject {
         /** Start position for traveling effects (e.g. bash). */
         startX?: number;
         startY?: number;
+        /** Optional radius for size-dependent effects (e.g. bite). */
+        effectRadius?: number;
     }) {
         super(config.id ?? generateGameObjectId('fx'), config.x, config.y);
         this.duration = config.duration;
         this.effectType = config.effectType;
+        this.effectRadius = config.effectRadius;
         this.endX = config.x;
         this.endY = config.y;
         this.startX = config.startX;
@@ -90,6 +95,7 @@ export class Effect extends GameObject {
         };
         if (data.startX != null) config.startX = data.startX as number;
         if (data.startY != null) config.startY = data.startY as number;
+        if (data.effectRadius != null) config.effectRadius = data.effectRadius as number;
         const effect = new Effect(config);
         effect.active = data.active as boolean;
         effect.elapsed = data.elapsed as number;

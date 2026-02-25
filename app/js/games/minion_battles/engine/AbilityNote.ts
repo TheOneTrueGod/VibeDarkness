@@ -7,6 +7,12 @@
 export interface AbilityNoteMap {
     '0001': { position: { x: number; y: number } };
     '0002': { position: { x: number; y: number } };
+    '0003': {
+        targetId: string;
+        lungeStartX: number;
+        lungeStartY: number;
+        hitTargetIds: string[];
+    };
 }
 
 /** Discriminated union: { abilityId: K, abilityNote: AbilityNoteMap[K] } for each K. */

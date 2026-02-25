@@ -64,10 +64,17 @@ Both live in the same file. Export the ability for `AbilityRegistry` and the car
 
 Implement the rest of `AbilityStatic` (e.g. `getDescription`, `getAbilityStates`, `targets`, `prefireTime`, `cooldownTime`, `resourceCost`, `rechargeTurns`, `image`, `aiSettings` as needed). Use existing abilities under `abilities/` and `card_defs/` as reference.
 
+Whenever creating a static value for an ability, use a constant to define it at the top of the ability file.
+
+Whenever an ability needs to "store" some data for use in the future, it must be serializable.  So, if an ability needs to make note of a unit, it should store the unit's ID, and then when it needs to use the unit, it should look it up by its ID.
+
 ## Registration
 
 - **Ability**: In `app/js/games/minion_battles/abilities/AbilityRegistry.ts`, import the ability from `../card_defs/####_ABILITY_NAME/####Ability` and call `register(YourAbility)`.
 - **Card def**: In `app/js/games/minion_battles/card_defs/index.ts`, import the card def from `./####_ABILITY_NAME/####Ability` and add it to the `cardDefs` array (and thus `CARD_DEF_MAP`).
+
+## Ability concepts
+- ** range **: When checking for the range of something, always calculate based on the range value plus the size of the source object plus the size of the target object
 
 ## Checklist
 

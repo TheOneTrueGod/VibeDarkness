@@ -14,6 +14,7 @@ import { createMageUnit } from './MageUnit';
 import { createRangerUnit } from './RangerUnit';
 import { createHealerUnit } from './HealerUnit';
 import { createGenericEnemy } from './GenericEnemy';
+import { createDarkWolfUnit } from './dark_animals/DarkWolf';
 
 export type UnitFactoryConfig = {
     id?: string;
@@ -36,6 +37,7 @@ const UNIT_FACTORIES: Record<string, UnitFactory> = {
     mage: createMageUnit,
     ranger: createRangerUnit,
     healer: createHealerUnit,
+    dark_wolf: createDarkWolfUnit,
 };
 
 /**
@@ -73,6 +75,7 @@ export function createUnitFromSpawnConfig(
         ownerId: string;
         abilities?: string[];
         aiSettings?: import('../Unit').AISettings | null;
+        radius?: number;
     },
     eventBus: EventBus,
 ): Unit {
@@ -91,10 +94,13 @@ export function createUnitFromSpawnConfig(
             },
             eventBus,
         );
-        // Override HP/speed from spawn config
+        // Override HP/speed/radius from spawn config
         unit.hp = config.hp;
         unit.maxHp = config.hp;
         unit.speed = config.speed;
+        if (config.radius !== undefined) {
+            unit.radius = config.radius;
+        }
         if (config.aiSettings) {
             unit.aiSettings = config.aiSettings;
         }

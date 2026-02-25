@@ -32,7 +32,7 @@ import type { TerrainManager } from '../terrain/TerrainManager';
 import type { LevelEvent } from '../missions/types';
 import { getEdgePositions } from '../missions/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../objects/units/index';
-import { ENEMY_MELEE, ENEMY_RANGED } from '../constants/enemyConstants';
+import { ENEMY_MELEE, ENEMY_RANGED, ENEMY_DARK_WOLF } from '../constants/enemyConstants';
 import type { SpecialTile } from '../objects/SpecialTile';
 import { specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
 import { getSpecialTileDef } from '../missions/specialTileDefs';
@@ -798,12 +798,12 @@ export class GameEngine {
         if (evt.emittedMessage) this.emitMessage(evt.emittedMessage);
 
         const positions = getEdgePositions(evt.spawns.length);
-        const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED };
+        const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED, dark_wolf: ENEMY_DARK_WOLF };
 
         for (let s = 0; s < evt.spawns.length; s++) {
             const entry = evt.spawns[s];
             const cid = entry.characterId;
-            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged') continue;
+            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf') continue;
             const base = baseDefs[cid];
 
             const pos = positions[s] ?? { x: 40, y: 40 };

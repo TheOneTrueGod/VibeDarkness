@@ -16,6 +16,7 @@ import { getAbility } from '../abilities/AbilityRegistry';
 import { AbilityState } from '../abilities/Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
+import { DEFAULT_UNIT_RADIUS } from '../constants/unitConstants';
 
 /** AI behavior settings for enemy units. */
 export interface AISettings {
@@ -87,6 +88,8 @@ export class Unit extends GameObject {
         name: string;
         abilities?: string[];
         aiSettings?: AISettings | null;
+        /** Visual/collision radius. Defaults to DEFAULT_UNIT_RADIUS. */
+        radius?: number;
     }) {
         super(config.id ?? generateGameObjectId('unit'), config.x, config.y);
         this.hp = config.hp;
@@ -98,6 +101,7 @@ export class Unit extends GameObject {
         this.name = config.name;
         this.abilities = config.abilities ?? [];
         this.aiSettings = config.aiSettings ?? null;
+        this.radius = config.radius ?? DEFAULT_UNIT_RADIUS;
     }
 
     /** Attach a resource and subscribe its event listeners. */
@@ -374,7 +378,7 @@ export class Unit extends GameObject {
             };
         }
 
-        unit.radius = (data.radius as number) ?? 20;
+        unit.radius = (data.radius as number) ?? DEFAULT_UNIT_RADIUS;
         unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
         unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
         unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];

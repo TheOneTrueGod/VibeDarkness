@@ -17,7 +17,7 @@ export type LevelEventTrigger =
 
 /** Single enemy entry in a spawn wave (position is computed at spawn time). */
 export interface SpawnWaveEntry {
-    characterId: 'enemy_melee' | 'enemy_ranged';
+    characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf';
     name?: string;
     hp?: number;
     speed?: number;
@@ -73,6 +73,8 @@ export interface EnemySpawnDef {
     abilities: string[];
     /** AI behavior settings (range preferences, etc.). */
     aiSettings?: AISettings;
+    /** Visual/collision radius. Omitted uses unit default for that character. */
+    radius?: number;
 }
 
 /** Placement of a special tile in a mission (def + grid position). */

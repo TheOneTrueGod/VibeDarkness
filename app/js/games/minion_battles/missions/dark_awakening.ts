@@ -1,14 +1,14 @@
 /**
  * Dark Awakening - Mission enemy and terrain definitions.
  *
- * 2 Skeleton Warriors and 1 Dark Mage. Placed on the right side of the arena.
+ * Dark Wolves placed on the right side of the arena.
  * Terrain: Grassy open area with patches of thick grass, small stone outcrops,
  * and one large irregular rock formation in the center.
  */
 
 import { BaseMissionDef } from './BaseMissionDef';
 import type { LevelEvent } from './types';
-import { ENEMY_MELEE, ENEMY_RANGED } from '../constants/enemyConstants';
+import { ENEMY_DARK_WOLF } from '../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainType } from '../terrain/TerrainType';
 
@@ -80,30 +80,30 @@ function createTerrain(): TerrainGrid {
 }
 
 const ENEMIES = [
-    { ...ENEMY_MELEE, name: 'Skeleton Warrior', speed: 80, position: { x: 1000, y: 300 } },
-    { ...ENEMY_MELEE, name: 'Skeleton Guard', speed: 70, position: { x: 1050, y: 500 } },
-    { ...ENEMY_RANGED, name: 'Dark Mage', speed: 50, position: { x: 1100, y: 400 }, aiSettings: { minRange: 150, maxRange: 250 } },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1000, y: 300 } },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1050, y: 500 } },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1100, y: 400 } },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'spawnWave',
         trigger: { atRound: 4 },
-        spawns: [{ characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }],
+        spawns: [{ characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }],
         emittedMessage: 'Reinforcements have arrived!',
         emittedByNpcId: '1',
     },
     {
         type: 'spawnWave',
         trigger: { atRound: 5 },
-        spawns: [{ characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }, { characterId: 'enemy_ranged' }],
+        spawns: [{ characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }],
         emittedMessage: 'Reinforcements have arrived!',
         emittedByNpcId: '1',
     },
     {
         type: 'spawnWave',
         trigger: { atRound: 7 },
-        spawns: [{ characterId: 'enemy_melee' }, { characterId: 'enemy_melee' }, { characterId: 'enemy_ranged' }],
+        spawns: [{ characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }],
         emittedMessage: 'Reinforcements have arrived!',
         emittedByNpcId: '1',
     },

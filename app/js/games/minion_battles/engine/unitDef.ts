@@ -39,6 +39,7 @@ const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string
     healer: { bodyColor: 0xf5f5dc },
     enemy_ranged: { bodyColor: 0x555555, characterSpriteKey: 'enemy_ranged' },
     enemy_melee: { bodyColor: 0x555555, characterSpriteKey: 'enemy_melee' },
+    dark_wolf: { bodyColor: 0x1a1a2e, characterSpriteKey: 'dark_wolf', hp: 12, speed: 120 },
 };
 
 const DEFAULT_BODY_COLOR = 0x555555;

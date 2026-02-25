@@ -30,6 +30,8 @@ const MOVE_TARGET_COLOR = 0x000000;
 const BOWMAN_SVG_URL = new URL('../assets/characters/bowman.svg', import.meta.url).href;
 /** Melee enemy character sprite (swordwoman). */
 const SWORDWOMAN_SVG_URL = new URL('../assets/characters/swordwoman.svg', import.meta.url).href;
+/** Dark Wolf character sprite (wolf head). */
+const WOLF_HEAD_SVG_URL = new URL('../assets/characters/dark_animals/wolf-head.svg', import.meta.url).href;
 
 export class GameRenderer {
     app: Application;
@@ -57,6 +59,8 @@ export class GameRenderer {
     private bowmanTexture: Texture | null = null;
     /** Cached texture for melee enemy (swordwoman) character sprite. */
     private swordwomanTexture: Texture | null = null;
+    /** Cached texture for dark_wolf (wolf head) character sprite. */
+    private wolfHeadTexture: Texture | null = null;
     /** Cached texture for DefendPoint (campfire). */
     private defendPointTexture: Texture | null = null;
 
@@ -92,6 +96,11 @@ export class GameRenderer {
             this.swordwomanTexture = (await Assets.load(SWORDWOMAN_SVG_URL)) as Texture;
         } catch {
             // Non-fatal: melee enemies will show the default circle + initial
+        }
+        try {
+            this.wolfHeadTexture = (await Assets.load(WOLF_HEAD_SVG_URL)) as Texture;
+        } catch {
+            // Non-fatal: dark_wolf will show the default circle + initial
         }
         const defendPointDef = getSpecialTileDef('DefendPoint');
         if (defendPointDef?.image) {
@@ -253,6 +262,7 @@ export class GameRenderer {
             getCharacterTexture: (characterId: string) => {
                 if (characterId === 'enemy_ranged') return this.bowmanTexture;
                 if (characterId === 'enemy_melee') return this.swordwomanTexture;
+                if (characterId === 'dark_wolf') return this.wolfHeadTexture;
                 return null;
             },
         };

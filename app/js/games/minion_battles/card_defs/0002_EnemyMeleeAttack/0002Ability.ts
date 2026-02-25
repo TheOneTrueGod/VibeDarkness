@@ -11,6 +11,7 @@ import type { CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../engine/AbilityNote';
 import { areEnemies } from '../../engine/teams';
+import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}02`;
 const LOCK_TIME = 0.5;
@@ -81,7 +82,7 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
     rechargeTurns: 0,
     prefireTime: PREFIRE_TIME,
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
-    aiSettings: { minRange: 0, maxRange: getMaxRadius({ radius: 20 } as Unit) },
+    aiSettings: { minRange: 0, maxRange: getMaxRadius({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
     getDescription(_gameState?: unknown): string {
         return `Wind up for 0.5s, then strike in a cone. Deals ${DAMAGE} damage. Min range just beyond melee; max ${MAX_RANGE}px farther.`;
