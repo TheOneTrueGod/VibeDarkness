@@ -14,6 +14,7 @@ import type { EventBus } from '../engine/EventBus';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { createUnitByCharacterId, createUnitFromSpawnConfig } from '../objects/units/index';
 import { createCardInstance, WORLD_HEIGHT } from '../engine/GameEngine';
+import { getSpecialTileDef } from './specialTileDefs';
 
 /** Parameters for initializing game state. */
 export interface InitializeGameStateParams {
@@ -45,6 +46,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     abstract createTerrain: () => TerrainGrid;
     /** Optional level events (spawn waves, victory checks, etc.). */
     levelEvents?: LevelEvent[];
+    /** Optional special tiles (DefendPoint, etc.) placed on the map. */
+    specialTiles?: import('./types').SpecialTilePlacement[];
 
     /**
      * Set up the initial game state with player units, enemies, projectiles, and effects.
@@ -64,7 +67,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             const isWarrior = pu.characterId === 'warrior';
             const isRanger = pu.characterId === 'ranger';
             const abilities = isWarrior
-                ? ['throw_knife', '0101', '0102']
+                ? ['throw_rock', '0101', '0102']
                 : isRanger
                   ? ['0001']
                   : ['throw_knife'];
@@ -92,9 +95,10 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     createCardInstance('0001_4', '0001', 'hand'),
                 ];
             } else {
+                const throwCardId = isWarrior ? 'throw_rock' : 'throw_knife';
                 hand = [
-                    createCardInstance('throw_knife_1', 'throw_knife', 'hand'),
-                    createCardInstance('throw_knife_2', 'throw_knife', 'hand'),
+                    createCardInstance(`${throwCardId}_1`, throwCardId, 'hand'),
+                    createCardInstance(`${throwCardId}_2`, throwCardId, 'hand'),
                     createCardInstance('0102_1', '0102', 'hand'),
                     createCardInstance('0102_2', '0102', 'hand'),
                 ];
@@ -125,6 +129,22 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 params.eventBus,
             );
             engine.addUnit(unit);
+        }
+
+        // Add special tiles
+        if (this.specialTiles && this.specialTiles.length > 0) {
+            for (const p of this.specialTiles) {
+                const def = getSpecialTileDef(p.defId);
+                if (!def || def.id !== 'DefendPoint') continue;
+                engine.addSpecialTile({
+                    id: `special_${p.defId}_${p.col}_${p.row}`,
+                    defId: p.defId,
+                    col: p.col,
+                    row: p.row,
+                    hp: def.maxHp,
+                    maxHp: def.maxHp,
+                });
+            }
         }
 
         // Base implementation adds no projectiles or effects.

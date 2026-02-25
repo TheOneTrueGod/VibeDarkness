@@ -75,6 +75,13 @@ export interface EnemySpawnDef {
     aiSettings?: AISettings;
 }
 
+/** Placement of a special tile in a mission (def + grid position). */
+export interface SpecialTilePlacement {
+    defId: string;
+    col: number;
+    row: number;
+}
+
 /** Full battle configuration for a mission. */
 export interface MissionBattleConfig {
     /** Mission ID (matches the id from MissionSelectPhase). */
@@ -87,4 +94,6 @@ export interface MissionBattleConfig {
     levelEvents?: LevelEvent[];
     /** Create the terrain grid for this mission's battlefield. */
     createTerrain: () => TerrainGrid;
+    /** Optional special tiles (DefendPoint, etc.) placed on the map. */
+    specialTiles?: SpecialTilePlacement[];
 }

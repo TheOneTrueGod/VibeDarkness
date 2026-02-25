@@ -20,6 +20,8 @@ import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainRenderer } from '../terrain/TerrainRenderer';
 import { renderUnit, updateUnitHpBar, type IUnitRenderContext } from './unitDef';
 import { createEffectVisual, updateEffectVisual } from './effectDef';
+import { getSpecialTileDef } from '../missions/specialTileDefs';
+import type { SpecialTile } from '../objects/SpecialTile';
 
 /** Color for move target markers. */
 const MOVE_TARGET_COLOR = 0x000000;
@@ -47,11 +49,16 @@ export class GameRenderer {
     private terrainRenderer: TerrainRenderer = new TerrainRenderer();
     private terrainSprite: Sprite | null = null;
     private pendingTerrainGrid: TerrainGrid | null = null;
+    /** Container for special tiles (above terrain, below units). */
+    private specialTilesContainer: Container = new Container();
+    private specialTileVisuals: Map<string, Container> = new Map();
 
     /** Cached texture for ranged enemy (bowman) character sprite. */
     private bowmanTexture: Texture | null = null;
     /** Cached texture for melee enemy (swordwoman) character sprite. */
     private swordwomanTexture: Texture | null = null;
+    /** Cached texture for DefendPoint (campfire). */
+    private defendPointTexture: Texture | null = null;
 
     constructor() {
         this.app = new Application();
@@ -86,6 +93,14 @@ export class GameRenderer {
         } catch {
             // Non-fatal: melee enemies will show the default circle + initial
         }
+        const defendPointDef = getSpecialTileDef('DefendPoint');
+        if (defendPointDef?.image) {
+            try {
+                this.defendPointTexture = (await Assets.load(defendPointDef.image)) as Texture;
+            } catch {
+                // Non-fatal: DefendPoint will not render
+            }
+        }
 
         // Build terrain sprite if it was queued before init completed
         if (this.pendingTerrainGrid) {
@@ -115,6 +130,10 @@ export class GameRenderer {
         this.terrainSprite = this.terrainRenderer.buildSprite(terrainGrid);
         // Insert terrain at the very bottom of the game container
         this.gameContainer.addChildAt(this.terrainSprite, 0);
+        // Insert special tiles container above terrain (index 1)
+        if (!this.specialTilesContainer.parent) {
+            this.gameContainer.addChildAt(this.specialTilesContainer, 1);
+        }
     }
 
     /** Resize the renderer (e.g. on window resize). */
@@ -151,12 +170,77 @@ export class GameRenderer {
         this.gameContainer.y = -camera.y + camera.viewportHeight / 2;
 
         this.renderUnits(engine.units);
+        this.renderSpecialTiles(engine.specialTiles);
         this.renderMoveTargets(engine.units);
         this.renderProjectiles(engine.projectiles);
         this.renderEffects(engine.effects);
         this.renderActiveAbilityPreviews(engine);
         this.renderTargetingPreview(engine);
         this.cleanupStaleVisuals(engine);
+    }
+
+    // ========================================================================
+    // Special Tiles
+    // ========================================================================
+
+    private renderSpecialTiles(specialTiles: SpecialTile[]): void {
+        for (const tile of specialTiles) {
+            if (tile.hp <= 0) continue;
+            let visual = this.specialTileVisuals.get(tile.id);
+            if (!visual) {
+                visual = this.createSpecialTileVisual(tile);
+                if (visual) {
+                    this.specialTileVisuals.set(tile.id, visual);
+                    this.specialTilesContainer.addChild(visual);
+                }
+            }
+            if (visual) {
+                const x = tile.col * CELL_SIZE + CELL_SIZE / 2;
+                const y = tile.row * CELL_SIZE + CELL_SIZE / 2;
+                visual.x = x;
+                visual.y = y;
+                // Update HP bar for DefendPoint
+                if (tile.defId === 'DefendPoint' && visual.children.length > 1) {
+                    const hpBar = visual.getChildAt(1) as Graphics;
+                    if (hpBar) {
+                        hpBar.clear();
+                        const w = 24;
+                        const h = 4;
+                        const pct = tile.maxHp > 0 ? tile.hp / tile.maxHp : 0;
+                        hpBar.rect(-w / 2, -CELL_SIZE / 2 - 8, w, h);
+                        hpBar.fill({ color: 0x333333 });
+                        hpBar.rect(-w / 2, -CELL_SIZE / 2 - 8, w * pct, h);
+                        hpBar.fill({ color: 0x44aa44 });
+                    }
+                }
+            }
+        }
+
+        // Remove visuals for tiles that no longer exist or have 0 HP
+        const activeIds = new Set(specialTiles.filter((t) => t.hp > 0).map((t) => t.id));
+        for (const [id, visual] of this.specialTileVisuals) {
+            if (!activeIds.has(id)) {
+                this.specialTilesContainer.removeChild(visual);
+                visual.destroy();
+                this.specialTileVisuals.delete(id);
+            }
+        }
+    }
+
+    private createSpecialTileVisual(tile: SpecialTile): Container | undefined {
+        const def = getSpecialTileDef(tile.defId);
+        if (!def || def.id !== 'DefendPoint') return undefined;
+        const container = new Container();
+        if (this.defendPointTexture) {
+            const sprite = new Sprite(this.defendPointTexture);
+            sprite.anchor.set(0.5, 1);
+            sprite.width = 32;
+            sprite.height = 32;
+            container.addChild(sprite);
+        }
+        const hpBar = new Graphics();
+        container.addChild(hpBar);
+        return container;
     }
 
     // ========================================================================
@@ -386,10 +470,12 @@ export class GameRenderer {
         for (const visual of this.moveTargetVisuals.values()) visual.destroy();
         for (const visual of this.projectileVisuals.values()) visual.destroy();
         for (const visual of this.effectVisuals.values()) visual.destroy();
+        for (const visual of this.specialTileVisuals.values()) visual.destroy();
         this.unitVisuals.clear();
         this.moveTargetVisuals.clear();
         this.projectileVisuals.clear();
         this.effectVisuals.clear();
+        this.specialTileVisuals.clear();
         this.terrainRenderer.destroy();
         this.terrainSprite = null;
         this.gameContainer.destroy();

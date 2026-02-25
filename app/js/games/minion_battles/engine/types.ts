@@ -21,6 +21,15 @@ export interface WaitingForOrders {
     ownerId: string;
 }
 
+/** Serialized special tile (e.g. DefendPoint with current HP). */
+export interface SerializedSpecialTile {
+    id: string;
+    defId: string;
+    col: number;
+    row: number;
+    hp: number;
+}
+
 /** Serialized game state for server sync. */
 export interface SerializedGameState {
     /** Deterministic RNG seed (host-generated before initial sync). */
@@ -36,6 +45,8 @@ export interface SerializedGameState {
     waitingForOrders: WaitingForOrders | null;
     /** Orders scheduled for future ticks (included in checkpoints). */
     orders?: OrderAtTick[];
+    /** Special tiles (defend points, etc.) with runtime state. */
+    specialTiles?: SerializedSpecialTile[];
 }
 
 /** Serialized card instance. */

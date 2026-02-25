@@ -7,6 +7,7 @@
 
 import type { AbilityStatic } from './Ability';
 import { ThrowKnife } from './ThrowKnife';
+import { ThrowRock } from './ThrowRock';
 import { DodgeAbility } from '../card_defs/0101_Dodge/0101Ability';
 import { EnemyArcherShotAbility } from '../card_defs/0001_EnemyArcherShot/0001Ability';
 import { EnemyMeleeAttackAbility } from '../card_defs/0002_EnemyMeleeAttack/0002Ability';
@@ -20,6 +21,7 @@ function register(ability: AbilityStatic): void {
 
 // -- Register all abilities --
 register(ThrowKnife);
+register(ThrowRock);
 register(DodgeAbility);
 register(EnemyArcherShotAbility);
 register(EnemyMeleeAttackAbility);

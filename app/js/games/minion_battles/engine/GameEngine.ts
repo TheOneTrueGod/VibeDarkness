@@ -33,6 +33,9 @@ import type { LevelEvent } from '../missions/types';
 import { getEdgePositions } from '../missions/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../objects/units/index';
 import { ENEMY_MELEE, ENEMY_RANGED } from '../constants/enemyConstants';
+import type { SpecialTile } from '../objects/SpecialTile';
+import { specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
+import { getSpecialTileDef } from '../missions/specialTileDefs';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
@@ -96,6 +99,8 @@ export class GameEngine {
     units: Unit[] = [];
     projectiles: Projectile[] = [];
     effects: Effect[] = [];
+    /** Special tiles (defend points, etc.) with grid position and HP. */
+    specialTiles: SpecialTile[] = [];
 
     // -- Terrain --
     terrainManager: TerrainManager | null = null;
@@ -730,6 +735,10 @@ export class GameEngine {
         this.units.push(unit);
     }
 
+    addSpecialTile(tile: SpecialTile): void {
+        this.specialTiles.push(tile);
+    }
+
     addProjectile(projectile: Projectile): void {
         this.projectiles.push(projectile);
     }
@@ -931,6 +940,7 @@ export class GameEngine {
             ),
             waitingForOrders: this.waitingForOrders,
             orders: this.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
+            specialTiles: this.specialTiles.map((t) => specialTileToJSON(t) as unknown as import('./types').SerializedSpecialTile),
         };
     }
 
@@ -976,6 +986,14 @@ export class GameEngine {
             engine.effects.push(Effect.fromJSON(fxData as Record<string, unknown>));
         }
 
+        // Restore special tiles
+        for (const tileData of data.specialTiles ?? []) {
+            const def = getSpecialTileDef(tileData.defId);
+            if (def && def.id === 'DefendPoint') {
+                engine.specialTiles.push(specialTileFromJSON(tileData as unknown as Record<string, unknown>, def));
+            }
+        }
+
         // Restore cards (ensure durability default; migrate legacy exile → deck)
         engine.cards = Object.fromEntries(
             Object.entries(data.cards).map(([pid, cards]) => [
@@ -1013,6 +1031,7 @@ export class GameEngine {
         this.units = [];
         this.projectiles = [];
         this.effects = [];
+        this.specialTiles = [];
     }
 }
 

@@ -116,12 +116,16 @@ const LEVEL_EVENTS: LevelEvent[] = [
     },
 ];
 
+/** Defend point: campfire on the left near player spawn (5 HP). */
+const SPECIAL_TILES = [{ defId: 'DefendPoint', col: 5, row: 10, hp: 5 }];
+
 export class DarkAwakeningMission extends BaseMissionDef {
     missionId = 'dark_awakening';
     name = 'A Dark Awakening';
     enemies = ENEMIES;
     levelEvents = LEVEL_EVENTS;
     createTerrain = createTerrain;
+    specialTiles = SPECIAL_TILES;
 }
 
 /** Mission instance for use in MISSION_MAP and mission select. */
