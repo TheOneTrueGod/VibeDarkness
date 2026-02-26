@@ -2,11 +2,20 @@
  * Reusable AI utilities. Share logic across LegacyAIController, DefensePointsAIController, etc.
  */
 
-import type { Unit } from '../../objects/Unit';
+import type { Unit, UnitAIContext } from '../../objects/Unit';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { ResolvedTarget } from '../../engine/types';
+import type { SpecialTile } from '../../objects/SpecialTile';
+import type { AIContext } from './types';
 import { areEnemies } from '../../engine/teams';
 import { getAbility } from '../../abilities/AbilityRegistry';
+
+/** Euclidean distance between two points. */
+export function distance(x1: number, y1: number, x2: number, y2: number): number {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    return Math.sqrt(dx * dx + dy * dy);
+}
 
 /** Get all living units hostile to the given unit. */
 export function findEnemies(unit: Unit, units: Unit[]): Unit[] {
@@ -48,6 +57,100 @@ export function buildResolvedTargets(ability: AbilityStatic, targetUnit: Unit): 
         }
         return { type: 'player' as const, playerId: targetUnit.ownerId, unitId: targetUnit.id };
     });
+}
+
+/**
+ * Filter enemies to those within perception range and line-of-sight, sorted by distance (closest first).
+ */
+export function getEnemiesInPerceptionAndLOS(
+    unit: Unit,
+    enemies: Unit[],
+    perceptionRange: number,
+    hasLineOfSight: (fromX: number, fromY: number, toX: number, toY: number) => boolean,
+): Unit[] {
+    const inRange = enemies.filter((e) => {
+        if (distance(unit.x, unit.y, e.x, e.y) > perceptionRange) return false;
+        return hasLineOfSight(unit.x, unit.y, e.x, e.y);
+    });
+    inRange.sort((a, b) => distance(unit.x, unit.y, a.x, a.y) - distance(unit.x, unit.y, b.x, b.y));
+    return inRange;
+}
+
+export interface GridLike {
+    worldToGrid(x: number, y: number): { col: number; row: number };
+    gridToWorld(col: number, row: number): { x: number; y: number };
+}
+
+/** Look up the current defend point by id stored in unit.aiContext, if any. */
+export function getDefendPointFromContext(unit: Unit, defendPoints: SpecialTile[]): SpecialTile | undefined {
+    const ctx: UnitAIContext = unit.aiContext ?? {};
+    return ctx.defensePointTargetId
+        ? defendPoints.find((t) => t.id === ctx.defensePointTargetId)
+        : undefined;
+}
+
+/**
+ * Resolve the defend point this unit should move toward: existing target if still alive, else closest by distance.
+ * Returns null if grid is missing or unit position cannot be mapped. Mutates unit.aiContext.defensePointTargetId when picking a new tile.
+ */
+export function getOrPickClosestDefendPoint(
+    unit: Unit,
+    defendPoints: SpecialTile[],
+    grid: GridLike | null,
+): SpecialTile | null {
+    if (!grid || defendPoints.length === 0) return null;
+    const ctx: UnitAIContext = unit.aiContext ?? {};
+    const current = ctx.defensePointTargetId
+        ? defendPoints.find((t) => t.id === ctx.defensePointTargetId)
+        : undefined;
+    if (current) return current;
+    const unitGrid = grid.worldToGrid(unit.x, unit.y);
+    let best: SpecialTile | null = null; 
+    let bestDist = Infinity;
+    for (const tile of defendPoints) {
+        const world = grid.gridToWorld(tile.col, tile.row);
+        const d = distance(unit.x, unit.y, world.x, world.y);
+        if (d < bestDist) {
+            bestDist = d;
+            best = tile;
+        }
+    }
+    const chosen = best ?? defendPoints[0] ?? null;
+    if (chosen) {
+        ctx.defensePointTargetId = chosen.id;
+        unit.aiContext = ctx;
+    }
+    return chosen;
+}
+
+/**
+ * Try to queue one ability order against the given enemy list. Uses first ability that has a valid target in range.
+ * Returns true if an order was queued and turn end was emitted; false otherwise.
+ */
+export function tryQueueAbilityOrder(unit: Unit, context: AIContext, candidateEnemies: Unit[]): boolean {
+    const randomInt = (min: number, max: number) => context.generateRandomInteger(min, max);
+    for (const abilityId of unit.abilities) {
+        const ability = getAbility(abilityId);
+        if (!ability) continue;
+        const validTarget = findAIAbilityTarget(unit, ability, candidateEnemies, randomInt);
+        if (!validTarget) continue;
+        const resolvedTargets = buildResolvedTargets(ability, validTarget);
+        context.queueOrder(context.gameTick, {
+            unitId: unit.id,
+            abilityId: ability.id,
+            targets: resolvedTargets,
+            movePath: unit.movement?.path ? [...unit.movement.path] : undefined,
+        });
+        context.emitTurnEnd(unit.id);
+        return true;
+    }
+    return false;
+}
+
+/** Queue a wait order for the unit and emit turn end. */
+export function queueWaitAndEndTurn(unit: Unit, context: AIContext): void {
+    context.queueOrder(context.gameTick, { unitId: unit.id, abilityId: 'wait', targets: [] });
+    context.emitTurnEnd(unit.id);
 }
 
 export interface ApplyAIMovementParams {

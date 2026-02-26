@@ -5,8 +5,7 @@
 
 import type { Unit } from '../../objects/Unit';
 import type { UnitAIController, AIContext } from './types';
-import { findEnemies, findAIAbilityTarget, buildResolvedTargets, applyAIMovementToUnit } from './utils';
-import { getAbility } from '../../abilities/AbilityRegistry';
+import { findEnemies, applyAIMovementToUnit, tryQueueAbilityOrder, queueWaitAndEndTurn } from './utils';
 
 export const LegacyAIController: UnitAIController = {
     executeTurn(unit: Unit, context: AIContext): void {
@@ -28,31 +27,8 @@ export const LegacyAIController: UnitAIController = {
             });
         }
 
-        for (const abilityId of unit.abilities) {
-            const ability = getAbility(abilityId);
-            if (!ability) continue;
-
-            const validTarget = findAIAbilityTarget(
-                unit,
-                ability,
-                enemies,
-                (min, max) => context.generateRandomInteger(min, max),
-            );
-            if (!validTarget) continue;
-
-            const resolvedTargets = buildResolvedTargets(ability, validTarget);
-            context.queueOrder(context.gameTick, {
-                unitId: unit.id,
-                abilityId: ability.id,
-                targets: resolvedTargets,
-                movePath: unit.movement?.path ? [...unit.movement.path] : undefined,
-            });
-            context.emitTurnEnd(unit.id);
-            return;
-        }
-
-        context.queueOrder(context.gameTick, { unitId: unit.id, abilityId: 'wait', targets: [] });
-        context.emitTurnEnd(unit.id);
+        if (tryQueueAbilityOrder(unit, context, enemies)) return;
+        queueWaitAndEndTurn(unit, context);
     },
 
     onPathfindingRetrigger(unit: Unit, context: AIContext): void {

@@ -24,7 +24,7 @@ function createAIUnit(overrides: Partial<{
     id: string;
     x: number;
     y: number;
-    defensePointTarget: string | undefined;
+    defensePointTargetId: string | undefined;
     aiTargetUnitId: string | undefined;
     pathfindingRetriggerOffset: number;
     movement: { path: { col: number; row: number }[]; targetUnitId: string | undefined; pathfindingTick: number } | null;
@@ -44,8 +44,12 @@ function createAIUnit(overrides: Partial<{
         aiSettings: { minRange: 30, maxRange: 80 },
         radius: 10,
     });
-    if (overrides.defensePointTarget !== undefined) unit.defensePointTarget = overrides.defensePointTarget;
-    if (overrides.aiTargetUnitId !== undefined) unit.aiTargetUnitId = overrides.aiTargetUnitId;
+    if (overrides.defensePointTargetId !== undefined) {
+        unit.aiContext.defensePointTargetId = overrides.defensePointTargetId;
+    }
+    if (overrides.aiTargetUnitId !== undefined) {
+        unit.aiContext.aiTargetUnitId = overrides.aiTargetUnitId;
+    }
     if (overrides.pathfindingRetriggerOffset !== undefined) unit.pathfindingRetriggerOffset = overrides.pathfindingRetriggerOffset;
     if (overrides.movement !== undefined) unit.movement = overrides.movement;
     return unit;
@@ -109,7 +113,7 @@ describe('DefensePointsAIController', () => {
     describe('step 1: no DefendPoints (no DefendPoints → wait)', () => {
         it('clears movement and AI state and queues wait when no DefendPoints are alive', () => {
             const unit = createAIUnit({
-                defensePointTarget: 'dp_1',
+                defensePointTargetId: 'dp_1',
                 aiTargetUnitId: 'player_1',
                 movement: { path: [{ col: 5, row: 5 }], targetUnitId: undefined, pathfindingTick: 0 },
             });
@@ -121,8 +125,8 @@ describe('DefensePointsAIController', () => {
             DefensePointsAIController.executeTurn(unit, context);
 
             expect(unit.movement).toBeNull();
-            expect(unit.defensePointTarget).toBeUndefined();
-            expect(unit.aiTargetUnitId).toBeUndefined();
+            expect(unit.aiContext.defensePointTargetId).toBeUndefined();
+            expect(unit.aiContext.aiTargetUnitId).toBeUndefined();
             expect(orders).toHaveLength(1);
             expect(orders[0].abilityId).toBe('wait');
             expect(orders[0].unitId).toBe(unit.id);
@@ -146,7 +150,7 @@ describe('DefensePointsAIController', () => {
 
             DefensePointsAIController.executeTurn(unit, context);
 
-            expect(unit.defensePointTarget).toBe('dp_near');
+            expect(unit.aiContext.defensePointTargetId).toBe('dp_near');
             expect(orders).toHaveLength(1);
             expect(turnEnds).toHaveLength(1);
         });
@@ -154,7 +158,7 @@ describe('DefensePointsAIController', () => {
         it('reassigns defensePointTarget when current target is dead (hp 0)', () => {
             const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
             const tm = new TerrainManager(grid);
-            const unit = createAIUnit({ x: 200, y: 400, defensePointTarget: 'dp_dead' });
+            const unit = createAIUnit({ x: 200, y: 400, defensePointTargetId: 'dp_dead' });
             const dpDead = createDefendPoint('dp_dead', 3, 3, 0);
             const dpAlive = createDefendPoint('dp_alive', 5, 10, 5);
             const { context } = createMockContext({
@@ -166,7 +170,7 @@ describe('DefensePointsAIController', () => {
 
             DefensePointsAIController.executeTurn(unit, context);
 
-            expect(unit.defensePointTarget).toBe('dp_alive');
+            expect(unit.aiContext.defensePointTargetId).toBe('dp_alive');
         });
     });
 
@@ -177,7 +181,7 @@ describe('DefensePointsAIController', () => {
             const unit = createAIUnit({
                 x: 40,
                 y: 40,
-                defensePointTarget: 'dp_1',
+                defensePointTargetId: 'dp_1',
                 movement: null,
             });
             const dp = createDefendPoint('dp_1', 5, 10, 5);
@@ -227,7 +231,7 @@ describe('DefensePointsAIController', () => {
             const aiUnit = createAIUnit({
                 x: 400,
                 y: 400,
-                defensePointTarget: 'dp_1',
+                defensePointTargetId: 'dp_1',
                 movement: null,
             });
             const playerUnit = createPlayerUnit('player_1', 430, 400); // within 80 px (maxRange)
@@ -241,7 +245,7 @@ describe('DefensePointsAIController', () => {
 
             DefensePointsAIController.executeTurn(aiUnit, context);
 
-            expect(aiUnit.aiTargetUnitId).toBe('player_1');
+            expect(aiUnit.aiContext.aiTargetUnitId).toBe('player_1');
             expect(orders.some((o) => o.abilityId !== 'wait')).toBe(true);
             expect(orders.some((o) => o.abilityId === '0003')).toBe(true);
         });
@@ -252,7 +256,7 @@ describe('DefensePointsAIController', () => {
             const aiUnit = createAIUnit({
                 x: 400,
                 y: 400,
-                defensePointTarget: 'dp_1',
+                defensePointTargetId: 'dp_1',
             });
             const playerUnit = createPlayerUnit('player_1', 600, 400); // > 80 px, but within perception (300)
             const dp = createDefendPoint('dp_1', 2, 2, 5);
@@ -265,7 +269,7 @@ describe('DefensePointsAIController', () => {
 
             DefensePointsAIController.executeTurn(aiUnit, context);
 
-            expect(aiUnit.aiTargetUnitId).toBe('player_1');
+            expect(aiUnit.aiContext.aiTargetUnitId).toBe('player_1');
             expect(orders).toHaveLength(1);
             expect(orders[0].abilityId).toBe('wait');
         });
@@ -278,7 +282,7 @@ describe('DefensePointsAIController', () => {
             const aiUnit = createAIUnit({
                 x: 400,
                 y: 400,
-                defensePointTarget: 'dp_1',
+                defensePointTargetId: 'dp_1',
                 aiTargetUnitId: 'player_1',
             });
             const playerUnit = createPlayerUnit('player_1', 50, 50); // far, outside perception 300
@@ -292,7 +296,7 @@ describe('DefensePointsAIController', () => {
 
             DefensePointsAIController.executeTurn(aiUnit, context);
 
-            expect(aiUnit.aiTargetUnitId).toBeUndefined();
+            expect(aiUnit.aiContext.aiTargetUnitId).toBeUndefined();
             expect(orders).toHaveLength(1);
             expect(orders[0].abilityId).toBe('wait');
         });
@@ -303,7 +307,7 @@ describe('DefensePointsAIController', () => {
             const aiUnit = createAIUnit({
                 x: 400,
                 y: 400,
-                defensePointTarget: 'dp_1',
+                defensePointTargetId: 'dp_1',
             });
             const playerUnit = createPlayerUnit('player_1', 430, 400);
             const dp = createDefendPoint('dp_1', 2, 2, 5);
@@ -316,14 +320,14 @@ describe('DefensePointsAIController', () => {
 
             DefensePointsAIController.executeTurn(aiUnit, context);
 
-            expect(aiUnit.aiTargetUnitId).toBeUndefined();
+            expect(aiUnit.aiContext.aiTargetUnitId).toBeUndefined();
             expect(orders[0].abilityId).toBe('wait');
         });
     });
 
     describe('order of steps', () => {
         it('does not set defensePointTarget or path when no DefendPoints (step 1 wins)', () => {
-            const unit = createAIUnit({ defensePointTarget: undefined });
+            const unit = createAIUnit({ defensePointTargetId: undefined });
             const { context } = createMockContext({
                 aliveDefendPoints: [],
                 units: [unit],
@@ -331,7 +335,7 @@ describe('DefensePointsAIController', () => {
 
             DefensePointsAIController.executeTurn(unit, context);
 
-            expect(unit.defensePointTarget).toBeUndefined();
+            expect(unit.aiContext.defensePointTargetId).toBeUndefined();
             expect(unit.movement).toBeNull();
         });
 
@@ -341,7 +345,7 @@ describe('DefensePointsAIController', () => {
             const aiUnit = createAIUnit({
                 x: 40,
                 y: 40,
-                defensePointTarget: undefined,
+                defensePointTargetId: undefined,
                 movement: null,
             });
             const playerUnit = createPlayerUnit('player_1', 100, 100);
@@ -354,7 +358,7 @@ describe('DefensePointsAIController', () => {
 
             DefensePointsAIController.executeTurn(aiUnit, context);
 
-            expect(aiUnit.defensePointTarget).toBe('dp_1');
+            expect(aiUnit.aiContext.defensePointTargetId).toBe('dp_1');
             expect(orders).toHaveLength(1);
             expect(orders[0].abilityId).toBe('wait');
         });

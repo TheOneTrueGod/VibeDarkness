@@ -23,6 +23,17 @@ export function buildAIController(aiControllerId?: string | null): UnitAIControl
 }
 
 export type { UnitAIController, AIContext } from './types';
-export { findEnemies, findAIAbilityTarget, buildResolvedTargets, applyAIMovementToUnit, applyAIMovementToPosition } from './utils';
-export type { ApplyAIMovementParams } from './utils';
+export {
+    findEnemies,
+    findAIAbilityTarget,
+    buildResolvedTargets,
+    applyAIMovementToUnit,
+    applyAIMovementToPosition,
+    distance,
+    getEnemiesInPerceptionAndLOS,
+    getOrPickClosestDefendPoint,
+    tryQueueAbilityOrder,
+    queueWaitAndEndTurn,
+} from './utils';
+export type { ApplyAIMovementParams, GridLike } from './utils';
 export { LegacyAIController, DefensePointsAIController };

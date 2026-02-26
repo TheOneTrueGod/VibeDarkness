@@ -14,8 +14,9 @@ description: When adding or changing enemy unit AI in Minion Battles. Use when w
 
 ## Rules
 
-1. **No state in the controller** – Controllers are stateless. Any data that must persist (e.g. `defensePointTarget`, `aiTargetUnitId`) lives on the **unit** or in **game state** and must be **serialized** (Unit `toJSON`/`fromJSON`, `SerializedGameState`).
-2. **Reuse shared behaviour** – Before adding logic to a new controller, check `missions/ai/utils.ts` and existing controllers (e.g. `LegacyAIController`, `DefensePointsAIController`). If several controllers would do the same thing (e.g. pick ability target, move to range), **hoist it into utils** or into a shared helper used by multiple controllers.
+1. **No state in the controller** – Controllers are stateless. Any data that must persist (e.g. defend point target, current combat target) lives on the **unit** or in **game state** and must be **serialized** (Unit `toJSON`/`fromJSON`, `SerializedGameState`).
+   - For per-unit AI controller state, store it under `unit.aiContext` (see `UnitAIContext` in `objects/Unit.ts`), e.g. `unit.aiContext.defensePointTargetId`, `unit.aiContext.aiTargetUnitId`. Do **not** add new top-level fields on `Unit` for controller-specific state.
+2. **Reuse shared behaviour** – Before adding logic to a new controller, check `missions/ai/utils.ts` and existing controllers (e.g. `LegacyAIController`, `DefensePointsAIController`). If several controllers would do the same thing (e.g. pick ability target, move to range, queue ability orders, queue waits), **hoist it into utils** or into a shared helper used by multiple controllers.
 
 ## Adding a new controller
 
@@ -27,5 +28,5 @@ description: When adding or changing enemy unit AI in Minion Battles. Use when w
 ## Reference
 
 - **LegacyAIController** – Default: random enemy, move to AISettings range, use first ability with valid target or wait.
-- **DefensePointsAIController** – Move toward nearest alive DefendPoint; engage hostiles in perception range with line-of-sight (rocks block); move to range and use ability.
-- **Utils**: `findEnemies`, `findAIAbilityTarget`, `buildResolvedTargets`, `applyAIMovementToUnit`, `applyAIMovementToPosition`.
+- **DefensePointsAIController** – Move toward nearest alive DefendPoint; engage hostiles in perception range with line-of-sight (rocks block); move to range and use ability. Stores its per-unit state in `unit.aiContext`.
+- **Utils**: `findEnemies`, `findAIAbilityTarget`, `buildResolvedTargets`, `applyAIMovementToUnit`, `applyAIMovementToPosition`, `getOrPickClosestDefendPoint`, `tryQueueAbilityOrder`, `queueWaitAndEndTurn`.
