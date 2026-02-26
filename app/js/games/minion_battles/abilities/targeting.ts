@@ -10,7 +10,7 @@ import type { Camera } from '../engine/Camera';
 import type { ResolvedTarget } from '../engine/types';
 
 /** The types of targets an ability can require. */
-export type TargetType = 'player' | 'unit' | 'pixel' | 'specialTile';
+export type TargetType = 'player' | 'unit' | 'pixel';
 
 /** Describes one required target for an ability. */
 export interface TargetDef {

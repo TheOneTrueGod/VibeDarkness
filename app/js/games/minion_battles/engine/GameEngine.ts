@@ -23,7 +23,7 @@ import { getAbility } from '../abilities/AbilityRegistry';
 import { getCardDef } from '../card_defs';
 import { spendAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
-import { type TeamId, areEnemies } from './teams';
+import { type TeamId } from './teams';
 import { Rage } from '../resources/Rage';
 import { Mana } from '../resources/Mana';
 import type { Resource } from '../resources/Resource';
@@ -37,7 +37,6 @@ import { specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
 import { getSpecialTileDef } from '../missions/specialTileDefs';
 import { buildAIController } from '../missions/ai';
 import type { AIContext } from '../missions/ai';
-import { getPerceptionRange } from './unitDef';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
@@ -549,29 +548,6 @@ export class GameEngine {
                 const currentTime = this.gameTime - active.startTime;
                 const prevTime = currentTime - dt;
 
-                // ChannelDarkness: cancel if an enemy appears in perception with LOS
-                if (active.abilityId === 'channel_darkness') {
-                    const perception = getPerceptionRange(unit.characterId);
-                    const hostiles = this.units.filter(
-                        (u) => u.isAlive() && u.id !== unit.id && areEnemies(unit.teamId, u.teamId),
-                    );
-                    const inRangeAndLOS = hostiles.filter((h) => {
-                        const d = Math.hypot(h.x - unit.x, h.y - unit.y);
-                        if (d > perception) return false;
-                        return this.terrainManager?.grid.hasLineOfSight(unit.x, unit.y, h.x, h.y) ?? false;
-                    });
-                    if (inRangeAndLOS.length > 0) {
-                        inRangeAndLOS.sort(
-                            (a, b) =>
-                                Math.hypot(a.x - unit.x, a.y - unit.y) - Math.hypot(b.x - unit.x, b.y - unit.y),
-                        );
-                        unit.aiTargetUnitId = inRangeAndLOS[0]!.id;
-                        unit.activeAbilities.splice(i, 1);
-                        i--;
-                        continue;
-                    }
-                }
-
                 ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime);
 
                 // Remove once prefire is done AND no lingering ability states remain
@@ -611,19 +587,6 @@ export class GameEngine {
 
     getUnit(id: string): Unit | undefined {
         return this.units.find((u) => u.id === id);
-    }
-
-    /** Deal damage to a special tile by id (e.g. DefendPoint). */
-    damageSpecialTile(tileId: string, amount: number): void {
-        const tile = this.specialTiles.find((t) => t.id === tileId);
-        if (tile) tile.hp = Math.max(0, tile.hp - amount);
-    }
-
-    /** Remove an active ability from a unit (e.g. cancel channel when enemy appears). */
-    cancelActiveAbility(unitId: string, abilityId: string): void {
-        const unit = this.getUnit(unitId);
-        if (!unit) return;
-        unit.activeAbilities = unit.activeAbilities.filter((a) => a.abilityId !== abilityId);
     }
 
     /** Get the local player's unit. */
@@ -690,9 +653,6 @@ export class GameEngine {
                 y: pos.y,
                 ownerId: 'ai' as const,
             };
-            if (this.aiControllerId === 'defensePoints') {
-                config.abilities = [...(config.abilities ?? []), 'channel_darkness'];
-            }
             const unit = createUnitFromSpawnConfig(config, this.eventBus);
             this.addUnit(unit);
         }

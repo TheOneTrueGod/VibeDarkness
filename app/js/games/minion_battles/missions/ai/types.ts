@@ -22,8 +22,6 @@ export interface AIContext {
     WORLD_HEIGHT: number;
     /** True if the line between two world positions does not pass through obstructed terrain (e.g. rock). */
     hasLineOfSight(fromX: number, fromY: number, toX: number, toY: number): boolean;
-    /** Remove an active ability from a unit (e.g. cancel ChannelDarkness when enemy appears). */
-    cancelActiveAbility(unitId: string, abilityId: string): void;
 }
 
 /**

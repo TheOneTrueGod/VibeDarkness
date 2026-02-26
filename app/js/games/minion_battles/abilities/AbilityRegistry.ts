@@ -13,7 +13,6 @@ import { EnemyArcherShotAbility } from '../card_defs/0001_EnemyArcherShot/0001Ab
 import { EnemyMeleeAttackAbility } from '../card_defs/0002_EnemyMeleeAttack/0002Ability';
 import { BashAbility } from '../card_defs/0102_Bash/0102Ability';
 import { DarkWolfBiteAbility } from '../card_defs/dark_animals/0003_DarkWolfBite/0003Ability';
-import { ChannelDarknessAbility } from '../card_defs/special/ChannelDarkness/ChannelDarknessAbility';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
 
@@ -29,7 +28,6 @@ register(EnemyArcherShotAbility);
 register(EnemyMeleeAttackAbility);
 register(BashAbility);
 register(DarkWolfBiteAbility);
-register(ChannelDarknessAbility);
 
 /** Look up an ability by its ID. */
 export function getAbility(id: string): AbilityStatic | undefined {

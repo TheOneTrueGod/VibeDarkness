@@ -1,11 +1,10 @@
 /**
  * Tests that each step of DefensePointsAIController executes in order:
- * 1. Channeling + enemy in perception/LOS → cancel channel, set aiTargetUnitId, wait.
- * 2. No DefendPoints → stand still, clear state, wait.
- * 3. No defensePointTarget or dead → pick closest alive DefendPoint, store on unit.
- * 4. No path or gameTick % retrigger === 0 → recalc path to defensePointTarget.
- * 5. Hostiles in perception + LOS → set aiTargetUnitId, move to range, use ability or wait.
- * 6. No hostiles → clear aiTargetUnitId; if within 50 of DP and has channel_darkness, use it; else wait.
+ * 1. No DefendPoints → stand still, clear state, wait.
+ * 2. No defensePointTarget or dead → pick closest alive DefendPoint, store on unit.
+ * 3. No path or gameTick % retrigger === 0 → recalc path to defensePointTarget.
+ * 4. Hostiles in perception + LOS → set aiTargetUnitId, move to range, use ability or wait.
+ * 5. No hostiles → clear aiTargetUnitId, wait.
  */
 import { describe, it, expect } from 'vitest';
 import { Unit } from '../../objects/Unit';
@@ -29,8 +28,6 @@ function createAIUnit(overrides: Partial<{
     aiTargetUnitId: string | undefined;
     pathfindingRetriggerOffset: number;
     movement: { path: { col: number; row: number }[]; targetUnitId: string | undefined; pathfindingTick: number } | null;
-    abilities: string[];
-    activeAbilities: { abilityId: string; startTime: number; targets: unknown[] }[];
 }> = {}) {
     const unit = new Unit({
         id: overrides.id ?? 'ai_1',
@@ -43,7 +40,7 @@ function createAIUnit(overrides: Partial<{
         ownerId: 'ai',
         characterId: 'dark_wolf',
         name: 'Wolf',
-        abilities: overrides.abilities ?? ['0003'],
+        abilities: ['0003'],
         aiSettings: { minRange: 30, maxRange: 80 },
         radius: 10,
     });
@@ -51,7 +48,6 @@ function createAIUnit(overrides: Partial<{
     if (overrides.aiTargetUnitId !== undefined) unit.aiTargetUnitId = overrides.aiTargetUnitId;
     if (overrides.pathfindingRetriggerOffset !== undefined) unit.pathfindingRetriggerOffset = overrides.pathfindingRetriggerOffset;
     if (overrides.movement !== undefined) unit.movement = overrides.movement;
-    if (overrides.activeAbilities !== undefined) unit.activeAbilities = overrides.activeAbilities as Unit['activeAbilities'];
     return unit;
 }
 
@@ -105,16 +101,12 @@ function createMockContext(options: {
         WORLD_WIDTH,
         WORLD_HEIGHT,
         hasLineOfSight: () => hasLineOfSight,
-        cancelActiveAbility: (unitId, abilityId) => {
-            const u = options.units.find((u) => u.id === unitId);
-            if (u) u.activeAbilities = u.activeAbilities.filter((a) => a.abilityId !== abilityId);
-        },
     };
     return { context, orders, turnEnds };
 }
 
 describe('DefensePointsAIController', () => {
-    describe('step 1: no DefendPoints', () => {
+    describe('step 1: no DefendPoints (no DefendPoints → wait)', () => {
         it('clears movement and AI state and queues wait when no DefendPoints are alive', () => {
             const unit = createAIUnit({
                 defensePointTarget: 'dp_1',
@@ -178,7 +170,7 @@ describe('DefensePointsAIController', () => {
         });
     });
 
-    describe('step 3: recalc path when no path or gameTick % retrigger === 0', () => {
+    describe('step 3: recalc path when no path or retrigger', () => {
         it('sets movement path when unit has no path and DefendPoint exists', () => {
             const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
             const tm = new TerrainManager(grid);
@@ -279,7 +271,7 @@ describe('DefensePointsAIController', () => {
         });
     });
 
-    describe('step 5: no hostiles in perception or LOS', () => {
+    describe('step 5: no hostiles → clear target, wait', () => {
         it('clears aiTargetUnitId and queues wait when no hostiles in perception', () => {
             const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
             const tm = new TerrainManager(grid);
@@ -325,103 +317,6 @@ describe('DefensePointsAIController', () => {
             DefensePointsAIController.executeTurn(aiUnit, context);
 
             expect(aiUnit.aiTargetUnitId).toBeUndefined();
-            expect(orders[0].abilityId).toBe('wait');
-        });
-    });
-
-    describe('step 6: Channel Darkness when within 50 of DefendPoint and no enemies', () => {
-        it('queues ChannelDarkness with specialTileId when unit is within 50 of target DP and has the ability', () => {
-            const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
-            const tm = new TerrainManager(grid);
-            // DP at (5, 10) -> world center (220, 420). Unit at (220, 420) is distance 0, within 50.
-            const aiUnit = createAIUnit({
-                x: 220,
-                y: 420,
-                defensePointTarget: 'dp_1',
-                abilities: ['0003', 'channel_darkness'],
-            });
-            aiUnit.cooldownRemaining = 0;
-            const dp = createDefendPoint('dp_1', 5, 10, 5);
-            const { context, orders } = createMockContext({
-                aliveDefendPoints: [dp],
-                units: [aiUnit],
-                terrainManager: tm,
-            });
-
-            DefensePointsAIController.executeTurn(aiUnit, context);
-
-            expect(orders).toHaveLength(1);
-            expect(orders[0].abilityId).toBe('channel_darkness');
-            expect(orders[0].targets).toEqual([{ type: 'specialTile', specialTileId: 'dp_1' }]);
-        });
-
-        it('queues wait when unit has no channel_darkness ability (even if within 50 of DP)', () => {
-            const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
-            const tm = new TerrainManager(grid);
-            const aiUnit = createAIUnit({
-                x: 220,
-                y: 420,
-                defensePointTarget: 'dp_1',
-                abilities: ['0003'],
-            });
-            const dp = createDefendPoint('dp_1', 5, 10, 5);
-            const { context, orders } = createMockContext({
-                aliveDefendPoints: [dp],
-                units: [aiUnit],
-                terrainManager: tm,
-            });
-
-            DefensePointsAIController.executeTurn(aiUnit, context);
-
-            expect(orders[0].abilityId).toBe('wait');
-        });
-
-        it('queues wait when unit is not within 50 of DefendPoint', () => {
-            const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
-            const tm = new TerrainManager(grid);
-            const aiUnit = createAIUnit({
-                x: 40,
-                y: 40,
-                defensePointTarget: 'dp_1',
-                abilities: ['0003', 'channel_darkness'],
-            });
-            const dp = createDefendPoint('dp_1', 5, 10, 5);
-            const { context, orders } = createMockContext({
-                aliveDefendPoints: [dp],
-                units: [aiUnit],
-                terrainManager: tm,
-            });
-
-            DefensePointsAIController.executeTurn(aiUnit, context);
-
-            expect(orders[0].abilityId).toBe('wait');
-        });
-    });
-
-    describe('cancel Channel Darkness when enemy in perception + LOS', () => {
-        it('cancels channel_darkness and sets aiTargetUnitId when unit is channeling and sees an enemy', () => {
-            const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
-            const tm = new TerrainManager(grid);
-            const aiUnit = createAIUnit({
-                x: 220,
-                y: 420,
-                defensePointTarget: 'dp_1',
-                abilities: ['0003', 'channel_darkness'],
-                activeAbilities: [{ abilityId: 'channel_darkness', startTime: 0, targets: [{ type: 'specialTile', specialTileId: 'dp_1' }] }],
-            });
-            const playerUnit = createPlayerUnit('player_1', 250, 420);
-            const dp = createDefendPoint('dp_1', 5, 10, 5);
-            const { context, orders } = createMockContext({
-                aliveDefendPoints: [dp],
-                units: [aiUnit, playerUnit],
-                terrainManager: tm,
-                hasLineOfSight: true,
-            });
-
-            DefensePointsAIController.executeTurn(aiUnit, context);
-
-            expect(aiUnit.activeAbilities.some((a) => a.abilityId === 'channel_darkness')).toBe(false);
-            expect(aiUnit.aiTargetUnitId).toBe('player_1');
             expect(orders[0].abilityId).toBe('wait');
         });
     });
