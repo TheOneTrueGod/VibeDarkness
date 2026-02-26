@@ -200,10 +200,19 @@ export const DarkWolfBiteAbility: AbilityStatic = {
         ctx.beginPath();
         ctx.arc(caster.x, caster.y, maxR, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(caster.x, caster.y);
-        ctx.lineTo(mouseWorld.x, mouseWorld.y);
-        ctx.stroke();
+        const dx = mouseWorld.x - caster.x;
+        const dy = mouseWorld.y - caster.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0) {
+            const ux = dx / dist;
+            const uy = dy / dist;
+            const endX = caster.x + ux * maxR;
+            const endY = caster.y + uy * maxR;
+            ctx.beginPath();
+            ctx.moveTo(caster.x, caster.y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+        }
         ctx.restore();
     },
 
@@ -225,7 +234,7 @@ export const DarkWolfBiteAbility: AbilityStatic = {
         if (dist === 0) return;
 
         const maxR = getMaxRange(caster);
-        const lineLen = Math.min(dist, maxR);
+        const lineLen = maxR;
         const ux = dx / dist;
         const uy = dy / dist;
         const endX = note.lungeStartX + ux * lineLen;
