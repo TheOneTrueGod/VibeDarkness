@@ -370,6 +370,30 @@ export class GameEngine {
         };
         this.snapshotIndex++;
         this.onWaitingForOrders?.(this.waitingForOrders);
+
+        // #region agent log
+        if (typeof fetch !== 'undefined') {
+            fetch('http://127.0.0.1:7242/ingest/cbf947fa-3cd1-4ede-9663-15ab42cb01ad', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    runId: 'initial',
+                    hypothesisId: 'H2',
+                    location: 'GameEngine.ts:pauseForOrders',
+                    message: 'pauseForOrders called',
+                    data: {
+                        unitId: unit.id,
+                        ownerId: unit.ownerId,
+                        localPlayerId: this.localPlayerId,
+                        gameTick: this.gameTick,
+                        roundNumber: this.roundNumber,
+                        snapshotIndex: this.snapshotIndex,
+                    },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => {});
+        }
+        // #endregion
     }
 
     /**

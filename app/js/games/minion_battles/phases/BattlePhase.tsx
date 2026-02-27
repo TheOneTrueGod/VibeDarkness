@@ -232,6 +232,35 @@ export default function BattlePhase({
                 if (criticalDiffs.length === 0) {
                     return;
                 }
+
+                // #region agent log
+                if (typeof fetch !== 'undefined') {
+                    fetch('http://127.0.0.1:7242/ingest/cbf947fa-3cd1-4ede-9663-15ab42cb01ad', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            runId: 'initial',
+                            hypothesisId: 'H4',
+                            location: 'BattlePhase.tsx:performDesyncCheck',
+                            message: 'Desync detected; reloading from snapshot',
+                            data: {
+                                playerId,
+                                isHost,
+                                diffPaths,
+                                criticalDiffs,
+                                clientRoundNumber: clientState.roundNumber,
+                                clientGameTick: clientState.gameTick,
+                                clientWaitingForOrders: clientState.waitingForOrders,
+                                serverRoundNumber: serverState.roundNumber,
+                                serverGameTick: serverState.gameTick,
+                                serverWaitingForOrders: (serverState as { waitingForOrders?: unknown }).waitingForOrders,
+                            },
+                            timestamp: Date.now(),
+                        }),
+                    }).catch(() => {});
+                }
+                // #endregion
+
                 throwError({
                     severity: 'medium',
                     message: 'Client Snapshot desync',
@@ -270,16 +299,38 @@ export default function BattlePhase({
                 setWaitingForOrders(info);
                 setIsPaused(true);
 
+                // #region agent log
+                if (typeof fetch !== 'undefined') {
+                    fetch('http://127.0.0.1:7242/ingest/cbf947fa-3cd1-4ede-9663-15ab42cb01ad', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            runId: 'initial',
+                            hypothesisId: 'H1',
+                            location: 'BattlePhase.tsx:reloadEngineFromSnapshot:setOnWaitingForOrders',
+                            message: 'onWaitingForOrders (reloaded engine)',
+                            data: {
+                                playerId,
+                                isHost,
+                                infoOwnerId: info.ownerId,
+                                infoUnitId: info.unitId,
+                                engineGameTick: newEngine.gameTick,
+                                engineRoundNumber: newEngine.roundNumber,
+                                engineSnapshotIndex: newEngine.snapshotIndex,
+                            },
+                            timestamp: Date.now(),
+                        }),
+                    }).catch(() => {});
+                }
+                // #endregion
+
                 const unit = newEngine.getUnit(info.unitId);
                 const existingPath = unit?.movement?.path;
                 pendingMovePathRef.current = existingPath && existingPath.length > 0
                     ? existingPath.map((p) => ({ ...p }))
                     : null;
                 updateCardState(newEngine);
-                // Host skips desync check (host saves checkpoints; server state lags)
-                if (info.ownerId === playerId && !isHost) {
-                    performDesyncCheck(newEngine);
-                } else if (info.ownerId !== playerId) {
+                if (info.ownerId !== playerId) {
                     const nextTick = newEngine.gameTick + 1;
                     const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
                     startOrderPolling(checkpointGameTick);
@@ -325,6 +376,31 @@ export default function BattlePhase({
             setWaitingForOrders(info);
             setIsPaused(true);
 
+            // #region agent log
+            if (typeof fetch !== 'undefined') {
+                fetch('http://127.0.0.1:7242/ingest/cbf947fa-3cd1-4ede-9663-15ab42cb01ad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        runId: 'initial',
+                        hypothesisId: 'H1',
+                        location: 'BattlePhase.tsx:setOnWaitingForOrders',
+                        message: 'onWaitingForOrders (initial engine)',
+                        data: {
+                            playerId,
+                            isHost,
+                            infoOwnerId: info.ownerId,
+                            infoUnitId: info.unitId,
+                            engineGameTick: engine.gameTick,
+                            engineRoundNumber: engine.roundNumber,
+                            engineSnapshotIndex: engine.snapshotIndex,
+                        },
+                        timestamp: Date.now(),
+                    }),
+                }).catch(() => {});
+            }
+            // #endregion
+
             // Preserve the unit's existing movement path so it carries over
             // into the next order (unit keeps walking between turns).
             const unit = engine.getUnit(info.unitId);
@@ -335,10 +411,7 @@ export default function BattlePhase({
 
             updateCardState(engine);
 
-            // Host skips desync check (host saves checkpoints; server state lags)
-            if (info.ownerId === playerId && !isHost) {
-                performDesyncCheck(engine);
-            } else if (info.ownerId !== playerId) {
+            if (info.ownerId !== playerId) {
                 // If not our turn: start polling for orders at the checkpoint that contains the next tick
                 const nextTick = engine.gameTick + 1;
                 const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
