@@ -212,14 +212,32 @@ export default function BattlePhase({
                 const serverState = snapshot.state as Record<string, unknown>;
                 const diffPaths = diffSnapshotFields(clientState, serverState);
 
-                if (diffPaths.length > 0) {
-                    throwError({
-                        severity: 'medium',
-                        message: 'Client Snapshot desync',
-                        details: { fields: diffPaths },
-                    });
-                    await reloadEngineFromSnapshot(snapshot);
+                if (diffPaths.length === 0) {
+                    return;
                 }
+
+                // Only treat differences in core simulation state as critical; allow
+                // benign drift in bookkeeping fields (waitingForOrders, snapshotIndex,
+                // timestamps, etc.) without forcing a rollback for clients.
+                const CRITICAL_PREFIXES = ['units', 'projectiles', 'effects', 'specialTiles', 'cards'];
+                const criticalDiffs = diffPaths.filter((p) =>
+                    CRITICAL_PREFIXES.some(
+                        (prefix) =>
+                            p === prefix ||
+                            p.startsWith(`${prefix}.`) ||
+                            p.startsWith(`${prefix}[`),
+                    ),
+                );
+
+                if (criticalDiffs.length === 0) {
+                    return;
+                }
+                throwError({
+                    severity: 'medium',
+                    message: 'Client Snapshot desync',
+                    details: { fields: diffPaths },
+                });
+                await reloadEngineFromSnapshot(snapshot);
             } catch (err) {
                 // Non-critical: log and continue (e.g. network error)
                 console.warn('Desync check failed:', err);
@@ -251,6 +269,7 @@ export default function BattlePhase({
             newEngine.setOnWaitingForOrders((info) => {
                 setWaitingForOrders(info);
                 setIsPaused(true);
+
                 const unit = newEngine.getUnit(info.unitId);
                 const existingPath = unit?.movement?.path;
                 pendingMovePathRef.current = existingPath && existingPath.length > 0

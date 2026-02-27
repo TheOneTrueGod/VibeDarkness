@@ -205,7 +205,7 @@ describe('DefensePointsAIController', () => {
             const unit = createAIUnit({
                 x: 40,
                 y: 40,
-                defensePointTarget: 'dp_1',
+                defensePointTargetId: 'dp_1',
                 pathfindingRetriggerOffset: 50,
                 movement: { path: [{ col: 1, row: 1 }], targetUnitId: undefined, pathfindingTick: 0 },
             });

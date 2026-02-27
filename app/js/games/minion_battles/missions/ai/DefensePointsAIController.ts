@@ -30,72 +30,88 @@ export const DefensePointsAIController: UnitAIController = {
 		const terrainManager = context.terrainManager;
 		const grid = terrainManager?.grid ?? null;
 
-		// Step 1: Check defend points and ensure a valid target id when any exist
+		// Step 1: No DefendPoints → stand still, clear state, wait.
 		if (defendPoints.length === 0) {
-			if (unit.aiContext.defensePointTargetId) {
-				unit.clearMovement();
-				unit.aiContext.defensePointTargetId = undefined;
-			}
-		} else {
-			const current = getDefendPointFromContext(unit, defendPoints);
-			if (!current) {
-				const picked = getOrPickClosestDefendPoint(unit, defendPoints, grid);
-				if (picked) {
-					unit.aiContext.defensePointTargetId = picked.id;
-				}
-			}
+			unit.clearMovement();
+			unit.aiContext.defensePointTargetId = undefined;
+			unit.aiContext.aiTargetUnitId = undefined;
+			queueWaitAndEndTurn(unit, context);
+			return;
 		}
 
-		// Step 2: Recalculate path to target when needed
+		// Step 2: Ensure we have a valid defend point target id (closest alive) when any exist.
+		const currentDefendPoint = getDefendPointFromContext(unit, defendPoints);
+		if (!currentDefendPoint) {
+			const picked = getOrPickClosestDefendPoint(unit, defendPoints, grid);
+			if (picked) {
+				unit.aiContext.defensePointTargetId = picked.id;
+			}
+			// After picking a defend point this turn, end with a wait.
+			queueWaitAndEndTurn(unit, context);
+			return;
+		}
+
+		// Step 3: Recalculate path to defend point when needed
 		const retrigger = unit.pathfindingRetriggerOffset ?? DEFAULT_PATH_RETRIGGER;
-		const targetTile = getDefendPointFromContext(unit, defendPoints);
-		const onRetriggerTick = context.gameTick % retrigger === 0
-		const shouldRecalcPath =
-			!unit.movement?.path?.length || onRetriggerTick
-		if (shouldRecalcPath && terrainManager && grid && targetTile) {
+		const onRetriggerTick = retrigger > 0 && context.gameTick % retrigger === 0;
+		const shouldRecalcPathToDefend =
+			(!unit.movement?.path?.length || onRetriggerTick) &&
+			!unit.aiContext.aiTargetUnitId &&
+			unit.activeAbilities.length === 0;
+		if (shouldRecalcPathToDefend && terrainManager && grid) {
 			const unitGrid = grid.worldToGrid(unit.x, unit.y);
-			const path = terrainManager.findGridPath(unitGrid.col, unitGrid.row, targetTile.col, targetTile.row);
+			const path = terrainManager.findGridPath(
+				unitGrid.col,
+				unitGrid.row,
+				currentDefendPoint.col,
+				currentDefendPoint.row,
+			);
 			if (path && path.length > 0) {
 				unit.setMovement(path, undefined, context.gameTick);
 			}
 		}
 
-		// Step 3: Enemies in perception + LOS (closest first)
+		// Step 4: Hostiles in perception + LOS (closest first)
 		const perceptionRange = getPerceptionRange(unit.characterId);
-		if (!unit.aiContext.aiTargetUnitId && onRetriggerTick) {
-			const enemies = findEnemies(unit, context.getUnits());
-			const inPerceptionAndLOS = getEnemiesInPerceptionAndLOS(
-				unit,
-				enemies,
-				perceptionRange,
-				context.hasLineOfSight.bind(context),
-			);
-			if (inPerceptionAndLOS.length > 0) {
-				unit.aiContext.aiTargetUnitId = inPerceptionAndLOS[0]!.id;
+		const enemies = findEnemies(unit, context.getUnits());
+		const inPerceptionAndLOS = getEnemiesInPerceptionAndLOS(
+			unit,
+			enemies,
+			perceptionRange,
+			context.hasLineOfSight.bind(context),
+		);
+
+		if (inPerceptionAndLOS.length > 0) {
+			const combatTarget = inPerceptionAndLOS[0]!;
+			unit.aiContext.aiTargetUnitId = combatTarget.id;
+
+			if (unit.aiSettings && terrainManager) {
+				applyAIMovementToUnit(unit, combatTarget, {
+					findGridPath: terrainManager.findGridPath.bind(terrainManager),
+					worldToGrid: grid!.worldToGrid.bind(grid!),
+					gameTick: context.gameTick,
+					worldWidth: context.WORLD_WIDTH,
+					worldHeight: context.WORLD_HEIGHT,
+				});
 			}
+
+			// Try to use an ability; if none can be used, wait.
+			if (!tryQueueAbilityOrder(unit, context, inPerceptionAndLOS)) {
+				queueWaitAndEndTurn(unit, context);
+			}
+			return;
 		}
 
-		// Step 4: Combat or move or wait
-		const targetUnit = unit.aiContext.aiTargetUnitId ? context.getUnit(unit.aiContext.aiTargetUnitId) : undefined;
-		if (targetUnit && unit.aiSettings && terrainManager) {
-			applyAIMovementToUnit(unit, targetUnit, {
-				findGridPath: terrainManager.findGridPath.bind(terrainManager),
-				worldToGrid: grid!.worldToGrid.bind(grid!),
-				gameTick: context.gameTick,
-				worldWidth: context.WORLD_WIDTH,
-				worldHeight: context.WORLD_HEIGHT,
-			});
-			tryQueueAbilityOrder(unit, context, targetUnit ? [targetUnit] : [])
-		} else if (unit.aiContext.defensePointTargetId) {
-			// Do nothing, we're moving toward the defend point
-		} else {
-			queueWaitAndEndTurn(unit, context);
-		}
+		// Step 5: No hostiles → clear combat target, wait.
+		unit.aiContext.aiTargetUnitId = undefined;
+		queueWaitAndEndTurn(unit, context);
 	},
 
 	onPathfindingRetrigger(unit: Unit, context: AIContext): void {
 		const defendPoints = context.getAliveDefendPoints();
 		if (defendPoints.length === 0) return;
+		// Do not refresh defend-point path while chasing a target or executing an ability.
+		if (unit.aiContext.aiTargetUnitId || unit.activeAbilities.length > 0) return;
 
 		const targetTile = unit.aiContext.defensePointTargetId
 			? defendPoints.find((t) => t.id === unit.aiContext.defensePointTargetId)

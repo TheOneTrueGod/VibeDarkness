@@ -11,6 +11,10 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         emptyOutDir: true,
+        sourcemap: true,
+    },
+    css: {
+        devSourcemap: true,
     },
     server: {
         proxy: {
