@@ -38,6 +38,7 @@ interface GameEngineLike {
     addEffect(effect: Effect): void;
     gameTime: number;
     eventBus: EventBus;
+    generateRandomInteger(min: number, max: number): number;
 }
 
 /** Minimum distance from point (ux, uy) to segment (x0,y0)-(x1,y1). */
@@ -142,9 +143,12 @@ export const DarkWolfBiteAbility: AbilityStatic = {
 
         const dx = targetUnit.x - note.lungeStartX;
         const dy = targetUnit.y - note.lungeStartY;
-        const totalDist = Math.sqrt(dx * dx + dy * dy);
-        const dirX = totalDist > 0 ? dx / totalDist : 1;
-        const dirY = totalDist > 0 ? dy / totalDist : 0;
+        const baseAngle = Math.atan2(dy, dx);
+        const jitterDegrees = (caster.moveJitter ?? 0) * 30 - 15;
+        const jitterRadians = (jitterDegrees * Math.PI) / 180;
+        const finalAngle = baseAngle + jitterRadians;
+        const dirX = Math.cos(finalAngle);
+        const dirY = Math.sin(finalAngle);
 
         const prevLungeProgress = Math.min(1, (prevTime - WINDUP_TIME) / LUNGE_DURATION);
         const prevDist = prevLungeProgress * maxLungeDist;
@@ -170,12 +174,21 @@ export const DarkWolfBiteAbility: AbilityStatic = {
             if (segmentCircleOverlap(x0, y0, x1, y1, caster.radius, unit.x, unit.y, unit.radius)) {
                 unit.takeDamage(DAMAGE, caster.id, eng.eventBus);
                 note.hitTargetIds.push(unit.id);
+
+                const angleDeg = eng.generateRandomInteger(0, 359);
+                const angleRad = (angleDeg * Math.PI) / 180;
+                const radiusFactor = eng.generateRandomInteger(0, 100) / 100;
+                const maxOffset = unit.radius * 0.5;
+                const offsetR = maxOffset * radiusFactor;
+                const offsetX = Math.cos(angleRad) * offsetR;
+                const offsetY = Math.sin(angleRad) * offsetR;
+
                 const biteEffect = new Effect({
-                    x: unit.x,
-                    y: unit.y,
+                    x: unit.x + offsetX,
+                    y: unit.y + offsetY,
                     duration: BITE_EFFECT_DURATION,
                     effectType: 'bite',
-                    effectRadius: caster.radius,
+                    effectRadius: caster.radius * 2,
                 });
                 eng.addEffect(biteEffect);
             }

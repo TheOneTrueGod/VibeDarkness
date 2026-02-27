@@ -591,6 +591,10 @@ export class GameEngine {
     /** Add a unit and assign pathfindingRetriggerOffset from the deterministic RNG. */
     addUnit(unit: Unit): void {
         unit.pathfindingRetriggerOffset = this.generateRandomInteger(30, 90);
+        if (!unit.isPlayerControlled()) {
+            // Deterministic per-enemy jitter factor in [0, 1].
+            unit.moveJitter = this.generateRandomInteger(0, 1000) / 1000;
+        }
         this.units.push(unit);
     }
 

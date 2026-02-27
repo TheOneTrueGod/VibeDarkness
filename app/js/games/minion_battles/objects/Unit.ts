@@ -86,6 +86,9 @@ export class Unit extends GameObject {
     /** Per-controller AI context bag (serialized via toJSON/fromJSON). */
     aiContext: UnitAIContext = {};
 
+    /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
+    moveJitter: number = 0;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -354,6 +357,7 @@ export class Unit extends GameObject {
             aiSettings: this.aiSettings,
             pathfindingRetriggerOffset: this.pathfindingRetriggerOffset,
             aiContext: this.aiContext,
+            moveJitter: this.moveJitter,
             resources: this.resources.map((r) => r.toJSON()),
         };
     }
@@ -394,6 +398,7 @@ export class Unit extends GameObject {
         unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
         unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
         unit.aiContext = ((data.aiContext as UnitAIContext) ?? {}) as UnitAIContext;
+        unit.moveJitter = (data.moveJitter as number) ?? 0;
         unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
         unit.abilityNote = (data.abilityNote as AbilityNote | null) ?? null;
 
