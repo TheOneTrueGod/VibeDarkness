@@ -5,7 +5,7 @@
 
 import type { Unit } from '../../objects/Unit';
 import type { UnitAIController, AIContext } from './types';
-import { findEnemies, applyAIMovementToUnit, tryQueueAbilityOrder, queueWaitAndEndTurn } from './utils';
+import { findEnemies, applyAIMovementToUnit, tryQueueAbilityOrder } from './utils';
 
 export const LegacyAIController: UnitAIController = {
     executeTurn(unit: Unit, context: AIContext): void {
@@ -27,8 +27,12 @@ export const LegacyAIController: UnitAIController = {
             });
         }
 
-        if (tryQueueAbilityOrder(unit, context, enemies)) return;
-        queueWaitAndEndTurn(unit, context);
+        // Try to use an ability as soon as a valid target is in range.
+        // If none are in range yet, keep chasing without forcing a wait cooldown;
+        // the controller will run again next frame while the unit can act.
+        if (tryQueueAbilityOrder(unit, context, enemies)) {
+            return;
+        }
     },
 
     onPathfindingRetrigger(unit: Unit, context: AIContext): void {

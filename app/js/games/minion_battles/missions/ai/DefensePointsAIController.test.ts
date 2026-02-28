@@ -250,7 +250,7 @@ describe('DefensePointsAIController', () => {
             expect(orders.some((o) => o.abilityId === '0003')).toBe(true);
         });
 
-        it('sets aiTargetUnitId and queues wait when hostile in perception but no ability in range', () => {
+        it('sets aiTargetUnitId and does not queue wait when hostile in perception but no ability in range (keeps chasing)', () => {
             const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
             const tm = new TerrainManager(grid);
             const aiUnit = createAIUnit({
@@ -270,8 +270,8 @@ describe('DefensePointsAIController', () => {
             DefensePointsAIController.executeTurn(aiUnit, context);
 
             expect(aiUnit.aiContext.aiTargetUnitId).toBe('player_1');
-            expect(orders).toHaveLength(1);
-            expect(orders[0].abilityId).toBe('wait');
+            // Controller does not queue wait here so it can run again next frame and keep chasing.
+            expect(orders).toHaveLength(0);
         });
     });
 

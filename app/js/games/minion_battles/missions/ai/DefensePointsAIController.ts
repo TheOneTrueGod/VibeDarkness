@@ -95,9 +95,11 @@ export const DefensePointsAIController: UnitAIController = {
 				});
 			}
 
-			// Try to use an ability; if none can be used, wait.
-			if (!tryQueueAbilityOrder(unit, context, inPerceptionAndLOS)) {
-				queueWaitAndEndTurn(unit, context);
+			// Try to use an ability as soon as a valid target is in range.
+			// If none are in range yet, keep chasing without forcing a wait cooldown;
+			// the controller will run again next frame while the unit can act.
+			if (tryQueueAbilityOrder(unit, context, inPerceptionAndLOS)) {
+				return;
 			}
 			return;
 		}
