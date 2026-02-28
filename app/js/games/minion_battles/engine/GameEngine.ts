@@ -584,6 +584,14 @@ export class GameEngine {
         }
     }
 
+    /** Remove an active ability from a unit (e.g. so AI can interrupt and queue a different order). */
+    cancelActiveAbility(unitId: string, abilityId: string): void {
+        const unit = this.getUnit(unitId);
+        if (!unit) return;
+        const idx = unit.activeAbilities.findIndex((a) => a.abilityId === abilityId);
+        if (idx >= 0) unit.activeAbilities.splice(idx, 1);
+    }
+
     // ========================================================================
     // Object Management
     // ========================================================================
