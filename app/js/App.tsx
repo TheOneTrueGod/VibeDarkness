@@ -15,6 +15,7 @@ import DebugConsole from './components/DebugConsole';
 import { LobbyClient } from './LobbyClient';
 import { MessageType } from './MessageTypes';
 import { Messages } from './MessageTypes';
+import { getNpc } from './games/minion_battles/constants/npcs';
 import type {
     LobbyState,
     PlayerState,
@@ -141,6 +142,21 @@ function AppInner() {
                         playerColor: d.playerColor,
                         message: d.message,
                         timestamp: d.timestamp,
+                    },
+                ]);
+            } else if (type === MessageType.NPC_CHAT) {
+                const npcId = data.npcId as string;
+                const message = data.message as string;
+                const timestamp = (data.timestamp as number) ?? Date.now() / 1000;
+                const npc = getNpc(npcId);
+                setChatMessages((prev) => [
+                    ...prev,
+                    {
+                        playerId: npcId ? `npc:${npcId}` : undefined,
+                        playerName: npc?.name ?? 'Unknown',
+                        playerColor: npc?.color ?? '#888888',
+                        message,
+                        timestamp,
                     },
                 ]);
             } else if (type === MessageType.CLICK) {

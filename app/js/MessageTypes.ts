@@ -21,6 +21,7 @@ export const MessageType = Object.freeze({
     CHARACTER_SELECT: 'character_select',
     GAME_PHASE_CHANGED: 'game_phase_changed',
     BATTLE_ORDERS_READY: 'battle_orders_ready',
+    STORY_CHOICE: 'story_choice',
 } as const);
 
 type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
@@ -32,6 +33,7 @@ interface SchemaDef {
 
 const MessageSchema: Record<string, SchemaDef> = Object.freeze({
     [MessageType.CHAT]: { required: ['message'], optional: ['timestamp'] },
+    [MessageType.NPC_CHAT]: { required: ['npcId', 'message'], optional: ['timestamp'] },
     [MessageType.CLICK]: { required: ['x', 'y'], optional: ['timestamp'] },
     [MessageType.STATE_REQUEST]: { required: [], optional: ['requestingPlayerId'] },
     [MessageType.STATE_RESPONSE]: {
@@ -50,6 +52,7 @@ const MessageSchema: Record<string, SchemaDef> = Object.freeze({
     [MessageType.CHARACTER_SELECT]: { required: ['playerId', 'characterId'], optional: [] },
     [MessageType.GAME_PHASE_CHANGED]: { required: ['gamePhase'], optional: [] },
     [MessageType.BATTLE_ORDERS_READY]: { required: ['snapshotIndex'], optional: [] },
+    [MessageType.STORY_CHOICE]: { required: ['choiceId', 'optionId'], optional: [] },
 });
 
 export class Message {

@@ -8,6 +8,7 @@
 import type { TeamId } from '../engine/teams';
 import type { AISettings } from '../objects/Unit';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
+import type { InBattleStoryDef, PreMissionStoryDef } from './storyTypes';
 
 /** Trigger for level events: at round, after round (checks start), or after seconds. */
 export type LevelEventTrigger =
@@ -103,6 +104,10 @@ export interface MissionBattleConfig {
     createTerrain: () => TerrainGrid;
     /** Optional special tiles (DefendPoint, etc.) placed on the map. */
     specialTiles?: SpecialTilePlacement[];
+    /** Optional pre-mission story (visual novel segment before battle). */
+    preMissionStory?: PreMissionStoryDef;
+    /** Optional in-battle story segments (types only; no runtime yet). */
+    inBattleStories?: InBattleStoryDef[];
 }
 
 /** Storyline flow edge: fromMissionId + result unlocks toMissionId. */

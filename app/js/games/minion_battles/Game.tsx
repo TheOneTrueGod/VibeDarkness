@@ -14,7 +14,9 @@ import { useToast } from '../../contexts/ToastContext';
 import type { GamePhase } from './state';
 import MissionSelectPhase from './phases/MissionSelectPhase';
 import CharacterSelectPhase from './phases/CharacterSelectPhase';
+import PreMissionStoryPhase from './phases/PreMissionStoryPhase';
 import BattlePhase from './phases/BattlePhase';
+import { MISSION_MAP } from './storylines';
 
 /** Determine the winning mission from votes (most votes, or first alphabetically on tie). */
 function getSelectedMission(votes: Record<string, string>): string {
@@ -97,6 +99,10 @@ export default function MinionBattlesGame({
             }),
         [missionVotes, characterSelections, localOverrides.applyTo],
     );
+
+    const selectedMissionId = getSelectedMission(effective.missionVotes as Record<string, string>);
+    const missionDef = MISSION_MAP[selectedMissionId];
+    const preMissionStory = missionDef?.preMissionStory ?? null;
 
     // ---- Polling ----------------------------------------------------------
     // Periodically refresh game state from server
@@ -184,8 +190,22 @@ export default function MinionBattlesGame({
                     isHost={isHost}
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
+                    missionId={selectedMissionId}
+                    preMissionStory={preMissionStory}
                     setLocalOverride={localOverrides.set}
                     removeLocalOverride={localOverrides.remove}
+                    onPhaseChange={handlePhaseChange}
+                />
+            )}
+            {gamePhase === 'pre_mission_story' && preMissionStory && (
+                <PreMissionStoryPhase
+                    lobbyClient={lobbyClient}
+                    lobbyId={lobbyId}
+                    gameId={gameId}
+                    playerId={playerId}
+                    isHost={isHost}
+                    players={players}
+                    preMissionStory={preMissionStory}
                     onPhaseChange={handlePhaseChange}
                 />
             )}
@@ -211,6 +231,7 @@ export default function MinionBattlesGame({
             )}
             {gamePhase !== 'mission_select' &&
                 gamePhase !== 'character_select' &&
+                gamePhase !== 'pre_mission_story' &&
                 gamePhase !== 'battle' && (
                     <div className="text-center p-5">
                         <h2 className="text-2xl font-bold">Minion Battles</h2>

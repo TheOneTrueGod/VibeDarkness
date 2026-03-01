@@ -419,7 +419,7 @@ class LobbyManager
                     if (is_file($basePathFile)) {
                         $baseData = json_decode(file_get_contents($basePathFile), true);
                         if (is_array($baseData)) {
-                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections'] as $key) {
+                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections', 'playerStoryChoices', 'playerEquippedItems'] as $key) {
                                 if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
                                     $result[$key] = $baseData[$key];
                                 }
@@ -471,6 +471,37 @@ class LobbyManager
 
         $newState = array_merge($currentState, $updates);
         $this->persistGameState($lobbyId, $gameId, $newState);
+        return true;
+    }
+
+    /**
+     * Apply a story choice (any player). Merges choice into game state.
+     */
+    public function applyStoryChoice(string $lobbyId, string $gameId, string $playerId, string $choiceId, string $optionId): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null) {
+            return false;
+        }
+        if ($lobby->getPlayer($playerId) === null) {
+            return false;
+        }
+        if ($lobby->getGameId() !== $gameId) {
+            return false;
+        }
+
+        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        if ($currentState === null) {
+            return false;
+        }
+
+        $choices = $currentState['playerStoryChoices'] ?? [];
+        if (!isset($choices[$playerId]) || !is_array($choices[$playerId])) {
+            $choices[$playerId] = [];
+        }
+        $choices[$playerId][$choiceId] = $optionId;
+        $currentState['playerStoryChoices'] = $choices;
+        $this->persistGameState($lobbyId, $gameId, $currentState);
         return true;
     }
 

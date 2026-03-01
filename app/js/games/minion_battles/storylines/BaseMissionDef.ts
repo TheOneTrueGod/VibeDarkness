@@ -15,6 +15,7 @@ import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { createUnitByCharacterId, createUnitFromSpawnConfig } from '../objects/units/index';
 import { createCardInstance, WORLD_HEIGHT } from '../engine/GameEngine';
 import { getSpecialTileDef } from './specialTileDefs';
+import { getItemDef } from '../character_defs/items';
 
 /** Parameters for initializing game state. */
 export interface InitializeGameStateParams {
@@ -26,6 +27,8 @@ export interface InitializeGameStateParams {
     eventBus: EventBus;
     /** Terrain manager (optional, for pathfinding). */
     terrainManager?: import('../terrain/TerrainManager').TerrainManager | null;
+    /** Item IDs equipped per player (e.g. from pre-mission story choices); add cards to deck. */
+    equippedItemsByPlayer?: Record<string, string[]>;
 }
 
 /** Mission definition extending MissionBattleConfig with initializeGameState. */
@@ -66,11 +69,21 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             const pu = params.playerUnits[i];
             const isWarrior = pu.characterId === 'warrior';
             const isRanger = pu.characterId === 'ranger';
-            const abilities = isWarrior
+            let abilities = isWarrior
                 ? ['throw_rock', '0101', '0102']
                 : isRanger
                   ? ['0001']
                   : ['throw_knife'];
+            const equippedIds = params.equippedItemsByPlayer?.[pu.playerId] ?? [];
+            for (const itemId of equippedIds) {
+                const itemDef = getItemDef(itemId);
+                if (!itemDef) continue;
+                for (const entry of itemDef.cardsToAdd) {
+                    if (!abilities.includes(entry.cardId)) {
+                        abilities = [...abilities, entry.cardId];
+                    }
+                }
+            }
             const unit = createUnitByCharacterId(
                 pu.characterId,
                 {
@@ -96,17 +109,36 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 ];
             } else {
                 const throwCardId = isWarrior ? 'throw_rock' : 'throw_knife';
-                hand = [
-                    createCardInstance(`${throwCardId}_1`, throwCardId, 'hand'),
-                    createCardInstance(`${throwCardId}_2`, throwCardId, 'hand'),
-                    createCardInstance('0102_1', '0102', 'hand'),
-                    createCardInstance('0102_2', '0102', 'hand'),
-                ];
                 if (isWarrior) {
-                    hand.push(
+                    // Warrior: one copy of each card
+                    hand = [
+                        createCardInstance(`${throwCardId}_1`, throwCardId, 'hand'),
+                        createCardInstance('0102_1', '0102', 'hand'),
                         createCardInstance('0101_1', '0101', 'hand'),
-                        createCardInstance('0101_2', '0101', 'hand'),
-                    );
+                    ];
+                } else {
+                    hand = [
+                        createCardInstance(`${throwCardId}_1`, throwCardId, 'hand'),
+                        createCardInstance(`${throwCardId}_2`, throwCardId, 'hand'),
+                        createCardInstance('0102_1', '0102', 'hand'),
+                        createCardInstance('0102_2', '0102', 'hand'),
+                    ];
+                }
+            }
+            // Add cards from equipped items (e.g. pre-mission story choices)
+            for (const itemId of equippedIds) {
+                const itemDef = getItemDef(itemId);
+                if (!itemDef) continue;
+                for (const entry of itemDef.cardsToAdd) {
+                    for (let c = 0; c < entry.count; c++) {
+                        hand.push(
+                            createCardInstance(
+                                `${entry.cardId}_item_${itemId}_${c}`,
+                                entry.cardId,
+                                'hand'
+                            )
+                        );
+                    }
                 }
             }
             engine.cards[pu.playerId] = hand;

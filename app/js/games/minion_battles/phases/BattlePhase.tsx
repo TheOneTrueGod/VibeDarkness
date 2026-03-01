@@ -19,6 +19,7 @@ import { resolveClick, validateAndResolveTarget } from '../abilities/targeting';
 import type { AbilityStatic } from '../abilities/Ability';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
+import type { PreMissionStoryDef } from '../storylines/storyTypes';
 import { TerrainManager } from '../terrain/TerrainManager';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
@@ -26,6 +27,31 @@ import RoundProgressBar from '../components/RoundProgressBar';
 import { throwError } from '../utils/errors';
 import { diffSnapshotFields } from '../utils/snapshotDiff';
 import { MessageType } from '../../../MessageTypes';
+
+/** Derive equipped item IDs per player from story choices (choiceId -> optionId) and pre-mission story def. */
+function deriveEquippedItemsFromStoryChoices(
+    playerStoryChoices: Record<string, Record<string, string>> | undefined,
+    preMissionStory: PreMissionStoryDef | undefined
+): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    if (!playerStoryChoices || !preMissionStory) return result;
+    for (const pid of Object.keys(playerStoryChoices)) {
+        const choices = playerStoryChoices[pid];
+        if (!choices) continue;
+        const items: string[] = [];
+        for (const phrase of preMissionStory.phrases) {
+            if (phrase.type !== 'choice') continue;
+            const optionId = choices[phrase.choiceId];
+            if (!optionId) continue;
+            const option = phrase.options.find((o) => o.id === optionId);
+            if (option?.action?.type === 'equip_item') {
+                items.push(option.action.itemId);
+            }
+        }
+        if (items.length > 0) result[pid] = items;
+    }
+    return result;
+}
 
 interface BattlePhaseProps {
     lobbyClient: LobbyClient;
@@ -187,11 +213,16 @@ export default function BattlePhase({
                 characterId: charId,
                 name: players[pid]?.name ?? 'Unknown',
             }));
+            const equippedItemsByPlayer = deriveEquippedItemsFromStoryChoices(
+                init?.playerStoryChoices as Record<string, Record<string, string>> | undefined,
+                mission.preMissionStory ?? undefined
+            );
             mission.initializeGameState(engine, {
                 playerUnits,
                 localPlayerId: playerId,
                 eventBus: engine.eventBus,
                 terrainManager,
+                equippedItemsByPlayer,
             });
         }
 

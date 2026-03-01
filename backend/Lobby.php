@@ -255,7 +255,8 @@ class Lobby
         ];
 
         $this->chatHistory[] = $chatEntry;
-        $this->addMessage('chat', $chatEntry);
+        // Message log uses npc_chat so polling clients get it and can resolve NPC via frontend getNpc()
+        $this->addMessage('npc_chat', ['npcId' => $npcId, 'message' => $message]);
 
         if (count($this->chatHistory) > self::MAX_CHAT_HISTORY) {
             array_shift($this->chatHistory);

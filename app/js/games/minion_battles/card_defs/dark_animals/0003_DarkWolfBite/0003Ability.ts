@@ -127,22 +127,16 @@ export const DarkWolfBiteAbility: AbilityStatic = {
         if (!isAbilityNote(caster.abilityNote, '0003')) return;
 
         const note = caster.abilityNote.abilityNote;
-        const targetUnit = eng.getUnit(note.targetId);
-        if (!targetUnit?.isAlive()) {
-            caster.clearAbilityNote();
-            return;
-        }
 
-        // Lunge phase: 0.6 to 0.9s
+        // Lunge phase: 0.6 to 0.9s — use snapshot position (targetX, targetY), not live target
         if (currentTime < WINDUP_TIME) return;
 
         const lungeElapsed = currentTime - WINDUP_TIME;
         const lungeProgress = Math.min(1, lungeElapsed / LUNGE_DURATION);
         const maxLungeDist = BASE_MAX_RANGE;
-        const distThisFrame = (lungeProgress - Math.max(0, (prevTime - WINDUP_TIME) / LUNGE_DURATION)) * maxLungeDist;
 
-        const dx = targetUnit.x - note.lungeStartX;
-        const dy = targetUnit.y - note.lungeStartY;
+        const dx = note.targetX - note.lungeStartX;
+        const dy = note.targetY - note.lungeStartY;
         const baseAngle = Math.atan2(dy, dx);
         const jitterDegrees = (caster.moveJitter ?? 0) * 30 - 15;
         const jitterRadians = (jitterDegrees * Math.PI) / 180;

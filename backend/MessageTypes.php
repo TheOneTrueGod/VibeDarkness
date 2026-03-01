@@ -37,7 +37,8 @@ enum MessageType: string
     case CHARACTER_SELECT = 'character_select';
     case GAME_PHASE_CHANGED = 'game_phase_changed';
     case BATTLE_ORDERS_READY = 'battle_orders_ready';
-    
+    case STORY_CHOICE = 'story_choice';
+
     /**
      * Get the required fields for each message type
      */
@@ -60,9 +61,10 @@ enum MessageType: string
             self::CHARACTER_SELECT => ['playerId', 'characterId'],
             self::GAME_PHASE_CHANGED => ['gamePhase'],
             self::BATTLE_ORDERS_READY => ['snapshotIndex'],
+            self::STORY_CHOICE => ['choiceId', 'optionId'],
         };
     }
-    
+
     /**
      * Get optional fields for each message type
      */

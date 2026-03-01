@@ -11,6 +11,7 @@ import { MessageType } from '../../../MessageTypes';
 import { CHARACTERS } from '../character_defs/characters';
 import type { CharacterDef } from '../character_defs/types';
 import { MinionBattlesPlayer } from '../MinionBattlesPlayer';
+import type { PreMissionStoryDef } from '../storylines/storyTypes';
 
 interface CharacterSelectPhaseProps {
     lobbyClient: LobbyClient;
@@ -20,6 +21,10 @@ interface CharacterSelectPhaseProps {
     isHost: boolean;
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
+    /** Current mission (from votes); used to show Continue when mission has preMissionStory. */
+    missionId?: string;
+    /** Pre-mission story for current mission; when set and all selected, show Continue instead of Start Game. */
+    preMissionStory?: PreMissionStoryDef | null;
     /** Set a local override for instant UI feedback (path relative to game state root). */
     setLocalOverride?: (path: string, value: unknown) => void;
     /** Remove a local override (e.g. on request failure to revert optimistic update). */
@@ -35,6 +40,8 @@ export default function CharacterSelectPhase({
     isHost,
     players,
     characterSelections,
+    missionId,
+    preMissionStory,
     setLocalOverride,
     removeLocalOverride,
     onPhaseChange,
@@ -93,8 +100,6 @@ export default function CharacterSelectPhase({
                 gamePhase: 'battle',
             });
             if (onPhaseChange) {
-                // Merge in current characterSelections as fallback so we never lose them
-                // (avoids race where server response is incomplete or override was cleared)
                 const merged = {
                     ...newGameState,
                     characterSelections:
@@ -105,6 +110,28 @@ export default function CharacterSelectPhase({
             }
         } catch (error) {
             console.error('Failed to start game:', error);
+        }
+    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
+
+    const handleContinueToStory = useCallback(async () => {
+        try {
+            const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
+                gamePhase: 'pre_mission_story',
+            });
+            await lobbyClient.sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
+                gamePhase: 'pre_mission_story',
+            });
+            if (onPhaseChange) {
+                const merged = {
+                    ...newGameState,
+                    characterSelections:
+                        (newGameState.characterSelections ?? newGameState.character_selections) ??
+                        characterSelections,
+                };
+                onPhaseChange('pre_mission_story', merged);
+            }
+        } catch (error) {
+            console.error('Failed to continue to story:', error);
         }
     }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
 
@@ -128,20 +155,34 @@ export default function CharacterSelectPhase({
                 </div>
             </div>
 
-            {isHost && (
+            {(isHost || (preMissionStory && allSelected)) && (
                 <div className="flex justify-center py-4 px-5 shrink-0 border-t border-border-custom">
-                    <button
-                        type="button"
-                        disabled={!allSelected}
-                        className={`px-8 py-3 text-white text-lg font-bold rounded-lg transition-colors shadow-lg ${
-                            allSelected
-                                ? 'bg-green-600 hover:bg-green-700 hover:shadow-xl cursor-pointer'
-                                : 'bg-gray-600 opacity-50 cursor-not-allowed'
-                        }`}
-                        onClick={handleStartGame}
-                    >
-                        Start Game
-                    </button>
+                    {allSelected && preMissionStory ? (
+                        isHost ? (
+                            <button
+                                type="button"
+                                className="px-8 py-3 text-white text-lg font-bold rounded-lg bg-primary hover:opacity-90 shadow-lg cursor-pointer"
+                                onClick={handleContinueToStory}
+                            >
+                                Continue
+                            </button>
+                        ) : (
+                            <p className="text-muted">Waiting for host to continue...</p>
+                        )
+                    ) : isHost ? (
+                        <button
+                            type="button"
+                            disabled={!allSelected}
+                            className={`px-8 py-3 text-white text-lg font-bold rounded-lg transition-colors shadow-lg ${
+                                allSelected
+                                    ? 'bg-green-600 hover:bg-green-700 hover:shadow-xl cursor-pointer'
+                                    : 'bg-gray-600 opacity-50 cursor-not-allowed'
+                            }`}
+                            onClick={handleStartGame}
+                        >
+                            Start Game
+                        </button>
+                    ) : null}
                 </div>
             )}
         </div>

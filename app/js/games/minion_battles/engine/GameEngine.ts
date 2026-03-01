@@ -176,7 +176,7 @@ export class GameEngine {
     }
 
     /** Set callback to send a message to the lobby chat. */
-    setOnEmitMessage(cb: (text: string) => void): void {
+    setOnEmitMessage(cb: (text: string, npcId?: string) => void): void {
         this.onEmitMessage = cb;
     }
 

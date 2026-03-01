@@ -8,6 +8,7 @@
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent } from '../../types';
+import type { PreMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -119,6 +120,30 @@ const LEVEL_EVENTS: LevelEvent[] = [
 /** Defend point: campfire on the left near player spawn (5 HP). */
 const SPECIAL_TILES = [{ defId: 'DefendPoint', col: 5, row: 10, hp: 5 }];
 
+const PRE_MISSION_STORY: PreMissionStoryDef = {
+    phrases: [
+        {
+            type: 'dialogue',
+            speakerId: '1',
+            text: "You open your eyes to see a campfire in front of you. You don't have much time to get your bearings or remember where you are before you hear movement and growling in the edge of the light. You quickly scan your surroundings for something to defend yourself with.",
+            portraitSide: 'left',
+        },
+        {
+            type: 'choice',
+            choiceId: 'dark_awakening_weapon',
+            options: [
+                { id: 'rocks', label: 'Grab some nearby rocks', action: { type: 'equip_item', itemId: 'rocks' } },
+                { id: 'torch', label: 'Grab a smoldering stick', action: { type: 'equip_item', itemId: 'torch' } },
+                {
+                    id: 'pot_shield',
+                    label: 'Pick up the lid of a pot from the campfire',
+                    action: { type: 'equip_item', itemId: 'pot_shield' },
+                },
+            ],
+        },
+    ],
+};
+
 export class DarkAwakeningMission extends BaseMissionDef {
     missionId = 'dark_awakening';
     name = 'A Dark Awakening';
@@ -127,6 +152,7 @@ export class DarkAwakeningMission extends BaseMissionDef {
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
     aiController = 'defensePoints' as const;
+    preMissionStory = PRE_MISSION_STORY;
 }
 
 /** Mission instance for use in MISSION_MAP and mission select. */

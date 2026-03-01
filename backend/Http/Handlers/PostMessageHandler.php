@@ -188,6 +188,31 @@ class PostMessageHandler
             return ['success' => true, 'messageId' => $messageId];
         }
 
+        if ($type === 'story_choice') {
+            $choiceId = $payload['choiceId'] ?? null;
+            $optionId = $payload['optionId'] ?? null;
+            if (!$choiceId || !is_string($choiceId) || !$optionId || !is_string($optionId)) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'choiceId and optionId required'];
+            }
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+            $gameId = $lobby->getGameId();
+            if (!$gameId) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'No active game'];
+            }
+            $success = $manager->applyStoryChoice($lobbyId, $gameId, $playerId, $choiceId, $optionId);
+            if (!$success) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'Failed to apply story choice'];
+            }
+            return ['success' => true];
+        }
+
         http_response_code(400);
         return ['success' => false, 'error' => 'Unknown message type'];
     }
