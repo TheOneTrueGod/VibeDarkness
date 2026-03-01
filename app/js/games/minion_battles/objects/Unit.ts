@@ -16,6 +16,8 @@ import { getAbility } from '../abilities/AbilityRegistry';
 import { AbilityState } from '../abilities/Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
+import type { TerrainGrid } from '../terrain/TerrainGrid';
+import { TerrainType } from '../terrain/TerrainType';
 import { DEFAULT_UNIT_RADIUS } from '../constants/unitConstants';
 
 /** AI behavior settings for enemy units. */
@@ -42,6 +44,36 @@ export interface UnitMovement {
     targetUnitId: string | undefined;
     /** The gameTick when pathfinding was last computed. */
     pathfindingTick: number;
+}
+
+/** Source of knockback (for callbacks). Serializable. */
+export interface KnockbackSource {
+    /** Unit ID that applied the knockback. */
+    unitId: string;
+    /** Ability ID used. */
+    abilityId: string;
+}
+
+/** Knockback state on a unit. Serializable. */
+export interface KnockbackState {
+    /** Direction and magnitude (px) of the knockback. */
+    knockbackVector: { x: number; y: number };
+    /** Time (seconds) the unit is in the air and cannot move; full vector applied. */
+    knockbackAirTime: number;
+    /** Time (seconds) after air during which half the vector is applied (slide). */
+    knockbackSlideTime: number;
+    /** Who applied the knockback (for callbacks). */
+    knockbackSource: KnockbackSource;
+    /** Time (seconds) this knockback has been active. */
+    knockbackElapsed: number;
+}
+
+/** Parameters for applying knockback to a unit. */
+export interface ApplyKnockbackParams {
+    knockbackVector: { x: number; y: number };
+    knockbackAirTime: number;
+    knockbackSlideTime: number;
+    knockbackSource: KnockbackSource;
 }
 
 export class Unit extends GameObject {
@@ -89,6 +121,14 @@ export class Unit extends GameObject {
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;
 
+    /** Current Poise HP. When 0 or below, knockback is applied. */
+    poiseHp: number = 0;
+    /** Maximum Poise HP. Units with 0 have no poise (knockback always applies). */
+    maxPoiseHp: number = 0;
+
+    /** Active knockback state; unit cannot move while set. */
+    knockback: KnockbackState | null = null;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -104,6 +144,8 @@ export class Unit extends GameObject {
         aiSettings?: AISettings | null;
         /** Visual/collision radius. Defaults to DEFAULT_UNIT_RADIUS. */
         radius?: number;
+        /** Max Poise HP. Default 0 (no poise). */
+        maxPoiseHp?: number;
     }) {
         super(config.id ?? generateGameObjectId('unit'), config.x, config.y);
         this.hp = config.hp;
@@ -116,6 +158,8 @@ export class Unit extends GameObject {
         this.abilities = config.abilities ?? [];
         this.aiSettings = config.aiSettings ?? null;
         this.radius = config.radius ?? DEFAULT_UNIT_RADIUS;
+        this.maxPoiseHp = config.maxPoiseHp ?? 0;
+        this.poiseHp = this.maxPoiseHp;
     }
 
     /** Attach a resource and subscribe its event listeners. */
@@ -190,6 +234,44 @@ export class Unit extends GameObject {
     }
 
     /**
+     * Attempt to apply knockback to this unit. Poise is consumed first; if the unit
+     * has no Poise HP left (or has no max poise), knockback is applied.
+     * When knockback is applied, onApplied is called so the caller can interrupt the unit
+     * (e.g. cancel and refund any ability in progress).
+     * @param poiseDamage Amount of Poise HP to subtract (0 = no poise check).
+     * @param params Knockback vector, times, and source.
+     * @param _eventBus Event bus (unused).
+     * @param onApplied Called when knockback is successfully applied; use to interrupt the unit.
+     * @returns true if knockback was applied, false if resisted by poise.
+     */
+    applyKnockback(
+        poiseDamage: number,
+        params: ApplyKnockbackParams,
+        _eventBus: EventBus,
+        onApplied?: (unit: Unit) => void,
+    ): boolean {
+        if (poiseDamage > 0) {
+            this.poiseHp = Math.max(0, this.poiseHp - poiseDamage);
+            if (this.maxPoiseHp > 0 && this.poiseHp > 0) return false;
+        }
+        this.knockback = {
+            knockbackVector: { ...params.knockbackVector },
+            knockbackAirTime: params.knockbackAirTime,
+            knockbackSlideTime: params.knockbackSlideTime,
+            knockbackSource: { ...params.knockbackSource },
+            knockbackElapsed: 0,
+        };
+        this.clearMovement();
+        onApplied?.(this);
+        return true;
+    }
+
+    /** Whether the unit is currently being knocked back (cannot move or act). */
+    isInKnockback(): boolean {
+        return this.knockback !== null;
+    }
+
+    /**
      * Move the unit toward a world position by at most maxDistance.
      * If the unit has a movement path, checks whether a new step (current grid cell)
      * needs to be prepended to the path so pathfinding stays valid after the move.
@@ -223,11 +305,19 @@ export class Unit extends GameObject {
             this.cooldownRemaining = Math.max(0, this.cooldownRemaining - dt);
         }
 
+        const terrainManager = (engine as { terrainManager?: TerrainManager }).terrainManager ?? null;
+        const grid = terrainManager?.grid ?? null;
+
+        // Knockback: unit cannot move normally; apply push and wall bounce
+        if (this.knockback) {
+            this.updateKnockback(dt, grid);
+            return;
+        }
+
         // Move along grid path
         if (!this.isAlive() || !this.movement || this.movement.path.length === 0) return;
 
         const gameTime = (engine as { gameTime: number }).gameTime;
-        const terrainManager = (engine as { terrainManager?: TerrainManager }).terrainManager ?? null;
 
         // Target: center of the next grid cell in the path
         const nextCell = this.movement.path[0];
@@ -262,6 +352,66 @@ export class Unit extends GameObject {
             if (this.movement.path.length === 0) {
                 this.movement = null;
             }
+        }
+    }
+
+    /**
+     * Advance knockback state: apply push (full vector during air, half during slide),
+     * bounce off walls (rock / bounds), and clear when duration ends.
+     */
+    private updateKnockback(dt: number, grid: TerrainGrid | null): void {
+        const k = this.knockback!;
+        const airTime = k.knockbackAirTime;
+        const slideTime = k.knockbackSlideTime;
+        const totalTime = airTime + slideTime;
+        const v = k.knockbackVector;
+
+        const displacementAt = (t: number): { x: number; y: number } => {
+            if (t <= 0) return { x: 0, y: 0 };
+            if (t <= airTime) {
+                const f = t / airTime;
+                return { x: v.x * f, y: v.y * f };
+            }
+            const slideT = Math.min(t - airTime, slideTime);
+            return { x: v.x + 0.5 * (slideT / slideTime) * v.x, y: v.y + 0.5 * (slideT / slideTime) * v.y };
+        };
+
+        const prevElapsed = k.knockbackElapsed;
+        k.knockbackElapsed = Math.min(k.knockbackElapsed + dt, totalTime);
+        const newElapsed = k.knockbackElapsed;
+
+        const prevD = displacementAt(prevElapsed);
+        const newD = displacementAt(newElapsed);
+        let pushX = newD.x - prevD.x;
+        let pushY = newD.y - prevD.y;
+
+        if (grid) {
+            const newX = this.x + pushX;
+            const newY = this.y + pushY;
+            const inRock = (x: number, y: number) => {
+                const { col, row } = grid.worldToGrid(x, y);
+                if (col < 0 || col >= grid.width || row < 0 || row >= grid.height) return true;
+                return grid.getAtWorld(x, y) === TerrainType.Rock;
+            };
+            if (inRock(newX, newY)) {
+                const cell = grid.worldToGrid(newX, newY);
+                const wallCenter = grid.gridToWorld(cell.col, cell.row);
+                const nx = this.x - wallCenter.x;
+                const ny = this.y - wallCenter.y;
+                const len = Math.sqrt(nx * nx + ny * ny) || 1;
+                const nX = nx / len;
+                const nY = ny / len;
+                const dot = pushX * nX + pushY * nY;
+                pushX = pushX - 2 * dot * nX;
+                pushY = pushY - 2 * dot * nY;
+            }
+        }
+
+        this.x += pushX;
+        this.y += pushY;
+
+        if (k.knockbackElapsed >= totalTime) {
+            this.knockback = null;
         }
     }
 
@@ -310,7 +460,7 @@ export class Unit extends GameObject {
 
     /** Whether the unit's cooldown has finished and it can act. */
     canAct(): boolean {
-        return this.cooldownRemaining <= 0 && this.isAlive();
+        return this.cooldownRemaining <= 0 && this.isAlive() && !this.isInKnockback();
     }
 
     /** Set cooldown after using an ability. */
@@ -358,6 +508,15 @@ export class Unit extends GameObject {
             pathfindingRetriggerOffset: this.pathfindingRetriggerOffset,
             aiContext: this.aiContext,
             moveJitter: this.moveJitter,
+            poiseHp: this.poiseHp,
+            maxPoiseHp: this.maxPoiseHp,
+            knockback: this.knockback ? {
+                knockbackVector: { ...this.knockback.knockbackVector },
+                knockbackAirTime: this.knockback.knockbackAirTime,
+                knockbackSlideTime: this.knockback.knockbackSlideTime,
+                knockbackSource: { ...this.knockback.knockbackSource },
+                knockbackElapsed: this.knockback.knockbackElapsed,
+            } : null,
             resources: this.resources.map((r) => r.toJSON()),
         };
     }
@@ -399,6 +558,18 @@ export class Unit extends GameObject {
         unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
         unit.aiContext = ((data.aiContext as UnitAIContext) ?? {}) as UnitAIContext;
         unit.moveJitter = (data.moveJitter as number) ?? 0;
+        unit.poiseHp = (data.poiseHp as number) ?? 0;
+        unit.maxPoiseHp = (data.maxPoiseHp as number) ?? 0;
+        const kb = data.knockback as KnockbackState | null;
+        if (kb && typeof kb.knockbackElapsed === 'number') {
+            unit.knockback = {
+                knockbackVector: { ...(kb.knockbackVector as { x: number; y: number }) },
+                knockbackAirTime: kb.knockbackAirTime as number,
+                knockbackSlideTime: kb.knockbackSlideTime as number,
+                knockbackSource: { ...(kb.knockbackSource as KnockbackSource) },
+                knockbackElapsed: kb.knockbackElapsed,
+            };
+        }
         unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
         unit.abilityNote = (data.abilityNote as AbilityNote | null) ?? null;
 

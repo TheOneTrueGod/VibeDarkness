@@ -76,6 +76,45 @@ Whenever an ability needs to "store" some data for use in the future, it must be
 ## Ability concepts
 - ** range **: When checking for the range of something, always calculate based on the range value plus the size of the source object plus the size of the target object
 
+## Poise
+
+Units can have **Poise HP** (`poiseHp`, `maxPoiseHp` on `Unit`). Poise resists stuns and knockback:
+
+- When an attack tries to inflict knockback, it can specify a **poise damage** amount (if not listed, assume 0).
+- The unit loses Poise HP equal to the poise damage (clamped to 0).
+- If the unit still has Poise HP left after the hit, the knockback is **ignored**.
+- If the unit is out of Poise HP (or has no max poise), the knockback is **applied**.
+
+To apply knockback from an ability, call `targetUnit.applyKnockback(poiseDamage, params, eventBus)`. It returns `true` if knockback was applied, `false` if resisted by poise.
+
+## Knockback
+
+When something should knock back a unit, use **`unit.applyKnockback(poiseDamage, params, eventBus)`** (see Poise above). The `params` object must be serializable and include:
+
+- **`knockbackVector`**: `{ x, y }` — direction and magnitude (pixels) of the push.
+- **`knockbackAirTime`**: seconds the unit is in the air (cannot move); full vector is applied over this time.
+- **`knockbackSlideTime`**: seconds after air; half of the vector is applied over this time.
+- **`knockbackSource`**: `{ unitId: string, abilityId: string }` — who applied the knockback (for callbacks).
+
+While knockback is active, the unit cannot move or act. It is pushed by the vector (full during air, then half during slide). If it hits a wall (rock terrain or world boundary), it bounces like a billiard ball. All knockback state is serialized on the unit for save/restore.
+
+Example (melee hit away from caster):
+
+```ts
+const dirX = dist > 0 ? dx / dist : 1;
+const dirY = dist > 0 ? dy / dist : 0;
+targetUnit.applyKnockback(
+    POISE_DAMAGE,
+    {
+        knockbackVector: { x: dirX * MAGNITUDE, y: dirY * MAGNITUDE },
+        knockbackAirTime: 0.3,
+        knockbackSlideTime: 0.2,
+        knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
+    },
+    eng.eventBus,
+);
+```
+
 ## Checklist
 
 - [ ] Folder `card_defs/####_ABILITY_NAME` and file `####Ability.ts` created.
@@ -84,3 +123,4 @@ Whenever an ability needs to "store" some data for use in the future, it must be
 - [ ] `doCardEffect` implements per-tick behavior; `renderPreview` draws targeting hint.
 - [ ] Ability registered in `AbilityRegistry.ts`; card def registered in `card_defs/index.ts`.
 - [ ] Character’s card list (e.g. in `character_defs/characters.ts`) includes the new card id if the character should have the card.
+- [ ] If the ability inflicts knockback: call `targetUnit.applyKnockback(poiseDamage, params, eventBus)` with serializable params; when it hits an enemy, attempt a poise check (pass `poiseDamage > 0` so the target can resist if it has Poise HP).

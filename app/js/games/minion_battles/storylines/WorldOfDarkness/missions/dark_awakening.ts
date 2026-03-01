@@ -89,6 +89,13 @@ const ENEMIES = [
 const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'spawnWave',
+        trigger: { atRound: 2 },
+        spawns: [{ characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }],
+        emittedMessage: 'Reinforcements have arrived!',
+        emittedByNpcId: '1',
+    },
+    {
+        type: 'spawnWave',
         trigger: { atRound: 4 },
         spawns: [{ characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }],
         emittedMessage: 'Reinforcements have arrived!',
@@ -96,14 +103,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
     },
     {
         type: 'spawnWave',
-        trigger: { atRound: 5 },
-        spawns: [{ characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }],
-        emittedMessage: 'Reinforcements have arrived!',
-        emittedByNpcId: '1',
-    },
-    {
-        type: 'spawnWave',
-        trigger: { atRound: 7 },
+        trigger: { atRound: 6 },
         spawns: [{ characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }, { characterId: 'dark_wolf' }],
         emittedMessage: 'Reinforcements have arrived!',
         emittedByNpcId: '1',

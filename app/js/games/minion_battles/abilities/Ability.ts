@@ -160,3 +160,12 @@ export function spendAbilityCost(unit: Unit, ability: AbilityStatic): boolean {
     if (!resource) return false;
     return resource.spend(ability.resourceCost.amount);
 }
+
+/**
+ * Refund the resource cost for an ability (e.g. when the ability is interrupted).
+ */
+export function refundAbilityCost(unit: Unit, ability: AbilityStatic): void {
+    if (!ability.resourceCost) return;
+    const resource = unit.getResource(ability.resourceCost.resourceId);
+    if (resource) resource.add(ability.resourceCost.amount);
+}

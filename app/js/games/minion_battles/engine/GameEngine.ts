@@ -21,7 +21,7 @@ import { Effect } from '../objects/Effect';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getCardDef } from '../card_defs';
-import { spendAbilityCost } from '../abilities/Ability';
+import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
 import { type TeamId } from './teams';
 import { Rage } from '../resources/Rage';
@@ -594,6 +594,22 @@ export class GameEngine {
         if (!unit) return;
         const idx = unit.activeAbilities.findIndex((a) => a.abilityId === abilityId);
         if (idx >= 0) unit.activeAbilities.splice(idx, 1);
+    }
+
+    /**
+     * Interrupt a unit: cancel all active abilities, refund their resource cost and cooldown.
+     * Use when the unit is disrupted (e.g. knockback). Clears ability note.
+     */
+    interruptUnitAndRefundAbilities(unit: Unit): void {
+        while (unit.activeAbilities.length > 0) {
+            const active = unit.activeAbilities[0];
+            const ability = getAbility(active.abilityId);
+            if (ability) refundAbilityCost(unit, ability);
+            unit.activeAbilities.splice(0, 1);
+        }
+        unit.cooldownRemaining = 0;
+        unit.cooldownTotal = 0;
+        unit.clearAbilityNote();
     }
 
     // ========================================================================

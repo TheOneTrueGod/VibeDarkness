@@ -84,6 +84,8 @@ export default function MinionBattlesGame({
             (raw.character_selections as Record<string, string>) ??
             {}
     );
+    /** Game state returned when transitioning to battle (includes playerStoryChoices); used as initialGameState so story choices apply. */
+    const [phaseChangeGameState, setPhaseChangeGameState] = useState<Record<string, unknown> | null>(null);
 
     // ---- Local overrides for instant feedback -----------------------------
     const localOverrides = useLocalOverrides();
@@ -151,6 +153,11 @@ export default function MinionBattlesGame({
             localOverrides.clear();
 
             setGamePhase(phase as GamePhase);
+            if (phase === 'battle' && newGameState) {
+                setPhaseChangeGameState(newGameState);
+            } else {
+                setPhaseChangeGameState(null);
+            }
             if (newGameState) {
                 const nv = (newGameState.missionVotes ?? newGameState.mission_votes) as
                     | Record<string, string>
@@ -219,7 +226,7 @@ export default function MinionBattlesGame({
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
-                    initialGameState={raw}
+                    initialGameState={phaseChangeGameState ?? raw}
                     onSidebarInfoChange={onSidebarInfoChange}
                     onVictory={() => {
                         const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);

@@ -1,9 +1,9 @@
 /**
- * Bash - Warrior melee ability.
+ * Swing Bat - Warrior melee ability.
  *
- * Targets one unit within range 50 + caster size.
- * Reduces movement to 0 for 0.5s windup, then checks if target is still in range
- * (with +30 bonus). If so: deals damage and spawns a bash effect at target location.
+ * Similar to Bash: targets one unit, windup, then hit. Deals 50% more damage than Bash
+ * and has 10px extra range. On hit, attempts a poise check; if the target is out of
+ * Poise HP, applies knockback.
  */
 
 import { AbilityState } from '../../abilities/Ability';
@@ -19,20 +19,22 @@ import { createUnitTargetPreview } from '../../abilities/previewHelpers';
 import type { EventBus } from '../../engine/EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
+const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
 const PREFIRE_TIME = 0.2;
 const BASE_MIN_RANGE = 0;
-const BASE_MAX_RANGE = 50;
+const BASE_MAX_RANGE = 60; // 50 (Bash) + 10
 const RANGE_BONUS_ON_HIT = 30;
-const DAMAGE = 8;
-const BASH_EFFECT_DURATION = 0.4;
+const DAMAGE = 10; // Bash 8 * 1.5
+const SWING_BAT_EFFECT_DURATION = 0.4;
+const POISE_DAMAGE = 10;
+const KNOCKBACK_MAGNITUDE = 80;
+const KNOCKBACK_AIR_TIME = 0.3;
+const KNOCKBACK_SLIDE_TIME = 0.2;
 
-/** Minimum cast range (caster cannot target closer than this). */
 function getMinRange(_caster: Unit): number {
     return BASE_MIN_RANGE;
 }
 
-/** Maximum cast range (caster cannot target farther than this). */
 function getMaxRange(caster: Unit): number {
     return BASE_MAX_RANGE + caster.radius;
 }
@@ -46,18 +48,19 @@ interface GameEngineLike {
     addEffect(effect: Effect): void;
     gameTime: number;
     eventBus: EventBus;
+    interruptUnitAndRefundAbilities(unit: Unit): void;
 }
 
-const BASH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="32" cy="32" r="18" fill="#d4a574" stroke="#8B4513" stroke-width="3"/>
-  <path d="M32 14 L35 20 L32 26 L29 20 Z M32 38 L35 44 L32 50 L29 44 Z M14 32 L20 35 L26 32 L20 29 Z M38 32 L44 35 L50 32 L44 29 Z" fill="#8B0000"/>
-  <path d="M20 20 L26 26 M38 20 L26 26 M26 26 L26 38 M26 26 L38 38 M38 38 L20 38" stroke="#654321" stroke-width="2" fill="none"/>
+const SWING_BAT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="24" width="48" height="16" rx="4" fill="#8B4513" stroke="#654321" stroke-width="2"/>
+  <ellipse cx="32" cy="32" rx="14" ry="14" fill="#d4a574" stroke="#8B4513" stroke-width="2"/>
+  <path d="M32 18 L35 24 L32 30 L29 24 Z M32 34 L35 40 L32 46 L29 40 Z" fill="#8B0000"/>
 </svg>`;
 
-export const BashAbility: AbilityStatic = {
+export const SwingBatAbility: AbilityStatic = {
     id: CARD_ID,
-    name: 'Bash',
-    image: BASH_IMAGE,
+    name: 'Swing Bat',
+    image: SWING_BAT_IMAGE,
     cooldownTime: 2.5,
     resourceCost: null,
     rechargeTurns: 1,
@@ -66,7 +69,7 @@ export const BashAbility: AbilityStatic = {
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
     getDescription(_gameState?: unknown): string {
-        return `Melee attack. Wind up 0.5s (cannot move). If target stays in range, deal ${DAMAGE} damage and create a bash effect. Min range: ${BASE_MIN_RANGE}px, max range: 50 + your size.`;
+        return `Melee attack. Wind up 0.5s (cannot move). If target stays in range, deal ${DAMAGE} damage and attempt knockback (poise check). Min range: ${BASE_MIN_RANGE}px, max range: ${BASE_MAX_RANGE} + your size.`;
     },
 
     getRange(caster: Unit): { minRange: number; maxRange: number } {
@@ -102,20 +105,37 @@ export const BashAbility: AbilityStatic = {
 
             const dirX = dist > 0 ? dx / dist : 1;
             const dirY = dist > 0 ? dy / dist : 0;
+
+            const knockbackVector = {
+                x: dirX * KNOCKBACK_MAGNITUDE,
+                y: dirY * KNOCKBACK_MAGNITUDE,
+            };
+            targetUnit.applyKnockback(
+                POISE_DAMAGE,
+                {
+                    knockbackVector,
+                    knockbackAirTime: KNOCKBACK_AIR_TIME,
+                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
+                    knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
+                },
+                eng.eventBus,
+                (u) => eng.interruptUnitAndRefundAbilities(u),
+            );
+
             const startX = caster.x + dirX * (caster.radius * 0.5);
             const startY = caster.y + dirY * (caster.radius * 0.5);
             const endX = targetUnit.x - dirX * (targetUnit.radius * 0.5);
             const endY = targetUnit.y - dirY * (targetUnit.radius * 0.5);
 
-            const bashEffect = new Effect({
+            const effect = new Effect({
                 x: endX,
                 y: endY,
-                duration: BASH_EFFECT_DURATION,
+                duration: SWING_BAT_EFFECT_DURATION,
                 effectType: 'bash',
                 startX,
                 startY,
             });
-            eng.addEffect(bashEffect);
+            eng.addEffect(effect);
         }
     },
 
@@ -165,9 +185,9 @@ export const BashAbility: AbilityStatic = {
     }),
 };
 
-export const BashCard: CardDef = {
+export const SwingBatCard: CardDef = {
     id: CARD_ID,
-    name: 'Bash',
+    name: 'Swing Bat',
     abilityId: CARD_ID,
     durability: 2,
     discardDuration: { duration: 1, unit: 'rounds' },
