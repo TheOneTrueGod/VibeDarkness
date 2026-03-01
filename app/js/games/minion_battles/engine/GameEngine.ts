@@ -28,7 +28,11 @@ import { Rage } from '../resources/Rage';
 import { Mana } from '../resources/Mana';
 import type { Resource } from '../resources/Resource';
 import type { TerrainManager } from '../terrain/TerrainManager';
-import type { LevelEvent } from '../storylines/types';
+import type {
+    LevelEvent,
+    LevelEventSpawnWave,
+    LevelEventVictoryCheck,
+} from '../storylines/types';
 import { getEdgePositions } from '../storylines/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../objects/units/index';
 import { ENEMY_MELEE, ENEMY_RANGED, ENEMY_DARK_WOLF } from '../constants/enemyConstants';
@@ -654,7 +658,7 @@ export class GameEngine {
     }
 
     /** Process a single spawn wave event. */
-    private processSpawnWaveEvent(i: number, evt: import('../missions/types').LevelEventSpawnWave): void {
+    private processSpawnWaveEvent(i: number, evt: LevelEventSpawnWave): void {
         if (this.firedEventIndices.has(i)) return;
 
         let shouldFire = false;
@@ -704,10 +708,7 @@ export class GameEngine {
     }
 
     /** Run a single victory check. */
-    private runVictoryCheck(
-        i: number,
-        evt: import('../storylines/types').LevelEventVictoryCheck,
-    ): void {
+    private runVictoryCheck(i: number, evt: LevelEventVictoryCheck): void {
         // First time: emit the message if present
         if (!this.victoryCheckFirstEmitDone.has(i)) {
             this.victoryCheckFirstEmitDone.add(i);
