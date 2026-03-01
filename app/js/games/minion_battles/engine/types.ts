@@ -49,6 +49,10 @@ export interface SerializedGameState {
     specialTiles?: SerializedSpecialTile[];
     /** AI controller ID for enemy units (e.g. 'legacy', 'defensePoints'). Omitted => legacy. */
     aiControllerId?: string | null;
+    /** Indices of one-shot level events that have already fired (spawn waves). Restored on load to avoid re-spawning. */
+    firedEventIndices?: number[];
+    /** Indices of victory checks that have emitted their first message. */
+    victoryCheckFirstEmitDone?: number[];
 }
 
 /** Serialized card instance. */

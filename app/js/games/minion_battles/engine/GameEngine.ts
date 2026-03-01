@@ -168,11 +168,16 @@ export class GameEngine {
         });
     }
 
-    /** Register level events from the mission. Call from initializeGameState. */
+    /** Register level events from the mission. Call from initializeGameState. Clears fired-event state. */
     registerLevelEvents(events: LevelEvent[]): void {
         this.levelEvents = events;
         this.firedEventIndices.clear();
         this.victoryCheckFirstEmitDone.clear();
+    }
+
+    /** Set level events without clearing fired indices. Use when restoring from snapshot so spawn waves do not re-fire. */
+    setLevelEvents(events: LevelEvent[]): void {
+        this.levelEvents = events;
     }
 
     /** Set callback to send a message to the lobby chat. */
@@ -830,6 +835,8 @@ export class GameEngine {
             orders: this.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
             specialTiles: this.specialTiles.map((t) => specialTileToJSON(t) as unknown as import('./types').SerializedSpecialTile),
             aiControllerId: this.aiControllerId,
+            firedEventIndices: [...this.firedEventIndices],
+            victoryCheckFirstEmitDone: [...this.victoryCheckFirstEmitDone],
         };
     }
 
@@ -844,6 +851,12 @@ export class GameEngine {
         engine.snapshotIndex = data.snapshotIndex;
         engine.waitingForOrders = data.waitingForOrders;
         engine.aiControllerId = data.aiControllerId ?? null;
+        if (Array.isArray(data.firedEventIndices)) {
+            engine.firedEventIndices = new Set(data.firedEventIndices);
+        }
+        if (Array.isArray(data.victoryCheckFirstEmitDone)) {
+            engine.victoryCheckFirstEmitDone = new Set(data.victoryCheckFirstEmitDone);
+        }
         engine.pendingOrders = (data.orders ?? []).map((o) => ({
             gameTick: o.gameTick,
             order: { ...o.order, targets: (o.order.targets ?? []).map((t) => ({ ...t })) },
@@ -903,6 +916,9 @@ export class GameEngine {
             ]),
         );
 
+        // Advance the global game-object ID counter so any new objects (e.g. from later spawn waves) get unique IDs
+        advanceGameObjectIdCounterFromSnapshot(data);
+
         // Re-subscribe to round_end
         engine.eventBus.on('round_end', (evtData) => {
             engine.handleRoundEnd(evtData.roundNumber);
@@ -922,6 +938,41 @@ export class GameEngine {
         this.projectiles = [];
         this.effects = [];
         this.specialTiles = [];
+    }
+}
+
+/** Parse numeric suffix from game object IDs (e.g. "unit_7" -> 7). Used to advance the global ID counter after load. */
+function parseGameObjectIdNumber(id: string): number | null {
+    const match = /_(\d+)$/.exec(id);
+    return match ? parseInt(match[1], 10) : null;
+}
+
+/** Ensure the global game object ID counter is above any ID in the snapshot to avoid duplicate IDs after load. */
+function advanceGameObjectIdCounterFromSnapshot(data: SerializedGameState): void {
+    let maxN = 0;
+    for (const u of data.units ?? []) {
+        const id = (u as { id?: string }).id;
+        if (typeof id === 'string') {
+            const n = parseGameObjectIdNumber(id);
+            if (n !== null && n > maxN) maxN = n;
+        }
+    }
+    for (const p of data.projectiles ?? []) {
+        const id = (p as { id?: string }).id;
+        if (typeof id === 'string') {
+            const n = parseGameObjectIdNumber(id);
+            if (n !== null && n > maxN) maxN = n;
+        }
+    }
+    for (const e of data.effects ?? []) {
+        const id = (e as { id?: string }).id;
+        if (typeof id === 'string') {
+            const n = parseGameObjectIdNumber(id);
+            if (n !== null && n > maxN) maxN = n;
+        }
+    }
+    if (maxN > 0) {
+        resetGameObjectIdCounter(maxN + 1);
     }
 }
 

@@ -189,9 +189,9 @@ export default function BattlePhase({
         let engine: GameEngine;
         if (hasSnapshot && init) {
             engine = GameEngine.fromJSON(init as unknown as SerializedGameState, playerId, terrainManager);
-            // Restore level events (not serialized) from mission so spawn waves etc. still fire
+            // Set level events without clearing fired indices so already-fired spawn waves do not re-fire
             if (mission.levelEvents && mission.levelEvents.length > 0) {
-                engine.registerLevelEvents(mission.levelEvents);
+                engine.setLevelEvents(mission.levelEvents);
             }
             setRoundNumber(engine.roundNumber);
             setRoundProgress(engine.roundProgress);
@@ -313,9 +313,9 @@ export default function BattlePhase({
                 playerId,
                 oldEngine.terrainManager,
             );
-            // Restore level events (not serialized) from mission so spawn waves etc. still fire
+            // Set level events without clearing fired indices so spawn waves do not re-fire
             if (mission.levelEvents && mission.levelEvents.length > 0) {
-                newEngine.registerLevelEvents(mission.levelEvents);
+                newEngine.setLevelEvents(mission.levelEvents);
             }
             oldEngine.destroy();
             engineRef.current = newEngine;

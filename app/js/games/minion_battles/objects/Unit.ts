@@ -17,7 +17,6 @@ import { AbilityState } from '../abilities/Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
-import { TerrainType } from '../terrain/TerrainType';
 import { DEFAULT_UNIT_RADIUS } from '../constants/unitConstants';
 
 /** AI behavior settings for enemy units. */
@@ -356,8 +355,9 @@ export class Unit extends GameObject {
     }
 
     /**
-     * Advance knockback state: apply push (full vector during air, half during slide),
-     * bounce off walls (rock / bounds), and clear when duration ends.
+     * Advance knockback state: apply push (full vector during air, half during slide).
+     * If the next position would be out of bounds or unwalkable, knockback is cleared
+     * immediately and no movement is applied.
      */
     private updateKnockback(dt: number, grid: TerrainGrid | null): void {
         const k = this.knockback!;
@@ -378,33 +378,18 @@ export class Unit extends GameObject {
 
         const prevElapsed = k.knockbackElapsed;
         k.knockbackElapsed = Math.min(k.knockbackElapsed + dt, totalTime);
-        const newElapsed = k.knockbackElapsed;
 
         const prevD = displacementAt(prevElapsed);
-        const newD = displacementAt(newElapsed);
-        let pushX = newD.x - prevD.x;
-        let pushY = newD.y - prevD.y;
+        const newD = displacementAt(k.knockbackElapsed);
+        const pushX = newD.x - prevD.x;
+        const pushY = newD.y - prevD.y;
 
-        if (grid) {
-            const newX = this.x + pushX;
-            const newY = this.y + pushY;
-            const inRock = (x: number, y: number) => {
-                const { col, row } = grid.worldToGrid(x, y);
-                if (col < 0 || col >= grid.width || row < 0 || row >= grid.height) return true;
-                return grid.getAtWorld(x, y) === TerrainType.Rock;
-            };
-            if (inRock(newX, newY)) {
-                const cell = grid.worldToGrid(newX, newY);
-                const wallCenter = grid.gridToWorld(cell.col, cell.row);
-                const nx = this.x - wallCenter.x;
-                const ny = this.y - wallCenter.y;
-                const len = Math.sqrt(nx * nx + ny * ny) || 1;
-                const nX = nx / len;
-                const nY = ny / len;
-                const dot = pushX * nX + pushY * nY;
-                pushX = pushX - 2 * dot * nX;
-                pushY = pushY - 2 * dot * nY;
-            }
+        const newX = this.x + pushX;
+        const newY = this.y + pushY;
+
+        if (grid && !grid.isPassable(newX, newY)) {
+            this.knockback = null;
+            return;
         }
 
         this.x += pushX;
