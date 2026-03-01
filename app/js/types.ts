@@ -24,6 +24,33 @@ export interface AccountState {
     earth: number;
     air: number;
     recentLobbies?: string[];
+    campaignIds?: string[];
+}
+
+export interface CampaignCharacter {
+    id: string;
+    name: string;
+    characterId: string;
+}
+
+export interface MissionResult {
+    missionId: string;
+    result: string;
+    timestamp?: number;
+}
+
+export interface CampaignResources {
+    food: number;
+    metal: number;
+    population: number;
+}
+
+export interface CampaignState {
+    id: string;
+    name: string;
+    campaignCharacters: CampaignCharacter[];
+    missionResults: MissionResult[];
+    resources: CampaignResources;
 }
 
 /** Info pushed from a game component into the chat sidebar. */

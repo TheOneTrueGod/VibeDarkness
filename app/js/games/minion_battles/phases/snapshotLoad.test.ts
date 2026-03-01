@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { GameEngine } from '../engine/GameEngine';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
-import { DARK_AWAKENING } from '../missions/dark_awakening';
+import { DARK_AWAKENING } from '../storylines/WorldOfDarkness/missions/dark_awakening';
 
 /** Minimal snapshot shape returned by backend getGameStateData from checkpoint files. */
 function makeCheckpointSnapshot(overrides: Partial<Record<string, unknown>> = {}) {

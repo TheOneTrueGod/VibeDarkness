@@ -22,6 +22,9 @@ use App\Http\Handlers\GetGameOrdersHandler;
 use App\Http\Handlers\NotFoundHandler;
 use App\Http\Handlers\PostMessageHandler;
 use App\Http\Handlers\StatsHandler;
+use App\Http\Handlers\CreateCampaignHandler;
+use App\Http\Handlers\GetCampaignHandler;
+use App\Http\Handlers\UpdateCampaignHandler;
 
 /**
  * Matches request method and path to handler functions.
@@ -39,6 +42,9 @@ class Router
             ['POST', '#^/api/account/create$#', CreateAccountHandler::class],
             ['GET', '#^/api/account/me$#', GetCurrentUserHandler::class],
             ['POST', '#^/api/account/logout$#', LogoutHandler::class],
+            ['POST', '#^/api/campaigns$#', CreateCampaignHandler::class],
+            ['GET', '#^/api/campaigns/([a-z0-9]+)$#', GetCampaignHandler::class],
+            ['PATCH', '#^/api/campaigns/([a-z0-9]+)$#', UpdateCampaignHandler::class],
             ['GET', '#^/api/lobbies$#', ListLobbiesHandler::class],
             ['POST', '#^/api/lobbies$#', CreateLobbyHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/state$#', GetLobbyStateHandler::class],

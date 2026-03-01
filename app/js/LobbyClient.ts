@@ -7,6 +7,7 @@ interface ApiResponse {
     success: boolean;
     error?: string;
     account?: AccountInfo;
+    campaign?: import('./types').CampaignState;
     lobbies?: LobbySummary[];
     lobby?: LobbyState;
     player?: PlayerInfo;
@@ -54,6 +55,7 @@ interface AccountInfo {
     earth: number;
     air: number;
     recentLobbies?: string[];
+    campaignIds?: string[];
 }
 
 interface CreateLobbyResult {
@@ -124,6 +126,29 @@ export class LobbyClient {
 
     async logout(): Promise<void> {
         await this.request('/api/account/logout', { method: 'POST' });
+    }
+
+    async createCampaign(): Promise<import('./types').CampaignState> {
+        const data = await this.request('/api/campaigns', { method: 'POST', body: JSON.stringify({}) });
+        return data.campaign as import('./types').CampaignState;
+    }
+
+    async getCampaign(campaignId: string): Promise<import('./types').CampaignState> {
+        const data = await this.request(`/api/campaigns/${encodeURIComponent(campaignId)}`);
+        return data.campaign as import('./types').CampaignState;
+    }
+
+    async updateCampaign(
+        campaignId: string,
+        payload: Partial<import('./types').CampaignState> & {
+            addMissionResult?: { missionId: string; result: string; resourceDelta?: { food?: number; metal?: number; population?: number } };
+        }
+    ): Promise<import('./types').CampaignState> {
+        const data = await this.request(`/api/campaigns/${encodeURIComponent(campaignId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+        });
+        return data.campaign as import('./types').CampaignState;
     }
 
     async listLobbies(): Promise<LobbySummary[]> {

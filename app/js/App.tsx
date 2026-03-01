@@ -5,8 +5,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { UserProvider, useUser } from './contexts/UserContext';
-import LobbyScreen from './components/LobbyScreen';
+import CampaignHomeScreen from './components/CampaignHomeScreen';
 import LoginScreen from './components/LoginScreen';
+import { MISSION_MAP } from './games/minion_battles/storylines';
 import GameScreen from './components/GameScreen';
 import type { MessageEntry } from './components/Chat';
 import type { ClickData } from './components/GameCanvas';
@@ -74,7 +75,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 /** Inner app component that uses Toast context */
 function AppInner() {
     const { showToast } = useToast();
-    const { refetch: refetchUser } = useUser();
+    const { user, refetch: refetchUser } = useUser();
     const lobbyClient = useMemo(() => new LobbyClient(), []);
 
     // Screen
@@ -101,6 +102,8 @@ function AppInner() {
     const [lobbyGameId, setLobbyGameId] = useState<string | null>(null);
     const [lobbyGameType, setLobbyGameType] = useState<string | null>(null);
     const [lobbyGameData, setLobbyGameData] = useState<Record<string, unknown> | null>(null);
+    /** Set when creating a lobby from campaign Mission Select; used to record mission results on victory. */
+    const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(null);
 
     // Polling
     const lastMessageIdRef = useRef<number | null>(null);
@@ -327,7 +330,9 @@ function AppInner() {
     const handleCreateLobby = useCallback(
         async () => {
             try {
-                const result = await lobbyClient.createLobby();
+                const name = user?.name ?? 'Player';
+                const accountId = user?.id ?? 0;
+                const result = await lobbyClient.createLobby(`${name}'s Lobby`, accountId);
                 const lobby = result.lobby as LobbyState;
                 const player = result.player as PlayerState;
                 const account = result.account as AccountState;
@@ -347,7 +352,58 @@ function AppInner() {
                 );
             }
         },
-        [lobbyClient, showToast, startInLobby]
+        [lobbyClient, showToast, startInLobby, user]
+    );
+
+    /** Create a lobby for a specific mission and go straight to character select. */
+    const handleCreateLobbyForMission = useCallback(
+        async (missionId: string, campaignId: string | null) => {
+            if (!user?.id) return;
+            setCurrentCampaignId(campaignId);
+            try {
+                const missionDef = MISSION_MAP[missionId];
+                const missionName = missionDef?.name ?? missionId;
+                const result = await lobbyClient.createLobby(`Mission: ${missionName}`, user.id);
+                const lobby = result.lobby as LobbyState;
+                const player = result.player as PlayerState;
+                const account = result.account as AccountState;
+
+                await lobbyClient.setLobbyState(lobby.id, player.id, 'in_game', 'minion_battles');
+                const { gameState } = await lobbyClient.getLobbyState(lobby.id, player.id);
+                const payload = gameState as unknown as GameStatePayload;
+                const gameId = payload.gameId ?? null;
+                if (gameId) {
+                    await lobbyClient.updateGameState(lobby.id, gameId, player.id, {
+                        gamePhase: 'character_select',
+                        missionVotes: { [player.id]: missionId },
+                    });
+                }
+
+                // Fetch state again so we have character_select in game data, then set all state
+                // before switching to game screen so we never show the "Select game" view.
+                const { gameState: finalState } = await lobbyClient.getLobbyState(lobby.id, player.id);
+                const finalPayload = finalState as unknown as GameStatePayload;
+                loadGameState(finalPayload);
+
+                setCurrentAccount(account);
+                setCurrentLobby(lobby);
+                setCurrentPlayer(player);
+                setConnectionStatus('connecting');
+                setChatEnabled(false);
+                setPlayers({ [player.id]: { ...player, isConnected: false } });
+                setScreen('game');
+                window.history.pushState(null, '', `${LOBBY_PATH_PREFIX}${lobby.id}`);
+
+                lastMessageIdRef.current = null;
+                await startInLobby(lobby, player);
+            } catch (error) {
+                showToast(
+                    'Failed to start mission: ' + (error instanceof Error ? error.message : 'Unknown error'),
+                    'error'
+                );
+            }
+        },
+        [lobbyClient, user, showToast, startInLobby, loadGameState]
     );
 
     const handleJoinLobby = useCallback(
@@ -395,6 +451,7 @@ function AppInner() {
         setLobbyGameId(null);
         setLobbyGameType(null);
         setLobbyGameData(null);
+        setCurrentCampaignId(null);
         lastMessageIdRef.current = null;
         window.history.replaceState(null, '', '/');
         setScreen('lobby');
@@ -422,6 +479,20 @@ function AppInner() {
             lobbyClient.sendMessage(currentLobby.id, currentPlayer.id, msg.type, msg.data).catch(() => {});
         },
         [currentLobby, currentPlayer, lobbyClient]
+    );
+
+    const recordMissionResult = useCallback(
+        async (missionId: string, result: string) => {
+            if (!currentCampaignId) return;
+            try {
+                await lobbyClient.updateCampaign(currentCampaignId, {
+                    addMissionResult: { missionId, result },
+                });
+            } catch (e) {
+                console.warn('Failed to record mission result:', e);
+            }
+        },
+        [currentCampaignId, lobbyClient]
     );
 
     const handleSelectGame = useCallback(
@@ -496,10 +567,11 @@ function AppInner() {
     return (
         <>
             {screen === 'lobby' && (
-                <LobbyScreen
+                <CampaignHomeScreen
                     lobbyClient={lobbyClient}
-                    onCreateLobby={handleCreateLobby}
+                    onSelectMission={handleCreateLobbyForMission}
                     onJoinLobby={handleJoinLobby}
+                    refetchUser={refetchUser}
                 />
             )}
             {screen === 'game' && currentLobby && currentPlayer && (
@@ -521,6 +593,7 @@ function AppInner() {
                     onCanvasClick={handleCanvasClick}
                     onLeave={handleLeaveLobby}
                     onSelectGame={handleSelectGame}
+                    onRecordMissionResult={recordMissionResult}
                 />
             )}
             <DebugConsole gameState={debugGameState} />

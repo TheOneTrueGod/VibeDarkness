@@ -6,11 +6,11 @@
  * and one large irregular rock formation in the center.
  */
 
-import { BaseMissionDef } from './BaseMissionDef';
-import type { LevelEvent } from './types';
-import { ENEMY_DARK_WOLF } from '../constants/enemyConstants';
-import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
-import { TerrainType } from '../terrain/TerrainType';
+import { BaseMissionDef } from '../../BaseMissionDef';
+import type { LevelEvent } from '../../types';
+import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
+import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { TerrainType } from '../../../terrain/TerrainType';
 
 // Grid: 30 columns × 20 rows (1200×800 world at 40px cells)
 

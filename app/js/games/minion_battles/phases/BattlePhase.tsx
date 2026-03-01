@@ -17,9 +17,8 @@ import { WORLD_WIDTH, WORLD_HEIGHT } from '../engine/GameEngine';
 import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../engine/types';
 import { resolveClick, validateAndResolveTarget } from '../abilities/targeting';
 import type { AbilityStatic } from '../abilities/Ability';
-import { DARK_AWAKENING } from '../missions/dark_awakening';
-import { LAST_HOLDOUT } from '../missions/last_holdout';
-import type { IBaseMissionDef } from '../missions/BaseMissionDef';
+import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
+import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import { TerrainManager } from '../terrain/TerrainManager';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
@@ -27,11 +26,6 @@ import RoundProgressBar from '../components/RoundProgressBar';
 import { throwError } from '../utils/errors';
 import { diffSnapshotFields } from '../utils/snapshotDiff';
 import { MessageType } from '../../../MessageTypes';
-
-const MISSION_MAP: Record<string, IBaseMissionDef> = {
-    dark_awakening: DARK_AWAKENING,
-    last_holdout: LAST_HOLDOUT,
-};
 
 interface BattlePhaseProps {
     lobbyClient: LobbyClient;

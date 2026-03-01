@@ -85,4 +85,15 @@ class AccountService
         $account->addRecentLobby($lobbyId);
         $this->storage->save($account);
     }
+
+    /** Add a campaign ID to the account and persist. */
+    public function addCampaignToAccount(int $accountId, string $campaignId): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->addCampaignId($campaignId);
+        $this->storage->save($account);
+    }
 }

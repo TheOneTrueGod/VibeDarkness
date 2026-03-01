@@ -7,10 +7,10 @@
  * enemies approach from. Scattered patches of rocks and thick grass.
  */
 
-import { BaseMissionDef } from './BaseMissionDef';
-import { ENEMY_MELEE, ENEMY_RANGED } from '../constants/enemyConstants';
-import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
-import { TerrainType } from '../terrain/TerrainType';
+import { BaseMissionDef } from '../../BaseMissionDef';
+import { ENEMY_MELEE, ENEMY_RANGED } from '../../../constants/enemyConstants';
+import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { TerrainType } from '../../../terrain/TerrainType';
 
 // Grid: 30 columns × 20 rows (1200×800 world at 40px cells)
 

@@ -39,6 +39,7 @@ export interface GameComponentProps {
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
+    onRecordMissionResult?: (missionId: string, result: string) => Promise<void>;
 }
 
 interface GameScreenProps {
@@ -59,6 +60,7 @@ interface GameScreenProps {
     onCanvasClick: (x: number, y: number) => void;
     onLeave: () => void;
     onSelectGame: (gameId: string) => void;
+    onRecordMissionResult?: (missionId: string, result: string) => Promise<void>;
 }
 
 export default function GameScreen({
@@ -79,6 +81,7 @@ export default function GameScreen({
     onCanvasClick,
     onLeave,
     onSelectGame,
+    onRecordMissionResult,
 }: GameScreenProps) {
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
     const [gameLoadError, setGameLoadError] = useState<string | null>(null);
@@ -287,6 +290,7 @@ export default function GameScreen({
                                     players={players}
                                     gameData={lobbyGameData}
                                     onSidebarInfoChange={setGameSidebarInfo}
+                                    onRecordMissionResult={onRecordMissionResult}
                                 />
                             ) : (
                                 <p className="text-muted">Loading game...</p>

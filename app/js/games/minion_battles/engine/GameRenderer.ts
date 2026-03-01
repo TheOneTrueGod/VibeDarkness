@@ -20,7 +20,7 @@ import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainRenderer } from '../terrain/TerrainRenderer';
 import { renderUnit, updateUnitHpBar, type IUnitRenderContext } from './unitDef';
 import { createEffectVisual, updateEffectVisual } from './effectDef';
-import { getSpecialTileDef } from '../missions/specialTileDefs';
+import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import type { SpecialTile } from '../objects/SpecialTile';
 
 /** Color for move target markers. */

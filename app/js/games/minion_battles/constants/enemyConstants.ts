@@ -4,7 +4,7 @@
  * Missions spread these and override name, hp, speed, position as needed.
  */
 
-import type { EnemySpawnDef } from '../missions/types';
+import type { EnemySpawnDef } from '../storylines/types';
 
 /** Melee enemy: knows ability 0002 (Enemy Melee Attack). */
 export const ENEMY_MELEE: EnemySpawnDef = {

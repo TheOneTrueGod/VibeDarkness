@@ -104,3 +104,18 @@ export interface MissionBattleConfig {
     /** Optional special tiles (DefendPoint, etc.) placed on the map. */
     specialTiles?: SpecialTilePlacement[];
 }
+
+/** Storyline flow edge: fromMissionId + result unlocks toMissionId. */
+export interface StorylineFlowEdge {
+    fromMissionId: string;
+    result: string;
+    toMissionId: string;
+}
+
+/** Storyline definition for campaign UI and unlock logic. */
+export interface StorylineDef {
+    id: string;
+    title: string;
+    startMissionId: string;
+    edges?: StorylineFlowEdge[];
+}

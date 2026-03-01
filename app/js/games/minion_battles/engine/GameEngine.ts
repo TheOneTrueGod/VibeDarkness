@@ -28,15 +28,15 @@ import { Rage } from '../resources/Rage';
 import { Mana } from '../resources/Mana';
 import type { Resource } from '../resources/Resource';
 import type { TerrainManager } from '../terrain/TerrainManager';
-import type { LevelEvent } from '../missions/types';
-import { getEdgePositions } from '../missions/edgeSpawns';
+import type { LevelEvent } from '../storylines/types';
+import { getEdgePositions } from '../storylines/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../objects/units/index';
 import { ENEMY_MELEE, ENEMY_RANGED, ENEMY_DARK_WOLF } from '../constants/enemyConstants';
 import type { SpecialTile } from '../objects/SpecialTile';
 import { specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
-import { getSpecialTileDef } from '../missions/specialTileDefs';
-import { buildAIController } from '../missions/ai';
-import type { AIContext } from '../missions/ai';
+import { getSpecialTileDef } from '../storylines/specialTileDefs';
+import { buildAIController } from '../storylines/ai';
+import type { AIContext } from '../storylines/ai';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
@@ -706,7 +706,7 @@ export class GameEngine {
     /** Run a single victory check. */
     private runVictoryCheck(
         i: number,
-        evt: import('../missions/types').LevelEventVictoryCheck,
+        evt: import('../storylines/types').LevelEventVictoryCheck,
     ): void {
         // First time: emit the message if present
         if (!this.victoryCheckFirstEmitDone.has(i)) {

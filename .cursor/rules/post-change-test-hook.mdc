@@ -1,5 +1,5 @@
 ---
-description: Run test suite after file create/save/delete; fix failures up to 2 times
+description: Run lint (fix errors), then test suite after file create/save/delete; fix failures up to 2 times
 alwaysApply: true
 ---
 
@@ -9,13 +9,17 @@ Whenever you finish a command where **files have been created, saved, or deleted
 
 ## Workflow
 
-1. **Run the test suite**: `npm run test` (Vitest)
+1. **Run lint and fix lint errors**:
+   - If the project has a lint script: run `npm run lint` and fix any reported errors.
+   - If there is no lint script: run the editor linter (e.g. ReadLints) on changed files and fix any reported errors.
 
-2. **If all tests pass**:
+2. **Run the test suite**: `npm run test` (Vitest)
+
+3. **If all tests pass**:
    - Return your normal response to the user
    - At the end, append: `All (#) tests have passed` (replace # with the actual count)
 
-3. **If any tests fail**:
+4. **If any tests fail**:
    - Attempt to fix the failing tests
    - Re-run `npm run test`
    - Repeat up to **2 fix attempts** total

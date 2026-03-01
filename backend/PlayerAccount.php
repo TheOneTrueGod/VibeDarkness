@@ -21,6 +21,8 @@ class PlayerAccount
     private int $air;
     /** @var string[] Most recent lobby IDs (newest first), max 10 */
     private array $recentLobbies;
+    /** @var string[] Campaign IDs this account belongs to */
+    private array $campaignIds;
 
     public function __construct(
         int $id,
@@ -31,7 +33,8 @@ class PlayerAccount
         int $water,
         int $earth,
         int $air,
-        array $recentLobbies = []
+        array $recentLobbies = [],
+        array $campaignIds = []
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -42,6 +45,7 @@ class PlayerAccount
         $this->earth = $earth;
         $this->air = $air;
         $this->recentLobbies = $recentLobbies;
+        $this->campaignIds = $campaignIds;
     }
 
     public function getRecentLobbies(): array
@@ -59,6 +63,23 @@ class PlayerAccount
         $list = array_values(array_filter($this->recentLobbies, fn ($x) => strtoupper((string) $x) !== $id));
         array_unshift($list, $id);
         $this->recentLobbies = array_slice($list, 0, 10);
+    }
+
+    /** @return string[] */
+    public function getCampaignIds(): array
+    {
+        return $this->campaignIds;
+    }
+
+    public function addCampaignId(string $campaignId): void
+    {
+        $id = trim($campaignId);
+        if ($id === '') {
+            return;
+        }
+        if (!in_array($id, $this->campaignIds, true)) {
+            $this->campaignIds[] = $id;
+        }
     }
 
     public function getId(): int
@@ -125,13 +146,19 @@ class PlayerAccount
             'water' => $this->water,
             'earth' => $this->earth,
             'air' => $this->air,
+            'recentLobbies' => array_values($this->recentLobbies),
+            'campaignIds' => array_values($this->campaignIds),
         ];
     }
 
-    /** Full array for storage (includes password hash and recentLobbies) */
+    /** Full array for storage (includes password hash, recentLobbies, campaignIds) */
     public function toStorageArray(): array
     {
-        return array_merge($this->toArray(), ['passwordHash' => $this->passwordHash]);
+        return array_merge($this->toArray(), [
+            'passwordHash' => $this->passwordHash,
+            'recentLobbies' => array_values($this->recentLobbies),
+            'campaignIds' => array_values($this->campaignIds),
+        ]);
     }
 
     public static function fromArray(array $data): self
@@ -140,6 +167,8 @@ class PlayerAccount
         $role = $data['role'] ?? self::ROLE_USER;
         $recent = $data['recentLobbies'] ?? [];
         $recent = is_array($recent) ? array_values(array_map('strval', $recent)) : [];
+        $campaignIds = $data['campaignIds'] ?? [];
+        $campaignIds = is_array($campaignIds) ? array_values(array_map('strval', $campaignIds)) : [];
         return new self(
             (int) $data['id'],
             $data['name'],
@@ -149,7 +178,8 @@ class PlayerAccount
             (int) ($data['water'] ?? 0),
             (int) ($data['earth'] ?? 0),
             (int) ($data['air'] ?? 0),
-            $recent
+            $recent,
+            $campaignIds
         );
     }
 

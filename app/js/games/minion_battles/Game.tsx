@@ -42,6 +42,7 @@ interface MinionBattlesGameProps {
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
+    onRecordMissionResult?: (missionId: string, result: string) => Promise<void>;
 }
 
 export default function MinionBattlesGame({
@@ -53,6 +54,7 @@ export default function MinionBattlesGame({
     players,
     gameData,
     onSidebarInfoChange,
+    onRecordMissionResult,
 }: MinionBattlesGameProps) {
     const { showToast } = useToast();
     const raw = gameData ?? {};
@@ -199,7 +201,12 @@ export default function MinionBattlesGame({
                     missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
                     initialGameState={raw}
                     onSidebarInfoChange={onSidebarInfoChange}
-                    onVictory={() => showToast('Victory!', 'success')}
+                    onVictory={() => {
+                        const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
+                        void onRecordMissionResult?.(missionId, 'victory').then(() =>
+                            showToast('Victory!', 'success')
+                        );
+                    }}
                 />
             )}
             {gamePhase !== 'mission_select' &&
