@@ -45,6 +45,10 @@ interface MinionBattlesGameProps {
     gameData: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
     onRecordMissionResult?: (missionId: string, result: string) => Promise<void>;
+    /** Called when user clicks Leave in the defeat modal. */
+    onLeave?: () => void;
+    /** Called when user clicks Try Again in the defeat modal; creates a new lobby for the same mission. */
+    onTryAgain?: (missionId: string) => Promise<void>;
 }
 
 export default function MinionBattlesGame({
@@ -57,8 +61,11 @@ export default function MinionBattlesGame({
     gameData,
     onSidebarInfoChange,
     onRecordMissionResult,
+    onLeave,
+    onTryAgain,
 }: MinionBattlesGameProps) {
     const { showToast } = useToast();
+    const [defeatModalOpen, setDefeatModalOpen] = useState(false);
     const raw = gameData ?? {};
 
     // Infer battle phase when gamePhase is missing but engine state (units, gameTick) exists.
@@ -217,24 +224,64 @@ export default function MinionBattlesGame({
                 />
             )}
             {gamePhase === 'battle' && (
-                <BattlePhase
-                    lobbyClient={lobbyClient}
-                    lobbyId={lobbyId}
-                    gameId={gameId}
-                    playerId={playerId}
-                    isHost={isHost}
-                    players={players}
-                    characterSelections={effective.characterSelections as Record<string, string>}
-                    missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
-                    initialGameState={phaseChangeGameState ?? raw}
-                    onSidebarInfoChange={onSidebarInfoChange}
-                    onVictory={() => {
-                        const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
-                        void onRecordMissionResult?.(missionId, 'victory').then(() =>
-                            showToast('Victory!', 'success')
-                        );
-                    }}
-                />
+                <>
+                    <BattlePhase
+                        lobbyClient={lobbyClient}
+                        lobbyId={lobbyId}
+                        gameId={gameId}
+                        playerId={playerId}
+                        isHost={isHost}
+                        players={players}
+                        characterSelections={effective.characterSelections as Record<string, string>}
+                        missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
+                        initialGameState={phaseChangeGameState ?? raw}
+                        onSidebarInfoChange={onSidebarInfoChange}
+                        onVictory={() => {
+                            const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
+                            void onRecordMissionResult?.(missionId, 'victory').then(() =>
+                                showToast('Victory!', 'success')
+                            );
+                        }}
+                        onDefeat={() => {
+                            void onRecordMissionResult?.(
+                                getSelectedMission(effective.missionVotes as Record<string, string>),
+                                'defeat'
+                            );
+                            setDefeatModalOpen(true);
+                        }}
+                    />
+                    {defeatModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                            <div className="bg-surface-light border border-border-custom rounded-lg shadow-xl p-10 mx-4 text-center min-h-[35vh] w-[min(90%, 28rem)] flex flex-col justify-center">
+                                <h2 className="text-2xl font-bold text-danger mb-2">Defeat!</h2>
+                                <p className="text-muted mb-6">You have succumbed to the darkness</p>
+                                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                    <button
+                                        type="button"
+                                        className="px-4 py-2 bg-dark-600 hover:bg-dark-500 text-white font-medium rounded transition-colors"
+                                        onClick={() => {
+                                            setDefeatModalOpen(false);
+                                            onLeave?.();
+                                        }}
+                                    >
+                                        Leave
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded transition-colors"
+                                        onClick={() => {
+                                            setDefeatModalOpen(false);
+                                            const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
+                                            void onTryAgain?.(missionId);
+                                        }}
+                                    >
+                                        Try again
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
             {gamePhase !== 'mission_select' &&
                 gamePhase !== 'character_select' &&

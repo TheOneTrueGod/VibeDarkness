@@ -67,6 +67,8 @@ interface BattlePhaseProps {
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
     /** Called when victory is achieved. */
     onVictory?: () => void;
+    /** Called when defeat is achieved (all player units dead). */
+    onDefeat?: () => void;
 }
 
 export default function BattlePhase({
@@ -81,6 +83,7 @@ export default function BattlePhase({
     initialGameState,
     onSidebarInfoChange,
     onVictory,
+    onDefeat,
 }: BattlePhaseProps) {
     // Refs for objects that persist across renders
     const engineRef = useRef<GameEngine | null>(null);
@@ -383,6 +386,7 @@ export default function BattlePhase({
                 }
             });
             if (onVictory) newEngine.setOnVictory(onVictory);
+            if (onDefeat) newEngine.setOnDefeat(onDefeat);
 
             setRoundNumber(newEngine.roundNumber);
             setRoundProgress(newEngine.roundProgress);
@@ -470,6 +474,9 @@ export default function BattlePhase({
 
         if (onVictory) {
             engine.setOnVictory(onVictory);
+        }
+        if (onDefeat) {
+            engine.setOnDefeat(onDefeat);
         }
 
         // Snap camera to player's unit

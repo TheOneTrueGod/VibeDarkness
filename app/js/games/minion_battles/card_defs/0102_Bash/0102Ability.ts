@@ -25,7 +25,7 @@ const BASE_MIN_RANGE = 0;
 const BASE_MAX_RANGE = 50;
 const RANGE_BONUS_ON_HIT = 30;
 const DAMAGE = 8;
-const BASH_EFFECT_DURATION = 0.4;
+const BASH_EFFECT_DURATION = 0.2;
 
 /** Minimum cast range (caster cannot target closer than this). */
 function getMinRange(_caster: Unit): number {
@@ -58,7 +58,7 @@ export const BashAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Bash',
     image: BASH_IMAGE,
-    cooldownTime: 2.5,
+    cooldownTime: 2,
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,

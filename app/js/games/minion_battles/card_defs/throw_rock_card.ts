@@ -8,7 +8,7 @@ const card: CardDef = {
     id: 'throw_rock',
     name: 'Throw Rock',
     abilityId: 'throw_rock',
-    durability: 2,
+    durability: 3,
     discardDuration: { duration: 1, unit: 'rounds' },
 };
 

@@ -610,6 +610,7 @@ function AppInner() {
                     onLeave={handleLeaveLobby}
                     onSelectGame={handleSelectGame}
                     onRecordMissionResult={recordMissionResult}
+                    onTryAgain={(missionId) => handleCreateLobbyForMission(missionId, currentCampaignId)}
                 />
             )}
             <DebugConsole gameState={debugGameState} />

@@ -40,6 +40,10 @@ export interface GameComponentProps {
     gameData: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
     onRecordMissionResult?: (missionId: string, result: string) => Promise<void>;
+    /** Called when user leaves (e.g. from defeat modal). */
+    onLeave?: () => void;
+    /** Called when user clicks Try Again after defeat; creates a new lobby for the given mission. */
+    onTryAgain?: (missionId: string) => Promise<void>;
 }
 
 interface GameScreenProps {
@@ -61,6 +65,8 @@ interface GameScreenProps {
     onLeave: () => void;
     onSelectGame: (gameId: string) => void;
     onRecordMissionResult?: (missionId: string, result: string) => Promise<void>;
+    /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
+    onTryAgain?: (missionId: string) => Promise<void>;
 }
 
 export default function GameScreen({
@@ -82,6 +88,7 @@ export default function GameScreen({
     onLeave,
     onSelectGame,
     onRecordMissionResult,
+    onTryAgain,
 }: GameScreenProps) {
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
     const [gameLoadError, setGameLoadError] = useState<string | null>(null);
@@ -291,6 +298,8 @@ export default function GameScreen({
                                     gameData={lobbyGameData}
                                     onSidebarInfoChange={setGameSidebarInfo}
                                     onRecordMissionResult={onRecordMissionResult}
+                                    onLeave={onLeave}
+                                    onTryAgain={onTryAgain}
                                 />
                             ) : (
                                 <p className="text-muted">Loading game...</p>

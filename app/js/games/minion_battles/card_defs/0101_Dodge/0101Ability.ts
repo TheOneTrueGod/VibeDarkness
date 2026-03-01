@@ -26,7 +26,7 @@ export const DodgeAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Dodge',
     image: DODGE_IMAGE,
-    cooldownTime: 2.0,
+    cooldownTime: 1.0,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DODGE_DURATION,

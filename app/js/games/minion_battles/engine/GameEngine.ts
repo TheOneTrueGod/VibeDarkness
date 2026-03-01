@@ -145,6 +145,12 @@ export class GameEngine {
     private onEmitMessage: ((text: string, npcId?: string) => void) | null = null;
     /** Callback when victory is achieved. */
     private onVictory: (() => void) | null = null;
+    /** Callback when defeat is achieved (all player units dead). */
+    private onDefeat: (() => void) | null = null;
+    /** True once defeat has been triggered so we only fire once. */
+    private defeatFired = false;
+    /** When true, fixedUpdate no-ops so the game is paused. */
+    private defeated = false;
 
     // ========================================================================
     // Lifecycle
@@ -159,6 +165,8 @@ export class GameEngine {
         this.localPlayerId = config.localPlayerId;
         this.terrainManager = config.terrainManager ?? null;
         this.aiControllerId = config.aiControllerId ?? null;
+        this.defeatFired = false;
+        this.defeated = false;
         resetGameObjectIdCounter(1);
         if (config.isHost) {
             this.randomSeed = this.generateHostSeed();
@@ -188,6 +196,11 @@ export class GameEngine {
     /** Set callback when victory is achieved. */
     setOnVictory(cb: () => void): void {
         this.onVictory = cb;
+    }
+
+    /** Set callback when defeat is achieved (all player units dead). */
+    setOnDefeat(cb: () => void): void {
+        this.onDefeat = cb;
     }
 
     /** Set callback for when the engine pauses waiting for player orders. */
@@ -269,8 +282,8 @@ export class GameEngine {
         const frameTime = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1); // cap at 100ms
         this.lastTimestamp = timestamp;
 
-        // Only accumulate time when the game is not paused
-        if (!this.isPaused && !this.waitingForOrders) {
+        // Only accumulate time when the game is not paused and not defeated
+        if (!this.defeated && !this.isPaused && !this.waitingForOrders) {
             this.accumulator += frameTime;
         }
 
@@ -290,6 +303,8 @@ export class GameEngine {
     }
 
     private fixedUpdate(dt: number): void {
+        if (this.defeated) return;
+
         // Advance game time and tick (only when game is advancing)
         this.gameTime += dt;
         this.gameTick++;
@@ -366,6 +381,22 @@ export class GameEngine {
         this.units = this.units.filter((u) => u.active);
         this.projectiles = this.projectiles.filter((p) => p.active);
         this.effects = this.effects.filter((e) => e.active);
+
+        // Defeat check: all player units dead
+        this.runDefeatCheck();
+    }
+
+    /** If all player units are dead, fire defeat once and pause. */
+    private runDefeatCheck(): void {
+        if (this.defeatFired) return;
+        const hasAlivePlayer = this.units.some(
+            (u) => u.isPlayerControlled() && u.isAlive(),
+        );
+        if (!hasAlivePlayer) {
+            this.defeatFired = true;
+            this.defeated = true;
+            this.onDefeat?.();
+        }
     }
 
     // ========================================================================

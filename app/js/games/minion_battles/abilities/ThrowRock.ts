@@ -28,7 +28,7 @@ export const ThrowRock: AbilityStatic = {
     id: 'throw_rock',
     name: 'Throw Rock',
     image: THROW_ROCK_IMAGE,
-    cooldownTime: 2,
+    cooldownTime: 1,
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: 0.3,
