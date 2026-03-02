@@ -55,7 +55,7 @@ export const DefensePointsAIController: UnitAIController = {
 		const retrigger = unit.pathfindingRetriggerOffset ?? DEFAULT_PATH_RETRIGGER;
 		const onRetriggerTick = retrigger > 0 && context.gameTick % retrigger === 0;
 		const shouldRecalcPathToDefend =
-			(!unit.movement?.path?.length || onRetriggerTick) &&
+			(unit.pathInvalidated || !unit.movement?.path?.length || onRetriggerTick) &&
 			!unit.aiContext.aiTargetUnitId &&
 			unit.activeAbilities.length === 0;
 		if (shouldRecalcPathToDefend && terrainManager && grid) {

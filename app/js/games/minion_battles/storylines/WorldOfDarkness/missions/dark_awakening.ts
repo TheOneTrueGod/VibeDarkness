@@ -114,6 +114,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
         conditions: [{ type: 'eliminateAllEnemies' }],
         emittedMessage: 'Eliminate all enemies to win',
         emittedByNpcId: '1',
+        missionResult: 'victory',
     },
 ];
 

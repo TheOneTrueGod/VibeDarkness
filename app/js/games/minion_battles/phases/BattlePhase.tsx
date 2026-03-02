@@ -65,8 +65,8 @@ interface BattlePhaseProps {
     /** Initial game state from server (if reconnecting). */
     initialGameState?: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
-    /** Called when victory is achieved. */
-    onVictory?: () => void;
+    /** Called when victory is achieved. Passes mission result from the winning victory check. */
+    onVictory?: (missionResult: string) => void;
     /** Called when defeat is achieved (all player units dead). */
     onDefeat?: () => void;
 }
@@ -353,7 +353,7 @@ export default function BattlePhase({
                 // #endregion
 
                 const unit = newEngine.getUnit(info.unitId);
-                const existingPath = unit?.movement?.path;
+                const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
                 pendingMovePathRef.current = existingPath && existingPath.length > 0
                     ? existingPath.map((p) => ({ ...p }))
                     : null;
@@ -432,8 +432,9 @@ export default function BattlePhase({
 
             // Preserve the unit's existing movement path so it carries over
             // into the next order (unit keeps walking between turns).
+            // Do not reuse path after forced movement (knockback, abilities).
             const unit = engine.getUnit(info.unitId);
-            const existingPath = unit?.movement?.path;
+            const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
             pendingMovePathRef.current = existingPath && existingPath.length > 0
                 ? existingPath.map((p) => ({ ...p }))
                 : null;

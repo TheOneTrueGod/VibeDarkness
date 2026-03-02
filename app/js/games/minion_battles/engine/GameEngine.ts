@@ -143,14 +143,18 @@ export class GameEngine {
     private victoryCheckFirstEmitDone: Set<number> = new Set();
     /** Callback to send a message to the lobby chat (e.g. from emittedMessage). npcId = NPC to display as sender. */
     private onEmitMessage: ((text: string, npcId?: string) => void) | null = null;
-    /** Callback when victory is achieved. */
-    private onVictory: (() => void) | null = null;
+    /** Callback when victory is achieved. Passes mission result from the winning victory check. */
+    private onVictory: ((missionResult: string) => void) | null = null;
     /** Callback when defeat is achieved (all player units dead). */
     private onDefeat: (() => void) | null = null;
     /** True once defeat has been triggered so we only fire once. */
     private defeatFired = false;
     /** When true, fixedUpdate no-ops so the game is paused. */
     private defeated = false;
+    /** True once victory has been triggered so we only fire once. */
+    private victoryFired = false;
+    /** When true, fixedUpdate no-ops so the game is paused (victory). */
+    private victorious = false;
 
     // ========================================================================
     // Lifecycle
@@ -167,6 +171,8 @@ export class GameEngine {
         this.aiControllerId = config.aiControllerId ?? null;
         this.defeatFired = false;
         this.defeated = false;
+        this.victoryFired = false;
+        this.victorious = false;
         resetGameObjectIdCounter(1);
         if (config.isHost) {
             this.randomSeed = this.generateHostSeed();
@@ -194,7 +200,7 @@ export class GameEngine {
     }
 
     /** Set callback when victory is achieved. */
-    setOnVictory(cb: () => void): void {
+    setOnVictory(cb: (missionResult: string) => void): void {
         this.onVictory = cb;
     }
 
@@ -282,8 +288,8 @@ export class GameEngine {
         const frameTime = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1); // cap at 100ms
         this.lastTimestamp = timestamp;
 
-        // Only accumulate time when the game is not paused and not defeated
-        if (!this.defeated && !this.isPaused && !this.waitingForOrders) {
+        // Only accumulate time when the game is not paused, defeated, or victorious
+        if (!this.defeated && !this.victorious && !this.isPaused && !this.waitingForOrders) {
             this.accumulator += frameTime;
         }
 
@@ -303,7 +309,7 @@ export class GameEngine {
     }
 
     private fixedUpdate(dt: number): void {
-        if (this.defeated) return;
+        if (this.defeated || this.victorious) return;
 
         // Advance game time and tick (only when game is advancing)
         this.gameTime += dt;
@@ -761,6 +767,7 @@ export class GameEngine {
 
     /** Run a single victory check. */
     private runVictoryCheck(i: number, evt: LevelEventVictoryCheck): void {
+        if (this.victoryFired) return;
         // First time: emit the message if present
         if (!this.victoryCheckFirstEmitDone.has(i)) {
             this.victoryCheckFirstEmitDone.add(i);
@@ -773,7 +780,10 @@ export class GameEngine {
                     (u) => u.isAlive() && u.teamId === 'enemy',
                 );
                 if (!hasEnemies) {
-                    this.onVictory?.();
+                    this.victoryFired = true;
+                    this.victorious = true;
+                    const missionResult = evt.missionResult ?? 'victory';
+                    this.onVictory?.(missionResult);
                     return;
                 }
             }

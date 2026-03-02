@@ -114,6 +114,9 @@ export class Unit extends GameObject {
     /** Recalculate pathfinding every N ticks (0 = never). Set at spawn from engine RNG. */
     pathfindingRetriggerOffset: number = 0;
 
+    /** True after forced movement (knockback, ability displacement); next normal move must recalculate path. */
+    pathInvalidated: boolean = false;
+
     /** Per-controller AI context bag (serialized via toJSON/fromJSON). */
     aiContext: UnitAIContext = {};
 
@@ -214,12 +217,13 @@ export class Unit extends GameObject {
         return actual;
     }
 
-    /** Set movement state with a grid-cell path. Clears movement if path is empty. */
+    /** Set movement state with a grid-cell path. Clears movement if path is empty. Clears pathInvalidated. */
     setMovement(path: { col: number; row: number }[], targetUnitId: string | undefined, pathfindingTick: number): void {
         if (path.length === 0) {
             this.movement = null;
             return;
         }
+        this.pathInvalidated = false;
         this.movement = {
             path: path.map((p) => ({ ...p })),
             targetUnitId,
@@ -230,6 +234,15 @@ export class Unit extends GameObject {
     /** Clear all movement state. */
     clearMovement(): void {
         this.movement = null;
+    }
+
+    /**
+     * Mark the current pathfinding route as invalid (e.g. after knockback or forced movement).
+     * Next normal move will recalculate the path. Clears movement so the unit does not follow the old route.
+     */
+    invalidateMovementPath(): void {
+        this.movement = null;
+        this.pathInvalidated = true;
     }
 
     /**
@@ -260,7 +273,7 @@ export class Unit extends GameObject {
             knockbackSource: { ...params.knockbackSource },
             knockbackElapsed: 0,
         };
-        this.clearMovement();
+        this.invalidateMovementPath();
         onApplied?.(this);
         return true;
     }
@@ -491,6 +504,7 @@ export class Unit extends GameObject {
             radius: this.radius,
             aiSettings: this.aiSettings,
             pathfindingRetriggerOffset: this.pathfindingRetriggerOffset,
+            pathInvalidated: this.pathInvalidated,
             aiContext: this.aiContext,
             moveJitter: this.moveJitter,
             poiseHp: this.poiseHp,
@@ -541,6 +555,7 @@ export class Unit extends GameObject {
         unit.radius = (data.radius as number) ?? DEFAULT_UNIT_RADIUS;
         unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
         unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
+        unit.pathInvalidated = (data.pathInvalidated as boolean) ?? false;
         unit.aiContext = ((data.aiContext as UnitAIContext) ?? {}) as UnitAIContext;
         unit.moveJitter = (data.moveJitter as number) ?? 0;
         unit.poiseHp = (data.poiseHp as number) ?? 0;

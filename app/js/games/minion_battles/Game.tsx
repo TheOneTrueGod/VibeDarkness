@@ -66,6 +66,7 @@ export default function MinionBattlesGame({
 }: MinionBattlesGameProps) {
     const { showToast } = useToast();
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
+    const [victoryModalOpen, setVictoryModalOpen] = useState(false);
     const raw = gameData ?? {};
 
     // Infer battle phase when gamePhase is missing but engine state (units, gameTick) exists.
@@ -236,11 +237,10 @@ export default function MinionBattlesGame({
                         missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
                         initialGameState={phaseChangeGameState ?? raw}
                         onSidebarInfoChange={onSidebarInfoChange}
-                        onVictory={() => {
+                        onVictory={(missionResult) => {
                             const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
-                            void onRecordMissionResult?.(missionId, 'victory').then(() =>
-                                showToast('Victory!', 'success')
-                            );
+                            void onRecordMissionResult?.(missionId, missionResult);
+                            setVictoryModalOpen(true);
                         }}
                         onDefeat={() => {
                             void onRecordMissionResult?.(
@@ -276,6 +276,26 @@ export default function MinionBattlesGame({
                                         }}
                                     >
                                         Try again
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {victoryModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                            <div className="bg-surface-light border border-border-custom rounded-lg shadow-xl p-10 mx-4 text-center min-h-[33vh] min-w-[33vw] w-[33vw] flex flex-col justify-center">
+                                <h2 className="text-2xl font-bold text-success mb-2">Victory!</h2>
+                                <p className="text-muted mb-6">You have prevailed.</p>
+                                <div className="flex justify-center">
+                                    <button
+                                        type="button"
+                                        className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
+                                        onClick={() => {
+                                            setVictoryModalOpen(false);
+                                            onLeave?.();
+                                        }}
+                                    >
+                                        Continue
                                     </button>
                                 </div>
                             </div>

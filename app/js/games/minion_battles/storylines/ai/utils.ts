@@ -139,7 +139,7 @@ export function tryQueueAbilityOrder(unit: Unit, context: AIContext, candidateEn
             unitId: unit.id,
             abilityId: ability.id,
             targets: resolvedTargets,
-            movePath: unit.movement?.path ? [...unit.movement.path] : undefined,
+            movePath: unit.pathInvalidated ? undefined : (unit.movement?.path ? [...unit.movement.path] : undefined),
         });
         context.emitTurnEnd(unit.id);
         return true;
@@ -198,8 +198,9 @@ export function applyAIMovementToPosition(params: ApplyAIMovementParams): void {
     destY = Math.max(0, Math.min(worldHeight, destY));
     const destGrid = worldToGrid(destX, destY);
 
-    // Reuse path if same target and path end matches
+    // Reuse path if same target and path end matches (do not reuse after forced movement).
     if (
+        !unit.pathInvalidated &&
         unit.movement &&
         unit.movement.targetUnitId === targetUnitId &&
         unit.movement.path.length > 0

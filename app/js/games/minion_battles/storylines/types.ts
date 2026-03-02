@@ -52,6 +52,8 @@ export interface LevelEventVictoryCheck extends LevelEventBase {
     type: 'victoryCheck';
     trigger: { afterRound: number };
     conditions: VictoryCondition[];
+    /** Mission result to record when this victory check succeeds (e.g. 'victory', 'dark_awakening_complete'). Defaults to 'victory'. */
+    missionResult?: string;
 }
 
 export type LevelEvent = LevelEventSpawnWave | LevelEventVictoryCheck;

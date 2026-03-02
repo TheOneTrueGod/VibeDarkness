@@ -156,7 +156,7 @@ export const DarkWolfBiteAbility: AbilityStatic = {
         // Move caster along lunge
         caster.x = x1;
         caster.y = y1;
-        caster.clearMovement();
+        caster.invalidateMovementPath();
 
         // Check line segment (x0,y0)-(x1,y1) with radius caster.radius vs all enemies
         for (const unit of eng.units) {

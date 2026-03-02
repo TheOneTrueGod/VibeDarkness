@@ -60,6 +60,7 @@ export const DodgeAbility: AbilityStatic = {
         const moveDistance = Math.min(totalAllowed, distToTarget);
         if (moveDistance <= 0) return;
 
+        caster.invalidateMovementPath();
         caster.moveUnit(target.position.x, target.position.y, moveDistance);
     },
 
