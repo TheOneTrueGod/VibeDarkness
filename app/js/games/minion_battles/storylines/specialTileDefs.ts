@@ -12,6 +12,10 @@ export interface DefendPointDef {
     image: string;
     /** Maximum hit points. */
     maxHp: number;
+    /** Light added at this tile; omitted = no light. */
+    lightEmission?: number;
+    /** Max tile distance this light affects (Chebyshev). */
+    lightRadius?: number;
 }
 
 export type SpecialTileDef = DefendPointDef;
@@ -36,6 +40,8 @@ export const SPECIAL_TILE_DEFS: Record<string, SpecialTileDef> = {
         id: 'DefendPoint',
         image: CAMPFIRE_DATA_URL,
         maxHp: 5,
+        lightEmission: 30,
+        lightRadius: 20,
     },
 };
 

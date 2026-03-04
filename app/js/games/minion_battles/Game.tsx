@@ -49,6 +49,8 @@ interface MinionBattlesGameProps {
     onLeave?: () => void;
     /** Called when user clicks Try Again in the defeat modal; creates a new lobby for the same mission. */
     onTryAgain?: (missionId: string) => Promise<void>;
+    /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
+    onEmittedChatMessage?: (entry: import('../../components/Chat').MessageEntry) => void;
 }
 
 export default function MinionBattlesGame({
@@ -63,6 +65,7 @@ export default function MinionBattlesGame({
     onRecordMissionResult,
     onLeave,
     onTryAgain,
+    onEmittedChatMessage,
 }: MinionBattlesGameProps) {
     const { showToast } = useToast();
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
@@ -237,6 +240,7 @@ export default function MinionBattlesGame({
                         missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
                         initialGameState={phaseChangeGameState ?? raw}
                         onSidebarInfoChange={onSidebarInfoChange}
+                        onEmittedChatMessage={onEmittedChatMessage}
                         onVictory={(missionResult) => {
                             const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
                             void onRecordMissionResult?.(missionId, missionResult);

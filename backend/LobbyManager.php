@@ -183,30 +183,38 @@ class LobbyManager
 
     /**
      * Add a chat message and persist (for HTTP clients).
+     * @return array{messageId: int, chatEntry: array}|null
      */
-    public function addChatMessage(string $lobbyId, string $playerId, string $message): ?int
+    public function addChatMessage(string $lobbyId, string $playerId, string $message): ?array
     {
         $lobby = $this->getLobby($lobbyId);
         if ($lobby === null) {
             return null;
         }
-        $lobby->addChatMessage($playerId, $message);
+        $chatEntry = $lobby->addChatMessage($playerId, $message);
         $this->persistLobby($lobby);
-        return $lobby->getLastMessageId();
+        return [
+            'messageId' => $lobby->getLastMessageId(),
+            'chatEntry' => $chatEntry,
+        ];
     }
 
     /**
      * Add an NPC chat message and persist (for level events).
+     * @return array{messageId: int, chatEntry: array}|null
      */
-    public function addNpcChatMessage(string $lobbyId, string $npcId, string $message): ?int
+    public function addNpcChatMessage(string $lobbyId, string $npcId, string $message): ?array
     {
         $lobby = $this->getLobby($lobbyId);
         if ($lobby === null) {
             return null;
         }
-        $lobby->addNpcChatMessage($npcId, $message);
+        $chatEntry = $lobby->addNpcChatMessage($npcId, $message);
         $this->persistLobby($lobby);
-        return $lobby->getLastMessageId();
+        return [
+            'messageId' => $lobby->getLastMessageId(),
+            'chatEntry' => $chatEntry,
+        ];
     }
 
     /**

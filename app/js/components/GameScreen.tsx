@@ -44,6 +44,8 @@ export interface GameComponentProps {
     onLeave?: () => void;
     /** Called when user clicks Try Again after defeat; creates a new lobby for the given mission. */
     onTryAgain?: (missionId: string) => Promise<void>;
+    /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
+    onEmittedChatMessage?: (entry: MessageEntry) => void;
 }
 
 interface GameScreenProps {
@@ -67,6 +69,8 @@ interface GameScreenProps {
     onRecordMissionResult?: (missionId: string, result: string) => Promise<void>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
     onTryAgain?: (missionId: string) => Promise<void>;
+    /** Called when the game sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
+    onEmittedChatMessage?: (entry: MessageEntry) => void;
 }
 
 export default function GameScreen({
@@ -89,6 +93,7 @@ export default function GameScreen({
     onSelectGame,
     onRecordMissionResult,
     onTryAgain,
+    onEmittedChatMessage,
 }: GameScreenProps) {
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
     const [gameLoadError, setGameLoadError] = useState<string | null>(null);
@@ -300,6 +305,7 @@ export default function GameScreen({
                                     onRecordMissionResult={onRecordMissionResult}
                                     onLeave={onLeave}
                                     onTryAgain={onTryAgain}
+                                    onEmittedChatMessage={onEmittedChatMessage}
                                 />
                             ) : (
                                 <p className="text-muted">Loading game...</p>

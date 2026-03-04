@@ -6,7 +6,7 @@
  * engine objects with camera offsets applied.
  */
 
-import { Application, Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
 import type { Unit } from '../objects/Unit';
@@ -18,10 +18,11 @@ import type { TeamId } from './teams';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainRenderer } from '../terrain/TerrainRenderer';
-import { renderUnit, updateUnitHpBar, type IUnitRenderContext } from './unitDef';
+import { renderUnit, updateUnitHpBar, getBodyColor, type IUnitRenderContext } from './unitDef';
 import { createEffectVisual, updateEffectVisual } from './effectDef';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import type { SpecialTile } from '../objects/SpecialTile';
+import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid';
 
 /** Color for move target markers. */
 const MOVE_TARGET_COLOR = 0x000000;
@@ -63,6 +64,16 @@ export class GameRenderer {
     private wolfHeadTexture: Texture | null = null;
     /** Cached texture for DefendPoint (campfire). */
     private defendPointTexture: Texture | null = null;
+
+    /** Mission light config. Defaults: enabled true, global 0. */
+    private lightLevelEnabled: boolean = true;
+    private globalLightLevel: number = 0;
+    /** Darkness overlay (above terrain, below special tiles). Only visible when light enabled. */
+    private darknessOverlaySprite: Sprite | null = null;
+    /** Full overlay cache key (sources + globalLightLevel + size); when it changes we redraw. */
+    private lastOverlayKey: string | null = null;
+    /** Current light grid [row][col], for unit visibility. Set when light enabled. */
+    private currentLightGrid: number[][] | null = null;
 
     constructor() {
         this.app = new Application();
@@ -130,6 +141,12 @@ export class GameRenderer {
         }
     }
 
+    /** Set mission light config. Defaults: enabled true, global 0. */
+    setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
+        this.lightLevelEnabled = lightLevelEnabled;
+        this.globalLightLevel = globalLightLevel;
+    }
+
     /** Build the cached terrain sprite and add it at the bottom of the scene. */
     private buildTerrainSprite(terrainGrid: TerrainGrid): void {
         if (this.terrainSprite) {
@@ -139,9 +156,23 @@ export class GameRenderer {
         this.terrainSprite = this.terrainRenderer.buildSprite(terrainGrid);
         // Insert terrain at the very bottom of the game container
         this.gameContainer.addChildAt(this.terrainSprite, 0);
-        // Insert special tiles container above terrain (index 1)
+
+        // Darkness overlay (index 1): above terrain, below special tiles
+        if (!this.darknessOverlaySprite) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1;
+            canvas.height = 1;
+            this.darknessOverlaySprite = new Sprite(Texture.from({ resource: canvas, label: 'darkness-overlay' }));
+            this.darknessOverlaySprite.label = 'darknessOverlay';
+        }
+        if (!this.darknessOverlaySprite.parent) {
+            this.gameContainer.addChildAt(this.darknessOverlaySprite, 1);
+        }
+        this.darknessOverlaySprite.visible = this.lightLevelEnabled;
+
+        // Special tiles container above darkness overlay (index 2)
         if (!this.specialTilesContainer.parent) {
-            this.gameContainer.addChildAt(this.specialTilesContainer, 1);
+            this.gameContainer.addChildAt(this.specialTilesContainer, 2);
         }
     }
 
@@ -149,6 +180,87 @@ export class GameRenderer {
     resize(width: number, height: number): void {
         if (!this.initialized) return;
         this.app.renderer.resize(width, height);
+    }
+
+    // ========================================================================
+    // Light / darkness overlay
+    // ========================================================================
+
+    private static lightLevelToAlpha(level: number): number {
+        const L = Math.round(level);
+        if (L > 0) return 0;
+        if (L > -5) return 0.15;
+        if (L > -10) return 0.25;
+        if (L > -15) return 0.5;
+        if (L > -20) return 0.75;
+        return 1;
+    }
+
+    private getLightSourcesFromSpecialTiles(specialTiles: SpecialTile[]): LightSource[] {
+        const sources: LightSource[] = [];
+        for (const tile of specialTiles) {
+            if (tile.hp <= 0) continue;
+            const def = getSpecialTileDef(tile.defId);
+            const emission = def && 'lightEmission' in def ? def.lightEmission : undefined;
+            const radius = def && 'lightRadius' in def ? def.lightRadius : undefined;
+            if (emission != null && radius != null) {
+                sources.push({ col: tile.col, row: tile.row, emission, radius });
+            }
+        }
+        return sources;
+    }
+
+    private static lightSourcesKey(sources: LightSource[]): string {
+        const parts = sources
+            .slice()
+            .sort((a, b) => a.col - b.col || a.row - b.row)
+            .map((s) => `${s.col},${s.row},${s.emission},${s.radius}`);
+        return parts.join('|');
+    }
+
+    private updateDarknessOverlay(engine: GameEngine): void {
+        const grid = engine.terrainManager!.grid;
+        const width = grid.width;
+        const height = grid.height;
+        const sources = this.getLightSourcesFromSpecialTiles(engine.specialTiles);
+        this.currentLightGrid = getLightGrid(this.globalLightLevel, width, height, sources);
+
+        const overlayKey = `${GameRenderer.lightSourcesKey(sources)}|${this.globalLightLevel}|${width}|${height}`;
+        if (overlayKey !== this.lastOverlayKey && this.darknessOverlaySprite) {
+            this.lastOverlayKey = overlayKey;
+            const worldW = width * CELL_SIZE;
+            const worldH = height * CELL_SIZE;
+            const canvas = document.createElement('canvas');
+            canvas.width = worldW;
+            canvas.height = worldH;
+            const ctx = canvas.getContext('2d')!;
+            for (let row = 0; row < height; row++) {
+                for (let col = 0; col < width; col++) {
+                    const level = this.currentLightGrid![row][col];
+                    const alpha = GameRenderer.lightLevelToAlpha(level);
+                    if (alpha > 0) {
+                        ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+                        ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    }
+                }
+            }
+            const oldTexture = this.darknessOverlaySprite.texture;
+            this.darknessOverlaySprite.texture = Texture.from({ resource: canvas, label: 'darkness-overlay' });
+            if (oldTexture && oldTexture !== this.darknessOverlaySprite.texture) {
+                oldTexture.destroy(true);
+            }
+            this.darknessOverlaySprite.visible = true;
+        }
+    }
+
+    /** Light level at grid cell; returns null if light system disabled or out of bounds. */
+    private getLightAt(col: number, row: number): number | null {
+        const grid = this.currentLightGrid;
+        if (!grid) return null;
+        if (row < 0 || row >= grid.length) return null;
+        const r = grid[row];
+        if (!r || col < 0 || col >= r.length) return null;
+        return r[col];
     }
 
     /** Targeting state for preview (range rings, crosshair). */
@@ -177,6 +289,13 @@ export class GameRenderer {
         // Update game container offset (camera)
         this.gameContainer.x = -camera.x + camera.viewportWidth / 2;
         this.gameContainer.y = -camera.y + camera.viewportHeight / 2;
+
+        if (this.lightLevelEnabled && engine.terrainManager) {
+            this.updateDarknessOverlay(engine);
+        } else {
+            this.currentLightGrid = null;
+            if (this.darknessOverlaySprite) this.darknessOverlaySprite.visible = false;
+        }
 
         this.renderUnits(engine.units);
         this.renderSpecialTiles(engine.specialTiles);
@@ -270,6 +389,7 @@ export class GameRenderer {
 
     private renderUnits(units: Unit[]): void {
         const context = this.getUnitRenderContext();
+        const cellSize = CELL_SIZE;
         for (const unit of units) {
             let visual = this.unitVisuals.get(unit.id);
             if (!visual) {
@@ -281,7 +401,46 @@ export class GameRenderer {
             visual.y = unit.y;
             visual.visible = unit.active;
 
-            updateUnitHpBar(visual, unit);
+            const col = Math.floor(unit.x / cellSize);
+            const row = Math.floor(unit.y / cellSize);
+            const light = this.getLightAt(col, row);
+            const inFullDarkness =
+                light !== null && light <= -20 && areEnemies(this.localTeamId, unit.teamId);
+
+            const body = visual.children.find((c) => c.label === 'body') as Graphics | undefined;
+            const hpBg = visual.children.find((c) => c.label === 'hpBg');
+            const hpFill = visual.children.find((c) => c.label === 'hpFill');
+            const characterSprite = visual.children.find((c) => c.label === 'characterSprite');
+            const label = visual.children.find((c) => c.label === 'label');
+            const glow = visual.children.find((c) => c.label === 'glow');
+            const playerRing = visual.children.find((c) => c.label === 'playerRing');
+
+            if (inFullDarkness && body) {
+                body.clear();
+                body.circle(0, 0, unit.radius);
+                body.fill({ color: 0xef4444 });
+                body.stroke({ color: 0xef4444, width: 1 });
+                if (hpBg) hpBg.visible = false;
+                if (hpFill) hpFill.visible = false;
+                if (characterSprite) characterSprite.visible = false;
+                if (label) label.visible = false;
+                if (glow) glow.visible = false;
+                if (playerRing) playerRing.visible = false;
+            } else {
+                if (body) {
+                    body.clear();
+                    body.circle(0, 0, unit.radius);
+                    body.fill(getBodyColor(unit.characterId));
+                    body.stroke({ color: 0x000000, width: 1 });
+                }
+                if (hpBg) hpBg.visible = true;
+                if (hpFill) hpFill.visible = true;
+                if (characterSprite) characterSprite.visible = true;
+                if (label) label.visible = !characterSprite;
+                if (glow) glow.visible = true;
+                if (playerRing) playerRing.visible = true;
+                updateUnitHpBar(visual, unit);
+            }
         }
     }
 
@@ -304,8 +463,9 @@ export class GameRenderer {
             if (!visual) {
                 visual = new Graphics();
                 this.moveTargetVisuals.set(key, visual);
-                // Insert above terrain but below units
-                this.gameContainer.addChildAt(visual, this.terrainSprite ? 1 : 0);
+                // Insert above terrain (and darkness overlay + special tiles when present) but below units
+                const insertIndex = this.darknessOverlaySprite ? 3 : this.terrainSprite ? 1 : 0;
+                this.gameContainer.addChildAt(visual, insertIndex);
             }
 
             visual.clear();
@@ -353,8 +513,15 @@ export class GameRenderer {
 
     private renderActiveAbilityPreviews(engine: GameEngine): void {
         this.abilityPreviewGraphics.clear();
+        const cellSize = CELL_SIZE;
         for (const unit of engine.units) {
             if (!unit.isAlive()) continue;
+            if (areEnemies(this.localTeamId, unit.teamId) && this.currentLightGrid) {
+                const col = Math.floor(unit.x / cellSize);
+                const row = Math.floor(unit.y / cellSize);
+                const light = this.getLightAt(col, row);
+                if (light !== null && light <= -20) continue;
+            }
             for (const active of unit.activeAbilities) {
                 const ability = getAbility(active.abilityId);
                 if (ability?.renderActivePreview) {
@@ -481,6 +648,10 @@ export class GameRenderer {
         for (const visual of this.projectileVisuals.values()) visual.destroy();
         for (const visual of this.effectVisuals.values()) visual.destroy();
         for (const visual of this.specialTileVisuals.values()) visual.destroy();
+        if (this.darknessOverlaySprite) {
+            this.darknessOverlaySprite.destroy();
+            this.darknessOverlaySprite = null;
+        }
         this.unitVisuals.clear();
         this.moveTargetVisuals.clear();
         this.projectileVisuals.clear();
@@ -490,6 +661,7 @@ export class GameRenderer {
         this.terrainSprite = null;
         this.gameContainer.destroy();
         this.app.destroy();
+        clearLightGridCache();
         this.initialized = false;
     }
 }

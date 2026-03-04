@@ -238,12 +238,15 @@ export class LobbyClient {
         playerId: string,
         type: string,
         data: Record<string, unknown>
-    ): Promise<number> {
+    ): Promise<{ messageId: number; chatEntry?: Record<string, unknown> }> {
         const res = await this.request(`/api/lobbies/${lobbyId}/messages`, {
             method: 'POST',
             body: JSON.stringify({ playerId, type, data }),
         });
-        return res.messageId as number;
+        return {
+            messageId: res.messageId as number,
+            chatEntry: res.chatEntry as Record<string, unknown> | undefined,
+        };
     }
 
     async getStats(): Promise<unknown> {

@@ -110,6 +110,10 @@ export interface MissionBattleConfig {
     preMissionStory?: PreMissionStoryDef;
     /** Optional in-battle story segments (types only; no runtime yet). */
     inBattleStories?: InBattleStoryDef[];
+    /** If true, apply global and source-based light level (darkness overlay, enemy visibility). Default true. */
+    lightLevelEnabled?: boolean;
+    /** Global light level (integer). 0 = baseline; negative = darker. Default 0. */
+    globalLightLevel?: number;
 }
 
 /** Storyline flow edge: fromMissionId + result unlocks toMissionId. */

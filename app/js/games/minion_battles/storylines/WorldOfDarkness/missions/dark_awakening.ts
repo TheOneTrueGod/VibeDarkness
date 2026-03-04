@@ -154,6 +154,8 @@ export class DarkAwakeningMission extends BaseMissionDef {
     specialTiles = SPECIAL_TILES;
     aiController = 'defensePoints' as const;
     preMissionStory = PRE_MISSION_STORY;
+    lightLevelEnabled = true;
+    globalLightLevel = -20;
 }
 
 /** Mission instance for use in MISSION_MAP and mission select. */

@@ -128,37 +128,52 @@ function AppInner() {
 
     // ==================== Message handling ====================
 
+    /** Skip adding from poll if we already added this message (e.g. from sendMessage response). */
+    const isDuplicateChatEntry = useCallback((prev: MessageEntry[], entry: MessageEntry): boolean => {
+        if ('system' in entry && entry.system) return false;
+        const last = prev[prev.length - 1];
+        if (!last || 'system' in last) return false;
+        const sameSender = (last.playerId ?? '') === (entry.playerId ?? '');
+        const sameText = (last.message ?? '') === (entry.message ?? '');
+        const lastTs = last.timestamp ?? 0;
+        const entryTs = entry.timestamp ?? 0;
+        const recent = Math.abs(entryTs - lastTs) <= 3;
+        return sameSender && sameText && recent;
+    }, []);
+
     const handlePollMessage = useCallback(
         (msg: PollMessagePayload) => {
             const { type, data } = msg;
 
             if (type === MessageType.CHAT) {
                 const d = data as ChatMessageData;
-                setChatMessages((prev) => [
-                    ...prev,
-                    {
+                setChatMessages((prev) => {
+                    const entry = {
                         playerId: d.playerId,
                         playerName: d.playerName,
                         playerColor: d.playerColor,
                         message: d.message,
                         timestamp: d.timestamp,
-                    },
-                ]);
+                    };
+                    if (isDuplicateChatEntry(prev, entry)) return prev;
+                    return [...prev, entry];
+                });
             } else if (type === MessageType.NPC_CHAT) {
                 const npcId = data.npcId as string;
                 const message = data.message as string;
                 const timestamp = (data.timestamp as number) ?? Date.now() / 1000;
                 const npc = getNpc(npcId);
-                setChatMessages((prev) => [
-                    ...prev,
-                    {
+                setChatMessages((prev) => {
+                    const entry = {
                         playerId: npcId ? `npc:${npcId}` : undefined,
                         playerName: npc?.name ?? 'Unknown',
                         playerColor: npc?.color ?? '#888888',
                         message,
                         timestamp,
-                    },
-                ]);
+                    };
+                    if (isDuplicateChatEntry(prev, entry)) return prev;
+                    return [...prev, entry];
+                });
             } else if (type === MessageType.CLICK) {
                 setClicks((prev) => ({
                     ...prev,
@@ -221,7 +236,7 @@ function AppInner() {
             }
             // MISSION_VOTE and GAME_PHASE_CHANGED are handled by game components directly via polling
         },
-        [showToast]
+        [showToast, isDuplicateChatEntry]
     );
 
     // ==================== Polling ====================
@@ -483,10 +498,19 @@ function AppInner() {
             const msg = Messages.chat(message);
             lobbyClient
                 .sendMessage(currentLobby.id, currentPlayer.id, msg.type, msg.data)
+                .then((res) => {
+                    if (res.chatEntry) {
+                        setChatMessages((prev) => [...prev, res.chatEntry as MessageEntry]);
+                    }
+                })
                 .catch((err: Error) => showToast('Failed to send: ' + err.message, 'error'));
         },
         [currentLobby, currentPlayer, lobbyClient, showToast]
     );
+
+    const handleEmittedChatMessage = useCallback((entry: MessageEntry) => {
+        setChatMessages((prev) => [...prev, entry]);
+    }, []);
 
     const handleCanvasClick = useCallback(
         (x: number, y: number) => {
@@ -611,6 +635,7 @@ function AppInner() {
                     onSelectGame={handleSelectGame}
                     onRecordMissionResult={recordMissionResult}
                     onTryAgain={(missionId) => handleCreateLobbyForMission(missionId, currentCampaignId)}
+                    onEmittedChatMessage={handleEmittedChatMessage}
                 />
             )}
             <DebugConsole gameState={debugGameState} />

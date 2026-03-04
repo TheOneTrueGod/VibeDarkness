@@ -13,7 +13,7 @@ class NpcRegistry
         '1' => [
             'id' => '1',
             'name' => 'Narrator',
-            'color' => '#2563eb',
+            'color' => '#475569',
         ],
     ];
 

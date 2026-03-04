@@ -26,12 +26,12 @@ class PostMessageHandler
 
         if ($type === 'chat') {
             $message = $payload['message'] ?? '';
-            $messageId = $manager->addChatMessage($lobbyId, $playerId, $message);
-            if ($messageId === null) {
+            $result = $manager->addChatMessage($lobbyId, $playerId, $message);
+            if ($result === null) {
                 http_response_code(500);
                 return ['success' => false, 'error' => 'Failed to add message'];
             }
-            return ['success' => true, 'messageId' => $messageId];
+            return ['success' => true, 'messageId' => $result['messageId'], 'chatEntry' => $result['chatEntry']];
         }
 
         if ($type === 'npc_chat') {
@@ -41,12 +41,12 @@ class PostMessageHandler
                 http_response_code(400);
                 return ['success' => false, 'error' => 'npcId and message required'];
             }
-            $messageId = $manager->addNpcChatMessage($lobbyId, $npcId, $message);
-            if ($messageId === null) {
+            $result = $manager->addNpcChatMessage($lobbyId, $npcId, $message);
+            if ($result === null) {
                 http_response_code(500);
                 return ['success' => false, 'error' => 'Failed to add NPC message'];
             }
-            return ['success' => true, 'messageId' => $messageId];
+            return ['success' => true, 'messageId' => $result['messageId'], 'chatEntry' => $result['chatEntry']];
         }
 
         if ($type === 'click') {

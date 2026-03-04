@@ -10,6 +10,11 @@ export function isMissionCompleted(missionId: string, missionResults: MissionRes
     return missionResults.some((r) => r.missionId === missionId);
 }
 
+/** Mission has a victory (non-defeat) result. */
+export function hasVictoryResult(missionId: string, missionResults: MissionResult[]): boolean {
+    return missionResults.some((r) => r.missionId === missionId && r.result !== 'defeat');
+}
+
 /**
  * Return set of mission IDs that are unlocked for this storyline given campaign missionResults.
  * Unlocked = start mission + any toMissionId where fromMissionId has a matching result.

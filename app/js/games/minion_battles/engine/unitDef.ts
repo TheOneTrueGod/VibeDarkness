@@ -127,6 +127,11 @@ export function getUnitDef(characterId: string): IUnitDef {
     return defaultUnitDef;
 }
 
+/** Body color for a character ID (for restoring unit visual after full-darkness mode). */
+export function getBodyColor(characterId: string): number {
+    return UNIT_DEFS[characterId]?.bodyColor ?? DEFAULT_BODY_COLOR;
+}
+
 /** Default HP for a character ID. Used when creating units without explicit hp. Returns 50 if not configured. */
 export function getDefaultHp(characterId: string): number {
     return UNIT_DEFS[characterId]?.hp ?? 50;

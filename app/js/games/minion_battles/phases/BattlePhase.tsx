@@ -27,6 +27,7 @@ import RoundProgressBar from '../components/RoundProgressBar';
 import { throwError } from '../utils/errors';
 import { diffSnapshotFields } from '../utils/snapshotDiff';
 import { MessageType } from '../../../MessageTypes';
+import type { MessageEntry } from '../../../components/Chat';
 
 /** Derive equipped item IDs per player from story choices (choiceId -> optionId) and pre-mission story def. */
 function deriveEquippedItemsFromStoryChoices(
@@ -69,6 +70,8 @@ interface BattlePhaseProps {
     onVictory?: (missionResult: string) => void;
     /** Called when defeat is achieved (all player units dead). */
     onDefeat?: () => void;
+    /** Called when host sends an emitted message (NPC or chat) so the UI can show it immediately. */
+    onEmittedChatMessage?: (entry: MessageEntry) => void;
 }
 
 export default function BattlePhase({
@@ -84,6 +87,7 @@ export default function BattlePhase({
     onSidebarInfoChange,
     onVictory,
     onDefeat,
+    onEmittedChatMessage,
 }: BattlePhaseProps) {
     // Refs for objects that persist across renders
     const engineRef = useRef<GameEngine | null>(null);
@@ -185,6 +189,7 @@ export default function BattlePhase({
         const terrainGrid = mission.createTerrain();
         const terrainManager = new TerrainManager(terrainGrid);
         renderer.setTerrain(terrainGrid);
+        renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
 
         const init = initialGameState as Record<string, unknown> | null | undefined;
         const hasSnapshot = init && Array.isArray(init.units) && (init.units as unknown[]).length > 0 && typeof (init.gameTick ?? init.game_tick) === 'number';
@@ -261,34 +266,6 @@ export default function BattlePhase({
                     return;
                 }
 
-                // #region agent log
-                if (typeof fetch !== 'undefined') {
-                    fetch('http://127.0.0.1:7242/ingest/cbf947fa-3cd1-4ede-9663-15ab42cb01ad', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            runId: 'initial',
-                            hypothesisId: 'H4',
-                            location: 'BattlePhase.tsx:performDesyncCheck',
-                            message: 'Desync detected; reloading from snapshot',
-                            data: {
-                                playerId,
-                                isHost,
-                                diffPaths,
-                                criticalDiffs,
-                                clientRoundNumber: clientState.roundNumber,
-                                clientGameTick: clientState.gameTick,
-                                clientWaitingForOrders: clientState.waitingForOrders,
-                                serverRoundNumber: serverState.roundNumber,
-                                serverGameTick: serverState.gameTick,
-                                serverWaitingForOrders: (serverState as { waitingForOrders?: unknown }).waitingForOrders,
-                            },
-                            timestamp: Date.now(),
-                        }),
-                    }).catch(() => {});
-                }
-                // #endregion
-
                 throwError({
                     severity: 'medium',
                     message: 'Client Snapshot desync',
@@ -327,31 +304,6 @@ export default function BattlePhase({
                 setWaitingForOrders(info);
                 setIsPaused(true);
 
-                // #region agent log
-                if (typeof fetch !== 'undefined') {
-                    fetch('http://127.0.0.1:7242/ingest/cbf947fa-3cd1-4ede-9663-15ab42cb01ad', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            runId: 'initial',
-                            hypothesisId: 'H1',
-                            location: 'BattlePhase.tsx:reloadEngineFromSnapshot:setOnWaitingForOrders',
-                            message: 'onWaitingForOrders (reloaded engine)',
-                            data: {
-                                playerId,
-                                isHost,
-                                infoOwnerId: info.ownerId,
-                                infoUnitId: info.unitId,
-                                engineGameTick: newEngine.gameTick,
-                                engineRoundNumber: newEngine.roundNumber,
-                                engineSnapshotIndex: newEngine.snapshotIndex,
-                            },
-                            timestamp: Date.now(),
-                        }),
-                    }).catch(() => {});
-                }
-                // #endregion
-
                 const unit = newEngine.getUnit(info.unitId);
                 const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
                 pendingMovePathRef.current = existingPath && existingPath.length > 0
@@ -379,10 +331,14 @@ export default function BattlePhase({
             });
 
             newEngine.setOnEmitMessage((text, npcId) => {
+                if (!isHost) return;
+                const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {
+                    if (res.chatEntry) onEmittedChatMessage?.(res.chatEntry as MessageEntry);
+                };
                 if (npcId) {
-                    lobbyClient.sendMessage(lobbyId, playerId, MessageType.NPC_CHAT, { npcId, message: text }).catch(() => {});
+                    lobbyClient.sendMessage(lobbyId, playerId, MessageType.NPC_CHAT, { npcId, message: text }).then(onSent).catch(() => {});
                 } else {
-                    lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHAT, { message: text }).catch(() => {});
+                    lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHAT, { message: text }).then(onSent).catch(() => {});
                 }
             });
             if (onVictory) newEngine.setOnVictory(onVictory);
@@ -404,31 +360,6 @@ export default function BattlePhase({
         engine.setOnWaitingForOrders((info) => {
             setWaitingForOrders(info);
             setIsPaused(true);
-
-            // #region agent log
-            if (typeof fetch !== 'undefined') {
-                fetch('http://127.0.0.1:7242/ingest/cbf947fa-3cd1-4ede-9663-15ab42cb01ad', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        runId: 'initial',
-                        hypothesisId: 'H1',
-                        location: 'BattlePhase.tsx:setOnWaitingForOrders',
-                        message: 'onWaitingForOrders (initial engine)',
-                        data: {
-                            playerId,
-                            isHost,
-                            infoOwnerId: info.ownerId,
-                            infoUnitId: info.unitId,
-                            engineGameTick: engine.gameTick,
-                            engineRoundNumber: engine.roundNumber,
-                            engineSnapshotIndex: engine.snapshotIndex,
-                        },
-                        timestamp: Date.now(),
-                    }),
-                }).catch(() => {});
-            }
-            // #endregion
 
             // Preserve the unit's existing movement path so it carries over
             // into the next order (unit keeps walking between turns).
@@ -469,8 +400,16 @@ export default function BattlePhase({
             setRoundNumber(engine.roundNumber);
         });
 
-        engine.setOnEmitMessage((text) => {
-            lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHAT, { message: text }).catch(() => {});
+        engine.setOnEmitMessage((text, npcId) => {
+            if (!isHost) return;
+            const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {
+                if (res.chatEntry) onEmittedChatMessage?.(res.chatEntry as MessageEntry);
+            };
+            if (npcId) {
+                lobbyClient.sendMessage(lobbyId, playerId, MessageType.NPC_CHAT, { npcId, message: text }).then(onSent).catch(() => {});
+            } else {
+                lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHAT, { message: text }).then(onSent).catch(() => {});
+            }
         });
 
         if (onVictory) {
