@@ -40,8 +40,8 @@ export const SPECIAL_TILE_DEFS: Record<string, SpecialTileDef> = {
         id: 'DefendPoint',
         image: CAMPFIRE_DATA_URL,
         maxHp: 5,
-        lightEmission: 30,
-        lightRadius: 20,
+        lightEmission: 21,
+        lightRadius: 10,
     },
 };
 

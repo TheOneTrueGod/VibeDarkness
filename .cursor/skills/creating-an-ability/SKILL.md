@@ -13,8 +13,9 @@ When adding a new ability to Minion Battles, follow this layout and ID scheme so
    - `####` = 4-digit ability/card ID (see below).
    - `ABILITY_NAME` = short name in SCREAMING_SNAKE or PascalCase (e.g. `ThrowKnife`, `Fireball`).
 
-2. **Single file inside that folder**: `####Ability.ts`
-   - Example: folder `0201_ThrowKnife`, file `0201Ability.ts`.
+2. **Single file inside that folder**: `####_ABILITY_NAME.ts`
+   - The **file name must match the folder name** exactly (e.g. folder `0101_Dodge`, file `0101_Dodge.ts`).
+   - Example: folder `0201_ThrowKnife`, file `0201_ThrowKnife.ts`.
    - This file holds **both** the `CardDef` and the ability (`AbilityStatic` implementation).
 
 ## Ability ID (####)

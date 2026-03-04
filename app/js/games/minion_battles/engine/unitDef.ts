@@ -33,10 +33,11 @@ export interface IUnitDef {
 
 /** Body color, optional character sprite key, default HP/speed, and perception range (px) for AI. */
 const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string; hp?: number; speed?: number; perceptionRange?: number }> = {
-    warrior: { bodyColor: 0x8b0000 },
-    mage: { bodyColor: 0x4a148c },
-    ranger: { bodyColor: 0x2e7d32 },
-    healer: { bodyColor: 0xf5f5dc },
+    // Player characters: slightly reduced default move speed for tighter control.
+    warrior: { bodyColor: 0x8b0000, speed: 90 },
+    mage: { bodyColor: 0x4a148c, speed: 90 },
+    ranger: { bodyColor: 0x2e7d32, speed: 90 },
+    healer: { bodyColor: 0xf5f5dc, speed: 90 },
     enemy_ranged: { bodyColor: 0x555555, characterSpriteKey: 'enemy_ranged', perceptionRange: 400 },
     enemy_melee: { bodyColor: 0x555555, characterSpriteKey: 'enemy_melee', perceptionRange: 250 },
     dark_wolf: { bodyColor: 0x1a1a2e, characterSpriteKey: 'dark_wolf', hp: 12, speed: 100, perceptionRange: 300 },

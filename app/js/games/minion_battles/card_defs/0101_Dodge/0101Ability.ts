@@ -13,7 +13,7 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const DODGE_DURATION = 0.4;
-const DODGE_MAX_DISTANCE = 200;
+const DODGE_MAX_DISTANCE = 160;
 
 const DODGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <ellipse cx="32" cy="32" rx="24" ry="28" fill="none" stroke="#8B4513" stroke-width="3"/>
@@ -26,12 +26,12 @@ export const DodgeAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Dodge',
     image: DODGE_IMAGE,
-    cooldownTime: 1.0,
+    cooldownTime: 0.8,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DODGE_DURATION,
     targets: [{ type: 'pixel', label: 'Direction to dodge' }] as TargetDef[],
-    aiSettings: { minRange: 0, maxRange: 200 },
+    aiSettings: { minRange: 0, maxRange: DODGE_MAX_DISTANCE },
 
     getDescription(_gameState?: unknown): string {
         return `Dash toward the target location, moving up to ${DODGE_MAX_DISTANCE}px over ${DODGE_DURATION}s.`;

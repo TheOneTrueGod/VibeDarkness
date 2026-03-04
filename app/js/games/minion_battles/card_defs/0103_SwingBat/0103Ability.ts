@@ -61,7 +61,7 @@ export const SwingBatAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Swing Bat',
     image: SWING_BAT_IMAGE,
-    cooldownTime: 2.5,
+    cooldownTime: 2.1,
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,

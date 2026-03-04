@@ -3,7 +3,7 @@
  *
  * Targets a pixel. After 0.3s, creates a projectile that travels
  * 200px in a straight line toward the target. Deals 5 damage on hit.
- * Cooldown: 2s. No resource cost. Recharge: 1 round.
+ * Cooldown: 1.3s. No resource cost. Recharge: 1 round.
  */
 
 import { AbilityState } from './Ability';
@@ -28,7 +28,7 @@ export const ThrowRock: AbilityStatic = {
     id: 'throw_rock',
     name: 'Throw Rock',
     image: THROW_ROCK_IMAGE,
-    cooldownTime: 1,
+    cooldownTime: 1.3,
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: 0.3,

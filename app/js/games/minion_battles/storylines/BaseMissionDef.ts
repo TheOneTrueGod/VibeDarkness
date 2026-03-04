@@ -6,7 +6,7 @@
  * and define their own missionId, name, enemies, and createTerrain.
  */
 
-import type { GameEngine } from '../engine/GameEngine';
+import type { GameEngine, CardInstance } from '../engine/GameEngine';
 import type { UnitSpawnConfig } from '../engine/types';
 import type { EnemySpawnDef, MissionBattleConfig, LevelEvent } from './types';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
@@ -99,7 +99,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             engine.addUnit(unit);
 
             // Set up cards for this player
-            let hand: import('../engine/GameEngine').CardInstance[];
+            let hand: CardInstance[];
             if (isRanger) {
                 hand = [
                     createCardInstance('0001_1', '0001', 'hand'),
@@ -107,23 +107,23 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     createCardInstance('0001_3', '0001', 'hand'),
                     createCardInstance('0001_4', '0001', 'hand'),
                 ];
+            } else if (isWarrior) {
+                // Warrior starting deck: Bash, Bash, Bash, Dodge, Dodge
+                hand = [
+                    createCardInstance('0102_1', '0102', 'hand'),
+                    createCardInstance('0102_2', '0102', 'hand'),
+                    createCardInstance('0102_3', '0102', 'hand'),
+                    createCardInstance('0101_1', '0101', 'hand'),
+                    createCardInstance('0101_2', '0101', 'hand'),
+                ];
             } else {
-                const throwCardId = isWarrior ? 'throw_rock' : 'throw_knife';
-                if (isWarrior) {
-                    // Warrior: one copy of each card
-                    hand = [
-                        createCardInstance(`${throwCardId}_1`, throwCardId, 'hand'),
-                        createCardInstance('0102_1', '0102', 'hand'),
-                        createCardInstance('0101_1', '0101', 'hand'),
-                    ];
-                } else {
-                    hand = [
-                        createCardInstance(`${throwCardId}_1`, throwCardId, 'hand'),
-                        createCardInstance(`${throwCardId}_2`, throwCardId, 'hand'),
-                        createCardInstance('0102_1', '0102', 'hand'),
-                        createCardInstance('0102_2', '0102', 'hand'),
-                    ];
-                }
+                const throwCardId = 'throw_knife';
+                hand = [
+                    createCardInstance(`${throwCardId}_1`, throwCardId, 'hand'),
+                    createCardInstance(`${throwCardId}_2`, throwCardId, 'hand'),
+                    createCardInstance('0102_1', '0102', 'hand'),
+                    createCardInstance('0102_2', '0102', 'hand'),
+                ];
             }
             // Add cards from equipped items (e.g. pre-mission story choices)
             for (const itemId of equippedIds) {

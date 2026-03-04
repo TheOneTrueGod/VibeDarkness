@@ -58,7 +58,7 @@ export const BashAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Bash',
     image: BASH_IMAGE,
-    cooldownTime: 2,
+    cooldownTime: 1.6,
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,
