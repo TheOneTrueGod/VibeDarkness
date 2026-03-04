@@ -197,6 +197,7 @@ export default function BattlePhase({
         let engine: GameEngine;
         if (hasSnapshot && init) {
             engine = GameEngine.fromJSON(init as unknown as SerializedGameState, playerId, terrainManager);
+            engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
             // Set level events without clearing fired indices so already-fired spawn waves do not re-fire
             if (mission.levelEvents && mission.levelEvents.length > 0) {
                 engine.setLevelEvents(mission.levelEvents);
@@ -213,6 +214,7 @@ export default function BattlePhase({
                 isHost,
                 aiControllerId: mission.aiController,
             });
+            engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
             const selections = Object.keys(characterSelections).length > 0
                 ? characterSelections
                 : ((init?.characterSelections ?? init?.character_selections) as Record<string, string>) ?? {};

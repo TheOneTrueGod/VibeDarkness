@@ -16,6 +16,16 @@ export type LevelEventTrigger =
     | { afterRound: number }
     | { afterSeconds: number };
 
+/** Behaviour for where a spawn wave places units. */
+export type SpawnBehaviour = 'edgeOfMap' | 'darkness' | 'anywhere';
+
+/** Optional target area for spawn placement (world coordinates, radius in tiles). */
+export interface SpawnTarget {
+    x: number;
+    y: number;
+    radius: number;
+}
+
 /** Single enemy entry in a spawn wave (position is computed at spawn time). */
 export interface SpawnWaveEntry {
     characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf';
@@ -23,6 +33,15 @@ export interface SpawnWaveEntry {
     hp?: number;
     speed?: number;
     aiSettings?: AISettings;
+    /** Where to spawn this entry's units. Defaults to 'edgeOfMap'. */
+    spawnBehaviour?: SpawnBehaviour;
+    /**
+     * Optional target area for random placement. When provided, units are spawned within
+     * a circular area of radius (in tiles) around (x, y) in world space.
+     */
+    spawnTarget?: SpawnTarget;
+    /** How many units to attempt spawning for this entry. Defaults to 1. */
+    spawnCount?: number;
 }
 
 /** Victory condition: eliminate all enemy units. */

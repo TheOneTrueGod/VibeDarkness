@@ -41,6 +41,7 @@ import { specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import { buildAIController } from '../storylines/ai';
 import type { AIContext } from '../storylines/ai';
+import { getLightGrid, type LightSource } from './LightGrid';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
@@ -134,6 +135,9 @@ export class GameEngine {
 
     /** AI controller ID for enemy units ('legacy' | 'defensePoints'). Set from mission or restored from snapshot. */
     aiControllerId: string | null = null;
+    /** Mission light config used for darkness-based logic (e.g. spawnBehaviour: 'darkness'). */
+    lightLevelEnabled: boolean = true;
+    globalLightLevel: number = 0;
 
     /** Level events from mission. Cleared on restore. */
     private levelEvents: LevelEvent[] = [];
@@ -180,6 +184,12 @@ export class GameEngine {
         this.eventBus.on('round_end', (data) => {
             this.handleRoundEnd(data.roundNumber);
         });
+    }
+
+    /** Set mission light config for darkness-based logic (e.g. spawnBehaviour: 'darkness'). */
+    setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
+        this.lightLevelEnabled = lightLevelEnabled;
+        this.globalLightLevel = globalLightLevel;
     }
 
     /** Register level events from the mission. Call from initializeGameState. Clears fired-event state. */
@@ -706,26 +716,191 @@ export class GameEngine {
         this.firedEventIndices.add(i);
         if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
 
-        const positions = getEdgePositions(evt.spawns.length);
+        const terrainManager = this.terrainManager;
+        if (!terrainManager) {
+            // Without terrain we cannot pick valid tiles for spawn behaviours.
+            // Skip this wave to avoid inconsistent state.
+            // eslint-disable-next-line no-console
+            console.error('spawnWave: terrainManager is null; skipping spawn wave.');
+            return;
+        }
+
+        const grid = terrainManager.grid;
+        const width = grid.width;
+        const height = grid.height;
+        const cellSize = grid.cellSize;
         const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED, dark_wolf: ENEMY_DARK_WOLF };
 
-        for (let s = 0; s < evt.spawns.length; s++) {
-            const entry = evt.spawns[s];
+        // Track grid cells used for this wave so we don't double-place units on the same tile.
+        const occupiedCells = new Set<string>();
+
+        // Precompute light grid if any spawn entry uses darkness behaviour.
+        let lightGrid: number[][] | null = null;
+        const needsDarkness = evt.spawns.some((entry) => (entry.spawnBehaviour ?? 'edgeOfMap') === 'darkness');
+        if (needsDarkness) {
+            if (!this.lightLevelEnabled) {
+                // eslint-disable-next-line no-console
+                console.error('spawnWave: spawnBehaviour "darkness" requested but light system is disabled; skipping darkness spawns.');
+            } else {
+                const sources: LightSource[] = [];
+                for (const tile of this.specialTiles) {
+                    if (tile.hp <= 0) continue;
+                    const def = getSpecialTileDef(tile.defId);
+                    const emission = def && 'lightEmission' in def ? (def as any).lightEmission : undefined;
+                    const radius = def && 'lightRadius' in def ? (def as any).lightRadius : undefined;
+                    if (emission != null && radius != null) {
+                        sources.push({ col: tile.col, row: tile.row, emission, radius });
+                    }
+                }
+                lightGrid = getLightGrid(this.globalLightLevel, width, height, sources);
+            }
+        }
+
+        const edgeEntries: { base: typeof ENEMY_MELEE; entry: LevelEventSpawnWave['spawns'][number]; count: number }[] = [];
+        const otherEntries: {
+            base: typeof ENEMY_MELEE;
+            entry: LevelEventSpawnWave['spawns'][number];
+            behaviour: 'edgeOfMap' | 'darkness' | 'anywhere';
+            count: number;
+        }[] = [];
+
+        for (const entry of evt.spawns) {
             const cid = entry.characterId;
             if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf') continue;
             const base = baseDefs[cid];
+            const behaviour = entry.spawnBehaviour ?? 'edgeOfMap';
+            const count = Math.max(0, entry.spawnCount ?? 1);
+            if (count <= 0) continue;
 
-            const pos = positions[s] ?? { x: 40, y: 40 };
-            const config = {
-                ...base,
-                ...entry,
-                position: pos,
-                x: pos.x,
-                y: pos.y,
-                ownerId: 'ai' as const,
-            };
-            const unit = createUnitFromSpawnConfig(config, this.eventBus);
-            this.addUnit(unit);
+            if (behaviour === 'edgeOfMap') {
+                edgeEntries.push({ base, entry, count });
+            } else {
+                otherEntries.push({ base, entry, behaviour, count });
+            }
+        }
+
+        // Edge-of-map behaviour: distribute all requested units evenly around the map perimeter.
+        const totalEdgeCount = edgeEntries.reduce((sum, e) => sum + e.count, 0);
+        if (totalEdgeCount > 0) {
+            const positions = getEdgePositions(totalEdgeCount);
+            let idx = 0;
+            for (const { base, entry, count } of edgeEntries) {
+                for (let n = 0; n < count; n++) {
+                    const pos = positions[idx] ?? { x: 40, y: 40 };
+                    idx++;
+                    const config = {
+                        ...base,
+                        ...entry,
+                        position: pos,
+                        x: pos.x,
+                        y: pos.y,
+                        ownerId: 'ai' as const,
+                    };
+                    const unit = createUnitFromSpawnConfig(config, this.eventBus);
+                    this.addUnit(unit);
+                }
+            }
+        }
+
+        // Helper to collect candidate tiles for anywhere/darkness behaviours.
+        const collectCandidateTiles = (
+            behaviour: 'darkness' | 'anywhere',
+            spawnTarget: { x: number; y: number; radius: number } | undefined,
+        ): { col: number; row: number }[] => {
+            const candidates: { col: number; row: number }[] = [];
+            const hasTarget = !!spawnTarget;
+            const targetX = spawnTarget?.x ?? 0;
+            const targetY = spawnTarget?.y ?? 0;
+            const radiusPx = (spawnTarget?.radius ?? 0) * cellSize;
+            const radiusSq = radiusPx * radiusPx;
+
+            for (let row = 0; row < height; row++) {
+                for (let col = 0; col < width; col++) {
+                    const key = `${col},${row}`;
+                    if (occupiedCells.has(key)) continue;
+
+                    const { x, y } = grid.gridToWorld(col, row);
+
+                    if (hasTarget) {
+                        const dx = x - targetX;
+                        const dy = y - targetY;
+                        if (dx * dx + dy * dy > radiusSq) continue;
+                    }
+
+                    if (!terrainManager.isPassable(x, y)) continue;
+
+                    if (behaviour === 'darkness') {
+                        if (!lightGrid) continue;
+                        const level = lightGrid[row]?.[col];
+                        // "Full darkness" = tiles where light level is very low.
+                        if (level == null || level > -20) continue;
+                    }
+
+                    candidates.push({ col, row });
+                }
+            }
+
+            return candidates;
+        };
+
+        // Helper to choose indices without replacement using deterministic RNG.
+        const chooseRandomIndices = (availableCount: number, needed: number): number[] => {
+            const indices: number[] = [];
+            for (let i = 0; i < availableCount; i++) indices.push(i);
+            const result: number[] = [];
+            const count = Math.min(needed, availableCount);
+            for (let i = 0; i < count; i++) {
+                const pickIndex = this.generateRandomInteger(0, indices.length - 1);
+                const [chosen] = indices.splice(pickIndex, 1);
+                result.push(chosen);
+            }
+            return result;
+        };
+
+        // Anywhere/darkness behaviours: pick random valid tiles per entry.
+        for (const { base, entry, behaviour, count } of otherEntries) {
+            if (behaviour === 'darkness' && (!this.lightLevelEnabled || !lightGrid)) {
+                // eslint-disable-next-line no-console
+                console.error('spawnWave: spawnBehaviour "darkness" has no valid light grid; skipping this spawn entry.');
+                continue;
+            }
+
+            const candidates = collectCandidateTiles(behaviour === 'darkness' ? 'darkness' : 'anywhere', entry.spawnTarget);
+            if (candidates.length === 0) {
+                // eslint-disable-next-line no-console
+                console.error(
+                    `spawnWave: no valid tiles for behaviour "${behaviour}"` +
+                        (entry.spawnTarget ? ` near (${entry.spawnTarget.x}, ${entry.spawnTarget.y})` : '') +
+                        '; skipping this spawn entry.',
+                );
+                continue;
+            }
+
+            const spawnAttempts = Math.min(count, candidates.length);
+            if (spawnAttempts < count) {
+                // eslint-disable-next-line no-console
+                console.error(
+                    `spawnWave: requested ${count} spawns for behaviour "${behaviour}" but only found ${candidates.length} valid tiles.`,
+                );
+            }
+
+            const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);
+            for (const idx of chosenIndices) {
+                const cell = candidates[idx];
+                const key = `${cell.col},${cell.row}`;
+                occupiedCells.add(key);
+                const pos = grid.gridToWorld(cell.col, cell.row);
+                const config = {
+                    ...base,
+                    ...entry,
+                    position: pos,
+                    x: pos.x,
+                    y: pos.y,
+                    ownerId: 'ai' as const,
+                };
+                const unit = createUnitFromSpawnConfig(config, this.eventBus);
+                this.addUnit(unit);
+            }
         }
     }
 
