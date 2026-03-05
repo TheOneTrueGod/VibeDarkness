@@ -7,7 +7,7 @@
  */
 
 import { AbilityState } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
@@ -18,6 +18,7 @@ import { areEnemies } from '../../engine/teams';
 import { createUnitTargetPreview } from '../../abilities/previewHelpers';
 import type { EventBus } from '../../engine/EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
+import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
 const PREFIRE_TIME = 0.2;
@@ -98,6 +99,13 @@ export const BashAbility: AbilityStatic = {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist <= hitRange) {
+            if (canAttackBeBlocked(targetUnit, caster.x, caster.y, eng.gameTime)) {
+                const block = getBlockingArcForUnit(targetUnit, eng.gameTime);
+                if (block) {
+                    executeBlock(eng, targetUnit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID);
+                    return;
+                }
+            }
             targetUnit.takeDamage(DAMAGE, caster.id, eng.eventBus);
 
             const dirX = dist > 0 ? dx / dist : 1;
@@ -157,6 +165,10 @@ export const BashAbility: AbilityStatic = {
             ctx.stroke();
         }
         ctx.restore();
+    },
+
+    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
+        // Melee blocked: no additional behaviour.
     },
 
     renderTargetingPreview: createUnitTargetPreview({

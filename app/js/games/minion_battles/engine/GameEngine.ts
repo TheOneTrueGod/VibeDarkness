@@ -381,7 +381,7 @@ export class GameEngine {
         for (const proj of this.projectiles) {
             if (!proj.active) continue;
             proj.update(dt, this);
-            proj.checkCollision(this.units, this.eventBus, this.gameTime);
+            proj.checkCollision(this.units, this.eventBus, this.gameTime, this);
         }
 
         // Update effects
@@ -675,6 +675,26 @@ export class GameEngine {
         return this.units.find(
             (u) => u.ownerId === this.localPlayerId && u.isAlive(),
         );
+    }
+
+    /**
+     * Draw up to `count` cards from the player's deck into their hand.
+     * Does not exceed MAX_HAND_SIZE. Returns the number of cards actually drawn.
+     */
+    drawCardsForPlayer(playerId: string, count: number): number {
+        const hand = this.cards[playerId]?.filter((c) => c.location === 'hand') ?? [];
+        const deckCards = this.cards[playerId]?.filter((c) => c.location === 'deck') ?? [];
+        const handCount = hand.length;
+        const toDraw = Math.min(count, MAX_HAND_SIZE - handCount, deckCards.length);
+        for (let i = 0; i < toDraw; i++) {
+            const idx = this.generateRandomInteger(0, deckCards.length - 1);
+            const card = deckCards[idx];
+            if (card) {
+                card.location = 'hand';
+                deckCards.splice(idx, 1);
+            }
+        }
+        return toDraw;
     }
 
     // ========================================================================

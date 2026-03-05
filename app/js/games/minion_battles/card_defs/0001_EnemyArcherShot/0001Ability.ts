@@ -90,10 +90,17 @@ export const EnemyArcherShotAbility: AbilityStatic = {
                 damage: DAMAGE,
                 sourceTeamId: caster.teamId,
                 sourceUnitId: caster.id,
+                sourceAbilityId: CARD_ID,
                 maxDistance: MAX_DISTANCE,
             });
 
             eng.addProjectile(projectile);
+        }
+    },
+
+    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: import('../../abilities/Ability').AttackBlockedInfo): void {
+        if (attackInfo.type === 'projectile' && attackInfo.projectile) {
+            (attackInfo.projectile as Projectile).active = false;
         }
     },
 

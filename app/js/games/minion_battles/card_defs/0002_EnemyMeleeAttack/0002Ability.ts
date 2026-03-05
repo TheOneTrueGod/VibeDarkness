@@ -3,7 +3,7 @@
  */
 
 import { AbilityState } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../abilities/Ability';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
@@ -12,6 +12,7 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../engine/AbilityNote';
 import { areEnemies } from '../../engine/teams';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
+import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}02`;
 const LOCK_TIME = 0.5;
@@ -37,6 +38,7 @@ interface GameEngineLike {
     units: Unit[];
     gameTime: number;
     eventBus: { emit: (event: string, data: unknown) => void };
+    getUnit?(id: string): Unit | undefined;
 }
 
 function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }): { x: number; y: number } | null {
@@ -128,6 +130,13 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
                 if (!unit.active || !unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
                 if (unit.hasIFrames(eng.gameTime)) continue;
                 if (!pointInCone(caster.x, caster.y, unit.x, unit.y, dirX, dirY, minR, maxR, halfAngleRad)) continue;
+                if (canAttackBeBlocked(unit, caster.x, caster.y, eng.gameTime)) {
+                    const block = getBlockingArcForUnit(unit, eng.gameTime);
+                    if (block) {
+                        executeBlock(eng, unit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID);
+                        continue;
+                    }
+                }
                 unit.takeDamage(DAMAGE, caster.id, eng.eventBus);
             }
         }
@@ -192,6 +201,10 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
         gr.lineTo(caster.x + Math.cos(angle - halfRad) * maxR, caster.y + Math.sin(angle - halfRad) * maxR);
         gr.fill({ color: RED, alpha: fillAlpha });
         gr.stroke({ color: RED, width: 2, alpha: strokeAlpha });
+    },
+
+    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
+        // Melee blocked: no additional behaviour.
     },
 };
 

@@ -3,7 +3,7 @@
  */
 
 import { AbilityState } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
@@ -120,6 +120,10 @@ export const DodgeAbility: AbilityStatic = {
         ctx.arc(endX, endY, 6, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
+    },
+
+    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
+        // Dodge has no attack that can be blocked.
     },
 
     renderTargetingPreview: createPixelTargetPreview(DODGE_MAX_DISTANCE),

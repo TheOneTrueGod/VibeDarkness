@@ -11,6 +11,7 @@ import type { TeamId } from '../engine/teams';
 import { areEnemies } from '../engine/teams';
 import type { Unit } from './Unit';
 import type { EventBus } from '../engine/EventBus';
+import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../abilities/blockingHelpers';
 
 export class Projectile extends GameObject {
     velocityX: number;
@@ -18,6 +19,8 @@ export class Projectile extends GameObject {
     damage: number;
     sourceTeamId: TeamId;
     sourceUnitId: string;
+    /** Ability ID that created this projectile (e.g. throw_knife, 0001). Used to call that ability's onAttackBlocked when blocked. */
+    sourceAbilityId: string;
     maxDistance: number;
     distanceTraveled: number = 0;
     radius: number = 5;
@@ -31,6 +34,7 @@ export class Projectile extends GameObject {
         damage: number;
         sourceTeamId: TeamId;
         sourceUnitId: string;
+        sourceAbilityId: string;
         maxDistance: number;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
@@ -39,6 +43,7 @@ export class Projectile extends GameObject {
         this.damage = config.damage;
         this.sourceTeamId = config.sourceTeamId;
         this.sourceUnitId = config.sourceUnitId;
+        this.sourceAbilityId = config.sourceAbilityId;
         this.maxDistance = config.maxDistance;
     }
 
@@ -69,9 +74,10 @@ export class Projectile extends GameObject {
     /**
      * Check collision against a list of units and deal damage to the first enemy hit.
      * Units with IFrames (e.g. during Dodge) are not hit; the projectile is consumed but no damage is dealt.
+     * If the defender has a blocking ability and the attack angle is in the block arc, the projectile is destroyed and onAttackBlocked is called.
      * Returns the unit that was hit and took damage, or null.
      */
-    checkCollision(units: Unit[], eventBus: EventBus, gameTime: number): Unit | null {
+    checkCollision(units: Unit[], eventBus: EventBus, gameTime: number, engine?: unknown): Unit | null {
         if (!this.active) return null;
 
         for (const unit of units) {
@@ -87,6 +93,13 @@ export class Projectile extends GameObject {
                 if (unit.hasIFrames(gameTime)) {
                     this.active = false;
                     return null;
+                }
+                if (engine && canAttackBeBlocked(unit, this.x, this.y, gameTime)) {
+                    const block = getBlockingArcForUnit(unit, gameTime);
+                    if (block) {
+                        executeBlock(engine, unit, { type: 'projectile', projectile: this, sourceUnitId: this.sourceUnitId }, this.sourceAbilityId);
+                        return null;
+                    }
                 }
                 unit.takeDamage(this.damage, this.sourceUnitId, eventBus);
                 eventBus.emit('projectile_hit', {
@@ -114,6 +127,7 @@ export class Projectile extends GameObject {
             damage: this.damage,
             sourceTeamId: this.sourceTeamId,
             sourceUnitId: this.sourceUnitId,
+            sourceAbilityId: this.sourceAbilityId,
             maxDistance: this.maxDistance,
             distanceTraveled: this.distanceTraveled,
             radius: this.radius,
@@ -130,6 +144,7 @@ export class Projectile extends GameObject {
             damage: data.damage as number,
             sourceTeamId: data.sourceTeamId as TeamId,
             sourceUnitId: data.sourceUnitId as string,
+            sourceAbilityId: (data.sourceAbilityId as string) ?? 'throw_knife',
             maxDistance: data.maxDistance as number,
         });
         proj.active = data.active as boolean;

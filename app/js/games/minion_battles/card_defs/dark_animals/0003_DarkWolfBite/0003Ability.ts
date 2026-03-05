@@ -5,7 +5,7 @@
  */
 
 import { AbilityState } from '../../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../../abilities/Ability';
 import type { Unit } from '../../../objects/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { ResolvedTarget } from '../../../engine/types';
@@ -16,6 +16,7 @@ import { areEnemies } from '../../../engine/teams';
 import { createUnitTargetPreview } from '../../../abilities/previewHelpers';
 import type { EventBus } from '../../../engine/EventBus';
 import { isAbilityNote } from '../../../engine/AbilityNote';
+import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../../abilities/blockingHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}03`;
 const PREFIRE_TIME = 0.9;
@@ -166,6 +167,13 @@ export const DarkWolfBiteAbility: AbilityStatic = {
             if (unit.hasIFrames(eng.gameTime)) continue;
 
             if (segmentCircleOverlap(x0, y0, x1, y1, caster.radius, unit.x, unit.y, unit.radius)) {
+                if (canAttackBeBlocked(unit, caster.x, caster.y, eng.gameTime)) {
+                    const block = getBlockingArcForUnit(unit, eng.gameTime);
+                    if (block) {
+                        executeBlock(eng, unit, { type: 'charging', sourceUnitId: caster.id }, CARD_ID);
+                        return;
+                    }
+                }
                 unit.takeDamage(DAMAGE, caster.id, eng.eventBus);
                 note.hitTargetIds.push(unit.id);
 
@@ -251,6 +259,30 @@ export const DarkWolfBiteAbility: AbilityStatic = {
         gr.moveTo(note.lungeStartX, note.lungeStartY);
         gr.lineTo(endX, endY);
         gr.stroke({ color: 0xff0000, width: 12, alpha: 0.3 });
+    },
+
+    onAttackBlocked(engine: unknown, defender: Unit, attackInfo: AttackBlockedInfo): void {
+        if (attackInfo.type !== 'charging' || !attackInfo.sourceUnitId) return;
+        const eng = engine as GameEngineLike;
+        const attacker = eng.getUnit(attackInfo.sourceUnitId);
+        if (!attacker) return;
+        const dx = attacker.x - defender.x;
+        const dy = attacker.y - defender.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dirX = dist > 0 ? dx / dist : 1;
+        const dirY = dist > 0 ? dy / dist : 0;
+        const KNOCKBACK_MAGNITUDE = 40;
+        attacker.applyKnockback(
+            0,
+            {
+                knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
+                knockbackAirTime: 0.2,
+                knockbackSlideTime: 0.1,
+                knockbackSource: { unitId: defender.id, abilityId: CARD_ID },
+            },
+            eng.eventBus,
+        );
+        attacker.clearAbilityNote();
     },
 
     renderTargetingPreview: createUnitTargetPreview({

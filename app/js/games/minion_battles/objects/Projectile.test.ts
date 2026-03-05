@@ -15,6 +15,7 @@ describe('Projectile', () => {
             damage: 25,
             sourceTeamId: 'player',
             sourceUnitId: 'unit_1',
+            sourceAbilityId: 'throw_knife',
             maxDistance: 500,
         });
         proj.active = true;
@@ -33,6 +34,7 @@ describe('Projectile', () => {
         expect(restored.damage).toBe(proj.damage);
         expect(restored.sourceTeamId).toBe(proj.sourceTeamId);
         expect(restored.sourceUnitId).toBe(proj.sourceUnitId);
+        expect(restored.sourceAbilityId).toBe(proj.sourceAbilityId);
         expect(restored.maxDistance).toBe(proj.maxDistance);
         expect(restored.distanceTraveled).toBe(proj.distanceTraveled);
         expect(restored.radius).toBe(proj.radius);

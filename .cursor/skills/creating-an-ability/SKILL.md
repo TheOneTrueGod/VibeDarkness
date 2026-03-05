@@ -65,6 +65,14 @@ Both live in the same file. Export the ability for `AbilityRegistry` and the car
 
 Implement the rest of `AbilityStatic` (e.g. `getDescription`, `getAbilityStates`, `targets`, `prefireTime`, `cooldownTime`, `resourceCost`, `rechargeTurns`, `image`, `aiSettings` as needed). Use existing abilities under `abilities/` and `card_defs/` as reference.
 
+### Blocking and `onAttackBlocked`
+
+- **`onAttackBlocked(engine, defender, attackInfo)`** — **Required** on every ability. Called on **this** ability when **its** attack is blocked by a blocking ability (e.g. Raise Shield). Each ability implements the behaviour when its attack is blocked:
+  - **Projectile abilities** (Throw Knife, Throw Rock, Enemy Archer Shot): in `onAttackBlocked`, set `attackInfo.projectile.active = false` to destroy the projectile; no damage is dealt.
+  - **Melee abilities** (Bash, Swing Bat, Enemy Melee): no-op; no damage is dealt.
+  - **Charging abilities** (e.g. Dark Wolf Bite): get the attacker via `engine.getUnit(attackInfo.sourceUnitId)`, apply knockback to the attacker (direction from defender to attacker), and call `attacker.clearAbilityNote()` so the lunge stops; the attack is not refunded.
+- **Blocking abilities** (e.g. Raise Shield): implement **`getBlockingArc(caster, activeAbility, currentTime)`** to return `{ arcStartAngle, arcEndAngle }` in radians while the ability is active. When an attack is blocked, the **attacking** ability's `onAttackBlocked` is invoked (via `executeBlock(engine, defender, attackInfo, attackingAbilityId)`). Projectiles must be created with **`sourceAbilityId`** so the engine knows which ability's `onAttackBlocked` to call.
+
 Whenever creating a static value for an ability, use a constant to define it at the top of the ability file.
 
 Whenever an ability needs to "store" some data for use in the future, it must be serializable.  So, if an ability needs to make note of a unit, it should store the unit's ID, and then when it needs to use the unit, it should look it up by its ID.

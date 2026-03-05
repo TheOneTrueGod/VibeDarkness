@@ -7,7 +7,7 @@
  */
 
 import { AbilityState } from './Ability';
-import type { AbilityStatic, AbilityStateEntry } from './Ability';
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from './Ability';
 import type { TargetDef } from './targeting';
 import { createPixelTargetPreview } from './previewHelpers';
 import type { ResolvedTarget } from '../engine/types';
@@ -70,10 +70,17 @@ export const ThrowRock: AbilityStatic = {
                 damage: 5,
                 sourceTeamId: caster.teamId,
                 sourceUnitId: caster.id,
+                sourceAbilityId: 'throw_rock',
                 maxDistance: 200,
             });
 
             eng.addProjectile(projectile);
+        }
+    },
+
+    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
+        if (attackInfo.type === 'projectile' && attackInfo.projectile) {
+            (attackInfo.projectile as Projectile).active = false;
         }
     },
 

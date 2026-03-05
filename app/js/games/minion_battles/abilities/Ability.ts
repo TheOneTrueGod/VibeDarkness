@@ -139,6 +139,37 @@ export interface AbilityStatic {
         mouseWorld: { x: number; y: number },
         units: Unit[],
     ): void;
+
+    /**
+     * Optional. If this ability is currently providing a block (e.g. Raise Shield), return the arc in radians.
+     * The arc is the range of angles (from the defender's perspective) from which an attack will be blocked.
+     * Called when checking if an attack can be blocked; only blocking abilities implement this.
+     */
+    getBlockingArc?(
+        caster: Unit,
+        activeAbility: ActiveAbility,
+        currentTime: number,
+    ): { arcStartAngle: number; arcEndAngle: number } | null;
+
+    /**
+     * Called on this ability when its attack is blocked by a blocking ability (e.g. Raise Shield).
+     * Each ability implements the behaviour when its attack is blocked: e.g. projectile abilities
+     * destroy the projectile, melee abilities do nothing, charging abilities knock back the attacker.
+     */
+    onAttackBlocked(
+        engine: unknown,
+        defender: Unit,
+        attackInfo: AttackBlockedInfo,
+    ): void;
+}
+
+/** Information about an attack that was blocked. */
+export interface AttackBlockedInfo {
+    type: 'projectile' | 'melee' | 'charging';
+    /** Present for projectile: the projectile. The attacking ability should deactivate it (e.g. set active = false). */
+    projectile?: unknown;
+    /** Unit ID of the attacker. */
+    sourceUnitId?: string;
 }
 
 /**
