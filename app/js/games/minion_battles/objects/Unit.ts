@@ -17,6 +17,7 @@ import { AbilityState } from '../abilities/Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
+import { computeForcedDisplacement } from '../engine/forceMove';
 import { DEFAULT_UNIT_RADIUS } from '../constants/unitConstants';
 
 /** AI behavior settings for enemy units. */
@@ -400,13 +401,28 @@ export class Unit extends GameObject {
         const newX = this.x + pushX;
         const newY = this.y + pushY;
 
-        if (grid && !grid.isPassable(newX, newY)) {
-            this.knockback = null;
-            return;
-        }
+        const segmentLength = Math.sqrt(pushX * pushX + pushY * pushY);
+        if (segmentLength > 0 && grid) {
+            const { distance } = computeForcedDisplacement(
+                this.x,
+                this.y,
+                newX,
+                newY,
+                segmentLength,
+                { grid },
+            );
+            if (distance <= 0) {
+                this.knockback = null;
+                return;
+            }
 
-        this.x += pushX;
-        this.y += pushY;
+            const scale = distance / segmentLength;
+            this.x += pushX * scale;
+            this.y += pushY * scale;
+        } else {
+            this.x += pushX;
+            this.y += pushY;
+        }
 
         if (k.knockbackElapsed >= totalTime) {
             this.knockback = null;

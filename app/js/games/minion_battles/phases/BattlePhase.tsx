@@ -757,6 +757,7 @@ export default function BattlePhase({
                 selectedCardIndex={selectedCardIndex}
                 onSelectCard={handleSelectCard}
                 onWait={handleWait}
+                gameTime={engine.gameTime}
             />
         </div>
     );

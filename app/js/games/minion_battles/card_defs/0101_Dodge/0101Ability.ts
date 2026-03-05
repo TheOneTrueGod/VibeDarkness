@@ -9,6 +9,7 @@ import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import type { TerrainManager } from '../../terrain/TerrainManager';
+import { computeForcedDisplacement } from '../../engine/forceMove';
 import type { CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 
@@ -60,30 +61,22 @@ export const DodgeAbility: AbilityStatic = {
         if (distToTarget === 0) return;
 
         const totalAllowed = (currentTime - prevTime) / DODGE_DURATION * DODGE_MAX_DISTANCE;
-        let moveDistance = Math.min(totalAllowed, distToTarget);
+        const moveDistance = Math.min(totalAllowed, distToTarget);
         if (moveDistance <= 0) return;
 
-        // Cap movement so we don't enter impassable terrain (rocks, out of bounds)
         const terrainManager = (engine as { terrainManager?: TerrainManager | null }).terrainManager ?? null;
-        if (terrainManager) {
-            const step = Math.min(COLLISION_STEP, moveDistance);
-            const ux = dx / distToTarget;
-            const uy = dy / distToTarget;
-            let safeDist = moveDistance;
-            for (let d = step; d <= moveDistance; d += step) {
-                const nx = caster.x + ux * d;
-                const ny = caster.y + uy * d;
-                if (!terrainManager.isPassable(nx, ny)) {
-                    safeDist = d - step;
-                    break;
-                }
-            }
-            moveDistance = Math.min(moveDistance, safeDist);
-            if (moveDistance <= 0) return;
-        }
+        const { distance } = computeForcedDisplacement(
+            caster.x,
+            caster.y,
+            target.position.x,
+            target.position.y,
+            moveDistance,
+            { terrainManager, step: COLLISION_STEP },
+        );
+        if (distance <= 0) return;
 
         caster.invalidateMovementPath();
-        caster.moveUnit(target.position.x, target.position.y, moveDistance);
+        caster.moveUnit(target.position.x, target.position.y, distance);
     },
 
     renderPreview(
