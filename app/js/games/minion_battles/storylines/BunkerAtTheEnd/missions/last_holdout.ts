@@ -108,6 +108,19 @@ export class LastHoldoutMission extends BaseMissionDef {
     enemies = ENEMIES;
     createTerrain = createTerrain;
     aiController = 'defensePoints' as const;
+    /** Player spawn points: eight positions inside the U-shaped castle on the left. */
+    playerSpawnPoints = [
+        // Upper interior near dirt patch
+        { col: 3, row: 5 },
+        { col: 4, row: 5 },
+        { col: 3, row: 6 },
+        { col: 4, row: 6 },
+        // Lower interior near second dirt patch
+        { col: 5, row: 13 },
+        { col: 6, row: 13 },
+        { col: 5, row: 14 },
+        { col: 6, row: 14 },
+    ];
 }
 
 /** Mission instance for use in MISSION_MAP and mission select. */

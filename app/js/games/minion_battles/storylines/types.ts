@@ -106,6 +106,12 @@ export interface SpecialTilePlacement {
     row: number;
 }
 
+/** Grid-based player spawn point (col/row on the terrain grid). */
+export interface PlayerSpawnPoint {
+    col: number;
+    row: number;
+}
+
 /** AI controller ID. Default is 'legacy' when omitted. */
 export type AIControllerId = 'legacy' | 'defensePoints';
 
@@ -125,6 +131,11 @@ export interface MissionBattleConfig {
     createTerrain: () => TerrainGrid;
     /** Optional special tiles (DefendPoint, etc.) placed on the map. */
     specialTiles?: SpecialTilePlacement[];
+    /**
+     * Optional grid-based player spawn points.
+     * When provided, players spawn at the index derived from their playerId.
+     */
+    playerSpawnPoints?: PlayerSpawnPoint[];
     /** Optional pre-mission story (visual novel segment before battle). */
     preMissionStory?: PreMissionStoryDef;
     /** Optional in-battle story segments (types only; no runtime yet). */

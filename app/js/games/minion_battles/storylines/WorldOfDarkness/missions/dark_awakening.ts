@@ -13,20 +13,20 @@ import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
-// Grid: 30 columns × 20 rows (1200×800 world at 40px cells)
+// Grid: 38 columns × 22 rows (extended from 30×20; 40px cells)
 
 function createTerrain(): TerrainGrid {
-    const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
+    const grid = new TerrainGrid(30, 22, CELL_SIZE, TerrainType.Grass);
 
     // Large irregular rock formation in the center (~8×8, irregularly shaped)
     const bigRock: [number, number][] = [
-        [13, 6], [14, 6], [15, 6],
-        [12, 7], [13, 7], [14, 7], [15, 7], [16, 7],
-        [11, 8], [12, 8], [13, 8], [14, 8], [15, 8], [16, 8], [17, 8],
-        [11, 9], [12, 9], [13, 9], [14, 9], [15, 9], [16, 9], [17, 9],
-        [12, 10], [13, 10], [14, 10], [15, 10], [16, 10],
-        [12, 11], [13, 11], [14, 11], [15, 11], [16, 11],
-        [13, 12], [14, 12], [15, 12],
+        [17, 6], [18, 6], [19, 6],
+        [16, 7], [17, 7], [18, 7], [19, 7], [20, 7],
+        [16, 8], [17, 8], [18, 8], [19, 8], [20, 8], [21, 8],
+        [16, 9], [17, 9], [18, 9], [19, 9], [20, 9], [21, 9],
+        [16, 10], [17, 10], [18, 10], [19, 10], [20, 10],
+        [16, 11], [17, 11], [18, 11], [19, 11], [20, 11],
+        [17, 12], [18, 12], [19, 12],
     ];
     for (const [c, r] of bigRock) grid.set(c, r, TerrainType.Rock);
 
@@ -48,6 +48,15 @@ function createTerrain(): TerrainGrid {
     grid.set(27, 3, TerrainType.Rock);
     grid.set(28, 3, TerrainType.Rock);
     grid.set(28, 4, TerrainType.Rock);
+
+    // Small, oddly shaped rocks — left side of the campfire (DefendPoint at col 8, row 10)
+    // Create a few irregular stones just to the left and slightly above/below.
+    grid.set(2, 9, TerrainType.Rock);
+    grid.set(3, 9, TerrainType.Rock);
+    grid.set(2, 10, TerrainType.Rock);
+    grid.set(3, 10, TerrainType.Rock);
+    grid.set(3, 11, TerrainType.Rock);
+    grid.set(4, 11, TerrainType.Rock);
 
     // Thick grass patch — upper-left (irregular 3×3)
     grid.set(6, 2, TerrainType.ThickGrass);
@@ -76,6 +85,20 @@ function createTerrain(): TerrainGrid {
     grid.set(22, 17, TerrainType.ThickGrass);
     grid.set(23, 17, TerrainType.ThickGrass);
     grid.set(24, 17, TerrainType.ThickGrass);
+
+    // One rock along the top at the edge of the light (campfire at 13,10; radius 10) — half in, half out
+    grid.set(12, 0, TerrainType.Rock);
+    grid.set(13, 0, TerrainType.Rock);
+
+    // Rocks along the new bottom edge (rows 20 and 21 after extending grid height)
+    // Slightly irregular shapes near the center and right.
+    grid.set(16, 20, TerrainType.Rock);
+    grid.set(17, 20, TerrainType.Rock);
+    grid.set(17, 21, TerrainType.Rock);
+
+    grid.set(26, 20, TerrainType.Rock);
+    grid.set(27, 20, TerrainType.Rock);
+    grid.set(27, 21, TerrainType.Rock);
 
     return grid;
 }
@@ -132,8 +155,8 @@ const LEVEL_EVENTS: LevelEvent[] = [
     },
 ];
 
-/** Defend point: campfire on the left near player spawn (5 HP). */
-const SPECIAL_TILES = [{ defId: 'DefendPoint', col: 5, row: 10, hp: 5 }];
+/** Defend point: campfire slightly right of player spawn (5 HP). */
+const SPECIAL_TILES = [{ defId: 'DefendPoint', col: 13, row: 10, hp: 5 }];
 
 const PRE_MISSION_STORY: PreMissionStoryDef = {
     phrases: [
@@ -170,6 +193,17 @@ export class DarkAwakeningMission extends BaseMissionDef {
     preMissionStory = PRE_MISSION_STORY;
     lightLevelEnabled = true;
     globalLightLevel = -20;
+    /** Player spawn points: eight positions around the campfire in a square. */
+    playerSpawnPoints = [
+        { col: 12, row: 9 },
+        { col: 13, row: 9 },
+        { col: 14, row: 9 },
+        { col: 12, row: 10 },
+        { col: 14, row: 10 },
+        { col: 12, row: 11 },
+        { col: 13, row: 11 },
+        { col: 14, row: 11 },
+    ];
 }
 
 /** Mission instance for use in MISSION_MAP and mission select. */

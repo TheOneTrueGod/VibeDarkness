@@ -8,7 +8,7 @@
 
 import type { GameEngine, CardInstance } from '../engine/GameEngine';
 import type { UnitSpawnConfig } from '../engine/types';
-import type { EnemySpawnDef, MissionBattleConfig, LevelEvent } from './types';
+import type { EnemySpawnDef, MissionBattleConfig, LevelEvent, PlayerSpawnPoint } from './types';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../engine/EventBus';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
@@ -51,6 +51,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     levelEvents?: LevelEvent[];
     /** Optional special tiles (DefendPoint, etc.) placed on the map. */
     specialTiles?: import('./types').SpecialTilePlacement[];
+    /** Optional grid-based player spawn points. */
+    playerSpawnPoints?: PlayerSpawnPoint[];
 
     /**
      * Set up the initial game state with player units, enemies, projectiles, and effects.
@@ -65,6 +67,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         // Add player units
         const playerCount = params.playerUnits.length;
         const playerSpacing = WORLD_HEIGHT / (playerCount + 1);
+        const missionConfig: MissionBattleConfig = this;
+        const spawnPoints = missionConfig.playerSpawnPoints ?? this.playerSpawnPoints;
         for (let i = 0; i < playerCount; i++) {
             const pu = params.playerUnits[i];
             const isWarrior = pu.characterId === 'warrior';
@@ -84,11 +88,36 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     }
                 }
             }
+
+            // Determine spawn position.
+            let spawnX = 300;
+            let spawnY = playerSpacing * (i + 1);
+            if (spawnPoints && spawnPoints.length > 0) {
+                const numericId = parseInt(pu.playerId, 10);
+                let spawnIndex: number;
+                if (!Number.isNaN(numericId) && numericId > 0) {
+                    // Player IDs are 1-based; map to 0-based index.
+                    spawnIndex = numericId - 1;
+                } else {
+                    // Fallback: use loop index.
+                    spawnIndex = i;
+                }
+                if (spawnIndex < 0 || spawnIndex >= spawnPoints.length) {
+                    // Clamp or wrap if out of range.
+                    spawnIndex = spawnIndex % spawnPoints.length;
+                    if (spawnIndex < 0) spawnIndex += spawnPoints.length;
+                }
+                const sp: PlayerSpawnPoint = spawnPoints[spawnIndex];
+                const cellSize = 40; // matches CELL_SIZE in TerrainGrid
+                spawnX = sp.col * cellSize + cellSize / 2;
+                spawnY = sp.row * cellSize + cellSize / 2;
+            }
+
             const unit = createUnitByCharacterId(
                 pu.characterId,
                 {
-                    x: 150,
-                    y: playerSpacing * (i + 1),
+                    x: spawnX,
+                    y: spawnY,
                     teamId: 'player',
                     ownerId: pu.playerId,
                     name: pu.name,

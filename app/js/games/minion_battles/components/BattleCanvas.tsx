@@ -135,7 +135,10 @@ export default function BattleCanvas({
     );
 
     return (
-        <div ref={containerRef} className="flex-1 relative bg-dark-800 overflow-hidden">
+        <div
+            ref={containerRef}
+            className="flex-1 relative bg-dark-800 overflow-hidden max-w-5xl mx-auto w-full"
+        >
             <canvas
                 ref={canvasRef}
                 className="w-full h-full block"

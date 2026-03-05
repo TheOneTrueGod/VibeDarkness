@@ -8,12 +8,15 @@ import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
+import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const DODGE_DURATION = 0.4;
 const DODGE_MAX_DISTANCE = 160;
+/** Step size (px) when testing passability along the dodge path to avoid moving into terrain. */
+const COLLISION_STEP = 4;
 
 const DODGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <ellipse cx="32" cy="32" rx="24" ry="28" fill="none" stroke="#8B4513" stroke-width="3"/>
@@ -44,7 +47,7 @@ export const DodgeAbility: AbilityStatic = {
         return [];
     },
 
-    doCardEffect(_engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         // Only apply movement during the dodge window; doCardEffect is called every tick
         if (currentTime >= DODGE_DURATION) return;
 
@@ -57,8 +60,27 @@ export const DodgeAbility: AbilityStatic = {
         if (distToTarget === 0) return;
 
         const totalAllowed = (currentTime - prevTime) / DODGE_DURATION * DODGE_MAX_DISTANCE;
-        const moveDistance = Math.min(totalAllowed, distToTarget);
+        let moveDistance = Math.min(totalAllowed, distToTarget);
         if (moveDistance <= 0) return;
+
+        // Cap movement so we don't enter impassable terrain (rocks, out of bounds)
+        const terrainManager = (engine as { terrainManager?: TerrainManager | null }).terrainManager ?? null;
+        if (terrainManager) {
+            const step = Math.min(COLLISION_STEP, moveDistance);
+            const ux = dx / distToTarget;
+            const uy = dy / distToTarget;
+            let safeDist = moveDistance;
+            for (let d = step; d <= moveDistance; d += step) {
+                const nx = caster.x + ux * d;
+                const ny = caster.y + uy * d;
+                if (!terrainManager.isPassable(nx, ny)) {
+                    safeDist = d - step;
+                    break;
+                }
+            }
+            moveDistance = Math.min(moveDistance, safeDist);
+            if (moveDistance <= 0) return;
+        }
 
         caster.invalidateMovementPath();
         caster.moveUnit(target.position.x, target.position.y, moveDistance);
