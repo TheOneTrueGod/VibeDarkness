@@ -82,14 +82,17 @@ function createMockContext(options: {
     terrainManager?: TerrainManager | null;
     hasLineOfSight?: boolean;
     gameTick?: number;
+    gameTime?: number;
 }): { context: AIContext; orders: BattleOrder[]; turnEnds: string[] } {
     const orders: BattleOrder[] = [];
     const turnEnds: string[] = [];
     const hasLineOfSight = options.hasLineOfSight ?? true;
     const gameTick = options.gameTick ?? GAME_TICK;
+    const gameTime = options.gameTime ?? 0;
 
     const context: AIContext = {
         gameTick,
+        gameTime,
         getUnit: (id) => options.units.find((u) => u.id === id),
         getUnits: () => options.units,
         getSpecialTiles: () => options.aliveDefendPoints,
@@ -105,6 +108,7 @@ function createMockContext(options: {
         WORLD_WIDTH,
         WORLD_HEIGHT,
         hasLineOfSight: () => hasLineOfSight,
+        cancelActiveAbility: () => {},
     };
     return { context, orders, turnEnds };
 }

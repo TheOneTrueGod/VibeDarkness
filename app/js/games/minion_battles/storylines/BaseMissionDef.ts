@@ -178,13 +178,21 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             for (const p of this.specialTiles) {
                 const def = getSpecialTileDef(p.defId);
                 if (!def || def.id !== 'DefendPoint') continue;
+                const maxHp = def.maxHp;
+                const emitsLight =
+                    p.emitsLight ??
+                    (def && 'lightEmission' in def && 'lightRadius' in def
+                        ? { lightAmount: (def as { lightEmission: number }).lightEmission, radius: (def as { lightRadius: number }).lightRadius }
+                        : undefined);
                 engine.addSpecialTile({
                     id: `special_${p.defId}_${p.col}_${p.row}`,
                     defId: p.defId,
                     col: p.col,
                     row: p.row,
-                    hp: def.maxHp,
-                    maxHp: def.maxHp,
+                    hp: p.hp ?? maxHp,
+                    maxHp,
+                    destructible: p.tags?.destructible,
+                    emitsLight,
                 });
             }
         }

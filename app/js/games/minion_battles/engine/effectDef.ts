@@ -107,10 +107,45 @@ const biteEffectDef: IEffectDef = {
     },
 };
 
+/** Corruption orb: purple orb that moves from unit toward defend point. */
+const corruptionOrbEffectDef: IEffectDef = {
+    createVisual(_effect: Effect): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Graphics, effect: Effect): void {
+        visual.clear();
+        const alpha = 0.9 - effect.progress * 0.4;
+        visual.circle(0, 0, 6);
+        visual.fill({ color: 0x663399, alpha });
+        visual.stroke({ color: 0x9966cc, width: 1, alpha });
+    },
+};
+
+/** Purple progress bar showing corruption progress (0..1) toward next HP damage. */
+const corruptionProgressBarDef: IEffectDef = {
+    createVisual(_effect: Effect): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Graphics, effect: Effect): void {
+        visual.clear();
+        const progress = (effect.effectData as { progress?: number }).progress ?? 0;
+        const w = 24;
+        const h = 4;
+        visual.rect(-w / 2, -20, w, h);
+        visual.fill({ color: 0x332244 });
+        visual.rect(-w / 2, -20, w * progress, h);
+        visual.fill({ color: 0x663399 });
+        visual.rect(-w / 2, -20, w, h);
+        visual.stroke({ color: 0x9966cc, width: 1 });
+    },
+};
+
 const effectDefRegistry: Record<string, IEffectDef> = {
     default: defaultEffectDef,
     bash: bashEffectDef,
     bite: biteEffectDef,
+    CorruptionOrb: corruptionOrbEffectDef,
+    CorruptionProgressBar: corruptionProgressBarDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

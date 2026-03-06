@@ -3,7 +3,7 @@
  */
 
 import type { StorylineDef } from './types';
-import type { MissionResult } from '../../../../types';
+import type { MissionResult } from '../../../types';
 
 /** Mission is completed if it appears in campaign missionResults. */
 export function isMissionCompleted(missionId: string, missionResults: MissionResult[]): boolean {

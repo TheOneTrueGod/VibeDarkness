@@ -7,7 +7,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
-import type { LevelEvent } from '../../types';
+import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -155,8 +155,17 @@ const LEVEL_EVENTS: LevelEvent[] = [
     },
 ];
 
-/** Defend point: campfire slightly right of player spawn (5 HP). */
-const SPECIAL_TILES = [{ defId: 'DefendPoint', col: 13, row: 10, hp: 5 }];
+/** Defend point: campfire slightly right of player spawn (5 HP). Destructible; emits light. */
+const SPECIAL_TILES: SpecialTilePlacement[] = [
+    {
+        defId: 'DefendPoint',
+        col: 13,
+        row: 10,
+        hp: 5,
+        tags: { destructible: true },
+        emitsLight: { lightAmount: 15, radius: 10 },
+    },
+];
 
 const PRE_MISSION_STORY: PreMissionStoryDef = {
     phrases: [

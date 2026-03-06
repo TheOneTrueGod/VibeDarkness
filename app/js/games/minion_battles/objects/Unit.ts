@@ -34,6 +34,9 @@ export interface UnitAIContext {
     defensePointTargetId?: string;
     /** AI combat target: ID of the unit this AI is currently targeting in combat. */
     aiTargetUnitId?: string;
+    /** When corrupting a destructible defend point: tile ID and game time when corruption started. */
+    corruptingTargetId?: string;
+    corruptingStartedAt?: number;
 }
 
 /** Movement state for a unit. */
@@ -123,6 +126,9 @@ export class Unit extends GameObject {
 
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;
+
+    /** Darkness corruption progress 0..1. Fills in 1s when in full darkness, drains in 1s when not. At 1: deal 5 damage and reset. */
+    corruptionProgress: number = 0;
 
     /** Current Poise HP. When 0 or below, knockback is applied. */
     poiseHp: number = 0;
@@ -576,6 +582,7 @@ export class Unit extends GameObject {
         unit.moveJitter = (data.moveJitter as number) ?? 0;
         unit.poiseHp = (data.poiseHp as number) ?? 0;
         unit.maxPoiseHp = (data.maxPoiseHp as number) ?? 0;
+        unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));
         const kb = data.knockback as KnockbackState | null;
         if (kb && typeof kb.knockbackElapsed === 'number') {
             unit.knockback = {

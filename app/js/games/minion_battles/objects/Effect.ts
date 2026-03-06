@@ -18,9 +18,11 @@ export class Effect extends GameObject {
     effectRadius?: number;
     /** When set, effect travels from (startX, startY) to (endX, endY) over its duration. */
     private startX?: number;
-    private startY?: number;
     private endX: number;
+    private startY?: number;
     private endY: number;
+    /** Optional payload for effect-type-specific data (e.g. CorruptionOrb target, CorruptionProgressBar progress). */
+    effectData: Record<string, unknown> = {};
 
     constructor(config: {
         id?: string;
@@ -33,6 +35,8 @@ export class Effect extends GameObject {
         startY?: number;
         /** Optional radius for size-dependent effects (e.g. bite). */
         effectRadius?: number;
+        /** Optional payload for effect-type-specific state. */
+        effectData?: Record<string, unknown>;
     }) {
         super(config.id ?? generateGameObjectId('fx'), config.x, config.y);
         this.duration = config.duration;
@@ -42,6 +46,7 @@ export class Effect extends GameObject {
         this.endY = config.y;
         this.startX = config.startX;
         this.startY = config.startY;
+        if (config.effectData) this.effectData = { ...config.effectData };
     }
 
     update(dt: number, _engine: unknown): void {
@@ -49,6 +54,40 @@ export class Effect extends GameObject {
         this.elapsed += dt;
         if (this.elapsed >= this.duration) {
             this.active = false;
+        }
+        // CorruptionOrb: phase 0 = straight for ~10 ticks, then phase 1 = arc to target
+        if (this.effectType === 'CorruptionOrb') {
+            const data = this.effectData as {
+                targetX: number;
+                targetY: number;
+                phase: number;
+                phase0Elapsed: number;
+                dirX: number;
+                dirY: number;
+            };
+            const straightDuration = 10 / 60;
+            const speed0 = 120;
+            const speed1 = 280;
+            if (data.phase === 0) {
+                data.phase0Elapsed = (data.phase0Elapsed ?? 0) + dt;
+                this.x += (data.dirX ?? 0) * speed0 * dt;
+                this.y += (data.dirY ?? 0) * speed0 * dt;
+                if (data.phase0Elapsed >= straightDuration) {
+                    data.phase = 1;
+                }
+            } else {
+                const dx = data.targetX - this.x;
+                const dy = data.targetY - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 6) {
+                    this.active = false;
+                    return;
+                }
+                const step = Math.min(speed1 * dt, dist);
+                this.x += (dx / dist) * step;
+                this.y += (dy / dist) * step;
+            }
+            return;
         }
         // Traveling effect: interpolate position from start to end
         if (this.startX !== undefined && this.startY !== undefined) {
@@ -80,6 +119,7 @@ export class Effect extends GameObject {
             out.endX = this.endX;
             out.endY = this.endY;
         }
+        if (Object.keys(this.effectData).length > 0) out.effectData = { ...this.effectData };
         return out;
     }
 
@@ -96,6 +136,7 @@ export class Effect extends GameObject {
         if (data.startX != null) config.startX = data.startX as number;
         if (data.startY != null) config.startY = data.startY as number;
         if (data.effectRadius != null) config.effectRadius = data.effectRadius as number;
+        if (data.effectData != null) config.effectData = data.effectData as Record<string, unknown>;
         const effect = new Effect(config);
         effect.active = data.active as boolean;
         effect.elapsed = data.elapsed as number;

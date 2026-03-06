@@ -10,6 +10,8 @@ import type { SpecialTile } from '../../objects/SpecialTile';
 /** Read-only context passed to AI controllers. Engine provides implementation. */
 export interface AIContext {
     gameTick: number;
+    /** Game time in seconds (elapsed since battle start). */
+    gameTime: number;
     getUnit(id: string): Unit | undefined;
     getUnits(): Unit[];
     getSpecialTiles(): SpecialTile[];

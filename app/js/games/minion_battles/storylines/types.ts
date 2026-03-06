@@ -99,11 +99,20 @@ export interface EnemySpawnDef {
     radius?: number;
 }
 
+/** Tags that can be applied to special tile placements (e.g. destructible). */
+export type SpecialTilesTags = 'destructible';
+
 /** Placement of a special tile in a mission (def + grid position). */
 export interface SpecialTilePlacement {
     defId: string;
     col: number;
     row: number;
+    /** Optional initial HP; defaults to def maxHp. */
+    hp?: number;
+    /** Optional tags (e.g. destructible = can be corrupted by AI). */
+    tags?: Partial<Record<SpecialTilesTags, boolean>>;
+    /** Optional light at full HP: amount and radius. Used for light scaling. Falls back to def lightEmission/lightRadius. */
+    emitsLight?: { lightAmount: number; radius: number };
 }
 
 /** Grid-based player spawn point (col/row on the terrain grid). */

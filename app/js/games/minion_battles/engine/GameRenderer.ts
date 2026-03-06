@@ -24,8 +24,8 @@ import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import type { SpecialTile } from '../objects/SpecialTile';
 import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid';
 
-/** Color for move target markers. */
-const MOVE_TARGET_COLOR = 0x000000;
+/** Color for move target markers (dark gray so visible in darkness). */
+const MOVE_TARGET_COLOR = 0x666666;
 
 /** Ranged enemy character sprite: displayed slightly smaller than the unit hitbox circle. */
 const BOWMAN_SVG_URL = new URL('../assets/characters/bowman.svg', import.meta.url).href;
@@ -154,10 +154,11 @@ export class GameRenderer {
         }
 
         this.terrainSprite = this.terrainRenderer.buildSprite(terrainGrid);
+        this.terrainSprite.zIndex = 0;
         // Insert terrain at the very bottom of the game container
         this.gameContainer.addChildAt(this.terrainSprite, 0);
 
-        // Darkness overlay (index 1): above terrain, below special tiles
+        // Darkness overlay (index 1): above terrain, below special tiles and previews
         if (!this.darknessOverlaySprite) {
             const canvas = document.createElement('canvas');
             canvas.width = 1;
@@ -165,6 +166,7 @@ export class GameRenderer {
             this.darknessOverlaySprite = new Sprite(Texture.from({ resource: canvas, label: 'darkness-overlay' }));
             this.darknessOverlaySprite.label = 'darknessOverlay';
         }
+        this.darknessOverlaySprite.zIndex = 5;
         if (!this.darknessOverlaySprite.parent) {
             this.gameContainer.addChildAt(this.darknessOverlaySprite, 1);
         }
@@ -174,6 +176,7 @@ export class GameRenderer {
         if (!this.specialTilesContainer.parent) {
             this.gameContainer.addChildAt(this.specialTilesContainer, 2);
         }
+        this.specialTilesContainer.zIndex = 6;
     }
 
     /** Resize the renderer (e.g. on window resize). */
@@ -201,10 +204,11 @@ export class GameRenderer {
         for (const tile of specialTiles) {
             if (tile.hp <= 0) continue;
             const def = getSpecialTileDef(tile.defId);
-            const emission = def && 'lightEmission' in def ? def.lightEmission : undefined;
-            const radius = def && 'lightRadius' in def ? def.lightRadius : undefined;
-            if (emission != null && radius != null) {
-                sources.push({ col: tile.col, row: tile.row, emission, radius });
+            const light = tile.emitsLight ?? (def && 'lightEmission' in def && 'lightRadius' in def ? { lightAmount: (def as { lightEmission: number }).lightEmission, radius: (def as { lightRadius: number }).lightRadius } : undefined);
+            if (light != null && tile.maxHp > 0) {
+                // 100% HP => 100% emission; 1% HP => 50% emission; 0% => no light (tile removed)
+                const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
+                sources.push({ col: tile.col, row: tile.row, emission: light.lightAmount * scale, radius: light.radius });
             }
         }
         return sources;
@@ -394,6 +398,7 @@ export class GameRenderer {
             let visual = this.unitVisuals.get(unit.id);
             if (!visual) {
                 visual = renderUnit(unit, context);
+                visual.zIndex = 10; // Above darkness (5)
                 this.unitVisuals.set(unit.id, visual);
                 this.gameContainer.addChild(visual);
             }
@@ -441,6 +446,29 @@ export class GameRenderer {
                 if (playerRing) playerRing.visible = true;
                 updateUnitHpBar(visual, unit);
             }
+
+            // Darkness corruption bar: only visible when progress > 0 (above unit)
+            let corruptionBar = visual.children.find((c) => c.label === 'corruptionBar') as Graphics | undefined;
+            if (unit.corruptionProgress > 0) {
+                if (!corruptionBar) {
+                    corruptionBar = new Graphics();
+                    corruptionBar.label = 'corruptionBar';
+                    visual.addChild(corruptionBar);
+                }
+                corruptionBar.visible = true;
+                corruptionBar.clear();
+                const w = 24;
+                const h = 4;
+                const y = -unit.radius - 14;
+                corruptionBar.rect(-w / 2, y, w, h);
+                corruptionBar.fill({ color: 0x332244 });
+                corruptionBar.rect(-w / 2, y, w * unit.corruptionProgress, h);
+                corruptionBar.fill({ color: 0x663399 });
+                corruptionBar.rect(-w / 2, y, w, h);
+                corruptionBar.stroke({ color: 0x9966cc, width: 1 });
+            } else {
+                if (corruptionBar) corruptionBar.visible = false;
+            }
         }
     }
 
@@ -462,6 +490,7 @@ export class GameRenderer {
             let visual = this.moveTargetVisuals.get(key);
             if (!visual) {
                 visual = new Graphics();
+                visual.zIndex = 7; // Above darkness (5), below units (10)
                 this.moveTargetVisuals.set(key, visual);
                 // Insert above terrain (and darkness overlay + special tiles when present) but below units
                 const insertIndex = this.darknessOverlaySprite ? 3 : this.terrainSprite ? 1 : 0;
@@ -568,6 +597,7 @@ export class GameRenderer {
             let visual = this.projectileVisuals.get(proj.id);
             if (!visual) {
                 visual = Projectile.createVisual(proj);
+                visual.zIndex = 11; // Above darkness (5)
                 this.projectileVisuals.set(proj.id, visual);
                 this.gameContainer.addChild(visual);
             }
@@ -586,6 +616,7 @@ export class GameRenderer {
             let visual = this.effectVisuals.get(effect.id);
             if (!visual) {
                 visual = createEffectVisual(effect);
+                visual.zIndex = 12; // Above darkness (5)
                 this.effectVisuals.set(effect.id, visual);
                 this.gameContainer.addChild(visual);
             }

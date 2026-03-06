@@ -82,6 +82,8 @@ export const DefensePointsAIController: UnitAIController = {
 		);
 
 		if (inPerceptionAndLOS.length > 0) {
+			unit.aiContext.corruptingTargetId = undefined;
+			unit.aiContext.corruptingStartedAt = undefined;
 			const combatTarget = inPerceptionAndLOS[0]!;
 			unit.aiContext.aiTargetUnitId = combatTarget.id;
 
@@ -104,8 +106,31 @@ export const DefensePointsAIController: UnitAIController = {
 			return;
 		}
 
-		// Step 5: No hostiles → clear combat target, wait.
+		// Step 4b: No hostiles — if at a destructible defend point, start or continue corrupting.
+		if (grid) {
+			const unitGrid = grid.worldToGrid(unit.x, unit.y);
+			const atDefendPoint =
+				Math.max(
+					Math.abs(unitGrid.col - currentDefendPoint.col),
+					Math.abs(unitGrid.row - currentDefendPoint.row),
+				) <= 1;
+			if (atDefendPoint && currentDefendPoint.destructible) {
+				unit.aiContext.aiTargetUnitId = undefined;
+				unit.aiContext.defensePointTargetId = currentDefendPoint.id;
+				if (!unit.aiContext.corruptingTargetId || unit.aiContext.corruptingTargetId !== currentDefendPoint.id) {
+					unit.aiContext.corruptingTargetId = currentDefendPoint.id;
+					unit.aiContext.corruptingStartedAt = context.gameTime;
+				}
+				unit.clearMovement();
+				queueWaitAndEndTurn(unit, context);
+				return;
+			}
+		}
+
+		// Step 5: No hostiles and not corrupting → clear combat/corrupting target, wait.
 		unit.aiContext.aiTargetUnitId = undefined;
+		unit.aiContext.corruptingTargetId = undefined;
+		unit.aiContext.corruptingStartedAt = undefined;
 		queueWaitAndEndTurn(unit, context);
 	},
 

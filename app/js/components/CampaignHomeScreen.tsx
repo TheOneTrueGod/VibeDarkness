@@ -7,7 +7,7 @@ import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
 import type { CampaignState } from '../types';
 import { STORYLINES, MISSION_MAP } from '../games/minion_battles/storylines';
-import { getUnlockedMissionIds, hasVictoryResult, isMissionCompleted } from '../games/minion_battles/storylines/unlock';
+import { getUnlockedMissionIds, hasVictoryResult } from '../games/minion_battles/storylines/unlock';
 import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
 
 type TabId = 'welcome' | 'mission_select' | 'join_mission';
@@ -170,27 +170,17 @@ export default function CampaignHomeScreen({
                                                 {missionIds.map((missionId) => {
                                                     const def = MISSION_MAP[missionId];
                                                     const name = def?.name ?? missionId;
-                                                    const completed = isMissionCompleted(missionId, missionResults);
                                                     const hasVictory = hasVictoryResult(missionId, missionResults);
                                                     return (
                                                         <li key={missionId}>
                                                             <button
                                                                 type="button"
-                                                                className={`w-full text-left px-4 py-3 rounded border transition-all flex items-center justify-between gap-3 ${
-                                                                    completed
-                                                                        ? 'bg-surface-light border-border-custom text-muted cursor-not-allowed opacity-70'
-                                                                        : 'bg-surface-light border-border-custom hover:border-primary hover:bg-surface'
-                                                                }`}
-                                                                disabled={completed || selectingMission}
+                                                                className="w-full text-left px-4 py-3 rounded border transition-all flex items-center justify-between gap-3 bg-surface-light border-border-custom hover:border-primary hover:bg-surface disabled:opacity-70 disabled:cursor-wait"
+                                                                disabled={selectingMission}
                                                                 onClick={() => handleMissionClick(missionId)}
                                                             >
                                                                 <span className="flex items-center gap-2">
                                                                     {name}
-                                                                    {completed && !hasVictory && (
-                                                                        <span className="text-sm text-muted">
-                                                                            (completed)
-                                                                        </span>
-                                                                    )}
                                                                 </span>
                                                                 {hasVictory && (
                                                                     <span className="flex-shrink-0 text-success" aria-hidden>

@@ -381,6 +381,12 @@ export class GameEngine {
             }
         }
 
+        // Process corrupting (AI units at destructible defend points)
+        this.processCorrupting(dt);
+
+        // Process player darkness corruption (full darkness damages over time)
+        this.processPlayerDarknessCorruption(dt);
+
         // Update projectiles and check collisions
         for (const proj of this.projectiles) {
             if (!proj.active) continue;
@@ -416,6 +422,151 @@ export class GameEngine {
             this.defeatFired = true;
             this.defeated = true;
             this.onDefeat?.();
+        }
+    }
+
+    /** Process corrupting: units at destructible defend points deal 1 HP every 2 seconds and spawn orbs. */
+    private processCorrupting(dt: number): void {
+        const grid = this.terrainManager?.grid;
+        if (!grid) return;
+
+        for (const unit of this.units) {
+            const tileId = unit.aiContext.corruptingTargetId;
+            if (!tileId) continue;
+
+            const tile = this.specialTiles.find((t) => t.id === tileId);
+            if (!tile || tile.hp <= 0 || !tile.destructible) {
+                unit.aiContext.corruptingTargetId = undefined;
+                unit.aiContext.corruptingStartedAt = undefined;
+                const bar = this.effects.find(
+                    (e) => e.effectType === 'CorruptionProgressBar' && (e.effectData as { unitId?: string }).unitId === unit.id,
+                );
+                if (bar) bar.active = false;
+                continue;
+            }
+
+            const unitGrid = grid.worldToGrid(unit.x, unit.y);
+            const atTile =
+                Math.max(
+                    Math.abs(unitGrid.col - tile.col),
+                    Math.abs(unitGrid.row - tile.row),
+                ) <= 1;
+            if (!atTile) {
+                unit.aiContext.corruptingTargetId = undefined;
+                unit.aiContext.corruptingStartedAt = undefined;
+                const bar = this.effects.find(
+                    (e) => e.effectType === 'CorruptionProgressBar' && (e.effectData as { unitId?: string }).unitId === unit.id,
+                );
+                if (bar) bar.active = false;
+                continue;
+            }
+
+            const startedAt = unit.aiContext.corruptingStartedAt ?? this.gameTime;
+            const elapsed = this.gameTime - startedAt;
+
+            // Ensure progress bar effect exists
+            let barEffect = this.effects.find(
+                (e) => e.effectType === 'CorruptionProgressBar' && (e.effectData as { unitId?: string }).unitId === unit.id,
+            );
+            if (!barEffect) {
+                barEffect = new Effect({
+                    x: unit.x,
+                    y: unit.y,
+                    duration: 999,
+                    effectType: 'CorruptionProgressBar',
+                    effectData: { unitId: unit.id, progress: 0 },
+                });
+                this.addEffect(barEffect);
+            }
+            barEffect.x = unit.x;
+            barEffect.y = unit.y;
+            (barEffect.effectData as { progress?: number }).progress = Math.min(1, elapsed / 2);
+
+            if (elapsed >= 2) {
+                this.damageSpecialTile(tileId, 1);
+                unit.aiContext.corruptingStartedAt = this.gameTime;
+
+                const targetWorld = grid.gridToWorld(tile.col, tile.row);
+                const angle = (this.generateRandomInteger(0, 629) / 100) * Math.PI; // 0..2*PI
+                const dirX = Math.cos(angle);
+                const dirY = Math.sin(angle);
+                const orb = new Effect({
+                    x: unit.x,
+                    y: unit.y,
+                    duration: 5,
+                    effectType: 'CorruptionOrb',
+                    effectData: {
+                        targetX: targetWorld.x,
+                        targetY: targetWorld.y,
+                        phase: 0,
+                        phase0Elapsed: 0,
+                        dirX,
+                        dirY,
+                    },
+                });
+                this.addEffect(orb);
+            }
+        }
+    }
+
+    /** Light level below or equal to this is "full darkness" (player takes corruption damage). */
+    private static readonly FULL_DARKNESS_THRESHOLD = -20;
+
+    /** Build light sources from special tiles (same logic as renderer) for game logic. */
+    private buildLightSourcesFromSpecialTiles(): LightSource[] {
+        const sources: LightSource[] = [];
+        for (const tile of this.specialTiles) {
+            if (tile.hp <= 0) continue;
+            const def = getSpecialTileDef(tile.defId);
+            const light =
+                tile.emitsLight ??
+                (def && 'lightEmission' in def && 'lightRadius' in def
+                    ? {
+                          lightAmount: (def as { lightEmission: number }).lightEmission,
+                          radius: (def as { lightRadius: number }).lightRadius,
+                      }
+                    : undefined);
+            if (light != null && tile.maxHp > 0) {
+                const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
+                sources.push({
+                    col: tile.col,
+                    row: tile.row,
+                    emission: light.lightAmount * scale,
+                    radius: light.radius,
+                });
+            }
+        }
+        return sources;
+    }
+
+    /** When a player is in full darkness, fill corruption bar over 1s; when full, deal 5 damage. When not in darkness, drain bar over 1s. */
+    private processPlayerDarknessCorruption(dt: number): void {
+        if (!this.lightLevelEnabled || !this.terrainManager?.grid) return;
+
+        const grid = this.terrainManager.grid;
+        const width = grid.width;
+        const height = grid.height;
+        const sources = this.buildLightSourcesFromSpecialTiles();
+        const lightGrid = getLightGrid(this.globalLightLevel, width, height, sources);
+
+        for (const unit of this.units) {
+            if (!unit.isPlayerControlled() || !unit.isAlive()) continue;
+
+            const { col, row } = grid.worldToGrid(unit.x, unit.y);
+            const safeRow = Math.max(0, Math.min(height - 1, row));
+            const safeCol = Math.max(0, Math.min(width - 1, col));
+            const light = lightGrid[safeRow]![safeCol]!;
+
+            if (light <= GameEngine.FULL_DARKNESS_THRESHOLD) {
+                unit.corruptionProgress = Math.min(1, unit.corruptionProgress + dt);
+            } else {
+                unit.corruptionProgress = Math.max(0, unit.corruptionProgress - dt);
+            }
+
+            if (unit.corruptionProgress >= 1) {
+                unit.corruptionProgress = 0;
+                unit.takeDamage(5, null, this.eventBus);
+            }
         }
     }
 
@@ -561,6 +712,7 @@ export class GameEngine {
     private buildAIContext(): AIContext {
         return {
             gameTick: this.gameTick,
+            gameTime: this.gameTime,
             getUnit: (id) => this.getUnit(id),
             getUnits: () => this.units,
             getSpecialTiles: () => this.specialTiles,
@@ -660,6 +812,21 @@ export class GameEngine {
 
     addSpecialTile(tile: SpecialTile): void {
         this.specialTiles.push(tile);
+    }
+
+    /**
+     * Reduce a special tile's HP by amount. Removes the tile when HP reaches 0.
+     * Returns true if the tile was damaged (and possibly removed).
+     */
+    damageSpecialTile(tileId: string, amount: number): boolean {
+        const idx = this.specialTiles.findIndex((t) => t.id === tileId);
+        if (idx < 0) return false;
+        const tile = this.specialTiles[idx]!;
+        tile.hp = Math.max(0, tile.hp - amount);
+        if (tile.hp <= 0) {
+            this.specialTiles.splice(idx, 1);
+        }
+        return true;
     }
 
     addProjectile(projectile: Projectile): void {
@@ -770,10 +937,10 @@ export class GameEngine {
                 for (const tile of this.specialTiles) {
                     if (tile.hp <= 0) continue;
                     const def = getSpecialTileDef(tile.defId);
-                    const emission = def && 'lightEmission' in def ? (def as any).lightEmission : undefined;
-                    const radius = def && 'lightRadius' in def ? (def as any).lightRadius : undefined;
-                    if (emission != null && radius != null) {
-                        sources.push({ col: tile.col, row: tile.row, emission, radius });
+                    const light = tile.emitsLight ?? (def && 'lightEmission' in def && 'lightRadius' in def ? { lightAmount: (def as { lightEmission: number }).lightEmission, radius: (def as { lightRadius: number }).lightRadius } : undefined);
+                    if (light != null && tile.maxHp > 0) {
+                        const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
+                        sources.push({ col: tile.col, row: tile.row, emission: light.lightAmount * scale, radius: light.radius });
                     }
                 }
                 lightGrid = getLightGrid(this.globalLightLevel, width, height, sources);
