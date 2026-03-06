@@ -161,6 +161,12 @@ export interface AbilityStatic {
         defender: Unit,
         attackInfo: AttackBlockedInfo,
     ): void;
+
+    /**
+     * Optional. Called on the blocking ability when it successfully blocks an attack.
+     * Receives the engine and the defender (unit holding the shield). Use to e.g. draw a card.
+     */
+    onBlockSuccess?(engine: unknown, defender: Unit): void;
 }
 
 /** Information about an attack that was blocked. */

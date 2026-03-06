@@ -20,7 +20,8 @@ import { Projectile } from '../objects/Projectile';
 import { Effect } from '../objects/Effect';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { getAbility } from '../abilities/AbilityRegistry';
-import { getCardDef } from '../card_defs';
+import { asCardDefId, getCardDef } from '../card_defs';
+import type { CardDefId } from '../card_defs';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
 import { type TeamId } from './teams';
@@ -63,11 +64,14 @@ export const MAX_HAND_SIZE = 6;
 
 /** Create a card instance with defaults (durability from card def). */
 export function createCardInstance(
-    cardDefId: string,
+    cardDefId: CardDefId,
     abilityId: string,
     location: CardInstance['location'],
 ): CardInstance {
-    const def = getCardDef(abilityId);
+    const def = getCardDef(cardDefId);
+    if (!def) {
+        console.error(`ERROR: Unable to get card def (${cardDefId}) for ability id (${abilityId}).`);
+    }
     return {
         cardDefId,
         abilityId,
@@ -78,7 +82,7 @@ export function createCardInstance(
 
 /** Card instance tracked per player. */
 export interface CardInstance {
-    cardDefId: string;
+    cardDefId: CardDefId;
     abilityId: string;
     location: 'hand' | 'deck' | 'discard';
     /** Remaining uses before discard. */
@@ -537,7 +541,7 @@ export class GameEngine {
 
     /** Move a card to discard and set duration tracking. */
     private moveToDiscard(card: CardInstance): void {
-        const def = getCardDef(card.abilityId);
+        const def = getCardDef(card.cardDefId);
         const discardDuration = def?.discardDuration ?? { duration: 1, unit: 'rounds' as const };
 
         card.location = 'discard';
@@ -967,7 +971,7 @@ export class GameEngine {
             for (const card of this.cards[playerId]) {
                 if (card.location !== 'discard' || card.discardAddedAtTime === undefined) continue;
 
-                const def = getCardDef(card.abilityId);
+                const def = getCardDef(card.cardDefId);
                 const dd = def?.discardDuration;
                 if (dd?.unit !== 'seconds') continue;
 
@@ -987,7 +991,7 @@ export class GameEngine {
             for (const card of this.cards[playerId]) {
                 if (card.location !== 'discard' || card.discardRoundsRemaining === undefined) continue;
 
-                const def = getCardDef(card.abilityId);
+                const def = getCardDef(card.cardDefId);
                 card.discardRoundsRemaining--;
                 if (card.discardRoundsRemaining <= 0) {
                     card.location = 'deck';
@@ -1109,18 +1113,20 @@ export class GameEngine {
             }
         }
 
-        // Restore cards (ensure durability default; migrate legacy exile → deck)
+        // Restore cards (ensure durability default; migrate legacy exile → deck; normalize cardDefId to real id)
         engine.cards = Object.fromEntries(
             Object.entries(data.cards).map(([pid, cards]) => [
                 pid,
                 cards.map((c) => {
-                    const def = getCardDef(c.abilityId);
                     const raw = c as SerializedCardInstance & { location?: string; exileRounds?: number };
                     const { exileRounds: _, ...rest } = raw;
                     const rawLoc: string = raw.location ?? 'deck';
                     const loc = rawLoc === 'exile' ? 'deck' : rawLoc;
+                    const cardDefId = asCardDefId(raw.abilityId);
+                    const def = getCardDef(cardDefId);
                     return {
                         ...rest,
+                        cardDefId,
                         location: loc,
                         durability: raw.durability ?? def?.durability ?? 1,
                     } as CardInstance;

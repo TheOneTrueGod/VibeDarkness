@@ -7,7 +7,7 @@ import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackB
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
-import type { CardDef } from '../types';
+import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../engine/AbilityNote';
 import { areEnemies } from '../../engine/teams';
@@ -133,7 +133,7 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
                 if (canAttackBeBlocked(unit, caster.x, caster.y, eng.gameTime)) {
                     const block = getBlockingArcForUnit(unit, eng.gameTime);
                     if (block) {
-                        executeBlock(eng, unit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID);
+                        executeBlock(eng, unit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID, block);
                         continue;
                     }
                 }
@@ -209,7 +209,7 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
 };
 
 export const EnemyMeleeAttackCard: CardDef = {
-    id: CARD_ID,
+    id: asCardDefId(CARD_ID),
     name: 'Enemy Melee Attack',
     abilityId: CARD_ID,
     durability: 1,

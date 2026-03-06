@@ -63,8 +63,8 @@ export default function CardComponent({
                 onMouseLeave={() => setIsHovered(false)}
                 disabled={isDisabled}
                 className={`
-                    relative w-20 h-28 rounded-lg border-2 transition-all duration-150
-                    flex flex-col items-center justify-between p-1.5 overflow-hidden
+                    relative w-[104px] h-[136px] rounded-lg border-2 transition-all duration-150
+                    flex flex-col items-center justify-between p-2 overflow-hidden
                     ${isSelected
                         ? 'border-yellow-400 bg-dark-700 -translate-y-2 shadow-lg shadow-yellow-400/20'
                         : isDisabled
@@ -75,28 +75,28 @@ export default function CardComponent({
             >
                 {/* Card image */}
                 <div
-                    className="w-full h-14 flex items-center justify-center"
+                    className="w-full h-16 flex items-center justify-center mb-1"
                     dangerouslySetInnerHTML={{ __html: ability.image }}
                 />
 
                 {/* Card title */}
-                <span className="text-white text-[10px] font-medium leading-tight text-center w-full truncate">
+                <span className="text-white text-[14px] font-medium leading-tight text-center w-full px-1 whitespace-normal">
                     {ability.name}
                 </span>
 
                 {/* Cooldown + durability bar row */}
                 <div className="w-full flex items-center gap-1">
-                    <span className="text-muted text-[8px] shrink-0">
+                    <span className="text-muted text-[12px] shrink-0">
                         {ability.cooldownTime}s
                     </span>
                     <div
-                        className="h-1 flex-1 min-w-0 max-w-[50%] rounded-sm bg-dark-800 overflow-hidden border border-gray-600"
-                        title={`Durability: ${card.durability}/${getCardDef(card.abilityId)?.durability ?? 1}`}
+                        className="h-2 flex-1 min-w-0 max-w-[70%] rounded-sm bg-dark-800 overflow-hidden border border-gray-600"
+                        title={`Durability: ${card.durability}/${getCardDef(card.cardDefId)?.durability ?? 1}`}
                     >
                         <div
                             className="h-full bg-gray-500 transition-all rounded-[2px]"
                             style={{
-                                width: `${Math.max(0, Math.min(100, (card.durability / ((getCardDef(card.abilityId)?.durability ?? 1) || 1)) * 100))}%`,
+                                width: `${Math.max(0, Math.min(100, (card.durability / ((getCardDef(card.cardDefId)?.durability ?? 1) || 1)) * 100))}%`,
                             }}
                         />
                     </div>

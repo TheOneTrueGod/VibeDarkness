@@ -10,7 +10,7 @@ import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../../engine/forceMove';
-import type { CardDef } from '../types';
+import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
@@ -38,7 +38,7 @@ export const DodgeAbility: AbilityStatic = {
     aiSettings: { minRange: 0, maxRange: DODGE_MAX_DISTANCE },
 
     getDescription(_gameState?: unknown): string {
-        return `Dash toward the target location, moving up to ${DODGE_MAX_DISTANCE}px over ${DODGE_DURATION}s.`;
+        return `Dash toward the target location, moving up to ${DODGE_MAX_DISTANCE}px over ${DODGE_DURATION}s. Draw a card.`;
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
@@ -49,6 +49,12 @@ export const DodgeAbility: AbilityStatic = {
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+        // One-shot: draw one card for the caster when we cross 0.05s (avoids missing the draw when first tick has currentTime === 0)
+        if (prevTime < 0.05 && currentTime >= 0.05 && caster.ownerId) {
+            const eng = engine as { drawCardsForPlayer(playerId: string, count: number): number };
+            if (typeof eng.drawCardsForPlayer === 'function') eng.drawCardsForPlayer(caster.ownerId, 1);
+        }
+
         // Only apply movement during the dodge window; doCardEffect is called every tick
         if (currentTime >= DODGE_DURATION) return;
 
@@ -123,9 +129,9 @@ export const DodgeAbility: AbilityStatic = {
 };
 
 export const DodgeCard: CardDef = {
-    id: CARD_ID,
+    id: asCardDefId(CARD_ID),
     name: 'Dodge',
     abilityId: CARD_ID,
-    durability: 2,
+    durability: 1,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

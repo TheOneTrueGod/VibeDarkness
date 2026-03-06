@@ -2,10 +2,10 @@
  * Throw Rock card definition.
  */
 
-import type { CardDef } from './types';
+import { asCardDefId, type CardDef } from './types';
 
 const card: CardDef = {
-    id: 'throw_rock',
+    id: asCardDefId('throw_rock'),
     name: 'Throw Rock',
     abilityId: 'throw_rock',
     durability: 3,

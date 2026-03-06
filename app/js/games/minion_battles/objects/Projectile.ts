@@ -97,7 +97,7 @@ export class Projectile extends GameObject {
                 if (engine && canAttackBeBlocked(unit, this.x, this.y, gameTime)) {
                     const block = getBlockingArcForUnit(unit, gameTime);
                     if (block) {
-                        executeBlock(engine, unit, { type: 'projectile', projectile: this, sourceUnitId: this.sourceUnitId }, this.sourceAbilityId);
+                        executeBlock(engine, unit, { type: 'projectile', projectile: this, sourceUnitId: this.sourceUnitId }, this.sourceAbilityId, block);
                         return null;
                     }
                 }

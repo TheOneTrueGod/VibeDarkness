@@ -127,6 +127,79 @@ export function createPixelTargetPreview(maxDistance: number): RenderTargetingPr
     };
 }
 
+/** Options for createArcTargetPreview. Arc is drawn from caster toward mouse direction. */
+export interface ArcTargetPreviewOptions {
+    /** Arc angle in degrees (e.g. 120 for a 120° wedge). */
+    arcDeg: number;
+    /** Inner radius offset from caster.radius (default 0). */
+    innerOffset?: number;
+    /** Outer radius = caster.radius + outerThickness (default 5). */
+    outerThickness?: number;
+    /** Arc path segments (default 24). */
+    segments?: number;
+    fillColor?: number;
+    fillAlpha?: number;
+    strokeColor?: number;
+    strokeWidth?: number;
+    strokeAlpha?: number;
+}
+
+const DEFAULT_ARC_FILL = { color: 0x6b8e6b, alpha: 0.7 };
+const DEFAULT_ARC_STROKE = { color: 0x4a6b4a, width: 2, alpha: 0.9 };
+
+/**
+ * Preset: Direction (pixel) target drawn as an arc wedge from caster toward mouse.
+ * Arc looks like the "active" shield/block preview: inner/outer radii, filled and stroked.
+ * Use for abilities that target a direction and show a blocking arc (e.g. Raise Shield).
+ */
+export function createArcTargetPreview(options: ArcTargetPreviewOptions): RenderTargetingPreviewFn {
+    const arcDeg = options.arcDeg;
+    const arcRad = (arcDeg * Math.PI) / 180;
+    const halfArcRad = arcRad / 2;
+    const innerOffset = options.innerOffset ?? 0;
+    const outerThickness = options.outerThickness ?? 5;
+    const segments = options.segments ?? 24;
+    const fillColor = options.fillColor ?? DEFAULT_ARC_FILL.color;
+    const fillAlpha = options.fillAlpha ?? DEFAULT_ARC_FILL.alpha;
+    const strokeColor = options.strokeColor ?? DEFAULT_ARC_STROKE.color;
+    const strokeWidth = options.strokeWidth ?? DEFAULT_ARC_STROKE.width;
+    const strokeAlpha = options.strokeAlpha ?? DEFAULT_ARC_STROKE.alpha;
+
+    return (gr, caster, _currentTargets, mouseWorld, _units) => {
+        const dx = mouseWorld.x - caster.x;
+        const dy = mouseWorld.y - caster.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist === 0) return;
+        const centerAngle = Math.atan2(dy, dx);
+        const startAngle = centerAngle - halfArcRad;
+        const endAngle = centerAngle + halfArcRad;
+        const innerR = caster.radius + innerOffset;
+        const outerR = caster.radius + outerThickness;
+
+        gr.clear();
+        gr.moveTo(
+            caster.x + outerR * Math.cos(startAngle),
+            caster.y + outerR * Math.sin(startAngle),
+        );
+        for (let i = 1; i <= segments; i++) {
+            const t = i / segments;
+            const a = startAngle + t * arcRad;
+            gr.lineTo(caster.x + outerR * Math.cos(a), caster.y + outerR * Math.sin(a));
+        }
+        for (let i = segments - 1; i >= 0; i--) {
+            const t = i / segments;
+            const a = startAngle + t * arcRad;
+            gr.lineTo(caster.x + innerR * Math.cos(a), caster.y + innerR * Math.sin(a));
+        }
+        gr.lineTo(
+            caster.x + outerR * Math.cos(startAngle),
+            caster.y + outerR * Math.sin(startAngle),
+        );
+        gr.fill({ color: fillColor, alpha: fillAlpha });
+        gr.stroke({ color: strokeColor, width: strokeWidth, alpha: strokeAlpha });
+    };
+}
+
 /** Options for createUnitTargetPreview. */
 export interface UnitTargetPreviewOptions {
     getMinRange: (caster: Unit) => number;

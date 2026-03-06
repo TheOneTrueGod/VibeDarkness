@@ -1,4 +1,5 @@
-import type { CardDef } from './types';
+import type { CardDef, CardDefId } from './types';
+import { asCardDefId } from './types';
 import throwKnifeCard from './throw_knife_card';
 import throwRockCard from './throw_rock_card';
 import { DodgeCard } from './0101_Dodge/0101Ability';
@@ -12,10 +13,11 @@ import { RaiseShieldCard } from './0104_RaiseShield/0104Ability';
 const cardDefs: CardDef[] = [throwKnifeCard, throwRockCard, DodgeCard, EnemyArcherShotCard, EnemyMeleeAttackCard, BashCard, SwingBatCard, DarkWolfBiteCard, RaiseShieldCard];
 
 /** Map card ID -> card definition for resolving hands (arrays of card IDs) to card data. */
-export const CARD_DEF_MAP: Map<string, CardDef> = new Map(cardDefs.map((c) => [c.id, c]));
+export const CARD_DEF_MAP: Map<CardDefId, CardDef> = new Map(cardDefs.map((c) => [c.id, c]));
 
-export function getCardDef(id: string): CardDef | undefined {
+export function getCardDef(id: CardDefId): CardDef | undefined {
     return CARD_DEF_MAP.get(id);
 }
 
-export type { CardDef } from './types';
+export { asCardDefId };
+export type { CardDef, CardDefId } from './types';

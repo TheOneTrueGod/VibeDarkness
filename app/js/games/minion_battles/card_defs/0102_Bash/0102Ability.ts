@@ -11,7 +11,7 @@ import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../
 import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
-import type { CardDef } from '../types';
+import { asCardDefId, type CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { areEnemies } from '../../engine/teams';
@@ -49,10 +49,34 @@ interface GameEngineLike {
     eventBus: EventBus;
 }
 
-const BASH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="32" cy="32" r="18" fill="#d4a574" stroke="#8B4513" stroke-width="3"/>
-  <path d="M32 14 L35 20 L32 26 L29 20 Z M32 38 L35 44 L32 50 L29 44 Z M14 32 L20 35 L26 32 L20 29 Z M38 32 L44 35 L50 32 L44 29 Z" fill="#8B0000"/>
-  <path d="M20 20 L26 26 M38 20 L26 26 M26 26 L26 38 M26 26 L38 38 M38 38 L20 38" stroke="#654321" stroke-width="2" fill="none"/>
+const BASH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fistBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#222222"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+  </defs>
+  <!-- Circular badge background -->
+  <circle cx="32" cy="32" r="22" fill="url(#fistBg)" stroke="#facc15" stroke-width="3"/>
+
+  <!-- Stylized raised fist (resist symbol) -->
+  <!-- Fingers -->
+  <rect x="22" y="20" width="7" height="7" rx="1.5" ry="1.5" fill="#e5e5e5" stroke="#111827" stroke-width="1.5"/>
+  <rect x="29" y="19" width="7" height="8" rx="1.5" ry="1.5" fill="#e5e5e5" stroke="#111827" stroke-width="1.5"/>
+  <rect x="36" y="20" width="7" height="7" rx="1.5" ry="1.5" fill="#e5e5e5" stroke="#111827" stroke-width="1.5"/>
+  <!-- Thumb overlapping -->
+  <path d="M22 27 C24 26 27 26 29 27 L29 31 L22 31 Z" fill="#d4d4d4" stroke="#111827" stroke-width="1.5"/>
+
+  <!-- Palm -->
+  <rect x="23" y="29" width="20" height="13" rx="3" ry="3" fill="#e5e5e5" stroke="#111827" stroke-width="1.8"/>
+
+  <!-- Wrist / arm -->
+  <rect x="26" y="40" width="14" height="8" rx="2" ry="2" fill="#111827"/>
+
+  <!-- Accent rays to suggest impact / defiance -->
+  <path d="M14 18 L20 22" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+  <path d="M48 18 L42 22" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
+  <path d="M32 12 L32 18" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
 </svg>`;
 
 export const BashAbility: AbilityStatic = {
@@ -102,7 +126,7 @@ export const BashAbility: AbilityStatic = {
             if (canAttackBeBlocked(targetUnit, caster.x, caster.y, eng.gameTime)) {
                 const block = getBlockingArcForUnit(targetUnit, eng.gameTime);
                 if (block) {
-                    executeBlock(eng, targetUnit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID);
+                    executeBlock(eng, targetUnit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID, block);
                     return;
                 }
             }
@@ -178,7 +202,7 @@ export const BashAbility: AbilityStatic = {
 };
 
 export const BashCard: CardDef = {
-    id: CARD_ID,
+    id: asCardDefId(CARD_ID),
     name: 'Bash',
     abilityId: CARD_ID,
     durability: 2,

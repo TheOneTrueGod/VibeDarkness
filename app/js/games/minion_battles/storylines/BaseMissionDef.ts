@@ -14,6 +14,7 @@ import type { EventBus } from '../engine/EventBus';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { createUnitByCharacterId, createUnitFromSpawnConfig } from '../objects/units/index';
 import { createCardInstance, WORLD_HEIGHT } from '../engine/GameEngine';
+import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
 
@@ -131,27 +132,27 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             let hand: CardInstance[];
             if (isRanger) {
                 hand = [
-                    createCardInstance('0001_1', '0001', 'hand'),
-                    createCardInstance('0001_2', '0001', 'hand'),
-                    createCardInstance('0001_3', '0001', 'hand'),
-                    createCardInstance('0001_4', '0001', 'hand'),
+                    createCardInstance(asCardDefId('0001'), '0001', 'hand'),
+                    createCardInstance(asCardDefId('0001'), '0001', 'hand'),
+                    createCardInstance(asCardDefId('0001'), '0001', 'hand'),
+                    createCardInstance(asCardDefId('0001'), '0001', 'hand'),
                 ];
             } else if (isWarrior) {
                 // Warrior starting deck: Bash, Bash, Bash, Dodge, Dodge
                 hand = [
-                    createCardInstance('0102_1', '0102', 'hand'),
-                    createCardInstance('0102_2', '0102', 'hand'),
-                    createCardInstance('0102_3', '0102', 'hand'),
-                    createCardInstance('0101_1', '0101', 'hand'),
-                    createCardInstance('0101_2', '0101', 'hand'),
+                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
+                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
+                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
+                    createCardInstance(asCardDefId('0101'), '0101', 'hand'),
+                    createCardInstance(asCardDefId('0101'), '0101', 'hand'),
                 ];
             } else {
                 const throwCardId = 'throw_knife';
                 hand = [
-                    createCardInstance(`${throwCardId}_1`, throwCardId, 'hand'),
-                    createCardInstance(`${throwCardId}_2`, throwCardId, 'hand'),
-                    createCardInstance('0102_1', '0102', 'hand'),
-                    createCardInstance('0102_2', '0102', 'hand'),
+                    createCardInstance(asCardDefId(throwCardId), throwCardId, 'hand'),
+                    createCardInstance(asCardDefId(throwCardId), throwCardId, 'hand'),
+                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
+                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
                 ];
             }
             // Add cards from equipped items (e.g. pre-mission story choices)
@@ -162,7 +163,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     for (let c = 0; c < entry.count; c++) {
                         hand.push(
                             createCardInstance(
-                                `${entry.cardId}_item_${itemId}_${c}`,
+                                asCardDefId(entry.cardId),
                                 entry.cardId,
                                 'hand'
                             )

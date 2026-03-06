@@ -112,24 +112,25 @@ export default function CardHand({
         (card: CardInstance): string => {
             const def = getCardDef(card.cardDefId);
             const ability = getAbility(card.abilityId);
-            const name = def?.name ?? ability?.name ?? card.cardDefId;
+            const name = def?.name ?? ability?.name ?? String(card.cardDefId);
 
             const dd = def?.discardDuration;
             if (!dd) {
                 return name;
             }
-
+            
             if (dd.unit === 'rounds') {
                 const remainingRounds = card.discardRoundsRemaining ?? dd.duration;
                 return `${name} (${remainingRounds}r)`;
             }
 
-            // Seconds-based discard duration
+            // Seconds-based: show remaining in-game seconds until re-added to deck (e.g. "0.4s")
             const addedAt = card.discardAddedAtTime;
             if (typeof gameTime === 'number' && typeof addedAt === 'number') {
                 const elapsed = Math.max(0, gameTime - addedAt);
-                const remaining = Math.max(0, Math.ceil(dd.duration - elapsed));
-                return `${name} (${remaining}s)`;
+                const remaining = Math.max(0, dd.duration - elapsed);
+                const secStr = remaining % 1 === 0 ? `${remaining}s` : `${remaining.toFixed(1)}s`;
+                return `${name} (${secStr})`;
             }
 
             return `${name} (${dd.duration}s)`;
@@ -169,7 +170,7 @@ export default function CardHand({
                                                     {deckCards.map((card, idx) => {
                                                         const def = getCardDef(card.cardDefId);
                                                         const ability = getAbility(card.abilityId);
-                                                        const name = def?.name ?? ability?.name ?? card.cardDefId;
+                                                        const name = def?.name ?? ability?.name ?? String(card.cardDefId);
                                                         return (
                                                             <li key={`${card.cardDefId}_${idx}`}>• {name}</li>
                                                         );

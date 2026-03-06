@@ -95,16 +95,20 @@ export function canAttackBeBlocked(
 }
 
 /**
- * Call the attacking ability's onAttackBlocked callback. The attacking ability
- * determines the behaviour when its attack is blocked (e.g. destroy projectile,
- * apply knockback to charger).
+ * Call the attacking ability's onAttackBlocked callback and the blocking ability's
+ * onBlockSuccess callback (if any). Pass the block when you have it so the blocker
+ * can react (e.g. draw a card).
  */
 export function executeBlock(
     engine: unknown,
     defender: Unit,
     attackInfo: AttackBlockedInfo,
     attackingAbilityId: string,
+    block?: BlockingArc | null,
 ): void {
     const ability = getAbility(attackingAbilityId);
     ability?.onAttackBlocked(engine, defender, attackInfo);
+    if (block?.ability.onBlockSuccess) {
+        block.ability.onBlockSuccess(engine, defender);
+    }
 }

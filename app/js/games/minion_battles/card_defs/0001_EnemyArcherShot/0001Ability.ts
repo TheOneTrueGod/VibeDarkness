@@ -8,7 +8,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import { Projectile } from '../../objects/Projectile';
-import type { CardDef } from '../types';
+import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../engine/AbilityNote';
 
@@ -183,7 +183,7 @@ export const EnemyArcherShotAbility: AbilityStatic = {
 };
 
 export const EnemyArcherShotCard: CardDef = {
-    id: CARD_ID,
+    id: asCardDefId(CARD_ID),
     name: 'Enemy Archer Shot',
     abilityId: CARD_ID,
     durability: 2,

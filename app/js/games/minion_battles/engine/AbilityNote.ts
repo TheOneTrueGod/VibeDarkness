@@ -16,6 +16,7 @@ export interface AbilityNoteMap {
         lungeStartY: number;
         hitTargetIds: string[];
     };
+    '0104': { drewFromBlockCount: number };
 }
 
 /** Discriminated union: { abilityId: K, abilityNote: AbilityNoteMap[K] } for each K. */

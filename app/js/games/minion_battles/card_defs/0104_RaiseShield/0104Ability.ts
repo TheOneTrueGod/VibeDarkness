@@ -1,21 +1,25 @@
 /**
  * Raise Shield - Warrior skill. Hold a shield for 1s in a direction.
  * Movement speed penalty 0.1, blocks attacks from within a 120° arc.
- * Single use: caster and nearest ally each draw 1 card (capped by hand size).
+ * Single use. Owner draws a card when the ability blocks (max once per use).
  */
 
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../abilities/Ability';
 import type { TargetDef } from '../../abilities/targeting';
-import { createPixelTargetPreview } from '../../abilities/previewHelpers';
+import { createArcTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
-import type { CardDef } from '../types';
+import { isAbilityNote } from '../../engine/AbilityNote';
+import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}04`;
 const DURATION = 1;
+const COOLDOWN_TIME = 1;
 const MOVEMENT_PENALTY = 0.1;
+/** Max number of cards the owner can draw from blocking per card use. */
+const MAX_DRAW_PER_USE = 1;
 const SHIELD_ARC_DEG = 120;
 const SHIELD_ARC_RAD = (SHIELD_ARC_DEG * Math.PI) / 180;
 const SHIELD_HALF_ARC_RAD = SHIELD_ARC_RAD / 2;
@@ -41,7 +45,7 @@ export const RaiseShieldAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Raise Shield',
     image: RAISE_SHIELD_IMAGE,
-    cooldownTime: 1,
+    cooldownTime: COOLDOWN_TIME,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DURATION,
@@ -49,7 +53,7 @@ export const RaiseShieldAbility: AbilityStatic = {
     aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },
 
     getDescription(_gameState?: unknown): string {
-        return `Raise a shield for ${DURATION}s in the target direction. Movement slowed to ${MOVEMENT_PENALTY * 100}% speed. Blocks attacks from a 120° arc. You and the nearest ally each draw 1 card. Single use.`;
+        return `Raise a shield for ${DURATION}s in the target direction. Movement slowed to ${MOVEMENT_PENALTY * 100}% speed. Blocks attacks from a 120° arc. Draw a card when you block an attack (once per use), and the nearest ally draws a card on use. Single use.`;
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
@@ -76,8 +80,10 @@ export const RaiseShieldAbility: AbilityStatic = {
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         const eng = engine as GameEngineLike;
-        // One-shot: on first tick, nearest ally and caster each draw 1
+        // One-shot: on first tick, set note for block rewards and nearest ally draws 1
         if (prevTime >= 0.05 || currentTime < 0.05) return;
+
+        caster.setAbilityNote({ abilityId: '0104', abilityNote: { drewFromBlockCount: 0 } });
 
         // Nearest ally (same team, not self, alive)
         let nearestAlly: Unit | null = null;
@@ -94,9 +100,6 @@ export const RaiseShieldAbility: AbilityStatic = {
         }
         if (nearestAlly?.ownerId) {
             eng.drawCardsForPlayer(nearestAlly.ownerId, 1);
-        }
-        if (caster.ownerId) {
-            eng.drawCardsForPlayer(caster.ownerId, 1);
         }
     },
 
@@ -161,19 +164,36 @@ export const RaiseShieldAbility: AbilityStatic = {
             caster.x + outerR * Math.cos(startAngle),
             caster.y + outerR * Math.sin(startAngle),
         );
-        gr.fill({ color: 0x6b8e6b, alpha: 0.5 });
+        gr.fill({ color: 0x6b8e6b, alpha: 0.7 });
         gr.stroke({ color: 0x4a6b4a, width: 2, alpha: 0.9 });
     },
 
-    renderTargetingPreview: createPixelTargetPreview(MAX_RANGE),
+    renderTargetingPreview: createArcTargetPreview({
+        arcDeg: SHIELD_ARC_DEG,
+        innerOffset: SHIELD_INNER_OFFSET,
+        outerThickness: SHIELD_THICKNESS_PX,
+    }),
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        // Optional: play sound, increment counter, etc.
+        // Not used; we are the blocker, not the attacker.
+    },
+
+    onBlockSuccess(engine: unknown, defender: Unit): void {
+        if (!defender.ownerId) return;
+        const note = defender.abilityNote;
+        if (!isAbilityNote(note, '0104')) return;
+        if (note.abilityNote.drewFromBlockCount >= MAX_DRAW_PER_USE) return;
+        const eng = engine as GameEngineLike;
+        eng.drawCardsForPlayer(defender.ownerId, 1);
+        defender.setAbilityNote({
+            abilityId: '0104',
+            abilityNote: { drewFromBlockCount: note.abilityNote.drewFromBlockCount + 1 },
+        });
     },
 };
 
 export const RaiseShieldCard: CardDef = {
-    id: CARD_ID,
+    id: asCardDefId(CARD_ID),
     name: 'Raise Shield',
     abilityId: CARD_ID,
     durability: 1,

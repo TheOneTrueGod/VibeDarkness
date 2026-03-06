@@ -11,7 +11,7 @@ import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../
 import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
-import type { CardDef } from '../types';
+import { asCardDefId, type CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { areEnemies } from '../../engine/teams';
@@ -105,7 +105,7 @@ export const SwingBatAbility: AbilityStatic = {
             if (canAttackBeBlocked(targetUnit, caster.x, caster.y, eng.gameTime)) {
                 const block = getBlockingArcForUnit(targetUnit, eng.gameTime);
                 if (block) {
-                    executeBlock(eng, targetUnit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID);
+                    executeBlock(eng, targetUnit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID, block);
                     return;
                 }
             }
@@ -198,7 +198,7 @@ export const SwingBatAbility: AbilityStatic = {
 };
 
 export const SwingBatCard: CardDef = {
-    id: CARD_ID,
+    id: asCardDefId(CARD_ID),
     name: 'Swing Bat',
     abilityId: CARD_ID,
     durability: 2,

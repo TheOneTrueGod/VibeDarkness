@@ -9,7 +9,7 @@ import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackB
 import type { Unit } from '../../../objects/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { ResolvedTarget } from '../../../engine/types';
-import type { CardDef } from '../../types';
+import { asCardDefId, type CardDef } from '../../types';
 import { Effect } from '../../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { areEnemies } from '../../../engine/teams';
@@ -170,7 +170,7 @@ export const DarkWolfBiteAbility: AbilityStatic = {
                 if (canAttackBeBlocked(unit, caster.x, caster.y, eng.gameTime)) {
                     const block = getBlockingArcForUnit(unit, eng.gameTime);
                     if (block) {
-                        executeBlock(eng, unit, { type: 'charging', sourceUnitId: caster.id }, CARD_ID);
+                        executeBlock(eng, unit, { type: 'charging', sourceUnitId: caster.id }, CARD_ID, block);
                         return;
                     }
                 }
@@ -292,7 +292,7 @@ export const DarkWolfBiteAbility: AbilityStatic = {
 };
 
 export const DarkWolfBiteCard: CardDef = {
-    id: CARD_ID,
+    id: asCardDefId(CARD_ID),
     name: 'Dark Wolf Bite',
     abilityId: CARD_ID,
     durability: 1,
