@@ -427,14 +427,15 @@ class LobbyManager
                     if (is_file($basePathFile)) {
                         $baseData = json_decode(file_get_contents($basePathFile), true);
                         if (is_array($baseData)) {
-                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections', 'playerStoryChoices', 'playerEquippedItems'] as $key) {
+                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'playerStoryChoices', 'playerEquippedItems'] as $key) {
                                 if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
                                     $result[$key] = $baseData[$key];
                                 }
                             }
                             // Also merge dotted keys like characterSelections.1
                             foreach (array_keys($baseData) as $key) {
-                                if (strpos($key, 'characterSelections.') === 0 || strpos($key, 'character_selections.') === 0) {
+                                if (strpos($key, 'characterSelections.') === 0 || strpos($key, 'character_selections.') === 0
+                                    || strpos($key, 'characterPortraitIds.') === 0 || strpos($key, 'character_portrait_ids.') === 0) {
                                     $result[$key] = $baseData[$key];
                                 }
                             }

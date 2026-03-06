@@ -3,6 +3,30 @@
  * Handles HTTP API calls for lobby management
  */
 
+/** Campaign character as returned from API (serializable). */
+export interface CampaignCharacterPayload {
+    id: string;
+    ownerAccountId?: number;
+    equipment: string[];
+    knowledge: Record<string, Record<string, unknown>>;
+    traits: string[];
+    portraitId: string;
+    battleChipDetails: Record<string, unknown>;
+    campaignId: string;
+    missionId: string;
+}
+
+/** Payload to create a campaign character. */
+export interface CreateCharacterPayload {
+    portraitId: string;
+    campaignId: string;
+    missionId: string;
+    equipment?: string[];
+    knowledge?: Record<string, Record<string, unknown>>;
+    traits?: string[];
+    battleChipDetails?: Record<string, unknown>;
+}
+
 interface ApiResponse {
     success: boolean;
     error?: string;
@@ -19,6 +43,8 @@ interface ApiResponse {
     messageId?: number;
     stats?: unknown;
     gameStateData?: Record<string, unknown>;
+    character?: CampaignCharacterPayload;
+    characters?: CampaignCharacterPayload[];
 }
 
 interface LobbySummary {
@@ -252,6 +278,32 @@ export class LobbyClient {
     async getStats(): Promise<unknown> {
         const data = await this.request('/api/stats');
         return data.stats;
+    }
+
+    /** List campaign characters for the current account. Requires login. */
+    async getMyCharacters(): Promise<CampaignCharacterPayload[]> {
+        const data = await this.request('/api/account/characters');
+        return (data.characters as CampaignCharacterPayload[]) ?? [];
+    }
+
+    /** Create a campaign character. Requires login. Returns the created character. */
+    async createCharacter(
+        payload: CreateCharacterPayload,
+    ): Promise<{ character: CampaignCharacterPayload; characters: CampaignCharacterPayload[] }> {
+        const data = await this.request('/api/account/characters', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+        return {
+            character: data.character as CampaignCharacterPayload,
+            characters: (data.characters as CampaignCharacterPayload[]) ?? [],
+        };
+    }
+
+    /** Get a single campaign character by ID (must be owned by current account). */
+    async getCharacter(characterId: string): Promise<CampaignCharacterPayload> {
+        const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}`);
+        return data.character as CampaignCharacterPayload;
     }
 
     async updateGameState(

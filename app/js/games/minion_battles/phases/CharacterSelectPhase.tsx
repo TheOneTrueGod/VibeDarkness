@@ -1,17 +1,20 @@
 /**
  * Character Select Phase - React component
- * Shows character cards (200x200) with name, picture, enabled/locked status.
- * Players select a character; selections are synced via game state API.
- * When all players have selected, the host sees a "Start Game" button.
+ * Shows "Create Character" card (top left) and list of player's campaign characters.
+ * Characters sorted by whether they can be used on the current campaign/mission.
+ * Disallow reason shown diagonally on cards when they cannot be used.
  */
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import type { PlayerState } from '../../../types';
 import { LobbyClient } from '../../../LobbyClient';
 import { MessageType } from '../../../MessageTypes';
-import { CHARACTERS } from '../character_defs/characters';
-import type { CharacterDef } from '../character_defs/types';
 import { MinionBattlesPlayer } from '../MinionBattlesPlayer';
 import type { PreMissionStoryDef } from '../storylines/storyTypes';
+import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
+import { fromCampaignCharacterData, type CampaignCharacter } from '../character_defs/CampaignCharacter';
+import type { CampaignCharacterData } from '../character_defs/campaignCharacterTypes';
+import { getPortrait } from '../character_defs/portraits';
+import CharacterCreator from '../components/CharacterCreator';
 
 interface CharacterSelectPhaseProps {
     lobbyClient: LobbyClient;
@@ -21,13 +24,15 @@ interface CharacterSelectPhaseProps {
     isHost: boolean;
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
-    /** Current mission (from votes); used to show Continue when mission has preMissionStory. */
+    /** Current mission (from votes). */
     missionId?: string;
+    /** Current campaign ID (from mission def or fallback to missionId). */
+    campaignId?: string;
+    /** Mission def for trait allow/deny and preMissionStory. */
+    missionDef?: IBaseMissionDef | null;
     /** Pre-mission story for current mission; when set and all selected, show Continue instead of Start Game. */
     preMissionStory?: PreMissionStoryDef | null;
-    /** Set a local override for instant UI feedback (path relative to game state root). */
     setLocalOverride?: (path: string, value: unknown) => void;
-    /** Remove a local override (e.g. on request failure to revert optimistic update). */
     removeLocalOverride?: (path: string) => void;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
 }
@@ -40,55 +45,91 @@ export default function CharacterSelectPhase({
     isHost,
     players,
     characterSelections,
-    missionId,
+    missionId = '',
+    campaignId: campaignIdProp = '',
+    missionDef,
     preMissionStory,
     setLocalOverride,
     removeLocalOverride,
     onPhaseChange,
 }: CharacterSelectPhaseProps) {
-    const mbPlayer = useMemo(() => {
-        const p = players[playerId];
-        return p ? new MinionBattlesPlayer(p) : null;
-    }, [players, playerId]);
+    // Ensure nullish coalescing and logical OR are not mixed without parentheses.
+    const campaignId =
+        campaignIdProp || (missionDef?.campaignId ?? missionId);
+    const [myCharacters, setMyCharacters] = useState<CampaignCharacter[]>([]);
+    const [charactersLoading, setCharactersLoading] = useState(true);
+    const [creatorOpen, setCreatorOpen] = useState(false);
+    const [createCardRef, setCreateCardRef] = useState<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        lobbyClient
+            .getMyCharacters()
+            .then((list) => {
+                if (cancelled) return;
+                const chars = (list as CampaignCharacterData[]).map((d) => fromCampaignCharacterData(d));
+                setMyCharacters(chars);
+            })
+            .catch(() => {
+                if (!cancelled) setMyCharacters([]);
+            })
+            .finally(() => {
+                if (!cancelled) setCharactersLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [lobbyClient]);
 
     const mySelection = characterSelections[playerId] ?? null;
     const allPlayerIds = Object.keys(players);
     const allSelected = allPlayerIds.length > 0 && allPlayerIds.every((pid) => pid in characterSelections);
 
-    // Sort characters: enabled+unlocked first, then enabled+locked, then disabled+unlocked, then disabled+locked
+    const missionTraitFilter = useMemo(
+        () =>
+            missionDef
+                ? {
+                      allowedTraits: missionDef.allowedTraits,
+                      disallowedTraits: missionDef.disallowedTraits,
+                  }
+                : undefined,
+        [missionDef],
+    );
+
     const sortedCharacters = useMemo(() => {
-        return [...CHARACTERS].sort((a, b) => {
-            const aUnlocked = mbPlayer ? mbPlayer.isCharacterUnlocked(a.id) : false;
-            const bUnlocked = mbPlayer ? mbPlayer.isCharacterUnlocked(b.id) : false;
-            const aScore = (a.enabled ? 2 : 0) + (aUnlocked ? 1 : 0);
-            const bScore = (b.enabled ? 2 : 0) + (bUnlocked ? 1 : 0);
-            return bScore - aScore;
+        return [...myCharacters].sort((a, b) => {
+            const aOk = a.canBeUsedOnMission(campaignId, missionId, missionTraitFilter);
+            const bOk = b.canBeUsedOnMission(campaignId, missionId, missionTraitFilter);
+            if (aOk && !bOk) return -1;
+            if (!aOk && bOk) return 1;
+            return 0;
         });
-    }, [mbPlayer]);
+    }, [myCharacters, campaignId, missionId, missionTraitFilter]);
 
-    const handleCharacterClick = useCallback(
-        async (characterId: string) => {
-            const char = CHARACTERS.find((c) => c.id === characterId);
-            if (!char || !char.enabled) return;
-            if (!mbPlayer || !mbPlayer.isCharacterUnlocked(characterId)) return;
-
-            // Optimistic update: show the selection immediately
+    const handleSelectCharacter = useCallback(
+        async (characterId: string, portraitId: string) => {
             const overridePath = `characterSelections.${playerId}`;
             setLocalOverride?.(overridePath, characterId);
 
             try {
-                // Character selection is persisted via message handler (works for host and non-host).
-                // The direct updateGameState API is host-only, so we use sendMessage instead.
                 await lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHARACTER_SELECT, {
                     characterId,
+                    portraitId,
                 });
             } catch (error) {
-                // Revert the optimistic update on failure
                 removeLocalOverride?.(overridePath);
                 console.error('Failed to select character:', error);
             }
         },
-        [lobbyClient, lobbyId, playerId, mbPlayer, setLocalOverride, removeLocalOverride]
+        [lobbyClient, lobbyId, playerId, setLocalOverride, removeLocalOverride],
+    );
+
+    const handleCreateCharacter = useCallback(
+        (characterId: string, portraitId: string) => {
+            setCreatorOpen(false);
+            handleSelectCharacter(characterId, portraitId);
+        },
+        [handleSelectCharacter],
     );
 
     const handleStartGame = useCallback(async () => {
@@ -135,25 +176,63 @@ export default function CharacterSelectPhase({
         }
     }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
 
+    const createCharacterApi = useCallback(
+        async (payload: { portraitId: string; campaignId: string; missionId: string }) => {
+            const { character, characters } = await lobbyClient.createCharacter(payload);
+            if (characters && characters.length > 0) {
+                const mapped = (characters as CampaignCharacterData[]).map((d) =>
+                    fromCampaignCharacterData(d),
+                );
+                setMyCharacters(mapped);
+            }
+            return { id: character.id, portraitId: character.portraitId };
+        },
+        [lobbyClient],
+    );
+
     return (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
             <h2 className="text-[32px] font-bold text-center py-5 shrink-0">Select your character</h2>
 
             <div className="flex-1 overflow-auto px-5 pb-5">
                 <div className="flex flex-wrap justify-center gap-6">
-                    {sortedCharacters.map((char) => (
-                        <CharacterCard
-                            key={char.id}
-                            character={char}
-                            isUnlocked={mbPlayer ? mbPlayer.isCharacterUnlocked(char.id) : false}
-                            isMySelection={mySelection === char.id}
-                            playerSelections={characterSelections}
-                            players={players}
-                            onClick={handleCharacterClick}
-                        />
-                    ))}
+                    {/* Create Character card - top left (first in list) */}
+                    <CreateCharacterCard
+                        ref={setCreateCardRef}
+                        onClick={() => setCreatorOpen(true)}
+                    />
+                    {charactersLoading ? (
+                        <div className="w-[200px] h-[200px] flex items-center justify-center text-gray-400">
+                            Loading…
+                        </div>
+                    ) : (
+                        sortedCharacters.map((char) => (
+                            <CampaignCharacterCard
+                                key={char.id}
+                                character={char}
+                                campaignId={campaignId}
+                                missionId={missionId}
+                                missionTraitFilter={missionTraitFilter}
+                                isMySelection={mySelection === char.id}
+                                playerSelections={characterSelections}
+                                players={players}
+                                onSelect={handleSelectCharacter}
+                            />
+                        ))
+                    )}
                 </div>
             </div>
+
+            {creatorOpen && (
+                <CharacterCreator
+                    campaignId={campaignId}
+                    missionId={missionId}
+                    onCreate={handleCreateCharacter}
+                    onClose={() => setCreatorOpen(false)}
+                    createCharacter={createCharacterApi}
+                    anchorRef={{ current: createCardRef }}
+                />
+            )}
 
             {(isHost || (preMissionStory && allSelected)) && (
                 <div className="flex justify-center py-4 px-5 shrink-0 border-t border-border-custom">
@@ -189,27 +268,54 @@ export default function CharacterSelectPhase({
     );
 }
 
-/** Individual character card (200x200) */
-interface CharacterCardProps {
-    character: CharacterDef;
-    isUnlocked: boolean;
+/** Create Character card: plus in circle, "Create Character" below */
+const CreateCharacterCard = React.forwardRef<
+    HTMLDivElement,
+    { onClick: () => void }
+>(function CreateCharacterCard({ onClick }, ref) {
+    return (
+        <div
+            ref={ref}
+            role="button"
+            tabIndex={0}
+            className="w-[200px] h-[200px] rounded-lg border-2 border-dashed border-border-custom bg-surface flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary hover:bg-surface-light transition-all"
+            onClick={onClick}
+            onKeyDown={(e) => e.key === 'Enter' && onClick()}
+        >
+            <div className="w-14 h-14 rounded-full border-2 border-gray-400 flex items-center justify-center text-2xl text-gray-400">
+                +
+            </div>
+            <span className="text-sm font-semibold text-gray-300">Create Character</span>
+        </div>
+    );
+});
+
+interface CampaignCharacterCardProps {
+    character: CampaignCharacter;
+    campaignId: string;
+    missionId: string;
+    missionTraitFilter: { allowedTraits?: string[]; disallowedTraits?: string[] } | undefined;
     isMySelection: boolean;
     playerSelections: Record<string, string>;
     players: Record<string, PlayerState>;
-    onClick: (characterId: string) => void;
+    onSelect: (characterId: string, portraitId: string) => void;
 }
 
-function CharacterCard({
+function CampaignCharacterCard({
     character,
-    isUnlocked,
+    campaignId,
+    missionId,
+    missionTraitFilter,
     isMySelection,
     playerSelections,
     players,
-    onClick,
-}: CharacterCardProps) {
-    const isSelectable = character.enabled && isUnlocked;
+    onSelect,
+}: CampaignCharacterCardProps) {
+    const portrait = getPortrait(character.portraitId);
+    const displayName = portrait?.name ?? 'Character';
+    const canUse = character.canBeUsedOnMission(campaignId, missionId, missionTraitFilter);
+    const disallowReason = character.getDisallowReason(campaignId, missionId, missionTraitFilter);
 
-    // Players who selected this character
     const selectingPlayers = useMemo(() => {
         return Object.entries(playerSelections)
             .filter(([, charId]) => charId === character.id)
@@ -226,54 +332,33 @@ function CharacterCard({
                     ? 'border-[3px] border-green-500 shadow-[0_0_12px_rgba(34,197,94,0.4)]'
                     : 'border-2 border-border-custom'
                 }
-                ${isSelectable
+                ${canUse
                     ? 'hover:-translate-y-1 hover:shadow-[0_8px_16px_rgba(0,0,0,0.4)] hover:border-primary'
-                    : 'opacity-50 cursor-not-allowed'
+                    : 'opacity-70 cursor-not-allowed'
                 }
                 bg-surface
             `}
-            onClick={() => isSelectable && onClick(character.id)}
-            title={
-                !character.enabled
-                    ? `${character.name} — Coming Soon`
-                    : !isUnlocked
-                    ? `${character.name} — Locked`
-                    : character.name
-            }
+            onClick={() => canUse && onSelect(character.id, character.portraitId)}
+            title={canUse ? displayName : `${displayName} — ${disallowReason ?? 'Not available'}`}
         >
-            {/* Character portrait */}
             <div
                 className="w-full flex-1 overflow-hidden flex items-center justify-center bg-background relative"
-                dangerouslySetInnerHTML={{ __html: character.picture }}
+                dangerouslySetInnerHTML={{ __html: portrait?.picture ?? '' }}
             />
 
-            {/* Diagonal DISABLED overlay on portrait */}
-            {!character.enabled && (
+            {disallowReason != null && (
                 <div className="absolute inset-0 bottom-8 flex items-center justify-center pointer-events-none overflow-hidden">
                     <span
-                        className="text-red-500 font-black text-xl tracking-widest opacity-80 select-none"
+                        className="text-yellow-400 font-black text-lg tracking-widest opacity-90 select-none uppercase"
                         style={{ transform: 'rotate(-35deg)' }}
                     >
-                        COMING SOON
+                        {disallowReason}
                     </span>
                 </div>
             )}
 
-            {/* Locked overlay on portrait */}
-            {character.enabled && !isUnlocked && (
-                <div className="absolute inset-0 bottom-8 flex items-center justify-center pointer-events-none overflow-hidden">
-                    <span
-                        className="text-yellow-400 font-black text-xl tracking-widest opacity-80 select-none"
-                        style={{ transform: 'rotate(-35deg)' }}
-                    >
-                        LOCKED
-                    </span>
-                </div>
-            )}
-
-            {/* Character name bar with selection dots */}
             <div className="px-3 py-2 bg-surface-light flex items-center justify-between gap-1">
-                <span className="text-sm font-semibold truncate">{character.name}</span>
+                <span className="text-sm font-semibold truncate">{displayName}</span>
                 {selectingPlayers.length > 0 && (
                     <div className="flex gap-1 shrink-0">
                         {selectingPlayers.map((p) => (

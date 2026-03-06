@@ -128,33 +128,13 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             );
             engine.addUnit(unit);
 
-            // Set up cards for this player
-            let hand: CardInstance[];
-            if (isRanger) {
-                hand = [
-                    createCardInstance(asCardDefId('0001'), '0001', 'hand'),
-                    createCardInstance(asCardDefId('0001'), '0001', 'hand'),
-                    createCardInstance(asCardDefId('0001'), '0001', 'hand'),
-                    createCardInstance(asCardDefId('0001'), '0001', 'hand'),
-                ];
-            } else if (isWarrior) {
-                // Warrior starting deck: Bash, Bash, Bash, Dodge, Dodge
-                hand = [
-                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
-                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
-                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
-                    createCardInstance(asCardDefId('0101'), '0101', 'hand'),
-                    createCardInstance(asCardDefId('0101'), '0101', 'hand'),
-                ];
-            } else {
-                const throwCardId = 'throw_knife';
-                hand = [
-                    createCardInstance(asCardDefId(throwCardId), throwCardId, 'hand'),
-                    createCardInstance(asCardDefId(throwCardId), throwCardId, 'hand'),
-                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
-                    createCardInstance(asCardDefId('0102'), '0102', 'hand'),
-                ];
-            }
+            // Set up cards for this player.
+            // For now: three copies of Bash (0102), two copies of Dodge (0101),
+            // plus any cards granted by equipped items.
+            const baseCardIds = ['0102', '0102', '0102', '0101', '0101'];
+            const hand: CardInstance[] = baseCardIds.map((cardId) =>
+                createCardInstance(asCardDefId(cardId), cardId, 'hand'),
+            );
             // Add cards from equipped items (e.g. pre-mission story choices)
             for (const itemId of equippedIds) {
                 const itemDef = getItemDef(itemId);

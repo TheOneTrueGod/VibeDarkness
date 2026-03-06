@@ -104,6 +104,7 @@ const ENEMIES = [
 
 export class LastHoldoutMission extends BaseMissionDef {
     missionId = 'last_holdout';
+    campaignId = 'bunker_at_the_end';
     name = 'The Last Holdout';
     enemies = ENEMIES;
     createTerrain = createTerrain;

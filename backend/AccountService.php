@@ -96,4 +96,15 @@ class AccountService
         $account->addCampaignId($campaignId);
         $this->storage->save($account);
     }
+
+    /** Add a character ID to the account and persist. */
+    public function addCharacterToAccount(int $accountId, string $characterId): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->addCharacterId($characterId);
+        $this->storage->save($account);
+    }
 }

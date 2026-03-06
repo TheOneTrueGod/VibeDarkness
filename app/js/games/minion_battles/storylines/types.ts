@@ -119,6 +119,8 @@ export type AIControllerId = 'legacy' | 'defensePoints';
 export interface MissionBattleConfig {
     /** Mission ID (matches the id from MissionSelectPhase). */
     missionId: string;
+    /** Campaign ID this mission belongs to (for character allowlist: same campaign). */
+    campaignId?: string;
     /** Display name. */
     name: string;
     /** AI controller for enemy units. Omitted or 'legacy' uses LegacyAIController. */
@@ -144,6 +146,10 @@ export interface MissionBattleConfig {
     lightLevelEnabled?: boolean;
     /** Global light level (integer). 0 = baseline; negative = darker. Default 0. */
     globalLightLevel?: number;
+    /** Optional allowlist: character must have at least one of these traits to be used. */
+    allowedTraits?: string[];
+    /** Optional denylist: character must not have any of these traits to be used. */
+    disallowedTraits?: string[];
 }
 
 /** Storyline flow edge: fromMissionId + result unlocks toMissionId. */

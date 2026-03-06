@@ -209,6 +209,8 @@ export default function MinionBattlesGame({
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     missionId={selectedMissionId}
+                    campaignId={missionDef?.campaignId}
+                    missionDef={missionDef ?? null}
                     preMissionStory={preMissionStory}
                     setLocalOverride={localOverrides.set}
                     removeLocalOverride={localOverrides.remove}

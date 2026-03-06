@@ -25,6 +25,9 @@ use App\Http\Handlers\StatsHandler;
 use App\Http\Handlers\CreateCampaignHandler;
 use App\Http\Handlers\GetCampaignHandler;
 use App\Http\Handlers\UpdateCampaignHandler;
+use App\Http\Handlers\ListCharactersHandler;
+use App\Http\Handlers\CreateCharacterHandler;
+use App\Http\Handlers\GetCharacterHandler;
 
 /**
  * Matches request method and path to handler functions.
@@ -42,6 +45,9 @@ class Router
             ['POST', '#^/api/account/create$#', CreateAccountHandler::class],
             ['GET', '#^/api/account/me$#', GetCurrentUserHandler::class],
             ['POST', '#^/api/account/logout$#', LogoutHandler::class],
+            ['GET', '#^/api/account/characters$#', ListCharactersHandler::class],
+            ['POST', '#^/api/account/characters$#', CreateCharacterHandler::class],
+            ['GET', '#^/api/characters/([a-zA-Z0-9_]+)$#', GetCharacterHandler::class],
             ['POST', '#^/api/campaigns$#', CreateCampaignHandler::class],
             ['GET', '#^/api/campaigns/([a-z0-9]+)$#', GetCampaignHandler::class],
             ['PATCH', '#^/api/campaigns/([a-z0-9]+)$#', UpdateCampaignHandler::class],

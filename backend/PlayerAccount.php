@@ -23,6 +23,8 @@ class PlayerAccount
     private array $recentLobbies;
     /** @var string[] Campaign IDs this account belongs to */
     private array $campaignIds;
+    /** @var string[] Character IDs (campaign characters) owned by this account */
+    private array $characterIds;
 
     public function __construct(
         int $id,
@@ -34,7 +36,8 @@ class PlayerAccount
         int $earth,
         int $air,
         array $recentLobbies = [],
-        array $campaignIds = []
+        array $campaignIds = [],
+        array $characterIds = []
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -46,6 +49,7 @@ class PlayerAccount
         $this->air = $air;
         $this->recentLobbies = $recentLobbies;
         $this->campaignIds = $campaignIds;
+        $this->characterIds = $characterIds;
     }
 
     public function getRecentLobbies(): array
@@ -79,6 +83,23 @@ class PlayerAccount
         }
         if (!in_array($id, $this->campaignIds, true)) {
             $this->campaignIds[] = $id;
+        }
+    }
+
+    /** @return string[] */
+    public function getCharacterIds(): array
+    {
+        return $this->characterIds;
+    }
+
+    public function addCharacterId(string $characterId): void
+    {
+        $id = trim($characterId);
+        if ($id === '') {
+            return;
+        }
+        if (!in_array($id, $this->characterIds, true)) {
+            $this->characterIds[] = $id;
         }
     }
 
@@ -148,16 +169,18 @@ class PlayerAccount
             'air' => $this->air,
             'recentLobbies' => array_values($this->recentLobbies),
             'campaignIds' => array_values($this->campaignIds),
+            'characterIds' => array_values($this->characterIds),
         ];
     }
 
-    /** Full array for storage (includes password hash, recentLobbies, campaignIds) */
+    /** Full array for storage (includes password hash, recentLobbies, campaignIds, characterIds) */
     public function toStorageArray(): array
     {
         return array_merge($this->toArray(), [
             'passwordHash' => $this->passwordHash,
             'recentLobbies' => array_values($this->recentLobbies),
             'campaignIds' => array_values($this->campaignIds),
+            'characterIds' => array_values($this->characterIds),
         ]);
     }
 
@@ -169,6 +192,8 @@ class PlayerAccount
         $recent = is_array($recent) ? array_values(array_map('strval', $recent)) : [];
         $campaignIds = $data['campaignIds'] ?? [];
         $campaignIds = is_array($campaignIds) ? array_values(array_map('strval', $campaignIds)) : [];
+        $characterIds = $data['characterIds'] ?? [];
+        $characterIds = is_array($characterIds) ? array_values(array_map('strval', $characterIds)) : [];
         return new self(
             (int) $data['id'],
             $data['name'],
@@ -179,7 +204,8 @@ class PlayerAccount
             (int) ($data['earth'] ?? 0),
             (int) ($data['air'] ?? 0),
             $recent,
-            $campaignIds
+            $campaignIds,
+            $characterIds
         );
     }
 

@@ -184,6 +184,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
 
 export class DarkAwakeningMission extends BaseMissionDef {
     missionId = 'dark_awakening';
+    campaignId = 'world_of_darkness';
     name = 'A Dark Awakening';
     enemies = ENEMIES;
     levelEvents = LEVEL_EVENTS;

@@ -112,6 +112,7 @@ class PostMessageHandler
                 http_response_code(400);
                 return ['success' => false, 'error' => 'characterId required'];
             }
+            $portraitId = isset($payload['portraitId']) ? (string) $payload['portraitId'] : '';
             $lobby = $manager->getLobby($lobbyId);
             if ($lobby === null) {
                 http_response_code(404);
@@ -130,15 +131,22 @@ class PostMessageHandler
                 return ['success' => false, 'error' => 'Game state not found'];
             }
 
-            // Update character selections
+            // Update character selections and portrait IDs (for battle unit creation)
             $characterSelections = $gameState['characterSelections'] ?? $gameState['character_selections'] ?? [];
             $characterSelections[$playerId] = $characterId;
-            $manager->updateGameState($lobbyId, $gameId, $lobby->getHostId(), ['characterSelections' => $characterSelections]);
+            $updates = ['characterSelections' => $characterSelections];
+            if ($portraitId !== '') {
+                $characterPortraitIds = $gameState['characterPortraitIds'] ?? $gameState['character_portrait_ids'] ?? [];
+                $characterPortraitIds[$playerId] = $portraitId;
+                $updates['characterPortraitIds'] = $characterPortraitIds;
+            }
+            $manager->updateGameState($lobbyId, $gameId, $lobby->getHostId(), $updates);
 
             // Broadcast selection message
             $messageId = $lobby->addMessage('character_select', [
                 'playerId' => $playerId,
                 'characterId' => $characterId,
+                'portraitId' => $portraitId,
             ]);
             $manager->persistLobby($lobby);
 

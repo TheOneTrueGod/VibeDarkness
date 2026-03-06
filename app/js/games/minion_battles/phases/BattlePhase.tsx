@@ -218,9 +218,10 @@ export default function BattlePhase({
             const selections = Object.keys(characterSelections).length > 0
                 ? characterSelections
                 : ((init?.characterSelections ?? init?.character_selections) as Record<string, string>) ?? {};
+            const portraitIds = (init?.characterPortraitIds ?? init?.character_portrait_ids) as Record<string, string> | undefined;
             const playerUnits = Object.entries(selections).map(([pid, charId]) => ({
                 playerId: pid,
-                characterId: charId,
+                characterId: portraitIds?.[pid] ?? charId,
                 name: players[pid]?.name ?? 'Unknown',
             }));
             const equippedItemsByPlayer = deriveEquippedItemsFromStoryChoices(
