@@ -21,6 +21,7 @@ export function fromCampaignCharacterData(data: CampaignCharacterData): Campaign
 export class CampaignCharacter {
     readonly id: string;
     readonly ownerAccountId: number | undefined;
+    readonly name: string;
     readonly equipment: string[];
     readonly knowledge: Record<string, Record<string, unknown>>;
     readonly traits: string[];
@@ -32,6 +33,7 @@ export class CampaignCharacter {
     constructor(data: CampaignCharacterData) {
         this.id = data.id;
         this.ownerAccountId = data.ownerAccountId;
+        this.name = typeof data.name === 'string' && data.name !== '' ? data.name : 'Adventurer';
         this.equipment = Array.isArray(data.equipment) ? [...data.equipment] : [];
         this.knowledge =
             data.knowledge && typeof data.knowledge === 'object' ? { ...data.knowledge } : {};
@@ -126,6 +128,7 @@ export class CampaignCharacter {
         return {
             id: this.id,
             ownerAccountId: this.ownerAccountId,
+            name: this.name,
             equipment: this.equipment,
             knowledge: this.knowledge,
             traits: this.traits,

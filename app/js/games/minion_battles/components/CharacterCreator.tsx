@@ -4,6 +4,7 @@
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import { getPortraitIds, getPortrait } from '../character_defs/portraits';
+import { getRandomCharacterName } from '../character_defs/characterNames';
 
 const CARD_SIZE = 200;
 
@@ -17,6 +18,7 @@ interface CharacterCreatorProps {
         portraitId: string;
         campaignId: string;
         missionId: string;
+        name?: string;
     }) => Promise<{ id: string; portraitId: string }>;
     anchorRef: React.RefObject<HTMLElement | null>;
 }
@@ -70,6 +72,7 @@ export default function CharacterCreator({
                 portraitId: selectedPortraitId,
                 campaignId,
                 missionId,
+                name: getRandomCharacterName(),
             });
             onCreate(char.id, char.portraitId);
             onClose();

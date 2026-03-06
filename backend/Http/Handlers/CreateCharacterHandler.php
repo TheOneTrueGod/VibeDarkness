@@ -32,6 +32,7 @@ class CreateCharacterHandler
         $portraitId = isset($body['portraitId']) ? (string) $body['portraitId'] : '';
         $campaignId = isset($body['campaignId']) ? (string) $body['campaignId'] : '';
         $missionId = isset($body['missionId']) ? (string) $body['missionId'] : '';
+        $name = isset($body['name']) ? (string) $body['name'] : '';
         $equipment = isset($body['equipment']) && is_array($body['equipment']) ? $body['equipment'] : [];
         $knowledge = isset($body['knowledge']) && is_array($body['knowledge']) ? $body['knowledge'] : [];
         $traits = isset($body['traits']) && is_array($body['traits']) ? $body['traits'] : [];
@@ -39,6 +40,7 @@ class CreateCharacterHandler
 
         $characterManager = CharacterManager::getInstance();
         $character = $characterManager->createCharacter($accountId, [
+            'name' => $name,
             'equipment' => $equipment,
             'knowledge' => $knowledge,
             'traits' => $traits,

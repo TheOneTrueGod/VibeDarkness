@@ -1,7 +1,7 @@
 /**
  * DarkWolfBite - Lunge at a target, dealing damage to enemies crossed by the path.
  * 0.6s windup (no move), then 0.3s lunge toward target. Line-with-radius hitbox
- * deals 3 damage once per enemy per activation. AI uses only when within range 50.
+ * deals 3 damage once per enemy per activation. AI uses only when within range 80.
  */
 
 import { AbilityState } from '../../../abilities/Ability';
@@ -27,7 +27,7 @@ const DAMAGE = 3;
 const BITE_EFFECT_DURATION = 0.2;
 
 /** AI only tries to use when within this range (distance to target). */
-const AI_MAX_RANGE = 50;
+const AI_MAX_RANGE = 80;
 
 function getMaxRange(caster: Unit): number {
     return BASE_MAX_RANGE + caster.radius;

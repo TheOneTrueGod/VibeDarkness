@@ -10,6 +10,7 @@ class Character
 {
     private string $id;
     private int $ownerAccountId;
+    private string $name;
     /** @var string[] */
     private array $equipment;
     /** @var array<string, array<string, mixed>> */
@@ -25,6 +26,7 @@ class Character
     public function __construct(
         string $id,
         int $ownerAccountId,
+        string $name = '',
         array $equipment = [],
         array $knowledge = [],
         array $traits = [],
@@ -35,6 +37,7 @@ class Character
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
+        $this->name = $name;
         $this->equipment = array_values($equipment);
         $this->knowledge = $knowledge;
         $this->traits = array_values($traits);
@@ -52,6 +55,11 @@ class Character
     public function getOwnerAccountId(): int
     {
         return $this->ownerAccountId;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
     }
 
     /** @return string[] */
@@ -99,6 +107,7 @@ class Character
         return [
             'id' => $this->id,
             'ownerAccountId' => $this->ownerAccountId,
+            'name' => $this->name,
             'equipment' => $this->equipment,
             'knowledge' => $this->knowledge,
             'traits' => $this->traits,
@@ -118,6 +127,7 @@ class Character
         return new self(
             $data['id'] ?? '',
             (int) ($data['ownerAccountId'] ?? 0),
+            (string) ($data['name'] ?? ''),
             is_array($equipment) ? array_values($equipment) : [],
             is_array($knowledge) ? $knowledge : [],
             is_array($traits) ? array_values($traits) : [],

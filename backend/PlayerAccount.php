@@ -103,6 +103,19 @@ class PlayerAccount
         }
     }
 
+    /** Remove a character ID from the account. */
+    public function removeCharacterId(string $characterId): void
+    {
+        $id = trim($characterId);
+        if ($id === '') {
+            return;
+        }
+        $this->characterIds = array_values(array_filter(
+            $this->characterIds,
+            fn (string $cid) => $cid !== $id
+        ));
+    }
+
     public function getId(): int
     {
         return $this->id;

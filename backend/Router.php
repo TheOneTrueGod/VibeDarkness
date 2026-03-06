@@ -28,6 +28,7 @@ use App\Http\Handlers\UpdateCampaignHandler;
 use App\Http\Handlers\ListCharactersHandler;
 use App\Http\Handlers\CreateCharacterHandler;
 use App\Http\Handlers\GetCharacterHandler;
+use App\Http\Handlers\DeleteCharacterHandler;
 
 /**
  * Matches request method and path to handler functions.
@@ -48,6 +49,7 @@ class Router
             ['GET', '#^/api/account/characters$#', ListCharactersHandler::class],
             ['POST', '#^/api/account/characters$#', CreateCharacterHandler::class],
             ['GET', '#^/api/characters/([a-zA-Z0-9_]+)$#', GetCharacterHandler::class],
+            ['DELETE', '#^/api/characters/([a-zA-Z0-9_]+)$#', DeleteCharacterHandler::class],
             ['POST', '#^/api/campaigns$#', CreateCampaignHandler::class],
             ['GET', '#^/api/campaigns/([a-z0-9]+)$#', GetCampaignHandler::class],
             ['PATCH', '#^/api/campaigns/([a-z0-9]+)$#', UpdateCampaignHandler::class],

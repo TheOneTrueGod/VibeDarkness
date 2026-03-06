@@ -107,4 +107,15 @@ class AccountService
         $account->addCharacterId($characterId);
         $this->storage->save($account);
     }
+
+    /** Remove a character ID from the account and persist. */
+    public function removeCharacterFromAccount(int $accountId, string $characterId): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->removeCharacterId($characterId);
+        $this->storage->save($account);
+    }
 }

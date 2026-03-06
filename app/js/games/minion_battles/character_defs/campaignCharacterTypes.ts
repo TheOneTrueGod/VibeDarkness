@@ -30,6 +30,8 @@ export interface KnowledgeDetails {
 export interface CampaignCharacterData {
     id: string;
     ownerAccountId?: number;
+    /** Display name (e.g. from random pool when created). */
+    name?: string;
     equipment: string[];
     knowledge: Record<string, Record<string, unknown>>;
     traits: string[];

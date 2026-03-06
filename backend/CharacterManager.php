@@ -82,4 +82,14 @@ class CharacterManager
         $this->cache[$id] = $character;
         return $character;
     }
+
+    /** Delete a character (file and cache). Caller must ensure ownership. */
+    public function deleteCharacter(string $id): void
+    {
+        unset($this->cache[$id]);
+        $path = $this->getStoragePath() . '/' . $id . '.json';
+        if (is_file($path)) {
+            unlink($path);
+        }
+    }
 }

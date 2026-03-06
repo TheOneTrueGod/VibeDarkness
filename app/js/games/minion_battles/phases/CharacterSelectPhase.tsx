@@ -177,7 +177,12 @@ export default function CharacterSelectPhase({
     }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
 
     const createCharacterApi = useCallback(
-        async (payload: { portraitId: string; campaignId: string; missionId: string }) => {
+        async (payload: {
+            portraitId: string;
+            campaignId: string;
+            missionId: string;
+            name?: string;
+        }) => {
             const { character, characters } = await lobbyClient.createCharacter(payload);
             if (characters && characters.length > 0) {
                 const mapped = (characters as CampaignCharacterData[]).map((d) =>
@@ -186,6 +191,24 @@ export default function CharacterSelectPhase({
                 setMyCharacters(mapped);
             }
             return { id: character.id, portraitId: character.portraitId };
+        },
+        [lobbyClient],
+    );
+
+    const handleDeleteCharacter = useCallback(
+        async (characterId: string) => {
+            if (!window.confirm('Delete this character? This cannot be undone.')) {
+                return;
+            }
+            try {
+                const characters = await lobbyClient.deleteCharacter(characterId);
+                const mapped = (characters as CampaignCharacterData[]).map((d) =>
+                    fromCampaignCharacterData(d),
+                );
+                setMyCharacters(mapped);
+            } catch (error) {
+                console.error('Failed to delete character:', error);
+            }
         },
         [lobbyClient],
     );
@@ -217,6 +240,7 @@ export default function CharacterSelectPhase({
                                 playerSelections={characterSelections}
                                 players={players}
                                 onSelect={handleSelectCharacter}
+                                onDelete={handleDeleteCharacter}
                             />
                         ))
                     )}
@@ -299,6 +323,7 @@ interface CampaignCharacterCardProps {
     playerSelections: Record<string, string>;
     players: Record<string, PlayerState>;
     onSelect: (characterId: string, portraitId: string) => void;
+    onDelete: (characterId: string) => void;
 }
 
 function CampaignCharacterCard({
@@ -310,9 +335,10 @@ function CampaignCharacterCard({
     playerSelections,
     players,
     onSelect,
+    onDelete,
 }: CampaignCharacterCardProps) {
     const portrait = getPortrait(character.portraitId);
-    const displayName = portrait?.name ?? 'Character';
+    const displayName = character.name || (portrait?.name ?? 'Character');
     const canUse = character.canBeUsedOnMission(campaignId, missionId, missionTraitFilter);
     const disallowReason = character.getDisallowReason(campaignId, missionId, missionTraitFilter);
 
@@ -341,6 +367,18 @@ function CampaignCharacterCard({
             onClick={() => canUse && onSelect(character.id, character.portraitId)}
             title={canUse ? displayName : `${displayName} — ${disallowReason ?? 'Not available'}`}
         >
+            <button
+                type="button"
+                className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-red-600/90 hover:bg-red-500 text-white text-sm font-bold flex items-center justify-center shadow-lg cursor-pointer"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(character.id);
+                }}
+                title="Delete character"
+                aria-label="Delete character"
+            >
+                ×
+            </button>
             <div
                 className="w-full flex-1 overflow-hidden flex items-center justify-center bg-background relative"
                 dangerouslySetInnerHTML={{ __html: portrait?.picture ?? '' }}

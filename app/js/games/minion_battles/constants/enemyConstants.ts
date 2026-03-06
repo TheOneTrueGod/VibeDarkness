@@ -39,7 +39,7 @@ export const ENEMY_DARK_WOLF: EnemySpawnDef = {
     position: { x: 0, y: 0 },
     teamId: 'enemy',
     abilities: ['0003'],
-    aiSettings: { minRange: 0, maxRange: 50 },
+    aiSettings: { minRange: 0, maxRange: 80 },
     // Radius 15 = 50% larger than the previous 10px size.
     radius: 15,
 };

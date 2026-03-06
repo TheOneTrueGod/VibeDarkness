@@ -7,6 +7,7 @@
 export interface CampaignCharacterPayload {
     id: string;
     ownerAccountId?: number;
+    name?: string;
     equipment: string[];
     knowledge: Record<string, Record<string, unknown>>;
     traits: string[];
@@ -21,6 +22,8 @@ export interface CreateCharacterPayload {
     portraitId: string;
     campaignId: string;
     missionId: string;
+    /** Display name (e.g. random from pool). */
+    name?: string;
     equipment?: string[];
     knowledge?: Record<string, Record<string, unknown>>;
     traits?: string[];
@@ -304,6 +307,14 @@ export class LobbyClient {
     async getCharacter(characterId: string): Promise<CampaignCharacterPayload> {
         const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}`);
         return data.character as CampaignCharacterPayload;
+    }
+
+    /** Delete a campaign character (must be owned by current account). Returns updated character list. */
+    async deleteCharacter(characterId: string): Promise<CampaignCharacterPayload[]> {
+        const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}`, {
+            method: 'DELETE',
+        });
+        return (data.characters as CampaignCharacterPayload[]) ?? [];
     }
 
     async updateGameState(
