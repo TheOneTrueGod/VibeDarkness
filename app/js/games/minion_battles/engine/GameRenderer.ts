@@ -25,7 +25,20 @@ import type { SpecialTile } from '../objects/SpecialTile';
 import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid';
 
 /** Color for move target markers (dark gray so visible in darkness). */
-const MOVE_TARGET_COLOR = 0x666666;
+const MOVE_TARGET_COLOR = 0x333333;
+
+/** Z-index constants for game container layers (lower = behind). */
+const Z_INDEX = {
+    terrain: 0,
+    darkness: 5,
+    specialTiles: 6,
+    moveTargets: 7,
+    units: 10,
+    projectiles: 11,
+    effects: 12,
+    abilityPreview: 100,
+    targetingPreview: 101,
+} as const;
 
 /** Ranged enemy character sprite: displayed slightly smaller than the unit hitbox circle. */
 const BOWMAN_SVG_URL = new URL('../assets/characters/bowman.svg', import.meta.url).href;
@@ -92,9 +105,9 @@ export class GameRenderer {
         });
         this.app.stage.addChild(this.gameContainer);
         this.gameContainer.sortableChildren = true;
-        this.abilityPreviewGraphics.zIndex = 100;
+        this.abilityPreviewGraphics.zIndex = Z_INDEX.abilityPreview;
         this.gameContainer.addChild(this.abilityPreviewGraphics);
-        this.targetingPreviewGraphics.zIndex = 101;
+        this.targetingPreviewGraphics.zIndex = Z_INDEX.targetingPreview;
         this.gameContainer.addChild(this.targetingPreviewGraphics);
         this.initialized = true;
 
@@ -166,7 +179,7 @@ export class GameRenderer {
             this.darknessOverlaySprite = new Sprite(Texture.from({ resource: canvas, label: 'darkness-overlay' }));
             this.darknessOverlaySprite.label = 'darknessOverlay';
         }
-        this.darknessOverlaySprite.zIndex = 5;
+        this.darknessOverlaySprite.zIndex = Z_INDEX.darkness;
         if (!this.darknessOverlaySprite.parent) {
             this.gameContainer.addChildAt(this.darknessOverlaySprite, 1);
         }
@@ -398,7 +411,7 @@ export class GameRenderer {
             let visual = this.unitVisuals.get(unit.id);
             if (!visual) {
                 visual = renderUnit(unit, context);
-                visual.zIndex = 10; // Above darkness (5)
+                visual.zIndex = Z_INDEX.units;
                 this.unitVisuals.set(unit.id, visual);
                 this.gameContainer.addChild(visual);
             }
@@ -490,7 +503,7 @@ export class GameRenderer {
             let visual = this.moveTargetVisuals.get(key);
             if (!visual) {
                 visual = new Graphics();
-                visual.zIndex = 7; // Above darkness (5), below units (10)
+                visual.zIndex = Z_INDEX.moveTargets;
                 this.moveTargetVisuals.set(key, visual);
                 // Insert above terrain (and darkness overlay + special tiles when present) but below units
                 const insertIndex = this.darknessOverlaySprite ? 3 : this.terrainSprite ? 1 : 0;
@@ -616,7 +629,7 @@ export class GameRenderer {
             let visual = this.effectVisuals.get(effect.id);
             if (!visual) {
                 visual = createEffectVisual(effect);
-                visual.zIndex = 12; // Above darkness (5)
+                visual.zIndex = Z_INDEX.effects;
                 this.effectVisuals.set(effect.id, visual);
                 this.gameContainer.addChild(visual);
             }

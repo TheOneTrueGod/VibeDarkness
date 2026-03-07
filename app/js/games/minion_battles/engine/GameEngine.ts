@@ -509,8 +509,10 @@ export class GameEngine {
         }
     }
 
-    /** Light level below or equal to this is "full darkness" (player takes corruption damage). */
+    /** Light level below or equal to this is "full darkness" (player takes 5 corruption damage when meter fills). */
     private static readonly FULL_DARKNESS_THRESHOLD = -20;
+    /** Light level below or equal to this but above full darkness is the tier below total darkness (same meter, 2 damage when meter fills). */
+    private static readonly HIGH_DARKNESS_THRESHOLD = -15;
 
     /** Build light sources from special tiles (same logic as renderer) for game logic. */
     private buildLightSourcesFromSpecialTiles(): LightSource[] {
@@ -539,7 +541,7 @@ export class GameEngine {
         return sources;
     }
 
-    /** When a player is in full darkness, fill corruption bar over 1s; when full, deal 5 damage. When not in darkness, drain bar over 1s. */
+    /** When a player is in full darkness (light <= -20), fill corruption bar over 1s; when full, deal 5 damage. In the tier below (light in (-20, -10]), same meter and timing but 2 damage when full. When not in darkness (light > -10), drain bar over 1s. */
     private processPlayerDarknessCorruption(dt: number): void {
         if (!this.lightLevelEnabled || !this.terrainManager?.grid) return;
 
@@ -557,7 +559,9 @@ export class GameEngine {
             const safeCol = Math.max(0, Math.min(width - 1, col));
             const light = lightGrid[safeRow]![safeCol]!;
 
-            if (light <= GameEngine.FULL_DARKNESS_THRESHOLD) {
+            const inFullDarkness = light <= GameEngine.FULL_DARKNESS_THRESHOLD;
+            const inHighDarkness = light <= GameEngine.HIGH_DARKNESS_THRESHOLD;
+            if (inHighDarkness) {
                 unit.corruptionProgress = Math.min(1, unit.corruptionProgress + dt);
             } else {
                 unit.corruptionProgress = Math.max(0, unit.corruptionProgress - dt);
@@ -565,7 +569,8 @@ export class GameEngine {
 
             if (unit.corruptionProgress >= 1) {
                 unit.corruptionProgress = 0;
-                unit.takeDamage(5, null, this.eventBus);
+                const damage = inFullDarkness ? 5 : 2;
+                unit.takeDamage(damage, null, this.eventBus);
             }
         }
     }

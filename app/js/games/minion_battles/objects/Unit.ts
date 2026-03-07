@@ -127,7 +127,7 @@ export class Unit extends GameObject {
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;
 
-    /** Darkness corruption progress 0..1. Fills in 1s when in full darkness, drains in 1s when not. At 1: deal 5 damage and reset. */
+    /** Darkness corruption progress 0..1. Fills in 1s when in full darkness or the tier below, drains in 1s when not. At 1: deal 5 damage (full darkness) or 2 (tier below) and reset. */
     corruptionProgress: number = 0;
 
     /** Current Poise HP. When 0 or below, knockback is applied. */
