@@ -638,7 +638,14 @@ function AppInner() {
                     onEmittedChatMessage={handleEmittedChatMessage}
                 />
             )}
-            <DebugConsole gameState={debugGameState} />
+            <DebugConsole
+                gameState={debugGameState}
+                playerName={user?.name ?? null}
+                fetchPlayerData={async () => {
+                    const u = await lobbyClient.getMe();
+                    return u as Record<string, unknown> | null;
+                }}
+            />
         </>
     );
 }

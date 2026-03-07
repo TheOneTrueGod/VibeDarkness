@@ -24,6 +24,8 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}03`;
 const PREFIRE_TIME = 0.9;
 const WINDUP_TIME = 0.6;
 const LUNGE_DURATION = 0.3;
+/** Step size (px) for sampling terrain collision along the lunge path. */
+const LUNGE_COLLISION_STEP = 4;
 const BASE_MAX_RANGE = 100;
 const DAMAGE = 3;
 const BITE_EFFECT_DURATION = 0.2;
@@ -42,6 +44,7 @@ interface GameEngineLike {
     gameTime: number;
     eventBus: EventBus;
     generateRandomInteger(min: number, max: number): number;
+    terrainManager?: TerrainManager | null;
 }
 
 /** Minimum distance from point (ux, uy) to segment (x0,y0)-(x1,y1). */
