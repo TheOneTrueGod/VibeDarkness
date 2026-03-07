@@ -1,19 +1,28 @@
 /**
  * Debug console - press tilde (~) three times to enable, once to disable.
- * Shows game state JSON and player account JSON in a collapsible panel.
+ * Shows game state JSON, player account JSON, and characters in a collapsible panel.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import type { GameStatePayload } from '../types';
+import type { CampaignCharacterPayload } from '../LobbyClient';
 
-type TabId = 'game-state' | 'player-data';
+type TabId = 'game-state' | 'player-data' | 'characters';
 
 interface DebugConsoleProps {
     gameState: GameStatePayload | null;
     playerName: string | null;
     fetchPlayerData: () => Promise<Record<string, unknown> | null>;
+    fetchCharactersList: () => Promise<CampaignCharacterPayload[]>;
+    getCharacter: (characterId: string) => Promise<CampaignCharacterPayload>;
 }
 
-export default function DebugConsole({ gameState, playerName, fetchPlayerData }: DebugConsoleProps) {
+export default function DebugConsole({
+    gameState,
+    playerName,
+    fetchPlayerData,
+    fetchCharactersList,
+    getCharacter,
+}: DebugConsoleProps) {
     const [debugMode, setDebugMode] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [tildeCount, setTildeCount] = useState(0);
@@ -21,6 +30,14 @@ export default function DebugConsole({ gameState, playerName, fetchPlayerData }:
     const [playerData, setPlayerData] = useState<Record<string, unknown> | null>(null);
     const [playerDataLoading, setPlayerDataLoading] = useState(false);
     const [playerDataError, setPlayerDataError] = useState<string | null>(null);
+
+    const [charactersList, setCharactersList] = useState<CampaignCharacterPayload[] | null>(null);
+    const [charactersListLoading, setCharactersListLoading] = useState(false);
+    const [charactersListError, setCharactersListError] = useState<string | null>(null);
+    const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+    const [characterDetail, setCharacterDetail] = useState<CampaignCharacterPayload | null>(null);
+    const [characterDetailLoading, setCharacterDetailLoading] = useState(false);
+    const [characterDetailError, setCharacterDetailError] = useState<string | null>(null);
 
     const onKeyDown = useCallback(
         (e: KeyboardEvent) => {
@@ -67,7 +84,54 @@ export default function DebugConsole({ gameState, playerName, fetchPlayerData }:
         }
     }, [activeTab, playerData, playerDataLoading, playerDataError, loadPlayerData]);
 
+    const loadCharactersList = useCallback(async () => {
+        setCharactersListLoading(true);
+        setCharactersListError(null);
+        try {
+            const list = await fetchCharactersList();
+            setCharactersList(list);
+        } catch (err) {
+            setCharactersListError(err instanceof Error ? err.message : 'Failed to load characters');
+            setCharactersList(null);
+        } finally {
+            setCharactersListLoading(false);
+        }
+    }, [fetchCharactersList]);
+
+    const loadCharacterDetail = useCallback(
+        async (characterId: string) => {
+            setCharacterDetailLoading(true);
+            setCharacterDetailError(null);
+            try {
+                const char = await getCharacter(characterId);
+                setCharacterDetail(char);
+            } catch (err) {
+                setCharacterDetailError(err instanceof Error ? err.message : 'Failed to load character');
+                setCharacterDetail(null);
+            } finally {
+                setCharacterDetailLoading(false);
+            }
+        },
+        [getCharacter]
+    );
+
+    useEffect(() => {
+        if (activeTab === 'characters' && charactersList === null && !charactersListLoading && !charactersListError) {
+            loadCharactersList();
+        }
+    }, [activeTab, charactersList, charactersListLoading, charactersListError, loadCharactersList]);
+
+    useEffect(() => {
+        if (selectedCharacterId && activeTab === 'characters') {
+            loadCharacterDetail(selectedCharacterId);
+        } else {
+            setCharacterDetail(null);
+            setCharacterDetailError(null);
+        }
+    }, [selectedCharacterId, activeTab, loadCharacterDetail]);
+
     const tabLabel = playerName ? `${playerName} Data` : 'Player Data';
+    const charactersTabGrayed = charactersList === null && !charactersListLoading;
 
     if (!debugMode) return null;
 
@@ -110,6 +174,20 @@ export default function DebugConsole({ gameState, playerName, fetchPlayerData }:
                         >
                             {tabLabel}
                         </button>
+                        <button
+                            type="button"
+                            className={`px-3 py-2 bg-transparent border-none border-b-2 text-sm cursor-pointer ${
+                                charactersTabGrayed && activeTab !== 'characters'
+                                    ? 'border-b-transparent text-muted opacity-60'
+                                    : activeTab === 'characters'
+                                      ? 'border-b-primary text-primary'
+                                      : 'border-b-transparent text-muted hover:text-white'
+                            }`}
+                            onClick={() => setActiveTab('characters')}
+                            title={charactersTabGrayed ? 'Opens tab and loads characters from /api/account/characters' : undefined}
+                        >
+                            Characters
+                        </button>
                     </div>
                     <div className="flex-1 overflow-auto p-3 min-h-0">
                         {activeTab === 'game-state' && (
@@ -139,6 +217,56 @@ export default function DebugConsole({ gameState, playerName, fetchPlayerData }:
                                     </pre>
                                 )}
                             </>
+                        )}
+                        {activeTab === 'characters' && (
+                            <div className="flex flex-1 min-h-0 gap-3">
+                                <div className="flex flex-col shrink-0 w-40 border-r border-border-custom pr-2">
+                                    {charactersListLoading && (
+                                        <p className="m-0 text-muted text-sm">Loading list...</p>
+                                    )}
+                                    {charactersListError && (
+                                        <p className="m-0 text-red-400 text-sm">{charactersListError}</p>
+                                    )}
+                                    {!charactersListLoading && !charactersListError && charactersList && (
+                                        <>
+                                            {charactersList.length === 0 ? (
+                                                <p className="m-0 text-muted text-sm">No characters.</p>
+                                            ) : (
+                                                charactersList.map((c) => (
+                                                    <button
+                                                        key={c.id}
+                                                        type="button"
+                                                        className={`text-left px-2 py-1.5 rounded text-sm truncate ${
+                                                            selectedCharacterId === c.id
+                                                                ? 'bg-primary/20 text-primary'
+                                                                : 'text-white hover:bg-border-custom'
+                                                        }`}
+                                                        onClick={() => setSelectedCharacterId(c.id)}
+                                                    >
+                                                        {c.name ?? c.id}
+                                                    </button>
+                                                ))
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0 overflow-auto">
+                                    {!selectedCharacterId && (
+                                        <p className="m-0 text-muted text-sm">Select a character.</p>
+                                    )}
+                                    {selectedCharacterId && characterDetailLoading && (
+                                        <p className="m-0 text-muted text-sm">Loading...</p>
+                                    )}
+                                    {selectedCharacterId && characterDetailError && (
+                                        <p className="m-0 text-red-400 text-sm">{characterDetailError}</p>
+                                    )}
+                                    {selectedCharacterId && !characterDetailLoading && !characterDetailError && characterDetail && (
+                                        <pre className="m-0 font-mono text-xs leading-relaxed text-white whitespace-pre-wrap break-all">
+                                            <code>{JSON.stringify(characterDetail, null, 2)}</code>
+                                        </pre>
+                                    )}
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>

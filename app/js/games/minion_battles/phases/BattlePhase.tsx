@@ -197,6 +197,10 @@ export default function BattlePhase({
                 characterId: portraitIds?.[pid] ?? charId,
                 name: players[pid]?.name ?? 'Unknown',
             }));
+            // Backend sets playerEquipmentByPlayer only when characterSelections exist and each
+            // CharacterManager.getCharacter(characterId) returns a character. Empty when: (1) no
+            // characterSelections in state, (2) every character lookup fails (wrong ID, or no
+            // storage/characters/<id>.json). BaseMissionDef applies a hand fallback when this is {}.
             const equippedItemsByPlayer = (init?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
             mission.initializeGameState(engine, {
                 playerUnits,

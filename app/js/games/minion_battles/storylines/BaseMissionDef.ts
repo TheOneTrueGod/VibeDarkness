@@ -14,7 +14,7 @@ import type { EventBus } from '../engine/EventBus';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { createUnitByCharacterId, createUnitFromSpawnConfig } from '../objects/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
-import { createCardInstance, WORLD_HEIGHT } from '../engine/GameEngine';
+import { createCardInstance, MAX_HAND_SIZE, WORLD_HEIGHT } from '../engine/GameEngine';
 import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
@@ -129,23 +129,25 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             engine.addUnit(unit);
 
             // Set up cards for this player from equipment only (all cards in hand).
-            const hand: CardInstance[] = [];
+            const deck: CardInstance[] = [];
             for (const itemId of equippedIds) {
                 const itemDef = getItemDef(itemId);
                 if (!itemDef) continue;
                 for (const entry of itemDef.cardsToAdd) {
                     for (let c = 0; c < entry.count; c++) {
-                        hand.push(
+                        deck.push(
                             createCardInstance(
                                 asCardDefId(entry.cardId),
                                 entry.cardId,
-                                'hand'
+                                'deck'
                             )
                         );
                     }
                 }
             }
-            engine.cards[pu.playerId] = hand;
+
+            engine.cards[pu.playerId] = deck;
+            engine.drawCardsForPlayer(pu.playerId, MAX_HAND_SIZE);
         }
 
         // Register level events (if any)

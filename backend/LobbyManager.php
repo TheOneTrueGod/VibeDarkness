@@ -471,6 +471,7 @@ class LobbyManager
         $characterManager = CharacterManager::getInstance();
         $byPlayer = [];
         foreach ($selections as $playerId => $characterId) {
+            $playerId = is_int($playerId) ? (string) $playerId : $playerId;
             if (!is_string($playerId) || !is_string($characterId)) {
                 continue;
             }

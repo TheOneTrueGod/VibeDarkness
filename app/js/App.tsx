@@ -645,6 +645,8 @@ function AppInner() {
                     const u = await lobbyClient.getMe();
                     return u as Record<string, unknown> | null;
                 }}
+                fetchCharactersList={() => lobbyClient.getMyCharacters()}
+                getCharacter={(id) => lobbyClient.getCharacter(id)}
             />
         </>
     );
