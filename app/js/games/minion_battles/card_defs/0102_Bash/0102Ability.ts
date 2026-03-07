@@ -1,13 +1,13 @@
 /**
  * Bash - Warrior melee ability.
  *
- * Targets one unit within range 50 + caster size.
- * Reduces movement to 0 for 0.5s windup, then checks if target is still in range
- * (with +30 bonus). If so: deals damage and spawns a bash effect at target location.
+ * Targets a point within range 50 + caster size (distance capped if farther).
+ * Thick-line hitbox from caster to capped point; hits the closest enemy in the line.
+ * Wind up 0.2s (no move), then deals damage and spawns bash effect on that enemy.
  */
 
 import { AbilityState } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../../abilities/targeting';
@@ -16,34 +16,33 @@ import { asCardDefId, type CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { areEnemies } from '../../engine/teams';
-import { createUnitTargetPreview } from '../../abilities/previewHelpers';
+import { clampToMaxRange } from '../../abilities/previewHelpers';
 import type { EventBus } from '../../engine/EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
+import { ThickLineHitbox } from '../../hitboxes';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
 const PREFIRE_TIME = 0.2;
 const BASE_MIN_RANGE = 0;
-const BASE_MAX_RANGE = 50;
-const RANGE_BONUS_ON_HIT = 30;
+const BASE_MAX_RANGE = 30;
 const DAMAGE = 8;
 const BASH_EFFECT_DURATION = 0.2;
+/** Line thickness for hitbox and preview (px). Enemies within (unit.radius + this) of the line are hit. */
+const LINE_THICKNESS = 20;
 
 /** Minimum cast range (caster cannot target closer than this). */
 function getMinRange(_caster: Unit): number {
     return BASE_MIN_RANGE;
 }
 
-/** Maximum cast range (caster cannot target farther than this). */
+/** Maximum cast range (caster cannot target farther than this). Target point is capped to this. */
 function getMaxRange(caster: Unit): number {
     return BASE_MAX_RANGE + caster.radius;
 }
 
-function getHitRange(caster: Unit): number {
-    return BASE_MAX_RANGE + caster.radius + RANGE_BONUS_ON_HIT;
-}
-
 interface GameEngineLike {
+    units: Unit[];
     getUnit(id: string): Unit | undefined;
     addEffect(effect: Effect): void;
     gameTime: number;
@@ -93,11 +92,11 @@ export const BashAbility: AbilityStatic = {
         { duration: 0.1, abilityPhase: AbilityPhase.Active },
         { duration: 1.3, abilityPhase: AbilityPhase.Cooldown },
     ],
-    targets: [{ type: 'unit', label: 'Target enemy' }] as TargetDef[],
+    targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
     getDescription(_gameState?: unknown): string {
-        return `Melee attack. Wind up 0.5s (cannot move). If target stays in range, deal ${DAMAGE} damage and create a bash effect. Min range: ${BASE_MIN_RANGE}px, max range: 50 + your size.`;
+        return `Melee attack. Wind up 0.2s (cannot move). Aim at a point; hits the closest enemy in a thick line. Deal ${DAMAGE} damage and bash effect. Max range: 50 + your size.`;
     },
 
     getRange(caster: Unit): { minRange: number; maxRange: number } {
@@ -115,96 +114,89 @@ export const BashAbility: AbilityStatic = {
         if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
 
         const targetDef = targets[0];
-        if (!targetDef || targetDef.type !== 'unit' || !targetDef.unitId) return;
+        if (!targetDef || targetDef.type !== 'pixel' || !targetDef.position) return;
 
         const eng = engine as GameEngineLike;
-        const targetUnit = eng.getUnit(targetDef.unitId);
-        if (!targetUnit || !targetUnit.isAlive()) return;
-        if (!areEnemies(caster.teamId, targetUnit.teamId)) return;
-        if (targetUnit.hasIFrames(eng.gameTime)) return;
+        const maxR = getMaxRange(caster);
+        const { endX, endY } = clampToMaxRange(caster, targetDef.position, maxR);
 
-        const hitRange = getHitRange(caster);
+        const hitUnits = ThickLineHitbox.getUnitsInHitbox(
+            eng,
+            caster,
+            caster.x,
+            caster.y,
+            endX,
+            endY,
+            LINE_THICKNESS,
+        );
+
+        if (hitUnits.length === 0) return;
+
+        // Closest enemy to caster (in the thick line) is the one we hit
+        const casterX = caster.x;
+        const casterY = caster.y;
+        hitUnits.sort((a, b) => {
+            const da = (a.x - casterX) ** 2 + (a.y - casterY) ** 2;
+            const db = (b.x - casterX) ** 2 + (b.y - casterY) ** 2;
+            return da - db;
+        });
+        const targetUnit = hitUnits[0];
+        if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) return;
+
+        if (canAttackBeBlocked(targetUnit, caster.x, caster.y, eng.gameTime)) {
+            const block = getBlockingArcForUnit(targetUnit, eng.gameTime);
+            if (block) {
+                executeBlock(eng, targetUnit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID, block);
+                return;
+            }
+        }
+        targetUnit.takeDamage(DAMAGE, caster.id, eng.eventBus);
+
+        const dist = Math.sqrt(
+            (targetUnit.x - caster.x) ** 2 + (targetUnit.y - caster.y) ** 2,
+        );
         const dx = targetUnit.x - caster.x;
         const dy = targetUnit.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dX = dist > 0 ? dx / dist : 1;
+        const dY = dist > 0 ? dy / dist : 0;
+        const startX = caster.x + dX * (caster.radius * 0.5);
+        const startY = caster.y + dY * (caster.radius * 0.5);
+        const effectEndX = targetUnit.x - dX * (targetUnit.radius * 0.5);
+        const effectEndY = targetUnit.y - dY * (targetUnit.radius * 0.5);
 
-        if (dist <= hitRange) {
-            if (canAttackBeBlocked(targetUnit, caster.x, caster.y, eng.gameTime)) {
-                const block = getBlockingArcForUnit(targetUnit, eng.gameTime);
-                if (block) {
-                    executeBlock(eng, targetUnit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID, block);
-                    return;
-                }
-            }
-            targetUnit.takeDamage(DAMAGE, caster.id, eng.eventBus);
-
-            const dirX = dist > 0 ? dx / dist : 1;
-            const dirY = dist > 0 ? dy / dist : 0;
-            const startX = caster.x + dirX * (caster.radius * 0.5);
-            const startY = caster.y + dirY * (caster.radius * 0.5);
-            const endX = targetUnit.x - dirX * (targetUnit.radius * 0.5);
-            const endY = targetUnit.y - dirY * (targetUnit.radius * 0.5);
-
-            const bashEffect = new Effect({
-                x: endX,
-                y: endY,
-                duration: BASH_EFFECT_DURATION,
-                effectType: 'bash',
-                startX,
-                startY,
-            });
-            eng.addEffect(bashEffect);
-        }
+        const bashEffect = new Effect({
+            x: effectEndX,
+            y: effectEndY,
+            duration: BASH_EFFECT_DURATION,
+            effectType: 'bash',
+            startX,
+            startY,
+        });
+        eng.addEffect(bashEffect);
     },
 
     renderPreview(
         ctx: CanvasRenderingContext2D,
         caster: Unit,
-        currentTargets: ResolvedTarget[],
+        _currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
     ): void {
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        ctx.save();
-        ctx.strokeStyle = 'rgba(200, 100, 100, 0.7)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        if (minR > 0) {
-            ctx.beginPath();
-            ctx.arc(caster.x, caster.y, minR, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        ctx.beginPath();
-        ctx.arc(caster.x, caster.y, maxR, 0, Math.PI * 2);
-        ctx.stroke();
-
-        const target = currentTargets[0];
-        if (target?.type === 'unit' && target.unitId) {
-            ctx.strokeStyle = 'rgba(255, 100, 100, 0.9)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(caster.x, caster.y);
-            ctx.lineTo(mouseWorld.x, mouseWorld.y);
-            ctx.stroke();
-        } else {
-            ctx.strokeStyle = 'rgba(200, 200, 200, 0.6)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(caster.x, caster.y);
-            ctx.lineTo(mouseWorld.x, mouseWorld.y);
-            ctx.stroke();
-        }
-        ctx.restore();
+        ThickLineHitbox.renderPreview(ctx, caster, mouseWorld, getMaxRange(caster), LINE_THICKNESS);
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
         // Melee blocked: no additional behaviour.
     },
 
-    renderTargetingPreview: createUnitTargetPreview({
-        getMinRange,
-        getMaxRange,
-    }),
+    renderTargetingPreview(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        _currentTargets: ResolvedTarget[],
+        mouseWorld: { x: number; y: number },
+        _units: Unit[],
+    ): void {
+        ThickLineHitbox.renderTargetingPreview(gr, caster, mouseWorld, getMaxRange(caster), LINE_THICKNESS);
+    },
 };
 
 export const BashCard: CardDef = {
