@@ -17,6 +17,8 @@ import { createUnitTargetPreview } from '../../../abilities/previewHelpers';
 import type { EventBus } from '../../../engine/EventBus';
 import { isAbilityNote } from '../../../engine/AbilityNote';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../../abilities/blockingHelpers';
+import type { TerrainManager } from '../../../terrain/TerrainManager';
+import { computeForcedDisplacement } from '../../../engine/forceMove';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}03`;
 const PREFIRE_TIME = 0.9;
@@ -154,10 +156,24 @@ export const DarkWolfBiteAbility: AbilityStatic = {
         const x1 = note.lungeStartX + dirX * newDist;
         const y1 = note.lungeStartY + dirY * newDist;
 
-        // Move caster along lunge
-        caster.x = x1;
-        caster.y = y1;
-        caster.invalidateMovementPath();
+        const segmentLength = Math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2);
+        const terrainManager = eng.terrainManager ?? null;
+        if (segmentLength > 0) {
+            const { distance } = computeForcedDisplacement(
+                x0,
+                y0,
+                x1,
+                y1,
+                segmentLength,
+                { terrainManager, step: LUNGE_COLLISION_STEP },
+            );
+            if (distance > 0) {
+                const scale = distance / segmentLength;
+                caster.x = x0 + (x1 - x0) * scale;
+                caster.y = y0 + (y1 - y0) * scale;
+                caster.invalidateMovementPath();
+            }
+        }
 
         // Check line segment (x0,y0)-(x1,y1) with radius caster.radius vs all enemies
         for (const unit of eng.units) {

@@ -7,6 +7,7 @@
     "dev": "vite",
     "watch": "vite build --watch",
     "build": "vite build",
+    "deploy": "node scripts/deploy.js",
     "preview": "vite preview",
     "php": "nodemon --watch backend --watch index.php --ext php --exec \"php -S localhost:8000 index.php\"",
     "test": "npx vitest run",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "archiver": "^7.0.0",
     "autoprefixer": "^10.4.21",
     "nodemon": "^3.1.11",
     "postcss": "^8.5.3",

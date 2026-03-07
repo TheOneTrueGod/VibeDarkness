@@ -54,14 +54,25 @@ export default function CardComponent({
     }, [isDisabled, isMobile, showMobileDescription, onSelect, onMobileDescriptionToggle]);
 
     const description = ability.getDescription(gameState);
+    const def = getCardDef(card.cardDefId);
+    const maxDurability = Math.max(1, def?.durability ?? 1);
+    const usesLeft = Math.max(0, Math.min(card.durability, maxDurability));
 
     return (
         <div className="relative">
-            <button
+            <div
+                role="button"
+                tabIndex={0}
                 onClick={handleClick}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
-                disabled={isDisabled}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleClick();
+                    }
+                }}
+                aria-disabled={isDisabled}
                 className={`
                     relative w-[104px] h-[136px] rounded-lg border-2 transition-all duration-150
                     flex flex-col items-center justify-between p-2 overflow-hidden
@@ -71,6 +82,7 @@ export default function CardComponent({
                             ? 'border-dark-600 bg-dark-800 opacity-50 cursor-not-allowed'
                             : 'border-dark-500 bg-dark-700 hover:border-dark-400 hover:-translate-y-1 cursor-pointer'
                     }
+                    hover:border-dark-400 hover:-translate-y-1
                 `}
             >
                 {/* Card image */}
@@ -84,24 +96,40 @@ export default function CardComponent({
                     {ability.name}
                 </span>
 
-                {/* Cooldown + durability bar row */}
+                {/* Uses number (circle) + segmented bar */}
                 <div className="w-full flex items-center gap-1">
-                    <span className="text-muted text-[12px] shrink-0">
-                        {ability.cooldownTime}s
-                    </span>
-                    <div
-                        className="h-2 flex-1 min-w-0 max-w-[70%] rounded-sm bg-dark-800 overflow-hidden border border-gray-600"
-                        title={`Durability: ${card.durability}/${getCardDef(card.cardDefId)?.durability ?? 1}`}
-                    >
+                    {/* Black circle + number (left of bar) */}
+                    <div className="relative flex shrink-0 items-center justify-center w-5 h-5">
                         <div
-                            className="h-full bg-gray-500 transition-all rounded-[2px]"
-                            style={{
-                                width: `${Math.max(0, Math.min(100, (card.durability / ((getCardDef(card.cardDefId)?.durability ?? 1) || 1)) * 100))}%`,
-                            }}
+                            className="absolute inset-0 rounded-full bg-black border border-gray-600 z-0"
+                            aria-hidden
                         />
+                        <span
+                            className="relative z-20 text-[11px] font-mono font-semibold text-white tabular-nums"
+                            aria-label={`${usesLeft} uses left`}
+                        >
+                            {usesLeft}
+                        </span>
+                    </div>
+                    {/* Segmented bar: one segment per use, filled = remaining */}
+                    <div className="flex-1 min-w-0 flex gap-0.5 h-2 relative z-10">
+                        {Array.from({ length: maxDurability }, (_, i) => (
+                            <div
+                                key={i}
+                                className="flex-1 min-w-0 rounded-[2px] border border-gray-600 overflow-hidden bg-dark-800"
+                                title={`Uses: ${usesLeft}/${maxDurability}`}
+                            >
+                                <div
+                                    className={`h-full transition-all rounded-[1px] ${
+                                        i < usesLeft ? 'bg-gray-500' : 'bg-transparent'
+                                    }`}
+                                    style={{ width: '100%' }}
+                                />
+                            </div>
+                        ))}
                     </div>
                 </div>
-            </button>
+            </div>
 
             {/* Desktop hover description */}
             {isHovered && !isMobile && (

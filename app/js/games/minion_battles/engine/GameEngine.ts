@@ -36,7 +36,7 @@ import type {
 } from '../storylines/types';
 import { getEdgePositions } from '../storylines/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../objects/units/index';
-import { ENEMY_MELEE, ENEMY_RANGED, ENEMY_DARK_WOLF } from '../constants/enemyConstants';
+import { ENEMY_MELEE, ENEMY_RANGED, ENEMY_DARK_WOLF, getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import type { SpecialTile } from '../objects/SpecialTile';
 import { specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
@@ -854,23 +854,33 @@ export class GameEngine {
     }
 
     /**
+     * Draw a single card from the player's deck into their hand.
+     * Does nothing if hand is full or deck is empty. Returns 1 if a card was drawn, 0 otherwise.
+     */
+    private drawCard(playerId: string): number {
+        const playerCards = this.cards[playerId];
+        if (!playerCards) return 0;
+        const handCount = playerCards.filter((c) => c.location === 'hand').length;
+        if (handCount >= MAX_HAND_SIZE) return 0;
+        const deckCards = playerCards.filter((c) => c.location === 'deck');
+        if (deckCards.length === 0) return 0;
+        const idx = this.generateRandomInteger(0, deckCards.length - 1);
+        const card = deckCards[idx];
+        if (!card) return 0;
+        card.location = 'hand';
+        return 1;
+    }
+
+    /**
      * Draw up to `count` cards from the player's deck into their hand.
      * Does not exceed MAX_HAND_SIZE. Returns the number of cards actually drawn.
      */
     drawCardsForPlayer(playerId: string, count: number): number {
-        const hand = this.cards[playerId]?.filter((c) => c.location === 'hand') ?? [];
-        const deckCards = this.cards[playerId]?.filter((c) => c.location === 'deck') ?? [];
-        const handCount = hand.length;
-        const toDraw = Math.min(count, MAX_HAND_SIZE - handCount, deckCards.length);
-        for (let i = 0; i < toDraw; i++) {
-            const idx = this.generateRandomInteger(0, deckCards.length - 1);
-            const card = deckCards[idx];
-            if (card) {
-                card.location = 'hand';
-                deckCards.splice(idx, 1);
-            }
+        let drawn = 0;
+        for (let i = 0; i < count; i++) {
+            drawn += this.drawCard(playerId);
         }
-        return toDraw;
+        return drawn;
     }
 
     // ========================================================================
@@ -897,7 +907,11 @@ export class GameEngine {
         }
     }
 
-    /** Process a single spawn wave event. */
+    /**
+     * Process a single spawn wave event.
+     * Uses the engine's deterministic RNG (randomSeed) so spawn results are serializable:
+     * all clients that restore from the same snapshot see the same units and positions.
+     */
     private processSpawnWaveEvent(i: number, evt: LevelEventSpawnWave): void {
         if (this.firedEventIndices.has(i)) return;
 
@@ -926,6 +940,8 @@ export class GameEngine {
         const height = grid.height;
         const cellSize = grid.cellSize;
         const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED, dark_wolf: ENEMY_DARK_WOLF };
+        const playerCount = this.units.filter((u) => u.teamId === 'player').length;
+        const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
 
         // Track grid cells used for this wave so we don't double-place units on the same tile.
         const occupiedCells = new Set<string>();
@@ -991,6 +1007,7 @@ export class GameEngine {
                         x: pos.x,
                         y: pos.y,
                         ownerId: 'ai' as const,
+                        hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
                     };
                     const unit = createUnitFromSpawnConfig(config, this.eventBus);
                     this.addUnit(unit);
@@ -1093,6 +1110,7 @@ export class GameEngine {
                     x: pos.x,
                     y: pos.y,
                     ownerId: 'ai' as const,
+                    hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
                 };
                 const unit = createUnitFromSpawnConfig(config, this.eventBus);
                 this.addUnit(unit);
@@ -1173,19 +1191,8 @@ export class GameEngine {
                 }
             }
 
-            // Draw at round start: draw 1 card per round from deck (if hand has room and deck has cards)
-            const handCount = this.cards[playerId].filter((c) => c.location === 'hand').length;
-            const deckCards = this.cards[playerId].filter((c) => c.location === 'deck');
-            const toDraw = Math.min(1, MAX_HAND_SIZE - handCount, deckCards.length);
-
-            for (let i = 0; i < toDraw; i++) {
-                const idx = this.generateRandomInteger(0, deckCards.length - 1);
-                const card = deckCards[idx];
-                if (card) {
-                    card.location = 'hand';
-                    deckCards.splice(idx, 1);
-                }
-            }
+            // Draw at round end: 2 cards per round (drawCard enforces hand size and deck non-empty)
+            this.drawCardsForPlayer(playerId, 2);
         }
     }
 

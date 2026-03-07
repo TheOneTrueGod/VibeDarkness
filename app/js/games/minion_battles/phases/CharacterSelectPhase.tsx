@@ -8,7 +8,6 @@ import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import type { PlayerState } from '../../../types';
 import { LobbyClient } from '../../../LobbyClient';
 import { MessageType } from '../../../MessageTypes';
-import { MinionBattlesPlayer } from '../MinionBattlesPlayer';
 import type { PreMissionStoryDef } from '../storylines/storyTypes';
 import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../character_defs/CampaignCharacter';
@@ -106,6 +105,16 @@ export default function CharacterSelectPhase({
         });
     }, [myCharacters, campaignId, missionId, missionTraitFilter]);
 
+    /** Map characterId -> display name (from our characters; others show as "(selected)"). */
+    const characterIdToName = useMemo(() => {
+        const map: Record<string, string> = {};
+        for (const c of myCharacters) {
+            const portrait = getPortrait(c.portraitId);
+            map[c.id] = c.name || (portrait?.name ?? 'Character');
+        }
+        return map;
+    }, [myCharacters]);
+
     const handleSelectCharacter = useCallback(
         async (characterId: string, portraitId: string) => {
             const overridePath = `characterSelections.${playerId}`;
@@ -158,6 +167,7 @@ export default function CharacterSelectPhase({
         try {
             const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
                 gamePhase: 'pre_mission_story',
+                storyReadyPlayerIds: [],
             });
             await lobbyClient.sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
                 gamePhase: 'pre_mission_story',
@@ -217,8 +227,45 @@ export default function CharacterSelectPhase({
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
             <h2 className="text-[32px] font-bold text-center py-5 shrink-0">Select your character</h2>
 
-            <div className="flex-1 overflow-auto px-5 pb-5">
-                <div className="flex flex-wrap justify-center gap-6">
+            {/* Player tiles: two lines each — name, then selected character or "(selecting)" */}
+            <div className="flex flex-wrap justify-center gap-3 px-5 pb-4 shrink-0">
+                {allPlayerIds.map((pid) => {
+                    const p = players[pid];
+                    if (!p) return null;
+                    const selectedId = characterSelections[pid];
+                    const characterLabel = selectedId
+                        ? (characterIdToName[selectedId] ?? '(selected)')
+                        : '(selecting)';
+                    return (
+                        <div
+                            key={pid}
+                            className="flex flex-col justify-center min-h-[3.5rem] px-4 py-2 rounded-lg bg-surface-light border border-border-custom w-[180px]"
+                        >
+                            <div className="flex items-center gap-2">
+                                <span
+                                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: p.color }}
+                                />
+                                <span className="text-sm font-medium truncate">{p.name}</span>
+                                {p.isHost && (
+                                    <span className="text-[10px] px-1 py-0.5 bg-warning text-secondary rounded-sm font-bold shrink-0">
+                                        HOST
+                                    </span>
+                                )}
+                                {pid === playerId && (
+                                    <span className="text-xs text-muted shrink-0">(You)</span>
+                                )}
+                            </div>
+                            <div className="text-sm text-gray-300 truncate mt-0.5 pl-[18px]">
+                                {characterLabel}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
+                <div className="grid grid-cols-[repeat(auto-fill,200px)] justify-center gap-6">
                     {/* Create Character card - top left (first in list) */}
                     <CreateCharacterCard
                         ref={setCreateCardRef}

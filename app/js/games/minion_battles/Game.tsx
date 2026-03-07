@@ -95,6 +95,10 @@ export default function MinionBattlesGame({
             (raw.character_selections as Record<string, string>) ??
             {}
     );
+    /** Player IDs that have reached the end of pre-mission story (for host start-gate). */
+    const [storyReadyPlayerIds, setStoryReadyPlayerIds] = useState<string[]>(
+        () => (raw.storyReadyPlayerIds as string[] | undefined) ?? []
+    );
     /** Game state returned when transitioning to battle (includes playerStoryChoices); used as initialGameState so story choices apply. */
     const [phaseChangeGameState, setPhaseChangeGameState] = useState<Record<string, unknown> | null>(null);
 
@@ -138,9 +142,11 @@ export default function MinionBattlesGame({
                     const newCharSel = (gd.characterSelections ?? gd.character_selections) as
                         | Record<string, string>
                         | undefined;
+                    const newStoryReady = (gd.storyReadyPlayerIds as string[] | undefined) ?? [];
                     if (newPhase) setGamePhase(newPhase);
                     if (newVotes) setMissionVotes(newVotes);
                     if (newCharSel) setCharacterSelections(newCharSel);
+                    setStoryReadyPlayerIds(newStoryReady);
 
                     // Reconcile local overrides: any override whose value now
                     // matches the server is automatically pruned.
@@ -178,6 +184,8 @@ export default function MinionBattlesGame({
                     | Record<string, string>
                     | undefined;
                 if (nc) setCharacterSelections(nc);
+                const sr = (newGameState.storyReadyPlayerIds as string[] | undefined) ?? [];
+                setStoryReadyPlayerIds(sr);
             }
         },
         [localOverrides.clear],
@@ -226,6 +234,7 @@ export default function MinionBattlesGame({
                     isHost={isHost}
                     players={players}
                     preMissionStory={preMissionStory}
+                    storyReadyPlayerIds={storyReadyPlayerIds}
                     onPhaseChange={handlePhaseChange}
                 />
             )}

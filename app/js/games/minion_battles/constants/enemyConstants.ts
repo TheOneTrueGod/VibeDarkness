@@ -6,6 +6,20 @@
 
 import type { EnemySpawnDef } from '../storylines/types';
 
+/** Enemy health multiplier by player count (2–6 players). 1 player uses 1.0. */
+export const ENEMY_HEALTH_MULTIPLIER_BY_PLAYER_COUNT: Readonly<Record<number, number>> = {
+    2: 1.5,
+    3: 2,
+    4: 2.5,
+    5: 3,
+    6: 3.5,
+};
+
+/** Returns the enemy health multiplier for the given player count. Defaults to 1.0 for 1 or unknown. */
+export function getEnemyHealthMultiplier(playerCount: number): number {
+    return ENEMY_HEALTH_MULTIPLIER_BY_PLAYER_COUNT[playerCount] ?? 1;
+}
+
 /** Melee enemy: knows ability 0002 (Enemy Melee Attack). */
 export const ENEMY_MELEE: EnemySpawnDef = {
     characterId: 'enemy_melee',

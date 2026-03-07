@@ -111,7 +111,6 @@ export default function BattlePhase({
         waitingForOrders: WaitingForOrders | null;
     }>({ selectedAbility: null, currentTargets: [], mouseWorld: { x: 0, y: 0 }, waitingForOrders: null });
     targetingStateRef.current = { selectedAbility, currentTargets, mouseWorld: mouseWorldRef.current, waitingForOrders };
-    const [syncError, setSyncError] = useState<string | null>(null);
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     const [, forceRender] = useState(0);
 
@@ -326,7 +325,6 @@ export default function BattlePhase({
             newEngine.setOnRoundEnd((rn) => {
                 setRoundNumber(rn + 1);
                 updateCardState(newEngine);
-                if (rn % 2 === 0) performSyncCheck(newEngine);
             });
             newEngine.setOnStateChanged(() => {
                 setRoundProgress(newEngine.roundProgress);
@@ -391,11 +389,6 @@ export default function BattlePhase({
         engine.setOnRoundEnd((rn) => {
             setRoundNumber(rn + 1);
             updateCardState(engine);
-
-            // Periodic sync check every 2 rounds
-            if (rn % 2 === 0) {
-                performSyncCheck(engine);
-            }
         });
 
         engine.setOnStateChanged(() => {
@@ -675,25 +668,6 @@ export default function BattlePhase({
         }
     }
 
-    async function performSyncCheck(engine: GameEngine) {
-        try {
-            const checkpoint = await lobbyClient.getGameStateSnapshot(lobbyId, gameId);
-            if (!checkpoint?.state) return;
-
-            const local = engine.toJSON();
-            const server = checkpoint.state;
-
-            if (
-                local.roundNumber !== server.roundNumber ||
-                Math.abs(local.gameTime - (server.gameTime as number)) > 0.5
-            ) {
-                setSyncError(`State out of sync: local round ${local.roundNumber} vs server round ${server.roundNumber}`);
-            }
-        } catch {
-            // Sync check failed, non-critical
-        }
-    }
-
     // ========================================================================
     // Render
     // ========================================================================
@@ -718,19 +692,6 @@ export default function BattlePhase({
                 progress={roundProgress}
                 isPaused={isPaused}
             />
-
-            {/* Sync error banner */}
-            {syncError && (
-                <div className="absolute top-3 left-3 right-16 z-10 bg-red-900/90 text-red-200 text-xs px-3 py-2 rounded-lg">
-                    {syncError}
-                    <button
-                        onClick={() => setSyncError(null)}
-                        className="ml-2 text-red-400 hover:text-white"
-                    >
-                        &times;
-                    </button>
-                </div>
-            )}
 
             {/* Waiting indicator */}
             {isPaused && !isMyTurn && waitingForOrders && (

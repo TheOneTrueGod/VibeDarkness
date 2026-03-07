@@ -13,6 +13,7 @@ import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../engine/EventBus';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { createUnitByCharacterId, createUnitFromSpawnConfig } from '../objects/units/index';
+import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { createCardInstance, WORLD_HEIGHT } from '../engine/GameEngine';
 import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
@@ -129,12 +130,15 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             engine.addUnit(unit);
 
             // Set up cards for this player.
-            // For now: three copies of Bash (0102), two copies of Dodge (0101),
-            // plus any cards granted by equipped items.
-            const baseCardIds = ['0102', '0102', '0102', '0101', '0101'];
-            const hand: CardInstance[] = baseCardIds.map((cardId) =>
+            // Two Bash and two Dodge in hand; one Bash in deck. Plus any cards from equipped items.
+            const handCardIds = ['0102', '0102', '0101', '0101'];
+            const deckCardIds = ['0102'];
+            const hand: CardInstance[] = handCardIds.map((cardId) =>
                 createCardInstance(asCardDefId(cardId), cardId, 'hand'),
             );
+            for (const cardId of deckCardIds) {
+                hand.push(createCardInstance(asCardDefId(cardId), cardId, 'deck'));
+            }
             // Add cards from equipped items (e.g. pre-mission story choices)
             for (const itemId of equippedIds) {
                 const itemDef = getItemDef(itemId);
@@ -159,12 +163,14 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             engine.registerLevelEvents(this.levelEvents);
         }
 
-        // Add enemies
+        // Add enemies (health scaled by player count)
+        const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
         const enemySpawns: UnitSpawnConfig[] = this.enemies.map((e) => ({ ...e, ownerId: 'ai' }));
         for (const spawn of enemySpawns) {
             const unit = createUnitFromSpawnConfig(
                 {
                     ...spawn,
+                    hp: Math.round(spawn.hp * enemyHealthMult),
                     x: spawn.position.x,
                     y: spawn.position.y,
                 },

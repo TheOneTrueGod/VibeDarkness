@@ -22,6 +22,7 @@ export const MessageType = Object.freeze({
     GAME_PHASE_CHANGED: 'game_phase_changed',
     BATTLE_ORDERS_READY: 'battle_orders_ready',
     STORY_CHOICE: 'story_choice',
+    STORY_READY: 'story_ready',
 } as const);
 
 type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
@@ -53,6 +54,7 @@ const MessageSchema: Record<string, SchemaDef> = Object.freeze({
     [MessageType.GAME_PHASE_CHANGED]: { required: ['gamePhase'], optional: [] },
     [MessageType.BATTLE_ORDERS_READY]: { required: ['snapshotIndex'], optional: [] },
     [MessageType.STORY_CHOICE]: { required: ['choiceId', 'optionId'], optional: [] },
+    [MessageType.STORY_READY]: { required: [], optional: [] },
 });
 
 export class Message {

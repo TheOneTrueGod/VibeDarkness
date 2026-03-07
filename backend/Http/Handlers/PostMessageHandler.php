@@ -221,6 +221,25 @@ class PostMessageHandler
             return ['success' => true];
         }
 
+        if ($type === 'story_ready') {
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+            $gameId = $lobby->getGameId();
+            if (!$gameId) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'No active game'];
+            }
+            $success = $manager->applyStoryReady($lobbyId, $gameId, $playerId);
+            if (!$success) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'Failed to apply story ready'];
+            }
+            return ['success' => true];
+        }
+
         http_response_code(400);
         return ['success' => false, 'error' => 'Unknown message type'];
     }

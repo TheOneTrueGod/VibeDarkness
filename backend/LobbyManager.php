@@ -427,7 +427,7 @@ class LobbyManager
                     if (is_file($basePathFile)) {
                         $baseData = json_decode(file_get_contents($basePathFile), true);
                         if (is_array($baseData)) {
-                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'playerStoryChoices', 'playerEquippedItems'] as $key) {
+                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds'] as $key) {
                                 if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
                                     $result[$key] = $baseData[$key];
                                 }
@@ -511,6 +511,39 @@ class LobbyManager
         $choices[$playerId][$choiceId] = $optionId;
         $currentState['playerStoryChoices'] = $choices;
         $this->persistGameState($lobbyId, $gameId, $currentState);
+        return true;
+    }
+
+    /**
+     * Mark a player as ready at the end of pre-mission story (any player). Merges into game state.
+     */
+    public function applyStoryReady(string $lobbyId, string $gameId, string $playerId): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null) {
+            return false;
+        }
+        if ($lobby->getPlayer($playerId) === null) {
+            return false;
+        }
+        if ($lobby->getGameId() !== $gameId) {
+            return false;
+        }
+
+        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        if ($currentState === null) {
+            return false;
+        }
+
+        $ready = $currentState['storyReadyPlayerIds'] ?? [];
+        if (!is_array($ready)) {
+            $ready = [];
+        }
+        if (!in_array($playerId, $ready, true)) {
+            $ready[] = $playerId;
+            $currentState['storyReadyPlayerIds'] = $ready;
+            $this->persistGameState($lobbyId, $gameId, $currentState);
+        }
         return true;
     }
 

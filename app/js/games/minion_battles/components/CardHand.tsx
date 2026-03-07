@@ -230,8 +230,8 @@ export default function CardHand({
                     </>
                 )}
 
-                {/* Cards */}
-                <div className="flex gap-2 flex-1 justify-center">
+                {/* Cards: max width 800px so bar doesn't grow too wide */}
+                <div className="flex gap-2 flex-1 justify-center min-w-0 max-w-[800px]">
                     {handCards.map((card, index) => {
                         const ability = getAbility(card.abilityId);
                         if (!ability) return null;

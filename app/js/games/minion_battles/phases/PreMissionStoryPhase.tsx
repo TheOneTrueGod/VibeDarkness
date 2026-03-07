@@ -18,6 +18,8 @@ interface PreMissionStoryPhaseProps {
     isHost: boolean;
     players: Record<string, PlayerState>;
     preMissionStory: PreMissionStoryDef;
+    /** Player IDs that have reached the final "start game" card (synced from server). */
+    storyReadyPlayerIds: string[];
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
 }
 
@@ -31,7 +33,9 @@ export default function PreMissionStoryPhase({
     gameId,
     playerId,
     isHost,
+    players,
     preMissionStory,
+    storyReadyPlayerIds,
     onPhaseChange,
 }: PreMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
@@ -41,6 +45,12 @@ export default function PreMissionStoryPhase({
     const phrases = preMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
     const isEnd = phraseIndex >= phrases.length;
+
+    // When this player reaches the end, notify the server so the host can gate "Start Game".
+    useEffect(() => {
+        if (!isEnd) return;
+        lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_READY, {}).catch(() => {});
+    }, [isEnd, lobbyClient, lobbyId, playerId]);
 
     useEffect(() => {
         if (currentPhrase && isDialogue(currentPhrase) && currentPhrase.backgroundImage) {
@@ -83,19 +93,29 @@ export default function PreMissionStoryPhase({
         [lobbyClient, lobbyId, playerId, advancePhrase]
     );
 
+    const allPlayerIds = Object.keys(players);
+    const allReady = allPlayerIds.length > 0 && allPlayerIds.every((id) => storyReadyPlayerIds.includes(id));
+    const hostCanStart = isHost && allReady;
+
     if (isEnd) {
         return (
             <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-surface">
                 {isHost ? (
-                    <button
-                        type="button"
-                        onClick={handleStartGame}
-                        className="px-8 py-3 text-white text-lg font-bold rounded-lg bg-green-600 hover:bg-green-700 shadow-lg cursor-pointer"
-                    >
-                        Start Game
-                    </button>
+                    <div className="flex flex-col items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleStartGame}
+                            disabled={!hostCanStart}
+                            className="px-8 py-3 text-white text-lg font-bold rounded-lg bg-green-600 hover:bg-green-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
+                        >
+                            Start Game
+                        </button>
+                        {!hostCanStart && (
+                            <p className="text-muted text-lg">Waiting for players</p>
+                        )}
+                    </div>
                 ) : (
-                    <p className="text-muted text-lg">Waiting for host to start the game...</p>
+                    <p className="text-muted text-lg">Waiting for host</p>
                 )}
             </div>
         );
