@@ -73,22 +73,21 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         const spawnPoints = missionConfig.playerSpawnPoints ?? this.playerSpawnPoints;
         for (let i = 0; i < playerCount; i++) {
             const pu = params.playerUnits[i];
-            const isWarrior = pu.characterId === 'warrior';
-            const isRanger = pu.characterId === 'ranger';
-            let abilities = isWarrior
-                ? ['throw_rock', '0101', '0102']
-                : isRanger
-                  ? ['0001']
-                  : ['throw_knife'];
             const equippedIds = params.equippedItemsByPlayer?.[pu.playerId] ?? [];
+            // Abilities and cards come only from equipment (e.g. Core Basic + hands items).
+            const abilities: string[] = [];
             for (const itemId of equippedIds) {
                 const itemDef = getItemDef(itemId);
                 if (!itemDef) continue;
                 for (const entry of itemDef.cardsToAdd) {
                     if (!abilities.includes(entry.cardId)) {
-                        abilities = [...abilities, entry.cardId];
+                        abilities.push(entry.cardId);
                     }
                 }
+            }
+            // Fallback if no equipment (should not happen if new characters get Core Basic).
+            if (abilities.length === 0) {
+                abilities.push('0101', '0102');
             }
 
             // Determine spawn position.
@@ -129,17 +128,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             );
             engine.addUnit(unit);
 
-            // Set up cards for this player.
-            // Two Bash and two Dodge in hand; one Bash in deck. Plus any cards from equipped items.
-            const handCardIds = ['0102', '0102', '0101', '0101'];
-            const deckCardIds = ['0102'];
-            const hand: CardInstance[] = handCardIds.map((cardId) =>
-                createCardInstance(asCardDefId(cardId), cardId, 'hand'),
-            );
-            for (const cardId of deckCardIds) {
-                hand.push(createCardInstance(asCardDefId(cardId), cardId, 'deck'));
-            }
-            // Add cards from equipped items (e.g. pre-mission story choices)
+            // Set up cards for this player from equipment only (all cards in hand).
+            const hand: CardInstance[] = [];
             for (const itemId of equippedIds) {
                 const itemDef = getItemDef(itemId);
                 if (!itemDef) continue;

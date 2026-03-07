@@ -17,6 +17,7 @@ function makeCheckpointSnapshot(overrides: Partial<Record<string, unknown>> = {}
         playerUnits: [{ playerId: 'p1', characterId: 'warrior', name: 'Host' }],
         localPlayerId: 'p1',
         eventBus: engine.eventBus,
+        equippedItemsByPlayer: { p1: ['004'] },
     });
     // Advance a bit and pause for orders
     engine.gameTick = 65;

@@ -213,7 +213,11 @@ class PostMessageHandler
                 http_response_code(400);
                 return ['success' => false, 'error' => 'No active game'];
             }
-            $success = $manager->applyStoryChoice($lobbyId, $gameId, $playerId, $choiceId, $optionId);
+            $itemId = isset($payload['itemId']) && is_string($payload['itemId']) ? $payload['itemId'] : null;
+            $replaceItemIds = isset($payload['replaceItemIds']) && is_array($payload['replaceItemIds'])
+                ? array_values(array_filter($payload['replaceItemIds'], static fn ($v): bool => is_string($v)))
+                : [];
+            $success = $manager->applyStoryChoice($lobbyId, $gameId, $playerId, $choiceId, $optionId, $itemId, $replaceItemIds);
             if (!$success) {
                 http_response_code(400);
                 return ['success' => false, 'error' => 'Failed to apply story choice'];

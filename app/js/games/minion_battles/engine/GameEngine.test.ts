@@ -28,10 +28,15 @@ describe('GameEngine', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1' });
+        const equippedByPlayer: Record<string, string[]> = {};
+        playerUnits.forEach((pu) => {
+            equippedByPlayer[pu.playerId] = ['004'];
+        });
         DARK_AWAKENING.initializeGameState(engine, {
             playerUnits: [...playerUnits],
             localPlayerId: 'p1',
             eventBus: engine.eventBus,
+            equippedItemsByPlayer: equippedByPlayer,
         });
         const playerUnitCount = engine.units.filter((u) => u.isPlayerControlled()).length;
         expect(playerUnitCount).toBe(expectedCount);
@@ -56,6 +61,7 @@ describe('GameEngine', () => {
             playerUnits: [{ playerId: 'p1', characterId: 'warrior', name: 'P1' }],
             localPlayerId: 'p1',
             eventBus: engine.eventBus,
+            equippedItemsByPlayer: { p1: ['004'] },
         });
 
         const json = engine.toJSON();
@@ -89,6 +95,7 @@ describe('GameEngine', () => {
             playerUnits: [{ playerId: 'p1', characterId: 'warrior', name: 'P1' }],
             localPlayerId: 'p1',
             eventBus: engine.eventBus,
+            equippedItemsByPlayer: { p1: ['004'] },
         });
         const json = engine.toJSON();
         const restored = GameEngine.fromJSON(json, 'p1', null);

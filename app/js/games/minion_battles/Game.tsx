@@ -99,8 +99,10 @@ export default function MinionBattlesGame({
     const [storyReadyPlayerIds, setStoryReadyPlayerIds] = useState<string[]>(
         () => (raw.storyReadyPlayerIds as string[] | undefined) ?? []
     );
-    /** Game state returned when transitioning to battle (includes playerStoryChoices); used as initialGameState so story choices apply. */
+    /** Game state returned when transitioning to battle; used as initialGameState (includes playerEquipmentByPlayer). */
     const [phaseChangeGameState, setPhaseChangeGameState] = useState<Record<string, unknown> | null>(null);
+    /** Last game state from server (phase transition or poll); used so pre-mission story has current equipment. */
+    const [lastGameStateFromServer, setLastGameStateFromServer] = useState<Record<string, unknown> | null>(null);
 
     // ---- Local overrides for instant feedback -----------------------------
     const localOverrides = useLocalOverrides();
@@ -129,6 +131,7 @@ export default function MinionBattlesGame({
                 const { gameState } = await lobbyClient.getLobbyState(lobbyId, playerId);
                 const gd = (gameState as { game?: Record<string, unknown> }).game;
                 if (gd) {
+                    setLastGameStateFromServer(gd);
                     let newPhase = (gd.gamePhase ?? gd.game_phase) as GamePhase | undefined;
                     if (!newPhase) {
                         const hasBattleData =
@@ -176,6 +179,7 @@ export default function MinionBattlesGame({
                 setPhaseChangeGameState(null);
             }
             if (newGameState) {
+                setLastGameStateFromServer(newGameState);
                 const nv = (newGameState.missionVotes ?? newGameState.mission_votes) as
                     | Record<string, string>
                     | undefined;
@@ -235,6 +239,11 @@ export default function MinionBattlesGame({
                     players={players}
                     preMissionStory={preMissionStory}
                     storyReadyPlayerIds={storyReadyPlayerIds}
+                    playerEquipmentByPlayer={
+                        (lastGameStateFromServer ?? raw).playerEquipmentByPlayer as
+                            | Record<string, string[]>
+                            | undefined
+                    }
                     onPhaseChange={handlePhaseChange}
                 />
             )}

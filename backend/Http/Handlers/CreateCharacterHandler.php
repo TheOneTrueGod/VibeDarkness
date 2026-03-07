@@ -34,6 +34,9 @@ class CreateCharacterHandler
         $missionId = isset($body['missionId']) ? (string) $body['missionId'] : '';
         $name = isset($body['name']) ? (string) $body['name'] : '';
         $equipment = isset($body['equipment']) && is_array($body['equipment']) ? $body['equipment'] : [];
+        if ($equipment === []) {
+            $equipment = ['004']; // Core Basic – default starting equipment
+        }
         $knowledge = isset($body['knowledge']) && is_array($body['knowledge']) ? $body['knowledge'] : [];
         $traits = isset($body['traits']) && is_array($body['traits']) ? $body['traits'] : [];
         $battleChipDetails = isset($body['battleChipDetails']) && is_array($body['battleChipDetails']) ? $body['battleChipDetails'] : [];

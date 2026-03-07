@@ -48,17 +48,11 @@ export class CampaignCharacter {
     }
 
     /**
-     * Build the starter battle cards for this character.
-     * For now: three copies of Bash (0102), two copies of Dodge (0101),
-     * plus any cards granted by equipped items.
+     * Build the starter battle cards for this character from equipped items only.
+     * All cards come from equipment (e.g. Core Basic for Bash/Dodge, hands items for weapon cards).
      */
     getBattleCards(extraEquippedItemIds: string[] = []): string[] {
         const cards: string[] = [];
-
-        // Base deck: Bash ×3, Dodge ×2
-        cards.push('0102', '0102', '0102', '0101', '0101');
-
-        // Merge equipment from character and any extra equipped items (e.g. from story choices)
         const allItemIds = new Set<string>([...this.equipment, ...extraEquippedItemIds]);
         for (const itemId of allItemIds) {
             const itemDef = getItemDef(itemId);
@@ -69,7 +63,6 @@ export class CampaignCharacter {
                 }
             }
         }
-
         return cards;
     }
 

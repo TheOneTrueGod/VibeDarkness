@@ -8,6 +8,7 @@ import { LobbyClient } from '../../../LobbyClient';
 import { MessageType } from '../../../MessageTypes';
 import { getNpc } from '../constants/npcs';
 import type { PreMissionStoryDef, DialoguePhrase, ChoicePhrase } from '../storylines/storyTypes';
+import { getItemDef } from '../character_defs/items';
 import VNTextBox from '../components/VNTextBox';
 
 interface PreMissionStoryPhaseProps {
@@ -20,6 +21,8 @@ interface PreMissionStoryPhaseProps {
     preMissionStory: PreMissionStoryDef;
     /** Player IDs that have reached the final "start game" card (synced from server). */
     storyReadyPlayerIds: string[];
+    /** Current equipment per player (from server); used to compute replaceItemIds when equipping. */
+    playerEquipmentByPlayer?: Record<string, string[]>;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
 }
 
@@ -36,6 +39,7 @@ export default function PreMissionStoryPhase({
     players,
     preMissionStory,
     storyReadyPlayerIds,
+    playerEquipmentByPlayer,
     onPhaseChange,
 }: PreMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
@@ -79,22 +83,42 @@ export default function PreMissionStoryPhase({
     }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange]);
 
     const handleChoice = useCallback(
-        async (choiceId: string, optionId: string) => {
+        async (choiceId: string, optionId: string, option?: { action?: { type: string; itemId?: string } }) => {
             try {
+                const currentEquipment = playerEquipmentByPlayer?.[playerId] ?? [];
+                let itemId: string | undefined;
+                let replaceItemIds: string[] = [];
+                if (option?.action?.type === 'equip_item' && option.action.itemId) {
+                    itemId = option.action.itemId;
+                    const newItemDef = getItemDef(itemId);
+                    const newSlots = new Set(newItemDef?.slots ?? []);
+                    if (newSlots.size > 0) {
+                        for (const equippedId of currentEquipment) {
+                            const equippedDef = getItemDef(equippedId);
+                            if (equippedDef?.slots.some((s) => newSlots.has(s))) {
+                                replaceItemIds.push(equippedId);
+                            }
+                        }
+                    }
+                }
                 await lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_CHOICE, {
                     choiceId,
                     optionId,
+                    ...(itemId !== undefined && { itemId, replaceItemIds }),
                 });
             } catch (error) {
                 console.error('Failed to send story choice:', error);
             }
             advancePhrase();
         },
-        [lobbyClient, lobbyId, playerId, advancePhrase]
+        [lobbyClient, lobbyId, playerId, playerEquipmentByPlayer, advancePhrase]
     );
 
     const allPlayerIds = Object.keys(players);
-    const allReady = allPlayerIds.length > 0 && allPlayerIds.every((id) => storyReadyPlayerIds.includes(id));
+    const singlePlayer = allPlayerIds.length === 1;
+    const allReady =
+        allPlayerIds.length > 0 &&
+        (singlePlayer || allPlayerIds.every((id) => storyReadyPlayerIds.includes(id)));
     const hostCanStart = isHost && allReady;
 
     if (isEnd) {
@@ -110,7 +134,7 @@ export default function PreMissionStoryPhase({
                         >
                             Start Game
                         </button>
-                        {!hostCanStart && (
+                        {!hostCanStart && !singlePlayer && (
                             <p className="text-muted text-lg">Waiting for players</p>
                         )}
                     </div>
@@ -223,7 +247,7 @@ export default function PreMissionStoryPhase({
                                     <button
                                         key={opt.id}
                                         type="button"
-                                        onClick={() => handleChoice(currentPhrase.choiceId, opt.id)}
+                                        onClick={() => handleChoice(currentPhrase.choiceId, opt.id, opt)}
                                         className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white"
                                     >
                                         {opt.label}

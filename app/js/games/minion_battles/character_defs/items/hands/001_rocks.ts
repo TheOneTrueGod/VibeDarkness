@@ -1,7 +1,9 @@
-import type { ItemDef } from './types';
+import type { ItemDef } from '../types';
 
 export const rocksItem: ItemDef = {
-    id: 'rocks',
+    id: '001',
     name: 'Rocks',
+    slots: ['hands'],
     cardsToAdd: [{ cardId: 'throw_rock', count: 2 }],
+    icon: '001_rocks.svg',
 };

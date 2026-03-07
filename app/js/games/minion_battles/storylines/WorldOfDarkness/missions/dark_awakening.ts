@@ -165,12 +165,12 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
             type: 'choice',
             choiceId: 'dark_awakening_weapon',
             options: [
-                { id: 'rocks', label: 'Grab some nearby rocks', action: { type: 'equip_item', itemId: 'rocks' } },
-                { id: 'torch', label: 'Grab a smoldering stick', action: { type: 'equip_item', itemId: 'torch' } },
+                { id: 'rocks', label: 'Grab some nearby rocks', action: { type: 'equip_item', itemId: '001' } },
+                { id: 'torch', label: 'Grab a smoldering stick', action: { type: 'equip_item', itemId: '002' } },
                 {
                     id: 'pot_shield',
                     label: 'Pick up the lid of a pot from the campfire',
-                    action: { type: 'equip_item', itemId: 'pot_shield' },
+                    action: { type: 'equip_item', itemId: '003' },
                 },
             ],
         },

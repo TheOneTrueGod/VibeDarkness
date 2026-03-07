@@ -92,4 +92,32 @@ class CharacterManager
             unlink($path);
         }
     }
+
+    /**
+     * Equip an item on a character (e.g. from a story choice).
+     * Removes any replaceItemIds from equipment, then adds itemId.
+     *
+     * @param string $characterId
+     * @param string $itemId
+     * @param list<string> $replaceItemIds Item IDs to remove (e.g. same-slot items)
+     * @return bool True if the character was found and updated
+     */
+    public function equipItem(string $characterId, string $itemId, array $replaceItemIds = []): bool
+    {
+        $character = $this->getCharacter($characterId);
+        if ($character === null) {
+            return false;
+        }
+        $equipment = $character->getEquipment();
+        foreach ($replaceItemIds as $rid) {
+            $equipment = array_values(array_filter($equipment, static fn (string $e): bool => $e !== $rid));
+        }
+        if (!in_array($itemId, $equipment, true)) {
+            $equipment[] = $itemId;
+        }
+        $updated = Character::fromArray(array_merge($character->toArray(), ['equipment' => $equipment]));
+        $this->persist($updated);
+        $this->cache[$characterId] = $updated;
+        return true;
+    }
 }

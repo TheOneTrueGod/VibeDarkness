@@ -441,7 +441,7 @@ class LobbyManager
                             }
                         }
                     }
-                    return $result;
+                    return $this->mergePlayerEquipmentIntoState($result);
                 }
             }
         }
@@ -453,7 +453,36 @@ class LobbyManager
         }
         $json = file_get_contents($path);
         $data = json_decode($json, true);
-        return is_array($data) ? $data : null;
+        if (!is_array($data)) {
+            return null;
+        }
+        return $this->mergePlayerEquipmentIntoState($data);
+    }
+
+    /**
+     * Merge each selected character's equipment into state as playerEquipmentByPlayer.
+     */
+    private function mergePlayerEquipmentIntoState(array $state): array
+    {
+        $selections = $state['characterSelections'] ?? $state['character_selections'] ?? null;
+        if (!is_array($selections) || $selections === []) {
+            return $state;
+        }
+        $characterManager = CharacterManager::getInstance();
+        $byPlayer = [];
+        foreach ($selections as $playerId => $characterId) {
+            if (!is_string($playerId) || !is_string($characterId)) {
+                continue;
+            }
+            $character = $characterManager->getCharacter($characterId);
+            if ($character !== null) {
+                $byPlayer[$playerId] = $character->getEquipment();
+            }
+        }
+        if ($byPlayer !== []) {
+            $state['playerEquipmentByPlayer'] = $byPlayer;
+        }
+        return $state;
     }
 
     /**
@@ -485,9 +514,19 @@ class LobbyManager
 
     /**
      * Apply a story choice (any player). Merges choice into game state.
+     * If itemId is provided, also equips that item on the player's selected character (and removes replaceItemIds).
+     *
+     * @param list<string> $replaceItemIds Item IDs to unequip when equipping itemId (e.g. same-slot items)
      */
-    public function applyStoryChoice(string $lobbyId, string $gameId, string $playerId, string $choiceId, string $optionId): bool
-    {
+    public function applyStoryChoice(
+        string $lobbyId,
+        string $gameId,
+        string $playerId,
+        string $choiceId,
+        string $optionId,
+        ?string $itemId = null,
+        array $replaceItemIds = []
+    ): bool {
         $lobby = $this->getLobby($lobbyId);
         if ($lobby === null) {
             return false;
@@ -510,6 +549,15 @@ class LobbyManager
         }
         $choices[$playerId][$choiceId] = $optionId;
         $currentState['playerStoryChoices'] = $choices;
+
+        if ($itemId !== null && $itemId !== '') {
+            $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
+            $characterId = is_array($selections) ? ($selections[$playerId] ?? null) : null;
+            if (is_string($characterId) && $characterId !== '') {
+                CharacterManager::getInstance()->equipItem($characterId, $itemId, $replaceItemIds);
+            }
+        }
+
         $this->persistGameState($lobbyId, $gameId, $currentState);
         return true;
     }
