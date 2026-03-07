@@ -213,7 +213,37 @@ export default function CardHand({
                             </div>
                         </div>
                         <div className="flex flex-col items-center gap-1.5">
-                            <CooldownIndicator unit={playerUnit} size={48} />
+                            <div className="flex items-center gap-2">
+                                <CooldownIndicator
+                                    unit={playerUnit}
+                                    size={48}
+                                    gameTime={gameTime ?? 0}
+                                />
+                                {(() => {
+                                    const active = playerUnit.activeAbilities[0];
+                                    const activeCard = active
+                                        ? handCards.find((c) => c.abilityId === active.abilityId)
+                                        : null;
+                                    const activeAbility = activeCard ? getAbility(activeCard.abilityId) : null;
+                                    if (!activeCard || !activeAbility) return null;
+                                    return (
+                                        <div className="opacity-80 flex-shrink-0">
+                                            <CardComponent
+                                                ability={activeAbility}
+                                                card={activeCard}
+                                                isSelected={false}
+                                                isDisabled
+                                                onSelect={() => {}}
+                                                isMobile={false}
+                                                showMobileDescription={false}
+                                                onMobileDescriptionToggle={() => {}}
+                                                onMobileDescriptionDismiss={() => {}}
+                                                gameState={gameState}
+                                            />
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                             <button
                                 onClick={onWait}
                                 disabled={!isMyTurn}

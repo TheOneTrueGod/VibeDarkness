@@ -8,6 +8,7 @@
 
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
@@ -87,6 +88,11 @@ export const BashAbility: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,
+    abilityTimings: [
+        { duration: 0.2, abilityPhase: AbilityPhase.Windup },
+        { duration: 0.1, abilityPhase: AbilityPhase.Active },
+        { duration: 1.3, abilityPhase: AbilityPhase.Cooldown },
+    ],
     targets: [{ type: 'unit', label: 'Target enemy' }] as TargetDef[],
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 

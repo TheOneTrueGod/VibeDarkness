@@ -10,6 +10,7 @@ import { getNpc } from '../constants/npcs';
 import type { PreMissionStoryDef, DialoguePhrase, ChoicePhrase } from '../storylines/storyTypes';
 import { getItemDef } from '../character_defs/items';
 import VNTextBox from '../components/VNTextBox';
+import CharacterPortrait from '../components/CharacterPortrait';
 
 interface PreMissionStoryPhaseProps {
     lobbyClient: LobbyClient;
@@ -171,25 +172,19 @@ export default function PreMissionStoryPhase({
                             {(currentPhrase.portraits?.left ?? (currentPhrase.speakerId ? [currentPhrase.speakerId] : [])).slice(0, 2).map((npcId) => {
                                 const npc = getNpc(npcId);
                                 const isActive = currentPhrase.speakerId === npcId;
-                                return (
+                                return npc?.portrait ? (
+                                    <CharacterPortrait
+                                        key={npcId}
+                                        picture={npc.portrait}
+                                        size="small"
+                                        className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
+                                    />
+                                ) : (
                                     <div
                                         key={npcId}
-                                        className={`w-24 h-24 rounded-lg overflow-hidden border-2 flex-shrink-0 ${
-                                            isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'
-                                        }`}
-                                    >
-                                        {npc?.portrait ? (
-                                            <div
-                                                className="w-full h-full bg-background"
-                                                dangerouslySetInnerHTML={{ __html: npc.portrait }}
-                                            />
-                                        ) : (
-                                            <div
-                                                className="w-full h-full"
-                                                style={{ backgroundColor: npc?.color ?? '#333' }}
-                                            />
-                                        )}
-                                    </div>
+                                        className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
+                                        style={{ backgroundColor: npc?.color ?? '#333' }}
+                                    />
                                 );
                             })}
                         </div>
@@ -197,25 +192,19 @@ export default function PreMissionStoryPhase({
                             {(currentPhrase.portraits?.right ?? []).slice(0, 2).map((npcId) => {
                                 const npc = getNpc(npcId);
                                 const isActive = currentPhrase.speakerId === npcId;
-                                return (
+                                return npc?.portrait ? (
+                                    <CharacterPortrait
+                                        key={npcId}
+                                        picture={npc.portrait}
+                                        size="small"
+                                        className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
+                                    />
+                                ) : (
                                     <div
                                         key={npcId}
-                                        className={`w-24 h-24 rounded-lg overflow-hidden border-2 flex-shrink-0 ${
-                                            isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'
-                                        }`}
-                                    >
-                                        {npc?.portrait ? (
-                                            <div
-                                                className="w-full h-full bg-background"
-                                                dangerouslySetInnerHTML={{ __html: npc.portrait }}
-                                            />
-                                        ) : (
-                                            <div
-                                                className="w-full h-full"
-                                                style={{ backgroundColor: npc?.color ?? '#333' }}
-                                            />
-                                        )}
-                                    </div>
+                                        className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
+                                        style={{ backgroundColor: npc?.color ?? '#333' }}
+                                    />
                                 );
                             })}
                         </div>

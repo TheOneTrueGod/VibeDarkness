@@ -3,37 +3,43 @@
  */
 import React from 'react';
 import type { PlayerState } from '../types';
+import PlayerPill from './PlayerPill';
 
 interface PlayerListProps {
     players: Record<string, PlayerState>;
     currentPlayerId?: string;
+    /** When provided, second line shows the player's selected character (e.g. from game state). */
+    characterSelections?: Record<string, string>;
+    /** Map characterId -> display name; when provided with characterSelections, second line shows name instead of "(selected)". */
+    characterIdToName?: Record<string, string>;
 }
 
-export default function PlayerList({ players, currentPlayerId }: PlayerListProps) {
+export default function PlayerList({
+    players,
+    currentPlayerId,
+    characterSelections,
+    characterIdToName,
+}: PlayerListProps) {
     return (
         <div className="mt-4 p-4 bg-surface rounded">
             <h3 className="mb-3 text-sm text-muted uppercase">Players</h3>
             <ul className="list-none flex flex-wrap gap-2">
-                {Object.values(players).map((player) => (
-                    <li
-                        key={player.id}
-                        className={`flex items-center gap-2 px-3 py-1.5 bg-surface-light rounded-full text-sm ${
-                            player.isConnected === false ? 'opacity-50' : ''
-                        }`}
-                    >
-                        <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: player.color }}
-                        />
-                        <span>{player.name}</span>
-                        {player.isHost && (
-                            <span className="text-[10px] px-1 py-0.5 bg-warning text-secondary rounded-sm font-bold">
-                                HOST
-                            </span>
-                        )}
-                        {player.id === currentPlayerId && ' (You)'}
-                    </li>
-                ))}
+                {Object.values(players).map((player) => {
+                    const characterId = characterSelections?.[player.id];
+                    const secondLine =
+                        characterId != null
+                            ? (characterIdToName?.[characterId] ?? '(selected)')
+                            : undefined;
+                    return (
+                        <li key={player.id}>
+                            <PlayerPill
+                                player={player}
+                                currentPlayerId={currentPlayerId}
+                                secondLine={secondLine}
+                            />
+                        </li>
+                    );
+                })}
             </ul>
         </div>
     );

@@ -14,6 +14,8 @@ import { fromCampaignCharacterData, type CampaignCharacter } from '../character_
 import type { CampaignCharacterData } from '../character_defs/campaignCharacterTypes';
 import { getPortrait } from '../character_defs/portraits';
 import CharacterCreator from '../components/CharacterCreator';
+import CharacterEditor from '../components/CharacterEditor';
+import PlayerPill from '../../../components/PlayerPill';
 
 interface CharacterSelectPhaseProps {
     lobbyClient: LobbyClient;
@@ -59,6 +61,7 @@ export default function CharacterSelectPhase({
     const [charactersLoading, setCharactersLoading] = useState(true);
     const [creatorOpen, setCreatorOpen] = useState(false);
     const [createCardRef, setCreateCardRef] = useState<HTMLDivElement | null>(null);
+    const [editorOpen, setEditorOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -223,76 +226,64 @@ export default function CharacterSelectPhase({
         [lobbyClient],
     );
 
+    const characterToEdit = useMemo(
+        () => (mySelection ? myCharacters.find((c) => c.id === mySelection) ?? null : null),
+        [mySelection, myCharacters],
+    );
+
+    const handleEditorSaved = useCallback(() => {
+        lobbyClient.getMyCharacters().then((list) => {
+            const chars = (list as CampaignCharacterData[]).map((d) => fromCampaignCharacterData(d));
+            setMyCharacters(chars);
+        }).catch(() => {});
+    }, [lobbyClient]);
+
     return (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
-            <h2 className="text-[32px] font-bold text-center py-5 shrink-0">Select your character</h2>
+            <h2 className="text-[32px] font-bold text-center py-5 shrink-0">
+                {editorOpen ? 'Edit character' : 'Select your character'}
+            </h2>
 
-            {/* Player tiles: two lines each — name, then selected character or "(selecting)" */}
-            <div className="flex flex-wrap justify-center gap-3 px-5 pb-4 shrink-0">
-                {allPlayerIds.map((pid) => {
-                    const p = players[pid];
-                    if (!p) return null;
-                    const selectedId = characterSelections[pid];
-                    const characterLabel = selectedId
-                        ? (characterIdToName[selectedId] ?? '(selected)')
-                        : '(selecting)';
-                    return (
-                        <div
-                            key={pid}
-                            className="flex flex-col justify-center min-h-[3.5rem] px-4 py-2 rounded-lg bg-surface-light border border-border-custom w-[180px]"
-                        >
-                            <div className="flex items-center gap-2">
-                                <span
-                                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                                    style={{ backgroundColor: p.color }}
-                                />
-                                <span className="text-sm font-medium truncate">{p.name}</span>
-                                {p.isHost && (
-                                    <span className="text-[10px] px-1 py-0.5 bg-warning text-secondary rounded-sm font-bold shrink-0">
-                                        HOST
-                                    </span>
-                                )}
-                                {pid === playerId && (
-                                    <span className="text-xs text-muted shrink-0">(You)</span>
-                                )}
-                            </div>
-                            <div className="text-sm text-gray-300 truncate mt-0.5 pl-[18px]">
-                                {characterLabel}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
-                <div className="grid grid-cols-[repeat(auto-fill,200px)] justify-center gap-6">
-                    {/* Create Character card - top left (first in list) */}
-                    <CreateCharacterCard
-                        ref={setCreateCardRef}
-                        onClick={() => setCreatorOpen(true)}
+            {editorOpen && characterToEdit ? (
+                <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
+                    <CharacterEditor
+                        character={characterToEdit}
+                        lobbyClient={lobbyClient}
+                        onSaved={handleEditorSaved}
+                        onClose={() => setEditorOpen(false)}
                     />
-                    {charactersLoading ? (
-                        <div className="w-[200px] h-[200px] flex items-center justify-center text-gray-400">
-                            Loading…
-                        </div>
-                    ) : (
-                        sortedCharacters.map((char) => (
-                            <CampaignCharacterCard
-                                key={char.id}
-                                character={char}
-                                campaignId={campaignId}
-                                missionId={missionId}
-                                missionTraitFilter={missionTraitFilter}
-                                isMySelection={mySelection === char.id}
-                                playerSelections={characterSelections}
-                                players={players}
-                                onSelect={handleSelectCharacter}
-                                onDelete={handleDeleteCharacter}
-                            />
-                        ))
-                    )}
                 </div>
-            </div>
+            ) : (
+                <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
+                    <div className="grid grid-cols-[repeat(auto-fill,200px)] justify-center gap-6">
+                        {/* Create Character card - top left (first in list) */}
+                        <CreateCharacterCard
+                            ref={setCreateCardRef}
+                            onClick={() => setCreatorOpen(true)}
+                        />
+                        {charactersLoading ? (
+                            <div className="w-[200px] h-[200px] flex items-center justify-center text-gray-400">
+                                Loading…
+                            </div>
+                        ) : (
+                            sortedCharacters.map((char) => (
+                                <CampaignCharacterCard
+                                    key={char.id}
+                                    character={char}
+                                    campaignId={campaignId}
+                                    missionId={missionId}
+                                    missionTraitFilter={missionTraitFilter}
+                                    isMySelection={mySelection === char.id}
+                                    playerSelections={characterSelections}
+                                    players={players}
+                                    onSelect={handleSelectCharacter}
+                                    onDelete={handleDeleteCharacter}
+                                />
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
 
             {creatorOpen && (
                 <CharacterCreator
@@ -305,36 +296,55 @@ export default function CharacterSelectPhase({
                 />
             )}
 
-            {(isHost || (preMissionStory && allSelected)) && (
-                <div className="flex justify-center py-4 px-5 shrink-0 border-t border-border-custom">
-                    {allSelected && preMissionStory ? (
-                        isHost ? (
+            <div className="flex justify-center gap-4 py-4 px-5 shrink-0 border-t border-border-custom">
+                {editorOpen ? (
+                    <button
+                        type="button"
+                        className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
+                        onClick={() => setEditorOpen(false)}
+                    >
+                        Back
+                    </button>
+                ) : (
+                    <>
+                        {mySelection && characterToEdit && (
                             <button
                                 type="button"
-                                className="px-8 py-3 text-white text-lg font-bold rounded-lg bg-primary hover:opacity-90 shadow-lg cursor-pointer"
-                                onClick={handleContinueToStory}
+                                className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
+                                onClick={() => setEditorOpen(true)}
                             >
-                                Continue
+                                Edit Character
                             </button>
-                        ) : (
-                            <p className="text-muted">Waiting for host to continue...</p>
-                        )
-                    ) : isHost ? (
-                        <button
-                            type="button"
-                            disabled={!allSelected}
-                            className={`px-8 py-3 text-white text-lg font-bold rounded-lg transition-colors shadow-lg ${
-                                allSelected
-                                    ? 'bg-green-600 hover:bg-green-700 hover:shadow-xl cursor-pointer'
-                                    : 'bg-gray-600 opacity-50 cursor-not-allowed'
-                            }`}
-                            onClick={handleStartGame}
-                        >
-                            Start Game
-                        </button>
-                    ) : null}
-                </div>
-            )}
+                        )}
+                        {allSelected && preMissionStory ? (
+                            isHost ? (
+                                <button
+                                    type="button"
+                                    className="px-8 py-3 text-white text-lg font-bold rounded-lg bg-primary hover:opacity-90 shadow-lg cursor-pointer"
+                                    onClick={handleContinueToStory}
+                                >
+                                    Continue
+                                </button>
+                            ) : (
+                                <p className="text-muted py-2">Waiting for host to continue...</p>
+                            )
+                        ) : isHost ? (
+                            <button
+                                type="button"
+                                disabled={!allSelected}
+                                className={`px-8 py-3 text-white text-lg font-bold rounded-lg transition-colors shadow-lg ${
+                                    allSelected
+                                        ? 'bg-green-600 hover:bg-green-700 hover:shadow-xl cursor-pointer'
+                                        : 'bg-gray-600 opacity-50 cursor-not-allowed'
+                                }`}
+                                onClick={handleStartGame}
+                            >
+                                Start Game
+                            </button>
+                        ) : null}
+                    </>
+                )}
+            </div>
         </div>
     );
 }

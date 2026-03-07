@@ -94,6 +94,35 @@ class CharacterManager
     }
 
     /**
+     * Update a character's fields (equipment, name, portraitId). Caller must ensure ownership.
+     *
+     * @param string $characterId
+     * @param array{equipment?: string[], name?: string, portraitId?: string} $updates
+     * @return Character|null Updated character or null if not found
+     */
+    public function updateCharacter(string $characterId, array $updates): ?Character
+    {
+        $character = $this->getCharacter($characterId);
+        if ($character === null) {
+            return null;
+        }
+        $data = $character->toArray();
+        if (isset($updates['equipment']) && is_array($updates['equipment'])) {
+            $data['equipment'] = array_values($updates['equipment']);
+        }
+        if (array_key_exists('name', $updates)) {
+            $data['name'] = (string) $updates['name'];
+        }
+        if (array_key_exists('portraitId', $updates)) {
+            $data['portraitId'] = (string) $updates['portraitId'];
+        }
+        $updated = Character::fromArray($data);
+        $this->persist($updated);
+        $this->cache[$characterId] = $updated;
+        return $updated;
+    }
+
+    /**
      * Equip an item on a character (e.g. from a story choice).
      * Removes any replaceItemIds from equipment, then adds itemId.
      *

@@ -318,7 +318,16 @@ export default function GameScreen({
                 </div>
 
                 {/* Player List */}
-                <PlayerList players={players} currentPlayerId={player.id} />
+                <PlayerList
+                    players={players}
+                    currentPlayerId={player.id}
+                    characterSelections={
+                        lobbyGameData != null
+                            ? (lobbyGameData.characterSelections as Record<string, string>) ??
+                              (lobbyGameData.character_selections as Record<string, string>)
+                            : undefined
+                    }
+                />
             </div>
 
             {/* Chat Sidebar (desktop) / Slide-over (tablet & mobile) */}

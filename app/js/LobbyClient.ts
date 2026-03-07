@@ -309,6 +309,18 @@ export class LobbyClient {
         return data.character as CampaignCharacterPayload;
     }
 
+    /** Update a campaign character (equipment, name, portraitId). Must be owned by current account. */
+    async updateCharacter(
+        characterId: string,
+        updates: { equipment?: string[]; name?: string; portraitId?: string }
+    ): Promise<CampaignCharacterPayload> {
+        const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updates),
+        });
+        return data.character as CampaignCharacterPayload;
+    }
+
     /** Delete a campaign character (must be owned by current account). Returns updated character list. */
     async deleteCharacter(characterId: string): Promise<CampaignCharacterPayload[]> {
         const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}`, {

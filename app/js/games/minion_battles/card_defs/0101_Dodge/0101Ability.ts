@@ -4,6 +4,7 @@
 
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
@@ -34,6 +35,10 @@ export const DodgeAbility: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DODGE_DURATION,
+    abilityTimings: [
+        { duration: DODGE_DURATION, abilityPhase: AbilityPhase.Iframe },
+        { duration: 0.8, abilityPhase: AbilityPhase.Cooldown },
+    ],
     targets: [{ type: 'pixel', label: 'Direction to dodge' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: DODGE_MAX_DISTANCE },
 

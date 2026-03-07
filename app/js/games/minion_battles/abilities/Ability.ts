@@ -10,6 +10,7 @@ import type { TargetDef } from './targeting';
 import type { ResolvedTarget } from '../engine/types';
 import type { ActiveAbility } from '../engine/types';
 import type { Unit } from '../objects/Unit';
+import type { AbilityTiming } from './abilityTimings';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
 export interface IAbilityPreviewGraphics {
@@ -72,6 +73,12 @@ export interface AbilityStatic {
      * Use 0 for instant abilities.
      */
     readonly prefireTime: number;
+
+    /**
+     * Optional. Segments for the circular progress indicator (windup / active / cooldown etc.).
+     * If present, the ring is drawn in segments by phase; otherwise a single color is used.
+     */
+    readonly abilityTimings?: AbilityTiming[];
 
     /**
      * Get the ability description, potentially varying with game state.
