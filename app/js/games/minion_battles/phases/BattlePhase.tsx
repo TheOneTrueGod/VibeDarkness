@@ -457,7 +457,6 @@ export default function BattlePhase({
 
         // Check if all targets are now fulfilled
         if (newTargets.length >= selectedAbility.targets.length) {
-            // Fire the ability!
             submitOrder(engine, selectedAbility.id, newTargets);
             setSelectedCardIndex(null);
             setSelectedAbility(null);

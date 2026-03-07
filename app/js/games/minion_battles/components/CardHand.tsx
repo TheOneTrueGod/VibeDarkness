@@ -11,7 +11,7 @@ import { getAbility } from '../abilities/AbilityRegistry';
 import { canAffordAbility } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
 import type { Unit } from '../objects/Unit';
-import { getCardDef } from '../card_defs';
+import { getCardDef, asCardDefId } from '../card_defs';
 import CardComponent from './CardComponent';
 import CardDescription from './CardDescription';
 import CooldownIndicator from './CooldownIndicator';
@@ -140,12 +140,12 @@ export default function CardHand({
 
     return (
         <div className="relative bg-dark-900/80 border-t border-dark-700 px-4 py-2">
-            {/* Cooldown indicator + card row */}
-            <div className="flex items-center gap-4">
-                {/* Deck / discard indicators + cooldown indicator + Wait button on far left */}
+            {/* Fixed-height row so canvas above does not resize when active card appears */}
+            <div className="flex items-center gap-4 h-[152px]">
+                {/* Deck / discard indicators + cooldown + Wait + active card + hand */}
                 {playerUnit && (
                     <>
-                        <div className="flex flex-col gap-2 mr-2">
+                        <div className="flex flex-col gap-2 mr-2 flex-shrink-0">
                             <div
                                 className="relative flex items-center justify-between gap-3 px-2.5 py-1.5 bg-black border border-white text-white text-xs leading-none"
                                 onMouseEnter={() => setHoveredPile('deck')}
@@ -212,42 +212,16 @@ export default function CardHand({
                                 )}
                             </div>
                         </div>
-                        <div className="flex flex-col items-center gap-1.5">
-                            <div className="flex items-center gap-2">
-                                <CooldownIndicator
-                                    unit={playerUnit}
-                                    size={48}
-                                    gameTime={gameTime ?? 0}
-                                />
-                                {(() => {
-                                    const active = playerUnit.activeAbilities[0];
-                                    const activeCard = active
-                                        ? handCards.find((c) => c.abilityId === active.abilityId)
-                                        : null;
-                                    const activeAbility = activeCard ? getAbility(activeCard.abilityId) : null;
-                                    if (!activeCard || !activeAbility) return null;
-                                    return (
-                                        <div className="opacity-80 flex-shrink-0">
-                                            <CardComponent
-                                                ability={activeAbility}
-                                                card={activeCard}
-                                                isSelected={false}
-                                                isDisabled
-                                                onSelect={() => {}}
-                                                isMobile={false}
-                                                showMobileDescription={false}
-                                                onMobileDescriptionToggle={() => {}}
-                                                onMobileDescriptionDismiss={() => {}}
-                                                gameState={gameState}
-                                            />
-                                        </div>
-                                    );
-                                })()}
-                            </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <CooldownIndicator
+                                unit={playerUnit}
+                                size={48}
+                                gameTime={gameTime ?? 0}
+                            />
                             <button
                                 onClick={onWait}
                                 disabled={!isMyTurn}
-                                className={`text-xs px-3 py-1 rounded border transition-colors ${
+                                className={`text-xs px-3 py-1 rounded border transition-colors flex-shrink-0 ${
                                     isMyTurn
                                         ? 'bg-dark-700 border-dark-500 text-gray-200 hover:bg-dark-600 hover:border-gray-400'
                                         : 'bg-dark-800 border-dark-700 text-gray-600 cursor-not-allowed'
@@ -256,12 +230,40 @@ export default function CardHand({
                             >
                                 Wait
                             </button>
+                            {/* Active ability card: same height as hand cards, visible for full ability duration (use active.abilityId, not hand) */}
+                            {(() => {
+                                const active = playerUnit.activeAbilities[0];
+                                const activeAbility = active ? getAbility(active.abilityId) : null;
+                                if (!active || !activeAbility) return null;
+                                const syntheticCard: CardInstance = {
+                                    cardDefId: asCardDefId(active.abilityId),
+                                    abilityId: active.abilityId,
+                                    location: 'hand',
+                                    durability: 1,
+                                };
+                                return (
+                                    <div className="opacity-90 flex-shrink-0">
+                                        <CardComponent
+                                            ability={activeAbility}
+                                            card={syntheticCard}
+                                            isSelected={false}
+                                            isDisabled
+                                            onSelect={() => {}}
+                                            isMobile={false}
+                                            showMobileDescription={false}
+                                            onMobileDescriptionToggle={() => {}}
+                                            onMobileDescriptionDismiss={() => {}}
+                                            gameState={gameState}
+                                        />
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </>
                 )}
 
-                {/* Cards: max width 800px so bar doesn't grow too wide */}
-                <div className="flex gap-2 flex-1 justify-center min-w-0 max-w-[800px]">
+                {/* Hand cards: max width 800px so bar doesn't grow too wide */}
+                <div className="flex gap-2 flex-1 justify-center min-w-0 max-w-[800px] items-center">
                     {handCards.map((card, index) => {
                         const ability = getAbility(card.abilityId);
                         if (!ability) return null;

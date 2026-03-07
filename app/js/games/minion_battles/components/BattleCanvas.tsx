@@ -71,17 +71,31 @@ export default function BattleCanvas({
         };
     }, [engine, camera, renderer, targetingStateRef]);
 
-    // Handle resize
+    // Handle resize — only when size crosses a threshold to avoid flicker from small layout changes
+    const lastBucketRef = useRef({ wBucket: -1, hBucket: -1 });
+    const WIDTH_THRESHOLDS = [400, 560, 720, 880, 1040, 1200, 1600];
+    const HEIGHT_THRESHOLDS = [300, 420, 540, 660, 780, 900, 1200];
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
 
+        function getBucket(value: number, thresholds: number[]) {
+            const i = thresholds.findIndex((t) => value <= t);
+            return i >= 0 ? i : thresholds.length;
+        }
+
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const { width, height } = entry.contentRect;
-                if (width > 0 && height > 0) {
-                    renderer.resize(width, height);
-                    camera.setViewportSize(width, height);
+                const w = Math.round(width);
+                const h = Math.round(height);
+                if (w <= 0 || h <= 0) continue;
+                const wBucket = getBucket(w, WIDTH_THRESHOLDS);
+                const hBucket = getBucket(h, HEIGHT_THRESHOLDS);
+                if (wBucket !== lastBucketRef.current.wBucket || hBucket !== lastBucketRef.current.hBucket) {
+                    lastBucketRef.current = { wBucket, hBucket };
+                    renderer.resize(w, h);
+                    camera.setViewportSize(w, h);
                 }
             }
         });
@@ -137,7 +151,7 @@ export default function BattleCanvas({
     return (
         <div
             ref={containerRef}
-            className="flex-1 relative bg-dark-800 overflow-hidden max-w-5xl mx-auto w-full"
+            className="flex-1 relative bg-dark-800 overflow-hidden max-w-5xl mx-auto w-full min-h-0"
         >
             <canvas
                 ref={canvasRef}
