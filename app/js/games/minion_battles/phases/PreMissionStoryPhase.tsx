@@ -176,7 +176,7 @@ export default function PreMissionStoryPhase({
                                     <CharacterPortrait
                                         key={npcId}
                                         picture={npc.portrait}
-                                        size="small"
+                                        size="large"
                                         className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
                                     />
                                 ) : (

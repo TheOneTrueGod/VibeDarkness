@@ -34,7 +34,7 @@ export const NPCS: Record<string, NpcDef> = {
     '1': {
         id: '1',
         name: 'Narrator',
-        color: '#475569', // slate-600, shadowy
+        color: '#6b5b95', // slightly brighter purple
         portrait: NARRATOR_PORTRAIT,
     },
 } as const;
