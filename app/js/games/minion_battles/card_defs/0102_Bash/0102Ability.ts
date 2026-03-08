@@ -17,7 +17,6 @@ import { asCardDefId, type CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { areEnemies } from '../../engine/teams';
-import { clampToMaxRange } from '../../abilities/previewHelpers';
 import type { EventBus } from '../../engine/EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
@@ -37,9 +36,23 @@ function getMinRange(_caster: Unit): number {
     return BASE_MIN_RANGE;
 }
 
-/** Maximum cast range (caster cannot target farther than this). Target point is capped to this. */
+/** Maximum cast range (caster cannot target farther than this). Bash always fires at this distance. */
 function getMaxRange(caster: Unit): number {
     return BASE_MAX_RANGE + caster.radius;
+}
+
+/** Point at max range in the direction from caster toward target (for preview and effect). */
+function getMaxRangeAimPoint(
+    caster: { x: number; y: number },
+    target: { x: number; y: number },
+    maxR: number,
+): { x: number; y: number } {
+    const dx = target.x - caster.x;
+    const dy = target.y - caster.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const dirX = dist > 0 ? dx / dist : 1;
+    const dirY = dist > 0 ? dy / dist : 0;
+    return { x: caster.x + dirX * maxR, y: caster.y + dirY * maxR };
 }
 
 interface GameEngineLike {
@@ -119,7 +132,7 @@ export const BashAbility: AbilityStatic = {
 
         const eng = engine as GameEngineLike;
         const maxR = getMaxRange(caster);
-        const { endX, endY } = clampToMaxRange(caster, targetDef.position, maxR);
+        const { x: endX, y: endY } = getMaxRangeAimPoint(caster, targetDef.position, maxR);
 
         const hitUnits = ThickLineHitbox.getUnitsInHitbox(
             eng,
@@ -179,7 +192,9 @@ export const BashAbility: AbilityStatic = {
         _currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
     ): void {
-        ThickLineHitbox.renderPreview(ctx, caster, mouseWorld, getMaxRange(caster), LINE_THICKNESS);
+        const maxR = getMaxRange(caster);
+        const aimAtMax = getMaxRangeAimPoint(caster, mouseWorld, maxR);
+        ThickLineHitbox.renderPreview(ctx, caster, aimAtMax, maxR, LINE_THICKNESS);
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
@@ -193,7 +208,9 @@ export const BashAbility: AbilityStatic = {
         mouseWorld: { x: number; y: number },
         _units: Unit[],
     ): void {
-        ThickLineHitbox.renderTargetingPreview(gr, caster, mouseWorld, getMaxRange(caster), LINE_THICKNESS);
+        const maxR = getMaxRange(caster);
+        const aimAtMax = getMaxRangeAimPoint(caster, mouseWorld, maxR);
+        ThickLineHitbox.renderTargetingPreview(gr, caster, aimAtMax, maxR, LINE_THICKNESS);
     },
 };
 
