@@ -16,6 +16,10 @@ import { createHealerUnit } from './HealerUnit';
 import { createGenericEnemy } from './GenericEnemy';
 import { createDarkWolfUnit } from './dark_animals/DarkWolf';
 
+/** Character IDs that have a dedicated unit factory. Used for createUnitByCharacterId only. */
+const CHARACTER_IDS = ['warrior', 'mage', 'ranger', 'healer', 'dark_wolf'] as const;
+export type CharacterId = (typeof CHARACTER_IDS)[number];
+
 export type UnitFactoryConfig = {
     id?: string;
     x: number;
@@ -32,7 +36,7 @@ export type UnitFactoryConfig = {
 
 type UnitFactory = (config: UnitFactoryConfig, eventBus: EventBus) => Unit;
 
-const UNIT_FACTORIES: Record<string, UnitFactory> = {
+const UNIT_FACTORIES: Record<CharacterId, UnitFactory> = {
     warrior: createWarriorUnit,
     mage: createMageUnit,
     ranger: createRangerUnit,
@@ -41,22 +45,29 @@ const UNIT_FACTORIES: Record<string, UnitFactory> = {
 };
 
 /**
- * Create a unit by character ID. Falls back to GenericEnemy for unknown IDs.
+ * Create a unit by character ID. Only accepts CharacterId (no portrait IDs).
+ * Use createPlayerUnit for player-controlled units.
  */
 export function createUnitByCharacterId(
-    characterId: string,
+    characterId: CharacterId,
     config: UnitFactoryConfig,
     eventBus: EventBus,
 ): Unit {
-    const factory = UNIT_FACTORIES[characterId];
-    if (factory) {
-        return factory(config, eventBus);
-    }
-    // Fallback: generic enemy with default stats from unit def (config.hp/speed override)
-    return createGenericEnemy(
-        { ...config, hp: config.hp ?? getDefaultHp(characterId), speed: config.speed ?? getDefaultSpeed(characterId), characterId },
-        eventBus,
-    );
+    return UNIT_FACTORIES[characterId](config, eventBus);
+}
+
+/**
+ * Create a player-controlled unit. Use this for all player units; do not use
+ * portrait IDs as characterId. Appearance is determined by appearanceCharacterId
+ * (defaults to 'warrior' for portraits that have no unit class).
+ */
+export function createPlayerUnit(
+    config: UnitFactoryConfig & { appearanceCharacterId?: CharacterId },
+    eventBus: EventBus,
+): Unit {
+    const appearanceCharacterId = config.appearanceCharacterId ?? 'warrior';
+    const { appearanceCharacterId: _drop, ...factoryConfig } = config;
+    return createUnitByCharacterId(appearanceCharacterId, factoryConfig, eventBus);
 }
 
 /**
@@ -80,7 +91,10 @@ export function createUnitFromSpawnConfig(
     eventBus: EventBus,
 ): Unit {
     // Try character-specific factory first (for resources), then override stats
-    const factory = UNIT_FACTORIES[config.characterId];
+    const characterId = config.characterId;
+    const factory = CHARACTER_IDS.includes(characterId as CharacterId)
+        ? UNIT_FACTORIES[characterId as CharacterId]
+        : undefined;
     if (factory) {
         const unit = factory(
             {

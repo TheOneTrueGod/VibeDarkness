@@ -8,20 +8,20 @@ import { DARK_AWAKENING } from '../storylines/WorldOfDarkness/missions/dark_awak
 
 describe('GameEngine', () => {
     it.each([
-        [1, [{ playerId: 'p1', characterId: 'warrior', name: 'P1' }]],
+        [1, [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }]],
         [
             2,
             [
-                { playerId: 'p1', characterId: 'warrior', name: 'P1' },
-                { playerId: 'p2', characterId: 'ranger', name: 'P2' },
+                { playerId: 'p1', name: 'P1', portraitId: 'warrior' },
+                { playerId: 'p2', name: 'P2', portraitId: 'ranger' },
             ],
         ],
         [
             3,
             [
-                { playerId: 'p1', characterId: 'warrior', name: 'P1' },
-                { playerId: 'p2', characterId: 'ranger', name: 'P2' },
-                { playerId: 'p3', characterId: 'warrior', name: 'P3' },
+                { playerId: 'p1', name: 'P1', portraitId: 'warrior' },
+                { playerId: 'p2', name: 'P2', portraitId: 'ranger' },
+                { playerId: 'p3', name: 'P3', portraitId: 'warrior' },
             ],
         ],
     ] as const)('spawns %i player unit(s) when game started with %i player(s)', (expectedCount, playerUnits) => {
@@ -58,7 +58,7 @@ describe('GameEngine', () => {
 
         engine.prepareForNewGame({ localPlayerId: 'p1' });
         DARK_AWAKENING.initializeGameState(engine, {
-            playerUnits: [{ playerId: 'p1', characterId: 'warrior', name: 'P1' }],
+            playerUnits: [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }],
             localPlayerId: 'p1',
             eventBus: engine.eventBus,
             equippedItemsByPlayer: { p1: ['004'] },
@@ -92,7 +92,7 @@ describe('GameEngine', () => {
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1' });
         DARK_AWAKENING.initializeGameState(engine, {
-            playerUnits: [{ playerId: 'p1', characterId: 'warrior', name: 'P1' }],
+            playerUnits: [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }],
             localPlayerId: 'p1',
             eventBus: engine.eventBus,
             equippedItemsByPlayer: { p1: ['004'] },

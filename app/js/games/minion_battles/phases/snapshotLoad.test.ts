@@ -14,7 +14,7 @@ function makeCheckpointSnapshot(overrides: Partial<Record<string, unknown>> = {}
     const engine = new GameEngine();
     engine.prepareForNewGame({ localPlayerId: 'p1' });
     DARK_AWAKENING.initializeGameState(engine, {
-        playerUnits: [{ playerId: 'p1', characterId: 'warrior', name: 'Host' }],
+        playerUnits: [{ playerId: 'p1', name: 'Host', portraitId: 'warrior' }],
         localPlayerId: 'p1',
         eventBus: engine.eventBus,
         equippedItemsByPlayer: { p1: ['004'] },

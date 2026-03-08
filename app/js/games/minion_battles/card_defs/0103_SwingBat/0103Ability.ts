@@ -2,7 +2,8 @@
  * Swing Bat - Warrior melee ability.
  *
  * Similar to Bash: targets a point (capped to range), thick-line hitbox,
- * hits closest enemy. Deals more damage than Bash and applies knockback (poise check).
+ * hits closest enemy. Wind up 0.2s, then plays a bash effect travelling along the full line
+ * and deals damage + knockback (poise check) to the closest enemy in the line (if any).
  * 20% longer range than original (72 + caster size). Line thickness 26.
  */
 
@@ -102,6 +103,25 @@ export const SwingBatAbility: AbilityStatic = {
             LINE_THICKNESS,
         );
 
+        // Effect travels along the full ability line (caster edge to capped target point)
+        const lineDx = endX - caster.x;
+        const lineDy = endY - caster.y;
+        const lineDist = Math.sqrt(lineDx * lineDx + lineDy * lineDy);
+        const dX = lineDist > 0 ? lineDx / lineDist : 1;
+        const dY = lineDist > 0 ? lineDy / lineDist : 0;
+        const effectStartX = caster.x + dX * (caster.radius * 0.5);
+        const effectStartY = caster.y + dY * (caster.radius * 0.5);
+
+        const effect = new Effect({
+            x: endX,
+            y: endY,
+            duration: SWING_BAT_EFFECT_DURATION,
+            effectType: 'bash',
+            startX: effectStartX,
+            startY: effectStartY,
+        });
+        eng.addEffect(effect);
+
         if (hitUnits.length === 0) return;
 
         const casterX = caster.x;
@@ -128,13 +148,13 @@ export const SwingBatAbility: AbilityStatic = {
         );
         const dx = targetUnit.x - caster.x;
         const dy = targetUnit.y - caster.y;
-        const dX = dist > 0 ? dx / dist : 1;
-        const dY = dist > 0 ? dy / dist : 0;
+        const tX = dist > 0 ? dx / dist : 1;
+        const tY = dist > 0 ? dy / dist : 0;
 
         targetUnit.applyKnockback(
             POISE_DAMAGE,
             {
-                knockbackVector: { x: dX * KNOCKBACK_MAGNITUDE, y: dY * KNOCKBACK_MAGNITUDE },
+                knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
                 knockbackAirTime: KNOCKBACK_AIR_TIME,
                 knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
                 knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
@@ -142,21 +162,6 @@ export const SwingBatAbility: AbilityStatic = {
             eng.eventBus,
             (u) => eng.interruptUnitAndRefundAbilities(u),
         );
-
-        const startX = caster.x + dX * (caster.radius * 0.5);
-        const startY = caster.y + dY * (caster.radius * 0.5);
-        const effectEndX = targetUnit.x - dX * (targetUnit.radius * 0.5);
-        const effectEndY = targetUnit.y - dY * (targetUnit.radius * 0.5);
-
-        const effect = new Effect({
-            x: effectEndX,
-            y: effectEndY,
-            duration: SWING_BAT_EFFECT_DURATION,
-            effectType: 'bash',
-            startX,
-            startY,
-        });
-        eng.addEffect(effect);
     },
 
     renderPreview(

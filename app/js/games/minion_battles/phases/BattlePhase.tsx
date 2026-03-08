@@ -192,10 +192,10 @@ export default function BattlePhase({
                 ? characterSelections
                 : ((init?.characterSelections ?? init?.character_selections) as Record<string, string>) ?? {};
             const portraitIds = (init?.characterPortraitIds ?? init?.character_portrait_ids) as Record<string, string> | undefined;
-            const playerUnits = Object.entries(selections).map(([pid, charId]) => ({
+            const playerUnits = Object.entries(selections).map(([pid]) => ({
                 playerId: pid,
-                characterId: portraitIds?.[pid] ?? charId,
                 name: players[pid]?.name ?? 'Unknown',
+                portraitId: portraitIds?.[pid],
             }));
             // Backend sets playerEquipmentByPlayer only when characterSelections exist and each
             // CharacterManager.getCharacter(characterId) returns a character. Empty when: (1) no

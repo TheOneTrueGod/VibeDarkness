@@ -3,7 +3,8 @@
  *
  * Targets a point within range 50 + caster size (distance capped if farther).
  * Thick-line hitbox from caster to capped point; hits the closest enemy in the line.
- * Wind up 0.2s (no move), then deals damage and spawns bash effect on that enemy.
+ * Wind up 0.2s (no move), then plays a bash effect travelling along the full line
+ * and deals damage to the closest enemy in the line (if any).
  */
 
 import { AbilityState } from '../../abilities/Ability';
@@ -130,6 +131,25 @@ export const BashAbility: AbilityStatic = {
             LINE_THICKNESS,
         );
 
+        // Effect travels along the full ability line (caster edge to capped target point)
+        const lineDx = endX - caster.x;
+        const lineDy = endY - caster.y;
+        const lineDist = Math.sqrt(lineDx * lineDx + lineDy * lineDy);
+        const dX = lineDist > 0 ? lineDx / lineDist : 1;
+        const dY = lineDist > 0 ? lineDy / lineDist : 0;
+        const effectStartX = caster.x + dX * (caster.radius * 0.5);
+        const effectStartY = caster.y + dY * (caster.radius * 0.5);
+
+        const bashEffect = new Effect({
+            x: endX,
+            y: endY,
+            duration: BASH_EFFECT_DURATION,
+            effectType: 'bash',
+            startX: effectStartX,
+            startY: effectStartY,
+        });
+        eng.addEffect(bashEffect);
+
         if (hitUnits.length === 0) return;
 
         // Closest enemy to caster (in the thick line) is the one we hit
@@ -151,28 +171,6 @@ export const BashAbility: AbilityStatic = {
             }
         }
         targetUnit.takeDamage(DAMAGE, caster.id, eng.eventBus);
-
-        const dist = Math.sqrt(
-            (targetUnit.x - caster.x) ** 2 + (targetUnit.y - caster.y) ** 2,
-        );
-        const dx = targetUnit.x - caster.x;
-        const dy = targetUnit.y - caster.y;
-        const dX = dist > 0 ? dx / dist : 1;
-        const dY = dist > 0 ? dy / dist : 0;
-        const startX = caster.x + dX * (caster.radius * 0.5);
-        const startY = caster.y + dY * (caster.radius * 0.5);
-        const effectEndX = targetUnit.x - dX * (targetUnit.radius * 0.5);
-        const effectEndY = targetUnit.y - dY * (targetUnit.radius * 0.5);
-
-        const bashEffect = new Effect({
-            x: effectEndX,
-            y: effectEndY,
-            duration: BASH_EFFECT_DURATION,
-            effectType: 'bash',
-            startX,
-            startY,
-        });
-        eng.addEffect(bashEffect);
     },
 
     renderPreview(

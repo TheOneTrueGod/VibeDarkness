@@ -202,12 +202,3 @@ export const CHARACTERS: CharacterDef[] = [
         cards: ['example_card'],
     },
 ];
-
-/** Map of character ID -> CharacterDef for quick lookups */
-export const CHARACTER_MAP: Map<string, CharacterDef> = new Map(
-    CHARACTERS.map((c) => [c.id, c])
-);
-
-export function getCharacterDef(id: string): CharacterDef | undefined {
-    return CHARACTER_MAP.get(id);
-}

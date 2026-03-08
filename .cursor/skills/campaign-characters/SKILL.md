@@ -36,7 +36,7 @@ All data sent to or from the server must be serializable (JSON-friendly):
 ## Frontend
 
 - **Types**: `CampaignCharacterData` (serializable), `CharacterTrait` (union of allowed trait strings), `BattleChipDetails`, `KnowledgeDetails`. See `app/js/games/minion_battles/character_defs/campaignCharacterTypes.ts`.
-- **Portraits**: `PORTRAITS` in `character_defs/portraits.ts` — map of portrait ID → `{ id, name, picture }`. Filled from the same defs as legacy characters (warrior, mage, ranger, healer, rogue, necromancer).
+- **Portraits**: `PORTRAITS` in `character_defs/portraits.ts` — map of portrait ID → `{ id, name, picture }`
 - **Class**: `CampaignCharacter` in `character_defs/CampaignCharacter.ts`. Create from server data with `fromCampaignCharacterData(data)`.
   - `canBeUsedOnMission(campaignId, missionId?, missionDef?)` — returns true if character's campaign matches and trait filters pass.
   - `getDisallowReason(campaignId, missionId?, missionDef?)` — returns a one-word reason (`'campaign'`, `'allowed'`, `'disallowed'`) or null if allowed.

@@ -12,17 +12,27 @@ import type { EnemySpawnDef, MissionBattleConfig, LevelEvent, PlayerSpawnPoint }
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../engine/EventBus';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
-import { createUnitByCharacterId, createUnitFromSpawnConfig } from '../objects/units/index';
+import type { CharacterId } from '../objects/units/index';
+import { createPlayerUnit, createUnitFromSpawnConfig } from '../objects/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { createCardInstance, MAX_HAND_SIZE, WORLD_HEIGHT } from '../engine/GameEngine';
 import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
 
+const PLAYER_APPEARANCE_CHARACTER_IDS: readonly CharacterId[] = ['warrior', 'mage', 'ranger', 'healer'];
+
+function getAppearanceCharacterId(portraitId: string | undefined): CharacterId {
+    if (portraitId && PLAYER_APPEARANCE_CHARACTER_IDS.includes(portraitId as CharacterId)) {
+        return portraitId as CharacterId;
+    }
+    return 'warrior';
+}
+
 /** Parameters for initializing game state. */
 export interface InitializeGameStateParams {
-    /** Player units to spawn (from character selections). */
-    playerUnits: { playerId: string; characterId: string; name: string }[];
+    /** Player units to spawn (from character selections). portraitId is used for appearance only. */
+    playerUnits: { playerId: string; name: string; portraitId?: string }[];
     /** Local player's ID (for camera/turn handling). */
     localPlayerId: string;
     /** Event bus for game events. */
@@ -114,8 +124,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 spawnY = sp.row * cellSize + cellSize / 2;
             }
 
-            const unit = createUnitByCharacterId(
-                pu.characterId,
+            const unit = createPlayerUnit(
                 {
                     x: spawnX,
                     y: spawnY,
@@ -123,6 +132,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     ownerId: pu.playerId,
                     name: pu.name,
                     abilities,
+                    appearanceCharacterId: getAppearanceCharacterId(pu.portraitId),
                 },
                 params.eventBus,
             );
