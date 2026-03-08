@@ -230,6 +230,8 @@ export default function CardHand({
                             >
                                 Wait
                             </button>
+                        </div>
+                        <div>
                             {/* Active ability card: same height as hand cards, visible for full ability duration (use active.abilityId, not hand) */}
                             {(() => {
                                 const active = playerUnit.activeAbilities[0];

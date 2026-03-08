@@ -12,6 +12,9 @@ export interface PortraitLayout {
     right?: string[];
 }
 
+/** Reusable text effect for dialogue (e.g. title_bounce = large, centered, purple, per-char bounce). */
+export type StoryTextEffect = 'title_bounce';
+
 /** Dialogue phrase: a single line from a character. */
 export interface DialoguePhrase {
     type: 'dialogue';
@@ -23,6 +26,8 @@ export interface DialoguePhrase {
     portraits?: PortraitLayout;
     /** Full-screen background image URL; fades when changing. */
     backgroundImage?: string;
+    /** Optional named text effect (e.g. title_bounce) instead of default dialogue box. */
+    textEffect?: StoryTextEffect;
 }
 
 /** Choice action: equip_item adds cards to deck at battle start. */

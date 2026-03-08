@@ -27,6 +27,7 @@ export default {
             animation: {
                 'slide-in': 'slideIn 0.3s ease',
                 'fade-out': 'fadeOut 0.3s ease forwards',
+                'story-title-bounce': 'storyTitleBounce 2.5s ease-in-out infinite',
             },
             keyframes: {
                 slideIn: {
@@ -35,6 +36,10 @@ export default {
                 },
                 fadeOut: {
                     to: { transform: 'translateX(100%)', opacity: '0' },
+                },
+                storyTitleBounce: {
+                    '0%, 100%': { transform: 'translateY(0)' },
+                    '50%': { transform: 'translateY(-8px)' },
                 },
             },
         },

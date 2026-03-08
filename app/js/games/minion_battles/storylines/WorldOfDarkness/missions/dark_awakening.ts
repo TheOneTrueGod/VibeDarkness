@@ -10,6 +10,7 @@ import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
+import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
@@ -114,21 +115,18 @@ const LEVEL_EVENTS: LevelEvent[] = [
         type: 'spawnWave',
         trigger: { atRound: 2 },
         spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2 }],
-        emittedMessage: 'Reinforcements have arrived!',
         emittedByNpcId: '1',
     },
     {
         type: 'spawnWave',
         trigger: { atRound: 3 },
         spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 3 }],
-        emittedMessage: 'Reinforcements have arrived!',
         emittedByNpcId: '1',
     },
     {
         type: 'spawnWave',
         trigger: { atRound: 4 },
         spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 3 }],
-        emittedMessage: 'Reinforcements have arrived!',
         emittedByNpcId: '1',
     },
     {
@@ -158,15 +156,30 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "You open your eyes to see a campfire in front of you. You don't have much time to get your bearings or remember where you are before you hear movement and growling in the edge of the light. You quickly scan your surroundings for something to defend yourself with.",
+            text: 'Wake Up',
+            textEffect: 'title_bounce',
+            backgroundImage: STORY_BACKGROUNDS.campfire,
+        },
+        {
+            type: 'dialogue',
+            speakerId: '1',
+            text: "You open your eyes. A campfire crackles before you, its light dancing on the ground. Beyond the glow, darkness presses in. From the edge of the light come movement and growling.",
             portraitSide: 'left',
+            backgroundImage: STORY_BACKGROUNDS.campfire,
+        },
+        {
+            type: 'dialogue',
+            speakerId: '1',
+            text: "You have no time to remember where you are. You push yourself up and scan the camp for anything you can use to defend yourself.",
+            portraitSide: 'left',
+            backgroundImage: STORY_BACKGROUNDS.campfire,
         },
         {
             type: 'choice',
             choiceId: 'dark_awakening_weapon',
             options: [
                 { id: 'rocks', label: 'Grab some nearby rocks', action: { type: 'equip_item', itemId: '001' } },
-                { id: 'torch', label: 'Grab a smoldering stick', action: { type: 'equip_item', itemId: '002' } },
+                { id: 'torch', label: 'Grab a thick branch', action: { type: 'equip_item', itemId: '002' } },
                 {
                     id: 'pot_shield',
                     label: 'Pick up the lid of a pot from the campfire',

@@ -11,6 +11,7 @@ import type { PreMissionStoryDef, DialoguePhrase, ChoicePhrase } from '../storyl
 import { getItemDef } from '../character_defs/items';
 import VNTextBox from '../components/VNTextBox';
 import CharacterPortrait from '../components/CharacterPortrait';
+import StoryTextEffect from '../components/StoryTextEffect';
 
 interface PreMissionStoryPhaseProps {
     lobbyClient: LobbyClient;
@@ -155,96 +156,109 @@ export default function PreMissionStoryPhase({
         setBackgroundImage(currentPhrase.backgroundImage);
     }
 
+    const isTitleEffect = isDialogue(currentPhrase) && currentPhrase.textEffect === 'title_bounce';
+
     return (
-        <div className="w-full h-full flex flex-col overflow-hidden bg-surface relative">
-            {/* Full-screen background image with fade */}
+        <div className="w-full h-full flex flex-col overflow-hidden bg-black relative">
+            {/* Background image: top 80% only so bottom sits ~20% into the text box area */}
             {backgroundImage && (
                 <div
                     className="absolute inset-0 bg-cover bg-center transition-opacity duration-500 z-0"
                     style={{ backgroundImage: `url(${backgroundImage})`, opacity: bgOpacity }}
                 />
             )}
-            <div className="relative z-10 flex-1 flex flex-col min-h-0 justify-end">
-                {/* Portrait row: bottom-aligned to the top of VNTextBox */}
-                {isDialogue(currentPhrase) && (
-                    <div className="flex shrink-0 justify-between gap-4 px-6 pt-4 pb-0 h-[140px] items-end">
-                        <div className="flex gap-2 items-end">
-                            {(currentPhrase.portraits?.left ?? (currentPhrase.speakerId ? [currentPhrase.speakerId] : [])).slice(0, 2).map((npcId) => {
-                                const npc = getNpc(npcId);
-                                const isActive = currentPhrase.speakerId === npcId;
-                                return npc?.portrait ? (
-                                    <CharacterPortrait
-                                        key={npcId}
-                                        picture={npc.portrait}
-                                        size="large"
-                                        className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
-                                    />
-                                ) : (
-                                    <div
-                                        key={npcId}
-                                        className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
-                                        style={{ backgroundColor: npc?.color ?? '#333' }}
-                                    />
-                                );
-                            })}
-                        </div>
-                        <div className="flex gap-2 items-end">
-                            {(currentPhrase.portraits?.right ?? []).slice(0, 2).map((npcId) => {
-                                const npc = getNpc(npcId);
-                                const isActive = currentPhrase.speakerId === npcId;
-                                return npc?.portrait ? (
-                                    <CharacterPortrait
-                                        key={npcId}
-                                        picture={npc.portrait}
-                                        size="small"
-                                        className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
-                                    />
-                                ) : (
-                                    <div
-                                        key={npcId}
-                                        className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
-                                        style={{ backgroundColor: npc?.color ?? '#333' }}
-                                    />
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* VNTextBox: dialogue or choices */}
-                <div className="shrink-0 px-6 pb-6">
-                    {isDialogue(currentPhrase) ? (
-                        <VNTextBox
-                            title={getNpc(currentPhrase.speakerId)?.name ?? 'Unknown'}
-                            titleColor={getNpc(currentPhrase.speakerId)?.color ?? '#ffffff'}
-                        >
-                            <>
-                                <p className="mb-6">{currentPhrase.text}</p>
-                                <button
-                                    type="button"
-                                    onClick={advancePhrase}
-                                    className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
-                                >
-                                    Next
-                                </button>
-                            </>
-                        </VNTextBox>
-                    ) : (
-                        <VNTextBox>
-                            <div className="space-y-3">
-                                {currentPhrase.options.map((opt) => (
-                                    <button
-                                        key={opt.id}
-                                        type="button"
-                                        onClick={() => handleChoice(currentPhrase.choiceId, opt.id, opt)}
-                                        className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white"
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
+            <div className="relative z-10 flex-1 flex flex-col min-h-0 justify-end items-center">
+                {/* Content constrained to max-width for narrator text boxes & images */}
+                <div className="w-full max-w-[1200px] flex flex-col flex-1 min-h-0 justify-end mx-auto px-6">
+                    {/* Portrait row: when dialogue (including textEffect phrases) */}
+                    {isDialogue(currentPhrase) && (
+                        <div className="flex shrink-0 justify-between gap-4 pt-4 pb-0 h-[140px] items-end">
+                            <div className="flex gap-2 items-end">
+                                {(currentPhrase.portraits?.left ?? (currentPhrase.speakerId ? [currentPhrase.speakerId] : [])).slice(0, 2).map((npcId) => {
+                                    const npc = getNpc(npcId);
+                                    const isActive = currentPhrase.speakerId === npcId;
+                                    return npc?.portrait ? (
+                                        <CharacterPortrait
+                                            key={npcId}
+                                            picture={npc.portrait}
+                                            size="large"
+                                            className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
+                                        />
+                                    ) : (
+                                        <div
+                                            key={npcId}
+                                            className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
+                                            style={{ backgroundColor: npc?.color ?? '#333' }}
+                                        />
+                                    );
+                                })}
                             </div>
-                        </VNTextBox>
+                            <div className="flex gap-2 items-end">
+                                {(currentPhrase.portraits?.right ?? []).slice(0, 2).map((npcId) => {
+                                    const npc = getNpc(npcId);
+                                    const isActive = currentPhrase.speakerId === npcId;
+                                    return npc?.portrait ? (
+                                        <CharacterPortrait
+                                            key={npcId}
+                                            picture={npc.portrait}
+                                            size="small"
+                                            className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
+                                        />
+                                    ) : (
+                                        <div
+                                            key={npcId}
+                                            className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
+                                            style={{ backgroundColor: npc?.color ?? '#333' }}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
                     )}
+
+                    {/* Dialogue: text box. Choice: separate card above where text box would be; text box hidden. */}
+                    <div className="shrink-0 pb-6 flex flex-col gap-4">
+                        {isDialogue(currentPhrase) ? (
+                            <VNTextBox
+                                title={getNpc(currentPhrase.speakerId)?.name ?? 'Unknown'}
+                                titleColor={getNpc(currentPhrase.speakerId)?.color ?? '#ffffff'}
+                                actions={
+                                    <button
+                                        type="button"
+                                        onClick={advancePhrase}
+                                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
+                                    >
+                                        Next
+                                    </button>
+                                }
+                            >
+                                {isTitleEffect ? (
+                                    <StoryTextEffect effect="title_bounce" text={currentPhrase.text} />
+                                ) : (
+                                    <p className="mb-0">{currentPhrase.text}</p>
+                                )}
+                            </VNTextBox>
+                        ) : (
+                            <>
+                                <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-6">
+                                    <div className="space-y-3">
+                                        {currentPhrase.options.map((opt) => (
+                                            <button
+                                                key={opt.id}
+                                                type="button"
+                                                onClick={() => handleChoice(currentPhrase.choiceId, opt.id, opt)}
+                                                className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white"
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                {/* Spacer so choice card sits above where the text box would be */}
+                                <div className="min-h-[16rem]" aria-hidden />
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
