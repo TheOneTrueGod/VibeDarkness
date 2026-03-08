@@ -1,10 +1,9 @@
 /**
  * Swing Bat - Warrior melee ability.
  *
- * Similar to Bash: targets a point (capped to range), thick-line hitbox,
- * hits closest enemy. Wind up 0.2s, then plays a bash effect travelling along the full line
- * and deals damage + knockback (poise check) to the closest enemy in the line (if any).
- * 20% longer range than original (72 + caster size). Line thickness 26.
+ * Thick line perpendicular to the aim direction, at a distance between min and max range.
+ * Hits the enemy closest to the left end of the line. Wind up 0.2s, bash effect to centre of line,
+ * damage + knockback (poise check). Line thickness 26, swing length 80.
  */
 
 import { AbilityState } from '../../abilities/Ability';
@@ -15,7 +14,6 @@ import type { ResolvedTarget } from '../../engine/types';
 import { asCardDefId, type CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { clampToMaxRange } from '../../abilities/previewHelpers';
 import type { EventBus } from '../../engine/EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
@@ -24,7 +22,7 @@ import { ThickLineHitbox } from '../../hitboxes';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
 const PREFIRE_TIME = 0.2;
 const BASE_MIN_RANGE = 0;
-const BASE_MAX_RANGE = 72; // 60 * 1.2 (20% longer)
+const BASE_MAX_RANGE = 56;
 const DAMAGE = 10;
 const SWING_BAT_EFFECT_DURATION = 0.4;
 const POISE_DAMAGE = 10;
@@ -33,6 +31,8 @@ const KNOCKBACK_AIR_TIME = 0.3;
 const KNOCKBACK_SLIDE_TIME = 0.2;
 /** Line thickness for hitbox and preview (px). */
 const LINE_THICKNESS = 26;
+/** Length of the perpendicular swing line (px). */
+const SWING_LENGTH = 80;
 
 function getMinRange(_caster: Unit): number {
     return BASE_MIN_RANGE;
@@ -40,6 +40,45 @@ function getMinRange(_caster: Unit): number {
 
 function getMaxRange(caster: Unit): number {
     return BASE_MAX_RANGE + caster.radius;
+}
+
+/** Perpendicular line: centre at clamped distance along aim; left/right ends for hitbox. */
+function getPerpendicularLine(
+    caster: { x: number; y: number },
+    target: { x: number; y: number },
+    minRange: number,
+    maxRange: number,
+): {
+    leftX: number;
+    leftY: number;
+    rightX: number;
+    rightY: number;
+    centerX: number;
+    centerY: number;
+    aimDirX: number;
+    aimDirY: number;
+} {
+    const dx = target.x - caster.x;
+    const dy = target.y - caster.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const aimDirX = dist > 0 ? dx / dist : 1;
+    const aimDirY = dist > 0 ? dy / dist : 0;
+    const clampedDist = Math.max(minRange, Math.min(maxRange, dist || maxRange));
+    const centerX = caster.x + aimDirX * clampedDist;
+    const centerY = caster.y + aimDirY * clampedDist;
+    const half = SWING_LENGTH / 2;
+    const perpX = -aimDirY * half;
+    const perpY = aimDirX * half;
+    return {
+        leftX: centerX - perpX,
+        leftY: centerY - perpY,
+        rightX: centerX + perpX,
+        rightY: centerY + perpY,
+        centerX,
+        centerY,
+        aimDirX,
+        aimDirY,
+    };
 }
 
 interface GameEngineLike {
@@ -69,7 +108,7 @@ export const SwingBatAbility: AbilityStatic = {
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
     getDescription(_gameState?: unknown): string {
-        return `Melee attack. Wind up 0.2s (cannot move). Aim at a point; hits closest enemy in a thick line. Deal ${DAMAGE} damage and attempt knockback (poise check). Max range: ${BASE_MAX_RANGE} + your size.`;
+        return `Melee attack. Wind up 0.2s (cannot move). Aim to set distance; thick line is perpendicular and hits the enemy closest to its left. Deal ${DAMAGE} damage and knockback (poise check). Range: ${BASE_MIN_RANGE}–${BASE_MAX_RANGE} + your size.`;
     },
 
     getRange(caster: Unit): { minRange: number; maxRange: number } {
@@ -90,45 +129,35 @@ export const SwingBatAbility: AbilityStatic = {
         if (!targetDef || targetDef.type !== 'pixel' || !targetDef.position) return;
 
         const eng = engine as GameEngineLike;
+        const minR = getMinRange(caster);
         const maxR = getMaxRange(caster);
-        const { endX, endY } = clampToMaxRange(caster, targetDef.position, maxR);
+        const line = getPerpendicularLine(caster, targetDef.position, minR, maxR);
 
         const hitUnits = ThickLineHitbox.getUnitsInHitbox(
             eng,
             caster,
-            caster.x,
-            caster.y,
-            endX,
-            endY,
+            line.leftX,
+            line.leftY,
+            line.rightX,
+            line.rightY,
             LINE_THICKNESS,
         );
 
-        // Effect travels along the full ability line (caster edge to capped target point)
-        const lineDx = endX - caster.x;
-        const lineDy = endY - caster.y;
-        const lineDist = Math.sqrt(lineDx * lineDx + lineDy * lineDy);
-        const dX = lineDist > 0 ? lineDx / lineDist : 1;
-        const dY = lineDist > 0 ? lineDy / lineDist : 0;
-        const effectStartX = caster.x + dX * (caster.radius * 0.5);
-        const effectStartY = caster.y + dY * (caster.radius * 0.5);
-
         const effect = new Effect({
-            x: endX,
-            y: endY,
+            x: line.rightX,
+            y: line.rightY,
             duration: SWING_BAT_EFFECT_DURATION,
             effectType: 'bash',
-            startX: effectStartX,
-            startY: effectStartY,
+            startX: line.leftX,
+            startY: line.leftY,
         });
         eng.addEffect(effect);
 
         if (hitUnits.length === 0) return;
 
-        const casterX = caster.x;
-        const casterY = caster.y;
         hitUnits.sort((a, b) => {
-            const da = (a.x - casterX) ** 2 + (a.y - casterY) ** 2;
-            const db = (b.x - casterX) ** 2 + (b.y - casterY) ** 2;
+            const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
+            const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
             return da - db;
         });
         const targetUnit = hitUnits[0];
@@ -170,7 +199,51 @@ export const SwingBatAbility: AbilityStatic = {
         _currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
     ): void {
-        ThickLineHitbox.renderPreview(ctx, caster, mouseWorld, getMaxRange(caster), LINE_THICKNESS);
+        const minR = getMinRange(caster);
+        const maxR = getMaxRange(caster);
+        const line = getPerpendicularLine(caster, mouseWorld, minR, maxR);
+        const half = LINE_THICKNESS / 2;
+        const offX = line.aimDirX * half;
+        const offY = line.aimDirY * half;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(120, 120, 120, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.arc(caster.x, caster.y, maxR, 0, Math.PI * 2);
+        ctx.stroke();
+        if (minR > 0) {
+            ctx.beginPath();
+            ctx.arc(caster.x, caster.y, minR, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        const x0 = line.leftX + offX;
+        const y0 = line.leftY + offY;
+        const x1 = line.leftX - offX;
+        const y1 = line.leftY - offY;
+        const x2 = line.rightX - offX;
+        const y2 = line.rightY - offY;
+        const x3 = line.rightX + offX;
+        const y3 = line.rightY + offY;
+
+        const gradient = ctx.createLinearGradient(line.leftX, line.leftY, line.rightX, line.rightY);
+        gradient.addColorStop(0, 'rgba(100, 100, 115, 0.55)');
+        gradient.addColorStop(1, 'rgba(200, 200, 215, 0.7)');
+        ctx.fillStyle = gradient;
+        ctx.strokeStyle = 'rgba(80, 80, 80, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineTo(x3, y3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
@@ -184,7 +257,43 @@ export const SwingBatAbility: AbilityStatic = {
         mouseWorld: { x: number; y: number },
         _units: Unit[],
     ): void {
-        ThickLineHitbox.renderTargetingPreview(gr, caster, mouseWorld, getMaxRange(caster), LINE_THICKNESS);
+        const minR = getMinRange(caster);
+        const maxR = getMaxRange(caster);
+        const line = getPerpendicularLine(caster, mouseWorld, minR, maxR);
+        const half = LINE_THICKNESS / 2;
+        const offX = line.aimDirX * half;
+        const offY = line.aimDirY * half;
+
+        const leftTopX = line.leftX + offX;
+        const leftTopY = line.leftY + offY;
+        const leftBotX = line.leftX - offX;
+        const leftBotY = line.leftY - offY;
+        const rightBotX = line.rightX - offX;
+        const rightBotY = line.rightY - offY;
+        const rightTopX = line.rightX + offX;
+        const rightTopY = line.rightY + offY;
+        const midX = line.centerX;
+        const midY = line.centerY;
+
+        gr.clear();
+        gr.moveTo(leftTopX, leftTopY);
+        gr.lineTo(leftBotX, leftBotY);
+        gr.lineTo(midX - offX, midY - offY);
+        gr.lineTo(midX + offX, midY + offY);
+        gr.lineTo(leftTopX, leftTopY);
+        gr.fill({ color: 0x646473, alpha: 0.55 });
+        gr.moveTo(midX + offX, midY + offY);
+        gr.lineTo(midX - offX, midY - offY);
+        gr.lineTo(rightBotX, rightBotY);
+        gr.lineTo(rightTopX, rightTopY);
+        gr.lineTo(midX + offX, midY + offY);
+        gr.fill({ color: 0xc8c8d7, alpha: 0.7 });
+        gr.moveTo(leftTopX, leftTopY);
+        gr.lineTo(leftBotX, leftBotY);
+        gr.lineTo(rightBotX, rightBotY);
+        gr.lineTo(rightTopX, rightTopY);
+        gr.lineTo(leftTopX, leftTopY);
+        gr.stroke({ color: 0x505050, width: 2, alpha: 0.9 });
     },
 };
 

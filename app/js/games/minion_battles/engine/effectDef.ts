@@ -3,7 +3,7 @@
  * GameRenderer calls renderEffect to create/update effect visuals; the appropriate EffectDef does the drawing.
  */
 
-import { Graphics } from 'pixi.js';
+import { FillGradient, Graphics } from 'pixi.js';
 import type { Effect } from '../objects/Effect';
 
 /** Effect definition: responsible for drawing one effect type. */
@@ -28,7 +28,7 @@ const defaultEffectDef: IEffectDef = {
     },
 };
 
-/** Bash effect: 9-pointed star, light gray fill, black border, grows over 4 frames. */
+/** Bash effect: 9-pointed star with left-to-right gradient fill, black border, grows over duration. */
 const bashEffectDef: IEffectDef = {
     createVisual(_effect: Effect): Graphics {
         return new Graphics();
@@ -36,12 +36,10 @@ const bashEffectDef: IEffectDef = {
     updateVisual(visual: Graphics, effect: Effect): void {
         visual.clear();
         const progress = effect.progress;
-        // 4 conceptual frames, smooth size interpolation: 12px base, grows to ~16px
         const baseSize = 12;
         const size = baseSize + progress * 4;
-        const alpha = 0.5;
+        const alpha = 0.55;
 
-        // 9-pointed star: 9 outer points, 9 inner points (alternating)
         const outerRadius = size / 2;
         const innerRadius = size / 4;
         const points: { x: number; y: number }[] = [];
@@ -60,8 +58,19 @@ const bashEffectDef: IEffectDef = {
 
         const flatPoints = points.flatMap((p) => [p.x, p.y]);
         visual.poly(flatPoints, true);
-        visual.fill({ color: 0xd3d3d3, alpha }); // light gray
-        visual.stroke({ color: 0x000000, width: 1, alpha: 1 }); // solid black border
+        const gradient = new FillGradient({
+            type: 'linear',
+            start: { x: 0, y: 0.5 },
+            end: { x: 1, y: 0.5 },
+            colorStops: [
+                { offset: 0, color: 0x808090 },
+                { offset: 0.5, color: 0xc0c0d0 },
+                { offset: 1, color: 0xf0f0f8 },
+            ],
+            textureSpace: 'local',
+        });
+        visual.fill({ fill: gradient, alpha });
+        visual.stroke({ color: 0x000000, width: 1, alpha: 1 });
     },
 };
 
