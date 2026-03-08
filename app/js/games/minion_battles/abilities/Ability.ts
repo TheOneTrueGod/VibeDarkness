@@ -81,9 +81,10 @@ export interface AbilityStatic {
     readonly abilityTimings?: AbilityTiming[];
 
     /**
-     * Get the ability description, potentially varying with game state.
+     * Get tooltip lines for the card UI. Use {value} in a line for dynamic parts
+     * (e.g. "Hit {1} enemy for {8} damage"). Dynamic segments are rendered in a distinct colour.
      */
-    getDescription(gameState?: unknown): string;
+    getTooltipText(gameState?: unknown): string[];
 
     /**
      * Execute the ability's effect over time using threshold checks.

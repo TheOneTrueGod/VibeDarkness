@@ -35,8 +35,8 @@ export const ThrowRock: AbilityStatic = {
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: 200 },
 
-    getDescription(_gameState?: unknown): string {
-        return 'Throw a rock toward a target location. Deals 5 damage to the first enemy hit. Range: 200px.';
+    getTooltipText(_gameState?: unknown): string[] {
+        return ['Throws a rock dealing {5} damage to an enemy'];
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {

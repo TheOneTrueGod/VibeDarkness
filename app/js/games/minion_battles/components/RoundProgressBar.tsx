@@ -6,7 +6,8 @@
  * Freezes when the game is paused.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
+import { CARDS_PER_ROUND } from '../engine/GameEngine';
 
 interface RoundProgressBarProps {
     /** Current round number (1-based). */
@@ -27,10 +28,23 @@ export default function RoundProgressBar({
     progress,
     isPaused,
 }: RoundProgressBarProps) {
+    const [showTooltip, setShowTooltip] = useState(false);
     const dashOffset = CIRCUMFERENCE * (1 - progress);
 
     return (
-        <div className="absolute top-3 right-3 z-10" title={`Round ${roundNumber}`}>
+        <div
+            className="absolute top-3 right-3 z-10"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+        >
+            {showTooltip && (
+                <div
+                    className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-52 bg-dark-900/95 border border-dark-600 rounded-lg px-3 py-2 shadow-lg pointer-events-none z-20 text-gray-200 text-xs"
+                    role="tooltip"
+                >
+                    At the beginning of each round, draw {CARDS_PER_ROUND} cards.
+                </div>
+            )}
             <svg
                 width={SIZE}
                 height={SIZE}
@@ -61,7 +75,7 @@ export default function RoundProgressBar({
             </svg>
             {/* Round number in center */}
             <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
+                <span className="text-white font-bold text-sm cursor-default">
                     {roundNumber}
                 </span>
             </div>

@@ -51,8 +51,8 @@ export const EnemyArcherShotAbility: AbilityStatic = {
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
 
-    getDescription(_gameState?: unknown): string {
-        return `Aim for 0.5s, then fire an arrow at the locked position. Deals ${DAMAGE} damage. Range: ${MAX_DISTANCE}px.`;
+    getTooltipText(_gameState?: unknown): string[] {
+        return [`Shoots an arrow dealing {${DAMAGE}} damage to an enemy`];
     },
 
     getAbilityStates(_currentTime: number): AbilityStateEntry[] {

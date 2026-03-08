@@ -52,8 +52,12 @@ export const RaiseShieldAbility: AbilityStatic = {
     targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
     aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },
 
-    getDescription(_gameState?: unknown): string {
-        return `Raise a shield for ${DURATION}s in the target direction. Movement slowed to ${MOVEMENT_PENALTY * 100}% speed. Blocks attacks from a 120° arc. Draw a card when you block an attack (once per use), and the nearest ally draws a card on use. Single use.`;
+    getTooltipText(_gameState?: unknown): string[] {
+        return [
+            'Raise your shield blocking all attacks from the front',
+            'If you block an attack, draw a card',
+            'Your nearest ally draws a card when used',
+        ];
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {

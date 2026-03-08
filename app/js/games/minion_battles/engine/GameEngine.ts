@@ -62,6 +62,9 @@ export type EngineStateCallback = () => void;
 /** Maximum cards in hand. Draw at round start if below this. */
 export const MAX_HAND_SIZE = 6;
 
+/** Number of cards drawn at the beginning of each round. */
+export const CARDS_PER_ROUND = 2;
+
 /** Create a card instance with defaults (durability from card def). */
 export function createCardInstance(
     cardDefId: CardDefId,
@@ -1191,8 +1194,8 @@ export class GameEngine {
                 }
             }
 
-            // Draw at round end: 2 cards per round (drawCard enforces hand size and deck non-empty)
-            this.drawCardsForPlayer(playerId, 2);
+            // Draw at round end (drawCard enforces hand size and deck non-empty)
+            this.drawCardsForPlayer(playerId, CARDS_PER_ROUND);
         }
     }
 

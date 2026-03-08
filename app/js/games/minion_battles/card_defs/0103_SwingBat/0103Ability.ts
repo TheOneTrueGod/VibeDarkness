@@ -107,8 +107,10 @@ export const SwingBatAbility: AbilityStatic = {
     targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
-    getDescription(_gameState?: unknown): string {
-        return `Melee attack. Wind up 0.2s (cannot move). Aim to set distance; thick line is perpendicular and hits the enemy closest to its left. Deal ${DAMAGE} damage and knockback (poise check). Range: ${BASE_MIN_RANGE}–${BASE_MAX_RANGE} + your size.`;
+    getTooltipText(_gameState?: unknown): string[] {
+        return [
+            `Swing your bat dealing {${DAMAGE}} damage to an enemy, interrupting them and knocking them back.`,
+        ];
     },
 
     getRange(caster: Unit): { minRange: number; maxRange: number } {

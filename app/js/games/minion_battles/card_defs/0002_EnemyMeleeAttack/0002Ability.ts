@@ -86,8 +86,8 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: getMaxRadius({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
-    getDescription(_gameState?: unknown): string {
-        return `Wind up for 0.5s, then strike in a cone. Deals ${DAMAGE} damage. Min range just beyond melee; max ${MAX_RANGE}px farther.`;
+    getTooltipText(_gameState?: unknown): string[] {
+        return [`Strike in a cone dealing {${DAMAGE}} damage to enemies`];
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {

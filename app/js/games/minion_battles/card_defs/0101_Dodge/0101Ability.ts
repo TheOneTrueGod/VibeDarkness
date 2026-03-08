@@ -42,8 +42,11 @@ export const DodgeAbility: AbilityStatic = {
     targets: [{ type: 'pixel', label: 'Direction to dodge' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: DODGE_MAX_DISTANCE },
 
-    getDescription(_gameState?: unknown): string {
-        return `Dash toward the target location, moving up to ${DODGE_MAX_DISTANCE}px over ${DODGE_DURATION}s. Draw a card.`;
+    getTooltipText(_gameState?: unknown): string[] {
+        return [
+            'Avoid attacks while dodging towards a point',
+            'Draw a card',
+        ];
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {

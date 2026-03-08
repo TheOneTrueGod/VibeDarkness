@@ -91,8 +91,10 @@ export const DarkWolfBiteAbility: AbilityStatic = {
     targets: [{ type: 'unit', label: 'Target enemy' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: AI_MAX_RANGE },
 
-    getDescription(_gameState?: unknown): string {
-        return `Wind up 0.6s, then lunge toward target for 0.3s. Enemies crossed take ${DAMAGE} damage (once each). Max range ${BASE_MAX_RANGE}px.`;
+    getTooltipText(_gameState?: unknown): string[] {
+        return [
+            `Lunge at a target, dealing {${DAMAGE}} damage to each enemy crossed`,
+        ];
     },
 
     getRange(caster: Unit): { minRange: number; maxRange: number } {

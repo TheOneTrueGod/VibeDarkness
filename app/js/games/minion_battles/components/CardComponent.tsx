@@ -9,7 +9,7 @@ import React, { useState, useCallback } from 'react';
 import type { AbilityStatic } from '../abilities/Ability';
 import type { CardInstance } from '../engine/GameEngine';
 import { getCardDef } from '../card_defs';
-import CardDescription from './CardDescription';
+import CardTooltip from './CardTooltip';
 
 interface CardComponentProps {
     ability: AbilityStatic;
@@ -53,7 +53,7 @@ export default function CardComponent({
         onSelect();
     }, [isDisabled, isMobile, showMobileDescription, onSelect, onMobileDescriptionToggle]);
 
-    const description = ability.getDescription(gameState);
+    const tooltipLines = ability.getTooltipText(gameState);
     const def = getCardDef(card.cardDefId);
     const maxDurability = Math.max(1, def?.durability ?? 1);
     const usesLeft = Math.max(0, Math.min(card.durability, maxDurability));
@@ -131,11 +131,11 @@ export default function CardComponent({
                 </div>
             </div>
 
-            {/* Desktop hover description */}
+            {/* Desktop hover tooltip */}
             {isHovered && !isMobile && (
-                <CardDescription
-                    description={description}
-                    abilityName={ability.name}
+                <CardTooltip
+                    title={ability.name}
+                    lines={tooltipLines}
                 />
             )}
 

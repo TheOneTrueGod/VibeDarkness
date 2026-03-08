@@ -13,7 +13,7 @@ import type { AbilityStatic } from '../abilities/Ability';
 import type { Unit } from '../objects/Unit';
 import { getCardDef, asCardDefId } from '../card_defs';
 import CardComponent from './CardComponent';
-import CardDescription from './CardDescription';
+import CardTooltip from './CardTooltip';
 import CooldownIndicator from './CooldownIndicator';
 
 interface CardHandProps {
@@ -212,7 +212,7 @@ export default function CardHand({
                                 )}
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-2 flex-shrink-0 flex-col">
                             <CooldownIndicator
                                 unit={playerUnit}
                                 size={48}
@@ -294,11 +294,11 @@ export default function CardHand({
                 </div>
             </div>
 
-            {/* Mobile description overlay */}
+            {/* Mobile tooltip overlay */}
             {isMobile && mobileDescAbility && (
-                <CardDescription
-                    description={mobileDescAbility.getDescription(gameState)}
-                    abilityName={mobileDescAbility.name}
+                <CardTooltip
+                    title={mobileDescAbility.name}
+                    lines={mobileDescAbility.getTooltipText(gameState)}
                     isMobileOverlay
                     onDismiss={handleMobileDescDismiss}
                 />

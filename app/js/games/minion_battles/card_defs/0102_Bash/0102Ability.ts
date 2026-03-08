@@ -109,8 +109,8 @@ export const BashAbility: AbilityStatic = {
     targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
-    getDescription(_gameState?: unknown): string {
-        return `Melee attack. Wind up 0.2s (cannot move). Aim at a point; hits the closest enemy in a thick line. Deal ${DAMAGE} damage and bash effect. Max range: 50 + your size.`;
+    getTooltipText(_gameState?: unknown): string[] {
+        return [`Hit {1} enemy for {${DAMAGE}} damage`];
     },
 
     getRange(caster: Unit): { minRange: number; maxRange: number } {
