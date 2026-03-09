@@ -30,11 +30,27 @@ export class Camera {
         this.y = worldHeight / 2;
     }
 
-    /** Smoothly move the camera toward the target world position. */
+    /**
+     * Smoothly move the camera toward the target world position when the target
+     * is outside the center 1/4 of the screen (dead zone). If the target is
+     * inside that central rectangle, the camera does not pan.
+     */
     centerOn(targetX: number, targetY: number): void {
-        this.x += (targetX - this.x) * this.lerpSpeed;
-        this.y += (targetY - this.y) * this.lerpSpeed;
-        this.clamp();
+        const screen = this.worldToScreen(targetX, targetY);
+        const deadZoneLeft = this.viewportWidth * 0.25;
+        const deadZoneRight = this.viewportWidth * 0.75;
+        const deadZoneTop = this.viewportHeight * 0.25;
+        const deadZoneBottom = this.viewportHeight * 0.75;
+        const outsideDeadZone =
+            screen.x < deadZoneLeft ||
+            screen.x > deadZoneRight ||
+            screen.y < deadZoneTop ||
+            screen.y > deadZoneBottom;
+        if (outsideDeadZone) {
+            this.x += (targetX - this.x) * this.lerpSpeed;
+            this.y += (targetY - this.y) * this.lerpSpeed;
+            this.clamp();
+        }
     }
 
     /** Immediately snap the camera to a world position. */
@@ -44,12 +60,25 @@ export class Camera {
         this.clamp();
     }
 
-    /** Clamp camera so it doesn't show outside the world bounds. */
+    /**
+     * Clamp camera so it doesn't show outside the world bounds.
+     * When the viewport is smaller than the world, camera stays so no world outside [0, worldW/H] is visible.
+     * When the viewport is larger than the world, we still follow the player and only clamp so the camera
+     * center stays within [0, worldW/H]; empty space may show on the sides so the character stays in view.
+     */
     private clamp(): void {
         const halfW = this.viewportWidth / 2;
         const halfH = this.viewportHeight / 2;
-        this.x = Math.max(halfW, Math.min(this.worldWidth - halfW, this.x));
-        this.y = Math.max(halfH, Math.min(this.worldHeight - halfH, this.y));
+        if (this.viewportWidth >= this.worldWidth) {
+            this.x = Math.max(0, Math.min(this.worldWidth, this.x));
+        } else {
+            this.x = Math.max(halfW, Math.min(this.worldWidth - halfW, this.x));
+        }
+        if (this.viewportHeight >= this.worldHeight) {
+            this.y = Math.max(0, Math.min(this.worldHeight, this.y));
+        } else {
+            this.y = Math.max(halfH, Math.min(this.worldHeight - halfH, this.y));
+        }
     }
 
     /** Convert a world-space coordinate to screen-space. */

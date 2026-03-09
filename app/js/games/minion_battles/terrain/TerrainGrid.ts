@@ -33,6 +33,16 @@ export class TerrainGrid {
         this.grid = new Array(width * height).fill(defaultTerrain);
     }
 
+    /** World width in pixels (columns × cell size). */
+    get worldWidth(): number {
+        return this.width * this.cellSize;
+    }
+
+    /** World height in pixels (rows × cell size). */
+    get worldHeight(): number {
+        return this.height * this.cellSize;
+    }
+
     /** Get terrain type at grid coordinates. Out-of-bounds returns Rock. */
     get(col: number, row: number): TerrainType {
         if (col < 0 || col >= this.width || row < 0 || row >= this.height) {
@@ -99,16 +109,6 @@ export class TerrainGrid {
             if (this.get(col, row) === TerrainType.Rock) return false;
         }
         return true;
-    }
-
-    /** World width in pixels. */
-    get worldWidth(): number {
-        return this.width * this.cellSize;
-    }
-
-    /** World height in pixels. */
-    get worldHeight(): number {
-        return this.height * this.cellSize;
     }
 
     /** Create a TerrainGrid from a 2D array of terrain types. */

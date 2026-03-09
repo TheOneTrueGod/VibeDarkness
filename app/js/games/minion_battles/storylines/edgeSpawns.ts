@@ -2,20 +2,21 @@
  * Edge spawn utilities - place units spread around the map perimeter.
  */
 
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../engine/GameEngine';
-
 const PADDING = 40;
 
 /**
  * Return N positions evenly spread along the map edges (top, right, bottom, left).
  * Units are placed inset from corners to avoid overlap.
+ * @param count Number of positions to generate.
+ * @param worldWidth World width in pixels (e.g. terrain columns × cell size).
+ * @param worldHeight World height in pixels (e.g. terrain rows × cell size).
  */
-export function getEdgePositions(count: number): { x: number; y: number }[] {
+export function getEdgePositions(count: number, worldWidth: number, worldHeight: number): { x: number; y: number }[] {
     if (count <= 0) return [];
 
     const positions: { x: number; y: number }[] = [];
-    const innerW = WORLD_WIDTH - PADDING * 2;
-    const innerH = WORLD_HEIGHT - PADDING * 2;
+    const innerW = worldWidth - PADDING * 2;
+    const innerH = worldHeight - PADDING * 2;
     const perimeter = 2 * innerW + 2 * innerH;
 
     for (let i = 0; i < count; i++) {

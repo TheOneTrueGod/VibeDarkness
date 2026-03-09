@@ -13,7 +13,6 @@ import type { CardInstance } from '../engine/GameEngine';
 import { GameRenderer } from '../engine/GameRenderer';
 import type { OrderAtTick, SerializedGameState } from '../engine/types';
 import { Camera } from '../engine/Camera';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../engine/GameEngine';
 import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../engine/types';
 import { resolveClick, validateAndResolveTarget } from '../abilities/targeting';
 import type { AbilityStatic } from '../abilities/Ability';
@@ -151,16 +150,18 @@ export default function BattlePhase({
         // Ensure lobbyClient knows our playerId for snapshot/order API calls
         lobbyClient.setCurrentPlayerId(playerId);
 
-        // Create renderer and camera
-        const renderer = new GameRenderer();
-        const camera = new Camera(800, 600, WORLD_WIDTH, WORLD_HEIGHT);
-        rendererRef.current = renderer;
-        cameraRef.current = camera;
-
-        // Get mission config and terrain (needed for both init paths)
+        // Get mission config and terrain first so we can size the camera to the level
         const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
         const terrainGrid = mission.createTerrain();
         const terrainManager = new TerrainManager(terrainGrid);
+        const worldWidth = terrainGrid.worldWidth;
+        const worldHeight = terrainGrid.worldHeight;
+
+        // Create renderer and camera (world size = columns × cellSize, rows × cellSize)
+        const renderer = new GameRenderer();
+        const camera = new Camera(800, 600, worldWidth, worldHeight);
+        rendererRef.current = renderer;
+        cameraRef.current = camera;
         renderer.setTerrain(terrainGrid);
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
 
@@ -521,9 +522,11 @@ export default function BattlePhase({
         // Convert screen coords to world coords
         const worldPos = camera.screenToWorld(screenX, screenY);
 
-        // Clamp to world bounds
-        const clampedX = Math.max(0, Math.min(worldPos.x, WORLD_WIDTH));
-        const clampedY = Math.max(0, Math.min(worldPos.y, WORLD_HEIGHT));
+        // Clamp to world bounds (from terrain: cols × cellSize, rows × cellSize)
+        const worldWidth = engine.getWorldWidth();
+        const worldHeight = engine.getWorldHeight();
+        const clampedX = Math.max(0, Math.min(worldPos.x, worldWidth));
+        const clampedY = Math.max(0, Math.min(worldPos.y, worldHeight));
 
         // Compute grid path from unit to click destination
         const unit = engine.getUnit(waitingForOrders.unitId);

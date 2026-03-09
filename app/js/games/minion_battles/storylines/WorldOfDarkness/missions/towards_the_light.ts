@@ -67,7 +67,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'continuousSpawn',
         trigger: { intervalRounds: 0.5 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1 }],
+        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2 }],
     },
     {
         type: 'victoryCheck',
@@ -100,7 +100,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: 'Towards the Light',
+            text: 'Flee the Darkness',
             textEffect: 'title_bounce',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -114,7 +114,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: 'A faint light glows in the distance. You gather what you can and move towards it, hoping for shelter—or answers.',
+            text: 'A faint light glows in the distance. As your campfire grows dim, you gather what you can and move towards it hoping for shelter... or answers.',
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },

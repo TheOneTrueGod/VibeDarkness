@@ -15,7 +15,7 @@ import { resetGameObjectIdCounter } from '../objects/GameObject';
 import type { CharacterId } from '../objects/units/index';
 import { createPlayerUnit, createUnitFromSpawnConfig } from '../objects/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
-import { createCardInstance, MAX_HAND_SIZE, WORLD_HEIGHT } from '../engine/GameEngine';
+import { createCardInstance, MAX_HAND_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from '../engine/GameEngine';
 import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
@@ -78,7 +78,10 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
 
         // Add player units
         const playerCount = params.playerUnits.length;
-        const playerSpacing = WORLD_HEIGHT / (playerCount + 1);
+        const grid = params.terrainManager?.grid;
+        const worldW = grid ? grid.worldWidth : WORLD_WIDTH;
+        const worldH = grid ? grid.worldHeight : WORLD_HEIGHT;
+        const playerSpacing = worldH / (playerCount + 1);
         const missionConfig: MissionBattleConfig = this;
         const spawnPoints = missionConfig.playerSpawnPoints ?? this.playerSpawnPoints;
         for (let i = 0; i < playerCount; i++) {
@@ -101,7 +104,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             }
 
             // Determine spawn position.
-            let spawnX = 300;
+            let spawnX = worldW / 4;
             let spawnY = playerSpacing * (i + 1);
             if (spawnPoints && spawnPoints.length > 0) {
                 const numericId = parseInt(pu.playerId, 10);
@@ -119,7 +122,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     if (spawnIndex < 0) spawnIndex += spawnPoints.length;
                 }
                 const sp: PlayerSpawnPoint = spawnPoints[spawnIndex];
-                const cellSize = 40; // matches CELL_SIZE in TerrainGrid
+                const cellSize = grid?.cellSize ?? 40;
                 spawnX = sp.col * cellSize + cellSize / 2;
                 spawnY = sp.row * cellSize + cellSize / 2;
             }

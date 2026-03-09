@@ -119,6 +119,18 @@ export class GameEngine {
     // -- Terrain --
     terrainManager: TerrainManager | null = null;
 
+    /** World width in pixels (from terrain grid when present, else fallback). */
+    getWorldWidth(): number {
+        const grid = this.terrainManager?.grid;
+        return grid ? grid.worldWidth : WORLD_WIDTH;
+    }
+
+    /** World height in pixels (from terrain grid when present, else fallback). */
+    getWorldHeight(): number {
+        const grid = this.terrainManager?.grid;
+        return grid ? grid.worldHeight : WORLD_HEIGHT;
+    }
+
     // -- Cards per player --
     cards: Record<string, CardInstance[]> = {};
 
@@ -1054,7 +1066,9 @@ export class GameEngine {
         // Edge-of-map behaviour: distribute all requested units evenly around the map perimeter.
         const totalEdgeCount = edgeEntries.reduce((sum, e) => sum + e.count, 0);
         if (totalEdgeCount > 0) {
-            const positions = getEdgePositions(totalEdgeCount);
+            const worldW = grid.worldWidth;
+            const worldH = grid.worldHeight;
+            const positions = getEdgePositions(totalEdgeCount, worldW, worldH);
             let idx = 0;
             for (const { base, entry, count } of edgeEntries) {
                 for (let n = 0; n < count; n++) {
