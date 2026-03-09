@@ -16,6 +16,8 @@ export interface SpecialTile {
     destructible?: boolean;
     /** Light at full HP (amount and radius); scaled by hp/maxHp for actual emission. */
     emitsLight?: { lightAmount: number; radius: number };
+    /** If true, each round light amount and radius are reduced (campfire dying down). */
+    decayLightPerRound?: boolean;
 }
 
 export function specialTileToJSON(t: SpecialTile): Record<string, unknown> {
@@ -45,5 +47,6 @@ export function specialTileFromJSON(
         maxHp: def.maxHp,
         destructible: data.destructible as boolean | undefined,
         emitsLight,
+        decayLightPerRound: data.decayLightPerRound as boolean | undefined,
     };
 }

@@ -3,15 +3,16 @@
  * Shows game state JSON, player account JSON, and characters in a collapsible panel.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import type { GameStatePayload } from '../types';
+import type { GameStatePayload, CampaignState } from '../types';
 import type { CampaignCharacterPayload } from '../LobbyClient';
 
-type TabId = 'game-state' | 'player-data' | 'characters';
+type TabId = 'game-state' | 'player-data' | 'campaign-data' | 'characters';
 
 interface DebugConsoleProps {
     gameState: GameStatePayload | null;
     playerName: string | null;
     fetchPlayerData: () => Promise<Record<string, unknown> | null>;
+    fetchCampaignData: () => Promise<CampaignState | null>;
     fetchCharactersList: () => Promise<CampaignCharacterPayload[]>;
     getCharacter: (characterId: string) => Promise<CampaignCharacterPayload>;
 }
@@ -20,6 +21,7 @@ export default function DebugConsole({
     gameState,
     playerName,
     fetchPlayerData,
+    fetchCampaignData,
     fetchCharactersList,
     getCharacter,
 }: DebugConsoleProps) {
@@ -30,6 +32,10 @@ export default function DebugConsole({
     const [playerData, setPlayerData] = useState<Record<string, unknown> | null>(null);
     const [playerDataLoading, setPlayerDataLoading] = useState(false);
     const [playerDataError, setPlayerDataError] = useState<string | null>(null);
+
+    const [campaignData, setCampaignData] = useState<CampaignState | null>(null);
+    const [campaignDataLoading, setCampaignDataLoading] = useState(false);
+    const [campaignDataError, setCampaignDataError] = useState<string | null>(null);
 
     const [charactersList, setCharactersList] = useState<CampaignCharacterPayload[] | null>(null);
     const [charactersListLoading, setCharactersListLoading] = useState(false);
@@ -83,6 +89,26 @@ export default function DebugConsole({
             loadPlayerData();
         }
     }, [activeTab, playerData, playerDataLoading, playerDataError, loadPlayerData]);
+
+    const loadCampaignData = useCallback(async () => {
+        setCampaignDataLoading(true);
+        setCampaignDataError(null);
+        try {
+            const data = await fetchCampaignData();
+            setCampaignData(data ?? null);
+        } catch (err) {
+            setCampaignDataError(err instanceof Error ? err.message : 'Failed to load campaign');
+            setCampaignData(null);
+        } finally {
+            setCampaignDataLoading(false);
+        }
+    }, [fetchCampaignData]);
+
+    useEffect(() => {
+        if (activeTab === 'campaign-data' && campaignData === null && !campaignDataLoading && !campaignDataError) {
+            loadCampaignData();
+        }
+    }, [activeTab, campaignData, campaignDataLoading, campaignDataError, loadCampaignData]);
 
     const loadCharactersList = useCallback(async () => {
         setCharactersListLoading(true);
@@ -177,6 +203,17 @@ export default function DebugConsole({
                         <button
                             type="button"
                             className={`px-3 py-2 bg-transparent border-none border-b-2 text-sm cursor-pointer ${
+                                activeTab === 'campaign-data'
+                                    ? 'border-b-primary text-primary'
+                                    : 'border-b-transparent text-muted hover:text-white'
+                            }`}
+                            onClick={() => setActiveTab('campaign-data')}
+                        >
+                            Campaign data
+                        </button>
+                        <button
+                            type="button"
+                            className={`px-3 py-2 bg-transparent border-none border-b-2 text-sm cursor-pointer ${
                                 charactersTabGrayed && activeTab !== 'characters'
                                     ? 'border-b-transparent text-muted opacity-60'
                                     : activeTab === 'characters'
@@ -213,6 +250,25 @@ export default function DebugConsole({
                                             {playerData !== null
                                                 ? JSON.stringify(playerData, null, 2)
                                                 : 'No player data.'}
+                                        </code>
+                                    </pre>
+                                )}
+                            </>
+                        )}
+                        {activeTab === 'campaign-data' && (
+                            <>
+                                {campaignDataLoading && (
+                                    <p className="m-0 text-muted text-sm">Loading...</p>
+                                )}
+                                {campaignDataError && (
+                                    <p className="m-0 text-red-400 text-sm">{campaignDataError}</p>
+                                )}
+                                {!campaignDataLoading && !campaignDataError && (
+                                    <pre className="m-0 font-mono text-xs leading-relaxed text-white whitespace-pre-wrap break-all">
+                                        <code>
+                                            {campaignData !== null
+                                                ? JSON.stringify(campaignData, null, 2)
+                                                : 'No campaign data (no campaign selected or no campaign IDs).'}
                                         </code>
                                     </pre>
                                 )}

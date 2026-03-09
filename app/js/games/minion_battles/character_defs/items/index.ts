@@ -7,11 +7,13 @@ import { rocksItem } from './hands/001_rocks';
 import { torchItem } from './hands/002_torch';
 import { potShieldItem } from './hands/003_pot_shield';
 import { coreBasicItem } from './core/004_core_basic';
+import { throwTorchUtilityItem } from './utility/005_throw_torch';
 
 import rocksIcon from './assets/001_rocks.svg';
 import torchIcon from './assets/002_torch.svg';
 import potShieldIcon from './assets/003_pot_shield.svg';
 import coreBasicIcon from './assets/004_core_basic.svg';
+import throwTorchIcon from './assets/005_throw_torch.svg';
 
 export type { ItemDef, ItemCardEntry, EquipmentSlotType } from './types';
 
@@ -39,6 +41,7 @@ export const ITEMS: Record<string, ItemDef> = {
     [torchItem.id]: torchItem,
     [potShieldItem.id]: potShieldItem,
     [coreBasicItem.id]: coreBasicItem,
+    [throwTorchUtilityItem.id]: throwTorchUtilityItem,
 };
 
 export function getItemDef(id: string): ItemDef | undefined {

@@ -26,7 +26,7 @@ interface CharacterEditorProps {
 
 type EditorTab = 'equipment';
 
-const SLOT_ORDER: EquipmentSlotType[] = ['core', 'hands'];
+const SLOT_ORDER: EquipmentSlotType[] = ['core', 'hands', 'utility'];
 
 export default function CharacterEditor({
     character,
@@ -283,6 +283,7 @@ function EquipmentDoll({
     const slotPositions: Record<EquipmentSlotType, { left: string; top: string }> = {
         core: { left: '10%', top: '5%' },
         hands: { left: '62%', top: '42%' },
+        utility: { left: '36%', top: '70%' },
     };
 
     return (

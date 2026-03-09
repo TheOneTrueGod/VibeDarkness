@@ -7,7 +7,7 @@ import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
 import type { CampaignState } from '../types';
 import { STORYLINES, MISSION_MAP } from '../games/minion_battles/storylines';
-import { getUnlockedMissionIds, hasVictoryResult } from '../games/minion_battles/storylines/unlock';
+import { getUnlockedMissionIds, getAllMissionIdsInOrder, hasVictoryResult } from '../games/minion_battles/storylines/unlock';
 import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
 
 type TabId = 'welcome' | 'mission_select' | 'join_mission';
@@ -162,7 +162,7 @@ export default function CampaignHomeScreen({
                                 <h2 className="text-xl font-semibold text-muted">Storylines</h2>
                                 {STORYLINES.map((storyline) => {
                                     const unlocked = getUnlockedMissionIds(storyline, missionResults);
-                                    const missionIds = Array.from(unlocked);
+                                    const missionIds = getAllMissionIdsInOrder(storyline);
                                     return (
                                         <div key={storyline.id} className="bg-surface rounded-lg p-5">
                                             <h3 className="text-lg font-medium mb-4">{storyline.title}</h3>
@@ -170,16 +170,23 @@ export default function CampaignHomeScreen({
                                                 {missionIds.map((missionId) => {
                                                     const def = MISSION_MAP[missionId];
                                                     const name = def?.name ?? missionId;
+                                                    const isUnlocked = unlocked.has(missionId);
                                                     const hasVictory = hasVictoryResult(missionId, missionResults);
                                                     return (
                                                         <li key={missionId}>
                                                             <button
                                                                 type="button"
                                                                 className="w-full text-left px-4 py-3 rounded border transition-all flex items-center justify-between gap-3 bg-surface-light border-border-custom hover:border-primary hover:bg-surface disabled:opacity-70 disabled:cursor-wait"
-                                                                disabled={selectingMission}
+                                                                disabled={selectingMission || !isUnlocked}
                                                                 onClick={() => handleMissionClick(missionId)}
+                                                                title={!isUnlocked ? 'Complete the previous mission to unlock' : undefined}
                                                             >
                                                                 <span className="flex items-center gap-2">
+                                                                    {!isUnlocked && (
+                                                                        <svg className="w-5 h-5 flex-shrink-0 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                                        </svg>
+                                                                    )}
                                                                     {name}
                                                                 </span>
                                                                 {hasVictory && (

@@ -53,6 +53,8 @@ export interface SerializedGameState {
     firedEventIndices?: number[];
     /** Indices of victory checks that have emitted their first message. */
     victoryCheckFirstEmitDone?: number[];
+    /** For continuousSpawn: event index -> gameTime of last spawn (keys as strings in JSON). */
+    continuousSpawnLastSpawnedAt?: Record<string, number>;
 }
 
 /** Serialized card instance. */

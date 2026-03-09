@@ -9,8 +9,9 @@ import { BashCard } from './0102_Bash/0102Ability';
 import { SwingBatCard } from './0103_SwingBat/0103Ability';
 import { DarkWolfBiteCard } from './dark_animals/0003_DarkWolfBite/0003Ability';
 import { RaiseShieldCard } from './0104_RaiseShield/0104Ability';
+import { ThrowTorchCard } from './0501_ThrowTorch/0501Ability';
 
-const cardDefs: CardDef[] = [throwKnifeCard, throwRockCard, DodgeCard, EnemyArcherShotCard, EnemyMeleeAttackCard, BashCard, SwingBatCard, DarkWolfBiteCard, RaiseShieldCard];
+const cardDefs: CardDef[] = [throwKnifeCard, throwRockCard, DodgeCard, EnemyArcherShotCard, EnemyMeleeAttackCard, BashCard, SwingBatCard, DarkWolfBiteCard, RaiseShieldCard, ThrowTorchCard];
 
 /** Map card ID -> card definition for resolving hands (arrays of card IDs) to card data. */
 export const CARD_DEF_MAP: Map<CardDefId, CardDef> = new Map(cardDefs.map((c) => [c.id, c]));

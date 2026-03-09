@@ -227,6 +227,23 @@ export class GameRenderer {
         return sources;
     }
 
+    /** Build light sources from Torch effects (use current lightAmount/radius from effectData). */
+    private getLightSourcesFromEffects(engine: GameEngine): LightSource[] {
+        const grid = engine.terrainManager?.grid;
+        if (!grid) return [];
+        const sources: LightSource[] = [];
+        for (const effect of engine.effects) {
+            if (!effect.active || effect.effectType !== 'Torch') continue;
+            const data = effect.effectData as { lightAmount?: number; radius?: number };
+            const emission = data.lightAmount ?? 0;
+            const radius = data.radius ?? 0;
+            if (emission <= 0 || radius <= 0) continue;
+            const { col, row } = grid.worldToGrid(effect.x, effect.y);
+            sources.push({ col, row, emission, radius });
+        }
+        return sources;
+    }
+
     private static lightSourcesKey(sources: LightSource[]): string {
         const parts = sources
             .slice()
@@ -239,7 +256,10 @@ export class GameRenderer {
         const grid = engine.terrainManager!.grid;
         const width = grid.width;
         const height = grid.height;
-        const sources = this.getLightSourcesFromSpecialTiles(engine.specialTiles);
+        const sources = [
+            ...this.getLightSourcesFromSpecialTiles(engine.specialTiles),
+            ...this.getLightSourcesFromEffects(engine),
+        ];
         this.currentLightGrid = getLightGrid(this.globalLightLevel, width, height, sources);
 
         const overlayKey = `${GameRenderer.lightSourcesKey(sources)}|${this.globalLightLevel}|${width}|${height}`;
@@ -374,17 +394,29 @@ export class GameRenderer {
 
     private createSpecialTileVisual(tile: SpecialTile): Container | undefined {
         const def = getSpecialTileDef(tile.defId);
-        if (!def || def.id !== 'DefendPoint') return undefined;
+        if (!def) return undefined;
         const container = new Container();
-        if (this.defendPointTexture) {
+        if (tile.defId === 'DefendPoint' && this.defendPointTexture) {
             const sprite = new Sprite(this.defendPointTexture);
             sprite.anchor.set(0.5, 1);
             sprite.width = 32;
             sprite.height = 32;
             container.addChild(sprite);
+            const hpBar = new Graphics();
+            container.addChild(hpBar);
+        } else if (tile.defId === 'Crystal' && 'image' in def) {
+            const texture = Texture.from((def as { image: string }).image);
+            const sprite = new Sprite(texture);
+            sprite.anchor.set(0.5, 1);
+            sprite.width = 24;
+            sprite.height = 24;
+            container.addChild(sprite);
+        } else {
+            return undefined;
         }
-        const hpBar = new Graphics();
-        container.addChild(hpBar);
+        if (tile.defId !== 'DefendPoint') return container;
+        const hpBar = container.getChildAt(1) as Graphics;
+        if (!hpBar) return container;
         return container;
     }
 

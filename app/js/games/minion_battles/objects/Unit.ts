@@ -124,6 +124,9 @@ export class Unit extends GameObject {
     /** Per-controller AI context bag (serialized via toJSON/fromJSON). */
     aiContext: UnitAIContext = {};
 
+    /** Optional tags (e.g. 'invisibleToWolves' when near a crystal). Not serialized by default; mission logic can set. */
+    tags: string[] = [];
+
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;
 

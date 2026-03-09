@@ -149,12 +149,32 @@ const corruptionProgressBarDef: IEffectDef = {
     },
 };
 
+/** Torch on the ground: small flame glow, emits light (handled in light grid). */
+const torchEffectDef: IEffectDef = {
+    createVisual(_effect: Effect): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Graphics, effect: Effect): void {
+        visual.clear();
+        const data = effect.effectData as { lightAmount?: number; radius?: number };
+        const lightAmount = data.lightAmount ?? 15;
+        const radius = data.radius ?? 5;
+        const size = Math.max(8, Math.min(20, radius * 4));
+        visual.circle(0, 0, size);
+        visual.fill({ color: 0xffaa40, alpha: 0.4 + (lightAmount / 15) * 0.4 });
+        visual.circle(0, 0, size * 0.6);
+        visual.fill({ color: 0xffdd00, alpha: 0.5 });
+        visual.stroke({ color: 0xff6600, width: 1, alpha: 0.8 });
+    },
+};
+
 const effectDefRegistry: Record<string, IEffectDef> = {
     default: defaultEffectDef,
     bash: bashEffectDef,
     bite: biteEffectDef,
     CorruptionOrb: corruptionOrbEffectDef,
     CorruptionProgressBar: corruptionProgressBarDef,
+    Torch: torchEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

@@ -33,6 +33,7 @@ import type {
     LevelEvent,
     LevelEventSpawnWave,
     LevelEventVictoryCheck,
+    LevelEventContinuousSpawn,
 } from '../storylines/types';
 import { getEdgePositions } from '../storylines/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../objects/units/index';
@@ -152,6 +153,8 @@ export class GameEngine {
     private firedEventIndices: Set<number> = new Set();
     /** Indices of victory checks that have emitted their first-attempt message. */
     private victoryCheckFirstEmitDone: Set<number> = new Set();
+    /** For continuousSpawn events: event index -> gameTime of last spawn. */
+    private continuousSpawnLastSpawnedAt: Record<number, number> = {};
     /** Callback to send a message to the lobby chat (e.g. from emittedMessage). npcId = NPC to display as sender. */
     private onEmitMessage: ((text: string, npcId?: string) => void) | null = null;
     /** Callback when victory is achieved. Passes mission result from the winning victory check. */
@@ -375,12 +378,30 @@ export class GameEngine {
                 return; // Stop processing this tick
             }
 
-            // AI units auto-act when cooldown finishes
+            // AI units auto-act when cooldown finishes (no snapshot here; host saves only on player pause or player submit)
             if (!unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
                 this.runVictoryChecks(); // before turn
-                this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
                 const controller = buildAIController(this.aiControllerId);
                 controller.executeTurn(unit, this.buildAIContext());
+            }
+        }
+
+        // Crystal aura: player units near a Crystal get tag 'invisibleToWolves' (wolves ignore them)
+        const grid = this.terrainManager?.grid;
+        if (grid) {
+            const crystalTiles = this.specialTiles.filter((t) => t.defId === 'Crystal' && t.hp > 0);
+            const CRYSTAL_AURA_DIST = 2;
+            for (const unit of this.units) {
+                if (!unit.isPlayerControlled() || !unit.isAlive()) continue;
+                const { col: uc, row: ur } = grid.worldToGrid(unit.x, unit.y);
+                const nearCrystal = crystalTiles.some(
+                    (c) => Math.max(Math.abs(uc - c.col), Math.abs(ur - c.row)) <= CRYSTAL_AURA_DIST,
+                );
+                if (nearCrystal) {
+                    if (!unit.tags.includes('invisibleToWolves')) unit.tags = [...unit.tags, 'invisibleToWolves'];
+                } else {
+                    unit.tags = unit.tags.filter((t) => t !== 'invisibleToWolves');
+                }
             }
         }
 
@@ -544,6 +565,28 @@ export class GameEngine {
         return sources;
     }
 
+    /** Build light sources from Torch effects (use current lightAmount/radius updated in handleRoundEnd). */
+    private buildLightSourcesFromEffects(): LightSource[] {
+        const grid = this.terrainManager?.grid;
+        if (!grid) return [];
+        const sources: LightSource[] = [];
+        for (const effect of this.effects) {
+            if (!effect.active || effect.effectType !== 'Torch') continue;
+            const data = effect.effectData as { lightAmount?: number; radius?: number };
+            const emission = data.lightAmount ?? 0;
+            const radius = data.radius ?? 0;
+            if (emission <= 0 || radius <= 0) continue;
+            const { col, row } = grid.worldToGrid(effect.x, effect.y);
+            sources.push({ col, row, emission, radius });
+        }
+        return sources;
+    }
+
+    /** All light sources (special tiles + Torch effects) for darkness and spawn logic. */
+    private getAllLightSources(): LightSource[] {
+        return [...this.buildLightSourcesFromSpecialTiles(), ...this.buildLightSourcesFromEffects()];
+    }
+
     /** When a player is in full darkness (light <= -20), fill corruption bar over 1s; when full, deal 5 damage. In the tier below (light in (-20, -10]), same meter and timing but 2 damage when full. When not in darkness (light > -10), drain bar over 1s. */
     private processPlayerDarknessCorruption(dt: number): void {
         if (!this.lightLevelEnabled || !this.terrainManager?.grid) return;
@@ -551,7 +594,7 @@ export class GameEngine {
         const grid = this.terrainManager.grid;
         const width = grid.width;
         const height = grid.height;
-        const sources = this.buildLightSourcesFromSpecialTiles();
+        const sources = this.getAllLightSources();
         const lightGrid = getLightGrid(this.globalLightLevel, width, height, sources);
 
         for (const unit of this.units) {
@@ -886,6 +929,28 @@ export class GameEngine {
         return drawn;
     }
 
+    /**
+     * Fill hand up to maxHandSize: first move all cards with tag 'innate' from deck to hand,
+     * then draw at random to fill the rest. Use when building the starting hand for a mission.
+     */
+    fillHandInnateFirst(playerId: string, maxHandSize: number): void {
+        const playerCards = this.cards[playerId];
+        if (!playerCards) return;
+        let handCount = playerCards.filter((c) => c.location === 'hand').length;
+        const deckCards = playerCards.filter((c) => c.location === 'deck');
+        // First: move innate cards to hand (stable order: first innate in deck order)
+        for (const card of deckCards) {
+            if (handCount >= maxHandSize) break;
+            const def = getCardDef(card.cardDefId);
+            if (def?.tags?.includes('innate')) {
+                card.location = 'hand';
+                handCount++;
+            }
+        }
+        // Then: draw to fill
+        this.drawCardsForPlayer(playerId, maxHandSize - handCount);
+    }
+
     // ========================================================================
     // Round End / Card Recharge
     // ========================================================================
@@ -895,12 +960,14 @@ export class GameEngine {
         this.onEmitMessage?.(text, npcId);
     }
 
-    /** Process level events: spawn waves, run victory checks (periodic). */
+    /** Process level events: spawn waves, continuous spawns, victory checks (periodic). */
     private processLevelEvents(): void {
         for (let i = 0; i < this.levelEvents.length; i++) {
             const evt = this.levelEvents[i];
             if (evt.type === 'spawnWave') {
                 this.processSpawnWaveEvent(i, evt);
+            } else if (evt.type === 'continuousSpawn') {
+                this.processContinuousSpawnEvent(i, evt);
             } else if (evt.type === 'victoryCheck') {
                 // Victory checks run every 10 frames when round >= afterRound
                 if (this.roundNumber >= evt.trigger.afterRound && this.gameTick % 10 === 0) {
@@ -957,17 +1024,7 @@ export class GameEngine {
                 // eslint-disable-next-line no-console
                 console.error('spawnWave: spawnBehaviour "darkness" requested but light system is disabled; skipping darkness spawns.');
             } else {
-                const sources: LightSource[] = [];
-                for (const tile of this.specialTiles) {
-                    if (tile.hp <= 0) continue;
-                    const def = getSpecialTileDef(tile.defId);
-                    const light = tile.emitsLight ?? (def && 'lightEmission' in def && 'lightRadius' in def ? { lightAmount: (def as { lightEmission: number }).lightEmission, radius: (def as { lightRadius: number }).lightRadius } : undefined);
-                    if (light != null && tile.maxHp > 0) {
-                        const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
-                        sources.push({ col: tile.col, row: tile.row, emission: light.lightAmount * scale, radius: light.radius });
-                    }
-                }
-                lightGrid = getLightGrid(this.globalLightLevel, width, height, sources);
+                lightGrid = getLightGrid(this.globalLightLevel, width, height, this.getAllLightSources());
             }
         }
 
@@ -1121,6 +1178,68 @@ export class GameEngine {
         }
     }
 
+    /**
+     * Process a continuous spawn event: spawn one unit every intervalRounds (e.g. 0.5 = half-round).
+     */
+    private processContinuousSpawnEvent(i: number, evt: LevelEventContinuousSpawn): void {
+        const intervalRounds = evt.trigger.intervalRounds;
+        const lastSpawned = this.continuousSpawnLastSpawnedAt[i] ?? 0;
+        if (this.gameTime - lastSpawned < intervalRounds * ROUND_DURATION) return;
+
+        this.continuousSpawnLastSpawnedAt[i] = this.gameTime;
+
+        const terrainManager = this.terrainManager;
+        if (!terrainManager) return;
+        const grid = terrainManager.grid;
+        const width = grid.width;
+        const height = grid.height;
+        const cellSize = grid.cellSize;
+        const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED, dark_wolf: ENEMY_DARK_WOLF };
+        const playerCount = this.units.filter((u) => u.teamId === 'player').length;
+        const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
+
+        const entry = evt.spawns[0];
+        if (!entry || (entry.characterId !== 'enemy_melee' && entry.characterId !== 'enemy_ranged' && entry.characterId !== 'dark_wolf'))
+            return;
+        const base = baseDefs[entry.characterId];
+        const behaviour = entry.spawnBehaviour ?? 'darkness';
+
+        let lightGrid: number[][] | null = null;
+        if (behaviour === 'darkness' && this.lightLevelEnabled) {
+            lightGrid = getLightGrid(this.globalLightLevel, width, height, this.getAllLightSources());
+        }
+
+        const candidates: { col: number; row: number }[] = [];
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                const { x, y } = grid.gridToWorld(col, row);
+                if (!terrainManager.isPassable(x, y)) continue;
+                if (behaviour === 'darkness') {
+                    if (!lightGrid) continue;
+                    const level = lightGrid[row]?.[col];
+                    if (level == null || level > -20) continue;
+                }
+                candidates.push({ col, row });
+            }
+        }
+        if (candidates.length === 0) return;
+
+        const idx = this.generateRandomInteger(0, candidates.length - 1);
+        const cell = candidates[idx]!;
+        const pos = grid.gridToWorld(cell.col, cell.row);
+        const config = {
+            ...base,
+            ...entry,
+            position: pos,
+            x: pos.x,
+            y: pos.y,
+            ownerId: 'ai' as const,
+            hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
+        };
+        const unit = createUnitFromSpawnConfig(config, this.eventBus);
+        this.addUnit(unit);
+    }
+
     /** Run all victory checks (called every 10 frames and before turns). */
     private runVictoryChecks(): void {
         for (let i = 0; i < this.levelEvents.length; i++) {
@@ -1155,6 +1274,28 @@ export class GameEngine {
                     return;
                 }
             }
+            if (cond.type === 'allUnitsNearCrystals') {
+                const maxDist = cond.maxDistance ?? 2;
+                const crystalTiles = this.specialTiles.filter((t) => t.defId === 'Crystal' && t.hp > 0);
+                if (crystalTiles.length === 0) continue;
+                const alivePlayers = this.units.filter((u) => u.isPlayerControlled() && u.isAlive());
+                if (alivePlayers.length === 0) continue;
+                const grid = this.terrainManager?.grid;
+                if (!grid) continue;
+                const allNear = alivePlayers.every((u) => {
+                    const { col: uc, row: ur } = grid.worldToGrid(u.x, u.y);
+                    return crystalTiles.some(
+                        (c) => Math.max(Math.abs(uc - c.col), Math.abs(ur - c.row)) <= maxDist,
+                    );
+                });
+                if (allNear) {
+                    this.victoryFired = true;
+                    this.victorious = true;
+                    const missionResult = evt.missionResult ?? 'victory';
+                    this.onVictory?.(missionResult);
+                    return;
+                }
+            }
         }
     }
 
@@ -1179,6 +1320,39 @@ export class GameEngine {
     }
 
     private handleRoundEnd(_roundNumber: number): void {
+        // Special tiles with decayLightPerRound: reduce light each round
+        for (const tile of this.specialTiles) {
+            if (!tile.decayLightPerRound || !tile.emitsLight) continue;
+            tile.emitsLight = {
+                lightAmount: Math.max(0, tile.emitsLight.lightAmount - 1),
+                radius: Math.max(0, tile.emitsLight.radius - 0.5),
+            };
+        }
+
+        // Torch effects: decay light/radius each round from initial values and remove when expired
+        for (const effect of this.effects) {
+            if (!effect.active || effect.effectType !== 'Torch') continue;
+            const data = effect.effectData as {
+                roundCreated?: number;
+                initialLightAmount?: number;
+                initialRadius?: number;
+                lightAmount?: number;
+                radius?: number;
+                roundsTotal?: number;
+            };
+            const roundCreated = data.roundCreated ?? this.roundNumber;
+            const initialLight = data.initialLightAmount ?? 15;
+            const initialRadius = data.initialRadius ?? 5;
+            const roundsTotal = data.roundsTotal ?? 5;
+            const roundsLived = this.roundNumber - roundCreated;
+            if (roundsLived >= roundsTotal) {
+                effect.active = false;
+                continue;
+            }
+            data.lightAmount = Math.max(0, initialLight - 2 * roundsLived);
+            data.radius = Math.max(0, initialRadius - roundsLived);
+        }
+
         for (const playerId of Object.keys(this.cards)) {
             // Process discard (rounds-based): decrement and return to deck when ready
             for (const card of this.cards[playerId]) {
@@ -1235,6 +1409,9 @@ export class GameEngine {
             aiControllerId: this.aiControllerId,
             firedEventIndices: [...this.firedEventIndices],
             victoryCheckFirstEmitDone: [...this.victoryCheckFirstEmitDone],
+            continuousSpawnLastSpawnedAt: Object.fromEntries(
+                Object.entries(this.continuousSpawnLastSpawnedAt).map(([k, v]) => [k, v]),
+            ),
         };
     }
 
@@ -1254,6 +1431,9 @@ export class GameEngine {
         }
         if (Array.isArray(data.victoryCheckFirstEmitDone)) {
             engine.victoryCheckFirstEmitDone = new Set(data.victoryCheckFirstEmitDone);
+        }
+        if (data.continuousSpawnLastSpawnedAt && typeof data.continuousSpawnLastSpawnedAt === 'object') {
+            engine.continuousSpawnLastSpawnedAt = { ...data.continuousSpawnLastSpawnedAt } as Record<number, number>;
         }
         engine.pendingOrders = (data.orders ?? []).map((o) => ({
             gameTick: o.gameTick,
@@ -1287,10 +1467,10 @@ export class GameEngine {
             engine.effects.push(Effect.fromJSON(fxData as Record<string, unknown>));
         }
 
-        // Restore special tiles
+        // Restore special tiles (DefendPoint, Crystal, etc.)
         for (const tileData of data.specialTiles ?? []) {
             const def = getSpecialTileDef(tileData.defId);
-            if (def && def.id === 'DefendPoint') {
+            if (def) {
                 engine.specialTiles.push(specialTileFromJSON(tileData as unknown as Record<string, unknown>, def));
             }
         }

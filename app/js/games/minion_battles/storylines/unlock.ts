@@ -36,3 +36,18 @@ export function getUnlockedMissionIds(
 
     return unlocked;
 }
+
+/**
+ * Return all mission IDs for this storyline in display order (start first, then each edge's toMissionId).
+ * Use this to show every mission in the storyline; pair with getUnlockedMissionIds to show locked state.
+ */
+export function getAllMissionIdsInOrder(storyline: StorylineDef): string[] {
+    const ids: string[] = [storyline.startMissionId];
+    const edges = storyline.edges ?? [];
+    for (const edge of edges) {
+        if (!ids.includes(edge.toMissionId)) {
+            ids.push(edge.toMissionId);
+        }
+    }
+    return ids;
+}

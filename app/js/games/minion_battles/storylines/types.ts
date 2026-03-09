@@ -49,7 +49,16 @@ export interface VictoryConditionEliminateAllEnemies {
     type: 'eliminateAllEnemies';
 }
 
-export type VictoryCondition = VictoryConditionEliminateAllEnemies;
+/** Victory condition: all living player units must be within range of a crystal tile. */
+export interface VictoryConditionAllUnitsNearCrystals {
+    type: 'allUnitsNearCrystals';
+    /** Max grid distance (Chebyshev) to count as "near". Default 2. */
+    maxDistance?: number;
+}
+
+export type VictoryCondition =
+    | VictoryConditionEliminateAllEnemies
+    | VictoryConditionAllUnitsNearCrystals;
 
 /** Base fields shared by all level events. */
 interface LevelEventBase {
@@ -75,7 +84,18 @@ export interface LevelEventVictoryCheck extends LevelEventBase {
     missionResult?: string;
 }
 
-export type LevelEvent = LevelEventSpawnWave | LevelEventVictoryCheck;
+/** Continuous spawn: spawns at an interval (e.g. every 0.5 rounds). Runs every tick; spawns when interval has elapsed. */
+export interface LevelEventContinuousSpawn extends LevelEventBase {
+    type: 'continuousSpawn';
+    /** Spawn every this many rounds (e.g. 0.5 = half-round). */
+    trigger: { intervalRounds: number };
+    spawns: SpawnWaveEntry[];
+}
+
+export type LevelEvent =
+    | LevelEventSpawnWave
+    | LevelEventVictoryCheck
+    | LevelEventContinuousSpawn;
 
 /** Config for a single enemy spawn. */
 export interface EnemySpawnDef {
@@ -113,6 +133,8 @@ export interface SpecialTilePlacement {
     tags?: Partial<Record<SpecialTilesTags, boolean>>;
     /** Optional light at full HP: amount and radius. Used for light scaling. Falls back to def lightEmission/lightRadius. */
     emitsLight?: { lightAmount: number; radius: number };
+    /** If true, each round this tile's emitsLight is reduced (lightAmount -1, radius -0.5 per round). */
+    decayLightPerRound?: boolean;
 }
 
 /** Grid-based player spawn point (col/row on the terrain grid). */

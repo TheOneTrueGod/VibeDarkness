@@ -201,7 +201,19 @@ export default function BattlePhase({
             // CharacterManager.getCharacter(characterId) returns a character. Empty when: (1) no
             // characterSelections in state, (2) every character lookup fails (wrong ID, or no
             // storage/characters/<id>.json). BaseMissionDef applies a hand fallback when this is {}.
-            const equippedItemsByPlayer = (init?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
+            let equippedItemsByPlayer = (init?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
+            if (mission.missionId === 'towards_the_light') {
+                const THROW_TORCH_UTILITY_ITEM_ID = '005';
+                equippedItemsByPlayer = { ...equippedItemsByPlayer };
+                for (const pid of Object.keys(equippedItemsByPlayer)) {
+                    const list = equippedItemsByPlayer[pid];
+                    if (list && !list.includes(THROW_TORCH_UTILITY_ITEM_ID)) {
+                        equippedItemsByPlayer[pid] = [...list, THROW_TORCH_UTILITY_ITEM_ID];
+                    } else if (!list || list.length === 0) {
+                        equippedItemsByPlayer[pid] = [THROW_TORCH_UTILITY_ITEM_ID];
+                    }
+                }
+            }
             mission.initializeGameState(engine, {
                 playerUnits,
                 localPlayerId: playerId,
@@ -562,6 +574,11 @@ export default function BattlePhase({
 
         const atTick = engine.gameTick + 1; // order is scheduled for next tick
         saveOrder(atTick, order);
+
+        // Host: save snapshot when a player has submitted their actions so others can sync
+        if (isHost) {
+            saveCheckpoint(engine.gameTick, engine.toJSON() as unknown as Record<string, unknown>, [...engine.pendingOrders]);
+        }
 
         lobbyClient.sendMessage(lobbyId, playerId, 'battle_orders_ready', {
             snapshotIndex: engine.snapshotIndex,

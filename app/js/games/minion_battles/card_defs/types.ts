@@ -34,4 +34,6 @@ export interface CardDef {
     durability?: number;
     /** How long the card stays in discard before returning to the deck. Default: 1 round. */
     discardDuration?: DiscardDuration;
+    /** Optional tags (e.g. 'innate' = drawn first when filling starting hand). */
+    tags?: string[];
 }

@@ -17,9 +17,13 @@ export function distance(x1: number, y1: number, x2: number, y2: number): number
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-/** Get all living units hostile to the given unit. */
+/** Get all living units hostile to the given unit. Wolves ignore units with tag 'invisibleToWolves'. */
 export function findEnemies(unit: Unit, units: Unit[]): Unit[] {
-    return units.filter((u) => u.isAlive() && areEnemies(unit.teamId, u.teamId));
+    const hostile = units.filter((u) => u.isAlive() && areEnemies(unit.teamId, u.teamId));
+    if (unit.characterId === 'dark_wolf') {
+        return hostile.filter((u) => !u.tags?.includes('invisibleToWolves'));
+    }
+    return hostile;
 }
 
 /**

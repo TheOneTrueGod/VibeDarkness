@@ -18,7 +18,17 @@ export interface DefendPointDef {
     lightRadius?: number;
 }
 
-export type SpecialTileDef = DefendPointDef;
+/** Crystal: indestructible tile that emits light and grants invisibility to wolves when units are near. */
+export interface CrystalDef {
+    id: 'Crystal';
+    image: string;
+    /** Crystals are indestructible; maxHp stored for interface but not used for damage. */
+    maxHp: number;
+    lightEmission: number;
+    lightRadius: number;
+}
+
+export type SpecialTileDef = DefendPointDef | CrystalDef;
 
 /** Inline campfire SVG: two logs and a small flame. */
 const CAMPFIRE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
@@ -34,6 +44,20 @@ const CAMPFIRE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32
 /** Data URL for the campfire SVG (PixiJS can load this). */
 const CAMPFIRE_DATA_URL = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(CAMPFIRE_SVG)))}`;
 
+/** Small blue crystal SVG for safe-zone tiles. */
+const CRYSTAL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="crystalGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#88ccff"/>
+      <stop offset="50%" stop-color="#4488dd"/>
+      <stop offset="100%" stop-color="#2266aa"/>
+    </linearGradient>
+  </defs>
+  <polygon points="16,2 28,14 16,30 4,14" fill="url(#crystalGrad)" stroke="#66aaff" stroke-width="1"/>
+  <polygon points="16,6 22,14 16,24 10,14" fill="#aaddff" opacity="0.6"/>
+</svg>`;
+const CRYSTAL_DATA_URL = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(CRYSTAL_SVG)))}`;
+
 /** Registry of special tile definitions by ID. */
 export const SPECIAL_TILE_DEFS: Record<string, SpecialTileDef> = {
     DefendPoint: {
@@ -42,6 +66,13 @@ export const SPECIAL_TILE_DEFS: Record<string, SpecialTileDef> = {
         maxHp: 5,
         lightEmission: 21,
         lightRadius: 10,
+    },
+    Crystal: {
+        id: 'Crystal',
+        image: CRYSTAL_DATA_URL,
+        maxHp: 1,
+        lightEmission: 20,
+        lightRadius: 3,
     },
 };
 

@@ -8,6 +8,7 @@ export enum AbilityGroupId {
     Ranger = 2,
     Mage = 3,
     Healer = 4,
+    Utility = 5,
 }
 
 export function formatGroupId(group: AbilityGroupId): string {

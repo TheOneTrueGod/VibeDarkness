@@ -3,7 +3,7 @@
  * Characters have equipment; story choices can add/swap items (e.g. by slot).
  */
 
-export type EquipmentSlotType = 'hands' | 'core';
+export type EquipmentSlotType = 'hands' | 'core' | 'utility';
 
 export interface ItemCardEntry {
     cardId: string;

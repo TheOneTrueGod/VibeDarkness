@@ -157,7 +157,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             }
 
             engine.cards[pu.playerId] = deck;
-            engine.drawCardsForPlayer(pu.playerId, MAX_HAND_SIZE);
+            engine.fillHandInnateFirst(pu.playerId, MAX_HAND_SIZE);
         }
 
         // Register level events (if any)
@@ -181,17 +181,18 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             engine.addUnit(unit);
         }
 
-        // Add special tiles
+        // Add special tiles (DefendPoint, Crystal, etc.)
         if (this.specialTiles && this.specialTiles.length > 0) {
             for (const p of this.specialTiles) {
                 const def = getSpecialTileDef(p.defId);
-                if (!def || def.id !== 'DefendPoint') continue;
+                if (!def) continue;
                 const maxHp = def.maxHp;
                 const emitsLight =
                     p.emitsLight ??
                     (def && 'lightEmission' in def && 'lightRadius' in def
                         ? { lightAmount: (def as { lightEmission: number }).lightEmission, radius: (def as { lightRadius: number }).lightRadius }
                         : undefined);
+                const isDestructible = p.defId === 'DefendPoint' ? p.tags?.destructible : false;
                 engine.addSpecialTile({
                     id: `special_${p.defId}_${p.col}_${p.row}`,
                     defId: p.defId,
@@ -199,8 +200,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     row: p.row,
                     hp: p.hp ?? maxHp,
                     maxHp,
-                    destructible: p.tags?.destructible,
-                    emitsLight,
+                    destructible: isDestructible,
+                    emitsLight: emitsLight ?? undefined,
+                    decayLightPerRound: p.decayLightPerRound,
                 });
             }
         }

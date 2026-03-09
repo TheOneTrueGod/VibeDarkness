@@ -645,6 +645,11 @@ function AppInner() {
                     const u = await lobbyClient.getMe();
                     return u as Record<string, unknown> | null;
                 }}
+                fetchCampaignData={async () => {
+                    const campaignId = currentCampaignId ?? user?.campaignIds?.[0];
+                    if (!campaignId) return null;
+                    return lobbyClient.getCampaign(campaignId);
+                }}
                 fetchCharactersList={() => lobbyClient.getMyCharacters()}
                 getCharacter={(id) => lobbyClient.getCharacter(id)}
             />
