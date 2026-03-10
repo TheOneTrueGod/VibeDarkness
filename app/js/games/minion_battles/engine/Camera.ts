@@ -18,8 +18,10 @@ export class Camera {
     /** World bounds. */
     worldWidth: number;
     worldHeight: number;
-    /** Smooth follow lerp factor (0..1, higher = faster). */
-    lerpSpeed: number = 0.08;
+    /** Smooth follow lerp factor (0..1, higher = faster). Chosen so the camera catches up within ~0.3–0.5 s. */
+    lerpSpeed: number = 0.005;
+    /** When the unit is within this many pixels of screen center after lerp, snap to centered for a clean stop. */
+    private readonly centerSnapThresholdPx: number = 2;
 
     constructor(viewportWidth: number, viewportHeight: number, worldWidth: number, worldHeight: number) {
         this.viewportWidth = viewportWidth;
@@ -31,9 +33,9 @@ export class Camera {
     }
 
     /**
-     * Smoothly move the camera toward the target world position when the target
-     * is outside the center 1/4 of the screen (dead zone). If the target is
-     * inside that central rectangle, the camera does not pan.
+     * When the focused unit leaves the ideal area (center 1/4 of the screen), smoothly
+     * animates the camera until that unit is centered again. If the unit is inside the
+     * dead zone, the camera does not pan.
      */
     centerOn(targetX: number, targetY: number): void {
         const screen = this.worldToScreen(targetX, targetY);
@@ -50,6 +52,17 @@ export class Camera {
             this.x += (targetX - this.x) * this.lerpSpeed;
             this.y += (targetY - this.y) * this.lerpSpeed;
             this.clamp();
+            // When we're close enough to centered, snap so the unit is exactly centered and the animation feels complete
+            const screenAfter = this.worldToScreen(targetX, targetY);
+            const centerX = this.viewportWidth / 2;
+            const centerY = this.viewportHeight / 2;
+            const dx = Math.abs(screenAfter.x - centerX);
+            const dy = Math.abs(screenAfter.y - centerY);
+            if (dx <= this.centerSnapThresholdPx && dy <= this.centerSnapThresholdPx) {
+                this.x = targetX;
+                this.y = targetY;
+                this.clamp();
+            }
         }
     }
 
