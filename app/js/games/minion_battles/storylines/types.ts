@@ -49,16 +49,18 @@ export interface VictoryConditionEliminateAllEnemies {
     type: 'eliminateAllEnemies';
 }
 
-/** Victory condition: all living player units must be within range of a crystal tile. */
-export interface VictoryConditionAllUnitsNearCrystals {
-    type: 'allUnitsNearCrystals';
-    /** Max grid distance (Chebyshev) to count as "near". Default 2. */
+/** Victory condition: all living player units must be within range of a grid position. */
+export interface VictoryConditionAllUnitsNearPosition {
+    type: 'allUnitsNearPosition';
+    col: number;
+    row: number;
+    /** Max grid distance (Chebyshev) to count as "near". Default 1. */
     maxDistance?: number;
 }
 
 export type VictoryCondition =
     | VictoryConditionEliminateAllEnemies
-    | VictoryConditionAllUnitsNearCrystals;
+    | VictoryConditionAllUnitsNearPosition;
 
 /** Base fields shared by all level events. */
 interface LevelEventBase {
@@ -127,14 +129,20 @@ export interface SpecialTilePlacement {
     defId: string;
     col: number;
     row: number;
-    /** Optional initial HP; defaults to def maxHp. */
+    /** If true, AI will treat this tile as a defend point (seek and siege). Set per placement. */
+    defendPoint?: boolean;
+    /** Optional initial HP; defaults to placement maxHp or 5 (Campfire) / 1 (Crystal). */
     hp?: number;
+    /** Maximum hit points (mission-configured). Defaults 5 for Campfire, 1 for Crystal if omitted. */
+    maxHp?: number;
     /** Optional tags (e.g. destructible = can be corrupted by AI). */
     tags?: Partial<Record<SpecialTilesTags, boolean>>;
-    /** Optional light at full HP: amount and radius. Used for light scaling. Falls back to def lightEmission/lightRadius. */
+    /** Light at full HP: amount and radius (mission-configured). */
     emitsLight?: { lightAmount: number; radius: number };
     /** If true, each round this tile's emitsLight is reduced (lightAmount -1, radius -0.5 per round). */
     decayLightPerRound?: boolean;
+    /** For Crystal: tile distance (Chebyshev) for protection aura and terrain blocking. */
+    protectRadius?: number;
 }
 
 /** Grid-based player spawn point (col/row on the terrain grid). */
@@ -144,7 +152,7 @@ export interface PlayerSpawnPoint {
 }
 
 /** AI controller ID. Default is 'legacy' when omitted. */
-export type AIControllerId = 'legacy' | 'defensePoints';
+export type AIControllerId = 'legacy' | 'defensePoints' | 'stateBased';
 
 /** Full battle configuration for a mission. */
 export interface MissionBattleConfig {
@@ -162,7 +170,7 @@ export interface MissionBattleConfig {
     levelEvents?: LevelEvent[];
     /** Create the terrain grid for this mission's battlefield. */
     createTerrain: () => TerrainGrid;
-    /** Optional special tiles (DefendPoint, etc.) placed on the map. */
+    /** Optional special tiles (Campfire, Crystal, etc.) placed on the map. */
     specialTiles?: SpecialTilePlacement[];
     /**
      * Optional grid-based player spawn points.
@@ -181,6 +189,10 @@ export interface MissionBattleConfig {
     allowedTraits?: string[];
     /** Optional denylist: character must not have any of these traits to be used. */
     disallowedTraits?: string[];
+    /** World width in pixels (e.g. terrain columns × cell size). */
+    worldWidth: number;
+    /** World height in pixels (e.g. terrain rows × cell size). */
+    worldHeight: number;
 }
 
 /** Storyline flow edge: fromMissionId + result unlocks toMissionId. */

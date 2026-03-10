@@ -427,7 +427,7 @@ class LobbyManager
                     if (is_file($basePathFile)) {
                         $baseData = json_decode(file_get_contents($basePathFile), true);
                         if (is_array($baseData)) {
-                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds'] as $key) {
+                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds', 'groupVoteVotes', 'groupVoteApplied'] as $key) {
                                 if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
                                     $result[$key] = $baseData[$key];
                                 }
@@ -461,6 +461,9 @@ class LobbyManager
 
     /**
      * Merge each selected character's equipment into state as playerEquipmentByPlayer.
+     *
+     * This also layers in any story-granted equipment from storyGrantedEquipment so that
+     * mission/story effects that equip items are reflected in the derived map.
      */
     private function mergePlayerEquipmentIntoState(array $state): array
     {
@@ -480,6 +483,29 @@ class LobbyManager
                 $byPlayer[$playerId] = $character->getEquipment();
             }
         }
+
+        // Apply story-granted equipment (e.g. deterministic pre-mission grants).
+        $granted = $state['storyGrantedEquipment'] ?? [];
+        if (is_array($granted) && $granted !== []) {
+            foreach ($granted as $playerId => $items) {
+                if (!is_array($items)) {
+                    continue;
+                }
+                $playerKey = is_int($playerId) ? (string) $playerId : $playerId;
+                if (!isset($byPlayer[$playerKey])) {
+                    $byPlayer[$playerKey] = [];
+                }
+                foreach ($items as $itemId) {
+                    if (!is_string($itemId) || $itemId === '') {
+                        continue;
+                    }
+                    if (!in_array($itemId, $byPlayer[$playerKey], true)) {
+                        $byPlayer[$playerKey][] = $itemId;
+                    }
+                }
+            }
+        }
+
         if ($byPlayer !== []) {
             $state['playerEquipmentByPlayer'] = $byPlayer;
         }
@@ -564,6 +590,93 @@ class LobbyManager
     }
 
     /**
+     * Apply a deterministic "grant equipment to one random player" story effect.
+     *
+     * The randomness is serialized by deriving a seed from lobbyId, gameId, missionId,
+     * phraseIndex, and optional seedSuffix so that all servers/clients agree.
+     */
+    public function applyStoryGrantEquipmentRandom(
+        string $lobbyId,
+        string $gameId,
+        string $missionId,
+        int $phraseIndex,
+        string $itemId,
+        ?string $seedSuffix = null,
+    ): bool {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null) {
+            return false;
+        }
+        if ($lobby->getGameId() !== $gameId) {
+            return false;
+        }
+
+        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        if ($currentState === null) {
+            return false;
+        }
+
+        // Idempotency: only apply once per mission/phraseIndex.
+        $applied = $currentState['storyGrantsApplied'] ?? [];
+        if (!is_array($applied)) {
+            $applied = [];
+        }
+        if (!isset($applied[$missionId]) || !is_array($applied[$missionId])) {
+            $applied[$missionId] = [];
+        }
+        if (!empty($applied[$missionId][$phraseIndex])) {
+            return true;
+        }
+
+        $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
+        if (!is_array($selections) || $selections === []) {
+            return false;
+        }
+
+        // Build a stable, sorted list of player IDs.
+        $playerIds = [];
+        foreach ($selections as $pid => $_) {
+            $playerIds[] = is_int($pid) ? (string) $pid : $pid;
+        }
+        $playerIds = array_values(array_filter($playerIds, static fn ($v): bool => is_string($v) && $v !== ''));
+        if ($playerIds === []) {
+            return false;
+        }
+        sort($playerIds, SORT_STRING);
+
+        // Deterministic "random" index based on a hash.
+        $seedParts = [$lobbyId, $gameId, $missionId, (string) $phraseIndex, $itemId];
+        if ($seedSuffix !== null && $seedSuffix !== '') {
+            $seedParts[] = $seedSuffix;
+        }
+        $hash = crc32(implode('|', $seedParts));
+        $index = (int) ($hash % count($playerIds));
+        $targetPlayerId = $playerIds[$index] ?? null;
+        if (!is_string($targetPlayerId) || $targetPlayerId === '') {
+            return false;
+        }
+
+        // Record the grant in storyGrantedEquipment so it can be merged into equipment.
+        $granted = $currentState['storyGrantedEquipment'] ?? [];
+        if (!is_array($granted)) {
+            $granted = [];
+        }
+        if (!isset($granted[$targetPlayerId]) || !is_array($granted[$targetPlayerId])) {
+            $granted[$targetPlayerId] = [];
+        }
+        if (!in_array($itemId, $granted[$targetPlayerId], true)) {
+            $granted[$targetPlayerId][] = $itemId;
+        }
+        $currentState['storyGrantedEquipment'] = $granted;
+
+        $applied[$missionId][$phraseIndex] = true;
+        $currentState['storyGrantsApplied'] = $applied;
+
+        $this->persistGameState($lobbyId, $gameId, $currentState);
+        return true;
+    }
+
+    /**
      * Mark a player as ready at the end of pre-mission story (any player). Merges into game state.
      */
     public function applyStoryReady(string $lobbyId, string $gameId, string $playerId): bool
@@ -593,6 +706,129 @@ class LobbyManager
             $currentState['storyReadyPlayerIds'] = $ready;
             $this->persistGameState($lobbyId, $gameId, $currentState);
         }
+        return true;
+    }
+
+    /**
+     * Record a player's vote for a group vote (any player).
+     */
+    public function applyStoryGroupVote(
+        string $lobbyId,
+        string $gameId,
+        string $playerId,
+        string $voteId,
+        int $phraseIndex,
+        string $optionId
+    ): bool {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null || $lobby->getPlayer($playerId) === null || $lobby->getGameId() !== $gameId) {
+            return false;
+        }
+
+        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        if ($currentState === null) {
+            return false;
+        }
+
+        $votes = $currentState['groupVoteVotes'] ?? [];
+        if (!is_array($votes)) {
+            $votes = [];
+        }
+        if (!isset($votes[$voteId]) || !is_array($votes[$voteId])) {
+            $votes[$voteId] = [];
+        }
+        $votes[$voteId][$playerId] = $optionId;
+        $currentState['groupVoteVotes'] = $votes;
+        $this->persistGameState($lobbyId, $gameId, $currentState);
+        return true;
+    }
+
+    /**
+     * Resolve a group vote and apply the effect (host only). All players must have voted.
+     * Winner = majority; on tie, deterministic (serialized) choice from tied options.
+     *
+     * @param array{type: string, itemId?: string} $effect e.g. ['type' => 'grant_item_to_player', 'itemId' => '005']
+     */
+    public function applyStoryGroupVoteApply(
+        string $lobbyId,
+        string $gameId,
+        string $playerId,
+        string $voteId,
+        int $phraseIndex,
+        array $effect
+    ): bool {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null || !$lobby->getPlayer($playerId)?->isHost() || $lobby->getGameId() !== $gameId) {
+            return false;
+        }
+
+        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        if ($currentState === null) {
+            return false;
+        }
+
+        $applied = $currentState['groupVoteApplied'] ?? [];
+        if (!is_array($applied)) {
+            $applied = [];
+        }
+        if (!empty($applied[$voteId])) {
+            return true;
+        }
+
+        $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
+        if (!is_array($selections) || $selections === []) {
+            return false;
+        }
+        $allPlayerIds = array_keys($selections);
+        $allPlayerIds = array_values(array_filter(array_map(static fn ($p) => is_int($p) ? (string) $p : $p, $allPlayerIds), static fn ($v) => is_string($v) && $v !== ''));
+
+        $votes = $currentState['groupVoteVotes'][$voteId] ?? [];
+        if (!is_array($votes)) {
+            $votes = [];
+        }
+        foreach ($allPlayerIds as $pid) {
+            if (!isset($votes[$pid]) || !is_string($votes[$pid]) || $votes[$pid] === '') {
+                return false;
+            }
+        }
+
+        $counts = [];
+        foreach ($votes as $optionId) {
+            $counts[$optionId] = ($counts[$optionId] ?? 0) + 1;
+        }
+        $maxCount = $counts !== [] ? max($counts) : 0;
+        $tied = array_keys(array_filter($counts, static fn ($c) => $c === $maxCount));
+        sort($tied, SORT_STRING);
+        $winner = $tied[0] ?? null;
+        if (count($tied) > 1) {
+            $seed = crc32(implode('|', [$lobbyId, $gameId, $voteId]));
+            $idx = (int) (abs($seed) % count($tied));
+            $winner = $tied[$idx];
+        }
+        
+        $effectType = $effect['type'] ?? '';
+        if ($effectType === 'grant_item_to_player' && isset($effect['itemId']) && is_string($effect['itemId']) && $effect['itemId'] !== '') {
+            $granted = $currentState['storyGrantedEquipment'] ?? [];
+            if (!is_array($granted)) {
+                $granted = [];
+            }
+            if (!isset($granted[$winner]) || !is_array($granted[$winner])) {
+                $granted[$winner] = [];
+            }
+            if (!in_array($effect['itemId'], $granted[$winner], true)) {
+                $granted[$winner][] = $effect['itemId'];
+            }
+            $currentState['storyGrantedEquipment'] = $granted;
+
+            $characterId = $selections[$winner] ?? null;
+            if (is_string($characterId) && $characterId !== '') {
+                CharacterManager::getInstance()->equipItem($characterId, $effect['itemId'], []);
+            }
+        }
+
+        $applied[$voteId] = true;
+        $currentState['groupVoteApplied'] = $applied;
+        $this->persistGameState($lobbyId, $gameId, $currentState);
         return true;
     }
 

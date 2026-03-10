@@ -100,6 +100,34 @@ export class Pathfinder {
     }
 
     /**
+     * Find a grid-cell path with optional blocked cells (e.g. crystal-protected tiles for enemies).
+     * Does not use cache. Blocked cells are treated as impassable.
+     */
+    findGridPathWithBlocked(
+        fromCol: number,
+        fromRow: number,
+        toCol: number,
+        toRow: number,
+        blockedCells: Set<string>,
+    ): { col: number; row: number }[] | null {
+        const key = (c: number, r: number) => `${c},${r}`;
+        const destPassable = TERRAIN_PROPERTIES[this.grid.get(toCol, toRow)].passable;
+        const destBlocked = blockedCells.has(key(toCol, toRow));
+        if (destBlocked || !destPassable) {
+            const nearest = this.findNearestPassableOrUnblocked(toCol, toRow, blockedCells);
+            if (!nearest) return null;
+            toCol = nearest.col;
+            toRow = nearest.row;
+        }
+
+        if (fromCol === toCol && fromRow === toRow) return [];
+
+        const gridPath = this.astarWithBlocked(fromCol, fromRow, toCol, toRow, blockedCells);
+        if (gridPath) return gridPath.slice(1);
+        return null;
+    }
+
+    /**
      * Find a path from world coordinates to world coordinates.
      * Returns an array of world-space waypoints, or null if no path exists.
      * The first waypoint is near the start; the last is the destination.
@@ -337,6 +365,124 @@ export class Pathfinder {
             }
         }
 
+        return null;
+    }
+
+    /** Find nearest cell that is passable and not in blockedCells (BFS). */
+    private findNearestPassableOrUnblocked(
+        col: number,
+        row: number,
+        blockedCells: Set<string>,
+    ): { col: number; row: number } | null {
+        const key = (c: number, r: number) => `${c},${r}`;
+        const visited = new Set<number>();
+        const queue: { col: number; row: number }[] = [{ col, row }];
+        const W = this.grid.width;
+        const H = this.grid.height;
+        visited.add(row * W + col);
+
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            const passable = TERRAIN_PROPERTIES[this.grid.get(current.col, current.row)].passable;
+            const unblocked = !blockedCells.has(key(current.col, current.row));
+            if (passable && unblocked) return current;
+
+            for (const { dc, dr } of DIRS.slice(0, 4)) {
+                const nc = current.col + dc;
+                const nr = current.row + dr;
+                const k = nr * W + nc;
+                if (!visited.has(k) && nc >= 0 && nc < W && nr >= 0 && nr < H) {
+                    visited.add(k);
+                    queue.push({ col: nc, row: nr });
+                }
+            }
+        }
+        return null;
+    }
+
+    /** A* with optional blocked cells (treated as impassable). */
+    private astarWithBlocked(
+        startCol: number,
+        startRow: number,
+        endCol: number,
+        endRow: number,
+        blockedCells: Set<string>,
+    ): { col: number; row: number }[] | null {
+        const key = (c: number, r: number) => `${c},${r}`;
+        const openSet: PathNode[] = [];
+        const closedSet = new Set<number>();
+        const W = this.grid.width;
+
+        const startNode: PathNode = {
+            col: startCol,
+            row: startRow,
+            g: 0,
+            h: this.heuristic(startCol, startRow, endCol, endRow),
+            f: 0,
+            parent: null,
+        };
+        startNode.f = startNode.g + startNode.h;
+        openSet.push(startNode);
+
+        while (openSet.length > 0) {
+            let lowestIdx = 0;
+            for (let i = 1; i < openSet.length; i++) {
+                if (
+                    openSet[i].f < openSet[lowestIdx].f ||
+                    (openSet[i].f === openSet[lowestIdx].f && openSet[i].h < openSet[lowestIdx].h)
+                ) {
+                    lowestIdx = i;
+                }
+            }
+            const current = openSet.splice(lowestIdx, 1)[0];
+
+            if (current.col === endCol && current.row === endRow) {
+                return this.reconstructPath(current);
+            }
+
+            closedSet.add(current.row * W + current.col);
+
+            for (const dir of DIRS) {
+                const nc = current.col + dir.dc;
+                const nr = current.row + dir.dr;
+                if (nc < 0 || nc >= this.grid.width || nr < 0 || nr >= this.grid.height) continue;
+
+                const neighborKey = nr * W + nc;
+                if (closedSet.has(neighborKey)) continue;
+
+                if (blockedCells.has(key(nc, nr))) continue;
+
+                const terrain = this.grid.get(nc, nr);
+                const props = TERRAIN_PROPERTIES[terrain];
+                if (!props.passable) continue;
+
+                const isDiagonal = dir.dc !== 0 && dir.dr !== 0;
+                if (isDiagonal) {
+                    if (!TERRAIN_PROPERTIES[this.grid.get(current.col + dir.dc, current.row)].passable) continue;
+                    if (!TERRAIN_PROPERTIES[this.grid.get(current.col, current.row + dir.dr)].passable) continue;
+                }
+
+                const moveCost = (isDiagonal ? Math.SQRT2 : 1) * props.pathfindingWeight;
+                const g = current.g + moveCost;
+
+                const existing = openSet.find((n) => n.col === nc && n.row === nr);
+                if (existing) {
+                    if (existing.g <= g) continue;
+                    existing.g = g;
+                    existing.f = g + existing.h;
+                    existing.parent = current;
+                } else {
+                    openSet.push({
+                        col: nc,
+                        row: nr,
+                        g,
+                        h: this.heuristic(nc, nr, endCol, endRow),
+                        f: g + this.heuristic(nc, nr, endCol, endRow),
+                        parent: current,
+                    });
+                }
+            }
+        }
         return null;
     }
 }

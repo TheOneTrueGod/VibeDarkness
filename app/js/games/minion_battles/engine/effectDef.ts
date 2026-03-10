@@ -149,6 +149,40 @@ const corruptionProgressBarDef: IEffectDef = {
     },
 };
 
+/** Flying torch projectile: brown stick with red circle, spins as it travels. */
+const torchProjectileEffectDef: IEffectDef = {
+    createVisual(_effect: Effect): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Graphics, effect: Effect): void {
+        visual.clear();
+        // Spin based on progress (full rotation every ~0.15s of a 0.5s flight = ~3 rotations)
+        const spin = (effect.elapsed / 0.15) * Math.PI * 2;
+        const stickLen = 10;
+        const stickHalf = stickLen / 2;
+        // Brown stick (rotates around center)
+        const cx = Math.cos(spin) * stickHalf;
+        const sy = Math.sin(spin) * stickHalf;
+        const perpX = -Math.sin(spin) * 2;
+        const perpY = Math.cos(spin) * 2;
+        const stickPoints = [
+            -cx + perpX, -sy + perpY,
+            cx + perpX, sy + perpY,
+            cx - perpX, sy - perpY,
+            -cx - perpX, -sy - perpY,
+        ];
+        visual.poly(stickPoints, true);
+        visual.fill({ color: 0x5c4033 });
+        visual.stroke({ color: 0x3d2b1f, width: 1 });
+        // Red circle (flame end) at front of stick
+        const tipX = Math.cos(spin) * stickHalf;
+        const tipY = Math.sin(spin) * stickHalf;
+        visual.circle(tipX, tipY, 5);
+        visual.fill({ color: 0xcc3300 });
+        visual.stroke({ color: 0x990000, width: 1 });
+    },
+};
+
 /** Torch on the ground: small flame glow, emits light (handled in light grid). */
 const torchEffectDef: IEffectDef = {
     createVisual(_effect: Effect): Graphics {
@@ -174,6 +208,7 @@ const effectDefRegistry: Record<string, IEffectDef> = {
     bite: biteEffectDef,
     CorruptionOrb: corruptionOrbEffectDef,
     CorruptionProgressBar: corruptionProgressBarDef,
+    TorchProjectile: torchProjectileEffectDef,
     Torch: torchEffectDef,
 };
 

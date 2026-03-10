@@ -225,6 +225,33 @@ class PostMessageHandler
             return ['success' => true];
         }
 
+        if ($type === 'story_grant_equipment_random') {
+            $missionId = $payload['missionId'] ?? null;
+            $phraseIndex = $payload['phraseIndex'] ?? null;
+            $itemId = $payload['itemId'] ?? null;
+            if (!is_string($missionId) || $missionId === '' || !is_int($phraseIndex) || !is_string($itemId) || $itemId === '') {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'missionId, phraseIndex, and itemId required'];
+            }
+            $seedSuffix = isset($payload['seedSuffix']) && is_string($payload['seedSuffix']) ? $payload['seedSuffix'] : null;
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+            $gameId = $lobby->getGameId();
+            if (!$gameId) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'No active game'];
+            }
+            $success = $manager->applyStoryGrantEquipmentRandom($lobbyId, $gameId, $missionId, $phraseIndex, $itemId, $seedSuffix);
+            if (!$success) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'Failed to apply story equipment grant'];
+            }
+            return ['success' => true];
+        }
+
         if ($type === 'story_ready') {
             $lobby = $manager->getLobby($lobbyId);
             if ($lobby === null) {
@@ -240,6 +267,60 @@ class PostMessageHandler
             if (!$success) {
                 http_response_code(400);
                 return ['success' => false, 'error' => 'Failed to apply story ready'];
+            }
+            return ['success' => true];
+        }
+
+        if ($type === 'story_group_vote') {
+            $voteId = $payload['voteId'] ?? null;
+            $phraseIndex = $payload['phraseIndex'];
+            $optionId = $payload['optionId'] ?? null;
+            if (!is_string($voteId) || $voteId === '' || $optionId === null || !is_string($optionId)) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'voteId and optionId required'];
+            }
+            $phraseIndex = is_int($phraseIndex) ? $phraseIndex : (int) $phraseIndex;
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+            $gameId = $lobby->getGameId();
+            if (!$gameId) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'No active game'];
+            }
+            $success = $manager->applyStoryGroupVote($lobbyId, $gameId, $playerId, $voteId, $phraseIndex, $optionId);
+            if (!$success) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'Failed to record group vote'];
+            }
+            return ['success' => true];
+        }
+
+        if ($type === 'story_group_vote_apply') {
+            $voteId = $payload['voteId'] ?? null;
+            $phraseIndex = $payload['phraseIndex'];
+            $effect = $payload['effect'] ?? null;
+            if (!is_string($voteId) || $voteId === '' || !is_array($effect)) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'voteId and effect required'];
+            }
+            $phraseIndex = is_int($phraseIndex) ? $phraseIndex : (int) $phraseIndex;
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+            $gameId = $lobby->getGameId();
+            if (!$gameId) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'No active game'];
+            }
+            $success = $manager->applyStoryGroupVoteApply($lobbyId, $gameId, $playerId, $voteId, $phraseIndex, $effect);
+            if (!$success) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'Failed to apply group vote result'];
             }
             return ['success' => true];
         }

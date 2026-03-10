@@ -19,6 +19,7 @@ import type { AbilityStatic } from '../abilities/Ability';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import { TerrainManager } from '../terrain/TerrainManager';
+import { TERRAIN_PROPERTIES } from '../terrain/TerrainType';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import RoundProgressBar from '../components/RoundProgressBar';
@@ -26,6 +27,18 @@ import { throwError } from '../utils/errors';
 import { diffSnapshotFields } from '../utils/snapshotDiff';
 import { MessageType } from '../../../MessageTypes';
 import type { MessageEntry } from '../../../components/Chat';
+
+declare global {
+    interface Window {
+        __minionBattlesDebugMouse?: {
+            worldX: number;
+            worldY: number;
+            row: number;
+            col: number;
+            terrainName: string;
+        };
+    }
+}
 
 interface BattlePhaseProps {
     lobbyClient: LobbyClient;
@@ -202,19 +215,7 @@ export default function BattlePhase({
             // CharacterManager.getCharacter(characterId) returns a character. Empty when: (1) no
             // characterSelections in state, (2) every character lookup fails (wrong ID, or no
             // storage/characters/<id>.json). BaseMissionDef applies a hand fallback when this is {}.
-            let equippedItemsByPlayer = (init?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
-            if (mission.missionId === 'towards_the_light') {
-                const THROW_TORCH_UTILITY_ITEM_ID = '005';
-                equippedItemsByPlayer = { ...equippedItemsByPlayer };
-                for (const pid of Object.keys(equippedItemsByPlayer)) {
-                    const list = equippedItemsByPlayer[pid];
-                    if (list && !list.includes(THROW_TORCH_UTILITY_ITEM_ID)) {
-                        equippedItemsByPlayer[pid] = [...list, THROW_TORCH_UTILITY_ITEM_ID];
-                    } else if (!list || list.length === 0) {
-                        equippedItemsByPlayer[pid] = [THROW_TORCH_UTILITY_ITEM_ID];
-                    }
-                }
-            }
+            const equippedItemsByPlayer = (init?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
             mission.initializeGameState(engine, {
                 playerUnits,
                 localPlayerId: playerId,
@@ -478,9 +479,30 @@ export default function BattlePhase({
     }, [selectedAbility, currentTargets, isMyTurn, waitingForOrders]);
 
     const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
+        const engine = engineRef.current;
         const camera = cameraRef.current;
         if (camera) {
-            mouseWorldRef.current = camera.screenToWorld(screenX, screenY);
+            const worldPos = camera.screenToWorld(screenX, screenY);
+            mouseWorldRef.current = worldPos;
+
+            if (engine?.terrainManager) {
+                const grid = engine.terrainManager.grid;
+                const worldWidth = engine.getWorldWidth();
+                const worldHeight = engine.getWorldHeight();
+                const clampedX = Math.max(0, Math.min(worldPos.x, worldWidth));
+                const clampedY = Math.max(0, Math.min(worldPos.y, worldHeight));
+                const { col, row } = grid.worldToGrid(clampedX, clampedY);
+                const terrain = engine.terrainManager.getTerrainAt(clampedX, clampedY);
+                const terrainName = TERRAIN_PROPERTIES[terrain]?.name ?? String(terrain);
+
+                window.__minionBattlesDebugMouse = {
+                    worldX: clampedX,
+                    worldY: clampedY,
+                    row,
+                    col,
+                    terrainName,
+                };
+            }
         }
         forceRender((n) => n + 1);
     }, []);

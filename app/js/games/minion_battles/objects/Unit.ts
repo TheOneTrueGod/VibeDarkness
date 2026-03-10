@@ -19,6 +19,7 @@ import { CELL_SIZE } from '../terrain/TerrainGrid';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { computeForcedDisplacement } from '../engine/forceMove';
 import { DEFAULT_UNIT_RADIUS } from '../constants/unitConstants';
+import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 
 /** AI behavior settings for enemy units. */
 export interface AISettings {
@@ -37,6 +38,8 @@ export interface UnitAIContext {
     /** When corrupting a destructible defend point: tile ID and game time when corruption started. */
     corruptingTargetId?: string;
     corruptingStartedAt?: number;
+    /** State-based AI: serialized current state (stateId + state-specific props). Sent as JSON to/from server. */
+    aiStateSerialized?: Record<string, unknown>;
 }
 
 /** Movement state for a unit. */
@@ -124,7 +127,7 @@ export class Unit extends GameObject {
     /** Per-controller AI context bag (serialized via toJSON/fromJSON). */
     aiContext: UnitAIContext = {};
 
-    /** Optional tags (e.g. 'invisibleToWolves' when near a crystal). Not serialized by default; mission logic can set. */
+    /** Optional tags (e.g. 'protectedByCrystal' when near a crystal; enemies cannot see the unit). Not serialized by default; mission logic can set. */
     tags: string[] = [];
 
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
@@ -206,6 +209,11 @@ export class Unit extends GameObject {
     /** Apply damage to this unit. Returns actual damage dealt. */
     takeDamage(amount: number, sourceUnitId: string | null, eventBus: EventBus): number {
         if (!this.isAlive()) return 0;
+
+        // God mode: prevent HP loss for player-controlled units.
+        if (debugSettingsSnapshot.godModeEnabled && this.isPlayerControlled()) {
+            return 0;
+        }
         const actual = Math.min(amount, this.hp);
         this.hp -= actual;
 
@@ -354,6 +362,11 @@ export class Unit extends GameObject {
         let effectiveSpeed = this.getEffectiveSpeed(gameTime);
         if (terrainManager) {
             effectiveSpeed *= terrainManager.getSpeedMultiplier(this.x, this.y);
+        }
+
+        // Debug: super speed for player-controlled units
+        if (debugSettingsSnapshot.superSpeedEnabled && this.isPlayerControlled()) {
+            effectiveSpeed *= 10;
         }
 
         // Move toward the next cell center

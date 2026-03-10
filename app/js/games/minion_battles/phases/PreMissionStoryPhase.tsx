@@ -2,12 +2,19 @@
  * Pre-mission story phase - visual novel style segment.
  * Each player advances at their own pace (local phrase index). Only choice results are sent to the server.
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../types';
 import { LobbyClient } from '../../../LobbyClient';
 import { MessageType } from '../../../MessageTypes';
 import { getNpc } from '../constants/npcs';
-import type { PreMissionStoryDef, DialoguePhrase, ChoicePhrase } from '../storylines/storyTypes';
+import type {
+    PreMissionStoryDef,
+    DialoguePhrase,
+    ChoicePhrase,
+    GrantEquipmentRandomPhrase,
+    GroupVotePhrase,
+    PreMissionPhrase,
+} from '../storylines/storyTypes';
 import { getItemDef } from '../character_defs/items';
 import VNTextBox from '../components/VNTextBox';
 import CharacterPortrait from '../components/CharacterPortrait';
@@ -19,17 +26,33 @@ interface PreMissionStoryPhaseProps {
     gameId: string;
     playerId: string;
     isHost: boolean;
+    /** Mission ID for this story; used for deterministic equipment grants. */
+    missionId: string;
     players: Record<string, PlayerState>;
     preMissionStory: PreMissionStoryDef;
     /** Player IDs that have reached the final "start game" card (synced from server). */
     storyReadyPlayerIds: string[];
     /** Current equipment per player (from server); used to compute replaceItemIds when equipping. */
     playerEquipmentByPlayer?: Record<string, string[]>;
+    /** Votes per group vote (voteId -> playerId -> optionId); synced from server. */
+    groupVoteVotes?: Record<string, Record<string, string>>;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
 }
 
-function isDialogue(phrase: DialoguePhrase | ChoicePhrase): phrase is DialoguePhrase {
-    return phrase.type === 'dialogue';
+function isDialogue(phrase: PreMissionPhrase | undefined): phrase is DialoguePhrase {
+    return !!phrase && phrase.type === 'dialogue';
+}
+
+function isChoice(phrase: PreMissionPhrase | undefined): phrase is ChoicePhrase {
+    return phrase?.type === 'choice';
+}
+
+function isGrantEquipmentRandom(phrase: PreMissionPhrase | undefined): phrase is GrantEquipmentRandomPhrase {
+    return phrase?.type === 'grant_equipment_random';
+}
+
+function isGroupVote(phrase: PreMissionPhrase | undefined): phrase is GroupVotePhrase {
+    return phrase?.type === 'groupVote';
 }
 
 export default function PreMissionStoryPhase({
@@ -38,17 +61,20 @@ export default function PreMissionStoryPhase({
     gameId,
     playerId,
     isHost,
+    missionId,
     players,
     preMissionStory,
     storyReadyPlayerIds,
     playerEquipmentByPlayer,
+    groupVoteVotes = {},
     onPhaseChange,
 }: PreMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
     const [backgroundImage, setBackgroundImage] = useState<string | undefined>();
     const [bgOpacity, setBgOpacity] = useState(1);
+    const [isApplyingGroupVote, setIsApplyingGroupVote] = useState(false);
 
-    const phrases = preMissionStory.phrases;
+    const phrases: PreMissionPhrase[] = preMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
     const isEnd = phraseIndex >= phrases.length;
 
@@ -69,6 +95,42 @@ export default function PreMissionStoryPhase({
     const advancePhrase = useCallback(() => {
         setPhraseIndex((i) => Math.min(i + 1, phrases.length));
     }, [phrases.length]);
+
+    // Ensure we only send a grant-equipment message once per phrase index.
+    const lastGrantIndexRef = useRef<number | null>(null);
+
+    // Host applies grant_equipment_random phrases by sending a one-off message to the server.
+    useEffect(() => {
+        if (!isHost) {
+            // Non-host clients just advance past grant-equipment phrases locally; the server
+            // will apply the effect using the host's message and everyone will see it via polling.
+            if (isGrantEquipmentRandom(currentPhrase)) {
+                advancePhrase();
+            }
+            return;
+        }
+        if (!isGrantEquipmentRandom(currentPhrase)) {
+            return;
+        }
+        if (lastGrantIndexRef.current === phraseIndex) {
+            return;
+        }
+        lastGrantIndexRef.current = phraseIndex;
+        const { itemId, seedSuffix } = currentPhrase;
+        void lobbyClient
+            .sendMessage(lobbyId, playerId, MessageType.STORY_GRANT_EQUIPMENT_RANDOM, {
+                missionId,
+                phraseIndex,
+                itemId,
+                ...(seedSuffix ? { seedSuffix } : {}),
+            })
+            .catch(() => {
+                // Swallow errors; the story can still progress, but the grant may fail.
+            })
+            .finally(() => {
+                advancePhrase();
+            });
+    }, [advancePhrase, currentPhrase, isHost, lobbyClient, lobbyId, missionId, phraseIndex, playerId]);
 
     const handleStartGame = useCallback(async () => {
         try {
@@ -115,6 +177,40 @@ export default function PreMissionStoryPhase({
         },
         [lobbyClient, lobbyId, playerId, playerEquipmentByPlayer, advancePhrase]
     );
+
+    const handleGroupVote = useCallback(
+        async (voteId: string, optionId: string) => {
+            try {
+                await lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_GROUP_VOTE, {
+                    voteId,
+                    phraseIndex,
+                    optionId,
+                });
+            } catch (error) {
+                console.error('Failed to send group vote:', error);
+            }
+        },
+        [lobbyClient, lobbyId, playerId, phraseIndex]
+    );
+
+    const handleGroupVoteNext = useCallback(async () => {
+        if (!currentPhrase || !isGroupVote(currentPhrase)) return;
+        setIsApplyingGroupVote(true);
+        try {
+            if (isHost && currentPhrase.effect) {
+                await lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_GROUP_VOTE_APPLY, {
+                    voteId: currentPhrase.voteId,
+                    phraseIndex,
+                    effect: currentPhrase.effect,
+                });
+            }
+            advancePhrase();
+        } catch (error) {
+            console.error('Failed to apply group vote:', error);
+        } finally {
+            setIsApplyingGroupVote(false);
+        }
+    }, [currentPhrase, isHost, lobbyClient, lobbyId, playerId, phraseIndex, advancePhrase]);
 
     const allPlayerIds = Object.keys(players);
     const singlePlayer = allPlayerIds.length === 1;
@@ -238,7 +334,7 @@ export default function PreMissionStoryPhase({
                                     <p className="mb-0">{currentPhrase.text}</p>
                                 )}
                             </VNTextBox>
-                        ) : (
+                        ) : isChoice(currentPhrase) ? (
                             <>
                                 <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-6">
                                     <div className="space-y-3">
@@ -257,7 +353,113 @@ export default function PreMissionStoryPhase({
                                 {/* Spacer so choice card sits above where the text box would be */}
                                 <div className="min-h-[16rem]" aria-hidden />
                             </>
-                        )}
+                        ) : isGroupVote(currentPhrase) ? (
+                            (() => {
+                                const voteId = currentPhrase.voteId;
+                                const options =
+                                    currentPhrase.optionSource === 'players'
+                                        ? allPlayerIds.map((id) => ({
+                                              id,
+                                              label: players[id]?.name ?? id,
+                                          }))
+                                        : currentPhrase.options ?? [];
+                                const votesForVote = groupVoteVotes[voteId] ?? {};
+                                const myVote = votesForVote[playerId];
+                                const allVoted = allPlayerIds.every((pid) => votesForVote[pid] != null);
+                                const voterNames = (optionId: string) =>
+                                    allPlayerIds
+                                        .filter((pid) => votesForVote[pid] === optionId)
+                                        .map((pid) => players[pid]?.name ?? pid)
+                                        .join(', ');
+                                return (
+                                    <>
+                                        <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-6">
+                                            <p className="text-white mb-4">{currentPhrase.text}</p>
+                                            <div className="space-y-3">
+                                                {options.map((opt) => {
+                                                    const voters = voterNames(opt.id);
+                                                    const isMyVote = myVote === opt.id;
+                                                    return (
+                                                        <div
+                                                            key={opt.id}
+                                                            className="rounded-lg border-2 border-border-custom bg-surface overflow-hidden"
+                                                        >
+                                                            <div className="flex items-center gap-3 px-4 py-3">
+                                                                {myVote == null ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            handleGroupVote(voteId, opt.id)
+                                                                        }
+                                                                        className="flex-1 text-left px-2 py-2 rounded-lg text-lg text-white hover:bg-surface-light/80 transition-colors"
+                                                                    >
+                                                                        {opt.label}
+                                                                    </button>
+                                                                ) : (
+                                                                    <span
+                                                                        className={`flex-1 text-lg text-white ${
+                                                                            isMyVote ? 'font-semibold' : ''
+                                                                        }`}
+                                                                    >
+                                                                        {opt.label}
+                                                                        {isMyVote && (
+                                                                            <span className="text-primary ml-2">
+                                                                                (your vote)
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                )}
+                                                                {voters ? (
+                                                                    <span className="text-sm text-muted shrink-0">
+                                                                        {voters}
+                                                                    </span>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            {allVoted && (
+                                                <div className="mt-4 flex justify-end items-center gap-2">
+                                                    {isApplyingGroupVote && (
+                                                        <svg
+                                                            className="animate-spin h-5 w-5 text-primary"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            aria-hidden
+                                                        >
+                                                            <circle
+                                                                className="opacity-25"
+                                                                cx="12"
+                                                                cy="12"
+                                                                r="10"
+                                                                stroke="currentColor"
+                                                                strokeWidth="4"
+                                                            />
+                                                            <path
+                                                                className="opacity-75"
+                                                                fill="currentColor"
+                                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                            />
+                                                        </svg>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleGroupVoteNext}
+                                                        disabled={isApplyingGroupVote}
+                                                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {isApplyingGroupVote ? 'Applying…' : 'Next'}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="min-h-[16rem]" aria-hidden />
+                                    </>
+                                );
+                            })()
+                        ) : null}
                     </div>
                 </div>
             </div>

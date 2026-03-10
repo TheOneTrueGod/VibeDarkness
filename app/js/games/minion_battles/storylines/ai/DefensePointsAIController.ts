@@ -60,7 +60,8 @@ export const DefensePointsAIController: UnitAIController = {
 			unit.activeAbilities.length === 0;
 		if (shouldRecalcPathToDefend && terrainManager && grid) {
 			const unitGrid = grid.worldToGrid(unit.x, unit.y);
-			const path = terrainManager.findGridPath(
+			const path = context.findGridPathForUnit(
+				unit,
 				unitGrid.col,
 				unitGrid.row,
 				currentDefendPoint.col,
@@ -89,7 +90,7 @@ export const DefensePointsAIController: UnitAIController = {
 
 			if (unit.aiSettings && terrainManager) {
 				applyAIMovementToUnit(unit, combatTarget, {
-					findGridPath: terrainManager.findGridPath.bind(terrainManager),
+					findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
 					worldToGrid: grid!.worldToGrid.bind(grid!),
 					gameTick: context.gameTick,
 					worldWidth: context.WORLD_WIDTH,
@@ -147,7 +148,8 @@ export const DefensePointsAIController: UnitAIController = {
 
 		const grid = context.terrainManager.grid;
 		const unitGrid = grid.worldToGrid(unit.x, unit.y);
-		const path = context.terrainManager.findGridPath(
+		const path = context.findGridPathForUnit(
+			unit,
 			unitGrid.col,
 			unitGrid.row,
 			targetTile.col,

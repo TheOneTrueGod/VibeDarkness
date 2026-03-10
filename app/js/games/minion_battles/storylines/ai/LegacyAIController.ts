@@ -19,7 +19,7 @@ export const LegacyAIController: UnitAIController = {
         const moveTarget = enemies[context.generateRandomInteger(0, enemies.length - 1)]!;
         if (unit.aiSettings && context.terrainManager) {
             applyAIMovementToUnit(unit, moveTarget, {
-                findGridPath: context.terrainManager.findGridPath.bind(context.terrainManager),
+                findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
                 worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
                 gameTick: context.gameTick,
                 worldWidth: context.WORLD_WIDTH,
@@ -39,7 +39,7 @@ export const LegacyAIController: UnitAIController = {
         const target = unit.movement?.targetUnitId ? context.getUnit(unit.movement.targetUnitId) : undefined;
         if (!target?.isAlive() || !unit.aiSettings || !context.terrainManager) return;
         applyAIMovementToUnit(unit, target, {
-            findGridPath: context.terrainManager.findGridPath.bind(context.terrainManager),
+            findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
             worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
             gameTick: context.gameTick,
             worldWidth: context.WORLD_WIDTH,

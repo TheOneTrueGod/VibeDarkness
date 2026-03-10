@@ -118,7 +118,9 @@ export default function CardHand({
             if (!dd) {
                 return name;
             }
-            
+            if (dd.unit === 'never') {
+                return name;
+            }
             if (dd.unit === 'rounds') {
                 const remainingRounds = card.discardRoundsRemaining ?? dd.duration;
                 return `${name} (${remainingRounds}r)`;

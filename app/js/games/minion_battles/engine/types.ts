@@ -21,13 +21,15 @@ export interface WaitingForOrders {
     ownerId: string;
 }
 
-/** Serialized special tile (e.g. DefendPoint with current HP). */
+/** Serialized special tile (e.g. Campfire with current HP). */
 export interface SerializedSpecialTile {
     id: string;
     defId: string;
     col: number;
     row: number;
     hp: number;
+    /** If true, AI treats this as a defend point. */
+    defendPoint?: boolean;
 }
 
 /** Serialized game state for server sync. */

@@ -73,7 +73,7 @@ function createPlayerUnit(id: string, x: number, y: number): Unit {
 }
 
 function createDefendPoint(id: string, col: number, row: number, hp: number): SpecialTile {
-    return { id, defId: 'DefendPoint', col, row, hp, maxHp: 5 };
+    return { id, defId: 'Campfire', col, row, hp, maxHp: 5, defendPoint: true };
 }
 
 function createMockContext(options: {
@@ -96,8 +96,10 @@ function createMockContext(options: {
         getUnit: (id) => options.units.find((u) => u.id === id),
         getUnits: () => options.units,
         getSpecialTiles: () => options.aliveDefendPoints,
-        getAliveDefendPoints: () => options.aliveDefendPoints.filter((t) => t.hp > 0),
+        getAliveDefendPoints: () => options.aliveDefendPoints.filter((t) => t.defendPoint === true && t.hp > 0),
         terrainManager: options.terrainManager ?? null,
+        findGridPathForUnit: (_, fromCol, fromRow, toCol, toRow) =>
+            options.terrainManager?.findGridPath(fromCol, fromRow, toCol, toRow) ?? null,
         queueOrder: (atTick, order) => {
             orders.push(order);
         },

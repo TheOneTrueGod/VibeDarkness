@@ -5,21 +5,36 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { GameStatePayload, CampaignState } from '../types';
 import type { CampaignCharacterPayload } from '../LobbyClient';
+import { useDebugSettings } from '../contexts/DebugSettingsContext';
 
-type TabId = 'game-state' | 'player-data' | 'campaign-data' | 'characters';
+type TabId = 'battle-actions' | 'game-state' | 'player-data' | 'campaign-data' | 'characters';
 
 interface DebugConsoleProps {
     gameState: GameStatePayload | null;
     playerName: string | null;
+    /** When true, show the Battle Actions tab (e.g. in Minion Battles battle phase). */
+    inBattle?: boolean;
+    /** When true, show Battle Actions only to admins and prefer it as the default tab. */
+    isAdmin?: boolean;
     fetchPlayerData: () => Promise<Record<string, unknown> | null>;
     fetchCampaignData: () => Promise<CampaignState | null>;
     fetchCharactersList: () => Promise<CampaignCharacterPayload[]>;
     getCharacter: (characterId: string) => Promise<CampaignCharacterPayload>;
 }
 
+interface MouseDebugInfo {
+    worldX: number;
+    worldY: number;
+    row: number;
+    col: number;
+    terrainName: string;
+}
+
 export default function DebugConsole({
     gameState,
     playerName,
+    inBattle = false,
+    isAdmin = false,
     fetchPlayerData,
     fetchCampaignData,
     fetchCharactersList,
@@ -28,7 +43,9 @@ export default function DebugConsole({
     const [debugMode, setDebugMode] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [tildeCount, setTildeCount] = useState(0);
-    const [activeTab, setActiveTab] = useState<TabId>('game-state');
+    const [activeTab, setActiveTab] = useState<TabId>(() =>
+        inBattle && isAdmin ? 'battle-actions' : 'game-state',
+    );
     const [playerData, setPlayerData] = useState<Record<string, unknown> | null>(null);
     const [playerDataLoading, setPlayerDataLoading] = useState(false);
     const [playerDataError, setPlayerDataError] = useState<string | null>(null);
@@ -44,6 +61,22 @@ export default function DebugConsole({
     const [characterDetail, setCharacterDetail] = useState<CampaignCharacterPayload | null>(null);
     const [characterDetailLoading, setCharacterDetailLoading] = useState(false);
     const [characterDetailError, setCharacterDetailError] = useState<string | null>(null);
+    const [mouseDebug, setMouseDebug] = useState<MouseDebugInfo | null>(null);
+    const {
+        darkOverlayEnabled,
+        godModeEnabled,
+        superSpeedEnabled,
+        setDarkOverlayEnabled,
+        setGodModeEnabled,
+        setSuperSpeedEnabled,
+    } = useDebugSettings();
+
+    // When leaving battle or losing admin while on Battle Actions tab, switch back to Game State
+    useEffect(() => {
+        if ((!inBattle || !isAdmin) && activeTab === 'battle-actions') {
+            setActiveTab('game-state');
+        }
+    }, [inBattle, isAdmin, activeTab]);
 
     const onKeyDown = useCallback(
         (e: KeyboardEvent) => {
@@ -69,6 +102,29 @@ export default function DebugConsole({
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
     }, [onKeyDown]);
+
+    useEffect(() => {
+        const id = window.setInterval(() => {
+            const data = window.__minionBattlesDebugMouse;
+            if (!data) return;
+            setMouseDebug((prev) => {
+                if (
+                    prev &&
+                    prev.worldX === data.worldX &&
+                    prev.worldY === data.worldY &&
+                    prev.row === data.row &&
+                    prev.col === data.col &&
+                    prev.terrainName === data.terrainName
+                ) {
+                    return prev;
+                }
+                return { ...data };
+            });
+        }, 100);
+        return () => {
+            window.clearInterval(id);
+        };
+    }, []);
 
     const loadPlayerData = useCallback(async () => {
         setPlayerDataLoading(true);
@@ -167,17 +223,52 @@ export default function DebugConsole({
                 expanded ? 'w-[50vw] h-[50vh]' : 'w-auto h-auto max-h-[60px]'
             }`}
         >
-            <div className="p-2 shrink-0">
-                <button
-                    className="px-4 py-2 text-sm bg-surface-light text-white border border-border-custom rounded hover:bg-border-custom transition-colors"
-                    onClick={() => setExpanded(!expanded)}
-                >
-                    Debug
-                </button>
+            <div className={`p-2 shrink-0 flex items-center justify-between gap-4 ${expanded ? 'min-w-[260px]' : ''}`}>
+                <div>
+                    <button
+                        className="px-4 py-2 text-sm bg-surface-light text-white border border-border-custom rounded hover:bg-border-custom transition-colors"
+                        onClick={() => setExpanded(!expanded)}
+                    >
+                        Debug
+                    </button>
+                </div>
+                {expanded && (
+                    <>
+                        <div className="flex-1 text-center text-[11px] leading-tight text-muted font-mono">
+                            {mouseDebug ? (
+                                <>
+                                    <div>
+                                        x {mouseDebug.worldX.toFixed(1)}, y {mouseDebug.worldY.toFixed(1)}
+                                    </div>
+                                    <div>
+                                        row {mouseDebug.row}, col {mouseDebug.col}
+                                    </div>
+                                    <div>{mouseDebug.terrainName}</div>
+                                </>
+                            ) : (
+                                <div>No mouse</div>
+                            )}
+                        </div>
+                        <div className="w-10" />
+                    </>
+                )}
             </div>
             {expanded && (
                 <div className="flex flex-col flex-1 min-h-0">
                     <div className="flex gap-1 px-2 border-b border-border-custom shrink-0">
+                        {inBattle && isAdmin && (
+                            <button
+                                type="button"
+                                className={`px-3 py-2 bg-transparent border-none border-b-2 text-sm cursor-pointer ${
+                                    activeTab === 'battle-actions'
+                                        ? 'border-b-primary text-primary'
+                                        : 'border-b-transparent text-muted hover:text-white'
+                                }`}
+                                onClick={() => setActiveTab('battle-actions')}
+                            >
+                                Battle Actions
+                            </button>
+                        )}
                         <button
                             type="button"
                             className={`px-3 py-2 bg-transparent border-none border-b-2 text-sm cursor-pointer ${
@@ -227,6 +318,61 @@ export default function DebugConsole({
                         </button>
                     </div>
                     <div className="flex-1 overflow-auto p-3 min-h-0">
+                        {activeTab === 'battle-actions' && isAdmin && (
+                            <div className="flex flex-col gap-2 text-sm text-muted">
+                                <div className="flex items-center gap-2">
+                                    <span>Darkness layer</span>
+                                    <button
+                                        type="button"
+                                        className={`px-3 py-1.5 text-xs rounded border border-border-custom ${
+                                            darkOverlayEnabled
+                                                ? 'bg-primary/20 text-primary border-primary/50'
+                                                : 'bg-surface-light text-white hover:bg-border-custom'
+                                        }`}
+                                        onClick={() => setDarkOverlayEnabled(!darkOverlayEnabled)}
+                                    >
+                                        {darkOverlayEnabled ? 'On' : 'Off'}
+                                    </button>
+                                    <span className="text-[11px] text-muted">
+                                        When off, the battle map hides the light/darkness overlay.
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span>God mode</span>
+                                    <button
+                                        type="button"
+                                        className={`px-3 py-1.5 text-xs rounded border border-border-custom ${
+                                            godModeEnabled
+                                                ? 'bg-primary/20 text-primary border-primary/50'
+                                                : 'bg-surface-light text-white hover:bg-border-custom'
+                                        }`}
+                                        onClick={() => setGodModeEnabled(!godModeEnabled)}
+                                    >
+                                        {godModeEnabled ? 'On' : 'Off'}
+                                    </button>
+                                    <span className="text-[11px] text-muted">
+                                        Player-controlled units do not lose HP while enabled.
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span>Super Speed</span>
+                                    <button
+                                        type="button"
+                                        className={`px-3 py-1.5 text-xs rounded border border-border-custom ${
+                                            superSpeedEnabled
+                                                ? 'bg-primary/20 text-primary border-primary/50'
+                                                : 'bg-surface-light text-white hover:bg-border-custom'
+                                        }`}
+                                        onClick={() => setSuperSpeedEnabled(!superSpeedEnabled)}
+                                    >
+                                        {superSpeedEnabled ? 'On' : 'Off'}
+                                    </button>
+                                    <span className="text-[11px] text-muted">
+                                        Player-controlled units move 10x faster while enabled.
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                         {activeTab === 'game-state' && (
                             <pre className="m-0 font-mono text-xs leading-relaxed text-white whitespace-pre-wrap break-all">
                                 <code>

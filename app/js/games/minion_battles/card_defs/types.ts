@@ -11,10 +11,12 @@ export function asCardDefId(s: string): CardDefId {
 
 /**
  * Discard duration configuration: how long a card stays in discard before returning to the deck.
+ * When unit is 'never', the card is not added to the discard pile at all (consumed).
  */
 export type DiscardDuration =
     | { duration: number; unit: 'rounds' }
-    | { duration: number; unit: 'seconds' };
+    | { duration: number; unit: 'seconds' }
+    | { unit: 'never' };
 
 /**
  * Card definition shape.

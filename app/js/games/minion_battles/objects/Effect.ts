@@ -49,9 +49,39 @@ export class Effect extends GameObject {
         if (config.effectData) this.effectData = { ...config.effectData };
     }
 
-    update(dt: number, _engine: unknown): void {
+    update(dt: number, engine: unknown): void {
         if (!this.active) return;
         this.elapsed += dt;
+        // TorchProjectile: when it reaches the target, spawn the ground Torch effect then deactivate
+        if (this.effectType === 'TorchProjectile' && this.elapsed >= this.duration) {
+            const data = this.effectData as {
+                roundCreated?: number;
+                initialLightAmount?: number;
+                initialRadius?: number;
+                roundsTotal?: number;
+            };
+            const roundCreated = data.roundCreated ?? 1;
+            const initialLightAmount = data.initialLightAmount ?? 10;
+            const initialRadius = data.initialRadius ?? 5;
+            const roundsTotal = data.roundsTotal ?? 3;
+            const torchEffect = new Effect({
+                x: this.endX,
+                y: this.endY,
+                duration: 999,
+                effectType: 'Torch',
+                effectData: {
+                    roundCreated,
+                    initialLightAmount,
+                    initialRadius,
+                    lightAmount: initialLightAmount,
+                    radius: initialRadius,
+                    roundsTotal,
+                },
+            });
+            (engine as { addEffect(e: Effect): void }).addEffect(torchEffect);
+            this.active = false;
+            return;
+        }
         if (this.elapsed >= this.duration) {
             this.active = false;
         }

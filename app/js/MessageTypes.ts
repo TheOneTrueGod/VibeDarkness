@@ -23,6 +23,9 @@ export const MessageType = Object.freeze({
     BATTLE_ORDERS_READY: 'battle_orders_ready',
     STORY_CHOICE: 'story_choice',
     STORY_READY: 'story_ready',
+    STORY_GRANT_EQUIPMENT_RANDOM: 'story_grant_equipment_random',
+    STORY_GROUP_VOTE: 'story_group_vote',
+    STORY_GROUP_VOTE_APPLY: 'story_group_vote_apply',
 } as const);
 
 type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
@@ -55,6 +58,18 @@ const MessageSchema: Record<string, SchemaDef> = Object.freeze({
     [MessageType.BATTLE_ORDERS_READY]: { required: ['snapshotIndex'], optional: [] },
     [MessageType.STORY_CHOICE]: { required: ['choiceId', 'optionId'], optional: [] },
     [MessageType.STORY_READY]: { required: [], optional: [] },
+    [MessageType.STORY_GRANT_EQUIPMENT_RANDOM]: {
+        required: ['missionId', 'phraseIndex', 'itemId'],
+        optional: ['seedSuffix'],
+    },
+    [MessageType.STORY_GROUP_VOTE]: {
+        required: ['voteId', 'phraseIndex', 'optionId'],
+        optional: [],
+    },
+    [MessageType.STORY_GROUP_VOTE_APPLY]: {
+        required: ['voteId', 'phraseIndex', 'effect'],
+        optional: [],
+    },
 });
 
 export class Message {

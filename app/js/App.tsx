@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { UserProvider, useUser } from './contexts/UserContext';
+import { DebugSettingsProvider } from './contexts/DebugSettingsContext';
 import CampaignHomeScreen from './components/CampaignHomeScreen';
 import LoginScreen from './components/LoginScreen';
 import { MISSION_MAP } from './games/minion_battles/storylines';
@@ -76,7 +77,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 /** Inner app component that uses Toast context */
 function AppInner() {
     const { showToast } = useToast();
-    const { user, refetch: refetchUser } = useUser();
+    const { user, role, refetch: refetchUser } = useUser();
     const lobbyClient = useMemo(() => new LobbyClient(), []);
 
     // Screen
@@ -641,6 +642,13 @@ function AppInner() {
             <DebugConsole
                 gameState={debugGameState}
                 playerName={user?.name ?? null}
+                isAdmin={role === 'admin'}
+                inBattle={
+                    screen === 'game' &&
+                    lobbyPageState === 'in_game' &&
+                    lobbyGameType === 'minion_battles' &&
+                    ((lobbyGameData?.gamePhase ?? lobbyGameData?.game_phase) === 'battle')
+                }
                 fetchPlayerData={async () => {
                     const u = await lobbyClient.getMe();
                     return u as Record<string, unknown> | null;
@@ -663,9 +671,11 @@ export default function App() {
     return (
         <ToastProvider>
             <UserProvider lobbyClient={lobbyClient}>
-                <AuthGate>
-                    <AppInner />
-                </AuthGate>
+                <DebugSettingsProvider>
+                    <AuthGate>
+                        <AppInner />
+                    </AuthGate>
+                </DebugSettingsProvider>
             </UserProvider>
         </ToastProvider>
     );

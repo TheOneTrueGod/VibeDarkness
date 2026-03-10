@@ -4,8 +4,17 @@
  */
 
 import type { Unit } from '../../objects/Unit';
-import type { BattleOrder } from '../../engine/types';
 import type { SpecialTile } from '../../objects/SpecialTile';
+import type { BattleOrder } from '../../engine/types';
+
+/** Light source for AI (e.g. Torch effect, crystal tile). */
+export interface AILightSource {
+    id: string;
+    col: number;
+    row: number;
+    emission: number;
+    radius: number;
+}
 
 /** Read-only context passed to AI controllers. Engine provides implementation. */
 export interface AIContext {
@@ -16,7 +25,11 @@ export interface AIContext {
     getUnits(): Unit[];
     getSpecialTiles(): SpecialTile[];
     getAliveDefendPoints(): SpecialTile[];
+    /** Light sources (Torch effects, emitting special tiles) for FindLight AI. */
+    getLightSources(): AILightSource[];
     terrainManager: { grid: { worldToGrid: (x: number, y: number) => { col: number; row: number }; gridToWorld: (col: number, row: number) => { x: number; y: number } }; findGridPath: (fromCol: number, fromRow: number, toCol: number, toRow: number) => { col: number; row: number }[] | null } | null;
+    /** Pathfinding for the given unit; enemy units cannot path into crystal-protected tiles. */
+    findGridPathForUnit(unit: Unit, fromCol: number, fromRow: number, toCol: number, toRow: number): { col: number; row: number }[] | null;
     queueOrder(atTick: number, order: BattleOrder): void;
     emitTurnEnd(unitId: string): void;
     generateRandomInteger(min: number, max: number): number;

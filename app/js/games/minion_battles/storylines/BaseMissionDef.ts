@@ -15,7 +15,7 @@ import { resetGameObjectIdCounter } from '../objects/GameObject';
 import type { CharacterId } from '../objects/units/index';
 import { createPlayerUnit, createUnitFromSpawnConfig } from '../objects/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
-import { createCardInstance, MAX_HAND_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from '../engine/GameEngine';
+import { createCardInstance, MAX_HAND_SIZE } from '../engine/GameEngine';
 import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
@@ -59,9 +59,13 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     abstract name: string;
     abstract enemies: EnemySpawnDef[];
     abstract createTerrain: () => TerrainGrid;
+    /** World width in pixels (e.g. terrain columns × cell size). */
+    abstract worldWidth: number;
+    /** World height in pixels (e.g. terrain rows × cell size). */
+    abstract worldHeight: number;
     /** Optional level events (spawn waves, victory checks, etc.). */
     levelEvents?: LevelEvent[];
-    /** Optional special tiles (DefendPoint, etc.) placed on the map. */
+    /** Optional special tiles (Campfire, Crystal, etc.) placed on the map. */
     specialTiles?: import('./types').SpecialTilePlacement[];
     /** Optional grid-based player spawn points. */
     playerSpawnPoints?: PlayerSpawnPoint[];
@@ -79,8 +83,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         // Add player units
         const playerCount = params.playerUnits.length;
         const grid = params.terrainManager?.grid;
-        const worldW = grid ? grid.worldWidth : WORLD_WIDTH;
-        const worldH = grid ? grid.worldHeight : WORLD_HEIGHT;
+        const worldW = grid ? grid.worldWidth : this.worldWidth;
+        const worldH = grid ? grid.worldHeight : this.worldHeight;
         const playerSpacing = worldH / (playerCount + 1);
         const missionConfig: MissionBattleConfig = this;
         const spawnPoints = missionConfig.playerSpawnPoints ?? this.playerSpawnPoints;
@@ -184,29 +188,27 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             engine.addUnit(unit);
         }
 
-        // Add special tiles (DefendPoint, Crystal, etc.)
+        // Add special tiles (Campfire, Crystal, etc.) — maxHp, emitsLight, protectRadius, defendPoint from placement
         if (this.specialTiles && this.specialTiles.length > 0) {
             for (const p of this.specialTiles) {
                 const def = getSpecialTileDef(p.defId);
                 if (!def) continue;
-                const maxHp = def.maxHp;
-                const emitsLight =
-                    p.emitsLight ??
-                    (def && 'lightEmission' in def && 'lightRadius' in def
-                        ? { lightAmount: (def as { lightEmission: number }).lightEmission, radius: (def as { lightRadius: number }).lightRadius }
-                        : undefined);
-                const isDestructible = p.defId === 'DefendPoint' ? p.tags?.destructible : false;
-                engine.addSpecialTile({
+                const maxHp = p.maxHp ?? (p.defId === 'Campfire' ? 5 : 1);
+                const isDestructible = p.defId === 'Campfire' ? p.tags?.destructible : false;
+                const tile: Parameters<GameEngine['addSpecialTile']>[0] = {
                     id: `special_${p.defId}_${p.col}_${p.row}`,
                     defId: p.defId,
                     col: p.col,
                     row: p.row,
                     hp: p.hp ?? maxHp,
                     maxHp,
+                    defendPoint: p.defendPoint ?? false,
                     destructible: isDestructible,
-                    emitsLight: emitsLight ?? undefined,
+                    emitsLight: p.emitsLight,
                     decayLightPerRound: p.decayLightPerRound,
-                });
+                };
+                if (p.protectRadius !== undefined) tile.protectRadius = p.protectRadius;
+                engine.addSpecialTile(tile);
             }
         }
 

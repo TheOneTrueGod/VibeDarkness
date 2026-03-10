@@ -65,6 +65,20 @@ export class TerrainManager {
         return this.pathfinder.findGridPath(fromCol, fromRow, toCol, toRow);
     }
 
+    /**
+     * Find a grid path with blocked cells (e.g. crystal-protected tiles for enemy pathfinding).
+     * Blocked cells are treated as impassable. Not cached.
+     */
+    findGridPathWithBlocked(
+        fromCol: number,
+        fromRow: number,
+        toCol: number,
+        toRow: number,
+        blockedCells: Set<string>,
+    ): { col: number; row: number }[] | null {
+        return this.pathfinder.findGridPathWithBlocked(fromCol, fromRow, toCol, toRow, blockedCells);
+    }
+
     /** Clear the pathfinding cache. */
     clearPathCache(): void {
         this.pathfinder.clearCache();

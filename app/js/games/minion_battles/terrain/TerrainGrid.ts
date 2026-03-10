@@ -111,7 +111,41 @@ export class TerrainGrid {
         return true;
     }
 
-    /** Create a TerrainGrid from a 2D array of terrain types. */
+    /**
+     * Create a TerrainGrid filled entirely with one terrain type.
+     * Use this when you don't have a 2D layout (equivalent to the classic constructor).
+     */
+    static createFilledTerrain(
+        cols: number,
+        rows: number,
+        cellSize: number,
+        defaultTerrain: TerrainType = TerrainType.Grass,
+    ): TerrainGrid {
+        return new TerrainGrid(cols, rows, cellSize, defaultTerrain);
+    }
+
+    /**
+     * Create a TerrainGrid from a 2D array of terrain types.
+     * Grid size is cols × rows; missing or extra cells are padded/trimmed with fill.
+     */
+    static createTerrainFromArray(
+        cols: number,
+        rows: number,
+        cellSize: number,
+        data: TerrainType[][],
+        fill: TerrainType = TerrainType.Grass,
+    ): TerrainGrid {
+        const grid = new TerrainGrid(cols, rows, cellSize, fill);
+        for (let r = 0; r < rows; r++) {
+            const srcRow = data[r];
+            for (let c = 0; c < cols; c++) {
+                grid.set(c, r, srcRow?.[c] ?? fill);
+            }
+        }
+        return grid;
+    }
+
+    /** Create a TerrainGrid from a 2D array of terrain types (infers dimensions from data). */
     static fromArray(data: TerrainType[][], cellSize: number = CELL_SIZE): TerrainGrid {
         const height = data.length;
         const width = data[0]?.length ?? 0;
@@ -123,4 +157,60 @@ export class TerrainGrid {
         }
         return grid;
     }
+}
+
+/**
+ * Stitch a 2D grid of terrain "tiles" (each tile is a 2D array of TerrainType) into one 2D array.
+ * Tiles are placed left-to-right, top-to-bottom. Missing rows in a tile are padded with fill.
+ * Null/undefined tiles are treated as a tile of fill (size from other tiles in same row/column).
+ *
+ * @param quadrantGrid - [tileRow][tileCol] = TerrainType[][] (or null/undefined for a tile of fill)
+ * @param fill - Terrain type for padding and for null/undefined tiles
+ */
+export function stitchTerrain(
+    quadrantGrid: (TerrainType[][] | null | undefined)[][],
+    fill: TerrainType,
+): TerrainType[][] {
+    const tileRows = quadrantGrid.length;
+    const tileCols = tileRows > 0 ? Math.max(...quadrantGrid.map((row) => row.length)) : 0;
+    if (tileRows === 0 || tileCols === 0) return [];
+
+    const maxHeightPerRow: number[] = [];
+    const maxWidthPerCol: number[] = new Array(tileCols).fill(0);
+    for (let tr = 0; tr < tileRows; tr++) {
+        let maxH = 0;
+        for (let tc = 0; tc < tileCols; tc++) {
+            const t = quadrantGrid[tr]?.[tc];
+            const h = t?.length ?? 0;
+            const w = t?.[0]?.length ?? 0;
+            maxH = Math.max(maxH, h);
+            if (tc < maxWidthPerCol.length) maxWidthPerCol[tc] = Math.max(maxWidthPerCol[tc], w);
+        }
+        maxHeightPerRow.push(maxH);
+    }
+
+    const result: TerrainType[][] = [];
+    for (let tr = 0; tr < tileRows; tr++) {
+        const blockH = maxHeightPerRow[tr];
+        for (let j = 0; j < blockH; j++) {
+            const row: TerrainType[] = [];
+            for (let tc = 0; tc < tileCols; tc++) {
+                const t = quadrantGrid[tr]?.[tc];
+                if (t == null || t.length === 0) {
+                    const w = maxWidthPerCol[tc];
+                    for (let k = 0; k < w; k++) row.push(fill);
+                    continue;
+                }
+                const tileWidth = t[0]?.length ?? 0;
+                if (j >= t.length) {
+                    for (let k = 0; k < tileWidth; k++) row.push(fill);
+                } else {
+                    const srcRow = t[j];
+                    for (let c = 0; c < tileWidth; c++) row.push(srcRow?.[c] ?? fill);
+                }
+            }
+            result.push(row);
+        }
+    }
+    return result;
 }

@@ -39,6 +39,9 @@ enum MessageType: string
     case BATTLE_ORDERS_READY = 'battle_orders_ready';
     case STORY_CHOICE = 'story_choice';
     case STORY_READY = 'story_ready';
+    case STORY_GRANT_EQUIPMENT_RANDOM = 'story_grant_equipment_random';
+    case STORY_GROUP_VOTE = 'story_group_vote';
+    case STORY_GROUP_VOTE_APPLY = 'story_group_vote_apply';
 
     /**
      * Get the required fields for each message type
@@ -64,6 +67,9 @@ enum MessageType: string
             self::BATTLE_ORDERS_READY => ['snapshotIndex'],
             self::STORY_CHOICE => ['choiceId', 'optionId'],
             self::STORY_READY => [],
+            self::STORY_GRANT_EQUIPMENT_RANDOM => ['missionId', 'phraseIndex', 'itemId'],
+            self::STORY_GROUP_VOTE => ['voteId', 'phraseIndex', 'optionId'],
+            self::STORY_GROUP_VOTE_APPLY => ['voteId', 'phraseIndex', 'effect'],
         };
     }
 

@@ -13,9 +13,13 @@ import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
 // Grid: 30 columns × 20 rows (1200×800 world at 40px cells)
+const COLS = 30;
+const ROWS = 20;
+const WORLD_WIDTH = COLS * CELL_SIZE;
+const WORLD_HEIGHT = ROWS * CELL_SIZE;
 
 function createTerrain(): TerrainGrid {
-    const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
+    const grid = new TerrainGrid(COLS, ROWS, CELL_SIZE, TerrainType.Grass);
 
     // U-shaped rock walls on the left side (players defend inside the U)
     // Left wall (column 0, full height)
@@ -106,9 +110,11 @@ export class LastHoldoutMission extends BaseMissionDef {
     missionId = 'last_holdout';
     campaignId = 'bunker_at_the_end';
     name = 'The Last Holdout';
+    worldWidth = WORLD_WIDTH;
+    worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;
     createTerrain = createTerrain;
-    aiController = 'defensePoints' as const;
+    aiController = 'stateBased' as const;
     /** Player spawn points: eight positions inside the U-shaped castle on the left. */
     playerSpawnPoints = [
         // Upper interior near dirt patch

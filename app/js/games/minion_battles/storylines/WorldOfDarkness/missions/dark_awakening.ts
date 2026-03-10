@@ -14,10 +14,14 @@ import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
-// Grid: 38 columns × 22 rows (extended from 30×20; 40px cells)
+// Grid: 30 columns × 22 rows (40px cells)
+const COLS = 30;
+const ROWS = 22;
+const WORLD_WIDTH = COLS * CELL_SIZE;
+const WORLD_HEIGHT = ROWS * CELL_SIZE;
 
 function createTerrain(): TerrainGrid {
-    const grid = new TerrainGrid(30, 22, CELL_SIZE, TerrainType.Grass);
+    const grid = new TerrainGrid(COLS, ROWS, CELL_SIZE, TerrainType.Grass);
 
     // Large irregular rock formation in the center (~8×8, irregularly shaped)
     const bigRock: [number, number][] = [
@@ -50,7 +54,7 @@ function createTerrain(): TerrainGrid {
     grid.set(28, 3, TerrainType.Rock);
     grid.set(28, 4, TerrainType.Rock);
 
-    // Small, oddly shaped rocks — left side of the campfire (DefendPoint at col 8, row 10)
+    // Small, oddly shaped rocks — left side of the campfire (Campfire at col 13, row 10)
     // Create a few irregular stones just to the left and slightly above/below.
     grid.set(2, 9, TerrainType.Rock);
     grid.set(3, 9, TerrainType.Rock);
@@ -139,12 +143,13 @@ const LEVEL_EVENTS: LevelEvent[] = [
     },
 ];
 
-/** Defend point: campfire slightly right of player spawn (5 HP). Destructible; emits light. */
+/** Campfire slightly right of player spawn (5 HP). Defend point; destructible; emits light. */
 const SPECIAL_TILES: SpecialTilePlacement[] = [
     {
-        defId: 'DefendPoint',
+        defId: 'Campfire',
         col: 13,
         row: 10,
+        defendPoint: true,
         hp: 5,
         tags: { destructible: true },
         emitsLight: { lightAmount: 15, radius: 10 },
@@ -194,11 +199,13 @@ export class DarkAwakeningMission extends BaseMissionDef {
     missionId = 'dark_awakening';
     campaignId = 'world_of_darkness';
     name = 'A Dark Awakening';
+    worldWidth = WORLD_WIDTH;
+    worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;
     levelEvents = LEVEL_EVENTS;
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
-    aiController = 'defensePoints' as const;
+    aiController = 'stateBased' as const;
     preMissionStory = PRE_MISSION_STORY;
     lightLevelEnabled = true;
     globalLightLevel = -20;

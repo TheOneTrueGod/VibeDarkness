@@ -1,7 +1,7 @@
 /**
  * TerrainRenderer - Renders terrain using marching squares to a cached PixiJS Sprite.
  *
- * Draws terrain layers (dirt base, then grass, thick grass, rocks) using a
+ * Draws terrain layers (dirt base, then grass, dirt again above grass, thick grass, rocks) using a
  * marching squares algorithm for smooth terrain boundary transitions. The
  * result is rendered to an offscreen canvas and converted to a PixiJS Sprite
  * that is added to the game scene once and never redrawn.
@@ -19,6 +19,7 @@ const LAYER_ORDER: TerrainType[] = [
     TerrainType.Grass,
     TerrainType.ThickGrass,
     TerrainType.Rock,
+    TerrainType.Dirt,
 ];
 
 export class TerrainRenderer {

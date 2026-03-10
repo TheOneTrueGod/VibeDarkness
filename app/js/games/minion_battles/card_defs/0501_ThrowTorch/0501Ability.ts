@@ -1,8 +1,11 @@
 /**
  * Throw Torch - Utility ability that places a burning torch on the ground.
  *
- * Targets a pixel within range 200. Places a torch effect that emits light
- * for 5 rounds, decaying each round (light -2, radius -1).
+ * Targets a pixel within range 200. A torch projectile flies to the target;
+ * when it lands, a torch effect is placed that emits light for 3 rounds,
+ * decaying each round. Adds a Throw Torch card to a random ally's draw pile
+ * (or the caster's if no allies); if the ally doesn't have the ability, it
+ * is added to their ability list.
  */
 
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
@@ -11,20 +14,22 @@ import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import { Effect } from '../../objects/Effect';
-import { asCardDefId, type CardDef } from '../types';
+import { asCardDefId, type CardDef, type CardDefId } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}01`;
 const PREFIRE_TIME = 0.2;
 const MAX_RANGE = 200;
-const TORCH_LIGHT_AMOUNT = 15;
+const TORCH_LIGHT_AMOUNT = 10;
 const TORCH_RADIUS = 5;
-const TORCH_ROUNDS = 5;
+const TORCH_ROUNDS = 3;
+const TORCH_PROJECTILE_SPEED = 400;
 
 interface GameEngineLike {
     addEffect(effect: Effect): void;
     roundNumber: number;
+    transferCardToAllyDeck(caster: Unit, cardDefId: CardDefId, abilityId: string): void;
 }
 
 function getMaxRange(caster: Unit): number {
@@ -50,15 +55,15 @@ export const ThrowTorchAbility: AbilityStatic = {
     image: THROW_TORCH_IMAGE,
     cooldownTime: 1.5,
     resourceCost: null,
-    rechargeTurns: 3,
+    rechargeTurns: 2,
     prefireTime: PREFIRE_TIME,
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
-            `Place a torch on the ground that emits light (${TORCH_LIGHT_AMOUNT}) in a ${TORCH_RADIUS}-tile radius.`,
-            `Lasts ${TORCH_ROUNDS} rounds; light and radius decrease each round.`,
+            `Place a torch on the ground that emits light`,
+            `Lasts ${TORCH_ROUNDS} rounds`,
         ];
     },
 
@@ -84,21 +89,28 @@ export const ThrowTorchAbility: AbilityStatic = {
         const placeX = dist > maxR ? caster.x + (dx / dist) * maxR : target.position.x;
         const placeY = dist > maxR ? caster.y + (dy / dist) * maxR : target.position.y;
 
-        const torchEffect = new Effect({
+        const travelDist = Math.sqrt(
+            (placeX - caster.x) ** 2 + (placeY - caster.y) ** 2,
+        );
+        const travelTime = Math.max(0.15, travelDist / TORCH_PROJECTILE_SPEED);
+
+        const torchProjectile = new Effect({
             x: placeX,
             y: placeY,
-            duration: 999,
-            effectType: 'Torch',
+            duration: travelTime,
+            effectType: 'TorchProjectile',
+            startX: caster.x,
+            startY: caster.y,
             effectData: {
                 roundCreated: eng.roundNumber,
                 initialLightAmount: TORCH_LIGHT_AMOUNT,
                 initialRadius: TORCH_RADIUS,
-                lightAmount: TORCH_LIGHT_AMOUNT,
-                radius: TORCH_RADIUS,
                 roundsTotal: TORCH_ROUNDS,
             },
         });
-        eng.addEffect(torchEffect);
+        eng.addEffect(torchProjectile);
+
+        eng.transferCardToAllyDeck(caster, asCardDefId(CARD_ID), CARD_ID);
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
@@ -143,6 +155,6 @@ export const ThrowTorchCard: CardDef = {
     name: 'Throw Torch',
     abilityId: CARD_ID,
     durability: 1,
-    discardDuration: { duration: 1, unit: 'rounds' },
+    discardDuration: { unit: 'never' },
     tags: ['innate'],
 };

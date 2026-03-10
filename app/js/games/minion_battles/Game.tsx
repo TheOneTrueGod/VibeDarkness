@@ -236,12 +236,18 @@ export default function MinionBattlesGame({
                     gameId={gameId}
                     playerId={playerId}
                     isHost={isHost}
+                    missionId={selectedMissionId}
                     players={players}
                     preMissionStory={preMissionStory}
                     storyReadyPlayerIds={storyReadyPlayerIds}
                     playerEquipmentByPlayer={
                         (lastGameStateFromServer ?? raw).playerEquipmentByPlayer as
                             | Record<string, string[]>
+                            | undefined
+                    }
+                    groupVoteVotes={
+                        (lastGameStateFromServer ?? raw).groupVoteVotes as
+                            | Record<string, Record<string, string>>
                             | undefined
                     }
                     onPhaseChange={handlePhaseChange}

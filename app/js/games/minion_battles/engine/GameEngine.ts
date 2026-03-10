@@ -24,7 +24,7 @@ import { asCardDefId, getCardDef } from '../card_defs';
 import type { CardDefId } from '../card_defs';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
-import { type TeamId } from './teams';
+import { type TeamId, areAllies, areEnemies } from './teams';
 import { Rage } from '../resources/Rage';
 import { Mana } from '../resources/Mana';
 import type { Resource } from '../resources/Resource';
@@ -129,6 +129,42 @@ export class GameEngine {
     getWorldHeight(): number {
         const grid = this.terrainManager?.grid;
         return grid ? grid.worldHeight : WORLD_HEIGHT;
+    }
+
+    /**
+     * Crystal protection map: for each "col,row" the number of crystals protecting that tile (client-side only, not synced).
+     * Derived from current specialTiles; recalculated on each call.
+     */
+    getCrystalProtectionMap(): Map<string, number> {
+        const map = new Map<string, number>();
+        const grid = this.terrainManager?.grid;
+        if (!grid) return map;
+        const crystals = this.specialTiles.filter((t) => t.defId === 'Crystal' && t.hp > 0);
+        for (const c of crystals) {
+            const radius = c.protectRadius ?? 0;
+            for (let dr = -radius; dr <= radius; dr++) {
+                for (let dc = -radius; dc <= radius; dc++) {
+                    if (Math.max(Math.abs(dc), Math.abs(dr)) > radius) continue;
+                    const col = c.col + dc;
+                    const row = c.row + dr;
+                    if (col < 0 || col >= grid.width || row < 0 || row >= grid.height) continue;
+                    const key = `${col},${row}`;
+                    map.set(key, (map.get(key) ?? 0) + 1);
+                }
+            }
+        }
+        return map;
+    }
+
+    /** Set of "col,row" keys for tiles protected by at least one crystal (enemy pathfinding treats these as blocked). */
+    getCrystalProtectedSet(): Set<string> {
+        const map = this.getCrystalProtectionMap();
+        return new Set(map.keys());
+    }
+
+    /** Number of crystals protecting the given tile (0 if none). */
+    getCrystalProtectionCount(col: number, row: number): number {
+        return this.getCrystalProtectionMap().get(`${col},${row}`) ?? 0;
     }
 
     // -- Cards per player --
@@ -398,24 +434,27 @@ export class GameEngine {
             }
         }
 
-        // Crystal aura: player units near a Crystal get tag 'invisibleToWolves' (wolves ignore them)
+        // Crystal aura: player units within a Crystal's protectRadius get tag 'protectedByCrystal' (enemies cannot see them)
         const grid = this.terrainManager?.grid;
         if (grid) {
             const crystalTiles = this.specialTiles.filter((t) => t.defId === 'Crystal' && t.hp > 0);
-            const CRYSTAL_AURA_DIST = 2;
             for (const unit of this.units) {
                 if (!unit.isPlayerControlled() || !unit.isAlive()) continue;
                 const { col: uc, row: ur } = grid.worldToGrid(unit.x, unit.y);
-                const nearCrystal = crystalTiles.some(
-                    (c) => Math.max(Math.abs(uc - c.col), Math.abs(ur - c.row)) <= CRYSTAL_AURA_DIST,
-                );
+                const nearCrystal = crystalTiles.some((c) => {
+                    const radius = c.protectRadius ?? 0;
+                    return Math.max(Math.abs(uc - c.col), Math.abs(ur - c.row)) <= radius;
+                });
                 if (nearCrystal) {
-                    if (!unit.tags.includes('invisibleToWolves')) unit.tags = [...unit.tags, 'invisibleToWolves'];
+                    if (!unit.tags.includes('protectedByCrystal')) unit.tags = [...unit.tags, 'protectedByCrystal'];
                 } else {
-                    unit.tags = unit.tags.filter((t) => t !== 'invisibleToWolves');
+                    unit.tags = unit.tags.filter((t) => t !== 'protectedByCrystal');
                 }
             }
         }
+
+        // Crystal protection (client-side derived): tiles in crystal protectRadius are protected; count per tile.
+        // Not synced to server; recalculated from current specialTiles when needed.
 
         // Process corrupting (AI units at destructible defend points)
         this.processCorrupting(dt);
@@ -555,15 +594,7 @@ export class GameEngine {
         const sources: LightSource[] = [];
         for (const tile of this.specialTiles) {
             if (tile.hp <= 0) continue;
-            const def = getSpecialTileDef(tile.defId);
-            const light =
-                tile.emitsLight ??
-                (def && 'lightEmission' in def && 'lightRadius' in def
-                    ? {
-                          lightAmount: (def as { lightEmission: number }).lightEmission,
-                          radius: (def as { lightRadius: number }).lightRadius,
-                      }
-                    : undefined);
+            const light = tile.emitsLight;
             if (light != null && tile.maxHp > 0) {
                 const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
                 sources.push({
@@ -597,6 +628,37 @@ export class GameEngine {
     /** All light sources (special tiles + Torch effects) for darkness and spawn logic. */
     private getAllLightSources(): LightSource[] {
         return [...this.buildLightSourcesFromSpecialTiles(), ...this.buildLightSourcesFromEffects()];
+    }
+
+    /** Light sources with id for AI (FindLight state). */
+    private getLightSourcesForAI(): import('../storylines/ai/types').AILightSource[] {
+        const out: import('../storylines/ai/types').AILightSource[] = [];
+        for (const tile of this.specialTiles) {
+            if (tile.hp <= 0) continue;
+            const light = tile.emitsLight;
+            if (light != null && tile.maxHp > 0) {
+                const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
+                out.push({
+                    id: tile.id,
+                    col: tile.col,
+                    row: tile.row,
+                    emission: light.lightAmount * scale,
+                    radius: light.radius,
+                });
+            }
+        }
+        const grid = this.terrainManager?.grid;
+        for (const effect of this.effects) {
+            if (!effect.active || effect.effectType !== 'Torch') continue;
+            const data = effect.effectData as { lightAmount?: number; radius?: number };
+            const emission = data.lightAmount ?? 0;
+            const radius = data.radius ?? 0;
+            if (emission <= 0 || radius <= 0) continue;
+            const col = grid ? grid.worldToGrid(effect.x, effect.y).col : 0;
+            const row = grid ? grid.worldToGrid(effect.x, effect.y).row : 0;
+            out.push({ id: effect.id, col, row, emission, radius });
+        }
+        return out;
     }
 
     /** When a player is in full darkness (light <= -20), fill corruption bar over 1s; when full, deal 5 damage. In the tier below (light in (-20, -10]), same meter and timing but 2 damage when full. When not in darkness (light > -10), drain bar over 1s. */
@@ -738,7 +800,7 @@ export class GameEngine {
         this.onCardUsed(unit.ownerId, ability.id);
     }
 
-    /** Move the first in-hand card matching the ability: decrement durability; if 0, discard. Otherwise card stays in hand. */
+    /** Move the first in-hand card matching the ability: decrement durability; if 0, discard (or remove if discardDuration.unit is 'never'). Otherwise card stays in hand. */
     private onCardUsed(playerId: string, abilityId: string): void {
         const playerCards = this.cards[playerId];
         if (!playerCards) return;
@@ -749,6 +811,13 @@ export class GameEngine {
 
         card.durability--;
         if (card.durability <= 0) {
+            const def = getCardDef(card.cardDefId);
+            const discardDuration = def?.discardDuration ?? { duration: 1, unit: 'rounds' as const };
+            if (discardDuration.unit === 'never') {
+                const idx = playerCards.indexOf(card);
+                if (idx >= 0) playerCards.splice(idx, 1);
+                return;
+            }
             this.moveToDiscard(card);
         }
     }
@@ -757,6 +826,7 @@ export class GameEngine {
     private moveToDiscard(card: CardInstance): void {
         const def = getCardDef(card.cardDefId);
         const discardDuration = def?.discardDuration ?? { duration: 1, unit: 'rounds' as const };
+        if (discardDuration.unit === 'never') return;
 
         card.location = 'discard';
         card.durability = 0;
@@ -773,6 +843,7 @@ export class GameEngine {
     // ========================================================================
 
     private buildAIContext(): AIContext {
+        const engine = this;
         return {
             gameTick: this.gameTick,
             gameTime: this.gameTime,
@@ -780,13 +851,22 @@ export class GameEngine {
             getUnits: () => this.units,
             getSpecialTiles: () => this.specialTiles,
             getAliveDefendPoints: () =>
-                this.specialTiles.filter((t) => t.defId === 'DefendPoint' && t.hp > 0),
+                this.specialTiles.filter((t) => t.defendPoint === true && t.hp > 0),
+            getLightSources: () => this.getLightSourcesForAI(),
             terrainManager: this.terrainManager,
+            findGridPathForUnit: (unit, fromCol, fromRow, toCol, toRow) => {
+                if (!engine.terrainManager) return null;
+                if (areEnemies(unit.teamId, 'player')) {
+                    const blocked = engine.getCrystalProtectedSet();
+                    return engine.terrainManager.findGridPathWithBlocked(fromCol, fromRow, toCol, toRow, blocked);
+                }
+                return engine.terrainManager.findGridPath(fromCol, fromRow, toCol, toRow);
+            },
             queueOrder: (atTick, order) => this.queueOrder(atTick, order),
             emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId }),
             generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
-            WORLD_WIDTH,
-            WORLD_HEIGHT,
+            WORLD_WIDTH: this.getWorldWidth(),
+            WORLD_HEIGHT: this.getWorldHeight(),
             hasLineOfSight: (fromX, fromY, toX, toY) =>
                 this.terrainManager?.grid.hasLineOfSight(fromX, fromY, toX, toY) ?? false,
             cancelActiveAbility: (unitId, abilityId) => this.cancelActiveAbility(unitId, abilityId),
@@ -898,6 +978,37 @@ export class GameEngine {
 
     addEffect(effect: Effect): void {
         this.effects.push(effect);
+    }
+
+    /**
+     * Picks a random ally (same owner, alive, not caster) and adds the given card to that ally's draw pile
+     * (or the caster's if no allies). If the target unit doesn't have the ability in their list, adds it.
+     */
+    transferCardToAllyDeck(caster: Unit, cardDefId: CardDefId, abilityId: string): void {
+        const playerId = caster.ownerId;
+        const deck = this.cards[playerId];
+        if (!deck) return;
+        const allies = this.getAllies(caster);
+        const targetUnit = allies.length > 0
+            ? allies[this.generateRandomInteger(0, allies.length - 1)]
+            : caster;
+        if (!targetUnit.abilities.includes(abilityId)) {
+            targetUnit.abilities.push(abilityId);
+        }
+        const newCard = createCardInstance(cardDefId, abilityId, 'deck');
+        const targetPlayerId = targetUnit.ownerId;
+        this.cards[targetPlayerId].push(newCard);
+    }
+
+    /**
+     * Returns units that are on the same team as the caster (alive, excluding the caster).
+     * Uses the team system: by default enemy units are "enemy", player units are "player";
+     * "player" and "allied" are allied with each other.
+     */
+    getAllies(caster: Unit): Unit[] {
+        return this.units.filter(
+            (u) => u.id !== caster.id && u.isAlive() && areAllies(caster.teamId, u.teamId),
+        );
     }
 
     getUnit(id: string): Unit | undefined {
@@ -1288,19 +1399,15 @@ export class GameEngine {
                     return;
                 }
             }
-            if (cond.type === 'allUnitsNearCrystals') {
-                const maxDist = cond.maxDistance ?? 2;
-                const crystalTiles = this.specialTiles.filter((t) => t.defId === 'Crystal' && t.hp > 0);
-                if (crystalTiles.length === 0) continue;
+            if (cond.type === 'allUnitsNearPosition') {
+                const maxDist = cond.maxDistance ?? 1;
                 const alivePlayers = this.units.filter((u) => u.isPlayerControlled() && u.isAlive());
                 if (alivePlayers.length === 0) continue;
                 const grid = this.terrainManager?.grid;
                 if (!grid) continue;
                 const allNear = alivePlayers.every((u) => {
                     const { col: uc, row: ur } = grid.worldToGrid(u.x, u.y);
-                    return crystalTiles.some(
-                        (c) => Math.max(Math.abs(uc - c.col), Math.abs(ur - c.row)) <= maxDist,
-                    );
+                    return Math.max(Math.abs(uc - cond.col), Math.abs(ur - cond.row)) <= maxDist;
                 });
                 if (allNear) {
                     this.victoryFired = true;
@@ -1481,7 +1588,7 @@ export class GameEngine {
             engine.effects.push(Effect.fromJSON(fxData as Record<string, unknown>));
         }
 
-        // Restore special tiles (DefendPoint, Crystal, etc.)
+        // Restore special tiles (Campfire, Crystal, etc.)
         for (const tileData of data.specialTiles ?? []) {
             const def = getSpecialTileDef(tileData.defId);
             if (def) {

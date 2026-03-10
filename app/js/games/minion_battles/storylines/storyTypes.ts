@@ -46,7 +46,52 @@ export interface ChoicePhrase {
     options: { id: string; label: string; action: StoryChoiceAction }[];
 }
 
-export type PreMissionPhrase = DialoguePhrase | ChoicePhrase;
+/**
+ * Grant equipment to a single random player (deterministically).
+ *
+ * The backend uses a serialized random seed derived from lobbyId, gameId, missionId,
+ * phraseIndex, and optional seedSuffix so all clients stay in sync.
+ * This phrase has no UI; it is applied before advancing to the next phrase.
+ */
+export interface GrantEquipmentRandomPhrase {
+    type: 'grant_equipment_random';
+    itemId: string;
+    /** Optional extra salt for the deterministic seed (e.g. mission-specific). */
+    seedSuffix?: string;
+}
+
+/** Effect applied when a group vote is resolved (majority wins; tie = serialized random). */
+export interface GroupVoteEffectGrantItemToPlayer {
+    type: 'grant_item_to_player';
+    itemId: string;
+}
+
+export type GroupVoteEffect = GroupVoteEffectGrantItemToPlayer;
+
+/**
+ * Group vote: all players must select an option; story does not progress until everyone has voted.
+ * Each player's vote is shown live. Majority wins; on tie, a deterministic (serialized) option is chosen.
+ * The winning option can trigger an effect (e.g. grant an item to that player).
+ */
+export interface GroupVotePhrase {
+    type: 'groupVote';
+    /** Unique id for this vote (e.g. mission + semantic name). */
+    voteId: string;
+    /** Text explaining what the group is voting on. */
+    text: string;
+    /** Static options. If omitted, use optionSource to build options at runtime. */
+    options?: { id: string; label: string }[];
+    /** If 'players', options are built from lobby players (id = playerId, label = player name). */
+    optionSource?: 'players';
+    /** Effect applied to the winning option (e.g. grant item to that player). */
+    effect?: GroupVoteEffect;
+}
+
+export type PreMissionPhrase =
+    | DialoguePhrase
+    | ChoicePhrase
+    | GrantEquipmentRandomPhrase
+    | GroupVotePhrase;
 
 /** Pre-mission story shown in lobby after character select, before battle. */
 export interface PreMissionStoryDef {

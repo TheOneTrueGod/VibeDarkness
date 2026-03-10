@@ -5,30 +5,21 @@
  * Each def describes the tile type (image, HP, etc.).
  */
 
-/** DefendPoint: a point to defend with hit points. */
-export interface DefendPointDef {
-    id: 'DefendPoint';
+/** Campfire: a tile with hit points and optional light. Light and maxHp are set per placement. */
+export interface CampfireDef {
+    id: 'Campfire';
     /** SVG image URL (data URL or file URL). */
     image: string;
-    /** Maximum hit points. */
-    maxHp: number;
-    /** Light added at this tile; omitted = no light. */
-    lightEmission?: number;
-    /** Max tile distance this light affects (Chebyshev). */
-    lightRadius?: number;
 }
 
-/** Crystal: indestructible tile that emits light and grants invisibility to wolves when units are near. */
+/** Crystal: indestructible tile; light, protectRadius, and maxHp are set per placement in the mission. */
 export interface CrystalDef {
     id: 'Crystal';
+    /** SVG image URL (data URL or file URL). */
     image: string;
-    /** Crystals are indestructible; maxHp stored for interface but not used for damage. */
-    maxHp: number;
-    lightEmission: number;
-    lightRadius: number;
 }
 
-export type SpecialTileDef = DefendPointDef | CrystalDef;
+export type SpecialTileDef = CampfireDef | CrystalDef;
 
 /** Inline campfire SVG: two logs and a small flame. */
 const CAMPFIRE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
@@ -58,22 +49,10 @@ const CRYSTAL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"
 </svg>`;
 const CRYSTAL_DATA_URL = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(CRYSTAL_SVG)))}`;
 
-/** Registry of special tile definitions by ID. */
+/** Registry of special tile definitions by ID. Light, maxHp, protectRadius come from mission placement. */
 export const SPECIAL_TILE_DEFS: Record<string, SpecialTileDef> = {
-    DefendPoint: {
-        id: 'DefendPoint',
-        image: CAMPFIRE_DATA_URL,
-        maxHp: 5,
-        lightEmission: 21,
-        lightRadius: 10,
-    },
-    Crystal: {
-        id: 'Crystal',
-        image: CRYSTAL_DATA_URL,
-        maxHp: 1,
-        lightEmission: 20,
-        lightRadius: 3,
-    },
+    Campfire: { id: 'Campfire', image: CAMPFIRE_DATA_URL },
+    Crystal: { id: 'Crystal', image: CRYSTAL_DATA_URL },
 };
 
 export function getSpecialTileDef(id: string): SpecialTileDef | undefined {

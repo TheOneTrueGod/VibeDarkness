@@ -23,6 +23,7 @@ import { createEffectVisual, updateEffectVisual } from './effectDef';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import type { SpecialTile } from '../objects/SpecialTile';
 import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid';
+import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 
 /** Color for move target markers (dark gray so visible in darkness). */
 const MOVE_TARGET_COLOR = 0x333333;
@@ -30,6 +31,7 @@ const MOVE_TARGET_COLOR = 0x333333;
 /** Z-index constants for game container layers (lower = behind). */
 const Z_INDEX = {
     terrain: 0,
+    crystalAura: 2,
     darkness: 5,
     specialTiles: 6,
     moveTargets: 7,
@@ -68,6 +70,8 @@ export class GameRenderer {
     /** Container for special tiles (above terrain, below units). */
     private specialTilesContainer: Container = new Container();
     private specialTileVisuals: Map<string, Container> = new Map();
+    /** Soft blue overlay on tiles in crystal light radius (10% opacity). */
+    private crystalAuraGraphics: Graphics = new Graphics();
 
     /** Cached texture for ranged enemy (bowman) character sprite. */
     private bowmanTexture: Texture | null = null;
@@ -75,8 +79,8 @@ export class GameRenderer {
     private swordwomanTexture: Texture | null = null;
     /** Cached texture for dark_wolf (wolf head) character sprite. */
     private wolfHeadTexture: Texture | null = null;
-    /** Cached texture for DefendPoint (campfire). */
-    private defendPointTexture: Texture | null = null;
+    /** Cached texture for Campfire. */
+    private campfireTexture: Texture | null = null;
 
     /** Mission light config. Defaults: enabled true, global 0. */
     private lightLevelEnabled: boolean = true;
@@ -126,12 +130,12 @@ export class GameRenderer {
         } catch {
             // Non-fatal: dark_wolf will show the default circle + initial
         }
-        const defendPointDef = getSpecialTileDef('DefendPoint');
-        if (defendPointDef?.image) {
+        const campfireDef = getSpecialTileDef('Campfire');
+        if (campfireDef?.image) {
             try {
-                this.defendPointTexture = (await Assets.load(defendPointDef.image)) as Texture;
+                this.campfireTexture = (await Assets.load(campfireDef.image)) as Texture;
             } catch {
-                // Non-fatal: DefendPoint will not render
+                // Non-fatal: Campfire will not render
             }
         }
 
@@ -185,6 +189,11 @@ export class GameRenderer {
         }
         this.darknessOverlaySprite.visible = this.lightLevelEnabled;
 
+        // Crystal aura (blue tint on protected tiles) above terrain, below darkness
+        this.crystalAuraGraphics.zIndex = Z_INDEX.crystalAura;
+        if (!this.crystalAuraGraphics.parent) {
+            this.gameContainer.addChildAt(this.crystalAuraGraphics, 1);
+        }
         // Special tiles container above darkness overlay (index 2)
         if (!this.specialTilesContainer.parent) {
             this.gameContainer.addChildAt(this.specialTilesContainer, 2);
@@ -216,8 +225,7 @@ export class GameRenderer {
         const sources: LightSource[] = [];
         for (const tile of specialTiles) {
             if (tile.hp <= 0) continue;
-            const def = getSpecialTileDef(tile.defId);
-            const light = tile.emitsLight ?? (def && 'lightEmission' in def && 'lightRadius' in def ? { lightAmount: (def as { lightEmission: number }).lightEmission, radius: (def as { lightRadius: number }).lightRadius } : undefined);
+            const light = tile.emitsLight;
             if (light != null && tile.maxHp > 0) {
                 // 100% HP => 100% emission; 1% HP => 50% emission; 0% => no light (tile removed)
                 const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
@@ -327,7 +335,7 @@ export class GameRenderer {
         this.gameContainer.x = -camera.x + camera.viewportWidth / 2;
         this.gameContainer.y = -camera.y + camera.viewportHeight / 2;
 
-        if (this.lightLevelEnabled && engine.terrainManager) {
+        if (this.lightLevelEnabled && engine.terrainManager && debugSettingsSnapshot.darkOverlayEnabled) {
             this.updateDarknessOverlay(engine);
         } else {
             this.currentLightGrid = null;
@@ -335,6 +343,7 @@ export class GameRenderer {
         }
 
         this.renderUnits(engine.units);
+        this.renderCrystalAura(engine);
         this.renderSpecialTiles(engine.specialTiles);
         this.renderMoveTargets(engine.units);
         this.renderProjectiles(engine.projectiles);
@@ -345,8 +354,23 @@ export class GameRenderer {
     }
 
     // ========================================================================
-    // Special Tiles
+    // Crystal aura & Special Tiles
     // ========================================================================
+
+    /** Draw a soft blue filter (10% opacity) on each tile in crystal light radius. */
+    private renderCrystalAura(engine: GameEngine): void {
+        this.crystalAuraGraphics.clear();
+        const grid = engine.terrainManager?.grid;
+        if (!grid) return;
+        const protectedSet = engine.getCrystalProtectedSet();
+        if (protectedSet.size === 0) return;
+        for (const key of protectedSet) {
+            const [col, row] = key.split(',').map(Number);
+            if (Number.isNaN(col) || Number.isNaN(row)) continue;
+            this.crystalAuraGraphics.rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            this.crystalAuraGraphics.fill({ color: 0x4488ff, alpha: 0.15 });
+        }
+    }
 
     private renderSpecialTiles(specialTiles: SpecialTile[]): void {
         for (const tile of specialTiles) {
@@ -364,8 +388,8 @@ export class GameRenderer {
                 const y = tile.row * CELL_SIZE + CELL_SIZE / 2;
                 visual.x = x;
                 visual.y = y;
-                // Update HP bar for DefendPoint
-                if (tile.defId === 'DefendPoint' && visual.children.length > 1) {
+                // Update HP bar for Campfire
+                if (tile.defId === 'Campfire' && visual.children.length > 1) {
                     const hpBar = visual.getChildAt(1) as Graphics;
                     if (hpBar) {
                         hpBar.clear();
@@ -396,25 +420,31 @@ export class GameRenderer {
         const def = getSpecialTileDef(tile.defId);
         if (!def) return undefined;
         const container = new Container();
-        if (tile.defId === 'DefendPoint' && this.defendPointTexture) {
-            const sprite = new Sprite(this.defendPointTexture);
+        if (tile.defId === 'Campfire' && this.campfireTexture) {
+            const sprite = new Sprite(this.campfireTexture);
             sprite.anchor.set(0.5, 1);
             sprite.width = 32;
             sprite.height = 32;
             container.addChild(sprite);
             const hpBar = new Graphics();
             container.addChild(hpBar);
-        } else if (tile.defId === 'Crystal' && 'image' in def) {
-            const texture = Texture.from((def as { image: string }).image);
-            const sprite = new Sprite(texture);
-            sprite.anchor.set(0.5, 1);
-            sprite.width = 24;
-            sprite.height = 24;
-            container.addChild(sprite);
+        } else if (tile.defId === 'Crystal') {
+            // Render crystals as small light blue diamonds
+            const g = new Graphics();
+            g.label = 'crystal';
+            const halfSize = 8;
+            g.moveTo(0, -halfSize); // top
+            g.lineTo(halfSize, 0); // right
+            g.lineTo(0, halfSize); // bottom
+            g.lineTo(-halfSize, 0); // left
+            g.closePath();
+            g.fill({ color: 0x7dd3fc }); // light blue
+            g.stroke({ color: 0x38bdf8, width: 1.5 });
+            container.addChild(g);
         } else {
             return undefined;
         }
-        if (tile.defId !== 'DefendPoint') return container;
+        if (tile.defId !== 'Campfire') return container;
         const hpBar = container.getChildAt(1) as Graphics;
         if (!hpBar) return container;
         return container;

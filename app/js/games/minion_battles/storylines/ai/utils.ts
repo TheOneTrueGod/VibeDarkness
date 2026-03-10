@@ -9,6 +9,7 @@ import type { SpecialTile } from '../../objects/SpecialTile';
 import type { AIContext } from './types';
 import { areEnemies } from '../../engine/teams';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { getPerceptionRange } from '../../engine/unitDef';
 
 /** Euclidean distance between two points. */
 export function distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -17,13 +18,27 @@ export function distance(x1: number, y1: number, x2: number, y2: number): number
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-/** Get all living units hostile to the given unit. Wolves ignore units with tag 'invisibleToWolves'. */
+/** Get all living units hostile to the given unit. Enemies cannot see units with tag 'protectedByCrystal'. */
 export function findEnemies(unit: Unit, units: Unit[]): Unit[] {
     const hostile = units.filter((u) => u.isAlive() && areEnemies(unit.teamId, u.teamId));
-    if (unit.characterId === 'dark_wolf') {
-        return hostile.filter((u) => !u.tags?.includes('invisibleToWolves'));
-    }
-    return hostile;
+    return hostile.filter((u) => !u.tags?.includes('protectedByCrystal'));
+}
+
+/**
+ * Pure helper: scan for a visible enemy to attack and return its unit id, or null if none.
+ */
+export function scanForAttackTarget(unit: Unit, context: AIContext): string | null {
+    const perceptionRange = getPerceptionRange(unit.characterId);
+    const enemies = findEnemies(unit, context.getUnits());
+    const inSight = getEnemiesInPerceptionAndLOS(
+        unit,
+        enemies,
+        perceptionRange,
+        context.hasLineOfSight.bind(context),
+    );
+    if (inSight.length === 0) return null;
+    const target = inSight[context.generateRandomInteger(0, inSight.length - 1)]!;
+    return target.id;
 }
 
 /**
@@ -109,7 +124,7 @@ export function getOrPickClosestDefendPoint(
         : undefined;
     if (current) return current;
     const unitGrid = grid.worldToGrid(unit.x, unit.y);
-    let best: SpecialTile | null = null; 
+    let best: SpecialTile | null = null;
     let bestDist = Infinity;
     for (const tile of defendPoints) {
         const world = grid.gridToWorld(tile.col, tile.row);
