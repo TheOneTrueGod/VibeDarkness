@@ -226,6 +226,7 @@ export class Unit extends GameObject {
         if (this.hp <= 0) {
             this.hp = 0;
             this.active = false;
+
             eventBus.emit('unit_died', {
                 unitId: this.id,
                 killerUnitId: sourceUnitId,

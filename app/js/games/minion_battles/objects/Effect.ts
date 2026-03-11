@@ -52,6 +52,19 @@ export class Effect extends GameObject {
     update(dt: number, engine: unknown): void {
         if (!this.active) return;
         this.elapsed += dt;
+        // ParticleImage: simple 2D particle with velocity damping
+        if (this.effectType === 'ParticleImage') {
+            const data = this.effectData as { vx?: number; vy?: number };
+            const vx = data.vx ?? 0;
+            const vy = data.vy ?? 0;
+            this.x += vx * dt;
+            this.y += vy * dt;
+            // Exponential decay so particles slow down quickly (matches short 0.3s lifetime).
+            const dampingK = 8;
+            const factor = Math.exp(-dampingK * dt);
+            data.vx = vx * factor;
+            data.vy = vy * factor;
+        }
         // TorchProjectile: when it reaches the target, spawn the ground Torch effect then deactivate
         if (this.effectType === 'TorchProjectile' && this.elapsed >= this.duration) {
             const data = this.effectData as {

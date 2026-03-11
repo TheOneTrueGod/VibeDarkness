@@ -1,0 +1,12 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
+    </filter>
+  </defs>
+  <!-- Back blurred blob -->
+  <circle cx="30" cy="30" r="18" fill="#4c1d95" opacity="0.45" filter="url(#blur)" />
+  <!-- Front core -->
+  <circle cx="34" cy="34" r="12" fill="#7c3aed" opacity="0.95" />
+</svg>
+

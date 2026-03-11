@@ -19,7 +19,8 @@ import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainRenderer } from '../terrain/TerrainRenderer';
 import { renderUnit, updateUnitHpBar, getBodyColor, type IUnitRenderContext } from './unitDef';
-import { createEffectVisual, updateEffectVisual } from './effectDef';
+import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from './effectDef';
+import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from './effectImages';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import type { SpecialTile } from '../objects/SpecialTile';
 import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid';
@@ -55,7 +56,7 @@ export class GameRenderer {
     private unitVisuals: Map<string, Container> = new Map();
     private moveTargetVisuals: Map<string, Graphics> = new Map();
     private projectileVisuals: Map<string, Graphics> = new Map();
-    private effectVisuals: Map<string, Graphics> = new Map();
+    private effectVisuals: Map<string, Container> = new Map();
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
     private initialized: boolean = false;
@@ -81,6 +82,9 @@ export class GameRenderer {
     private wolfHeadTexture: Texture | null = null;
     /** Cached texture for Campfire. */
     private campfireTexture: Texture | null = null;
+
+    /** Cached textures for effect sprites (ParticleImage, etc.). */
+    private effectTextures: Partial<Record<EffectImageKey, Texture>> = {};
 
     /** Mission light config. Defaults: enabled true, global 0. */
     private lightLevelEnabled: boolean = true;
@@ -136,6 +140,15 @@ export class GameRenderer {
                 this.campfireTexture = (await Assets.load(campfireDef.image)) as Texture;
             } catch {
                 // Non-fatal: Campfire will not render
+            }
+        }
+
+        // Preload effect textures (non-fatal on failure)
+        for (const [key, src] of Object.entries(EFFECT_IMAGE_SOURCES) as [EffectImageKey, string][]) {
+            try {
+                this.effectTextures[key] = (await Assets.load(src)) as Texture;
+            } catch {
+                // Non-fatal: particles for this key will not render
             }
         }
 
@@ -687,10 +700,13 @@ export class GameRenderer {
     // ========================================================================
 
     private renderEffects(effects: Effect[]): void {
+        const context: IEffectRenderContext = {
+            getEffectTexture: (imageKey: EffectImageKey) => this.effectTextures[imageKey] ?? null,
+        };
         for (const effect of effects) {
             let visual = this.effectVisuals.get(effect.id);
             if (!visual) {
-                visual = createEffectVisual(effect);
+                visual = createEffectVisual(effect, context);
                 visual.zIndex = Z_INDEX.effects;
                 this.effectVisuals.set(effect.id, visual);
                 this.gameContainer.addChild(visual);
@@ -698,7 +714,7 @@ export class GameRenderer {
             visual.x = effect.x;
             visual.y = effect.y;
             visual.visible = effect.active;
-            updateEffectVisual(visual, effect);
+            updateEffectVisual(visual, effect, context);
         }
     }
 

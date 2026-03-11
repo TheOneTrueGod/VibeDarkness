@@ -44,6 +44,7 @@ import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import { buildAIController } from '../storylines/ai';
 import type { AIContext } from '../storylines/ai';
 import { getLightGrid, type LightSource } from './LightGrid';
+import { getDeathEffectDef } from './unitDef';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
@@ -223,11 +224,37 @@ export class GameEngine {
     // ========================================================================
 
     /**
+     * (Re)register core event bus listeners that are required for both new games
+     * and games restored from a snapshot.
+     */
+    private registerCoreEventListeners(): void {
+        // Clear listeners from any previous run to prevent duplicate handlers.
+        this.eventBus.clear();
+
+        this.eventBus.on('unit_died', (data) => {
+            const unit = this.getUnit(data.unitId);
+            if (!unit) return;
+            const deathEffectDef = getDeathEffectDef(unit.characterId);
+            if (!deathEffectDef) return;
+            const effect = new deathEffectDef.type({
+                image: deathEffectDef.image,
+                count: deathEffectDef.count,
+            });
+            effect.doEffect(this, unit);
+        });
+
+        this.eventBus.on('round_end', (data) => {
+            this.handleRoundEnd(data.roundNumber);
+        });
+    }
+
+    /**
      * Prepare the engine for a new game (before mission.initializeGameState populates it).
      * Sets localPlayerId, terrainManager, resets object IDs, and subscribes to round_end.
      * If isHost is true, generates a random seed for deterministic RNG across clients.
      */
     prepareForNewGame(config: { localPlayerId: string; terrainManager?: TerrainManager | null; isHost?: boolean; aiControllerId?: string | null }): void {
+        this.registerCoreEventListeners();
         this.localPlayerId = config.localPlayerId;
         this.terrainManager = config.terrainManager ?? null;
         this.aiControllerId = config.aiControllerId ?? null;
@@ -239,9 +266,6 @@ export class GameEngine {
         if (config.isHost) {
             this.randomSeed = this.generateHostSeed();
         }
-        this.eventBus.on('round_end', (data) => {
-            this.handleRoundEnd(data.roundNumber);
-        });
     }
 
     /** Set mission light config for darkness-based logic (e.g. spawnBehaviour: 'darkness'). */
@@ -1620,10 +1644,8 @@ export class GameEngine {
         // Advance the global game-object ID counter so any new objects (e.g. from later spawn waves) get unique IDs
         advanceGameObjectIdCounterFromSnapshot(data);
 
-        // Re-subscribe to round_end
-        engine.eventBus.on('round_end', (evtData) => {
-            engine.handleRoundEnd(evtData.roundNumber);
-        });
+        // Re-register core event listeners so restored games behave like new ones.
+        engine.registerCoreEventListeners();
 
         return engine;
     }

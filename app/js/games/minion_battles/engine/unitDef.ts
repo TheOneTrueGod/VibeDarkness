@@ -7,6 +7,8 @@ import { Container, Graphics, Sprite, Text, TextStyle, type Texture } from 'pixi
 import type { Unit } from '../objects/Unit';
 import type { TeamId } from './teams';
 import { areEnemies } from './teams';
+import { ParticleExplosion } from './deathEffects/ParticleExplosion';
+import type { EffectImageKey } from './effectImages';
 
 /** Color for allied unit glows. */
 const ALLY_GLOW_COLOR = 0x22c55e; // green-500
@@ -31,8 +33,11 @@ export interface IUnitDef {
     createVisual(unit: Unit, context: IUnitRenderContext): Container;
 }
 
+export type UnitDeathEffectDef =
+    | { type: typeof ParticleExplosion; image: EffectImageKey; count: number };
+
 /** Body color, optional character sprite key, default HP/speed, and perception range (px) for AI. */
-const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string; hp?: number; speed?: number; perceptionRange?: number }> = {
+const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string; hp?: number; speed?: number; perceptionRange?: number; deathEffect?: UnitDeathEffectDef }> = {
     // Player characters: slightly reduced default move speed for tighter control.
     warrior: { bodyColor: 0x8b0000, speed: 90 },
     mage: { bodyColor: 0x4a148c, speed: 90 },
@@ -40,7 +45,14 @@ const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string
     healer: { bodyColor: 0xf5f5dc, speed: 90 },
     enemy_ranged: { bodyColor: 0x555555, characterSpriteKey: 'enemy_ranged', perceptionRange: 400 },
     enemy_melee: { bodyColor: 0x555555, characterSpriteKey: 'enemy_melee', perceptionRange: 250 },
-    dark_wolf: { bodyColor: 0x1a1a2e, characterSpriteKey: 'dark_wolf', hp: 12, speed: 100, perceptionRange: 300 },
+    dark_wolf: {
+        bodyColor: 0x1a1a2e,
+        characterSpriteKey: 'dark_wolf',
+        hp: 12,
+        speed: 100,
+        perceptionRange: 300,
+        deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 8 },
+    },
 };
 
 const DEFAULT_BODY_COLOR = 0x555555;
@@ -146,6 +158,10 @@ export function getDefaultSpeed(characterId: string): number {
 /** Perception range in px for AI (line-of-sight targeting). Returns 300 if not configured. */
 export function getPerceptionRange(characterId: string): number {
     return UNIT_DEFS[characterId]?.perceptionRange ?? 300;
+}
+
+export function getDeathEffectDef(characterId: string): UnitDeathEffectDef | undefined {
+    return UNIT_DEFS[characterId]?.deathEffect;
 }
 
 /**
