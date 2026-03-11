@@ -64,6 +64,7 @@ export const ThrowTorchAbility: AbilityStatic = {
         return [
             `Place a torch on the ground that emits light`,
             `Lasts ${TORCH_ROUNDS} rounds`,
+            `Transfer: Another ally gains this card in their draw pile`
         ];
     },
 
