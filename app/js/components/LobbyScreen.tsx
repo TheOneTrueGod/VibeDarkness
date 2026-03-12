@@ -3,7 +3,6 @@
  */
 import React, { useState, useEffect } from 'react';
 import { LobbyClient } from '../LobbyClient';
-import { useUser } from '../contexts/UserContext';
 import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
 
 interface LobbyScreenProps {
@@ -17,44 +16,28 @@ export default function LobbyScreen({
     onCreateLobby,
     onJoinLobby,
 }: LobbyScreenProps) {
-    const { user } = useUser();
     const [lobbyCode, setLobbyCode] = useState('');
     const [creating, setCreating] = useState(false);
-    const [recentLobbyInfos, setRecentLobbyInfos] = useState<RecentLobbyInfo[]>([]);
-
-    const recentIds = user?.recentLobbies ?? [];
+    const [activeLobbyInfos, setActiveLobbyInfos] = useState<RecentLobbyInfo[]>([]);
 
     useEffect(() => {
-        if (recentIds.length === 0) {
-            setRecentLobbyInfos([]);
-            return;
-        }
         let cancelled = false;
         (async () => {
-            const results = await Promise.allSettled(
-                recentIds.map((id) => lobbyClient.getLobby(id))
-            );
+            const list = await lobbyClient.getActiveLobbies();
             if (cancelled) return;
-            const infos: RecentLobbyInfo[] = [];
-            for (let i = 0; i < results.length; i++) {
-                const r = results[i];
-                if (r.status === 'fulfilled' && r.value) {
-                    const lob = r.value;
-                    infos.push({
-                        id: lob.id,
-                        name: lob.name,
-                        lobbyState: (lob.lobbyState as 'home' | 'in_game') ?? 'home',
-                        gameType: lob.gameType ?? null,
-                        playerCount: lob.playerCount ?? 0,
-                    });
-                }
-            }
-            setRecentLobbyInfos(infos);
+            const infos: RecentLobbyInfo[] = list.map((entry) => ({
+                id: entry.lobby_id,
+                name: entry.name ?? entry.lobby_id,
+                lobbyState: (entry.lobbyState as 'home' | 'in_game') ?? 'home',
+                gameType: entry.gameType ?? null,
+                playerCount: entry.player_ids?.length ?? 0,
+            }));
+            setActiveLobbyInfos(infos);
         })();
         return () => {
             cancelled = true;
         };
-    }, [recentIds.join(','), lobbyClient]);
+    }, [lobbyClient]);
 
     const handleCreate = async () => {
         setCreating(true);
@@ -118,7 +101,7 @@ export default function LobbyScreen({
                         </button>
                     </div>
 
-                    <RecentLobbiesList lobbies={recentLobbyInfos} onJoin={onJoinLobby} />
+                    <RecentLobbiesList lobbies={activeLobbyInfos} onJoin={onJoinLobby} />
                 </div>
             </div>
         </div>

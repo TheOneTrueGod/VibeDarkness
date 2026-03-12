@@ -30,12 +30,23 @@ export interface CreateCharacterPayload {
     battleChipDetails?: Record<string, unknown>;
 }
 
+/** Single entry from GET /api/active-lobbies */
+export interface ActiveLobbyEntry {
+    lobby_id: string;
+    last_update: number;
+    player_ids: string[];
+    name?: string;
+    lobbyState?: 'home' | 'in_game';
+    gameType?: string | null;
+}
+
 interface ApiResponse {
     success: boolean;
     error?: string;
     account?: AccountInfo;
     campaign?: import('./types').CampaignState;
     lobbies?: LobbySummary[];
+    activeLobbies?: ActiveLobbyEntry[];
     lobby?: LobbyState;
     player?: PlayerInfo;
     playerId?: string;
@@ -183,6 +194,11 @@ export class LobbyClient {
     async listLobbies(): Promise<LobbySummary[]> {
         const data = await this.request('/api/lobbies');
         return data.lobbies as LobbySummary[];
+    }
+
+    async getActiveLobbies(): Promise<ActiveLobbyEntry[]> {
+        const data = await this.request('/api/active-lobbies');
+        return (data.activeLobbies as ActiveLobbyEntry[]) ?? [];
     }
 
     async createLobby(

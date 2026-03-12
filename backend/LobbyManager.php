@@ -14,6 +14,9 @@ class LobbyManager
     private static ?LobbyManager $instance = null;
     private array $lobbies = [];
 
+    private const ACTIVE_LOBBY_TTL_SECONDS = 600; // 10 minutes
+    private const ACTIVE_LOBBY_MAX = 5;
+
     private function __construct() {}
 
     public static function getInstance(): LobbyManager
@@ -79,6 +82,146 @@ class LobbyManager
             array_map(fn($lobby) => $lobby->toArray(), $this->lobbies),
             fn($lobby) => $lobby['isPublic']
         ));
+    }
+
+    /**
+     * Path to the flat file storing active lobbies (shared across processes).
+     */
+    private function getActiveLobbiesFilePath(): string
+    {
+        $dir = dirname(__DIR__) . '/storage';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        return $dir . '/active_lobbies.json';
+    }
+
+    /**
+     * Load active lobbies list from file. Returns list of entries with lobby_id, last_update, player_ids.
+     *
+     * @return list<array{lobby_id: string, last_update: int, player_ids: list<string>}>
+     */
+    private function loadActiveLobbiesFromFile(): array
+    {
+        $path = $this->getActiveLobbiesFilePath();
+        if (!is_file($path)) {
+            return [];
+        }
+        $json = @file_get_contents($path);
+        if ($json === false) {
+            return [];
+        }
+        $data = json_decode($json, true);
+        if (!is_array($data)) {
+            return [];
+        }
+        $list = [];
+        foreach ($data as $entry) {
+            if (is_array($entry) && isset($entry['lobby_id'], $entry['last_update'], $entry['player_ids'])) {
+                $list[] = [
+                    'lobby_id' => (string) $entry['lobby_id'],
+                    'last_update' => (int) $entry['last_update'],
+                    'player_ids' => array_values(array_map('strval', (array) $entry['player_ids'])),
+                ];
+            }
+        }
+        return $list;
+    }
+
+    /**
+     * Save active lobbies list to file (exclusive lock for concurrent safety).
+     *
+     * @param list<array{lobby_id: string, last_update: int, player_ids: list<string>}> $list
+     */
+    private function saveActiveLobbiesToFile(array $list): void
+    {
+        $path = $this->getActiveLobbiesFilePath();
+        file_put_contents($path, json_encode($list, JSON_PRETTY_PRINT), LOCK_EX);
+    }
+
+    /**
+     * Record that a lobby had a get-state call. Updates the active-lobbies file (last 5, prune after 10 min).
+     * Uses exclusive file lock for the whole read-modify-write so concurrent requests don't overwrite each other.
+     */
+    public function recordLobbyActivity(string $lobbyId, Lobby $lobby): void
+    {
+        $now = time();
+        $playerIds = array_values(array_map(fn(Player $p) => $p->getId(), $lobby->getPlayers()));
+
+        $path = $this->getActiveLobbiesFilePath();
+        $fp = fopen($path, 'c+');
+        if ($fp === false) {
+            return;
+        }
+        if (!flock($fp, LOCK_EX)) {
+            fclose($fp);
+            return;
+        }
+        $json = stream_get_contents($fp);
+        $list = [];
+        if ($json !== false && $json !== '') {
+            $data = json_decode($json, true);
+            if (is_array($data)) {
+                foreach ($data as $entry) {
+                    if (is_array($entry) && isset($entry['lobby_id'], $entry['last_update'], $entry['player_ids'])) {
+                        $list[] = [
+                            'lobby_id' => (string) $entry['lobby_id'],
+                            'last_update' => (int) $entry['last_update'],
+                            'player_ids' => array_values(array_map('strval', (array) $entry['player_ids'])),
+                        ];
+                    }
+                }
+            }
+        }
+        $list = array_values(array_filter(
+            $list,
+            fn($entry) => ($now - $entry['last_update']) < self::ACTIVE_LOBBY_TTL_SECONDS
+        ));
+        $list = array_values(array_filter($list, fn($entry) => $entry['lobby_id'] !== $lobbyId));
+        array_unshift($list, [
+            'lobby_id' => $lobbyId,
+            'last_update' => $now,
+            'player_ids' => $playerIds,
+        ]);
+        $list = array_slice($list, 0, self::ACTIVE_LOBBY_MAX);
+        $out = json_encode($list, JSON_PRETTY_PRINT);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, $out);
+        fflush($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+    }
+
+    /**
+     * Get active lobbies (lobbies that had a get-state call in the last 10 minutes). Max 5.
+     * Returns list of { lobby_id, last_update, player_ids } with name, lobbyState, gameType when lobby exists.
+     */
+    public function getActiveLobbies(): array
+    {
+        $now = time();
+        $list = $this->loadActiveLobbiesFromFile();
+        $list = array_values(array_filter(
+            $list,
+            fn($entry) => ($now - $entry['last_update']) < self::ACTIVE_LOBBY_TTL_SECONDS
+        ));
+
+        $result = [];
+        foreach ($list as $entry) {
+            $row = [
+                'lobby_id' => $entry['lobby_id'],
+                'last_update' => $entry['last_update'],
+                'player_ids' => $entry['player_ids'],
+            ];
+            $lobby = $this->getLobby($entry['lobby_id']);
+            if ($lobby !== null) {
+                $row['name'] = $lobby->getName();
+                $row['lobbyState'] = $lobby->getLobbyState();
+                $row['gameType'] = $lobby->getGameType();
+            }
+            $result[] = $row;
+        }
+        return $result;
     }
 
     /**

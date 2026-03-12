@@ -2,7 +2,7 @@
  * Campaign home - tabbed view: Welcome, Mission Select, Join Mission.
  * Shown when user is logged in and on the lobby screen (no active lobby).
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
 import type { CampaignState } from '../types';
@@ -11,6 +11,23 @@ import { getUnlockedMissionIds, getAllMissionIdsInOrder, hasVictoryResult } from
 import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
 
 type TabId = 'welcome' | 'mission_select' | 'join_mission';
+
+const TAB_IDS: TabId[] = ['welcome', 'mission_select', 'join_mission'];
+
+/** Per-tab settings: label and whether the tab is visible for the current user. */
+const TAB_SETTINGS: Record<
+    TabId,
+    { label: string; isVisible: (isAdmin: boolean) => boolean }
+> = {
+    welcome: { label: 'Welcome', isVisible: () => true },
+    mission_select: { label: 'Mission Select', isVisible: (isAdmin) => isAdmin },
+    join_mission: { label: 'Join Mission', isVisible: () => true },
+};
+
+/** Default tab when no tab is selected; non-admins see Join Mission first. */
+function getDefaultTab(isAdmin: boolean): TabId {
+    return isAdmin ? 'mission_select' : 'join_mission';
+}
 
 interface CampaignHomeScreenProps {
     lobbyClient: LobbyClient;
@@ -25,8 +42,21 @@ export default function CampaignHomeScreen({
     onJoinLobby,
     refetchUser,
 }: CampaignHomeScreenProps) {
-    const { user } = useUser();
-    const [activeTab, setActiveTab] = useState<TabId>('mission_select');
+    const { user, role } = useUser();
+    const isAdmin = role === 'admin';
+    const defaultTab = getDefaultTab(isAdmin);
+    const visibleTabs = useMemo(
+        () => TAB_IDS.filter((id) => TAB_SETTINGS[id].isVisible(isAdmin)),
+        [isAdmin]
+    );
+    const [activeTab, setActiveTab] = useState<TabId>(() => defaultTab);
+
+    // When admin status or visibility changes, ensure active tab is visible; otherwise switch to default.
+    useEffect(() => {
+        if (!visibleTabs.includes(activeTab)) {
+            setActiveTab(defaultTab);
+        }
+    }, [isAdmin, visibleTabs, activeTab, defaultTab]);
     const [campaign, setCampaign] = useState<CampaignState | null>(null);
     const [campaignLoading, setCampaignLoading] = useState(false);
     const [creatingCampaign, setCreatingCampaign] = useState(false);
@@ -72,37 +102,25 @@ export default function CampaignHomeScreen({
         }
     }, [lobbyClient, refetchUser]);
 
-    // Recent lobbies for Join tab
-    const recentIds = user?.recentLobbies ?? [];
+    // Active lobbies for Join tab (lobbies that had a get-state call in the last 10 minutes)
     useEffect(() => {
-        if (recentIds.length === 0) {
-            setRecentLobbyInfos([]);
-            return;
-        }
         let cancelled = false;
         (async () => {
-            const results = await Promise.allSettled(recentIds.map((id) => lobbyClient.getLobby(id)));
+            const list = await lobbyClient.getActiveLobbies();
             if (cancelled) return;
-            const infos: RecentLobbyInfo[] = [];
-            for (let i = 0; i < results.length; i++) {
-                const r = results[i];
-                if (r.status === 'fulfilled' && r.value) {
-                    const lob = r.value;
-                    infos.push({
-                        id: lob.id,
-                        name: lob.name,
-                        lobbyState: (lob.lobbyState as 'home' | 'in_game') ?? 'home',
-                        gameType: lob.gameType ?? null,
-                        playerCount: lob.playerCount ?? 0,
-                    });
-                }
-            }
+            const infos: RecentLobbyInfo[] = list.map((entry) => ({
+                id: entry.lobby_id,
+                name: entry.name ?? entry.lobby_id,
+                lobbyState: (entry.lobbyState as 'home' | 'in_game') ?? 'home',
+                gameType: entry.gameType ?? null,
+                playerCount: entry.player_ids?.length ?? 0,
+            }));
             setRecentLobbyInfos(infos);
         })();
         return () => {
             cancelled = true;
         };
-    }, [recentIds.join(','), lobbyClient]);
+    }, [lobbyClient]);
 
     const handleJoinByCode = useCallback(async () => {
         const code = lobbyCode.trim().toUpperCase();
@@ -237,26 +255,23 @@ export default function CampaignHomeScreen({
 
             {hasCampaign && campaign && (
                 <nav className="flex border-t border-border-custom bg-surface" aria-label="Tabs">
-                    {(
-                        [
-                            { id: 'welcome' as TabId, label: 'Welcome' },
-                            { id: 'mission_select' as TabId, label: 'Mission Select' },
-                            { id: 'join_mission' as TabId, label: 'Join Mission' },
-                        ] as const
-                    ).map(({ id, label }) => (
-                        <button
-                            key={id}
-                            type="button"
-                            className={`flex-1 py-4 text-sm font-medium transition-colors ${
-                                activeTab === id
-                                    ? 'text-primary border-b-2 border-primary'
-                                    : 'text-muted hover:text-white border-b-2 border-transparent'
-                            }`}
-                            onClick={() => setActiveTab(id)}
-                        >
-                            {label}
-                        </button>
-                    ))}
+                    {visibleTabs.map((id) => {
+                        const { label } = TAB_SETTINGS[id];
+                        return (
+                            <button
+                                key={id}
+                                type="button"
+                                className={`flex-1 py-4 text-sm font-medium transition-colors ${
+                                    activeTab === id
+                                        ? 'text-primary border-b-2 border-primary'
+                                        : 'text-muted hover:text-white border-b-2 border-transparent'
+                                }`}
+                                onClick={() => setActiveTab(id)}
+                            >
+                                {label}
+                            </button>
+                        );
+                    })}
                 </nav>
             )}
         </div>

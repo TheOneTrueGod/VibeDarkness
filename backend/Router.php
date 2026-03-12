@@ -6,6 +6,7 @@ use App\Http\Handlers\CreateAccountHandler;
 use App\Http\Handlers\CreateLobbyHandler;
 use App\Http\Handlers\GetCurrentUserHandler;
 use App\Http\Handlers\GetLobbyHandler;
+use App\Http\Handlers\GetActiveLobbiesHandler;
 use App\Http\Handlers\GetLobbyStateHandler;
 use App\Http\Handlers\GetMessagesHandler;
 use App\Http\Handlers\JoinLobbyHandler;
@@ -55,6 +56,7 @@ class Router
             ['POST', '#^/api/campaigns$#', CreateCampaignHandler::class],
             ['GET', '#^/api/campaigns/([a-z0-9]+)$#', GetCampaignHandler::class],
             ['PATCH', '#^/api/campaigns/([a-z0-9]+)$#', UpdateCampaignHandler::class],
+            ['GET', '#^/api/active-lobbies$#', GetActiveLobbiesHandler::class],
             ['GET', '#^/api/lobbies$#', ListLobbiesHandler::class],
             ['POST', '#^/api/lobbies$#', CreateLobbyHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/state$#', GetLobbyStateHandler::class],

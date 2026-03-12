@@ -20,6 +20,7 @@ class GetLobbyStateHandler
             http_response_code(403);
             return ['success' => false, 'error' => 'Not in lobby'];
         }
+        $manager->recordLobbyActivity($lobbyId, $lobby);
         $gameState = $lobby->getGameState();
         if ($lobby->getLobbyState() === 'in_game' && $lobby->getGameId() !== null) {
             $gameData = $manager->getGameStateData($lobbyId, $lobby->getGameId());

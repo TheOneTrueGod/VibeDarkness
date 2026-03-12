@@ -1,5 +1,5 @@
 /**
- * List of recent lobbies the player has visited
+ * List of active lobbies (lobbies that had a get-state call in the last 10 minutes)
  */
 import React from 'react';
 import LobbyIdBadge from './LobbyIdBadge';
@@ -61,7 +61,7 @@ export default function RecentLobbiesList({ lobbies, onJoin }: RecentLobbiesList
 
     return (
         <div className="mt-6">
-            <h2 className="text-lg text-muted mb-3">Recent Lobbies</h2>
+            <h2 className="text-lg text-muted mb-3">Active Lobbies</h2>
             <ul className="space-y-2">
                 {lobbies.map((lobby) => (
                     <li
