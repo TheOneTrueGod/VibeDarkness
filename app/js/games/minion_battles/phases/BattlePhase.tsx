@@ -23,6 +23,7 @@ import { TERRAIN_PROPERTIES } from '../terrain/TerrainType';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import RoundProgressBar from '../components/RoundProgressBar';
+import TurnIndicator from '../components/TurnIndicator';
 import { throwError } from '../utils/errors';
 import { diffSnapshotFields } from '../utils/snapshotDiff';
 import { MessageType } from '../../../MessageTypes';
@@ -709,13 +710,6 @@ export default function BattlePhase({
                 isPaused={isPaused}
             />
 
-            {/* Waiting indicator */}
-            {isPaused && !isMyTurn && waitingForOrders && (
-                <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 bg-dark-900/90 text-yellow-300 text-sm px-4 py-2 rounded-lg border border-yellow-600/30">
-                    Waiting for {players[waitingForOrders.ownerId]?.name ?? 'player'}...
-                </div>
-            )}
-
             {/* Game canvas */}
             <BattleCanvas
                 engine={engine}
@@ -725,6 +719,14 @@ export default function BattlePhase({
                 onCanvasClick={handleCanvasClick}
                 onCanvasRightClick={handleCanvasRightClick}
                 onCanvasMouseMove={handleCanvasMouseMove}
+            />
+
+            {/* Turn indicator: Your Turn / Ally's Turn / playing (collapsed) */}
+            <TurnIndicator
+                state={
+                    !waitingForOrders ? 'playing' : isMyTurn ? 'your_turn' : 'ally_turn'
+                }
+                allyName={waitingForOrders && !isMyTurn ? players[waitingForOrders.ownerId]?.name ?? 'Player' : undefined}
             />
 
             {/* Card hand */}

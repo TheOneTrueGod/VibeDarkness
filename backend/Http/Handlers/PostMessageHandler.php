@@ -153,6 +153,26 @@ class PostMessageHandler
             return ['success' => true, 'messageId' => $messageId];
         }
 
+        if ($type === 'character_select_ready') {
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+            $gameId = $lobby->getGameId();
+            if (!$gameId) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'No active game'];
+            }
+            if (!$manager->addCharacterSelectReadyPlayer($lobbyId, $gameId, $playerId)) {
+                http_response_code(500);
+                return ['success' => false, 'error' => 'Failed to set ready'];
+            }
+            $messageId = $lobby->addMessage('character_select_ready', ['playerId' => $playerId]);
+            $manager->persistLobby($lobby);
+            return ['success' => true, 'messageId' => $messageId];
+        }
+
         if ($type === 'game_phase_changed') {
             $gamePhase = $payload['gamePhase'] ?? null;
             if (!$gamePhase || !is_string($gamePhase)) {

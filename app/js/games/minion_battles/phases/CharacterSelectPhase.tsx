@@ -4,7 +4,7 @@
  * Characters sorted by whether they can be used on the current campaign/mission.
  * Disallow reason shown diagonally on cards when they cannot be used.
  */
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../types';
 import { LobbyClient } from '../../../LobbyClient';
 import { MessageType } from '../../../MessageTypes';
@@ -25,6 +25,8 @@ interface CharacterSelectPhaseProps {
     isHost: boolean;
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
+    /** Player IDs that have clicked Ready. */
+    characterSelectReadyPlayerIds?: string[];
     /** Current mission (from votes). */
     missionId?: string;
     /** Current campaign ID (from mission def or fallback to missionId). */
@@ -46,6 +48,7 @@ export default function CharacterSelectPhase({
     isHost,
     players,
     characterSelections,
+    characterSelectReadyPlayerIds = [],
     missionId = '',
     campaignId: campaignIdProp = '',
     missionDef,
@@ -86,6 +89,13 @@ export default function CharacterSelectPhase({
     const mySelection = characterSelections[playerId] ?? null;
     const allPlayerIds = Object.keys(players);
     const allSelected = allPlayerIds.length > 0 && allPlayerIds.every((pid) => pid in characterSelections);
+    const readySet = useMemo(
+        () => new Set(characterSelectReadyPlayerIds),
+        [characterSelectReadyPlayerIds],
+    );
+    const allReady =
+        allPlayerIds.length > 0 && allPlayerIds.every((pid) => readySet.has(pid));
+    const amReady = readySet.has(playerId);
 
     const missionTraitFilter = useMemo(
         () =>
@@ -144,10 +154,43 @@ export default function CharacterSelectPhase({
         [handleSelectCharacter],
     );
 
+    const handleSetReady = useCallback(async () => {
+        try {
+            await lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHARACTER_SELECT_READY, {});
+        } catch (error) {
+            console.error('Failed to set ready:', error);
+        }
+    }, [lobbyClient, lobbyId, playerId]);
+
+    const handleContinueToStory = useCallback(async () => {
+        try {
+            const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
+                gamePhase: 'pre_mission_story',
+                storyReadyPlayerIds: [],
+                characterSelectReadyPlayerIds: [],
+            });
+            await lobbyClient.sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
+                gamePhase: 'pre_mission_story',
+            });
+            if (onPhaseChange) {
+                const merged = {
+                    ...newGameState,
+                    characterSelections:
+                        (newGameState.characterSelections ?? newGameState.character_selections) ??
+                        characterSelections,
+                };
+                onPhaseChange('pre_mission_story', merged);
+            }
+        } catch (error) {
+            console.error('Failed to continue to story:', error);
+        }
+    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
+
     const handleStartGame = useCallback(async () => {
         try {
             const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
                 gamePhase: 'battle',
+                characterSelectReadyPlayerIds: [],
             });
             await lobbyClient.sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
                 gamePhase: 'battle',
@@ -166,28 +209,22 @@ export default function CharacterSelectPhase({
         }
     }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
 
-    const handleContinueToStory = useCallback(async () => {
-        try {
-            const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
-                gamePhase: 'pre_mission_story',
-                storyReadyPlayerIds: [],
-            });
-            await lobbyClient.sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
-                gamePhase: 'pre_mission_story',
-            });
-            if (onPhaseChange) {
-                const merged = {
-                    ...newGameState,
-                    characterSelections:
-                        (newGameState.characterSelections ?? newGameState.character_selections) ??
-                        characterSelections,
-                };
-                onPhaseChange('pre_mission_story', merged);
-            }
-        } catch (error) {
-            console.error('Failed to continue to story:', error);
+    const hasTriggeredAdvanceRef = useRef(false);
+    useEffect(() => {
+        if (!allReady) {
+            hasTriggeredAdvanceRef.current = false;
         }
-    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
+    }, [allReady]);
+    // When all players are ready, host advances to next phase (pre_mission_story or battle).
+    useEffect(() => {
+        if (!isHost || !allSelected || !allReady || hasTriggeredAdvanceRef.current) return;
+        hasTriggeredAdvanceRef.current = true;
+        if (preMissionStory) {
+            handleContinueToStory();
+        } else {
+            handleStartGame();
+        }
+    }, [isHost, allSelected, allReady, preMissionStory, handleContinueToStory, handleStartGame]);
 
     const createCharacterApi = useCallback(
         async (payload: {
@@ -316,32 +353,23 @@ export default function CharacterSelectPhase({
                                 Edit Character
                             </button>
                         )}
-                        {allSelected && preMissionStory ? (
-                            isHost ? (
-                                <button
-                                    type="button"
-                                    className="px-8 py-3 text-white text-lg font-bold rounded-lg bg-primary hover:opacity-90 shadow-lg cursor-pointer"
-                                    onClick={handleContinueToStory}
-                                >
-                                    Continue
-                                </button>
-                            ) : (
-                                <p className="text-muted py-2">Waiting for host to continue...</p>
-                            )
-                        ) : isHost ? (
+                        {mySelection && (
                             <button
                                 type="button"
-                                disabled={!allSelected}
-                                className={`px-8 py-3 text-white text-lg font-bold rounded-lg transition-colors shadow-lg ${
-                                    allSelected
-                                        ? 'bg-green-600 hover:bg-green-700 hover:shadow-xl cursor-pointer'
-                                        : 'bg-gray-600 opacity-50 cursor-not-allowed'
+                                disabled={amReady}
+                                className={`px-8 py-3 text-lg font-bold rounded-lg transition-colors shadow-lg ${
+                                    amReady
+                                        ? 'bg-green-600 text-white cursor-default'
+                                        : 'bg-primary text-secondary hover:opacity-90 cursor-pointer'
                                 }`}
-                                onClick={handleStartGame}
+                                onClick={handleSetReady}
                             >
-                                Start Game
+                                {amReady ? 'Ready' : 'Ready'}
                             </button>
-                        ) : null}
+                        )}
+                        {allSelected && allReady && (
+                            <p className="text-muted py-2">All ready! Proceeding...</p>
+                        )}
                     </>
                 )}
             </div>

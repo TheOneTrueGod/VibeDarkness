@@ -1,9 +1,9 @@
 import type { ItemDef } from '../types';
 
-/** Smoldering stick (wood) - adds Swing Bat cards. */
+/** Stick (Big) - adds Swing Bat cards. */
 export const torchItem: ItemDef = {
     id: '002',
-    name: 'Smoldering stick',
+    name: 'Stick (Big)',
     slots: ['hands'],
     cardsToAdd: [{ cardId: '0103', count: 2 }],
     icon: '002_torch.svg',

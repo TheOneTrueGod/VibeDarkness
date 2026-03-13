@@ -12,6 +12,8 @@ interface PlayerListProps {
     characterSelections?: Record<string, string>;
     /** Map characterId -> display name; when provided with characterSelections, second line shows name instead of "(selected)". */
     characterIdToName?: Record<string, string>;
+    /** When provided (e.g. on character select), each player shows Ready / Not Ready with green / yellow outline. */
+    readyPlayerIds?: string[];
 }
 
 export default function PlayerList({
@@ -19,7 +21,9 @@ export default function PlayerList({
     currentPlayerId,
     characterSelections,
     characterIdToName,
+    readyPlayerIds,
 }: PlayerListProps) {
+    const readySet = readyPlayerIds != null ? new Set(readyPlayerIds) : null;
     return (
         <div className="mt-4 p-4 bg-surface rounded">
             <h3 className="mb-3 text-sm text-muted uppercase">Players</h3>
@@ -30,12 +34,17 @@ export default function PlayerList({
                         characterId != null
                             ? (characterIdToName?.[characterId] ?? '(selected)')
                             : undefined;
+                    const readyStatus =
+                        readySet != null
+                            ? (readySet.has(player.id) ? 'ready' : 'not_ready')
+                            : undefined;
                     return (
                         <li key={player.id}>
                             <PlayerPill
                                 player={player}
                                 currentPlayerId={currentPlayerId}
                                 secondLine={secondLine}
+                                readyStatus={readyStatus}
                             />
                         </li>
                     );

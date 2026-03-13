@@ -570,7 +570,7 @@ class LobbyManager
                     if (is_file($basePathFile)) {
                         $baseData = json_decode(file_get_contents($basePathFile), true);
                         if (is_array($baseData)) {
-                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds', 'groupVoteVotes', 'groupVoteApplied'] as $key) {
+                            foreach (['gamePhase', 'game_phase', 'missionVotes', 'mission_votes', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'characterSelectReadyPlayerIds', 'character_select_ready_player_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds', 'groupVoteVotes', 'groupVoteApplied'] as $key) {
                                 if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
                                     $result[$key] = $baseData[$key];
                                 }
@@ -679,6 +679,35 @@ class LobbyManager
 
         $newState = array_merge($currentState, $updates);
         $this->persistGameState($lobbyId, $gameId, $newState);
+        return true;
+    }
+
+    /**
+     * Mark a player as ready during character select (any player). Adds playerId to characterSelectReadyPlayerIds.
+     */
+    public function addCharacterSelectReadyPlayer(string $lobbyId, string $gameId, string $playerId): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null || $lobby->getPlayer($playerId) === null) {
+            return false;
+        }
+        if ($lobby->getGameId() !== $gameId) {
+            return false;
+        }
+        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        if ($currentState === null) {
+            return false;
+        }
+        $ready = $currentState['characterSelectReadyPlayerIds'] ?? $currentState['character_select_ready_player_ids'] ?? [];
+        if (!is_array($ready)) {
+            $ready = [];
+        }
+        if (in_array($playerId, $ready, true)) {
+            return true;
+        }
+        $ready[] = $playerId;
+        $currentState['characterSelectReadyPlayerIds'] = array_values($ready);
+        $this->persistGameState($lobbyId, $gameId, $currentState);
         return true;
     }
 

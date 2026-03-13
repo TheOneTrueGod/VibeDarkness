@@ -99,6 +99,13 @@ export default function MinionBattlesGame({
     const [storyReadyPlayerIds, setStoryReadyPlayerIds] = useState<string[]>(
         () => (raw.storyReadyPlayerIds as string[] | undefined) ?? []
     );
+    /** Player IDs that have clicked Ready on character select (all must be ready to proceed). */
+    const [characterSelectReadyPlayerIds, setCharacterSelectReadyPlayerIds] = useState<string[]>(
+        () =>
+            (raw.characterSelectReadyPlayerIds as string[] | undefined) ??
+            (raw.character_select_ready_player_ids as string[] | undefined) ??
+            []
+    );
     /** Game state returned when transitioning to battle; used as initialGameState (includes playerEquipmentByPlayer). */
     const [phaseChangeGameState, setPhaseChangeGameState] = useState<Record<string, unknown> | null>(null);
     /** Last game state from server (phase transition or poll); used so pre-mission story has current equipment. */
@@ -146,10 +153,15 @@ export default function MinionBattlesGame({
                         | Record<string, string>
                         | undefined;
                     const newStoryReady = (gd.storyReadyPlayerIds as string[] | undefined) ?? [];
+                    const newReady =
+                        (gd.characterSelectReadyPlayerIds as string[] | undefined) ??
+                        (gd.character_select_ready_player_ids as string[] | undefined) ??
+                        [];
                     if (newPhase) setGamePhase(newPhase);
                     if (newVotes) setMissionVotes(newVotes);
                     if (newCharSel) setCharacterSelections(newCharSel);
                     setStoryReadyPlayerIds(newStoryReady);
+                    setCharacterSelectReadyPlayerIds(newReady);
 
                     // Reconcile local overrides: any override whose value now
                     // matches the server is automatically pruned.
@@ -190,6 +202,11 @@ export default function MinionBattlesGame({
                 if (nc) setCharacterSelections(nc);
                 const sr = (newGameState.storyReadyPlayerIds as string[] | undefined) ?? [];
                 setStoryReadyPlayerIds(sr);
+                const ready =
+                    (newGameState.characterSelectReadyPlayerIds as string[] | undefined) ??
+                    (newGameState.character_select_ready_player_ids as string[] | undefined) ??
+                    [];
+                setCharacterSelectReadyPlayerIds(ready);
             }
         },
         [localOverrides.clear],
@@ -220,6 +237,7 @@ export default function MinionBattlesGame({
                     isHost={isHost}
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
+                    characterSelectReadyPlayerIds={characterSelectReadyPlayerIds}
                     missionId={selectedMissionId}
                     campaignId={missionDef?.campaignId}
                     missionDef={missionDef ?? null}

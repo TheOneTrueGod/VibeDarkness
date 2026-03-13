@@ -327,6 +327,13 @@ export default function GameScreen({
                               (lobbyGameData.character_selections as Record<string, string>)
                             : undefined
                     }
+                    readyPlayerIds={
+                        lobbyGameData != null &&
+                        (lobbyGameData.gamePhase ?? lobbyGameData.game_phase) === 'character_select'
+                            ? ((lobbyGameData.characterSelectReadyPlayerIds ??
+                                  lobbyGameData.character_select_ready_player_ids) as string[] | undefined) ?? []
+                            : undefined
+                    }
                 />
             </div>
 
