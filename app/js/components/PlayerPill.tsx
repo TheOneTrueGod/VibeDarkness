@@ -13,6 +13,8 @@ interface PlayerPillProps {
     secondLine?: string | null;
     /** When set (e.g. on character select), show Ready/Not Ready with green/yellow outline. */
     readyStatus?: 'ready' | 'not_ready';
+    /** When true, temporarily flash the pill to highlight the player (e.g. WebRTC ping). */
+    isFlashing?: boolean;
 }
 
 export default function PlayerPill({
@@ -20,6 +22,7 @@ export default function PlayerPill({
     currentPlayerId,
     secondLine = null,
     readyStatus,
+    isFlashing = false,
 }: PlayerPillProps) {
     const showYou = currentPlayerId != null && player.id === currentPlayerId;
     const hasSecondLine = secondLine !== undefined;
@@ -30,9 +33,12 @@ export default function PlayerPill({
             : readyStatus === 'not_ready'
               ? 'border-2 border-yellow-500'
               : 'border border-border-custom';
+
+    const baseBgClass = isFlashing ? 'bg-white text-black' : 'bg-surface-light';
+
     return (
         <div
-            className={`flex flex-col justify-center px-4 py-2 rounded-lg bg-surface-light w-[260px] ${borderClass} ${
+            className={`flex flex-col justify-center px-4 py-2 rounded-lg ${baseBgClass} w-[260px] ${borderClass} ${
                 hasSecondLine || hasReadyStatus ? 'min-h-[3.5rem]' : ''
             } ${player.isConnected === false ? 'opacity-50' : ''}`}
         >

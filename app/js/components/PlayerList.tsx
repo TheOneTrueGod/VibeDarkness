@@ -14,6 +14,8 @@ interface PlayerListProps {
     characterIdToName?: Record<string, string>;
     /** When provided (e.g. on character select), each player shows Ready / Not Ready with green / yellow outline. */
     readyPlayerIds?: string[];
+    /** Player IDs whose cards should currently flash (e.g. due to WebRTC ping). */
+    flashingPlayerIds?: string[];
 }
 
 export default function PlayerList({
@@ -22,8 +24,10 @@ export default function PlayerList({
     characterSelections,
     characterIdToName,
     readyPlayerIds,
+    flashingPlayerIds,
 }: PlayerListProps) {
     const readySet = readyPlayerIds != null ? new Set(readyPlayerIds) : null;
+    const flashingSet = flashingPlayerIds != null ? new Set(flashingPlayerIds) : null;
     return (
         <div className="mt-4 p-4 bg-surface rounded">
             <h3 className="mb-3 text-sm text-muted uppercase">Players</h3>
@@ -45,6 +49,7 @@ export default function PlayerList({
                                 currentPlayerId={currentPlayerId}
                                 secondLine={secondLine}
                                 readyStatus={readyStatus}
+                                isFlashing={flashingSet?.has(player.id) ?? false}
                             />
                         </li>
                     );

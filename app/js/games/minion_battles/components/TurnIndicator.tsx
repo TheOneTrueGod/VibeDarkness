@@ -116,7 +116,7 @@ export default function TurnIndicator({ state, allyName = 'Player' }: TurnIndica
                     transform: isCollapsed ? 'scale(0.35)' : 'scale(1)',
                 }}
             >
-                <div className="relative flex items-center justify-center w-[280px] h-12">
+                <div className="relative flex items-center justify-center w-[300px] h-12">
                     {/* Outer hexagon: visible border (thick coloured ring) */}
                     <div
                         className={`absolute inset-0 w-full h-full transition-colors duration-[220ms] ease-out ${borderColorClass}`}
@@ -124,7 +124,7 @@ export default function TurnIndicator({ state, allyName = 'Player' }: TurnIndica
                     />
                     {/* Inner hexagon: surface + emboss, centered so border shows around it */}
                     <div
-                        className="relative w-[250px] h-10 bg-surface-light transition-[box-shadow] duration-[220ms] ease-out shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
+                        className="relative w-[270px] h-10 bg-surface-light transition-[box-shadow] duration-[220ms] ease-out shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
                         style={{ clipPath: PLAQUE_CLIP }}
                     >
                         <div

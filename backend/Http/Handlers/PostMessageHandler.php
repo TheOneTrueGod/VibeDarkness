@@ -64,6 +64,47 @@ class PostMessageHandler
             return ['success' => true, 'messageId' => $messageId];
         }
 
+        if ($type === 'ping') {
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+            $messageId = $lobby->addMessage('ping', [
+                'fromPlayerId' => $playerId,
+            ]);
+            $manager->persistLobby($lobby);
+            return ['success' => true, 'messageId' => $messageId];
+        }
+
+        if ($type === 'webrtc_signal') {
+            $toPlayerId = $payload['toPlayerId'] ?? null;
+            if (!$toPlayerId || !is_string($toPlayerId)) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'toPlayerId required'];
+            }
+
+            $lobby = $manager->getLobby($lobbyId);
+            if ($lobby === null) {
+                http_response_code(404);
+                return ['success' => false, 'error' => 'Lobby not found'];
+            }
+
+            $signal = $payload['signal'] ?? null;
+            if (!is_array($signal)) {
+                $signal = ['raw' => $signal];
+            }
+
+            $messageId = $lobby->addMessage('webrtc_signal', [
+                'fromPlayerId' => $playerId,
+                'toPlayerId' => $toPlayerId,
+                'signal' => $signal,
+            ]);
+            $manager->persistLobby($lobby);
+
+            return ['success' => true, 'messageId' => $messageId];
+        }
+
         if ($type === 'mission_vote') {
             $missionId = $payload['missionId'] ?? null;
             if (!$missionId || !is_string($missionId)) {

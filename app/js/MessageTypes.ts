@@ -7,6 +7,7 @@ export const MessageType = Object.freeze({
     CHAT: 'chat',
     NPC_CHAT: 'npc_chat',
     CLICK: 'click',
+    WEBRTC_SIGNAL: 'webrtc_signal',
     STATE_REQUEST: 'state_request',
     STATE_RESPONSE: 'state_response',
     PLAYER_JOIN: 'player_join',
@@ -40,6 +41,7 @@ const MessageSchema: Record<string, SchemaDef> = Object.freeze({
     [MessageType.CHAT]: { required: ['message'], optional: ['timestamp'] },
     [MessageType.NPC_CHAT]: { required: ['npcId', 'message'], optional: ['timestamp'] },
     [MessageType.CLICK]: { required: ['x', 'y'], optional: ['timestamp'] },
+    [MessageType.WEBRTC_SIGNAL]: { required: ['fromPlayerId', 'toPlayerId', 'signal'], optional: [] },
     [MessageType.STATE_REQUEST]: { required: [], optional: ['requestingPlayerId'] },
     [MessageType.STATE_RESPONSE]: {
         required: ['players', 'clicks', 'chatHistory'],
@@ -147,5 +149,11 @@ export const Messages = {
     },
     ping() {
         return new Message(MessageType.PING as MessageTypeValue, {});
+    },
+    webrtcSignal(toPlayerId: string, signal: unknown) {
+        return new Message(MessageType.WEBRTC_SIGNAL as MessageTypeValue, {
+            toPlayerId,
+            signal,
+        });
     },
 };

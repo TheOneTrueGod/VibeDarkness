@@ -12,6 +12,23 @@ export default defineConfig({
         outDir: 'dist',
         emptyOutDir: true,
         sourcemap: true,
+        chunkSizeWarningLimit: 2000,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                        return 'vendor';
+                    }
+                    if (id.includes('pixi.js')) {
+                        return 'pixi';
+                    }
+                    if (id.includes('games/minion_battles')) {
+                        return 'minion_battles';
+                    }
+                    return undefined;
+                },
+            },
+        },
     },
     css: {
         devSourcemap: true,

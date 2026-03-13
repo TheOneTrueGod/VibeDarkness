@@ -71,6 +71,12 @@ interface GameScreenProps {
     onTryAgain?: (missionId: string) => Promise<void>;
     /** Called when the game sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: MessageEntry) => void;
+    /** Sends a WebRTC ping event to other players. */
+    onPing?: () => void;
+    /** Whether the Ping button should be enabled (e.g. only when WebRTC is ready). */
+    pingEnabled?: boolean;
+    /** Player IDs whose cards should currently flash (e.g. WebRTC ping highlight). */
+    flashingPlayerIds?: string[];
 }
 
 export default function GameScreen({
@@ -94,6 +100,9 @@ export default function GameScreen({
     onRecordMissionResult,
     onTryAgain,
     onEmittedChatMessage,
+    onPing,
+    pingEnabled = true,
+    flashingPlayerIds,
 }: GameScreenProps) {
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
     const [gameLoadError, setGameLoadError] = useState<string | null>(null);
@@ -233,13 +242,23 @@ export default function GameScreen({
     }, [account, gameSidebarInfo, players]);
 
     const chatHeaderLeaveButton = (
-        <button
-            type="button"
-            className="px-4 py-2 bg-danger text-white font-semibold text-sm rounded hover:bg-danger-hover transition-colors shrink-0"
-            onClick={onLeave}
-        >
-            Leave
-        </button>
+        <div className="flex items-center gap-2">
+            <button
+                type="button"
+                className="px-3 py-2 bg-primary text-secondary font-semibold text-xs rounded hover:bg-primary-hover transition-colors shrink-0"
+                onClick={onPing}
+                disabled={!pingEnabled}
+            >
+                Ping
+            </button>
+            <button
+                type="button"
+                className="px-4 py-2 bg-danger text-white font-semibold text-sm rounded hover:bg-danger-hover transition-colors shrink-0"
+                onClick={onLeave}
+            >
+                Leave
+            </button>
+        </div>
     );
 
     return (
@@ -334,6 +353,7 @@ export default function GameScreen({
                                   lobbyGameData.character_select_ready_player_ids) as string[] | undefined) ?? []
                             : undefined
                     }
+                    flashingPlayerIds={flashingPlayerIds}
                 />
             </div>
 

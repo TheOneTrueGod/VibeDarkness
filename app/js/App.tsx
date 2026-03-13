@@ -25,8 +25,12 @@ import type {
     PollMessagePayload,
     ChatMessageData,
 } from './types';
+import { WebRtcLobbyMesh, WebRtcPingTestFn } from './WebRtcLobbyMesh';
 
 const LOBBY_PATH_PREFIX = '/lobby/';
+
+// Feature flag: controls whether the WebRTC lobby mesh is set up and used.
+const ENABLE_WEBRTC_LOBBY = false;
 
 function getLobbyCodeFromPath(): string | null {
     const match = window.location.pathname.match(/^\/lobby\/([A-Za-z0-9]+)$/);
@@ -115,6 +119,14 @@ function AppInner() {
     // Debug
     const [debugGameState, setDebugGameState] = useState<GameStatePayload | null>(null);
 
+    // WebRTC mesh for peer-to-peer events (e.g. Ping)
+    const webRtcMeshRef = useRef<WebRtcLobbyMesh | null>(null);
+    const [webRtcReady, setWebRtcReady] = useState(false);
+
+    // Track which players should currently have flashing cards due to WebRTC pings
+    const [flashingPlayerIds, setFlashingPlayerIds] = useState<string[]>([]);
+    const flashTimersRef = useRef<Record<string, number[]>>({});
+
     // Refs for mutable state used in polling callbacks
     const playersRef = useRef(players);
     playersRef.current = players;
@@ -126,6 +138,45 @@ function AppInner() {
     lobbyGameIdRef.current = lobbyGameId;
     const lobbyGameTypeRef = useRef(lobbyGameType);
     lobbyGameTypeRef.current = lobbyGameType;
+
+    const triggerPlayerFlash = useCallback((playerId: string) => {
+        setFlashingPlayerIds((prev) => {
+            if (prev.includes(playerId)) {
+                return prev;
+            }
+            return [...prev, playerId];
+        });
+
+        const clearExistingTimers = () => {
+            const timers = flashTimersRef.current[playerId] ?? [];
+            for (const id of timers) {
+                clearTimeout(id);
+            }
+            flashTimersRef.current[playerId] = [];
+        };
+
+        clearExistingTimers();
+
+        const schedule = (delayMs: number, shouldFlash: boolean) => {
+            const id = window.setTimeout(() => {
+                setFlashingPlayerIds((prev) => {
+                    const exists = prev.includes(playerId);
+                    if (shouldFlash) {
+                        if (exists) return prev;
+                        return [...prev, playerId];
+                    }
+                    if (!exists) return prev;
+                    return prev.filter((p) => p !== playerId);
+                });
+            }, delayMs);
+            flashTimersRef.current[playerId] = [...(flashTimersRef.current[playerId] ?? []), id];
+        };
+
+        schedule(0, true);
+        schedule(1000, false);
+        schedule(2000, true);
+        schedule(3000, false);
+    }, []);
 
     // ==================== Message handling ====================
 
@@ -234,10 +285,25 @@ function AppInner() {
                     ...prev,
                     { system: true, message: 'Host has changed', timestamp: Date.now() / 1000 },
                 ]);
+            } else if (type === MessageType.WEBRTC_SIGNAL) {
+                if (ENABLE_WEBRTC_LOBBY) {
+                    const targetId = (data.toPlayerId as string) ?? '';
+                    const fromPlayerId = (data.fromPlayerId as string) ?? '';
+                    const signal = (data.signal ?? {}) as Record<string, unknown>;
+                    const me = currentPlayerRef.current;
+                    if (!me || targetId !== me.id) return;
+                    if (!webRtcMeshRef.current) return;
+                    void webRtcMeshRef.current.handleSignal(fromPlayerId, signal);
+                }
+            } else if (type === MessageType.PING) {
+                const fromPlayerId = (data.fromPlayerId as string) ?? null;
+                if (fromPlayerId) {
+                    triggerPlayerFlash(fromPlayerId);
+                }
             }
             // MISSION_VOTE and GAME_PHASE_CHANGED are handled by game components directly via polling
         },
-        [showToast, isDuplicateChatEntry]
+        [showToast, isDuplicateChatEntry, triggerPlayerFlash]
     );
 
     // ==================== Polling ====================
@@ -337,6 +403,72 @@ function AppInner() {
 
         setDebugGameState(state);
     }, []);
+
+    // Initialize or dispose WebRTC mesh when lobby / player changes
+    useEffect(() => {
+        if (!ENABLE_WEBRTC_LOBBY || !currentLobby || !currentPlayer) {
+            webRtcMeshRef.current?.dispose();
+            webRtcMeshRef.current = null;
+            setWebRtcReady(false);
+            setFlashingPlayerIds([]);
+            return;
+        }
+
+        const mesh = new WebRtcLobbyMesh({
+            localPlayerId: currentPlayer.id,
+            sendSignal: (toPlayerId, signal) => {
+                const lobby = currentLobby;
+                const me = currentPlayerRef.current;
+                if (!lobby || !me) return;
+                const msg = Messages.webrtcSignal(toPlayerId, signal);
+                lobbyClient.sendMessage(lobby.id, me.id, msg.type, msg.data).catch(() => {});
+            },
+            onPeerEvent: (fromPlayerId, event) => {
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/2a2554c3-e9f5-4502-827c-f3f11769724c', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        runId: 'pre-fix',
+                        hypothesisId: 'H3',
+                        location: 'App.tsx:onPeerEvent',
+                        message: 'Received WebRTC peer event',
+                        data: { fromPlayerId, eventType: event.type },
+                        timestamp: Date.now(),
+                    }),
+                }).catch(() => {});
+                // #endregion agent log
+                if ((event.type as string | undefined) === 'ping') {
+                    triggerPlayerFlash(fromPlayerId);
+                }
+            },
+        });
+        webRtcMeshRef.current = mesh;
+        setWebRtcReady(true);
+
+        // Simple dev helper for testing ping from console
+        (window as unknown as { __vibeTestWebRtcPing?: WebRtcPingTestFn }).__vibeTestWebRtcPing = () => {
+            if (!currentLobby || !currentPlayer) return;
+            const meshInstance = webRtcMeshRef.current;
+            if (!meshInstance) return;
+            meshInstance.sendEventToAll({ type: 'ping', fromPlayerId: currentPlayer.id });
+            triggerPlayerFlash(currentPlayer.id);
+        };
+
+        return () => {
+            mesh.dispose();
+            if ((window as unknown as { __vibeTestWebRtcPing?: WebRtcPingTestFn }).__vibeTestWebRtcPing) {
+                (window as unknown as { __vibeTestWebRtcPing?: WebRtcPingTestFn }).__vibeTestWebRtcPing = undefined;
+            }
+        };
+    }, [currentLobby, currentPlayer, lobbyClient, triggerPlayerFlash]);
+
+    // Keep WebRTC peers in sync with current player list
+    useEffect(() => {
+        if (!ENABLE_WEBRTC_LOBBY || !webRtcMeshRef.current) return;
+        const ids = Object.keys(players);
+        webRtcMeshRef.current.updatePeers(ids);
+    }, [players]);
 
     const startInLobby = useCallback(
         async (lobby: LobbyState, player: PlayerState) => {
@@ -637,6 +769,21 @@ function AppInner() {
                     onRecordMissionResult={recordMissionResult}
                     onTryAgain={(missionId) => handleCreateLobbyForMission(missionId, currentCampaignId)}
                     onEmittedChatMessage={handleEmittedChatMessage}
+                    onPing={() => {
+                        const mesh = webRtcMeshRef.current;
+                        if (ENABLE_WEBRTC_LOBBY && mesh && currentPlayer) {
+                            mesh.sendEventToAll({ type: 'ping', fromPlayerId: currentPlayer.id });
+                        }
+                        // Also send a lobby-level PING so all players see the flash even if WebRTC is unavailable.
+                        lobbyClient
+                            .sendMessage(currentLobby.id, currentPlayer.id, MessageType.PING, {
+                                fromPlayerId: currentPlayer.id,
+                            })
+                            .catch(() => {});
+                        triggerPlayerFlash(currentPlayer.id);
+                    }}
+                    pingEnabled={webRtcReady}
+                    flashingPlayerIds={flashingPlayerIds}
                 />
             )}
             <DebugConsole
