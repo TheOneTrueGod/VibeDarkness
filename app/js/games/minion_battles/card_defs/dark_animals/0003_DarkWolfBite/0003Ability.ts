@@ -6,6 +6,7 @@
 
 import { AbilityState } from '../../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../../abilities/Ability';
+import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../objects/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { ResolvedTarget } from '../../../engine/types';
@@ -88,6 +89,11 @@ export const DarkWolfBiteAbility: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: PREFIRE_TIME,
+    abilityTimings: [
+        { duration: WINDUP_TIME, abilityPhase: AbilityPhase.Windup },
+        { duration: LUNGE_DURATION, abilityPhase: AbilityPhase.Active },
+        { duration: 2, abilityPhase: AbilityPhase.Cooldown },
+    ],
     targets: [{ type: 'unit', label: 'Target enemy' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: AI_MAX_RANGE },
 

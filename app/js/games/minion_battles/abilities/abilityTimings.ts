@@ -18,6 +18,21 @@ export interface AbilityTiming {
     abilityPhase: AbilityPhase;
 }
 
+/**
+ * Total duration (seconds) of the ability cycle including cooldown.
+ * Uses abilityTimings when present, otherwise prefireTime + cooldownTime.
+ */
+export function getTotalAbilityDuration(ability: {
+    abilityTimings?: AbilityTiming[];
+    prefireTime: number;
+    cooldownTime: number;
+}): number {
+    if (ability.abilityTimings && ability.abilityTimings.length > 0) {
+        return ability.abilityTimings.reduce((sum, t) => sum + t.duration, 0);
+    }
+    return ability.prefireTime + ability.cooldownTime;
+}
+
 /** Colors for each phase in the circular progress indicator. */
 export const ABILITY_PHASE_COLORS: Record<AbilityPhase, string> = {
     [AbilityPhase.Windup]: '#f97316', // orange

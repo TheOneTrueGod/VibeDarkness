@@ -4,6 +4,7 @@
 
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../abilities/Ability';
+import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
@@ -48,6 +49,11 @@ export const EnemyArcherShotAbility: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: PREFIRE_TIME,
+    abilityTimings: [
+        { duration: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
+        { duration: PREFIRE_TIME - LOCK_TIME, abilityPhase: AbilityPhase.Active },
+        { duration: 3.0, abilityPhase: AbilityPhase.Cooldown },
+    ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
 

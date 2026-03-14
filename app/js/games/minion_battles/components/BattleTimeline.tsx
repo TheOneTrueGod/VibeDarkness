@@ -4,9 +4,37 @@ import type { GameEngine } from '../engine/GameEngine';
 import { getAbility } from '../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../abilities/Ability';
 import type { Unit } from '../objects/Unit';
-import CharacterPortrait from './CharacterPortrait';
-import { getPortrait } from '../character_defs/portraits';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
+
+/** Light gray background line with half-second ticks and time labels for a timeline row. */
+function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
+    const ticks: number[] = [];
+    for (let t = 0; t <= windowSeconds; t += 0.5) {
+        ticks.push(t);
+    }
+    return (
+        <div className="absolute inset-0 flex items-center pointer-events-none" aria-hidden>
+            {/* Full-width light gray line */}
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-gray-600" />
+            {/* Half-second ticks and labels */}
+            {ticks.map((t) => {
+                const leftPercent = (t / windowSeconds) * 100;
+                return (
+                    <div
+                        key={t}
+                        className="absolute top-1/2 -translate-x-1/2 flex flex-col items-center"
+                        style={{ left: `${leftPercent}%` }}
+                    >
+                        <div className="w-px h-1.5 bg-gray-500 -translate-y-1/2" />
+                        <span className="text-[10px] text-gray-500 mt-0.5">
+                            {t}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
 
 type PhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown';
 
@@ -186,6 +214,7 @@ function renderEnemyRow(
                 <span className="text-gray-200">Enemies</span>
             </div>
             <div className="relative h-10 bg-dark-800/80 rounded-md border border-dark-600 overflow-hidden">
+                <TimelineTimeRuler windowSeconds={windowSeconds} />
                 <div className="absolute inset-y-0 left-0 right-0 flex items-center px-2 text-[10px] text-gray-500 justify-between pointer-events-none">
                     <span>0s</span>
                     <span>{windowSeconds.toFixed(0)}s</span>
@@ -242,17 +271,24 @@ function renderPlayerRow(
         return (
             <div className="contents" key={playerId}>
                 <div className="flex items-center gap-2 text-xs">
+                    <div
+                        className="w-7 h-7 rounded-sm shrink-0 flex items-center justify-center text-black font-bold text-xs border border-dark-600"
+                        style={{ backgroundColor: player.color }}
+                        title={player.name}
+                    >
+                        {player.name?.[0]?.toUpperCase() ?? '?'}
+                    </div>
                     <span className="text-gray-200">{player.name}</span>
                 </div>
-                <div />
+                <div className="relative h-10 bg-dark-800/80 rounded-md border border-dark-600 overflow-hidden">
+                    <TimelineTimeRuler windowSeconds={windowSeconds} />
+                </div>
             </div>
         );
     }
 
     const active = unit.activeAbilities[0];
     const ability = active ? getAbility(active.abilityId) : null;
-
-    const portraitDef = getPortrait(unit.characterId);
 
     let segments:
         | {
@@ -292,13 +328,13 @@ function renderPlayerRow(
     return (
         <div className="contents" key={playerId}>
             <div className="flex items-center gap-2 text-xs">
-                {portraitDef && (
-                    <CharacterPortrait
-                        picture={portraitDef.picture}
-                        size="small"
-                        className="border border-dark-600"
-                    />
-                )}
+                <div
+                    className="w-7 h-7 rounded-sm shrink-0 flex items-center justify-center text-black font-bold text-xs border border-dark-600"
+                    style={{ backgroundColor: player.color }}
+                    title={player.name}
+                >
+                    {player.name?.[0]?.toUpperCase() ?? '?'}
+                </div>
                 <div className="flex flex-col">
                     <span className="text-gray-200">
                         {player.name}
@@ -314,6 +350,7 @@ function renderPlayerRow(
                 </div>
             </div>
             <div className="relative h-10 bg-dark-800/80 rounded-md border border-dark-600 overflow-hidden">
+                <TimelineTimeRuler windowSeconds={windowSeconds} />
                 <div className="absolute inset-y-0 left-0 right-0 flex items-center px-2 text-[10px] text-gray-500 justify-between pointer-events-none">
                     <span>0s</span>
                     <span>{windowSeconds.toFixed(0)}s</span>

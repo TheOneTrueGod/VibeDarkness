@@ -20,6 +20,7 @@ import { Projectile } from '../objects/Projectile';
 import { Effect } from '../objects/Effect';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { getAbility } from '../abilities/AbilityRegistry';
+import { getTotalAbilityDuration } from '../abilities/abilityTimings';
 import { asCardDefId, getCardDef } from '../card_defs';
 import type { CardDefId } from '../card_defs';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
@@ -904,8 +905,9 @@ export class GameEngine {
     /**
      * Tick all active abilities on all units. Calls doCardEffect with
      * time-since-start thresholds so abilities can fire effects at the
-     * right moment. Removes abilities once prefireTime is reached AND
-     * getAbilityStates returns empty (no lingering states like movement penalty).
+     * right moment. Removes abilities only when total ability duration
+     * (including cooldown) has elapsed, so the unit tracks which ability
+     * it used for the full cycle.
      */
     private processActiveAbilities(dt: number): void {
         for (const unit of this.units) {
@@ -926,8 +928,8 @@ export class GameEngine {
 
                 ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime);
 
-                // Remove once prefire is done AND no lingering ability states remain
-                if (currentTime >= ability.prefireTime && ability.getAbilityStates(currentTime).length === 0) {
+                const totalDuration = getTotalAbilityDuration(ability);
+                if (currentTime >= totalDuration) {
                     completed.push(i);
                 }
             }

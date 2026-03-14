@@ -9,6 +9,7 @@
  */
 
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
@@ -57,6 +58,10 @@ export const ThrowTorchAbility: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 2,
     prefireTime: PREFIRE_TIME,
+    abilityTimings: [
+        { duration: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
+        { duration: 1.5, abilityPhase: AbilityPhase.Cooldown },
+    ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
 

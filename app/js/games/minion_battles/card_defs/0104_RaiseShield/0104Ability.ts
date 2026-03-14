@@ -6,6 +6,7 @@
 
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../abilities/Ability';
+import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createArcTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
@@ -49,6 +50,10 @@ export const RaiseShieldAbility: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DURATION,
+    abilityTimings: [
+        { duration: DURATION, abilityPhase: AbilityPhase.Juggernaut },
+        { duration: COOLDOWN_TIME, abilityPhase: AbilityPhase.Cooldown },
+    ],
     targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
     aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },
 

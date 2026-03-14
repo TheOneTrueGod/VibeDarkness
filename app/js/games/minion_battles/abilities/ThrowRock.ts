@@ -8,6 +8,7 @@
 
 import { AbilityState } from './Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from './Ability';
+import { AbilityPhase } from './abilityTimings';
 import type { TargetDef } from './targeting';
 import { createPixelTargetPreview } from './previewHelpers';
 import type { ResolvedTarget } from '../engine/types';
@@ -32,6 +33,10 @@ export const ThrowRock: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: 0.3,
+    abilityTimings: [
+        { duration: 0.3, abilityPhase: AbilityPhase.Windup },
+        { duration: 1.3, abilityPhase: AbilityPhase.Cooldown },
+    ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: 200 },
 
