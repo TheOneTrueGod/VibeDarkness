@@ -182,9 +182,12 @@ function AppInner() {
 
     /** Skip adding from poll if we already added this message (e.g. from sendMessage response). */
     const isDuplicateChatEntry = useCallback((prev: MessageEntry[], entry: MessageEntry): boolean => {
-        if ('system' in entry && entry.system) return false;
+        const isSystemEntry = (e: MessageEntry): e is { system: true; message: string; timestamp: number } =>
+            'system' in e && (e as { system?: boolean }).system === true;
+
+        if (isSystemEntry(entry)) return false;
         const last = prev[prev.length - 1];
-        if (!last || 'system' in last) return false;
+        if (!last || isSystemEntry(last)) return false;
         const sameSender = (last.playerId ?? '') === (entry.playerId ?? '');
         const sameText = (last.message ?? '') === (entry.message ?? '');
         const lastTs = last.timestamp ?? 0;

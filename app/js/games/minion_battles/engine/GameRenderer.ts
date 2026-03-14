@@ -761,8 +761,9 @@ export class GameRenderer {
         }
     }
 
-    /** Full cleanup. */
+    /** Full cleanup. Idempotent: safe to call multiple times. */
     destroy(): void {
+        if (!this.initialized) return;
         this.abilityPreviewGraphics.destroy();
         this.targetingPreviewGraphics.destroy();
         for (const visual of this.unitVisuals.values()) visual.destroy();

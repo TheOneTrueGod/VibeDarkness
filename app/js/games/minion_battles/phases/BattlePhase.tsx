@@ -24,6 +24,7 @@ import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import RoundProgressBar from '../components/RoundProgressBar';
 import TurnIndicator from '../components/TurnIndicator';
+import BattleTimeline from '../components/BattleTimeline';
 import { throwError } from '../utils/errors';
 import { diffSnapshotFields } from '../utils/snapshotDiff';
 import { MessageType } from '../../../MessageTypes';
@@ -728,6 +729,9 @@ export default function BattlePhase({
                 }
                 allyName={waitingForOrders && !isMyTurn ? players[waitingForOrders.ownerId]?.name ?? 'Player' : undefined}
             />
+
+            {/* Upcoming actions timeline (enemies + players) */}
+            <BattleTimeline engine={engine} players={players} localPlayerId={playerId} />
 
             {/* Card hand */}
             <CardHand
