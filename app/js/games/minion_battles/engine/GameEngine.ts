@@ -808,6 +808,15 @@ export class GameEngine {
         // Set cooldown
         unit.startCooldown(ability.cooldownTime);
 
+        // Replace any existing active instance of this ability so we only have one per abilityId.
+        // Otherwise a previous instance (still in activeAbilities until total duration) can share
+        // abilityNote with the new one and apply effects at the wrong time (e.g. immediate damage).
+        const existing = unit.activeAbilities.findIndex((a) => a.abilityId === ability.id);
+        if (existing >= 0) {
+            unit.activeAbilities.splice(existing, 1);
+            unit.clearAbilityNote();
+        }
+
         // Register the ability as active — the tick loop will call doCardEffect each frame
         unit.activeAbilities.push({
             abilityId: ability.id,
