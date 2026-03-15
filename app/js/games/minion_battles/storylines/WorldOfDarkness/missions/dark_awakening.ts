@@ -109,9 +109,9 @@ function createTerrain(): TerrainGrid {
 }
 
 const ENEMIES = [
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1000, y: 300 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1050, y: 500 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1100, y: 400 } },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 300, y: 300 } },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 450, y: 500 } },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 350, y: 600 } },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [

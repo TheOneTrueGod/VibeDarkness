@@ -24,7 +24,11 @@ import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from './effectImages';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import type { SpecialTile } from '../objects/SpecialTile';
 import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid';
+import type { DamageTakenEvent } from './EventBus';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
+
+/** Hit flash duration in seconds (real time, not affected by pause). */
+const HIT_FLASH_DURATION = 0.3;
 
 /** Color for move target markers (dark gray so visible in darkness). */
 const MOVE_TARGET_COLOR = 0x333333;
@@ -95,6 +99,14 @@ export class GameRenderer {
     private lastOverlayKey: string | null = null;
     /** Current light grid [row][col], for unit visibility. Set when light enabled. */
     private currentLightGrid: number[][] | null = null;
+
+    /** Engine ref for damage_taken handler (set each render). */
+    private currentEngine: GameEngine | null = null;
+    /** Whether we have subscribed to the engine's eventBus. */
+    private eventBusBound: boolean = false;
+    private readonly damageTakenBound = (data: DamageTakenEvent) => this.onDamageTaken(data);
+    /** Active hit flashes: unitId -> { startTime (ms), rafId }. Animation uses real time so it is not paused. */
+    private hitFlashState: Map<string, { startTime: number; rafId: number }> = new Map();
 
     constructor() {
         this.app = new Application();
@@ -342,6 +354,12 @@ export class GameRenderer {
     ): void {
         if (!this.initialized) return;
 
+        this.currentEngine = engine;
+        if (engine && !this.eventBusBound) {
+            this.eventBusBound = true;
+            engine.eventBus.on('damage_taken', this.damageTakenBound);
+        }
+
         this.targetingState = targetingState ?? null;
 
         // Update game container offset (camera)
@@ -558,6 +576,63 @@ export class GameRenderer {
                 if (corruptionBar) corruptionBar.visible = false;
             }
         }
+    }
+
+    // ========================================================================
+    // Hit flash (real-time, not paused)
+    // ========================================================================
+
+    private onDamageTaken(data: DamageTakenEvent): void {
+        const container = this.unitVisuals.get(data.unitId);
+        const unit = this.currentEngine?.getUnit(data.unitId);
+        if (!container || !unit) return;
+        this.startHitFlash(data.unitId, container, unit.radius);
+    }
+
+    /**
+     * Run a 0.3s red flash on the unit using real time (Date.now()).
+     * Fades from transparent to full opacity over first half, then back to transparent.
+     */
+    private startHitFlash(unitId: string, container: Container, radius: number): void {
+        const existing = this.hitFlashState.get(unitId);
+        if (existing) {
+            cancelAnimationFrame(existing.rafId);
+        }
+
+        let hitFlash = container.children.find((c) => c.label === 'hitFlash') as Graphics | undefined;
+        if (!hitFlash) {
+            hitFlash = new Graphics();
+            hitFlash.label = 'hitFlash';
+            hitFlash.eventMode = 'none';
+            container.addChild(hitFlash);
+        }
+        hitFlash.visible = true;
+
+        const startTime = Date.now();
+        this.hitFlashState.set(unitId, { startTime, rafId: 0 });
+
+        const tick = (): void => {
+            const state = this.hitFlashState.get(unitId);
+            if (!state) return;
+            const elapsed = (Date.now() - state.startTime) / 1000;
+            if (elapsed >= HIT_FLASH_DURATION) {
+                this.hitFlashState.delete(unitId);
+                hitFlash!.visible = false;
+                hitFlash!.clear();
+                return;
+            }
+            // First half: 0 -> 1, second half: 1 -> 0
+            const alpha = elapsed < HIT_FLASH_DURATION / 2
+                ? (elapsed / (HIT_FLASH_DURATION / 2))
+                : (1 - (elapsed - HIT_FLASH_DURATION / 2) / (HIT_FLASH_DURATION / 2));
+            hitFlash!.clear();
+            hitFlash!.circle(0, 0, radius);
+            hitFlash!.fill({ color: 0xff0000, alpha: 1 });
+            hitFlash!.alpha = alpha;
+            state.rafId = requestAnimationFrame(tick);
+        };
+        const state = this.hitFlashState.get(unitId)!;
+        state.rafId = requestAnimationFrame(tick);
     }
 
     // ========================================================================
