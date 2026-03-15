@@ -58,6 +58,8 @@ interface BattleTimelineProps {
     localPlayerId: string;
     /** How many seconds into the future the timeline should show. Default 4s. */
     windowSeconds?: number;
+    /** When the local player has a card selected (previewing), show how it would look on the timeline if they used it now. */
+    previewAbility?: AbilityStatic | null;
 }
 
 function buildDefaultTimeline(ability: AbilityStatic): AbilityTimelineDef {
@@ -213,7 +215,7 @@ function renderEnemyRow(
                 </div>
                 <span className="text-gray-200">Enemies</span>
             </div>
-            <div className="relative h-10 bg-dark-800/80 rounded-md border border-dark-600 overflow-hidden">
+            <div className="relative h-10 bg-dark-800/80 rounded-md overflow-hidden">
                 <TimelineTimeRuler windowSeconds={windowSeconds} />
                 <div className="absolute inset-y-0 left-0 right-0 flex items-center px-2 text-[10px] text-gray-500 justify-between pointer-events-none">
                     <span>0s</span>
@@ -239,7 +241,7 @@ function renderEnemyRow(
                                     }}
                                 />
                                 <div
-                                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-dark-900 border border-red-500 flex items-center justify-center text-xs text-red-200"
+                                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-dark-900 flex items-center justify-center text-xs text-red-200"
                                     style={{
                                         left: `${centerPercent}%`,
                                     }}
@@ -261,6 +263,8 @@ function renderPlayerRow(
     playerId: string,
     player: PlayerState,
     windowSeconds: number,
+    localPlayerId: string,
+    previewAbility: AbilityStatic | null | undefined,
 ): React.ReactNode {
     const now = engine.gameTime;
     const unit = engine.units.find(
@@ -272,7 +276,7 @@ function renderPlayerRow(
             <div className="contents" key={playerId}>
                 <div className="flex items-center gap-2 text-xs">
                     <div
-                        className="w-7 h-7 rounded-sm shrink-0 flex items-center justify-center text-black font-bold text-xs border border-dark-600"
+                        className="w-7 h-7 rounded-sm shrink-0 flex items-center justify-center text-black font-bold text-xs"
                         style={{ backgroundColor: player.color }}
                         title={player.name}
                     >
@@ -280,7 +284,7 @@ function renderPlayerRow(
                     </div>
                     <span className="text-gray-200">{player.name}</span>
                 </div>
-                <div className="relative h-10 bg-dark-800/80 rounded-md border border-dark-600 overflow-hidden">
+                <div className="relative h-10 bg-dark-800/80 rounded-md overflow-hidden">
                     <TimelineTimeRuler windowSeconds={windowSeconds} />
                 </div>
             </div>
@@ -289,6 +293,8 @@ function renderPlayerRow(
 
     const active = unit.activeAbilities[0];
     const ability = active ? getAbility(active.abilityId) : null;
+    const isLocalPlayer = playerId === localPlayerId;
+    const showPreview = !!(isLocalPlayer && previewAbility);
 
     let segments:
         | {
@@ -298,8 +304,19 @@ function renderPlayerRow(
           }[] = [];
     let abilityTimeline: AbilityTimelineDef | null = null;
     let elapsed = 0;
+    let isPreview = false;
 
-    if (active && ability) {
+    if (showPreview && previewAbility) {
+        abilityTimeline = getAbilityTimelineDef(previewAbility);
+        elapsed = 0;
+        const timelineWithMeta = computeRemainingPhases(
+            abilityTimeline,
+            0,
+            windowSeconds,
+        );
+        segments = timelineWithMeta._meta?.segments ?? [];
+        isPreview = true;
+    } else if (active && ability) {
         abilityTimeline = getAbilityTimelineDef(ability);
         elapsed = now - active.startTime;
         const timelineWithMeta = computeRemainingPhases(
@@ -310,7 +327,8 @@ function renderPlayerRow(
         segments = timelineWithMeta._meta?.segments ?? [];
     }
 
-    const hasTimeline = ability && segments.length > 0;
+    const displayAbility = ability ?? (showPreview ? previewAbility : null);
+    const hasTimeline = displayAbility && segments.length > 0;
 
     let minStart = Number.POSITIVE_INFINITY;
     let maxEnd = 0;
@@ -329,7 +347,7 @@ function renderPlayerRow(
         <div className="contents" key={playerId}>
             <div className="flex items-center gap-2 text-xs">
                 <div
-                    className="w-7 h-7 rounded-sm shrink-0 flex items-center justify-center text-black font-bold text-xs border border-dark-600"
+                    className="w-7 h-7 rounded-sm shrink-0 flex items-center justify-center text-black font-bold text-xs"
                     style={{ backgroundColor: player.color }}
                     title={player.name}
                 >
@@ -349,14 +367,14 @@ function renderPlayerRow(
                     </span>
                 </div>
             </div>
-            <div className="relative h-10 bg-dark-800/80 rounded-md border border-dark-600 overflow-hidden">
+            <div className="relative h-10 bg-dark-800/80 rounded-md overflow-hidden">
                 <TimelineTimeRuler windowSeconds={windowSeconds} />
                 <div className="absolute inset-y-0 left-0 right-0 flex items-center px-2 text-[10px] text-gray-500 justify-between pointer-events-none">
                     <span>0s</span>
                     <span>{windowSeconds.toFixed(0)}s</span>
                 </div>
-                {hasTimeline && ability && abilityTimeline && (
-                    <div className="absolute inset-0">
+                {hasTimeline && displayAbility && abilityTimeline && (
+                    <div className={`absolute inset-0 ${isPreview ? 'opacity-70' : ''}`}>
                         {segments.map((seg, idx) => {
                             const leftPercent =
                                 (seg.start / windowSeconds) * 100;
@@ -396,16 +414,16 @@ function renderPlayerRow(
                         })}
 
                         <div
-                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-md bg-dark-900 border border-primary flex items-center justify-center text-[10px] text-gray-100"
+                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-md bg-dark-900 flex items-center justify-center text-[10px] text-gray-100"
                             style={{
                                 left: `${Math.max(0, Math.min(100, iconLeftPercent))}%`,
                             }}
-                            title={ability.name}
+                            title={displayAbility.name}
                         >
                             <div
                                 className="w-6 h-6 overflow-hidden [&_svg]:w-full [&_svg]:h-full [&_img]:w-full [&_img]:h-full"
                                 dangerouslySetInnerHTML={{
-                                    __html: ability.image,
+                                    __html: displayAbility.image,
                                 }}
                             />
                         </div>
@@ -421,6 +439,7 @@ export default function BattleTimeline({
     players,
     localPlayerId,
     windowSeconds = 4,
+    previewAbility = null,
 }: BattleTimelineProps) {
     const orderedPlayers = useMemo(() => {
         const entries = Object.entries(players);
@@ -433,11 +452,11 @@ export default function BattleTimeline({
     }, [players, localPlayerId]);
 
     return (
-        <div className="w-full bg-dark-900/95 border-t border-dark-700 px-3 py-2 flex-shrink-0">
+        <div className="w-full bg-dark-900/95 px-3 py-2 flex-shrink-0">
             <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-2">
                 {renderEnemyRow(engine, windowSeconds)}
                 {orderedPlayers.map(([playerId, player]) =>
-                    renderPlayerRow(engine, playerId, player, windowSeconds),
+                    renderPlayerRow(engine, playerId, player, windowSeconds, localPlayerId, previewAbility),
                 )}
             </div>
         </div>

@@ -731,7 +731,12 @@ export default function BattlePhase({
             />
 
             {/* Upcoming actions timeline (enemies + players) */}
-            <BattleTimeline engine={engine} players={players} localPlayerId={playerId} />
+            <BattleTimeline
+                engine={engine}
+                players={players}
+                localPlayerId={playerId}
+                previewAbility={isMyTurn ? selectedAbility : null}
+            />
 
             {/* Card hand */}
             <CardHand
