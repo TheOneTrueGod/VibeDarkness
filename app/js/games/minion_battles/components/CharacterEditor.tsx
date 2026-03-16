@@ -23,6 +23,8 @@ interface CharacterEditorProps {
     lobbyClient: LobbyClient;
     onSaved?: (updated: { equipment: string[]; name: string; portraitId: string }) => void;
     onClose?: () => void;
+    /** Whether equipment editing is enabled. Defaults to false. */
+    editMode?: boolean;
 }
 
 type EditorTab = 'equipment';
@@ -51,6 +53,7 @@ export default function CharacterEditor({
     lobbyClient,
     onSaved,
     onClose,
+    editMode = false,
 }: CharacterEditorProps) {
     const portraitIds = useMemo(() => getPortraitIds(), []);
     const totalPortraits = portraitIds.length;
@@ -120,13 +123,14 @@ export default function CharacterEditor({
 
     const handleEquipToSlot = useCallback(
         (slot: EquipmentSlotType, itemId: string, slotIndex?: number) => {
+            if (!editMode) return;
             const def = getItemDef(itemId);
             if (!def?.slots.includes(slot)) return;
             const newEquipment = setEquipmentInSlot(equipment, slot, itemId, slotIndex);
             setEquipment(newEquipment);
             saveEquipment(newEquipment);
         },
-        [equipment, saveEquipment]
+        [editMode, equipment, saveEquipment]
     );
 
     const handleDragStartItem = useCallback((e: React.DragEvent, itemId: string) => {
@@ -237,37 +241,46 @@ export default function CharacterEditor({
                                 onDragEnd={handleDragEnd}
                                 dragItemId={dragItemId}
                                 dragSlot={dragSlot}
+                                editMode={editMode}
                             />
                         </div>
                         <div className="w-[280px] shrink-0 border-l border-border-custom p-3 overflow-auto">
-                            <p className="text-xs text-muted mb-2">Inventory — drag onto doll to equip</p>
-                            <div className="grid grid-cols-3 gap-2">
-                                {inventoryItems.map((id) => {
-                                    const def = getItemDef(id);
-                                    const iconUrl = ITEM_ICON_URLS[id];
-                                    if (!def) return null;
-                                    return (
-                                        <div
-                                            key={id}
-                                            draggable
-                                            onDragStart={(e) => handleDragStartItem(e, id)}
-                                            onDragEnd={handleDragEnd}
-                                            className="flex flex-col items-center justify-center p-2 rounded border border-border-custom bg-surface-light cursor-grab active:cursor-grabbing hover:border-primary transition-colors"
-                                        >
-                                            {iconUrl ? (
-                                                <img src={iconUrl} alt="" className="w-10 h-10 object-contain" />
-                                            ) : (
-                                                <div className="w-10 h-10 flex items-center justify-center text-muted text-xs" />
-                                            )}
-                                            <span className="text-[10px] text-gray-300 truncate w-full text-center mt-1">
-                                                {def.name}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            {saving && (
-                                <p className="text-xs text-muted mt-2">Saving…</p>
+                            {editMode ? (
+                                <>
+                                    <p className="text-xs text-muted mb-2">Inventory — drag onto doll to equip</p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {inventoryItems.map((id) => {
+                                            const def = getItemDef(id);
+                                            const iconUrl = ITEM_ICON_URLS[id];
+                                            if (!def) return null;
+                                            return (
+                                                <div
+                                                    key={id}
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStartItem(e, id)}
+                                                    onDragEnd={handleDragEnd}
+                                                    className="flex flex-col items-center justify-center p-2 rounded border border-border-custom bg-surface-light cursor-grab active:cursor-grabbing hover:border-primary transition-colors"
+                                                >
+                                                    {iconUrl ? (
+                                                        <img src={iconUrl} alt="" className="w-10 h-10 object-contain" />
+                                                    ) : (
+                                                        <div className="w-10 h-10 flex items-center justify-center text-muted text-xs" />
+                                                    )}
+                                                    <span className="text-[10px] text-gray-300 truncate w-full text-center mt-1">
+                                                        {def.name}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {saving && (
+                                        <p className="text-xs text-muted mt-2">Saving…</p>
+                                    )}
+                                </>
+                            ) : (
+                                <p className="text-xs text-muted">
+                                    Equipment editing is disabled for your account.
+                                </p>
                             )}
                         </div>
                     </>
@@ -286,6 +299,7 @@ interface EquipmentDollProps {
     onDragEnd: () => void;
     dragItemId: string | null;
     dragSlot: EquipmentSlotType | null;
+    editMode: boolean;
 }
 
 /** Position hints for slot types; multiple weapon/utility use row. */
@@ -302,6 +316,7 @@ function EquipmentDoll({
     onDragOver,
     onDragStartSlot,
     onDragEnd,
+    editMode,
 }: EquipmentDollProps) {
     const containerSize = 200;
 
@@ -338,13 +353,15 @@ function EquipmentDoll({
                 return (
                     <div
                         key={key}
-                        className="absolute w-12 h-12 flex items-center justify-center rounded border-2 border-dashed border-border-custom bg-surface/80 cursor-pointer hover:border-primary transition-colors"
+                        className={`absolute w-12 h-12 flex items-center justify-center rounded border-2 border-dashed border-border-custom bg-surface/80 ${
+                            editMode ? 'cursor-pointer hover:border-primary' : 'cursor-default'
+                        } transition-colors`}
                         style={{ left: pos.left, top: pos.top }}
-                        onDrop={(e) => onDropOnSlot(e, desc.type, desc.index)}
-                        onDragOver={onDragOver}
-                        onDragStart={(e) => itemId && onDragStartSlot(e, desc.type, desc.index)}
-                        draggable={!!itemId}
-                        onDragEnd={onDragEnd}
+                        onDrop={editMode ? (e) => onDropOnSlot(e, desc.type, desc.index) : undefined}
+                        onDragOver={editMode ? onDragOver : undefined}
+                        onDragStart={editMode && itemId ? (e) => onDragStartSlot(e, desc.type, desc.index) : undefined}
+                        draggable={editMode && !!itemId}
+                        onDragEnd={editMode ? onDragEnd : undefined}
                         title={def?.name ?? desc.label}
                     >
                         {iconUrl ? (

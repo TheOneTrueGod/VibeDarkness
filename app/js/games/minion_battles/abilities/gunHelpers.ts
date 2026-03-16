@@ -47,6 +47,27 @@ export function spawnGunProjectile(params: GunShotParams): void {
     eng.addProjectile(projectile);
 }
 
+/**
+ * Distance-based inaccuracy helper.
+ *
+ * - At distance >= maxAccurateDist (200): penalty = baseInaccuracy.
+ * - At distance <= minDistance (50):      penalty = baseInaccuracy * 1.1.
+ * - Between: linearly interpolated between those two values.
+ */
+export function getDistanceBasedInaccuracy(
+    distance: number,
+    baseInaccuracy: number,
+    minDistance: number = 50,
+    maxAccurateDist: number = 200,
+): number {
+    if (!Number.isFinite(distance) || distance <= 0) return baseInaccuracy;
+    if (distance <= minDistance) return baseInaccuracy * 1.1;
+    if (distance >= maxAccurateDist) return baseInaccuracy;
+    const t = (distance - minDistance) / (maxAccurateDist - minDistance);
+    const factor = 1.1 - 0.1 * t;
+    return baseInaccuracy * factor;
+}
+
 export function getRandomConeAngle(
     engine: unknown,
     centerAngle: number,

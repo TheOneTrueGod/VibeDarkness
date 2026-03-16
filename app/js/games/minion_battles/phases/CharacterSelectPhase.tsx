@@ -23,6 +23,7 @@ interface CharacterSelectPhaseProps {
     gameId: string;
     playerId: string;
     isHost: boolean;
+    isAdmin: boolean;
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
     /** Player IDs that have clicked Ready. */
@@ -46,6 +47,7 @@ export default function CharacterSelectPhase({
     gameId,
     playerId,
     isHost,
+    isAdmin,
     players,
     characterSelections,
     characterSelectReadyPlayerIds = [],
@@ -288,6 +290,7 @@ export default function CharacterSelectPhase({
                         lobbyClient={lobbyClient}
                         onSaved={handleEditorSaved}
                         onClose={() => setEditorOpen(false)}
+                        editMode={isAdmin}
                     />
                 </div>
             ) : (

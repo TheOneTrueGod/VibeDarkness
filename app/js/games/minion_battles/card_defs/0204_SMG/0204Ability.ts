@@ -6,7 +6,7 @@ import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { getRandomConeAngle, spawnGunProjectile } from '../../abilities/gunHelpers';
+import { getDistanceBasedInaccuracy, getRandomConeAngle, spawnGunProjectile } from '../../abilities/gunHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}04`;
 const FIRST_SHOT_TIME = 0.5;
@@ -16,7 +16,7 @@ const COOLDOWN_TIME = 1.3;
 const MAX_DISTANCE = 380;
 const BULLET_SPEED = 1500;
 const BULLET_DAMAGE = 10;
-const INACCURACY_RAD = Math.PI / 16;
+const INACCURACY_BASE = Math.PI / 16;
 
 const SMG_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <rect x="10" y="26" width="32" height="8" rx="2" fill="#b0b0b0" stroke="#909090" stroke-width="1"/>
@@ -66,7 +66,8 @@ export const SMGAbility: AbilityStatic = {
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist === 0) continue;
                 const baseAngle = Math.atan2(dy, dx);
-                const angle = getRandomConeAngle(engine, baseAngle, INACCURACY_RAD);
+                const inaccuracy = getDistanceBasedInaccuracy(dist, INACCURACY_BASE);
+                const angle = getRandomConeAngle(engine, baseAngle, inaccuracy);
                 const clampedDist = Math.min(dist, MAX_DISTANCE);
                 const tx = caster.x + Math.cos(angle) * clampedDist;
                 const ty = caster.y + Math.sin(angle) * clampedDist;
@@ -97,25 +98,46 @@ export const SMGAbility: AbilityStatic = {
         _currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
     ): void {
+        const dx = mouseWorld.x - caster.x;
+        const dy = mouseWorld.y - caster.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxR = MAX_DISTANCE;
+        const clampedDist = dist > maxR ? maxR : dist;
+        const dirX = dist > 0 ? dx / dist : 1;
+        const dirY = dist > 0 ? dy / dist : 0;
+        const endX = caster.x + dirX * clampedDist;
+        const endY = caster.y + dirY * clampedDist;
+        const inaccuracy = getDistanceBasedInaccuracy(dist, INACCURACY_BASE);
+        const baseAngle = Math.atan2(dirY, dirX);
+        const leftAngle = baseAngle - inaccuracy;
+        const rightAngle = baseAngle + inaccuracy;
+        const leftEndX = caster.x + Math.cos(leftAngle) * clampedDist;
+        const leftEndY = caster.y + Math.sin(leftAngle) * clampedDist;
+        const rightEndX = caster.x + Math.cos(rightAngle) * clampedDist;
+        const rightEndY = caster.y + Math.sin(rightAngle) * clampedDist;
+
         ctx.save();
         ctx.strokeStyle = 'rgba(176, 176, 176, 0.8)';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(caster.x, caster.y);
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxR = MAX_DISTANCE;
-        const endX = dist > maxR ? caster.x + (dx / dist) * maxR : mouseWorld.x;
-        const endY = dist > maxR ? caster.y + (dy / dist) * maxR : mouseWorld.y;
         ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(caster.x, caster.y);
+        ctx.lineTo(leftEndX, leftEndY);
+        ctx.moveTo(caster.x, caster.y);
+        ctx.lineTo(rightEndX, rightEndY);
+        ctx.strokeStyle = 'rgba(176, 176, 176, 0.6)';
+        ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.restore();
     },
 
     renderTargetingPreview: createConeTargetPreview({
         maxDistance: MAX_DISTANCE,
-        coneAngleRad: INACCURACY_RAD * 2,
+        coneAngleRad: INACCURACY_BASE * 2,
     }),
 };
 

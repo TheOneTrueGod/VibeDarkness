@@ -14,6 +14,7 @@ import { isAbilityNote } from '../../engine/AbilityNote';
 import { areEnemies } from '../../engine/teams';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
+import type { EventBus } from '../../engine/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}02`;
 const LOCK_TIME = 0.5;
@@ -38,7 +39,7 @@ function getMaxRadius(caster: Unit): number {
 interface GameEngineLike {
     units: Unit[];
     gameTime: number;
-    eventBus: { emit: (event: string, data: unknown) => void };
+    eventBus: EventBus;
     getUnit?(id: string): Unit | undefined;
 }
 

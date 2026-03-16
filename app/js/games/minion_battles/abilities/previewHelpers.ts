@@ -139,19 +139,14 @@ export interface ConeTargetPreviewOptions {
 
 /**
  * Preset: Pixel target with a cone preview showing potential spread (used for SMG/shotgun).
- * Draws a clamped center line toward mouse and two boundary lines at +/- half cone angle.
+ * Draws only the two boundary lines at +/- half cone angle (no center line).
  */
 export function createConeTargetPreview(options: ConeTargetPreviewOptions): RenderTargetingPreviewFn {
     const { maxDistance, coneAngleRad, strokeColor = 0xb0b0b0 } = options;
     const halfAngle = coneAngleRad / 2;
     return (gr, caster, _currentTargets, mouseWorld, _units) => {
         gr.clear();
-        const { endX, endY, dirX, dirY } = clampToMaxRange(caster, mouseWorld, maxDistance);
-
-        // Center line
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(endX, endY);
-        gr.stroke({ color: strokeColor, width: 2, alpha: 0.9 });
+        const { dirX, dirY } = clampToMaxRange(caster, mouseWorld, maxDistance);
 
         const baseAngle = Math.atan2(dirY, dirX);
         const leftAngle = baseAngle - halfAngle;
@@ -161,7 +156,7 @@ export function createConeTargetPreview(options: ConeTargetPreviewOptions): Rend
         const rightEndX = caster.x + Math.cos(rightAngle) * maxDistance;
         const rightEndY = caster.y + Math.sin(rightAngle) * maxDistance;
 
-        // Boundary lines
+        // Boundary lines only
         gr.moveTo(caster.x, caster.y);
         gr.lineTo(leftEndX, leftEndY);
         gr.moveTo(caster.x, caster.y);

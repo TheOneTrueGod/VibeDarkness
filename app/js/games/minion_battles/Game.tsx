@@ -41,6 +41,7 @@ interface MinionBattlesGameProps {
     gameId: string;
     playerId: string;
     isHost: boolean;
+    isAdmin?: boolean;
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
@@ -59,6 +60,7 @@ export default function MinionBattlesGame({
     gameId,
     playerId,
     isHost,
+    isAdmin = false,
     players,
     gameData,
     onSidebarInfoChange,
@@ -235,6 +237,7 @@ export default function MinionBattlesGame({
                     gameId={gameId}
                     playerId={playerId}
                     isHost={isHost}
+                    isAdmin={isAdmin}
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     characterSelectReadyPlayerIds={characterSelectReadyPlayerIds}
