@@ -336,25 +336,29 @@ export default function GameScreen({
                     )}
                 </div>
 
-                {/* Player List */}
-                <PlayerList
-                    players={players}
-                    currentPlayerId={player.id}
-                    characterSelections={
-                        lobbyGameData != null
-                            ? (lobbyGameData.characterSelections as Record<string, string>) ??
-                              (lobbyGameData.character_selections as Record<string, string>)
-                            : undefined
-                    }
-                    readyPlayerIds={
-                        lobbyGameData != null &&
-                        (lobbyGameData.gamePhase ?? lobbyGameData.game_phase) === 'character_select'
-                            ? ((lobbyGameData.characterSelectReadyPlayerIds ??
-                                  lobbyGameData.character_select_ready_player_ids) as string[] | undefined) ?? []
-                            : undefined
-                    }
-                    flashingPlayerIds={flashingPlayerIds}
-                />
+                {/* Player List (hidden during battle phase in minion_battles) */}
+                {!(lobbyPageState === 'in_game' &&
+                    lobbyGameType === 'minion_battles' &&
+                    (lobbyGameData?.gamePhase ?? lobbyGameData?.game_phase) === 'battle') && (
+                    <PlayerList
+                        players={players}
+                        currentPlayerId={player.id}
+                        characterSelections={
+                            lobbyGameData != null
+                                ? (lobbyGameData.characterSelections as Record<string, string>) ??
+                                  (lobbyGameData.character_selections as Record<string, string>)
+                                : undefined
+                        }
+                        readyPlayerIds={
+                            lobbyGameData != null &&
+                            (lobbyGameData.gamePhase ?? lobbyGameData.game_phase) === 'character_select'
+                                ? ((lobbyGameData.characterSelectReadyPlayerIds ??
+                                      lobbyGameData.character_select_ready_player_ids) as string[] | undefined) ?? []
+                                : undefined
+                        }
+                        flashingPlayerIds={flashingPlayerIds}
+                    />
+                )}
             </div>
 
             {/* Chat Sidebar (desktop) / Slide-over (tablet & mobile) */}

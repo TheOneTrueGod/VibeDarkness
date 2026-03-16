@@ -217,10 +217,6 @@ function renderEnemyRow(
             </div>
             <div className="relative h-10 bg-dark-800/80 rounded-md overflow-hidden">
                 <TimelineTimeRuler windowSeconds={windowSeconds} />
-                <div className="absolute inset-y-0 left-0 right-0 flex items-center px-2 text-[10px] text-gray-500 justify-between pointer-events-none">
-                    <span>0s</span>
-                    <span>{windowSeconds.toFixed(0)}s</span>
-                </div>
                 <div className="absolute inset-0">
                     {markers.map((marker, idx) => {
                         const startPercent = (marker.startFromNow / windowSeconds) * 100;
@@ -369,10 +365,6 @@ function renderPlayerRow(
             </div>
             <div className="relative h-10 bg-dark-800/80 rounded-md overflow-hidden">
                 <TimelineTimeRuler windowSeconds={windowSeconds} />
-                <div className="absolute inset-y-0 left-0 right-0 flex items-center px-2 text-[10px] text-gray-500 justify-between pointer-events-none">
-                    <span>0s</span>
-                    <span>{windowSeconds.toFixed(0)}s</span>
-                </div>
                 {hasTimeline && displayAbility && abilityTimeline && (
                     <div className={`absolute inset-0 ${isPreview ? 'opacity-70' : ''}`}>
                         {segments.map((seg, idx) => {
