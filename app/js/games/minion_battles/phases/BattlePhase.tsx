@@ -446,10 +446,18 @@ export default function BattlePhase({
     // ========================================================================
 
     const handleSelectCard = useCallback((handIndex: number, ability: AbilityStatic) => {
+        // Clicking an already-selected card should deselect it and clear targeting.
+        if (selectedCardIndex === handIndex) {
+            setSelectedCardIndex(null);
+            setSelectedAbility(null);
+            setCurrentTargets([]);
+            return;
+        }
+
         setSelectedCardIndex(handIndex);
         setSelectedAbility(ability);
         setCurrentTargets([]);
-    }, []);
+    }, [selectedCardIndex]);
 
     const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
         const engine = engineRef.current;

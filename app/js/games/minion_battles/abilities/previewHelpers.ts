@@ -131,8 +131,13 @@ export function createPixelTargetPreview(maxDistance: number): RenderTargetingPr
 export interface ConeTargetPreviewOptions {
     /** Maximum distance from caster to preview end. */
     maxDistance: number;
-    /** Total cone angle in radians (centered on mouse direction). */
-    coneAngleRad: number;
+    /** Total cone angle in radians (centered on mouse direction). Used when getHalfAngle is not provided. */
+    coneAngleRad?: number;
+    /**
+     * Optional dynamic half-angle provider. When set, this is used instead of coneAngleRad / 2,
+     * so callers can plug in distance-based inaccuracy (e.g. getDistanceBasedInaccuracy).
+     */
+    getHalfAngle?: (caster: Unit, mouseWorld: { x: number; y: number }) => number;
     /** Optional stroke color for cone boundary lines. */
     strokeColor?: number;
 }
@@ -142,11 +147,11 @@ export interface ConeTargetPreviewOptions {
  * Draws only the two boundary lines at +/- half cone angle (no center line).
  */
 export function createConeTargetPreview(options: ConeTargetPreviewOptions): RenderTargetingPreviewFn {
-    const { maxDistance, coneAngleRad, strokeColor = 0xb0b0b0 } = options;
-    const halfAngle = coneAngleRad / 2;
+    const { maxDistance, coneAngleRad = 0, getHalfAngle, strokeColor = 0xb0b0b0 } = options;
     return (gr, caster, _currentTargets, mouseWorld, _units) => {
         gr.clear();
         const { dirX, dirY } = clampToMaxRange(caster, mouseWorld, maxDistance);
+        const halfAngle = getHalfAngle ? getHalfAngle(caster, mouseWorld) : coneAngleRad / 2;
 
         const baseAngle = Math.atan2(dirY, dirX);
         const leftAngle = baseAngle - halfAngle;

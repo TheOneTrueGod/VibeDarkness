@@ -141,7 +141,12 @@ export const ShotgunAbility: AbilityStatic = {
 
     renderTargetingPreview: createConeTargetPreview({
         maxDistance: MAX_DISTANCE,
-        coneAngleRad: INACCURACY_BASE * 2,
+        getHalfAngle(caster, mouseWorld) {
+            const dx = mouseWorld.x - caster.x;
+            const dy = mouseWorld.y - caster.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            return getDistanceBasedInaccuracy(dist, INACCURACY_BASE);
+        },
     }),
 };
 
