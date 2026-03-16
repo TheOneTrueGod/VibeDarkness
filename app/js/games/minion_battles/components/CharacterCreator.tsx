@@ -5,7 +5,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { getPortraitIds, getPortrait } from '../character_defs/portraits';
 import { getRandomCharacterName } from '../character_defs/characterNames';
-import { DEFAULT_CORE_ITEM_ID } from '../character_defs/items';
+import { getDefaultEquipmentForCampaign } from '../character_defs/items';
 
 const CARD_SIZE = 200;
 
@@ -75,7 +75,7 @@ export default function CharacterCreator({
                 campaignId,
                 missionId,
                 name: getRandomCharacterName(),
-                equipment: [DEFAULT_CORE_ITEM_ID],
+                equipment: getDefaultEquipmentForCampaign(campaignId),
             });
             onCreate(char.id, char.portraitId);
             onClose();

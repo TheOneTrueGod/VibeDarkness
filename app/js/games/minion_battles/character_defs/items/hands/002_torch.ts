@@ -4,7 +4,7 @@ import type { ItemDef } from '../types';
 export const torchItem: ItemDef = {
     id: '002',
     name: 'Stick (Big)',
-    slots: ['hands'],
+    slots: ['weapon'],
     cardsToAdd: [{ cardId: '0103', count: 2 }],
     icon: '002_torch.svg',
 };

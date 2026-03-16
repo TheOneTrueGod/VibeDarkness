@@ -49,7 +49,7 @@ export class CampaignCharacter {
 
     /**
      * Build the starter battle cards for this character from equipped items only.
-     * All cards come from equipment (e.g. Core Basic for Bash/Dodge, hands items for weapon cards).
+     * All cards come from equipment (e.g. core + weapon/utility items).
      */
     getBattleCards(extraEquippedItemIds: string[] = []): string[] {
         const cards: string[] = [];

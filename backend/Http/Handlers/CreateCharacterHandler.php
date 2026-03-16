@@ -35,7 +35,7 @@ class CreateCharacterHandler
         $name = isset($body['name']) ? (string) $body['name'] : '';
         $equipment = isset($body['equipment']) && is_array($body['equipment']) ? $body['equipment'] : [];
         if ($equipment === []) {
-            $equipment = ['004']; // Core Basic – default starting equipment
+            $equipment = self::defaultEquipmentForCampaign($campaignId);
         }
         $knowledge = isset($body['knowledge']) && is_array($body['knowledge']) ? $body['knowledge'] : [];
         $traits = isset($body['traits']) && is_array($body['traits']) ? $body['traits'] : [];
@@ -72,5 +72,14 @@ class CreateCharacterHandler
             'character' => $character->toArray(),
             'characters' => $characters,
         ];
+    }
+
+    /** Default equipment when creating a new character (when client sends empty equipment). */
+    private static function defaultEquipmentForCampaign(string $campaignId): array
+    {
+        if ($campaignId === 'bunker_at_the_end') {
+            return ['006', '007', '008', '009']; // WeaponsCore + Pistol, SMG, Shotgun
+        }
+        return ['004']; // BasicCore – World of Darkness and fallback
     }
 }

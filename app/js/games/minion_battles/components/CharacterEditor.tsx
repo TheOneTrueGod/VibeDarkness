@@ -1,7 +1,7 @@
 /**
  * Character Editor - edit portrait and equipment for a campaign character.
  * Portrait (30% height) with prev/next arrows; name top right.
- * Bottom 2/3: tabs (Equipment). Doll with hands/core slots; inventory grid; drag to equip.
+ * Bottom 2/3: tabs (Equipment). Doll with core/weapon/utility slots; inventory grid; drag to equip.
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { getPortraitIds, getPortrait } from '../character_defs/portraits';
@@ -9,6 +9,7 @@ import {
     getItemDef,
     getEquippedForSlot,
     setEquipmentInSlot,
+    getSlotLayoutFromEquipment,
     DEFAULT_PLAYER_INVENTORY,
     ITEM_ICON_URLS,
     type EquipmentSlotType,
@@ -26,7 +27,24 @@ interface CharacterEditorProps {
 
 type EditorTab = 'equipment';
 
-const SLOT_ORDER: EquipmentSlotType[] = ['core', 'hands', 'utility'];
+/** Slot descriptor for the doll: type and optional index for weapon/utility. */
+export interface SlotDescriptor {
+    type: EquipmentSlotType;
+    index?: number;
+    label: string;
+}
+
+function getSlotDescriptors(equipment: string[]): SlotDescriptor[] {
+    const layout = getSlotLayoutFromEquipment(equipment);
+    const out: SlotDescriptor[] = [{ type: 'core', label: 'core' }];
+    for (let i = 0; i < layout.weaponSlots; i++) {
+        out.push({ type: 'weapon', index: i, label: layout.weaponSlots > 1 ? `weapon ${i + 1}` : 'weapon' });
+    }
+    for (let i = 0; i < layout.utilitySlots; i++) {
+        out.push({ type: 'utility', index: i, label: layout.utilitySlots > 1 ? `utility ${i + 1}` : 'utility' });
+    }
+    return out;
+}
 
 export default function CharacterEditor({
     character,
@@ -101,10 +119,10 @@ export default function CharacterEditor({
     }, [equipment]);
 
     const handleEquipToSlot = useCallback(
-        (slot: EquipmentSlotType, itemId: string) => {
+        (slot: EquipmentSlotType, itemId: string, slotIndex?: number) => {
             const def = getItemDef(itemId);
             if (!def?.slots.includes(slot)) return;
-            const newEquipment = setEquipmentInSlot(equipment, slot, itemId);
+            const newEquipment = setEquipmentInSlot(equipment, slot, itemId, slotIndex);
             setEquipment(newEquipment);
             saveEquipment(newEquipment);
         },
@@ -118,11 +136,12 @@ export default function CharacterEditor({
     }, []);
 
     const handleDragStartSlot = useCallback(
-        (e: React.DragEvent, slot: EquipmentSlotType) => {
-            const itemId = getEquippedForSlot(equipment, slot);
+        (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => {
+            const itemId = getEquippedForSlot(equipment, slot, slotIndex);
             if (itemId) {
                 setDragSlot(slot);
-                e.dataTransfer.setData('text/plain', `slot:${slot}:${itemId}`);
+                const key = slotIndex !== undefined ? `${slot}:${slotIndex}` : slot;
+                e.dataTransfer.setData('text/plain', `slot:${key}:${itemId}`);
                 e.dataTransfer.effectAllowed = 'move';
             }
         },
@@ -135,15 +154,11 @@ export default function CharacterEditor({
     }, []);
 
     const handleDropOnSlot = useCallback(
-        (e: React.DragEvent, slot: EquipmentSlotType) => {
+        (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => {
             e.preventDefault();
             const raw = e.dataTransfer.getData('text/plain');
-            if (raw.startsWith('slot:')) {
-                const [, , itemId] = raw.split(':');
-                if (itemId) handleEquipToSlot(slot, itemId);
-            } else if (raw) {
-                handleEquipToSlot(slot, raw);
-            }
+            const itemId = raw.startsWith('slot:') ? raw.split(':').slice(-1)[0] : raw;
+            if (itemId) handleEquipToSlot(slot, itemId, slotIndex);
             setDragItemId(null);
             setDragSlot(null);
         },
@@ -215,6 +230,7 @@ export default function CharacterEditor({
                         <div className="flex-1 flex items-center justify-center p-4 min-w-0">
                             <EquipmentDoll
                                 equipment={equipment}
+                                slotDescriptors={getSlotDescriptors(equipment)}
                                 onDropOnSlot={handleDropOnSlot}
                                 onDragOver={handleDragOver}
                                 onDragStartSlot={handleDragStartSlot}
@@ -263,28 +279,31 @@ export default function CharacterEditor({
 
 interface EquipmentDollProps {
     equipment: string[];
-    onDropOnSlot: (e: React.DragEvent, slot: EquipmentSlotType) => void;
+    slotDescriptors: SlotDescriptor[];
+    onDropOnSlot: (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => void;
     onDragOver: (e: React.DragEvent) => void;
-    onDragStartSlot: (e: React.DragEvent, slot: EquipmentSlotType) => void;
+    onDragStartSlot: (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => void;
     onDragEnd: () => void;
     dragItemId: string | null;
     dragSlot: EquipmentSlotType | null;
 }
 
+/** Position hints for slot types; multiple weapon/utility use row. */
+const SLOT_POSITIONS: Record<EquipmentSlotType, { left: string; top: string }> = {
+    core: { left: '10%', top: '5%' },
+    weapon: { left: '62%', top: '42%' },
+    utility: { left: '36%', top: '70%' },
+};
+
 function EquipmentDoll({
     equipment,
+    slotDescriptors,
     onDropOnSlot,
     onDragOver,
     onDragStartSlot,
     onDragEnd,
 }: EquipmentDollProps) {
     const containerSize = 200;
-
-    const slotPositions: Record<EquipmentSlotType, { left: string; top: string }> = {
-        core: { left: '10%', top: '5%' },
-        hands: { left: '62%', top: '42%' },
-        utility: { left: '36%', top: '70%' },
-    };
 
     return (
         <div
@@ -305,27 +324,33 @@ function EquipmentDoll({
                 <line x1="50" y1="55" x2="65" y2="95" stroke="#6b7280" strokeWidth="2" />
             </svg>
 
-            {SLOT_ORDER.map((slot) => {
-                const itemId = getEquippedForSlot(equipment, slot);
+            {slotDescriptors.map((desc, i) => {
+                const itemId = getEquippedForSlot(equipment, desc.type, desc.index);
                 const def = itemId ? getItemDef(itemId) : null;
                 const iconUrl = itemId ? ITEM_ICON_URLS[itemId] : null;
-                const pos = slotPositions[slot];
+                const base = SLOT_POSITIONS[desc.type];
+                const offset = desc.index !== undefined && desc.index > 0 ? desc.index * 14 : 0;
+                const pos = {
+                    left: base.left,
+                    top: `calc(${base.top} + ${offset}%)`,
+                };
+                const key = desc.index !== undefined ? `${desc.type}_${desc.index}` : desc.type;
                 return (
                     <div
-                        key={slot}
+                        key={key}
                         className="absolute w-12 h-12 flex items-center justify-center rounded border-2 border-dashed border-border-custom bg-surface/80 cursor-pointer hover:border-primary transition-colors"
                         style={{ left: pos.left, top: pos.top }}
-                        onDrop={(e) => onDropOnSlot(e, slot)}
+                        onDrop={(e) => onDropOnSlot(e, desc.type, desc.index)}
                         onDragOver={onDragOver}
-                        onDragStart={(e) => itemId && onDragStartSlot(e, slot)}
+                        onDragStart={(e) => itemId && onDragStartSlot(e, desc.type, desc.index)}
                         draggable={!!itemId}
                         onDragEnd={onDragEnd}
-                        title={def?.name ?? slot}
+                        title={def?.name ?? desc.label}
                     >
                         {iconUrl ? (
-                            <img src={iconUrl} alt={def?.name ?? slot} className="w-8 h-8 object-contain pointer-events-none" />
+                            <img src={iconUrl} alt={def?.name ?? desc.label} className="w-8 h-8 object-contain pointer-events-none" />
                         ) : (
-                            <span className="text-xs text-muted">{slot}</span>
+                            <span className="text-xs text-muted">{desc.label}</span>
                         )}
                     </div>
                 );

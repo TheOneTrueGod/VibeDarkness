@@ -91,7 +91,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         for (let i = 0; i < playerCount; i++) {
             const pu = params.playerUnits[i];
             const equippedIds = params.equippedItemsByPlayer?.[pu.playerId] ?? [];
-            // Abilities and cards come only from equipment (e.g. Core Basic + hands items).
+            // Abilities and cards come only from equipment (e.g. core + weapon/utility items).
             const abilities: string[] = [];
             for (const itemId of equippedIds) {
                 const itemDef = getItemDef(itemId);
@@ -102,7 +102,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     }
                 }
             }
-            // Fallback if no equipment (should not happen if new characters get Core Basic).
+            // Fallback if no equipment (should not happen if new characters get a core).
             if (abilities.length === 0) {
                 abilities.push('0101', '0102');
             }
