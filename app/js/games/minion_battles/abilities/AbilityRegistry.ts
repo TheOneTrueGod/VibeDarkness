@@ -16,6 +16,9 @@ import { SwingBatAbility } from '../card_defs/0103_SwingBat/0103Ability';
 import { DarkWolfBiteAbility } from '../card_defs/dark_animals/0003_DarkWolfBite/0003Ability';
 import { RaiseShieldAbility } from '../card_defs/0104_RaiseShield/0104Ability';
 import { ThrowTorchAbility } from '../card_defs/0501_ThrowTorch/0501Ability';
+import { PistolAbility } from '../card_defs/0203_Pistol/0203Ability';
+import { SMGAbility } from '../card_defs/0204_SMG/0204Ability';
+import { ShotgunAbility } from '../card_defs/0205_Shotgun/0205Ability';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
 
@@ -34,6 +37,9 @@ register(SwingBatAbility);
 register(DarkWolfBiteAbility);
 register(RaiseShieldAbility);
 register(ThrowTorchAbility);
+register(PistolAbility);
+register(SMGAbility);
+register(ShotgunAbility);
 
 /** Look up an ability by its ID. */
 export function getAbility(id: string): AbilityStatic | undefined {

@@ -127,6 +127,49 @@ export function createPixelTargetPreview(maxDistance: number): RenderTargetingPr
     };
 }
 
+/** Options for cone pixel target preview (for guns, shotguns, etc.). */
+export interface ConeTargetPreviewOptions {
+    /** Maximum distance from caster to preview end. */
+    maxDistance: number;
+    /** Total cone angle in radians (centered on mouse direction). */
+    coneAngleRad: number;
+    /** Optional stroke color for cone boundary lines. */
+    strokeColor?: number;
+}
+
+/**
+ * Preset: Pixel target with a cone preview showing potential spread (used for SMG/shotgun).
+ * Draws a clamped center line toward mouse and two boundary lines at +/- half cone angle.
+ */
+export function createConeTargetPreview(options: ConeTargetPreviewOptions): RenderTargetingPreviewFn {
+    const { maxDistance, coneAngleRad, strokeColor = 0xb0b0b0 } = options;
+    const halfAngle = coneAngleRad / 2;
+    return (gr, caster, _currentTargets, mouseWorld, _units) => {
+        gr.clear();
+        const { endX, endY, dirX, dirY } = clampToMaxRange(caster, mouseWorld, maxDistance);
+
+        // Center line
+        gr.moveTo(caster.x, caster.y);
+        gr.lineTo(endX, endY);
+        gr.stroke({ color: strokeColor, width: 2, alpha: 0.9 });
+
+        const baseAngle = Math.atan2(dirY, dirX);
+        const leftAngle = baseAngle - halfAngle;
+        const rightAngle = baseAngle + halfAngle;
+        const leftEndX = caster.x + Math.cos(leftAngle) * maxDistance;
+        const leftEndY = caster.y + Math.sin(leftAngle) * maxDistance;
+        const rightEndX = caster.x + Math.cos(rightAngle) * maxDistance;
+        const rightEndY = caster.y + Math.sin(rightAngle) * maxDistance;
+
+        // Boundary lines
+        gr.moveTo(caster.x, caster.y);
+        gr.lineTo(leftEndX, leftEndY);
+        gr.moveTo(caster.x, caster.y);
+        gr.lineTo(rightEndX, rightEndY);
+        gr.stroke({ color: strokeColor, width: 1.5, alpha: 0.7 });
+    };
+}
+
 /** Options for createArcTargetPreview. Arc is drawn from caster toward mouse direction. */
 export interface ArcTargetPreviewOptions {
     /** Arc angle in degrees (e.g. 120 for a 120° wedge). */

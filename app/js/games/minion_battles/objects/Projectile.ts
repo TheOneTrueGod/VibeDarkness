@@ -7,6 +7,7 @@
 
 import { Graphics } from 'pixi.js';
 import { GameObject, generateGameObjectId } from './GameObject';
+import { Effect } from './Effect';
 import type { TeamId } from '../engine/teams';
 import { areEnemies } from '../engine/teams';
 import type { Unit } from './Unit';
@@ -24,6 +25,8 @@ export class Projectile extends GameObject {
     maxDistance: number;
     distanceTraveled: number = 0;
     radius: number = 5;
+    /** Optional visual trail type (e.g. 'bullet'). When set, update() will spawn matching effects as the projectile moves. */
+    trailType?: 'bullet';
 
     constructor(config: {
         id?: string;
@@ -36,6 +39,7 @@ export class Projectile extends GameObject {
         sourceUnitId: string;
         sourceAbilityId: string;
         maxDistance: number;
+        trailType?: 'bullet';
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -45,16 +49,39 @@ export class Projectile extends GameObject {
         this.sourceUnitId = config.sourceUnitId;
         this.sourceAbilityId = config.sourceAbilityId;
         this.maxDistance = config.maxDistance;
+        this.trailType = config.trailType;
     }
 
-    update(dt: number, _engine: unknown): void {
+    update(dt: number, engine: unknown): void {
         if (!this.active) return;
+
+        const prevX = this.x;
+        const prevY = this.y;
 
         const moveX = this.velocityX * dt;
         const moveY = this.velocityY * dt;
         this.x += moveX;
         this.y += moveY;
         this.distanceTraveled += Math.sqrt(moveX * moveX + moveY * moveY);
+
+        if (this.trailType === 'bullet') {
+            const eng = engine as { addEffect?: (effect: Effect) => void };
+            if (typeof eng.addEffect === 'function') {
+                const dx = this.x - prevX;
+                const dy = this.y - prevY;
+                if (dx !== 0 || dy !== 0) {
+                    const trail = new Effect({
+                        x: prevX,
+                        y: prevY,
+                        duration: 0.2,
+                        effectType: 'BulletTrail',
+                        effectRadius: 3,
+                        effectData: { dx, dy },
+                    });
+                    eng.addEffect(trail);
+                }
+            }
+        }
 
         // Deactivate if max distance reached
         if (this.distanceTraveled >= this.maxDistance) {
@@ -131,6 +158,7 @@ export class Projectile extends GameObject {
             maxDistance: this.maxDistance,
             distanceTraveled: this.distanceTraveled,
             radius: this.radius,
+            trailType: this.trailType,
         };
     }
 
@@ -150,6 +178,7 @@ export class Projectile extends GameObject {
         proj.active = data.active as boolean;
         proj.distanceTraveled = data.distanceTraveled as number;
         proj.radius = (data.radius as number) ?? 5;
+        proj.trailType = (data.trailType as 'bullet' | undefined) ?? undefined;
         return proj;
     }
 }

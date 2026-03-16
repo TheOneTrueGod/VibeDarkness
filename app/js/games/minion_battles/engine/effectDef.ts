@@ -214,6 +214,33 @@ const torchEffectDef: IEffectDef = {
     },
 };
 
+/** Bullet trail: short-lived gray line segment that shrinks and fades out over time. */
+const bulletTrailEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const data = effect.effectData as { dx?: number; dy?: number };
+        const dx = data.dx ?? 0;
+        const dy = data.dy ?? 0;
+        const lengthSq = dx * dx + dy * dy;
+        if (lengthSq === 0) {
+            return;
+        }
+        const progress = effect.progress;
+        const life = 1 - progress;
+        const baseRadius = effect.effectRadius ?? 3;
+        const width = Math.max(0.5, baseRadius * life);
+        const alpha = Math.max(0, life * life);
+
+        g.moveTo(0, 0);
+        g.lineTo(dx, dy);
+        g.stroke({ color: 0xb0b0b0, width, alpha });
+    },
+};
+
 /** Particle image: sprite that fades and scales down over its lifetime. */
 const particleImageEffectDef: IEffectDef = {
     createVisual(effect: Effect, context: IEffectRenderContext): Container {
@@ -250,6 +277,7 @@ const effectDefRegistry: Record<string, IEffectDef> = {
     TorchProjectile: torchProjectileEffectDef,
     Torch: torchEffectDef,
     ParticleImage: particleImageEffectDef,
+    BulletTrail: bulletTrailEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

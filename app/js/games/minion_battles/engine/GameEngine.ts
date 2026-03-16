@@ -1339,9 +1339,15 @@ export class GameEngine {
     }
 
     /**
-     * Process a continuous spawn event: spawn one unit every intervalRounds (e.g. 0.5 = half-round).
+     * Process a continuous spawn event: spawn units every intervalRounds (e.g. 0.25 = quarter-round).
+     * Optional startRound/endRound limit the active window. All entries in spawns are spawned each tick.
      */
     private processContinuousSpawnEvent(i: number, evt: LevelEventContinuousSpawn): void {
+        const startRound = evt.trigger.startRound ?? 1;
+        const endRound = evt.trigger.endRound;
+        if (this.roundNumber < startRound) return;
+        if (endRound != null && this.roundNumber > endRound) return;
+
         const intervalRounds = evt.trigger.intervalRounds;
         const lastSpawned = this.continuousSpawnLastSpawnedAt[i] ?? 0;
         if (this.gameTime - lastSpawned < intervalRounds * ROUND_DURATION) return;
@@ -1358,46 +1364,90 @@ export class GameEngine {
         const playerCount = this.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
 
-        const entry = evt.spawns[0];
-        if (!entry || (entry.characterId !== 'enemy_melee' && entry.characterId !== 'enemy_ranged' && entry.characterId !== 'dark_wolf'))
-            return;
-        const base = baseDefs[entry.characterId];
-        const behaviour = entry.spawnBehaviour ?? 'darkness';
-
+        const needsDarkness = evt.spawns.some((e) => (e.spawnBehaviour ?? 'darkness') === 'darkness');
         let lightGrid: number[][] | null = null;
-        if (behaviour === 'darkness' && this.lightLevelEnabled) {
+        if (needsDarkness && this.lightLevelEnabled) {
             lightGrid = getLightGrid(this.globalLightLevel, width, height, this.getAllLightSources());
         }
 
-        const candidates: { col: number; row: number }[] = [];
-        for (let row = 0; row < height; row++) {
-            for (let col = 0; col < width; col++) {
-                const { x, y } = grid.gridToWorld(col, row);
-                if (!terrainManager.isPassable(x, y)) continue;
-                if (behaviour === 'darkness') {
-                    if (!lightGrid) continue;
-                    const level = lightGrid[row]?.[col];
-                    if (level == null || level > -20) continue;
+        const occupiedCells = new Set<string>();
+
+        const collectCandidates = (
+            behaviour: 'darkness' | 'anywhere',
+            spawnTarget: { x: number; y: number; radius: number } | undefined,
+        ): { col: number; row: number }[] => {
+            const candidates: { col: number; row: number }[] = [];
+            const hasTarget = !!spawnTarget;
+            const targetX = spawnTarget?.x ?? 0;
+            const targetY = spawnTarget?.y ?? 0;
+            const radiusPx = (spawnTarget?.radius ?? 0) * cellSize;
+            const radiusSq = radiusPx * radiusPx;
+            for (let row = 0; row < height; row++) {
+                for (let col = 0; col < width; col++) {
+                    const key = `${col},${row}`;
+                    if (occupiedCells.has(key)) continue;
+                    const { x, y } = grid.gridToWorld(col, row);
+                    if (!terrainManager.isPassable(x, y)) continue;
+                    if (hasTarget) {
+                        const dx = x - targetX;
+                        const dy = y - targetY;
+                        if (dx * dx + dy * dy > radiusSq) continue;
+                    }
+                    if (behaviour === 'darkness') {
+                        if (!lightGrid) continue;
+                        const level = lightGrid[row]?.[col];
+                        if (level == null || level > -20) continue;
+                    }
+                    candidates.push({ col, row });
                 }
-                candidates.push({ col, row });
+            }
+            return candidates;
+        };
+
+        const chooseRandomIndices = (availableCount: number, needed: number): number[] => {
+            const indices: number[] = [];
+            for (let j = 0; j < availableCount; j++) indices.push(j);
+            const result: number[] = [];
+            const count = Math.min(needed, availableCount);
+            for (let j = 0; j < count; j++) {
+                const pickIndex = this.generateRandomInteger(0, indices.length - 1);
+                const [chosen] = indices.splice(pickIndex, 1);
+                result.push(chosen);
+            }
+            return result;
+        };
+
+        for (const entry of evt.spawns) {
+            const cid = entry.characterId;
+            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf') continue;
+            const base = baseDefs[cid];
+            const behaviour = (entry.spawnBehaviour ?? 'darkness') as 'darkness' | 'anywhere';
+            const count = Math.max(0, entry.spawnCount ?? 1);
+            if (count <= 0) continue;
+            if (behaviour === 'darkness' && (!this.lightLevelEnabled || !lightGrid)) continue;
+
+            const candidates = collectCandidates(behaviour, entry.spawnTarget);
+            if (candidates.length === 0) continue;
+            const spawnAttempts = Math.min(count, candidates.length);
+            const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);
+            for (const idx of chosenIndices) {
+                const cell = candidates[idx]!;
+                const key = `${cell.col},${cell.row}`;
+                occupiedCells.add(key);
+                const pos = grid.gridToWorld(cell.col, cell.row);
+                const config = {
+                    ...base,
+                    ...entry,
+                    position: pos,
+                    x: pos.x,
+                    y: pos.y,
+                    ownerId: 'ai' as const,
+                    hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
+                };
+                const unit = createUnitFromSpawnConfig(config, this.eventBus);
+                this.addUnit(unit);
             }
         }
-        if (candidates.length === 0) return;
-
-        const idx = this.generateRandomInteger(0, candidates.length - 1);
-        const cell = candidates[idx]!;
-        const pos = grid.gridToWorld(cell.col, cell.row);
-        const config = {
-            ...base,
-            ...entry,
-            position: pos,
-            x: pos.x,
-            y: pos.y,
-            ownerId: 'ai' as const,
-            hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
-        };
-        const unit = createUnitFromSpawnConfig(config, this.eventBus);
-        this.addUnit(unit);
     }
 
     /** Run all victory checks (called every 10 frames and before turns). */
