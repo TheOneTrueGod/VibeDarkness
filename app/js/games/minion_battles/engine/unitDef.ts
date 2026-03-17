@@ -36,24 +36,66 @@ export interface IUnitDef {
 export type UnitDeathEffectDef =
     | { type: typeof ParticleExplosion; image: EffectImageKey; count: number };
 
+/** Player unit character IDs backed by portraits. */
+const PLAYER_UNIT_IDS = ['warrior', 'mage', 'ranger', 'healer', 'rogue', 'necromancer'] as const;
+
+/** Enemy unit character IDs. */
+const ENEMY_UNIT_IDS = ['enemy_melee', 'enemy_ranged', 'dark_wolf'] as const;
+
+export type PlayerUnitId = (typeof PLAYER_UNIT_IDS)[number];
+export type EnemyUnitId = (typeof ENEMY_UNIT_IDS)[number];
+export type UnitDefId = PlayerUnitId | EnemyUnitId;
+
 /** Body color, optional character sprite key, default HP/speed, and perception range (px) for AI. */
-const UNIT_DEFS: Record<string, { bodyColor: number; characterSpriteKey?: string; hp?: number; speed?: number; perceptionRange?: number; deathEffect?: UnitDeathEffectDef }> = {
+const UNIT_DEFS: Record<
+    UnitDefId,
+    {
+        bodyColor: number;
+        characterSpriteKey?: string;
+        hp?: number;
+        speed?: number;
+        radius?: number;
+        perceptionRange?: number;
+        deathEffect?: UnitDeathEffectDef;
+    }
+> = {
     // Player characters: slightly reduced default move speed for tighter control.
-    warrior: { bodyColor: 0x8b0000, speed: 90 },
-    mage: { bodyColor: 0x4a148c, speed: 90 },
-    ranger: { bodyColor: 0x2e7d32, speed: 90 },
-    healer: { bodyColor: 0xf5f5dc, speed: 90 },
-    enemy_ranged: { bodyColor: 0x555555, characterSpriteKey: 'enemy_ranged', perceptionRange: 400 },
-    enemy_melee: { bodyColor: 0x555555, characterSpriteKey: 'enemy_melee', perceptionRange: 250 },
+    warrior: { bodyColor: 0x8b0000, hp: 50, speed: 90, radius: 22 },
+    mage: { bodyColor: 0x4a148c, hp: 50, speed: 90, radius: 18 },
+    ranger: { bodyColor: 0x2e7d32, hp: 50, speed: 90, radius: 20 },
+    healer: { bodyColor: 0xf5f5dc, hp: 50, speed: 90, radius: 20 },
+    rogue: { bodyColor: 0x2c2c2c, hp: 50, speed: 90, radius: 18 },
+    necromancer: { bodyColor: 0x1a1a2e, hp: 50, speed: 90, radius: 20 },
+    // Enemies
+    enemy_melee: {
+        bodyColor: 0x555555,
+        characterSpriteKey: 'enemy_melee',
+        hp: 12,
+        speed: 80,
+        perceptionRange: 250,
+    },
+    enemy_ranged: {
+        bodyColor: 0x555555,
+        characterSpriteKey: 'enemy_ranged',
+        hp: 30,
+        speed: 60,
+        perceptionRange: 400,
+    },
     dark_wolf: {
         bodyColor: 0x1a1a2e,
         characterSpriteKey: 'dark_wolf',
         hp: 12,
-        speed: 100,
+        speed: 120,
+        radius: 15,
         perceptionRange: 300,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 8 },
     },
 };
+
+export function getDefaultRadius(characterId: string, fallbackRadius: number): number {
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.radius ?? fallbackRadius;
+}
 
 const DEFAULT_BODY_COLOR = 0x555555;
 
@@ -63,7 +105,7 @@ class DefaultUnitDef implements IUnitDef {
         const container = new Container();
         const isEnemy = areEnemies(context.localTeamId, unit.teamId);
         const glowColor = isEnemy ? ENEMY_GLOW_COLOR : ALLY_GLOW_COLOR;
-        const def = UNIT_DEFS[unit.characterId] ?? { bodyColor: DEFAULT_BODY_COLOR };
+        const def = UNIT_DEFS[unit.characterId as UnitDefId] ?? { bodyColor: DEFAULT_BODY_COLOR };
         const bodyColor = def.bodyColor;
         const characterTexture = def.characterSpriteKey
             ? context.getCharacterTexture(def.characterSpriteKey)
@@ -142,26 +184,31 @@ export function getUnitDef(characterId: string): IUnitDef {
 
 /** Body color for a character ID (for restoring unit visual after full-darkness mode). */
 export function getBodyColor(characterId: string): number {
-    return UNIT_DEFS[characterId]?.bodyColor ?? DEFAULT_BODY_COLOR;
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.bodyColor ?? DEFAULT_BODY_COLOR;
 }
 
 /** Default HP for a character ID. Used when creating units without explicit hp. Returns 50 if not configured. */
 export function getDefaultHp(characterId: string): number {
-    return UNIT_DEFS[characterId]?.hp ?? 50;
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.hp ?? 50;
 }
 
 /** Default speed for a character ID. Used when creating units without explicit speed. Returns 100 if not configured. */
 export function getDefaultSpeed(characterId: string): number {
-    return UNIT_DEFS[characterId]?.speed ?? 100;
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.speed ?? 100;
 }
 
 /** Perception range in px for AI (line-of-sight targeting). Returns 300 if not configured. */
 export function getPerceptionRange(characterId: string): number {
-    return UNIT_DEFS[characterId]?.perceptionRange ?? 300;
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.perceptionRange ?? 300;
 }
 
 export function getDeathEffectDef(characterId: string): UnitDeathEffectDef | undefined {
-    return UNIT_DEFS[characterId]?.deathEffect;
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.deathEffect;
 }
 
 /**

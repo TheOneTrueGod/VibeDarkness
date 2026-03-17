@@ -5,16 +5,13 @@
  * Unit instances with the right stats and resources.
  */
 
-import type { Unit } from '../Unit';
+import { Unit } from '../Unit';
 import type { TeamId } from '../../engine/teams';
 import type { EventBus } from '../../engine/EventBus';
-import { getDefaultHp, getDefaultSpeed } from '../../engine/unitDef';
-import { createWarriorUnit } from './WarriorUnit';
-import { createMageUnit } from './MageUnit';
-import { createRangerUnit } from './RangerUnit';
-import { createHealerUnit } from './HealerUnit';
-import { createGenericEnemy } from './GenericEnemy';
-import { createDarkWolfUnit } from './dark_animals/DarkWolf';
+import { Rage } from '../../resources/Rage';
+import { Mana } from '../../resources/Mana';
+import { getDefaultHp, getDefaultSpeed, getDefaultRadius } from '../../engine/unitDef';
+import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 
 /** Character IDs that have a dedicated unit factory. Used for createUnitByCharacterId only. */
 const CHARACTER_IDS = ['warrior', 'mage', 'ranger', 'healer', 'dark_wolf'] as const;
@@ -34,16 +31,6 @@ export type UnitFactoryConfig = {
     speed?: number;
 };
 
-type UnitFactory = (config: UnitFactoryConfig, eventBus: EventBus) => Unit;
-
-const UNIT_FACTORIES: Record<CharacterId, UnitFactory> = {
-    warrior: createWarriorUnit,
-    mage: createMageUnit,
-    ranger: createRangerUnit,
-    healer: createHealerUnit,
-    dark_wolf: createDarkWolfUnit,
-};
-
 /**
  * Create a unit by character ID. Only accepts CharacterId (no portrait IDs).
  * Use createPlayerUnit for player-controlled units.
@@ -53,7 +40,30 @@ export function createUnitByCharacterId(
     config: UnitFactoryConfig,
     eventBus: EventBus,
 ): Unit {
-    return UNIT_FACTORIES[characterId](config, eventBus);
+    const hp = config.hp ?? getDefaultHp(characterId);
+    const speed = config.speed ?? getDefaultSpeed(characterId);
+    const radius = getDefaultRadius(characterId, DEFAULT_UNIT_RADIUS);
+
+    const unit = new Unit({
+        ...config,
+        hp,
+        maxHp: hp,
+        speed,
+        characterId,
+        radius,
+    });
+
+    switch (characterId) {
+        case 'warrior':
+            unit.attachResource(new Rage(), eventBus);
+            break;
+        case 'mage':
+        case 'healer':
+            unit.attachResource(new Mana(), eventBus);
+            break;
+    }
+
+    return unit;
 }
 
 /**
@@ -88,37 +98,26 @@ export function createUnitFromSpawnConfig(
         aiSettings?: import('../Unit').AISettings | null;
         radius?: number;
     },
-    eventBus: EventBus,
+    _eventBus: EventBus,
 ): Unit {
-    // Try character-specific factory first (for resources), then override stats
-    const characterId = config.characterId;
-    const factory = CHARACTER_IDS.includes(characterId as CharacterId)
-        ? UNIT_FACTORIES[characterId as CharacterId]
-        : undefined;
-    if (factory) {
-        const unit = factory(
-            {
-                id: config.id,
-                x: config.x,
-                y: config.y,
-                teamId: config.teamId,
-                ownerId: config.ownerId,
-                name: config.name,
-                abilities: config.abilities,
-            },
-            eventBus,
-        );
-        // Override HP/speed/radius from spawn config
-        unit.hp = config.hp;
-        unit.maxHp = config.hp;
-        unit.speed = config.speed;
-        if (config.radius !== undefined) {
-            unit.radius = config.radius;
-        }
-        if (config.aiSettings) {
-            unit.aiSettings = config.aiSettings;
-        }
-        return unit;
+    const unit = new Unit({
+        id: config.id,
+        x: config.x,
+        y: config.y,
+        teamId: config.teamId,
+        ownerId: config.ownerId,
+        name: config.name,
+        abilities: config.abilities,
+        hp: config.hp,
+        maxHp: config.hp,
+        speed: config.speed,
+        characterId: config.characterId,
+        radius: config.radius ?? DEFAULT_UNIT_RADIUS,
+    });
+
+    if (config.aiSettings) {
+        unit.aiSettings = config.aiSettings;
     }
-    return createGenericEnemy(config, eventBus);
+
+    return unit;
 }

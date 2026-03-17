@@ -6,7 +6,7 @@ import { Unit } from '../Unit';
 import { Mana } from '../../resources/Mana.ts';
 import type { TeamId } from '../../engine/teams';
 import type { EventBus } from '../../engine/EventBus';
-import { getDefaultHp } from '../../engine/unitDef';
+import { getDefaultHp, getDefaultSpeed } from '../../engine/unitDef';
 
 export const HEALER_DEFAULTS = {
     hp: 70,
