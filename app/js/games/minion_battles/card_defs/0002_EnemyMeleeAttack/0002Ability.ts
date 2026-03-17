@@ -13,7 +13,9 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../engine/AbilityNote';
 import { areEnemies } from '../../engine/teams';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
-import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
+import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import { getPixelTargetPosition, getDirectionFromTo, pointInCone } from '../../abilities/targetHelpers';
+import { drawConeSlice } from '../../abilities/previewHelpers';
 import type { EventBus } from '../../engine/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}02`;
@@ -27,7 +29,6 @@ const DAMAGE = 6;
 const CONE_HALF_ANGLE_DEG = 45;
 const RED = 0xff0000;
 
-/** Min range = slightly larger than caster radius. */
 function getMinRadius(caster: Unit): number {
     return caster.radius + 5;
 }
@@ -47,28 +48,7 @@ function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }):
     if (isAbilityNote(caster.abilityNote, '0002')) {
         return caster.abilityNote.abilityNote.position;
     }
-    const target = active.targets[0];
-    if (!target || target.type !== 'pixel' || !target.position) return null;
-    return target.position;
-}
-
-/** Check if a point (ux, uy) is inside the cone from caster toward (dx, dy), with min/max radius and half-angle in radians. */
-function pointInCone(
-    casterX: number, casterY: number,
-    ux: number, uy: number,
-    dirX: number, dirY: number,
-    minR: number, maxR: number,
-    halfAngleRad: number,
-): boolean {
-    const vx = ux - casterX;
-    const vy = uy - casterY;
-    const dist = Math.sqrt(vx * vx + vy * vy);
-    if (dist < minR || dist > maxR) return false;
-    if (dist === 0) return false;
-    const nx = vx / dist;
-    const ny = vy / dist;
-    const dDot = dirX * nx + dirY * ny;
-    return dDot >= Math.cos(halfAngleRad);
+    return getPixelTargetPosition(active.targets, 0);
 }
 
 const ENEMY_MELEE_ATTACK_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -123,28 +103,27 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
             const pos = caster.abilityNote.abilityNote.position;
             caster.clearAbilityNote();
 
-            const dx = pos.x - caster.x;
-            const dy = pos.y - caster.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const dirX = dist > 0 ? dx / dist : 1;
-            const dirY = dist > 0 ? dy / dist : 0;
-
+            const { dirX, dirY } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
             const minR = getMinRadius(caster);
             const maxR = getMaxRadius(caster);
             const halfAngleRad = (CONE_HALF_ANGLE_DEG * Math.PI) / 180;
+            const damageParams = {
+                engine: eng,
+                gameTime: eng.gameTime,
+                eventBus: eng.eventBus,
+                attackerX: caster.x,
+                attackerY: caster.y,
+                attackerId: caster.id,
+                abilityId: CARD_ID,
+                damage: DAMAGE,
+                attackType: 'melee' as const,
+            };
 
             for (const unit of eng.units) {
                 if (!unit.active || !unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
                 if (unit.hasIFrames(eng.gameTime)) continue;
                 if (!pointInCone(caster.x, caster.y, unit.x, unit.y, dirX, dirY, minR, maxR, halfAngleRad)) continue;
-                if (canAttackBeBlocked(unit, caster.x, caster.y, eng.gameTime)) {
-                    const block = getBlockingArcForUnit(unit, eng.gameTime);
-                    if (block) {
-                        executeBlock(eng, unit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID, block);
-                        continue;
-                    }
-                }
-                unit.takeDamage(DAMAGE, caster.id, eng.eventBus);
+                tryDamageOrBlock(unit, damageParams);
             }
         }
     },
@@ -159,26 +138,18 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
         const target = getTargetPosition(caster, activeAbility);
         if (!target) return;
 
-        const dx = target.x - caster.x;
-        const dy = target.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const angle = dist > 0 ? Math.atan2(dy, dx) : 0;
+        const { dirX, dirY } = getDirectionFromTo(caster.x, caster.y, target.x, target.y);
+        const angle = Math.atan2(dirY, dirX);
         const halfRad = (CONE_HALF_ANGLE_DEG * Math.PI) / 180;
         const minR = getMinRadius(caster);
         const maxR = getMaxRadius(caster);
-
-        const flash = elapsed >= PREFIRE_TIME && elapsed < PREFIRE_TIME + 0.15;
-        const fillAlpha = flash ? 0.5 : 0.2;
-        const strokeAlpha = flash ? 0.9 : 0.45;
-
-        // Cone slice (ring between min and max radius)
-        gr.moveTo(caster.x + Math.cos(angle - halfRad) * maxR, caster.y + Math.sin(angle - halfRad) * maxR);
-        gr.lineTo(caster.x + Math.cos(angle + halfRad) * maxR, caster.y + Math.sin(angle + halfRad) * maxR);
-        gr.lineTo(caster.x + Math.cos(angle + halfRad) * minR, caster.y + Math.sin(angle + halfRad) * minR);
-        gr.lineTo(caster.x + Math.cos(angle - halfRad) * minR, caster.y + Math.sin(angle - halfRad) * minR);
-        gr.lineTo(caster.x + Math.cos(angle - halfRad) * maxR, caster.y + Math.sin(angle - halfRad) * maxR);
-        gr.fill({ color: RED, alpha: fillAlpha });
-        gr.stroke({ color: RED, width: 2, alpha: strokeAlpha });
+        const flash = elapsed >= PREFIRE_TIME && elapsed < PREFIRE_TIME + FLASH_DURATION;
+        drawConeSlice(gr, caster.x, caster.y, angle, halfRad, minR, maxR, {
+            fillColor: RED,
+            fillAlpha: flash ? 0.5 : 0.2,
+            strokeColor: RED,
+            strokeAlpha: flash ? 0.9 : 0.45,
+        });
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {

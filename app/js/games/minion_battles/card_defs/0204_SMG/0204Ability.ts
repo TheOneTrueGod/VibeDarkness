@@ -1,12 +1,14 @@
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import { createConeTargetPreview } from '../../abilities/previewHelpers';
+import { createConeTargetPreviewWithDistanceInaccuracy } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { getDistanceBasedInaccuracy, getRandomConeAngle, spawnGunProjectile } from '../../abilities/gunHelpers';
+import { fireGunShotAtTarget } from '../../abilities/gunHelpers';
+import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
+import { getPixelTargetPosition } from '../../abilities/targetHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}04`;
 const FIRST_SHOT_TIME = 0.5;
@@ -52,8 +54,8 @@ export const SMGAbility: AbilityStatic = {
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        const target = targets[0];
-        if (!target || target.type !== 'pixel' || !target.position) return;
+        const pos = getPixelTargetPosition(targets, 0);
+        if (!pos) return;
 
         const totalWindow = LAST_SHOT_TIME - FIRST_SHOT_TIME;
         const spacing = totalWindow / (NUM_SHOTS - 1);
@@ -61,46 +63,26 @@ export const SMGAbility: AbilityStatic = {
         for (let i = 0; i < NUM_SHOTS; i++) {
             const t = FIRST_SHOT_TIME + spacing * i;
             if (prevTime < t && currentTime >= t) {
-                const dx = target.position.x - caster.x;
-                const dy = target.position.y - caster.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist === 0) continue;
-                const baseAngle = Math.atan2(dy, dx);
-                const inaccuracy = getDistanceBasedInaccuracy(dist, INACCURACY_BASE);
-                const angle = getRandomConeAngle(engine, baseAngle, inaccuracy);
-                const clampedDist = Math.min(dist, MAX_DISTANCE);
-                const tx = caster.x + Math.cos(angle) * clampedDist;
-                const ty = caster.y + Math.sin(angle) * clampedDist;
-
-                spawnGunProjectile({
+                fireGunShotAtTarget({
                     engine,
                     caster,
-                    targetX: tx,
-                    targetY: ty,
+                    targetX: pos.x,
+                    targetY: pos.y,
                     damage: BULLET_DAMAGE,
                     maxDistance: MAX_DISTANCE,
                     speed: BULLET_SPEED,
                     abilityId: CARD_ID,
+                    baseInaccuracy: INACCURACY_BASE,
                 });
             }
         }
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
-        if (attackInfo.type === 'projectile' && attackInfo.projectile) {
-            (attackInfo.projectile as { active: boolean }).active = false;
-        }
+        deactivateProjectileOnBlock(attackInfo);
     },
 
-    renderTargetingPreview: createConeTargetPreview({
-        maxDistance: MAX_DISTANCE,
-        getHalfAngle(caster, mouseWorld) {
-            const dx = mouseWorld.x - caster.x;
-            const dy = mouseWorld.y - caster.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            return getDistanceBasedInaccuracy(dist, INACCURACY_BASE);
-        },
-    }),
+    renderTargetingPreview: createConeTargetPreviewWithDistanceInaccuracy(MAX_DISTANCE, INACCURACY_BASE),
 };
 
 export const SMGCard: CardDef = {

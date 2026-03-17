@@ -1,12 +1,14 @@
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import { createConeTargetPreview } from '../../abilities/previewHelpers';
+import { createConeTargetPreviewWithDistanceInaccuracy } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { getDistanceBasedInaccuracy, getRandomConeAngle, spawnGunProjectile } from '../../abilities/gunHelpers';
+import { fireGunShotAtTarget, getRandomSpeedFactor } from '../../abilities/gunHelpers';
+import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
+import { getPixelTargetPosition } from '../../abilities/targetHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}05`;
 const SHOT_TIME = 0.5;
@@ -50,61 +52,31 @@ export const ShotgunAbility: AbilityStatic = {
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (!(prevTime < SHOT_TIME && currentTime >= SHOT_TIME)) return;
-
-        const target = targets[0];
-        if (!target || target.type !== 'pixel' || !target.position) return;
-
-        const dx = target.position.x - caster.x;
-        const dy = target.position.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist === 0) return;
-        const baseAngle = Math.atan2(dy, dx);
-        const inaccuracy = getDistanceBasedInaccuracy(dist, INACCURACY_BASE);
+        if (prevTime >= SHOT_TIME || currentTime < SHOT_TIME) return;
+        const pos = getPixelTargetPosition(targets, 0);
+        if (!pos) return;
 
         for (let i = 0; i < PELLETS; i++) {
-            const angle = getRandomConeAngle(engine, baseAngle, inaccuracy);
-            const clampedDist = Math.min(dist, MAX_DISTANCE);
-            const tx = caster.x + Math.cos(angle) * clampedDist;
-            const ty = caster.y + Math.sin(angle) * clampedDist;
-
-            // Slight randomization of projectile speed per pellet (e.g. 90%–110% of base).
-            const eng = engine as { generateRandomInteger?: (min: number, max: number) => number };
-            const n = typeof eng.generateRandomInteger === 'function'
-                ? eng.generateRandomInteger(0, 1000)
-                : Math.floor(Math.random() * 1001);
-            const t = n / 1000;
-            const speedFactor = 0.9 + 0.2 * t;
-            const speed = BULLET_SPEED * speedFactor;
-
-            spawnGunProjectile({
+            const speed = BULLET_SPEED * getRandomSpeedFactor(engine, 0.9, 1.1);
+            fireGunShotAtTarget({
                 engine,
                 caster,
-                targetX: tx,
-                targetY: ty,
+                targetX: pos.x,
+                targetY: pos.y,
                 damage: BULLET_DAMAGE,
                 maxDistance: MAX_DISTANCE,
                 speed,
                 abilityId: CARD_ID,
+                baseInaccuracy: INACCURACY_BASE,
             });
         }
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
-        if (attackInfo.type === 'projectile' && attackInfo.projectile) {
-            (attackInfo.projectile as { active: boolean }).active = false;
-        }
+        deactivateProjectileOnBlock(attackInfo);
     },
 
-    renderTargetingPreview: createConeTargetPreview({
-        maxDistance: MAX_DISTANCE,
-        getHalfAngle(caster, mouseWorld) {
-            const dx = mouseWorld.x - caster.x;
-            const dy = mouseWorld.y - caster.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            return getDistanceBasedInaccuracy(dist, INACCURACY_BASE);
-        },
-    }),
+    renderTargetingPreview: createConeTargetPreviewWithDistanceInaccuracy(MAX_DISTANCE, INACCURACY_BASE),
 };
 
 export const ShotgunCard: CardDef = {

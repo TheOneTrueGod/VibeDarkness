@@ -17,7 +17,9 @@ import { areEnemies } from '../../../engine/teams';
 import { createUnitTargetPreview } from '../../../abilities/previewHelpers';
 import type { EventBus } from '../../../engine/EventBus';
 import { isAbilityNote } from '../../../engine/AbilityNote';
-import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../../abilities/blockingHelpers';
+import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
+import { applyChargingBlockKnockback } from '../../../abilities/effectHelpers';
+import { getDirectionFromTo } from '../../../abilities/targetHelpers';
 import type { TerrainManager } from '../../../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../../../engine/forceMove';
 
@@ -194,14 +196,18 @@ export const DarkWolfBiteAbility: AbilityStatic = {
             if (unit.hasIFrames(eng.gameTime)) continue;
 
             if (segmentCircleOverlap(x0, y0, x1, y1, caster.radius, unit.x, unit.y, unit.radius)) {
-                if (canAttackBeBlocked(unit, caster.x, caster.y, eng.gameTime)) {
-                    const block = getBlockingArcForUnit(unit, eng.gameTime);
-                    if (block) {
-                        executeBlock(eng, unit, { type: 'charging', sourceUnitId: caster.id }, CARD_ID, block);
-                        return;
-                    }
-                }
-                unit.takeDamage(DAMAGE, caster.id, eng.eventBus);
+                const dealt = tryDamageOrBlock(unit, {
+                    engine: eng,
+                    gameTime: eng.gameTime,
+                    eventBus: eng.eventBus,
+                    attackerX: caster.x,
+                    attackerY: caster.y,
+                    attackerId: caster.id,
+                    abilityId: CARD_ID,
+                    damage: DAMAGE,
+                    attackType: 'charging',
+                });
+                if (!dealt) return;
                 note.hitTargetIds.push(unit.id);
 
                 const angleDeg = eng.generateRandomInteger(0, 359);
@@ -240,15 +246,14 @@ export const DarkWolfBiteAbility: AbilityStatic = {
         if (!isAbilityNote(caster.abilityNote, '0003')) return;
 
         const note = caster.abilityNote.abilityNote;
-        const dx = note.targetX - note.lungeStartX;
-        const dy = note.targetY - note.lungeStartY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const { dirX: ux, dirY: uy, dist } = getDirectionFromTo(
+            note.lungeStartX,
+            note.lungeStartY,
+            note.targetX,
+            note.targetY,
+        );
         if (dist === 0) return;
-
-        const maxR = getMaxRange(caster);
-        const lineLen = maxR;
-        const ux = dx / dist;
-        const uy = dy / dist;
+        const lineLen = getMaxRange(caster);
         const endX = note.lungeStartX + ux * lineLen;
         const endY = note.lungeStartY + uy * lineLen;
 
@@ -259,27 +264,8 @@ export const DarkWolfBiteAbility: AbilityStatic = {
     },
 
     onAttackBlocked(engine: unknown, defender: Unit, attackInfo: AttackBlockedInfo): void {
-        if (attackInfo.type !== 'charging' || !attackInfo.sourceUnitId) return;
-        const eng = engine as GameEngineLike;
-        const attacker = eng.getUnit(attackInfo.sourceUnitId);
-        if (!attacker) return;
-        const dx = attacker.x - defender.x;
-        const dy = attacker.y - defender.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const dirX = dist > 0 ? dx / dist : 1;
-        const dirY = dist > 0 ? dy / dist : 0;
         const KNOCKBACK_MAGNITUDE = 40;
-        attacker.applyKnockback(
-            0,
-            {
-                knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
-                knockbackAirTime: 0.2,
-                knockbackSlideTime: 0.1,
-                knockbackSource: { unitId: defender.id, abilityId: CARD_ID },
-            },
-            eng.eventBus,
-        );
-        attacker.clearAbilityNote();
+        applyChargingBlockKnockback(engine, defender, attackInfo, KNOCKBACK_MAGNITUDE, CARD_ID);
     },
 
     renderTargetingPreview: createUnitTargetPreview({

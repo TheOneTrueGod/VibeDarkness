@@ -117,8 +117,8 @@ const LEVEL_EVENTS: LevelEvent[] = [
         type: 'continuousSpawn',
         trigger: { intervalRounds: 0.5, startRound: 1, endRound: 4 },
         spawns: [
-            { characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 2 },
-            { characterId: 'enemy_ranged', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 1 },
+            { characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 3 },
+            { characterId: 'enemy_ranged', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 2 },
         ],
     },
     {

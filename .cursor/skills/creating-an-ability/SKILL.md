@@ -7,6 +7,21 @@ description: Guides creating new abilities and card definitions in Minion Battle
 
 When adding a new ability to Minion Battles, follow this layout and ID scheme so abilities stay consistent and discoverable.
 
+## Literate programming: abilities as a list of behaviours
+
+**Abilities should contain as little logic as possible.** Use utility functions from `abilities/` so that reading an ability’s functions is like reading a list of behaviours, not a block of implementation details.
+
+- **Do**: Implement `doCardEffect` by calling helpers keyed to clear behaviours (e.g. “at 0.05s draw a card”, “during windup apply forced displacement toward target”, “at each shot time fire a gun projectile with inaccuracy”).
+- **Don’t**: Inline geometry, damage/block checks, or drawing logic in the ability file when a shared helper already exists or can be added.
+- **Helpers to use**:
+  - **targetHelpers.ts**: `getPixelTargetPosition`, `getDirectionFromTo`, `getAimPointClampedToMaxRange`, `pointInCone`
+  - **effectHelpers.ts**: `drawCardForPlayer`, `deactivateProjectileOnBlock`, `applyForcedDisplacementToward`, `applyChargingBlockKnockback`, `getNearestAlly`
+  - **previewHelpers.ts**: `createPixelTargetPreview`, `createConeTargetPreview`, `createConeTargetPreviewWithDistanceInaccuracy`, `drawClampedLine`, `drawRangeRings`, `drawConeSlice`, `drawArcWedge`, etc.
+  - **gunHelpers.ts**: `spawnGunProjectile`, `fireGunShotAtTarget`, `getDistanceBasedInaccuracy`, `getRandomConeAngle`, `getRandomSpeedFactor`
+  - **blockingHelpers.ts**: `tryDamageOrBlock`, `canAttackBeBlocked`, `executeBlock`, `getBlockingArcForUnit`
+
+When adding new behaviour that might be reused, add or extend a helper in the appropriate `abilities/*.ts` file first, then have the ability call it.
+
 ## Where to put it
 
 1. **New folder**: `app/js/games/minion_battles/card_defs/####_ABILITY_NAME`

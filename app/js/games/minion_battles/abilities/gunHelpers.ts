@@ -84,3 +84,59 @@ export function getRandomConeAngle(
     return centerAngle + offset;
 }
 
+export interface FireGunShotAtTargetParams {
+    engine: unknown;
+    caster: Unit;
+    targetX: number;
+    targetY: number;
+    damage: number;
+    maxDistance: number;
+    speed: number;
+    abilityId: string;
+    baseInaccuracy: number;
+}
+
+/** Random speed factor in [minFactor, maxFactor] for pellet spread (e.g. 0.9–1.1). */
+export function getRandomSpeedFactor(
+    engine: unknown,
+    minFactor: number,
+    maxFactor: number,
+): number {
+    const eng = engine as GameEngineLikeForGuns;
+    const n = typeof eng.generateRandomInteger === 'function'
+        ? eng.generateRandomInteger(0, 1000)
+        : Math.floor(Math.random() * 1001);
+    const t = n / 1000;
+    return minFactor + t * (maxFactor - minFactor);
+}
+
+/**
+ * Fire one gun shot toward a target with distance-based inaccuracy.
+ * Clamps to maxDistance and uses getDistanceBasedInaccuracy + getRandomConeAngle.
+ */
+export function fireGunShotAtTarget(params: FireGunShotAtTargetParams): void {
+    const { engine, caster, targetX, targetY, damage, maxDistance, speed, abilityId, baseInaccuracy } = params;
+    const dx = targetX - caster.x;
+    const dy = targetY - caster.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return;
+
+    const baseAngle = Math.atan2(dy, dx);
+    const inaccuracy = getDistanceBasedInaccuracy(dist, baseInaccuracy);
+    const angle = getRandomConeAngle(engine, baseAngle, inaccuracy);
+    const clampedDist = Math.min(dist, maxDistance);
+    const tx = caster.x + Math.cos(angle) * clampedDist;
+    const ty = caster.y + Math.sin(angle) * clampedDist;
+
+    spawnGunProjectile({
+        engine,
+        caster,
+        targetX: tx,
+        targetY: ty,
+        damage,
+        maxDistance,
+        speed,
+        abilityId,
+    });
+}
+

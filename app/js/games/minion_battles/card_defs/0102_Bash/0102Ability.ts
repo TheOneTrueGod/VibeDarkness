@@ -16,10 +16,10 @@ import type { ResolvedTarget } from '../../engine/types';
 import { asCardDefId, type CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { areEnemies } from '../../engine/teams';
 import type { EventBus } from '../../engine/EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
-import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
+import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { ThickLineHitbox } from '../../hitboxes';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
@@ -39,20 +39,6 @@ function getMinRange(_caster: Unit): number {
 /** Maximum cast range (caster cannot target farther than this). Bash always fires at this distance. */
 function getMaxRange(caster: Unit): number {
     return BASE_MAX_RANGE + caster.radius;
-}
-
-/** Point at max range in the direction from caster toward target (for preview and effect). */
-function getMaxRangeAimPoint(
-    caster: { x: number; y: number },
-    target: { x: number; y: number },
-    maxR: number,
-): { x: number; y: number } {
-    const dx = target.x - caster.x;
-    const dy = target.y - caster.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const dirX = dist > 0 ? dx / dist : 1;
-    const dirY = dist > 0 ? dy / dist : 0;
-    return { x: caster.x + dirX * maxR, y: caster.y + dirY * maxR };
 }
 
 interface GameEngineLike {
@@ -127,12 +113,12 @@ export const BashAbility: AbilityStatic = {
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
 
-        const targetDef = targets[0];
-        if (!targetDef || targetDef.type !== 'pixel' || !targetDef.position) return;
+        const pos = getPixelTargetPosition(targets, 0);
+        if (!pos) return;
 
         const eng = engine as GameEngineLike;
         const maxR = getMaxRange(caster);
-        const { x: endX, y: endY } = getMaxRangeAimPoint(caster, targetDef.position, maxR);
+        const { x: endX, y: endY } = getAimPointClampedToMaxRange(caster, pos, maxR);
 
         const hitUnits = ThickLineHitbox.getUnitsInHitbox(
             eng,
@@ -144,15 +130,9 @@ export const BashAbility: AbilityStatic = {
             LINE_THICKNESS,
         );
 
-        // Effect travels along the full ability line (caster edge to capped target point)
-        const lineDx = endX - caster.x;
-        const lineDy = endY - caster.y;
-        const lineDist = Math.sqrt(lineDx * lineDx + lineDy * lineDy);
-        const dX = lineDist > 0 ? lineDx / lineDist : 1;
-        const dY = lineDist > 0 ? lineDy / lineDist : 0;
+        const { dirX: dX, dirY: dY } = getDirectionFromTo(caster.x, caster.y, endX, endY);
         const effectStartX = caster.x + dX * (caster.radius * 0.5);
         const effectStartY = caster.y + dY * (caster.radius * 0.5);
-
         const bashEffect = new Effect({
             x: endX,
             y: endY,
@@ -165,25 +145,25 @@ export const BashAbility: AbilityStatic = {
 
         if (hitUnits.length === 0) return;
 
-        // Closest enemy to caster (in the thick line) is the one we hit
-        const casterX = caster.x;
-        const casterY = caster.y;
         hitUnits.sort((a, b) => {
-            const da = (a.x - casterX) ** 2 + (a.y - casterY) ** 2;
-            const db = (b.x - casterX) ** 2 + (b.y - casterY) ** 2;
+            const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
+            const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
             return da - db;
         });
-        const targetUnit = hitUnits[0];
+        const targetUnit = hitUnits[0]!;
         if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) return;
 
-        if (canAttackBeBlocked(targetUnit, caster.x, caster.y, eng.gameTime)) {
-            const block = getBlockingArcForUnit(targetUnit, eng.gameTime);
-            if (block) {
-                executeBlock(eng, targetUnit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID, block);
-                return;
-            }
-        }
-        targetUnit.takeDamage(DAMAGE, caster.id, eng.eventBus);
+        tryDamageOrBlock(targetUnit, {
+            engine: eng,
+            gameTime: eng.gameTime,
+            eventBus: eng.eventBus,
+            attackerX: caster.x,
+            attackerY: caster.y,
+            attackerId: caster.id,
+            abilityId: CARD_ID,
+            damage: DAMAGE,
+            attackType: 'melee',
+        });
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
@@ -198,7 +178,7 @@ export const BashAbility: AbilityStatic = {
         _units: Unit[],
     ): void {
         const maxR = getMaxRange(caster);
-        const aimAtMax = getMaxRangeAimPoint(caster, mouseWorld, maxR);
+        const aimAtMax = getAimPointClampedToMaxRange(caster, mouseWorld, maxR);
         ThickLineHitbox.renderTargetingPreview(gr, caster, aimAtMax, maxR, LINE_THICKNESS);
     },
 };

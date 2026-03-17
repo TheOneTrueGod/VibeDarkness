@@ -15,9 +15,9 @@ import type { ResolvedTarget } from '../../engine/types';
 import { asCardDefId, type CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import type { EventBus } from '../../engine/EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
-import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
+import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { ThickLineHitbox } from '../../hitboxes';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
@@ -133,13 +133,13 @@ export const SwingBatAbility: AbilityStatic = {
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
 
-        const targetDef = targets[0];
-        if (!targetDef || targetDef.type !== 'pixel' || !targetDef.position) return;
+        const pos = getPixelTargetPosition(targets, 0);
+        if (!pos) return;
 
         const eng = engine as GameEngineLike;
         const minR = getMinRange(caster);
         const maxR = getMaxRange(caster);
-        const line = getPerpendicularLine(caster, targetDef.position, minR, maxR);
+        const line = getPerpendicularLine(caster, pos, minR, maxR);
 
         const hitUnits = ThickLineHitbox.getUnitsInHitbox(
             eng,
@@ -151,15 +151,14 @@ export const SwingBatAbility: AbilityStatic = {
             LINE_THICKNESS,
         );
 
-        const effect = new Effect({
+        eng.addEffect(new Effect({
             x: line.rightX,
             y: line.rightY,
             duration: SWING_BAT_EFFECT_DURATION,
             effectType: 'bash',
             startX: line.leftX,
             startY: line.leftY,
-        });
-        eng.addEffect(effect);
+        }));
 
         if (hitUnits.length === 0) return;
 
@@ -168,26 +167,23 @@ export const SwingBatAbility: AbilityStatic = {
             const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
             return da - db;
         });
-        const targetUnit = hitUnits[0];
+        const targetUnit = hitUnits[0]!;
         if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) return;
 
-        if (canAttackBeBlocked(targetUnit, caster.x, caster.y, eng.gameTime)) {
-            const block = getBlockingArcForUnit(targetUnit, eng.gameTime);
-            if (block) {
-                executeBlock(eng, targetUnit, { type: 'melee', sourceUnitId: caster.id }, CARD_ID, block);
-                return;
-            }
-        }
-        targetUnit.takeDamage(DAMAGE, caster.id, eng.eventBus);
+        const blocked = !tryDamageOrBlock(targetUnit, {
+            engine: eng,
+            gameTime: eng.gameTime,
+            eventBus: eng.eventBus,
+            attackerX: caster.x,
+            attackerY: caster.y,
+            attackerId: caster.id,
+            abilityId: CARD_ID,
+            damage: DAMAGE,
+            attackType: 'melee',
+        });
+        if (blocked) return;
 
-        const dist = Math.sqrt(
-            (targetUnit.x - caster.x) ** 2 + (targetUnit.y - caster.y) ** 2,
-        );
-        const dx = targetUnit.x - caster.x;
-        const dy = targetUnit.y - caster.y;
-        const tX = dist > 0 ? dx / dist : 1;
-        const tY = dist > 0 ? dy / dist : 0;
-
+        const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
         targetUnit.applyKnockback(
             POISE_DAMAGE,
             {

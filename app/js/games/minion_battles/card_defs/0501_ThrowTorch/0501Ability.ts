@@ -18,6 +18,7 @@ import { Effect } from '../../objects/Effect';
 import { asCardDefId, type CardDef, type CardDefId } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
+import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromTo } from '../../abilities/targetHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}01`;
 const PREFIRE_TIME = 0.2;
@@ -84,20 +85,13 @@ export const ThrowTorchAbility: AbilityStatic = {
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
 
-        const target = targets[0];
-        if (!target || target.type !== 'pixel' || !target.position) return;
+        const pos = getPixelTargetPosition(targets, 0);
+        if (!pos) return;
 
         const eng = engine as GameEngineLike;
-        const dx = target.position.x - caster.x;
-        const dy = target.position.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
         const maxR = getMaxRange(caster);
-        const placeX = dist > maxR ? caster.x + (dx / dist) * maxR : target.position.x;
-        const placeY = dist > maxR ? caster.y + (dy / dist) * maxR : target.position.y;
-
-        const travelDist = Math.sqrt(
-            (placeX - caster.x) ** 2 + (placeY - caster.y) ** 2,
-        );
+        const { x: placeX, y: placeY } = getAimPointClampedToMaxRange(caster, pos, maxR);
+        const { dist: travelDist } = getDirectionFromTo(caster.x, caster.y, placeX, placeY);
         const travelTime = Math.max(0.15, travelDist / TORCH_PROJECTILE_SPEED);
 
         const torchProjectile = new Effect({

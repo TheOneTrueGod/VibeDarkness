@@ -8,12 +8,14 @@ import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import { createArcTargetPreview } from '../../abilities/previewHelpers';
+import { createArcTargetPreview, drawArcWedge } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import { isAbilityNote } from '../../engine/AbilityNote';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
+import { drawCardForPlayer, getNearestAlly } from '../../abilities/effectHelpers';
+import { getDirectionFromTo } from '../../abilities/targetHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}04`;
 const DURATION = 1;
@@ -74,42 +76,23 @@ export const RaiseShieldAbility: AbilityStatic = {
 
     getBlockingArc(caster: Unit, activeAbility: { targets: ResolvedTarget[] }, currentTime: number) {
         if (currentTime < 0 || currentTime >= DURATION) return null;
-        const target = activeAbility.targets[0];
-        if (!target?.position) return null;
-        const dx = target.position.x - caster.x;
-        const dy = target.position.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const pos = activeAbility.targets[0]?.position;
+        if (!pos) return null;
+        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
         if (dist === 0) return null;
-        const centerAngle = Math.atan2(dy, dx);
+        const centerAngle = Math.atan2(dirY, dirX);
         return {
             arcStartAngle: centerAngle - SHIELD_HALF_ARC_RAD,
             arcEndAngle: centerAngle + SHIELD_HALF_ARC_RAD,
         };
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        const eng = engine as GameEngineLike;
-        // One-shot: on first tick, set note for block rewards and nearest ally draws 1
+    doCardEffect(engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (prevTime >= 0.05 || currentTime < 0.05) return;
-
+        const eng = engine as GameEngineLike;
         caster.setAbilityNote({ abilityId: '0104', abilityNote: { drewFromBlockCount: 0 } });
-
-        // Nearest ally (same team, not self, alive)
-        let nearestAlly: Unit | null = null;
-        let nearestDistSq = Infinity;
-        for (const u of eng.units) {
-            if (!u.isAlive() || u.id === caster.id || u.teamId !== caster.teamId) continue;
-            const dx = u.x - caster.x;
-            const dy = u.y - caster.y;
-            const d2 = dx * dx + dy * dy;
-            if (d2 < nearestDistSq) {
-                nearestDistSq = d2;
-                nearestAlly = u;
-            }
-        }
-        if (nearestAlly?.ownerId) {
-            eng.drawCardsForPlayer(nearestAlly.ownerId, 1);
-        }
+        const nearestAlly = getNearestAlly(eng.units, caster);
+        drawCardForPlayer(engine, nearestAlly?.ownerId, 1);
     },
 
     renderActivePreview(
@@ -118,39 +101,14 @@ export const RaiseShieldAbility: AbilityStatic = {
         activeAbility: { startTime: number; targets: ResolvedTarget[] },
         _gameTime: number,
     ): void {
-        const target = activeAbility.targets[0]?.position;
-        if (!target) return;
-        const dx = target.x - caster.x;
-        const dy = target.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const pos = activeAbility.targets[0]?.position;
+        if (!pos) return;
+        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
         if (dist === 0) return;
-        const centerAngle = Math.atan2(dy, dx);
-        const startAngle = centerAngle - SHIELD_HALF_ARC_RAD;
-        const endAngle = centerAngle + SHIELD_HALF_ARC_RAD;
+        const centerAngle = Math.atan2(dirY, dirX);
         const innerR = caster.radius + SHIELD_INNER_OFFSET;
         const outerR = caster.radius + SHIELD_THICKNESS_PX;
-        const segments = 24;
-        // Build closed path: outer arc from start to end, then inner arc from end to start
-        gr.moveTo(
-            caster.x + outerR * Math.cos(startAngle),
-            caster.y + outerR * Math.sin(startAngle),
-        );
-        for (let i = 1; i <= segments; i++) {
-            const t = i / segments;
-            const a = startAngle + t * SHIELD_ARC_RAD;
-            gr.lineTo(caster.x + outerR * Math.cos(a), caster.y + outerR * Math.sin(a));
-        }
-        for (let i = segments - 1; i >= 0; i--) {
-            const t = i / segments;
-            const a = startAngle + t * SHIELD_ARC_RAD;
-            gr.lineTo(caster.x + innerR * Math.cos(a), caster.y + innerR * Math.sin(a));
-        }
-        gr.lineTo(
-            caster.x + outerR * Math.cos(startAngle),
-            caster.y + outerR * Math.sin(startAngle),
-        );
-        gr.fill({ color: 0x6b8e6b, alpha: 0.7 });
-        gr.stroke({ color: 0x4a6b4a, width: 2, alpha: 0.9 });
+        drawArcWedge(gr, caster.x, caster.y, centerAngle, SHIELD_HALF_ARC_RAD, innerR, outerR);
     },
 
     renderTargetingPreview: createArcTargetPreview({

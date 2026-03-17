@@ -9,10 +9,10 @@ import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
-import type { TerrainManager } from '../../terrain/TerrainManager';
-import { computeForcedDisplacement } from '../../engine/forceMove';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
+import { drawCardForPlayer, applyForcedDisplacementToward } from '../../abilities/effectHelpers';
+import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const DODGE_DURATION = 0.4;
@@ -57,40 +57,24 @@ export const DodgeAbility: AbilityStatic = {
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        // One-shot: draw one card for the caster when we cross 0.05s (avoids missing the draw when first tick has currentTime === 0)
-        if (prevTime < 0.05 && currentTime >= 0.05 && caster.ownerId) {
-            const eng = engine as { drawCardsForPlayer(playerId: string, count: number): number };
-            if (typeof eng.drawCardsForPlayer === 'function') eng.drawCardsForPlayer(caster.ownerId, 1);
+        if (prevTime < 0.05 && currentTime >= 0.05) {
+            drawCardForPlayer(engine, caster.ownerId, 1);
         }
 
-        // Only apply movement during the dodge window; doCardEffect is called every tick
         if (currentTime >= DODGE_DURATION) return;
 
-        const target = targets[0];
-        if (!target || target.type !== 'pixel' || !target.position) return;
-
-        const dx = target.position.x - caster.x;
-        const dy = target.position.y - caster.y;
-        const distToTarget = Math.sqrt(dx * dx + dy * dy);
+        const pos = getPixelTargetPosition(targets, 0);
+        if (!pos) return;
+        const { dist: distToTarget } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
         if (distToTarget === 0) return;
 
-        const totalAllowed = (currentTime - prevTime) / DODGE_DURATION * DODGE_MAX_DISTANCE;
-        const moveDistance = Math.min(totalAllowed, distToTarget);
+        const moveDistance = Math.min(
+            ((currentTime - prevTime) / DODGE_DURATION) * DODGE_MAX_DISTANCE,
+            distToTarget,
+        );
         if (moveDistance <= 0) return;
 
-        const terrainManager = (engine as { terrainManager?: TerrainManager | null }).terrainManager ?? null;
-        const { distance } = computeForcedDisplacement(
-            caster.x,
-            caster.y,
-            target.position.x,
-            target.position.y,
-            moveDistance,
-            { terrainManager, step: COLLISION_STEP },
-        );
-        if (distance <= 0) return;
-
-        caster.invalidateMovementPath();
-        caster.moveUnit(target.position.x, target.position.y, distance);
+        applyForcedDisplacementToward(engine, caster, pos.x, pos.y, moveDistance, { step: COLLISION_STEP });
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {

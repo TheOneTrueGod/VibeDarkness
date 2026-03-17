@@ -112,3 +112,36 @@ export function executeBlock(
         block.ability.onBlockSuccess(engine, defender);
     }
 }
+
+export interface TryDamageOrBlockParams {
+    engine: unknown;
+    gameTime: number;
+    /** EventBus or any object with an emit method (for takeDamage). */
+    eventBus: unknown;
+    attackerX: number;
+    attackerY: number;
+    attackerId: string;
+    abilityId: string;
+    damage: number;
+    attackType: 'melee' | 'charging';
+}
+
+/**
+ * If the defender can block the attack (from attacker position), execute block and return false.
+ * Otherwise deal damage to the defender and return true.
+ */
+export function tryDamageOrBlock(
+    defender: Unit,
+    params: TryDamageOrBlockParams,
+): boolean {
+    const { engine, gameTime, eventBus, attackerX, attackerY, attackerId, abilityId, damage, attackType } = params;
+    if (canAttackBeBlocked(defender, attackerX, attackerY, gameTime)) {
+        const block = getBlockingArcForUnit(defender, gameTime);
+        if (block) {
+            executeBlock(engine, defender, { type: attackType, sourceUnitId: attackerId }, abilityId, block);
+            return false;
+        }
+    }
+    defender.takeDamage(damage, attackerId, eventBus);
+    return true;
+}

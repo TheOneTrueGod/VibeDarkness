@@ -9,6 +9,7 @@ import type { Unit } from '../objects/Unit';
 import type { ResolvedTarget } from '../engine/types';
 import { getUnitAtPosition } from './targeting';
 import { areEnemies } from '../engine/teams';
+import { getDistanceBasedInaccuracy } from './gunHelpers';
 
 /** Result of clamping a target position to max range from caster. */
 export interface ClampedRangeResult {
@@ -127,6 +128,27 @@ export function createPixelTargetPreview(maxDistance: number): RenderTargetingPr
     };
 }
 
+/**
+ * Preset: Cone target preview with distance-based inaccuracy as half-angle.
+ * Use for gun abilities (Pistol, SMG, Shotgun) that use getDistanceBasedInaccuracy.
+ */
+export function createConeTargetPreviewWithDistanceInaccuracy(
+    maxDistance: number,
+    baseInaccuracy: number,
+    options?: { strokeColor?: number },
+): RenderTargetingPreviewFn {
+    return createConeTargetPreview({
+        maxDistance,
+        strokeColor: options?.strokeColor,
+        getHalfAngle(caster, mouseWorld) {
+            const dx = mouseWorld.x - caster.x;
+            const dy = mouseWorld.y - caster.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            return getDistanceBasedInaccuracy(dist, baseInaccuracy);
+        },
+    });
+}
+
 /** Options for cone pixel target preview (for guns, shotguns, etc.). */
 export interface ConeTargetPreviewOptions {
     /** Maximum distance from caster to preview end. */
@@ -241,6 +263,72 @@ export function createArcTargetPreview(options: ArcTargetPreviewOptions): Render
         gr.fill({ color: fillColor, alpha: fillAlpha });
         gr.stroke({ color: strokeColor, width: strokeWidth, alpha: strokeAlpha });
     };
+}
+
+/**
+ * Draw an arc wedge (inner/outer radius, half-angle) for active previews (e.g. Raise Shield).
+ */
+export function drawArcWedge(
+    gr: IAbilityPreviewGraphics,
+    centerX: number,
+    centerY: number,
+    centerAngleRad: number,
+    halfArcRad: number,
+    innerR: number,
+    outerR: number,
+    segments: number = 24,
+    options: { fillColor?: number; fillAlpha?: number; strokeColor?: number; strokeWidth?: number; strokeAlpha?: number } = {},
+): void {
+    const fillColor = options.fillColor ?? 0x6b8e6b;
+    const fillAlpha = options.fillAlpha ?? 0.7;
+    const strokeColor = options.strokeColor ?? 0x4a6b4a;
+    const strokeWidth = options.strokeWidth ?? 2;
+    const strokeAlpha = options.strokeAlpha ?? 0.9;
+    const startAngle = centerAngleRad - halfArcRad;
+    const arcRad = halfArcRad * 2;
+    gr.moveTo(centerX + outerR * Math.cos(startAngle), centerY + outerR * Math.sin(startAngle));
+    for (let i = 1; i <= segments; i++) {
+        const t = i / segments;
+        const a = startAngle + t * arcRad;
+        gr.lineTo(centerX + outerR * Math.cos(a), centerY + outerR * Math.sin(a));
+    }
+    for (let i = segments - 1; i >= 0; i--) {
+        const t = i / segments;
+        const a = startAngle + t * arcRad;
+        gr.lineTo(centerX + innerR * Math.cos(a), centerY + innerR * Math.sin(a));
+    }
+    gr.lineTo(centerX + outerR * Math.cos(startAngle), centerY + outerR * Math.sin(startAngle));
+    gr.fill({ color: fillColor, alpha: fillAlpha });
+    gr.stroke({ color: strokeColor, width: strokeWidth, alpha: strokeAlpha });
+}
+
+/**
+ * Draw a cone slice (wedge between min and max radius) for active previews (e.g. enemy melee telegraph).
+ */
+export function drawConeSlice(
+    gr: IAbilityPreviewGraphics,
+    centerX: number,
+    centerY: number,
+    angleRad: number,
+    halfAngleRad: number,
+    minR: number,
+    maxR: number,
+    options: { fillColor?: number; fillAlpha?: number; strokeColor?: number; strokeAlpha?: number; strokeWidth?: number },
+): void {
+    const fillColor = options.fillColor ?? 0xff0000;
+    const fillAlpha = options.fillAlpha ?? 0.2;
+    const strokeColor = options.strokeColor ?? 0xff0000;
+    const strokeAlpha = options.strokeAlpha ?? 0.45;
+    const strokeWidth = options.strokeWidth ?? 2;
+    const startAngle = angleRad - halfAngleRad;
+    const endAngle = angleRad + halfAngleRad;
+    gr.moveTo(centerX + Math.cos(startAngle) * maxR, centerY + Math.sin(startAngle) * maxR);
+    gr.lineTo(centerX + Math.cos(endAngle) * maxR, centerY + Math.sin(endAngle) * maxR);
+    gr.lineTo(centerX + Math.cos(endAngle) * minR, centerY + Math.sin(endAngle) * minR);
+    gr.lineTo(centerX + Math.cos(startAngle) * minR, centerY + Math.sin(startAngle) * minR);
+    gr.lineTo(centerX + Math.cos(startAngle) * maxR, centerY + Math.sin(startAngle) * maxR);
+    gr.fill({ color: fillColor, alpha: fillAlpha });
+    gr.stroke({ color: strokeColor, width: strokeWidth, alpha: strokeAlpha });
 }
 
 /** Options for createUnitTargetPreview. */

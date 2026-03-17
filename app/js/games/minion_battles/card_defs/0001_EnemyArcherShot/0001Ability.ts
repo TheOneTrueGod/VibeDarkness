@@ -12,6 +12,8 @@ import { Projectile } from '../../objects/Projectile';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../engine/AbilityNote';
+import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
+import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}01`;
 const LOCK_TIME = 0.5;
@@ -36,9 +38,7 @@ function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }):
     if (isAbilityNote(caster.abilityNote, '0001')) {
         return caster.abilityNote.abilityNote.position;
     }
-    const target = active.targets[0];
-    if (!target || target.type !== 'pixel' || !target.position) return null;
-    return target.position;
+    return getPixelTargetPosition(active.targets, 0);
 }
 
 export const EnemyArcherShotAbility: AbilityStatic = {
@@ -67,28 +67,25 @@ export const EnemyArcherShotAbility: AbilityStatic = {
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (prevTime < LOCK_TIME && currentTime >= LOCK_TIME) {
-            const target = targets[0];
-            if (target?.type === 'pixel' && target.position) {
-                caster.setAbilityNote({ abilityId: '0001', abilityNote: { position: { ...target.position } } });
+            const pos = getPixelTargetPosition(targets, 0);
+            if (pos) {
+                caster.setAbilityNote({ abilityId: '0001', abilityNote: { position: { ...pos } } });
             }
         }
 
-        // Fire projectile exactly once when we cross prefire time
-        if (prevTime < PREFIRE_TIME && currentTime >= PREFIRE_TIME) {
-            const eng = engine as GameEngineLike;
-            if (!isAbilityNote(caster.abilityNote, '0001')) return;
-            const pos = caster.abilityNote.abilityNote.position;
-            caster.clearAbilityNote();
+        if (prevTime < PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
+        const eng = engine as GameEngineLike;
+        if (!isAbilityNote(caster.abilityNote, '0001')) return;
+        const pos = caster.abilityNote.abilityNote.position;
+        caster.clearAbilityNote();
 
-            const dx = pos.x - caster.x;
-            const dy = pos.y - caster.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist === 0) return;
+        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
+        if (dist === 0) return;
 
-            const velocityX = (dx / dist) * PROJECTILE_SPEED;
-            const velocityY = (dy / dist) * PROJECTILE_SPEED;
+        const velocityX = dirX * PROJECTILE_SPEED;
+        const velocityY = dirY * PROJECTILE_SPEED;
 
-            const projectile = new Projectile({
+        const projectile = new Projectile({
                 x: caster.x,
                 y: caster.y,
                 velocityX,
@@ -100,14 +97,11 @@ export const EnemyArcherShotAbility: AbilityStatic = {
                 maxDistance: MAX_DISTANCE,
             });
 
-            eng.addProjectile(projectile);
-        }
+        eng.addProjectile(projectile);
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: import('../../abilities/Ability').AttackBlockedInfo): void {
-        if (attackInfo.type === 'projectile' && attackInfo.projectile) {
-            (attackInfo.projectile as Projectile).active = false;
-        }
+        deactivateProjectileOnBlock(attackInfo);
     },
 
     renderActivePreview(
@@ -120,14 +114,9 @@ export const EnemyArcherShotAbility: AbilityStatic = {
         const target = getTargetPosition(caster, activeAbility);
         if (!target) return;
 
-        const dx = target.x - caster.x;
-        const dy = target.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const { dirX: ux, dirY: uy, dist } = getDirectionFromTo(caster.x, caster.y, target.x, target.y);
         if (dist === 0) return;
-
         const lineLen = Math.min(MAX_DISTANCE, dist);
-        const ux = dx / dist;
-        const uy = dy / dist;
 
         if (elapsed < LOCK_TIME) {
             const progress = elapsed / LOCK_TIME;

@@ -88,7 +88,11 @@ There is **no permanent graveyard**; discard is always temporary.
       - Reset `card.durability` from the `CardDef`.
       - Clear discard metadata.
 
-### 6. Card definitions vs abilities
+### 6. Abilities: minimal logic, literate behaviour
+
+Abilities should read like a **list of behaviours**. Prefer utility functions in `abilities/` (e.g. `targetHelpers`, `effectHelpers`, `previewHelpers`, `gunHelpers`, `blockingHelpers`) so that `doCardEffect`, `renderTargetingPreview`, etc. delegate to named helpers instead of inlining logic. See the **creating-an-ability** skill for the full literate-programming guideline and helper list.
+
+### 7. Card definitions vs abilities
 
 - **Card definitions** (`CardDef` in `card_defs/types.ts`):
   - Key fields:
@@ -112,7 +116,7 @@ There is **no permanent graveyard**; discard is always temporary.
     - Calls `doCardEffect` each tick while it is active.
     - Uses `getAbilityStates` to apply special states.
 
-### 7. Editing guidelines and checks
+### 8. Editing guidelines and checks
 
 When **editing card behaviour**, follow this checklist:
 
@@ -142,7 +146,7 @@ When **editing card behaviour**, follow this checklist:
      - The card’s `abilityId` matches the ability you are using.
      - The `CardDef` is correctly registered and returned by `getCardDef`.
 
-### 8. Relationship to other skills
+### 9. Relationship to other skills
 
 - For the **full workflow of creating a new ability/card**, use the `creating-an-ability` skill.
 - Use **this** skill specifically to reason about:
