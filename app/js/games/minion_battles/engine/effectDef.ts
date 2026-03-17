@@ -241,6 +241,84 @@ const bulletTrailEffectDef: IEffectDef = {
     },
 };
 
+/** Light cyan color for laser/slash effects. */
+const LASER_CYAN = 0x7fdfef;
+
+/** Slashing sword impact: 9-pointed star like bash but light cyan, grows over duration. */
+const slashingSwordEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const progress = effect.progress;
+        const baseSize = 12;
+        const size = baseSize + progress * 4;
+        const alpha = 0.65;
+
+        const outerRadius = size / 2;
+        const innerRadius = size / 4;
+        const points: { x: number; y: number }[] = [];
+        for (let i = 0; i < 9; i++) {
+            const outerAngle = (i * 2 * Math.PI) / 9 - Math.PI / 2;
+            points.push({
+                x: Math.cos(outerAngle) * outerRadius,
+                y: Math.sin(outerAngle) * outerRadius,
+            });
+            const innerAngle = ((i + 0.5) * 2 * Math.PI) / 9 - Math.PI / 2;
+            points.push({
+                x: Math.cos(innerAngle) * innerRadius,
+                y: Math.sin(innerAngle) * innerRadius,
+            });
+        }
+
+        const flatPoints = points.flatMap((p) => [p.x, p.y]);
+        g.poly(flatPoints, true);
+        const gradient = new FillGradient({
+            type: 'linear',
+            start: { x: 0, y: 0.5 },
+            end: { x: 1, y: 0.5 },
+            colorStops: [
+                { offset: 0, color: LASER_CYAN },
+                { offset: 0.5, color: 0xafffff },
+                { offset: 1, color: 0xdfffff },
+            ],
+            textureSpace: 'local',
+        });
+        g.fill({ fill: gradient, alpha });
+        g.stroke({ color: 0x4fb8c8, width: 1, alpha: 1 });
+    },
+};
+
+/** Thick fading line perpendicular to swing (slash trail): light cyan, thick stroke, fades out. */
+const slashTrailEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const data = effect.effectData as { endX?: number; endY?: number };
+        const endX = data.endX ?? effect.x;
+        const endY = data.endY ?? effect.y;
+        const dx = endX - effect.x;
+        const dy = endY - effect.y;
+        const lengthSq = dx * dx + dy * dy;
+        if (lengthSq === 0) return;
+
+        const progress = effect.progress;
+        const life = 1 - progress;
+        const alpha = Math.max(0, life * life);
+        const baseThickness = effect.effectRadius ?? 14;
+        const width = Math.max(2, baseThickness * life);
+
+        g.moveTo(0, 0);
+        g.lineTo(dx, dy);
+        g.stroke({ color: LASER_CYAN, width, alpha });
+    },
+};
+
 /** Particle image: sprite that fades and scales down over its lifetime. */
 const particleImageEffectDef: IEffectDef = {
     createVisual(effect: Effect, context: IEffectRenderContext): Container {
@@ -278,6 +356,8 @@ const effectDefRegistry: Record<string, IEffectDef> = {
     Torch: torchEffectDef,
     ParticleImage: particleImageEffectDef,
     BulletTrail: bulletTrailEffectDef,
+    SlashingSword: slashingSwordEffectDef,
+    SlashTrail: slashTrailEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

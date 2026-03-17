@@ -7,8 +7,10 @@ import { EnemyArcherShotCard } from './0001_EnemyArcherShot/0001Ability';
 import { EnemyMeleeAttackCard } from './0002_EnemyMeleeAttack/0002Ability';
 import { BashCard } from './0102_Bash/0102Ability';
 import { SwingBatCard } from './0103_SwingBat/0103Ability';
+import { LaserSwordCard } from './0105_LaserSword/0105Ability';
 import { DarkWolfBiteCard } from './dark_animals/0003_DarkWolfBite/0003Ability';
 import { RaiseShieldCard } from './0104_RaiseShield/0104Ability';
+import { LaserShieldCard } from './0106_LaserShield/0106Ability';
 import { ThrowTorchCard } from './0501_ThrowTorch/0501Ability';
 import { PistolCard } from './0203_Pistol/0203Ability';
 import { SMGCard } from './0204_SMG/0204Ability';
@@ -22,8 +24,10 @@ const cardDefs: CardDef[] = [
     EnemyMeleeAttackCard,
     BashCard,
     SwingBatCard,
+    LaserSwordCard,
     DarkWolfBiteCard,
     RaiseShieldCard,
+    LaserShieldCard,
     ThrowTorchCard,
     PistolCard,
     SMGCard,
