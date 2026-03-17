@@ -9,7 +9,7 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { getDistanceBasedInaccuracy, getRandomConeAngle, spawnGunProjectile } from '../../abilities/gunHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}03`;
-const PREFIRE_LAST_SHOT = 0.9;
+const PREFIRE_FIRST_SHOT = 0.5;
 const COOLDOWN_TIME = 1.3;
 const MAX_DISTANCE = 520;
 const BULLET_SPEED = 1400;
@@ -29,9 +29,9 @@ export const PistolAbility: AbilityStatic = {
     cooldownTime: COOLDOWN_TIME,
     resourceCost: null,
     rechargeTurns: 0,
-    prefireTime: PREFIRE_LAST_SHOT,
+    prefireTime: PREFIRE_FIRST_SHOT,
     abilityTimings: [
-        { duration: PREFIRE_LAST_SHOT, abilityPhase: AbilityPhase.Windup },
+        { duration: PREFIRE_FIRST_SHOT, abilityPhase: AbilityPhase.Windup },
         { duration: COOLDOWN_TIME, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [
