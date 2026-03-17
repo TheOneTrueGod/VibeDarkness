@@ -36,7 +36,7 @@ export const ENEMY_MELEE: EnemySpawnDef = {
 export const ENEMY_RANGED: EnemySpawnDef = {
     characterId: 'enemy_ranged',
     name: 'Ranged Enemy',
-    hp: 10,
+    hp: 30,
     speed: 60,
     position: { x: 0, y: 0 },
     teamId: 'enemy',

@@ -8,7 +8,7 @@ export const coreWeaponsItem: ItemDef = {
     slotLayout: { weaponSlots: 3, utilitySlots: 0 },
     cardsToAdd: [
         { cardId: '0105', count: 2 }, // Laser Sword
-        { cardId: '0106', count: 2 }, // Laser Shield
+        { cardId: '0101', count: 2 }, // Dodge
     ],
     icon: '006_core_weapons.svg',
 };

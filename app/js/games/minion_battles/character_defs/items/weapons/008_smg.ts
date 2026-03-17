@@ -5,6 +5,6 @@ export const smgItem: ItemDef = {
     id: '008',
     name: 'SMG',
     slots: ['weapon'],
-    cardsToAdd: [{ cardId: '0204', count: 2 }],
+    cardsToAdd: [{ cardId: '0204', count: 3 }],
     icon: '008_smg.svg',
 };
