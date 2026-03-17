@@ -109,17 +109,6 @@ export interface AbilityStatic {
     getAbilityStates(currentTime: number): AbilityStateEntry[];
 
     /**
-     * Render a targeting preview on the canvas.
-     * Called each frame while the player is choosing targets.
-     */
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void;
-
-    /**
      * Optional. Render a preview while the ability is active (e.g. enemy telegraph).
      * Visible to all players. Called each frame until the ability ends.
      */
@@ -141,6 +130,18 @@ export interface AbilityStatic {
      * Called each frame while the player is selecting a target.
      */
     renderTargetingPreview?(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        currentTargets: ResolvedTarget[],
+        mouseWorld: { x: number; y: number },
+        units: Unit[],
+    ): void;
+
+    /**
+     * Optional. Render additional targeting preview for already-selected targets (for multi-target abilities).
+     * Called immediately after renderTargetingPreview, once per frame while selecting targets.
+     */
+    renderTargetingPreviewSelectedTargets?(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
         currentTargets: ResolvedTarget[],

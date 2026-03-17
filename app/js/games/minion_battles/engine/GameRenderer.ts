@@ -333,9 +333,24 @@ export class GameRenderer {
         return r[col];
     }
 
-    /** Targeting state for preview (range rings, crosshair). */
+    /** Targeting state for preview (range rings, crosshair, selected targets). */
     private targetingState: {
-        selectedAbility: { renderTargetingPreview?: (gr: unknown, caster: unknown, currentTargets: unknown[], mouseWorld: { x: number; y: number }, units: unknown[]) => void } | null;
+        selectedAbility: {
+            renderTargetingPreview?: (
+                gr: unknown,
+                caster: unknown,
+                currentTargets: unknown[],
+                mouseWorld: { x: number; y: number },
+                units: unknown[],
+            ) => void;
+            renderTargetingPreviewSelectedTargets?: (
+                gr: unknown,
+                caster: unknown,
+                currentTargets: unknown[],
+                mouseWorld: { x: number; y: number },
+                units: unknown[],
+            ) => void;
+        } | null;
         currentTargets: unknown[];
         mouseWorld: { x: number; y: number };
         waitingForOrders: { unitId: string } | null;
@@ -346,7 +361,22 @@ export class GameRenderer {
         engine: GameEngine,
         camera: Camera,
         targetingState?: {
-            selectedAbility: { renderTargetingPreview?: (gr: unknown, caster: unknown, currentTargets: unknown[], mouseWorld: { x: number; y: number }, units: unknown[]) => void } | null;
+            selectedAbility: {
+                renderTargetingPreview?: (
+                    gr: unknown,
+                    caster: unknown,
+                    currentTargets: unknown[],
+                    mouseWorld: { x: number; y: number },
+                    units: unknown[],
+                ) => void;
+                renderTargetingPreviewSelectedTargets?: (
+                    gr: unknown,
+                    caster: unknown,
+                    currentTargets: unknown[],
+                    mouseWorld: { x: number; y: number },
+                    units: unknown[],
+                ) => void;
+            } | null;
             currentTargets: unknown[];
             mouseWorld: { x: number; y: number };
             waitingForOrders: { unitId: string } | null;
@@ -730,25 +760,40 @@ export class GameRenderer {
 
     private renderTargetingPreview(engine: GameEngine): void {
         const ts = this.targetingState;
-        if (!ts?.selectedAbility?.renderTargetingPreview || !ts.waitingForOrders) {
+        if (!ts) {
+            this.targetingPreviewGraphics.clear();
+            return;
+        }
+        const ability = ts.selectedAbility;
+        if (!ability?.renderTargetingPreview || !ts.waitingForOrders) {
             this.targetingPreviewGraphics.clear();
             return;
         }
 
-        const caster = engine.getUnit(ts.waitingForOrders.unitId);
+        const caster = engine.getUnit(ts.waitingForOrders!.unitId);
         if (!caster) {
             this.targetingPreviewGraphics.clear();
             return;
         }
 
         this.targetingPreviewGraphics.clear();
-        ts.selectedAbility.renderTargetingPreview!(
+        ability.renderTargetingPreview!(
             this.targetingPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics,
             caster,
             ts.currentTargets,
             ts.mouseWorld,
             engine.units,
         );
+
+        if (ability.renderTargetingPreviewSelectedTargets) {
+            ability.renderTargetingPreviewSelectedTargets(
+                this.targetingPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics,
+                caster,
+                ts.currentTargets,
+                ts.mouseWorld,
+                engine.units,
+            );
+        }
     }
 
     // ========================================================================

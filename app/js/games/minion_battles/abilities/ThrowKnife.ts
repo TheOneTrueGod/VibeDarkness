@@ -94,51 +94,5 @@ export const ThrowKnife: AbilityStatic = {
         }
     },
 
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void {
-        // Draw a dashed line from caster to mouse position
-        ctx.save();
-        ctx.strokeStyle = 'rgba(200, 200, 200, 0.6)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.moveTo(caster.x, caster.y);
-
-        // Clamp to max range (200px)
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 200) {
-            const ratio = 200 / dist;
-            ctx.lineTo(caster.x + dx * ratio, caster.y + dy * ratio);
-        } else {
-            ctx.lineTo(mouseWorld.x, mouseWorld.y);
-        }
-
-        ctx.stroke();
-        ctx.restore();
-
-        // Draw a small crosshair at the clamped target
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
-        ctx.lineWidth = 1;
-        const endX = dist > 200 ? caster.x + (dx / dist) * 200 : mouseWorld.x;
-        const endY = dist > 200 ? caster.y + (dy / dist) * 200 : mouseWorld.y;
-        ctx.beginPath();
-        ctx.arc(endX, endY, 8, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(endX - 12, endY);
-        ctx.lineTo(endX + 12, endY);
-        ctx.moveTo(endX, endY - 12);
-        ctx.lineTo(endX, endY + 12);
-        ctx.stroke();
-        ctx.restore();
-    },
-
     renderTargetingPreview: createPixelTargetPreview(200),
 };

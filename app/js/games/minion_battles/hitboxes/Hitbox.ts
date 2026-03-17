@@ -1,8 +1,5 @@
 /**
  * Hitbox - Static interface for ability/effect hit detection.
- *
- * Each hitbox is a static class with getUnitsInHitbox and renderPreview.
- * Children must override renderPreview to draw the hitbox preview (canvas).
  */
 
 import type { Unit } from '../objects/Unit';
@@ -30,30 +27,10 @@ export interface IHitbox {
         ...args: number[]
     ): Unit[];
 
-    /**
-     * Draw the hitbox targeting preview on the canvas (range ring + shape).
-     * Must be overridden by children.
-     */
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: HitboxPreviewCaster,
-        mouseWorld: { x: number; y: number },
-        maxRange: number,
-        lineThickness: number,
-    ): void;
 }
 
 /**
- * Base hitbox class. Subclasses must override renderPreview.
+ * Base hitbox class.
  */
 export abstract class Hitbox {
-    static renderPreview(
-        _ctx: CanvasRenderingContext2D,
-        _caster: HitboxPreviewCaster,
-        _mouseWorld: { x: number; y: number },
-        _maxRange: number,
-        _lineThickness: number,
-    ): void {
-        throw new Error('Hitbox.renderPreview must be overridden');
-    }
 }

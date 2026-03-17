@@ -186,17 +186,6 @@ export const BashAbility: AbilityStatic = {
         targetUnit.takeDamage(DAMAGE, caster.id, eng.eventBus);
     },
 
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void {
-        const maxR = getMaxRange(caster);
-        const aimAtMax = getMaxRangeAimPoint(caster, mouseWorld, maxR);
-        ThickLineHitbox.renderPreview(ctx, caster, aimAtMax, maxR, LINE_THICKNESS);
-    },
-
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
         // Melee blocked: no additional behaviour.
     },

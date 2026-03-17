@@ -149,35 +149,6 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
         }
     },
 
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void {
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const minR = getMinRadius(caster);
-        const maxR = getMaxRadius(caster);
-        const angle = dist > 0 ? Math.atan2(dy, dx) : 0;
-        const halfRad = (CONE_HALF_ANGLE_DEG * Math.PI) / 180;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(caster.x + Math.cos(angle - halfRad) * maxR, caster.y + Math.sin(angle - halfRad) * maxR);
-        ctx.lineTo(caster.x + Math.cos(angle + halfRad) * maxR, caster.y + Math.sin(angle + halfRad) * maxR);
-        ctx.lineTo(caster.x + Math.cos(angle + halfRad) * minR, caster.y + Math.sin(angle + halfRad) * minR);
-        ctx.lineTo(caster.x + Math.cos(angle - halfRad) * minR, caster.y + Math.sin(angle - halfRad) * minR);
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.15)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.restore();
-    },
-
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,

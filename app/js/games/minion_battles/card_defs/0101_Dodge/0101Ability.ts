@@ -93,42 +93,6 @@ export const DodgeAbility: AbilityStatic = {
         caster.moveUnit(target.position.x, target.position.y, distance);
     },
 
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(139, 0, 0, 0.7)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([8, 4]);
-        ctx.beginPath();
-        ctx.moveTo(caster.x, caster.y);
-
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > DODGE_MAX_DISTANCE) {
-            const ratio = DODGE_MAX_DISTANCE / dist;
-            ctx.lineTo(caster.x + dx * ratio, caster.y + dy * ratio);
-        } else {
-            ctx.lineTo(mouseWorld.x, mouseWorld.y);
-        }
-        ctx.stroke();
-        ctx.restore();
-
-        const endX = dist > DODGE_MAX_DISTANCE ? caster.x + (dx / dist) * DODGE_MAX_DISTANCE : mouseWorld.x;
-        const endY = dist > DODGE_MAX_DISTANCE ? caster.y + (dy / dist) * DODGE_MAX_DISTANCE : mouseWorld.y;
-        ctx.save();
-        ctx.strokeStyle = 'rgba(200, 200, 200, 0.9)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(endX, endY, 6, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-    },
-
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
         // Dodge has no attack that can be blocked.
     },

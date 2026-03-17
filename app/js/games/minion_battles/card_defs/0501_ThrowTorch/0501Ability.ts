@@ -123,36 +123,6 @@ export const ThrowTorchAbility: AbilityStatic = {
         // Not an attack; no block behaviour.
     },
 
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void {
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxR = getMaxRange(caster);
-        const endX = dist > maxR ? caster.x + (dx / dist) * maxR : mouseWorld.x;
-        const endY = dist > maxR ? caster.y + (dy / dist) * maxR : mouseWorld.y;
-
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 180, 80, 0.8)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(caster.x, caster.y);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(endX, endY, 12, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 200, 100, 0.9)';
-        ctx.fillStyle = 'rgba(255, 150, 50, 0.3)';
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-    },
-
     renderTargetingPreview: createPixelTargetPreview(MAX_RANGE),
 };
 

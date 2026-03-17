@@ -110,32 +110,6 @@ export const EnemyArcherShotAbility: AbilityStatic = {
         }
     },
 
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(120, 80, 40, 0.6)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.moveTo(caster.x, caster.y);
-
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > MAX_DISTANCE) {
-            const ratio = MAX_DISTANCE / dist;
-            ctx.lineTo(caster.x + dx * ratio, caster.y + dy * ratio);
-        } else {
-            ctx.lineTo(mouseWorld.x, mouseWorld.y);
-        }
-        ctx.stroke();
-        ctx.restore();
-    },
-
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,

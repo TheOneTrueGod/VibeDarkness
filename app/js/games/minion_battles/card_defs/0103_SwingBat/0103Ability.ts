@@ -201,59 +201,6 @@ export const SwingBatAbility: AbilityStatic = {
         );
     },
 
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void {
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        const line = getPerpendicularLine(caster, mouseWorld, minR, maxR);
-        const half = LINE_THICKNESS / 2;
-        const offX = line.aimDirX * half;
-        const offY = line.aimDirY * half;
-
-        ctx.save();
-        ctx.strokeStyle = 'rgba(120, 120, 120, 0.8)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.arc(caster.x, caster.y, maxR, 0, Math.PI * 2);
-        ctx.stroke();
-        if (minR > 0) {
-            ctx.beginPath();
-            ctx.arc(caster.x, caster.y, minR, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        ctx.setLineDash([]);
-
-        const x0 = line.leftX + offX;
-        const y0 = line.leftY + offY;
-        const x1 = line.leftX - offX;
-        const y1 = line.leftY - offY;
-        const x2 = line.rightX - offX;
-        const y2 = line.rightY - offY;
-        const x3 = line.rightX + offX;
-        const y3 = line.rightY + offY;
-
-        const gradient = ctx.createLinearGradient(line.leftX, line.leftY, line.rightX, line.rightY);
-        gradient.addColorStop(0, 'rgba(100, 100, 115, 0.55)');
-        gradient.addColorStop(1, 'rgba(200, 200, 215, 0.7)');
-        ctx.fillStyle = gradient;
-        ctx.strokeStyle = 'rgba(80, 80, 80, 0.9)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.lineTo(x3, y3);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-    },
-
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
         // Melee blocked: no additional behaviour.
     },

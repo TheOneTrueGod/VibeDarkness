@@ -59,8 +59,8 @@ Both live in the same file. Export the ability for `AbilityRegistry` and the car
    - Runs every tick while the ability is active for a unit using this card.
    - Use `prevTime` and `currentTime` (seconds since start) for one-shot effects (e.g. fire at `currentTime >= prefireTime`). See `ThrowKnife` in `abilities/ThrowKnife.ts` for a threshold example.
 
-2. **`renderPreview(ctx, caster, currentTargets, mouseWorld)`**
-   - Draws a hint on the canvas for where the skill will affect (range, area, line, etc.).
+2. **`renderTargetingPreview(gr, caster, currentTargets, mouseWorld, units)`**
+   - Draws a hint in the targeting overlay for where the skill will affect (range, area, line, etc.).
    - Called each frame while the player is choosing targets.
 
 Implement the rest of `AbilityStatic` (e.g. `getDescription`, `getAbilityStates`, `targets`, `prefireTime`, `cooldownTime`, `resourceCost`, `rechargeTurns`, `image`, `aiSettings` as needed). Use existing abilities under `abilities/` and `card_defs/` as reference.
@@ -129,7 +129,7 @@ targetUnit.applyKnockback(
 - [ ] Folder `card_defs/####_ABILITY_NAME` and file `####Ability.ts` created.
 - [ ] Ability ID uses group (2 digits) + index (2 digits); group from `AbilityGroupId` (or shared enum).
 - [ ] Same file exports both the ability and the `CardDef` with matching `id` / `abilityId`.
-- [ ] `doCardEffect` implements per-tick behavior; `renderPreview` draws targeting hint.
+- [ ] `doCardEffect` implements per-tick behavior; `renderTargetingPreview` draws targeting hint.
 - [ ] Ability registered in `AbilityRegistry.ts`; card def registered in `card_defs/index.ts`.
 - [ ] Character’s card list (e.g. in `character_defs/characters.ts`) includes the new card id if the character should have the card.
 - [ ] If the ability inflicts knockback: call `targetUnit.applyKnockback(poiseDamage, params, eventBus)` with serializable params; when it hits an enemy, attempt a poise check (pass `poiseDamage > 0` so the target can resist if it has Poise HP).

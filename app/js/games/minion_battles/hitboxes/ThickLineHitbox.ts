@@ -36,47 +36,6 @@ function pointToSegmentDistance(
 
 export abstract class ThickLineHitbox extends Hitbox {
     /**
-     * Draw range ring and thick line from caster to clamped target (lighter fill, darker stroke).
-     */
-    static override renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: HitboxPreviewCaster,
-        mouseWorld: { x: number; y: number },
-        maxRange: number,
-        lineThickness: number,
-    ): void {
-        const { endX, endY } = clampToMaxRange(caster, mouseWorld, maxRange);
-        ctx.save();
-        ctx.strokeStyle = 'rgba(120, 120, 120, 0.8)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.arc(caster.x, caster.y, maxRange, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        const dx = endX - caster.x;
-        const dy = endY - caster.y;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        if (len > 0) {
-            const half = lineThickness / 2;
-            const px = (-dy / len) * half;
-            const py = (dx / len) * half;
-            ctx.fillStyle = 'rgba(160, 160, 160, 0.5)';
-            ctx.strokeStyle = 'rgba(80, 80, 80, 0.9)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(caster.x + px, caster.y + py);
-            ctx.lineTo(caster.x - px, caster.y - py);
-            ctx.lineTo(endX - px, endY - py);
-            ctx.lineTo(endX + px, endY + py);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
-
-    /**
      * Draw thick line from caster to clamped target on Pixi Graphics (for renderTargetingPreview).
      */
     static renderTargetingPreview(

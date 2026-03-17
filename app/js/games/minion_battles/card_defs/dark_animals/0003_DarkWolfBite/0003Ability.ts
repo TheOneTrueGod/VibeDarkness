@@ -228,36 +228,6 @@ export const DarkWolfBiteAbility: AbilityStatic = {
         }
     },
 
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void {
-        const maxR = getMaxRange(caster);
-        ctx.save();
-        ctx.strokeStyle = 'rgba(150, 100, 150, 0.7)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.arc(caster.x, caster.y, maxR, 0, Math.PI * 2);
-        ctx.stroke();
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 0) {
-            const ux = dx / dist;
-            const uy = dy / dist;
-            const endX = caster.x + ux * maxR;
-            const endY = caster.y + uy * maxR;
-            ctx.beginPath();
-            ctx.moveTo(caster.x, caster.y);
-            ctx.lineTo(endX, endY);
-            ctx.stroke();
-        }
-        ctx.restore();
-    },
-
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,

@@ -1,7 +1,7 @@
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import { createConeTargetPreview } from '../../abilities/previewHelpers';
+import { createConeTargetPreview, drawClampedLine } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import { asCardDefId, type CardDef } from '../types';
@@ -91,50 +91,6 @@ export const PistolAbility: AbilityStatic = {
         }
     },
 
-    renderPreview(
-        ctx: CanvasRenderingContext2D,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-    ): void {
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxR = MAX_DISTANCE;
-        const clampedDist = dist > maxR ? maxR : dist;
-        const dirX = dist > 0 ? dx / dist : 1;
-        const dirY = dist > 0 ? dy / dist : 0;
-        const endX = caster.x + dirX * clampedDist;
-        const endY = caster.y + dirY * clampedDist;
-
-        const inaccuracy = getDistanceBasedInaccuracy(dist, INACCURACY_BASE);
-        const baseAngle = Math.atan2(dirY, dirX);
-        const leftAngle = baseAngle - inaccuracy;
-        const rightAngle = baseAngle + inaccuracy;
-        const leftEndX = caster.x + Math.cos(leftAngle) * clampedDist;
-        const leftEndY = caster.y + Math.sin(leftAngle) * clampedDist;
-        const rightEndX = caster.x + Math.cos(rightAngle) * clampedDist;
-        const rightEndY = caster.y + Math.sin(rightAngle) * clampedDist;
-
-        ctx.save();
-        ctx.strokeStyle = 'rgba(192, 192, 192, 0.8)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(caster.x, caster.y);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(caster.x, caster.y);
-        ctx.lineTo(leftEndX, leftEndY);
-        ctx.moveTo(caster.x, caster.y);
-        ctx.lineTo(rightEndX, rightEndY);
-        ctx.strokeStyle = 'rgba(192, 192, 192, 0.6)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.restore();
-    },
-
     renderTargetingPreview: createConeTargetPreview({
         maxDistance: MAX_DISTANCE,
         getHalfAngle(caster, mouseWorld) {
@@ -144,6 +100,19 @@ export const PistolAbility: AbilityStatic = {
             return getDistanceBasedInaccuracy(dist, INACCURACY_BASE);
         },
     }),
+
+    renderTargetingPreviewSelectedTargets(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        currentTargets: ResolvedTarget[],
+        _mouseWorld: { x: number; y: number },
+        _units: Unit[],
+    ): void {
+        for (const target of currentTargets) {
+            if (!target || target.type !== 'pixel' || !target.position) continue;
+            drawClampedLine(gr, caster, target.position, MAX_DISTANCE);
+        }
+    },
 };
 
 export const PistolCard: CardDef = {
