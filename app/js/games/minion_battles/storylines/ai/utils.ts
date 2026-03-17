@@ -197,18 +197,24 @@ export function applyAIMovementToPosition(params: ApplyAIMovementParams): void {
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist === 0) return;
 
+    // Apply moveJitter to walking angle: 0.5 = straight, 0 = -π/16, 1 = +π/16
+    const angleToTarget = Math.atan2(dy, dx);
+    const jitterOffset = ((unit.moveJitter ?? 0.5) - 0.5) * (Math.PI / 4);
+    const angledDirX = Math.cos(angleToTarget + jitterOffset);
+    const angledDirY = Math.sin(angleToTarget + jitterOffset);
+
     const idealRange = (ai.minRange + ai.maxRange) / 2;
     let destX: number;
     let destY: number;
 
     if (dist > ai.maxRange) {
         const moveToDistance = dist - idealRange;
-        destX = unit.x + (dx / dist) * moveToDistance;
-        destY = unit.y + (dy / dist) * moveToDistance;
+        destX = unit.x + angledDirX * moveToDistance;
+        destY = unit.y + angledDirY * moveToDistance;
     } else if (dist < ai.minRange) {
         const retreatDistance = idealRange - dist;
-        destX = unit.x - (dx / dist) * retreatDistance;
-        destY = unit.y - (dy / dist) * retreatDistance;
+        destX = unit.x - angledDirX * retreatDistance;
+        destY = unit.y - angledDirY * retreatDistance;
     } else {
         return; // already in range
     }
