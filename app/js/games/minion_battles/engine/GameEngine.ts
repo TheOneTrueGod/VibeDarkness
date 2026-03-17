@@ -766,6 +766,10 @@ export class GameEngine {
         const unit = this.getUnit(order.unitId);
         if (!unit || !unit.isAlive()) return;
 
+        // Any new order clears previous wait timing constraints.
+        unit.waitMinEndTime = null;
+        unit.waitMaxEndTime = null;
+
         // Apply movement from grid-cell path
         if (order.movePath !== undefined && order.movePath !== null && order.movePath.length > 0) {
             unit.setMovement(order.movePath, undefined, this.gameTick);
@@ -773,9 +777,14 @@ export class GameEngine {
             unit.clearMovement();
         }
 
-        // Wait action: do nothing, just set a 1s cooldown
+        // Wait action: do nothing, but apply a cooldown that lasts
+        // a minimum of 1 second and a maximum of 3 seconds.
+        // The cooldown can end early (after the 1s minimum) once the unit
+        // finishes its movement path.
         if (order.abilityId === 'wait') {
-            unit.startCooldown(1);
+            unit.startCooldown(3);
+            unit.waitMinEndTime = this.gameTime + 1;
+            unit.waitMaxEndTime = this.gameTime + 3;
             return;
         }
 

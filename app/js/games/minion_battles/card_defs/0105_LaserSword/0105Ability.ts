@@ -25,7 +25,6 @@ const PREFIRE_TIME = 0.2;
 const BASE_MIN_RANGE = 0;
 const BASE_MAX_RANGE = 56;
 const DAMAGE = 20;
-const SLASH_EFFECT_DURATION = 0.4;
 const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
 const POISE_DAMAGE = 20;
@@ -155,16 +154,7 @@ export const LaserSwordAbility: AbilityStatic = {
             LINE_THICKNESS,
         );
 
-        // Always play slashing sword effect and trail (same animation whether we hit or not).
-        eng.addEffect(new Effect({
-            x: line.rightX,
-            y: line.rightY,
-            duration: SLASH_EFFECT_DURATION,
-            effectType: 'SlashingSword',
-            startX: line.leftX,
-            startY: line.leftY,
-        }));
-
+        // Always play slash trail (same animation whether we hit or not).
         eng.addEffect(new Effect({
             x: line.leftX,
             y: line.leftY,

@@ -133,6 +133,10 @@ export class Unit extends GameObject {
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;
 
+    /** When using the "wait" action: earliest and latest gameTime (seconds) when the cooldown can end. */
+    waitMinEndTime: number | null = null;
+    waitMaxEndTime: number | null = null;
+
     /** Darkness corruption progress 0..1. Fills in 1s when in full darkness or the tier below, drains in 1s when not. At 1: deal 5 damage (full darkness) or 2 (tier below) and reset. */
     corruptionProgress: number = 0;
 
@@ -331,9 +335,24 @@ export class Unit extends GameObject {
     }
 
     update(dt: number, engine: unknown): void {
+        const gameTime = (engine as { gameTime: number }).gameTime;
+
         // Decrement cooldown
         if (this.cooldownRemaining > 0) {
             this.cooldownRemaining = Math.max(0, this.cooldownRemaining - dt);
+        }
+
+        // Wait action: enforce minimum and maximum wait duration, and allow early end when movement finishes.
+        if (this.waitMinEndTime !== null && this.waitMaxEndTime !== null) {
+            const reachedMovementTarget = !this.movement;
+            const afterMin = gameTime >= this.waitMinEndTime;
+            const afterMax = gameTime >= this.waitMaxEndTime;
+
+            if (afterMax || (afterMin && reachedMovementTarget)) {
+                this.cooldownRemaining = 0;
+                this.waitMinEndTime = null;
+                this.waitMaxEndTime = null;
+            }
         }
 
         const terrainManager = (engine as { terrainManager?: TerrainManager }).terrainManager ?? null;
@@ -348,16 +367,19 @@ export class Unit extends GameObject {
         // Move along grid path
         if (!this.isAlive() || !this.movement || this.movement.path.length === 0) return;
 
-        const gameTime = (engine as { gameTime: number }).gameTime;
-
-        // Target: center of the next grid cell in the path
+        // Target: jittered position around the center of the next grid cell in the path
         const nextCell = this.movement.path[0];
-        const targetX = nextCell.col * CELL_SIZE + CELL_SIZE / 2;
-        const targetY = nextCell.row * CELL_SIZE + CELL_SIZE / 2;
+        const centerX = nextCell.col * CELL_SIZE + CELL_SIZE / 2;
+        const centerY = nextCell.row * CELL_SIZE + CELL_SIZE / 2;
 
-        const dx = targetX - this.x;
-        const dy = targetY - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        // Movement jitter: deterministic per-unit offset so multiple units in the same tile stand on different pixels.
+        const jitterAngle = (this.moveJitter ?? 0) * Math.PI * 2;
+        const jitterRadius = CELL_SIZE * 0.15;
+        const jitterX = Math.cos(jitterAngle) * jitterRadius;
+        const jitterY = Math.sin(jitterAngle) * jitterRadius;
+
+        const targetX = centerX + jitterX;
+        const targetY = centerY + jitterY;
 
         // Compute effective speed: base × ability penalties × terrain modifier
         let effectiveSpeed = this.getEffectiveSpeed(gameTime);
@@ -370,20 +392,26 @@ export class Unit extends GameObject {
             effectiveSpeed *= 10;
         }
 
-        // Move toward the next cell center
+        // Move toward the jittered target within the tile
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
         const step = effectiveSpeed * dt;
-        if (step >= dist) {
+        if (dist <= step) {
             this.x = targetX;
             this.y = targetY;
-        } else {
+        } else if (dist > 0) {
             this.x += (dx / dist) * step;
             this.y += (dy / dist) * step;
         }
 
-        // Check if we've entered the front cell's grid coordinate
-        const currentCol = Math.floor(this.x / CELL_SIZE);
-        const currentRow = Math.floor(this.y / CELL_SIZE);
-        if (currentCol === nextCell.col && currentRow === nextCell.row) {
+        // Only advance the path when we've effectively reached the jittered target position
+        const remainingDx = targetX - this.x;
+        const remainingDy = targetY - this.y;
+        const remainingDistSq = remainingDx * remainingDx + remainingDy * remainingDy;
+        const EPSILON = 1; // 1px tolerance
+        if (remainingDistSq <= EPSILON * EPSILON) {
             this.movement.path.shift();
             if (this.movement.path.length === 0) {
                 this.movement = null;
@@ -546,6 +574,8 @@ export class Unit extends GameObject {
             pathInvalidated: this.pathInvalidated,
             aiContext: this.aiContext,
             moveJitter: this.moveJitter,
+            waitMinEndTime: this.waitMinEndTime,
+            waitMaxEndTime: this.waitMaxEndTime,
             poiseHp: this.poiseHp,
             maxPoiseHp: this.maxPoiseHp,
             knockback: this.knockback ? {
@@ -597,6 +627,8 @@ export class Unit extends GameObject {
         unit.pathInvalidated = (data.pathInvalidated as boolean) ?? false;
         unit.aiContext = ((data.aiContext as UnitAIContext) ?? {}) as UnitAIContext;
         unit.moveJitter = (data.moveJitter as number) ?? 0;
+        unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
+        unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;
         unit.poiseHp = (data.poiseHp as number) ?? 0;
         unit.maxPoiseHp = (data.maxPoiseHp as number) ?? 0;
         unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));
