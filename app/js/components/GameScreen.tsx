@@ -46,6 +46,8 @@ export interface GameComponentProps {
     onTryAgain?: (missionId: string) => Promise<void>;
     /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: MessageEntry) => void;
+    /** Called when the game is about to enter battle so the lobby UI can switch immediately. */
+    onBattleStartStatusChange?: (starting: boolean) => void;
 }
 
 interface GameScreenProps {
@@ -107,12 +109,14 @@ export default function GameScreen({
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
     const [gameLoadError, setGameLoadError] = useState<string | null>(null);
     const [gameSidebarInfo, setGameSidebarInfo] = useState<GameSidebarInfo | null>(null);
+    const [battlePlayerListHidden, setBattlePlayerListHidden] = useState(false);
 
     // Load game component dynamically when game type changes
     useEffect(() => {
         if (lobbyPageState !== 'in_game' || !lobbyGameType) {
             setGameComp(null);
             setGameLoadError(null);
+            setBattlePlayerListHidden(false);
             return;
         }
 
@@ -142,6 +146,10 @@ export default function GameScreen({
             cancelled = true;
         };
     }, [lobbyPageState, lobbyGameType]);
+
+    useEffect(() => {
+        setBattlePlayerListHidden(false);
+    }, [lobbyGameId, lobbyGameType]);
 
     const isHost = player.isHost ?? false;
     const isMobileOrTablet = useIsMobileOrTablet();
@@ -261,6 +269,12 @@ export default function GameScreen({
         </div>
     );
 
+    const shouldHideBattlePlayerList =
+        lobbyPageState === 'in_game' &&
+        lobbyGameType === 'minion_battles' &&
+        (battlePlayerListHidden ||
+            (lobbyGameData?.gamePhase ?? lobbyGameData?.game_phase) === 'battle');
+
     return (
         <div className="flex h-screen max-md:flex-col">
             {/* Main Game Area */}
@@ -326,6 +340,7 @@ export default function GameScreen({
                                     onLeave={onLeave}
                                     onTryAgain={onTryAgain}
                                     onEmittedChatMessage={onEmittedChatMessage}
+                                    onBattleStartStatusChange={setBattlePlayerListHidden}
                                 />
                             ) : (
                                 <p className="text-muted">Loading game...</p>
@@ -338,9 +353,7 @@ export default function GameScreen({
                 </div>
 
                 {/* Player List (hidden during battle phase in minion_battles) */}
-                {!(lobbyPageState === 'in_game' &&
-                    lobbyGameType === 'minion_battles' &&
-                    (lobbyGameData?.gamePhase ?? lobbyGameData?.game_phase) === 'battle') && (
+                {!shouldHideBattlePlayerList && (
                     <PlayerList
                         players={players}
                         currentPlayerId={player.id}

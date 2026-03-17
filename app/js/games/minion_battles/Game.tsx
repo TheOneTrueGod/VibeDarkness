@@ -52,6 +52,8 @@ interface MinionBattlesGameProps {
     onTryAgain?: (missionId: string) => Promise<void>;
     /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: import('../../components/Chat').MessageEntry) => void;
+    /** Called when the game is about to switch from pre-battle story into battle. */
+    onBattleStartStatusChange?: (starting: boolean) => void;
 }
 
 export default function MinionBattlesGame({
@@ -68,6 +70,7 @@ export default function MinionBattlesGame({
     onLeave,
     onTryAgain,
     onEmittedChatMessage,
+    onBattleStartStatusChange,
 }: MinionBattlesGameProps) {
     const { showToast } = useToast();
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
@@ -272,6 +275,7 @@ export default function MinionBattlesGame({
                             | undefined
                     }
                     onPhaseChange={handlePhaseChange}
+                    onBattleStartStatusChange={onBattleStartStatusChange}
                 />
             )}
             {gamePhase === 'battle' && (

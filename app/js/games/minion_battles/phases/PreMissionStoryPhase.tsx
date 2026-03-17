@@ -37,6 +37,8 @@ interface PreMissionStoryPhaseProps {
     /** Votes per group vote (voteId -> playerId -> optionId); synced from server. */
     groupVoteVotes?: Record<string, Record<string, string>>;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
+    /** Lets the lobby UI hide battle-only chrome immediately when Start Game is clicked. */
+    onBattleStartStatusChange?: (starting: boolean) => void;
 }
 
 function isDialogue(phrase: PreMissionPhrase | undefined): phrase is DialoguePhrase {
@@ -68,6 +70,7 @@ export default function PreMissionStoryPhase({
     playerEquipmentByPlayer,
     groupVoteVotes = {},
     onPhaseChange,
+    onBattleStartStatusChange,
 }: PreMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
     const [backgroundImage, setBackgroundImage] = useState<string | undefined>();
@@ -133,6 +136,7 @@ export default function PreMissionStoryPhase({
     }, [advancePhrase, currentPhrase, isHost, lobbyClient, lobbyId, missionId, phraseIndex, playerId]);
 
     const handleStartGame = useCallback(async () => {
+        onBattleStartStatusChange?.(true);
         try {
             const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
                 gamePhase: 'battle',
@@ -142,9 +146,10 @@ export default function PreMissionStoryPhase({
             });
             onPhaseChange?.('battle', newGameState as Record<string, unknown>);
         } catch (error) {
+            onBattleStartStatusChange?.(false);
             console.error('Failed to start game:', error);
         }
-    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange]);
+    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, onBattleStartStatusChange]);
 
     const handleChoice = useCallback(
         async (choiceId: string, optionId: string, option?: { action?: { type: string; itemId?: string } }) => {
