@@ -25,6 +25,8 @@ class PlayerAccount
     private array $campaignIds;
     /** @var string[] Character IDs (campaign characters) owned by this account */
     private array $characterIds;
+    /** @var string[] Item IDs owned by this account. */
+    private array $inventoryItemIds;
 
     public function __construct(
         int $id,
@@ -37,7 +39,8 @@ class PlayerAccount
         int $air,
         array $recentLobbies = [],
         array $campaignIds = [],
-        array $characterIds = []
+        array $characterIds = [],
+        array $inventoryItemIds = []
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -50,6 +53,7 @@ class PlayerAccount
         $this->recentLobbies = $recentLobbies;
         $this->campaignIds = $campaignIds;
         $this->characterIds = $characterIds;
+        $this->inventoryItemIds = array_values($inventoryItemIds);
     }
 
     public function getRecentLobbies(): array
@@ -92,6 +96,12 @@ class PlayerAccount
         return $this->characterIds;
     }
 
+    /** @return string[] */
+    public function getInventoryItemIds(): array
+    {
+        return $this->inventoryItemIds;
+    }
+
     public function addCharacterId(string $characterId): void
     {
         $id = trim($characterId);
@@ -114,6 +124,15 @@ class PlayerAccount
             $this->characterIds,
             fn (string $cid) => $cid !== $id
         ));
+    }
+
+    public function addInventoryItemId(string $itemId): void
+    {
+        $id = trim($itemId);
+        if ($id === '') {
+            return;
+        }
+        $this->inventoryItemIds[] = $id;
     }
 
     public function getId(): int
@@ -183,6 +202,7 @@ class PlayerAccount
             'recentLobbies' => array_values($this->recentLobbies),
             'campaignIds' => array_values($this->campaignIds),
             'characterIds' => array_values($this->characterIds),
+            'inventoryItemIds' => array_values($this->inventoryItemIds),
         ];
     }
 
@@ -207,6 +227,8 @@ class PlayerAccount
         $campaignIds = is_array($campaignIds) ? array_values(array_map('strval', $campaignIds)) : [];
         $characterIds = $data['characterIds'] ?? [];
         $characterIds = is_array($characterIds) ? array_values(array_map('strval', $characterIds)) : [];
+        $inventoryItemIds = $data['inventoryItemIds'] ?? $data['inventoryItems'] ?? [];
+        $inventoryItemIds = is_array($inventoryItemIds) ? array_values(array_map('strval', $inventoryItemIds)) : [];
         return new self(
             (int) $data['id'],
             $data['name'],
@@ -218,7 +240,8 @@ class PlayerAccount
             (int) ($data['air'] ?? 0),
             $recent,
             $campaignIds,
-            $characterIds
+            $characterIds,
+            $inventoryItemIds
         );
     }
 

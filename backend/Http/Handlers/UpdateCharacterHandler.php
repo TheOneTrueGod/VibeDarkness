@@ -4,6 +4,7 @@ namespace App\Http\Handlers;
 
 use App\CharacterManager;
 use App\AccountService;
+use App\PlayerAccount;
 use App\SessionHelper;
 
 class UpdateCharacterHandler
@@ -36,7 +37,13 @@ class UpdateCharacterHandler
             return ['success' => false, 'error' => 'Character not found'];
         }
 
-        if ($character->getOwnerAccountId() !== $accountId) {
+        $account = $accountService->getAccountById($accountId);
+        if ($account === null) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Account not found'];
+        }
+
+        if ($character->getOwnerAccountId() !== $accountId && $account->getRole() !== PlayerAccount::ROLE_ADMIN) {
             http_response_code(403);
             return ['success' => false, 'error' => 'Not your character'];
         }

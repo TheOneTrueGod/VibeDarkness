@@ -15,7 +15,7 @@ import type { CampaignCharacterData } from '../character_defs/campaignCharacterT
 import { getPortrait } from '../character_defs/portraits';
 import CharacterCreator from '../components/CharacterCreator';
 import CharacterEditor from '../components/CharacterEditor';
-import PlayerPill from '../../../components/PlayerPill';
+import AdminPlayersPanel from '../components/AdminPlayersPanel';
 
 interface CharacterSelectPhaseProps {
     lobbyClient: LobbyClient;
@@ -67,6 +67,17 @@ export default function CharacterSelectPhase({
     const [creatorOpen, setCreatorOpen] = useState(false);
     const [createCardRef, setCreateCardRef] = useState<HTMLDivElement | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<'characters' | 'players'>('characters');
+
+    useEffect(() => {
+        if (!isAdmin && activeTab === 'players') {
+            setActiveTab('characters');
+        }
+        if (activeTab === 'players') {
+            setEditorOpen(false);
+            setCreatorOpen(false);
+        }
+    }, [activeTab, isAdmin]);
 
     useEffect(() => {
         let cancelled = false;
@@ -280,10 +291,45 @@ export default function CharacterSelectPhase({
     return (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
             <h2 className="text-[32px] font-bold text-center py-5 shrink-0">
-                {editorOpen ? 'Edit character' : 'Select your character'}
+                {activeTab === 'players' && isAdmin
+                    ? 'Players'
+                    : editorOpen && characterToEdit
+                      ? 'Edit character'
+                      : 'Select your character'}
             </h2>
 
-            {editorOpen && characterToEdit ? (
+            <div className="flex gap-2 px-5 pb-4 shrink-0">
+                <button
+                    type="button"
+                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        activeTab === 'characters'
+                            ? 'border-primary bg-surface-light text-white'
+                            : 'border-border-custom bg-surface text-muted hover:text-white hover:border-primary'
+                    }`}
+                    onClick={() => setActiveTab('characters')}
+                >
+                    Characters
+                </button>
+                {isAdmin && (
+                    <button
+                        type="button"
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                            activeTab === 'players'
+                                ? 'border-primary bg-surface-light text-white'
+                                : 'border-border-custom bg-surface text-muted hover:text-white hover:border-primary'
+                        }`}
+                        onClick={() => setActiveTab('players')}
+                    >
+                        Players
+                    </button>
+                )}
+            </div>
+
+            {activeTab === 'players' && isAdmin ? (
+                <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
+                    <AdminPlayersPanel lobbyClient={lobbyClient} players={players} />
+                </div>
+            ) : editorOpen && characterToEdit ? (
                 <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
                     <CharacterEditor
                         character={characterToEdit}
@@ -297,10 +343,7 @@ export default function CharacterSelectPhase({
                 <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
                     <div className="grid grid-cols-[repeat(auto-fill,200px)] justify-center gap-6">
                         {/* Create Character card - top left (first in list) */}
-                        <CreateCharacterCard
-                            ref={setCreateCardRef}
-                            onClick={() => setCreatorOpen(true)}
-                        />
+                        <CreateCharacterCard ref={setCreateCardRef} onClick={() => setCreatorOpen(true)} />
                         {charactersLoading ? (
                             <div className="w-[200px] h-[200px] flex items-center justify-center text-gray-400">
                                 Loading…
@@ -336,46 +379,48 @@ export default function CharacterSelectPhase({
                 />
             )}
 
-            <div className="flex justify-center gap-4 py-4 px-5 shrink-0 border-t border-border-custom">
-                {editorOpen ? (
-                    <button
-                        type="button"
-                        className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
-                        onClick={() => setEditorOpen(false)}
-                    >
-                        Back
-                    </button>
-                ) : (
-                    <>
-                        {mySelection && characterToEdit && (
-                            <button
-                                type="button"
-                                className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
-                                onClick={() => setEditorOpen(true)}
-                            >
-                                Edit Character
-                            </button>
-                        )}
-                        {mySelection && (
-                            <button
-                                type="button"
-                                disabled={amReady}
-                                className={`px-8 py-3 text-lg font-bold rounded-lg transition-colors shadow-lg ${
-                                    amReady
-                                        ? 'bg-green-600 text-white cursor-default'
-                                        : 'bg-primary text-secondary hover:opacity-90 cursor-pointer'
-                                }`}
-                                onClick={handleSetReady}
-                            >
-                                {amReady ? 'Ready' : 'Ready'}
-                            </button>
-                        )}
-                        {allSelected && allReady && (
-                            <p className="text-muted py-2">All ready! Proceeding...</p>
-                        )}
-                    </>
-                )}
-            </div>
+            {activeTab !== 'players' && (
+                <div className="flex justify-center gap-4 py-4 px-5 shrink-0 border-t border-border-custom">
+                    {editorOpen ? (
+                        <button
+                            type="button"
+                            className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
+                            onClick={() => setEditorOpen(false)}
+                        >
+                            Back
+                        </button>
+                    ) : (
+                        <>
+                            {mySelection && characterToEdit && (
+                                <button
+                                    type="button"
+                                    className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
+                                    onClick={() => setEditorOpen(true)}
+                                >
+                                    Edit Character
+                                </button>
+                            )}
+                            {mySelection && (
+                                <button
+                                    type="button"
+                                    disabled={amReady}
+                                    className={`px-8 py-3 text-lg font-bold rounded-lg transition-colors shadow-lg ${
+                                        amReady
+                                            ? 'bg-green-600 text-white cursor-default'
+                                            : 'bg-primary text-secondary hover:opacity-90 cursor-pointer'
+                                    }`}
+                                    onClick={handleSetReady}
+                                >
+                                    {amReady ? 'Ready' : 'Ready'}
+                                </button>
+                            )}
+                            {allSelected && allReady && (
+                                <p className="text-muted py-2">All ready! Proceeding...</p>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

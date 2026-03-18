@@ -32,12 +32,18 @@ export class Camera {
         this.y = worldHeight / 2;
     }
 
+    /** Update the local focus target used for auto-follow. */
+    setFocusTarget(targetX: number, targetY: number, targetRadius: number = 0): void {
+        this.clamp();
+    }
+
     /**
      * When the focused unit leaves the ideal area (center 1/4 of the screen), smoothly
      * animates the camera until that unit is centered again. If the unit is inside the
      * dead zone, the camera does not pan.
      */
-    centerOn(targetX: number, targetY: number): void {
+    centerOn(targetX: number, targetY: number, targetRadius: number = 0): void {
+        this.setFocusTarget(targetX, targetY, targetRadius);
         const screen = this.worldToScreen(targetX, targetY);
         const deadZoneLeft = this.viewportWidth * 0.25;
         const deadZoneRight = this.viewportWidth * 0.75;
@@ -67,31 +73,35 @@ export class Camera {
     }
 
     /** Immediately snap the camera to a world position. */
-    snapTo(targetX: number, targetY: number): void {
+    snapTo(targetX: number, targetY: number, targetRadius: number = 0): void {
         this.x = targetX;
         this.y = targetY;
         this.clamp();
     }
 
+    /** Move the camera by a world-space delta and keep the focused unit visible. */
+    panBy(deltaX: number, deltaY: number): void {
+        this.x += deltaX;
+        this.y += deltaY;
+        this.clamp();
+    }
+
     /**
-     * Clamp camera so it doesn't show outside the world bounds.
-     * When the viewport is smaller than the world, camera stays so no world outside [0, worldW/H] is visible.
-     * When the viewport is larger than the world, we still follow the player and only clamp so the camera
-     * center stays within [0, worldW/H]; empty space may show on the sides so the character stays in view.
+     * Clamp camera so the camera center stays inside the world bounds.
      */
     private clamp(): void {
-        const halfW = this.viewportWidth / 2;
-        const halfH = this.viewportHeight / 2;
-        if (this.viewportWidth >= this.worldWidth) {
-            this.x = Math.max(0, Math.min(this.worldWidth, this.x));
-        } else {
-            this.x = Math.max(halfW, Math.min(this.worldWidth - halfW, this.x));
-        }
-        if (this.viewportHeight >= this.worldHeight) {
-            this.y = Math.max(0, Math.min(this.worldHeight, this.y));
-        } else {
-            this.y = Math.max(halfH, Math.min(this.worldHeight - halfH, this.y));
-        }
+        const worldMinX = 0;
+        const worldMaxX = this.worldWidth;
+        const worldMinY = 0;
+        const worldMaxY = this.worldHeight;
+
+        this.x = this.clampValue(this.x, worldMinX, worldMaxX);
+        this.y = this.clampValue(this.y, worldMinY, worldMaxY);
+    }
+
+    private clampValue(value: number, min: number, max: number): number {
+        if (min > max) return value;
+        return Math.max(min, Math.min(max, value));
     }
 
     /** Convert a world-space coordinate to screen-space. */

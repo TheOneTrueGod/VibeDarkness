@@ -25,6 +25,7 @@ export interface AccountState {
     air: number;
     recentLobbies?: string[];
     campaignIds?: string[];
+    inventoryItemIds?: string[];
 }
 
 export interface CampaignCharacter {

@@ -25,6 +25,10 @@ interface CharacterEditorProps {
     onClose?: () => void;
     /** Whether equipment editing is enabled. Defaults to false. */
     editMode?: boolean;
+    /** Optional inventory to display and drag from; defaults to the standard player inventory. */
+    inventoryItems?: string[];
+    /** Whether to render the inventory sidebar. Defaults to true. */
+    showInventoryPanel?: boolean;
 }
 
 type EditorTab = 'equipment';
@@ -54,6 +58,8 @@ export default function CharacterEditor({
     onSaved,
     onClose,
     editMode = false,
+    inventoryItems,
+    showInventoryPanel = true,
 }: CharacterEditorProps) {
     const portraitIds = useMemo(() => getPortraitIds(), []);
     const totalPortraits = portraitIds.length;
@@ -117,9 +123,12 @@ export default function CharacterEditor({
         if (pid && pid !== character.portraitId) savePortrait(pid);
     }, [character.portraitId, portraitIds, portraitIndex, savePortrait, totalPortraits]);
 
-    const inventoryItems = useMemo(() => {
+    const visibleInventoryItems = useMemo(() => {
+        if (inventoryItems) {
+            return inventoryItems;
+        }
         return DEFAULT_PLAYER_INVENTORY.filter((id) => !equipment.includes(id));
-    }, [equipment]);
+    }, [equipment, inventoryItems]);
 
     const handleEquipToSlot = useCallback(
         (slot: EquipmentSlotType, itemId: string, slotIndex?: number) => {
@@ -244,45 +253,47 @@ export default function CharacterEditor({
                                 editMode={editMode}
                             />
                         </div>
-                        <div className="w-[280px] shrink-0 border-l border-border-custom p-3 overflow-auto">
-                            {editMode ? (
-                                <>
-                                    <p className="text-xs text-muted mb-2">Inventory — drag onto doll to equip</p>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {inventoryItems.map((id) => {
-                                            const def = getItemDef(id);
-                                            const iconUrl = ITEM_ICON_URLS[id];
-                                            if (!def) return null;
-                                            return (
-                                                <div
-                                                    key={id}
-                                                    draggable
-                                                    onDragStart={(e) => handleDragStartItem(e, id)}
-                                                    onDragEnd={handleDragEnd}
-                                                    className="flex flex-col items-center justify-center p-2 rounded border border-border-custom bg-surface-light cursor-grab active:cursor-grabbing hover:border-primary transition-colors"
-                                                >
-                                                    {iconUrl ? (
-                                                        <img src={iconUrl} alt="" className="w-10 h-10 object-contain" />
-                                                    ) : (
-                                                        <div className="w-10 h-10 flex items-center justify-center text-muted text-xs" />
-                                                    )}
-                                                    <span className="text-[10px] text-gray-300 truncate w-full text-center mt-1">
-                                                        {def.name}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    {saving && (
-                                        <p className="text-xs text-muted mt-2">Saving…</p>
-                                    )}
-                                </>
-                            ) : (
-                                <p className="text-xs text-muted">
-                                    Equipment editing is disabled for your account.
-                                </p>
-                            )}
-                        </div>
+                        {showInventoryPanel && (
+                            <div className="w-[280px] shrink-0 border-l border-border-custom p-3 overflow-auto">
+                                {editMode ? (
+                                    <>
+                                        <p className="text-xs text-muted mb-2">Inventory — drag onto doll to equip</p>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {visibleInventoryItems.map((id) => {
+                                                const def = getItemDef(id);
+                                                const iconUrl = ITEM_ICON_URLS[id];
+                                                if (!def) return null;
+                                                return (
+                                                    <div
+                                                        key={id}
+                                                        draggable
+                                                        onDragStart={(e) => handleDragStartItem(e, id)}
+                                                        onDragEnd={handleDragEnd}
+                                                        className="flex flex-col items-center justify-center p-2 rounded border border-border-custom bg-surface-light cursor-grab active:cursor-grabbing hover:border-primary transition-colors"
+                                                    >
+                                                        {iconUrl ? (
+                                                            <img src={iconUrl} alt="" className="w-10 h-10 object-contain" />
+                                                        ) : (
+                                                            <div className="w-10 h-10 flex items-center justify-center text-muted text-xs" />
+                                                        )}
+                                                        <span className="text-[10px] text-gray-300 truncate w-full text-center mt-1">
+                                                            {def.name}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        {saving && (
+                                            <p className="text-xs text-muted mt-2">Saving…</p>
+                                        )}
+                                    </>
+                                ) : (
+                                    <p className="text-xs text-muted">
+                                        Equipment editing is disabled for your account.
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </>
                 )}
             </div>

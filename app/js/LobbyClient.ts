@@ -96,6 +96,12 @@ interface AccountInfo {
     air: number;
     recentLobbies?: string[];
     campaignIds?: string[];
+    inventoryItemIds?: string[];
+}
+
+interface AdminAccountDetailsResponse {
+    account: AccountInfo;
+    characters: CampaignCharacterPayload[];
 }
 
 interface CreateLobbyResult {
@@ -343,6 +349,25 @@ export class LobbyClient {
             method: 'DELETE',
         });
         return (data.characters as CampaignCharacterPayload[]) ?? [];
+    }
+
+    async getAdminAccountDetails(accountId: number | string): Promise<AdminAccountDetailsResponse> {
+        const data = await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}`);
+        return {
+            account: data.account as AccountInfo,
+            characters: (data.characters as CampaignCharacterPayload[]) ?? [],
+        };
+    }
+
+    async grantAccountItem(accountId: number | string, itemId: string): Promise<AdminAccountDetailsResponse> {
+        const data = await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}/items`, {
+            method: 'POST',
+            body: JSON.stringify({ itemId }),
+        });
+        return {
+            account: data.account as AccountInfo,
+            characters: (data.characters as CampaignCharacterPayload[]) ?? [],
+        };
     }
 
     async updateGameState(

@@ -343,7 +343,7 @@ export default function BattlePhase({
 
             const myUnit = newEngine.getLocalPlayerUnit();
             if (myUnit && cameraRef.current) {
-                cameraRef.current.snapTo(myUnit.x, myUnit.y);
+                cameraRef.current.snapTo(myUnit.x, myUnit.y, myUnit.radius);
             }
             newEngine.start();
         }
@@ -409,7 +409,7 @@ export default function BattlePhase({
         // Snap camera to player's unit
         const myUnit = engine.getLocalPlayerUnit();
         if (myUnit) {
-            camera.snapTo(myUnit.x, myUnit.y);
+            camera.snapTo(myUnit.x, myUnit.y, myUnit.radius);
         }
 
         // Update initial card state

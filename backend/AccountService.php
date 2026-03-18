@@ -118,4 +118,15 @@ class AccountService
         $account->removeCharacterId($characterId);
         $this->storage->save($account);
     }
+
+    /** Add an inventory item ID to the account and persist. */
+    public function addInventoryItemToAccount(int $accountId, string $itemId): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->addInventoryItemId($itemId);
+        $this->storage->save($account);
+    }
 }

@@ -36,6 +36,32 @@ export default function BattleCanvas({
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const initializedRef = useRef(false);
     const rafRef = useRef<number>(0);
+    const dragStateRef = useRef<{
+        pointerId: number;
+        startX: number;
+        startY: number;
+        lastX: number;
+        lastY: number;
+        dragging: boolean;
+    } | null>(null);
+    const suppressClickRef = useRef(false);
+    const autoFollowPausedUntilRef = useRef(0);
+    const resumeAutoFollowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearResumeAutoFollowTimer = useCallback(() => {
+        if (resumeAutoFollowTimerRef.current) {
+            clearTimeout(resumeAutoFollowTimerRef.current);
+            resumeAutoFollowTimerRef.current = null;
+        }
+    }, []);
+
+    const scheduleAutoFollowResume = useCallback(() => {
+        clearResumeAutoFollowTimer();
+        autoFollowPausedUntilRef.current = Date.now() + 5000;
+        resumeAutoFollowTimerRef.current = setTimeout(() => {
+            resumeAutoFollowTimerRef.current = null;
+        }, 5000);
+    }, [clearResumeAutoFollowTimer]);
 
     // Initialize PixiJS
     useEffect(() => {
@@ -55,7 +81,11 @@ export default function BattleCanvas({
                 // Follow local player's unit
                 const playerUnit = engine.getLocalPlayerUnit();
                 if (playerUnit) {
-                    camera.centerOn(playerUnit.x, playerUnit.y);
+                    camera.setFocusTarget(playerUnit.x, playerUnit.y, playerUnit.radius);
+                    const isAutoFollowPaused = Date.now() < autoFollowPausedUntilRef.current;
+                    if (!dragStateRef.current?.dragging && !isAutoFollowPaused) {
+                        camera.centerOn(playerUnit.x, playerUnit.y, playerUnit.radius);
+                    }
                 }
                 const targetingState = targetingStateRef?.current ?? null;
                 renderer.render(engine, camera, targetingState as Parameters<GameRenderer['render']>[2]);
@@ -68,8 +98,9 @@ export default function BattleCanvas({
             if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
             }
+            clearResumeAutoFollowTimer();
         };
-    }, [engine, camera, renderer, targetingStateRef]);
+    }, [engine, camera, renderer, targetingStateRef, clearResumeAutoFollowTimer]);
 
     // Handle resize — only when size crosses a threshold to avoid flicker from small layout changes
     const lastBucketRef = useRef({ wBucket: -1, hBucket: -1 });
@@ -104,16 +135,6 @@ export default function BattleCanvas({
         return () => observer.disconnect();
     }, [renderer, camera]);
 
-    const handleClick = useCallback(
-        (e: React.MouseEvent<HTMLCanvasElement>) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const screenX = e.clientX - rect.left;
-            const screenY = e.clientY - rect.top;
-            onCanvasClick?.(screenX, screenY);
-        },
-        [onCanvasClick],
-    );
-
     const handleContextMenu = useCallback(
         (e: React.MouseEvent<HTMLCanvasElement>) => {
             e.preventDefault();
@@ -125,28 +146,101 @@ export default function BattleCanvas({
         [onCanvasRightClick],
     );
 
-    const handleMouseMove = useCallback(
-        (e: React.MouseEvent<HTMLCanvasElement>) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const screenX = e.clientX - rect.left;
-            const screenY = e.clientY - rect.top;
-            onCanvasMouseMove?.(screenX, screenY);
-        },
-        [onCanvasMouseMove],
-    );
+    const getScreenPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        return {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top,
+        };
+    };
 
-    // Handle touch events for mobile
-    const handleTouchEnd = useCallback(
-        (e: React.TouchEvent<HTMLCanvasElement>) => {
-            if (e.changedTouches.length === 0) return;
-            const touch = e.changedTouches[0];
-            const rect = e.currentTarget.getBoundingClientRect();
-            const screenX = touch.clientX - rect.left;
-            const screenY = touch.clientY - rect.top;
-            onCanvasClick?.(screenX, screenY);
-        },
-        [onCanvasClick],
-    );
+    const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+        if (e.button !== 0) return;
+        const targetingState = targetingStateRef?.current as { selectedAbility?: unknown } | null;
+        if (targetingState?.selectedAbility) return;
+
+        const { x, y } = getScreenPoint(e);
+        dragStateRef.current = {
+            pointerId: e.pointerId,
+            startX: x,
+            startY: y,
+            lastX: x,
+            lastY: y,
+            dragging: false,
+        };
+        suppressClickRef.current = false;
+        e.currentTarget.setPointerCapture(e.pointerId);
+    }, [targetingStateRef]);
+
+    const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+        const { x, y } = getScreenPoint(e);
+        onCanvasMouseMove?.(x, y);
+
+        const state = dragStateRef.current;
+        if (!state || state.pointerId !== e.pointerId) return;
+
+        const engineState = engine.getLocalPlayerUnit();
+        const playerUnit = engineState ? { x: engineState.x, y: engineState.y, radius: engineState.radius } : null;
+        const dx = x - state.lastX;
+        const dy = y - state.lastY;
+        const movedEnough = Math.hypot(x - state.startX, y - state.startY) >= 4;
+
+        if (!state.dragging && movedEnough) {
+            state.dragging = true;
+            suppressClickRef.current = true;
+            clearResumeAutoFollowTimer();
+        }
+
+        if (state.dragging) {
+            camera.panBy(-dx, -dy);
+            if (playerUnit) {
+                camera.setFocusTarget(playerUnit.x, playerUnit.y, playerUnit.radius);
+            }
+            autoFollowPausedUntilRef.current = Date.now() + 5000;
+        }
+
+        state.lastX = x;
+        state.lastY = y;
+    }, [camera, clearResumeAutoFollowTimer, engine, onCanvasMouseMove]);
+
+    const endPointerInteraction = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+        const state = dragStateRef.current;
+        if (!state || state.pointerId !== e.pointerId) return;
+
+        const wasDragging = state.dragging;
+        dragStateRef.current = null;
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+
+        if (wasDragging) {
+            scheduleAutoFollowResume();
+        }
+    }, [scheduleAutoFollowResume]);
+
+    const handlePointerCancel = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+        const state = dragStateRef.current;
+        if (!state || state.pointerId !== e.pointerId) return;
+        dragStateRef.current = null;
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+        if (state.dragging) {
+            scheduleAutoFollowResume();
+        }
+    }, [scheduleAutoFollowResume]);
+
+    const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            e.preventDefault();
+            return;
+        }
+        const rect = e.currentTarget.getBoundingClientRect();
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        onCanvasClick?.(screenX, screenY);
+    }, [onCanvasClick]);
 
     return (
         <div
@@ -155,11 +249,14 @@ export default function BattleCanvas({
         >
             <canvas
                 ref={canvasRef}
-                className="w-full h-full block"
+                className="w-full h-full block touch-none"
+                style={{ touchAction: 'none' }}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={endPointerInteraction}
+                onPointerCancel={handlePointerCancel}
                 onClick={handleClick}
                 onContextMenu={handleContextMenu}
-                onMouseMove={handleMouseMove}
-                onTouchEnd={handleTouchEnd}
             />
         </div>
     );
