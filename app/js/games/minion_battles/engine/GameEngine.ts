@@ -68,6 +68,13 @@ export const MAX_HAND_SIZE = 6;
 /** Number of cards drawn at the beginning of each round. */
 export const CARDS_PER_ROUND = 2;
 
+let nextCardInstanceId = 1;
+
+function generateCardInstanceId(): string {
+    const suffix = nextCardInstanceId++;
+    return `card-${Date.now().toString(36)}-${suffix}`;
+}
+
 /** Create a card instance with defaults (durability from card def). */
 export function createCardInstance(
     cardDefId: CardDefId,
@@ -79,6 +86,7 @@ export function createCardInstance(
         console.error(`ERROR: Unable to get card def (${cardDefId}) for ability id (${abilityId}).`);
     }
     return {
+        instanceId: generateCardInstanceId(),
         cardDefId,
         abilityId,
         location,
@@ -88,6 +96,7 @@ export function createCardInstance(
 
 /** Card instance tracked per player. */
 export interface CardInstance {
+    instanceId: string;
     cardDefId: CardDefId;
     abilityId: string;
     location: 'hand' | 'deck' | 'discard';
@@ -1705,6 +1714,7 @@ export class GameEngine {
                         ...rest,
                         cardDefId,
                         location: loc,
+                        instanceId: raw.instanceId ?? generateCardInstanceId(),
                         durability: raw.durability ?? def?.durability ?? 1,
                     } as CardInstance;
                 }),

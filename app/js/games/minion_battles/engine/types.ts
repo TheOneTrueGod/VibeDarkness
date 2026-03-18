@@ -61,6 +61,7 @@ export interface SerializedGameState {
 
 /** Serialized card instance. */
 export interface SerializedCardInstance {
+    instanceId?: string;
     cardDefId: string;
     abilityId: string;
     location: 'hand' | 'deck' | 'discard';

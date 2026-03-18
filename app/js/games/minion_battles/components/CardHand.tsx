@@ -48,6 +48,7 @@ export default function CardHand({
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(false);
     const [hoveredPile, setHoveredPile] = useState<'deck' | 'discard' | null>(null);
+    const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
 
     const deckCards = useMemo(
         () => cards.filter((c) => c.location === 'deck'),
@@ -76,6 +77,12 @@ export default function CardHand({
         () => cards.filter((c) => c.location === 'hand'),
         [cards],
     );
+
+    useEffect(() => {
+        if (hoveredCardId && !handCards.some((card) => card.instanceId === hoveredCardId)) {
+            setHoveredCardId(null);
+        }
+    }, [handCards, hoveredCardId]);
 
     const handleSelectCard = useCallback(
         (handIndex: number) => {
@@ -240,6 +247,7 @@ export default function CardHand({
                                 const activeAbility = active ? getAbility(active.abilityId) : null;
                                 if (!active || !activeAbility) return null;
                                 const syntheticCard: CardInstance = {
+                                    instanceId: `active-${active.abilityId}`,
                                     cardDefId: asCardDefId(active.abilityId),
                                     abilityId: active.abilityId,
                                     location: 'hand',
@@ -253,6 +261,8 @@ export default function CardHand({
                                             isSelected={false}
                                             isDisabled
                                             onSelect={() => {}}
+                                            isHovered={false}
+                                            onHoverChange={() => {}}
                                             isMobile={false}
                                             showMobileDescription={false}
                                             onMobileDescriptionToggle={() => {}}
@@ -267,22 +277,34 @@ export default function CardHand({
                 )}
 
                 {/* Hand cards: max width 800px so bar doesn't grow too wide */}
-                <div className="flex gap-2 flex-1 justify-center min-w-0 max-w-[800px] items-center">
+                <div
+                    className="flex gap-2 flex-1 justify-center min-w-0 max-w-[800px] items-center"
+                    onPointerLeave={() => setHoveredCardId(null)}
+                >
                     {handCards.map((card, index) => {
                         const ability = getAbility(card.abilityId);
                         if (!ability) return null;
 
                         const canAfford = playerUnit ? canAffordAbility(playerUnit, ability) : false;
                         const isDisabled = !isMyTurn || !canAfford;
+                        const isHovered = hoveredCardId === card.instanceId;
 
                         return (
                             <CardComponent
-                                key={`${card.cardDefId}_${index}`}
+                                key={card.instanceId}
                                 ability={ability}
                                 card={card}
                                 isSelected={selectedCardIndex === index}
                                 isDisabled={isDisabled}
                                 onSelect={() => handleSelectCard(index)}
+                                isHovered={isHovered}
+                                onHoverChange={(hovered) => {
+                                    if (hovered) {
+                                        setHoveredCardId(card.instanceId);
+                                    } else {
+                                        setHoveredCardId((prev) => (prev === card.instanceId ? null : prev));
+                                    }
+                                }}
                                 isMobile={isMobile}
                                 showMobileDescription={mobileDescIndex === index}
                                 onMobileDescriptionToggle={() => handleMobileDescToggle(index)}

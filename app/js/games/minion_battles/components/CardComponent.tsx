@@ -5,7 +5,7 @@
  * tap shows description overlay (mobile).
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import type { AbilityStatic } from '../abilities/Ability';
 import type { CardInstance } from '../engine/GameEngine';
 import { getCardDef } from '../card_defs';
@@ -18,6 +18,8 @@ interface CardComponentProps {
     isSelected: boolean;
     isDisabled: boolean;
     onSelect: () => void;
+    isHovered: boolean;
+    onHoverChange: (hovered: boolean) => void;
     /** If true, use mobile touch behavior. */
     isMobile: boolean;
     /** For mobile: currently showing description overlay. */
@@ -34,14 +36,14 @@ export default function CardComponent({
     isSelected,
     isDisabled,
     onSelect,
+    isHovered,
+    onHoverChange,
     isMobile,
     showMobileDescription,
     onMobileDescriptionToggle,
     onMobileDescriptionDismiss,
     gameState,
 }: CardComponentProps) {
-    const [isHovered, setIsHovered] = useState(false);
-
     const handleClick = useCallback(() => {
         if (isDisabled) return;
         if (isMobile && !showMobileDescription) {
@@ -64,8 +66,8 @@ export default function CardComponent({
                 role="button"
                 tabIndex={0}
                 onClick={handleClick}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
+                onPointerEnter={() => onHoverChange(true)}
+                onPointerLeave={() => onHoverChange(false)}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
