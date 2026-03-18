@@ -29,4 +29,11 @@ interface PlayerAccountStorageInterface
      * Reserve and return the next auto-increment ID
      */
     public function nextId(): int;
+
+    /**
+     * Return all accounts in storage.
+     *
+     * @return list<PlayerAccount>
+     */
+    public function listAll(): array;
 }

@@ -13,9 +13,11 @@ import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../character_defs/campaignCharacterTypes';
 import { getPortrait } from '../character_defs/portraits';
+import { ALL_PLAYER_ITEMS } from '../character_defs/items';
 import CharacterCreator from '../components/CharacterCreator';
 import CharacterEditor from '../components/CharacterEditor';
 import AdminPlayersPanel from '../components/AdminPlayersPanel';
+import { useUser } from '../../../contexts/UserContext';
 
 interface CharacterSelectPhaseProps {
     lobbyClient: LobbyClient;
@@ -59,6 +61,7 @@ export default function CharacterSelectPhase({
     removeLocalOverride,
     onPhaseChange,
 }: CharacterSelectPhaseProps) {
+    const { user } = useUser();
     // Ensure nullish coalescing and logical OR are not mixed without parentheses.
     const campaignId =
         campaignIdProp || (missionDef?.campaignId ?? missionId);
@@ -67,7 +70,9 @@ export default function CharacterSelectPhase({
     const [creatorOpen, setCreatorOpen] = useState(false);
     const [createCardRef, setCreateCardRef] = useState<HTMLDivElement | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
+    const [editorForceEditable, setEditorForceEditable] = useState(false);
     const [activeTab, setActiveTab] = useState<'characters' | 'players'>('characters');
+    const [campaign, setCampaign] = useState<import('../../../types').CampaignState | null>(null);
 
     useEffect(() => {
         if (!isAdmin && activeTab === 'players') {
@@ -78,6 +83,25 @@ export default function CharacterSelectPhase({
             setCreatorOpen(false);
         }
     }, [activeTab, isAdmin]);
+
+    useEffect(() => {
+        if (!editorOpen || !campaignId) {
+            setCampaign(null);
+            return;
+        }
+        let cancelled = false;
+        lobbyClient
+            .getCampaign(campaignId)
+            .then((c) => {
+                if (!cancelled) setCampaign(c);
+            })
+            .catch(() => {
+                if (!cancelled) setCampaign(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [campaignId, editorOpen, lobbyClient]);
 
     useEffect(() => {
         let cancelled = false;
@@ -163,6 +187,8 @@ export default function CharacterSelectPhase({
         (characterId: string, portraitId: string) => {
             setCreatorOpen(false);
             handleSelectCharacter(characterId, portraitId);
+            setEditorForceEditable(true);
+            setEditorOpen(true);
         },
         [handleSelectCharacter],
     );
@@ -335,8 +361,14 @@ export default function CharacterSelectPhase({
                         character={characterToEdit}
                         lobbyClient={lobbyClient}
                         onSaved={handleEditorSaved}
-                        onClose={() => setEditorOpen(false)}
-                        editMode={isAdmin}
+                        onClose={() => {
+                            setEditorOpen(false);
+                            setEditorForceEditable(false);
+                        }}
+                        editMode={isAdmin || editorForceEditable}
+                        inventoryItems={ALL_PLAYER_ITEMS}
+                        account={user}
+                        campaign={campaign}
                     />
                 </div>
             ) : (

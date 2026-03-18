@@ -58,6 +58,9 @@ class UpdateCharacterHandler
         if (array_key_exists('portraitId', $data)) {
             $updates['portraitId'] = (string) $data['portraitId'];
         }
+        if (isset($data['researchTrees']) && is_array($data['researchTrees'])) {
+            $updates['researchTrees'] = $data['researchTrees'];
+        }
 
         $updated = $characterManager->updateCharacter($characterId, $updates);
         if ($updated === null) {

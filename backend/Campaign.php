@@ -14,7 +14,7 @@ class Campaign
     private array $campaignCharacters;
     /** @var array<int, array{missionId: string, result: string, timestamp?: float}> */
     private array $missionResults;
-    /** @var array{food: int, metal: int, population: int} */
+    /** @var array{food: int, metal: int, population: int, crystals: int} */
     private array $resources;
 
     public function __construct(
@@ -29,7 +29,7 @@ class Campaign
         $this->campaignCharacters = $campaignCharacters;
         $this->missionResults = $missionResults;
         $this->resources = array_merge(
-            ['food' => 0, 'metal' => 0, 'population' => 0],
+            ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0],
             $resources
         );
     }
@@ -59,7 +59,7 @@ class Campaign
         return $this->missionResults;
     }
 
-    /** @return array{food: int, metal: int, population: int} */
+    /** @return array{food: int, metal: int, population: int, crystals: int} */
     public function getResources(): array
     {
         return $this->resources;
@@ -78,8 +78,8 @@ class Campaign
     public function setResources(array $resources): void
     {
         $this->resources = array_merge(
-            ['food' => 0, 'metal' => 0, 'population' => 0],
-            array_intersect_key($resources, array_flip(['food', 'metal', 'population']))
+            ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0],
+            array_intersect_key($resources, array_flip(['food', 'metal', 'population', 'crystals']))
         );
     }
 
@@ -95,7 +95,17 @@ class Campaign
             $this->resources['food'] = max(0, ($this->resources['food'] ?? 0) + (int) ($resourceDelta['food'] ?? 0));
             $this->resources['metal'] = max(0, ($this->resources['metal'] ?? 0) + (int) ($resourceDelta['metal'] ?? 0));
             $this->resources['population'] = max(0, ($this->resources['population'] ?? 0) + (int) ($resourceDelta['population'] ?? 0));
+            $this->resources['crystals'] = max(0, ($this->resources['crystals'] ?? 0) + (int) ($resourceDelta['crystals'] ?? 0));
         }
+    }
+
+    /** Adjust resources by delta (can be negative). Floors each at 0. */
+    public function adjustResources(array $resourceDelta): void
+    {
+        $this->resources['food'] = max(0, ($this->resources['food'] ?? 0) + (int) ($resourceDelta['food'] ?? 0));
+        $this->resources['metal'] = max(0, ($this->resources['metal'] ?? 0) + (int) ($resourceDelta['metal'] ?? 0));
+        $this->resources['population'] = max(0, ($this->resources['population'] ?? 0) + (int) ($resourceDelta['population'] ?? 0));
+        $this->resources['crystals'] = max(0, ($this->resources['crystals'] ?? 0) + (int) ($resourceDelta['crystals'] ?? 0));
     }
 
     /** API and storage array */

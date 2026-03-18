@@ -31,8 +31,14 @@ use App\Http\Handlers\CreateCharacterHandler;
 use App\Http\Handlers\GetCharacterHandler;
 use App\Http\Handlers\DeleteCharacterHandler;
 use App\Http\Handlers\UpdateCharacterHandler;
+use App\Http\Handlers\ResearchCharacterNodeHandler;
 use App\Http\Handlers\GetAdminAccountDetailsHandler;
 use App\Http\Handlers\GrantAccountItemHandler;
+use App\Http\Handlers\GrantAccountKnowledgeHandler;
+use App\Http\Handlers\GrantAccountResourceHandler;
+use App\Http\Handlers\GrantCampaignResourceHandler;
+use App\Http\Handlers\RemoveAccountItemHandler;
+use App\Http\Handlers\ListAdminAccountsHandler;
 
 /**
  * Matches request method and path to handler functions.
@@ -52,10 +58,16 @@ class Router
             ['POST', '#^/api/account/logout$#', LogoutHandler::class],
             ['GET', '#^/api/account/characters$#', ListCharactersHandler::class],
             ['POST', '#^/api/account/characters$#', CreateCharacterHandler::class],
+            ['GET', '#^/api/admin/accounts$#', ListAdminAccountsHandler::class],
             ['GET', '#^/api/admin/accounts/(\d+)$#', GetAdminAccountDetailsHandler::class],
             ['POST', '#^/api/admin/accounts/(\d+)/items$#', GrantAccountItemHandler::class],
+            ['POST', '#^/api/admin/accounts/(\d+)/items/remove$#', RemoveAccountItemHandler::class],
+            ['POST', '#^/api/admin/accounts/(\d+)/knowledge$#', GrantAccountKnowledgeHandler::class],
+            ['POST', '#^/api/admin/accounts/(\d+)/resources$#', GrantAccountResourceHandler::class],
+            ['POST', '#^/api/admin/campaigns/([a-z0-9]+|[a-f0-9]{16})/resources$#', GrantCampaignResourceHandler::class],
             ['GET', '#^/api/characters/([a-zA-Z0-9_]+)$#', GetCharacterHandler::class],
             ['PATCH', '#^/api/characters/([a-zA-Z0-9_]+)$#', UpdateCharacterHandler::class],
+            ['POST', '#^/api/characters/([a-zA-Z0-9_]+)/research$#', ResearchCharacterNodeHandler::class],
             ['DELETE', '#^/api/characters/([a-zA-Z0-9_]+)$#', DeleteCharacterHandler::class],
             ['POST', '#^/api/campaigns$#', CreateCampaignHandler::class],
             ['GET', '#^/api/campaigns/([a-z0-9]+)$#', GetCampaignHandler::class],

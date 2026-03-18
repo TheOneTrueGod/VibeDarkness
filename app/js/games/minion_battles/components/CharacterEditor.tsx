@@ -3,20 +3,30 @@
  * Portrait (30% height) with prev/next arrows; name top right.
  * Bottom 2/3: tabs (Equipment). Doll with core/weapon/utility slots; inventory grid; drag to equip.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPortraitIds, getPortrait } from '../character_defs/portraits';
 import {
     getItemDef,
     getEquippedForSlot,
     setEquipmentInSlot,
     getSlotLayoutFromEquipment,
-    DEFAULT_PLAYER_INVENTORY,
+    ALL_PLAYER_ITEMS,
     ITEM_ICON_URLS,
     type EquipmentSlotType,
 } from '../character_defs/items';
 import type { CampaignCharacter } from '../character_defs/CampaignCharacter';
 import type { LobbyClient } from '../../../LobbyClient';
 import CharacterPortrait from './CharacterPortrait';
+import InventoryPanel from './InventoryPanel';
+import ResearchTreePanel from './ResearchTreePanel';
+import type { AccountState, CampaignState } from '../../../types';
+import { RESEARCH_TREES } from '../../../researchTrees/list';
+import {
+    canResearchNode,
+    applyResearchEffects,
+    prereqClosure,
+    treeHasAnyResearch,
+} from '../../../researchTrees/evaluator';
 
 interface CharacterEditorProps {
     character: CampaignCharacter;
@@ -29,9 +39,15 @@ interface CharacterEditorProps {
     inventoryItems?: string[];
     /** Whether to render the inventory sidebar. Defaults to true. */
     showInventoryPanel?: boolean;
+    /** Target account (used for research knowledge gating, optional). */
+    account?: AccountState | null;
+    /** Viewer account (used for admin-gated UI). If omitted, falls back to `account`. */
+    viewerAccount?: AccountState | null;
+    /** Current campaign state (used for research resource checks). */
+    campaign?: CampaignState | null;
 }
 
-type EditorTab = 'equipment';
+type EditorTab = 'equipment' | 'research';
 
 /** Slot descriptor for the doll: type and optional index for weapon/utility. */
 export interface SlotDescriptor {
@@ -60,6 +76,9 @@ export default function CharacterEditor({
     editMode = false,
     inventoryItems,
     showInventoryPanel = true,
+    account,
+    viewerAccount,
+    campaign,
 }: CharacterEditorProps) {
     const portraitIds = useMemo(() => getPortraitIds(), []);
     const totalPortraits = portraitIds.length;
@@ -74,9 +93,50 @@ export default function CharacterEditor({
     const [saving, setSaving] = useState(false);
     const [dragItemId, setDragItemId] = useState<string | null>(null);
     const [dragSlot, setDragSlot] = useState<EquipmentSlotType | null>(null);
+    const [researchTrees, setResearchTrees] = useState<Record<string, string[]>>(() => character.researchTrees ?? {});
+    const [localCampaign, setLocalCampaign] = useState<CampaignState | null>(null);
+    const [grantResourceKey, setGrantResourceKey] = useState<'food' | 'metal' | 'population' | 'crystals'>('food');
+    const [grantResourceAmount, setGrantResourceAmount] = useState<string>('1');
 
     const selectedPortraitId = portraitIds[portraitIndex] ?? portraitIds[0];
     const portrait = getPortrait(selectedPortraitId);
+
+    const resolvedCampaign = campaign ?? localCampaign;
+    const permissionAccount = viewerAccount ?? account ?? null;
+
+    useEffect(() => {
+        setEquipment([...character.equipment]);
+        setResearchTrees(character.researchTrees ?? {});
+    }, [character.equipment, character.researchTrees]);
+
+    useEffect(() => {
+        if (campaign) {
+            setLocalCampaign(null);
+            return;
+        }
+        if (activeTab !== 'research') {
+            return;
+        }
+        const isInstanceId = (id: string) => /^[a-f0-9]{16}$/.test(id);
+        const fallbackAccountCampaignId = account?.campaignIds?.[0] ?? null;
+        const cid = isInstanceId(character.campaignId) ? character.campaignId : fallbackAccountCampaignId;
+        if (!cid) {
+            setLocalCampaign(null);
+            return;
+        }
+        let cancelled = false;
+        lobbyClient
+            .getCampaign(cid)
+            .then((c) => {
+                if (!cancelled) setLocalCampaign(c);
+            })
+            .catch(() => {
+                if (!cancelled) setLocalCampaign(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [account?.campaignIds, activeTab, campaign, character.campaignId, lobbyClient]);
 
     const saveEquipment = useCallback(
         async (newEquipment: string[]) => {
@@ -127,8 +187,110 @@ export default function CharacterEditor({
         if (inventoryItems) {
             return inventoryItems;
         }
-        return DEFAULT_PLAYER_INVENTORY.filter((id) => !equipment.includes(id));
+        return ALL_PLAYER_ITEMS.filter((id) => !equipment.includes(id));
     }, [equipment, inventoryItems]);
+
+    const researchEnabled = useMemo(() => {
+        const isAdmin = permissionAccount?.role === 'admin';
+        const hasResearchKnowledge = !!account?.knowledge?.Research;
+        return isAdmin || hasResearchKnowledge;
+    }, [account?.knowledge?.Research, permissionAccount?.role]);
+
+    const handleGrantResource = useCallback(async () => {
+        if (permissionAccount?.role !== 'admin') return;
+        const cid = resolvedCampaign?.id ?? null;
+        if (!cid) return;
+        const delta = Number(grantResourceAmount);
+        if (!Number.isFinite(delta) || delta === 0) return;
+        setSaving(true);
+        try {
+            const updated = await lobbyClient.grantCampaignResource(cid, grantResourceKey, Math.trunc(delta));
+            setLocalCampaign(updated);
+        } catch (e) {
+            console.error('Failed to grant campaign resource:', e);
+        } finally {
+            setSaving(false);
+        }
+    }, [grantResourceAmount, grantResourceKey, lobbyClient, permissionAccount?.role, resolvedCampaign?.id]);
+
+    const availableTrees = useMemo(() => {
+        const res = resolvedCampaign?.resources;
+        if (!res) return [];
+        const ctx = {
+            account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
+            character: { ...character, equipment, researchTrees } as CampaignCharacter,
+            campaignResources: res,
+        };
+        return RESEARCH_TREES.filter((t) => {
+            // Show tree if access requirements pass OR it has any node researched.
+            const any = treeHasAnyResearch(ctx.character, t.id);
+            if (any) return true;
+            // Reuse canResearchNode-style requirement evaluation by checking a synthetic node closure:
+            // here we only gate by accessRequirements.
+            return t.accessRequirements.every((req) => {
+                // Minimal check using canResearchNode helpers: treat as node requirement list.
+                // evaluator.meetsRequirement isn’t exported; keep logic consistent with known cases:
+                if (req.type === 'accountKnowledge') return !!ctx.account.knowledge?.[req.key];
+                if (req.type === 'campaignResourceMin') return (ctx.campaignResources[req.resource] ?? 0) >= req.min;
+                if (req.type === 'characterHasEquippedItem') return ctx.character.equipment.includes(req.itemId);
+                if (req.type === 'characterHasTrait') return ctx.character.traits.includes(req.trait);
+                if (req.type === 'notResearched') {
+                    const set = new Set(ctx.character.researchTrees?.[req.treeId] ?? []);
+                    return !set.has(req.nodeId);
+                }
+                return false;
+            });
+        });
+    }, [account, character, equipment, researchTrees, resolvedCampaign?.resources]);
+
+    const handleResearchNode = useCallback(
+        async (treeId: string, nodeId: string) => {
+            if (!resolvedCampaign?.resources) return;
+            const tree = RESEARCH_TREES.find((t) => t.id === treeId);
+            if (!tree) return;
+
+            const ctx = {
+                account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
+                character: { ...character, equipment, researchTrees } as CampaignCharacter,
+                campaignResources: resolvedCampaign.resources,
+            };
+
+            const check = canResearchNode(tree, nodeId, ctx);
+            if (!check.ok) return;
+
+            // Auto-research prerequisites client-side by posting each missing node (server will dedupe).
+            const closure = prereqClosure(tree, nodeId);
+            const already = new Set(researchTrees[treeId] ?? []);
+            const toDo = closure.filter((id) => !already.has(id));
+
+            setSaving(true);
+            try {
+                for (const nid of toDo) {
+                    const updated = await lobbyClient.researchCharacterNode(character.id, { treeId, nodeId: nid });
+                    setResearchTrees(updated.researchTrees ?? {});
+                }
+                // Apply effects deterministically and persist equipment if it changed.
+                const latestTrees = (await lobbyClient.getCharacter(character.id)).researchTrees ?? {};
+                const ctx2 = {
+                    account: ctx.account,
+                    character: { ...character, equipment, researchTrees: latestTrees } as CampaignCharacter,
+                    campaignResources: resolvedCampaign.resources,
+                };
+                const applied = applyResearchEffects(tree, ctx2);
+                const newEquipment = applied.equipment;
+                if (JSON.stringify(newEquipment) !== JSON.stringify(equipment)) {
+                    const updatedChar = await lobbyClient.updateCharacter(character.id, { equipment: newEquipment });
+                    setEquipment(updatedChar.equipment ?? newEquipment);
+                    onSaved?.({ equipment: updatedChar.equipment ?? newEquipment, name, portraitId: selectedPortraitId });
+                }
+            } catch (e) {
+                console.error('Failed to research node:', e);
+            } finally {
+                setSaving(false);
+            }
+        },
+        [account, character, equipment, lobbyClient, researchTrees, resolvedCampaign?.resources, selectedPortraitId, name, onSaved],
+    );
 
     const handleEquipToSlot = useCallback(
         (slot: EquipmentSlotType, itemId: string, slotIndex?: number) => {
@@ -183,10 +345,14 @@ export default function CharacterEditor({
         setDragSlot(null);
     }, []);
 
+    const portraitSectionStyle = useMemo(() => {
+        return { height: 240, minHeight: 180 };
+    }, []);
+
     return (
         <div className="flex flex-col h-full w-full bg-surface rounded-lg border border-border-custom overflow-hidden">
             {/* Top ~30%: portrait left, name right */}
-            <div className="flex shrink-0 border-b border-border-custom" style={{ height: '30%', minHeight: 140 }}>
+            <div className="flex shrink-0 border-b border-border-custom" style={portraitSectionStyle}>
                 <div className="flex items-center justify-center p-4 shrink-0 bg-background/50">
                     <div className="flex flex-col items-center gap-2">
                         <CharacterPortrait
@@ -234,6 +400,19 @@ export default function CharacterEditor({
                 >
                     Equipment
                 </button>
+                {researchEnabled && (
+                    <button
+                        type="button"
+                        className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
+                            activeTab === 'research'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-muted hover:text-white'
+                        }`}
+                        onClick={() => setActiveTab('research')}
+                    >
+                        Research
+                    </button>
+                )}
             </div>
 
             {/* Tab content */}
@@ -255,46 +434,72 @@ export default function CharacterEditor({
                         </div>
                         {showInventoryPanel && (
                             <div className="w-[280px] shrink-0 border-l border-border-custom p-3 overflow-auto">
-                                {editMode ? (
-                                    <>
-                                        <p className="text-xs text-muted mb-2">Inventory — drag onto doll to equip</p>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {visibleInventoryItems.map((id) => {
-                                                const def = getItemDef(id);
-                                                const iconUrl = ITEM_ICON_URLS[id];
-                                                if (!def) return null;
-                                                return (
-                                                    <div
-                                                        key={id}
-                                                        draggable
-                                                        onDragStart={(e) => handleDragStartItem(e, id)}
-                                                        onDragEnd={handleDragEnd}
-                                                        className="flex flex-col items-center justify-center p-2 rounded border border-border-custom bg-surface-light cursor-grab active:cursor-grabbing hover:border-primary transition-colors"
-                                                    >
-                                                        {iconUrl ? (
-                                                            <img src={iconUrl} alt="" className="w-10 h-10 object-contain" />
-                                                        ) : (
-                                                            <div className="w-10 h-10 flex items-center justify-center text-muted text-xs" />
-                                                        )}
-                                                        <span className="text-[10px] text-gray-300 truncate w-full text-center mt-1">
-                                                            {def.name}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        {saving && (
-                                            <p className="text-xs text-muted mt-2">Saving…</p>
-                                        )}
-                                    </>
-                                ) : (
-                                    <p className="text-xs text-muted">
-                                        Equipment editing is disabled for your account.
-                                    </p>
-                                )}
+                                <InventoryPanel
+                                    visibleInventoryItems={visibleInventoryItems}
+                                    editMode={editMode}
+                                    saving={saving}
+                                    onDragStartItem={handleDragStartItem}
+                                    onDragEnd={handleDragEnd}
+                                />
                             </div>
                         )}
                     </>
+                )}
+
+                {activeTab === 'research' && researchEnabled && (
+                    <div className="flex-1 min-h-0 overflow-auto p-4">
+                        {resolvedCampaign?.resources ? (
+                            <>
+                                {permissionAccount?.role === 'admin' && (
+                                    <div className="mb-4 rounded-lg border border-border-custom bg-surface-light p-3">
+                                        <p className="text-xs text-muted mb-2">Admin: grant campaign resource</p>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <select
+                                                className="rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
+                                                value={grantResourceKey}
+                                                onChange={(e) => setGrantResourceKey(e.target.value as typeof grantResourceKey)}
+                                            >
+                                                <option value="food">food</option>
+                                                <option value="metal">metal</option>
+                                                <option value="population">population</option>
+                                                <option value="crystals">crystals</option>
+                                            </select>
+                                            <input
+                                                className="w-24 rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
+                                                value={grantResourceAmount}
+                                                onChange={(e) => setGrantResourceAmount(e.target.value)}
+                                                inputMode="numeric"
+                                                placeholder="amount"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleGrantResource()}
+                                                className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover"
+                                            >
+                                                Give
+                                            </button>
+                                            <span className="text-xs text-muted">
+                                                Current: food {resolvedCampaign.resources.food}, metal {resolvedCampaign.resources.metal}, pop {resolvedCampaign.resources.population}, crystals {resolvedCampaign.resources.crystals}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <ResearchTreePanel
+                                    availableTrees={availableTrees}
+                                    account={account ?? null}
+                                    character={character}
+                                    equipment={equipment}
+                                    researchTrees={researchTrees}
+                                    campaignResources={resolvedCampaign.resources}
+                                    saving={saving}
+                                    onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
+                                />
+                            </>
+                        ) : (
+                            <p className="text-sm text-muted">Campaign resources not loaded.</p>
+                        )}
+                    </div>
                 )}
             </div>
         </div>

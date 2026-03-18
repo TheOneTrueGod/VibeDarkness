@@ -1,29 +1,16 @@
 /**
- * Admin-only players panel for mission creation.
- * Lets admins browse lobby players, inspect their characters, and grant/equip items.
+ * Admin-only Players panel on the campaign home screen.
+ * Lets admins browse ALL accounts, inspect their characters, and grant/equip items.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { PlayerState, AccountState } from '../../../types';
-import { LobbyClient } from '../../../LobbyClient';
-import CharacterEditor from './CharacterEditor';
-import { fromCampaignCharacterData, type CampaignCharacter } from '../character_defs/CampaignCharacter';
-import type { CampaignCharacterData } from '../character_defs/campaignCharacterTypes';
-import { getPortrait } from '../character_defs/portraits';
-import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../character_defs/items';
-import { useUser } from '../../../contexts/UserContext';
-
-interface AdminPlayersPanelProps {
-    lobbyClient: LobbyClient;
-    players: Record<string, PlayerState>;
-}
-
-function sortPlayers(players: Record<string, PlayerState>): PlayerState[] {
-    return Object.values(players).sort((a, b) => {
-        if (a.isHost && !b.isHost) return -1;
-        if (!a.isHost && b.isHost) return 1;
-        return a.name.localeCompare(b.name);
-    });
-}
+import type { AccountState } from '../types';
+import { LobbyClient } from '../LobbyClient';
+import CharacterEditor from '../games/minion_battles/components/CharacterEditor';
+import { fromCampaignCharacterData, type CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
+import type { CampaignCharacterData } from '../games/minion_battles/character_defs/campaignCharacterTypes';
+import { getPortrait } from '../games/minion_battles/character_defs/portraits';
+import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
+import { useUser } from '../contexts/UserContext';
 
 function getItemName(itemId: string): string {
     return getItemDef(itemId)?.name ?? itemId;
@@ -37,12 +24,12 @@ function buildCounts(items: string[]): Record<string, number> {
     return counts;
 }
 
-function PlayerCard({
-    player,
+function AccountCard({
+    account,
     selected,
     onSelect,
 }: {
-    player: PlayerState;
+    account: AccountState;
     selected: boolean;
     onSelect: () => void;
 }) {
@@ -58,10 +45,12 @@ function PlayerCard({
         >
             <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="font-semibold text-white truncate">{player.name}</p>
-                    <p className="text-xs text-muted">{player.isHost ? 'Host' : 'Player'}</p>
+                    <p className="font-semibold text-white truncate">{account.name}</p>
+                    <p className="text-xs text-muted">{account.role === 'admin' ? 'Admin' : 'Player'}</p>
                 </div>
-                <div className="w-4 h-4 rounded-full border border-white/40 shrink-0" style={{ backgroundColor: player.color }} />
+                <div className="rounded-md border border-border-custom bg-dark-700 px-2 py-1 text-xs text-muted shrink-0">
+                    #{account.id}
+                </div>
             </div>
         </button>
     );
@@ -142,45 +131,69 @@ function ItemCard({
     );
 }
 
-export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayersPanelProps) {
+export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: LobbyClient }) {
     const { user } = useUser();
-    const playerList = useMemo(() => sortPlayers(players), [players]);
-    const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+    const [accounts, setAccounts] = useState<AccountState[]>([]);
+    const [accountsLoading, setAccountsLoading] = useState(false);
+
+    const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
     const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
     const [details, setDetails] = useState<{
         account: AccountState;
         characters: CampaignCharacter[];
     } | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [detailsLoading, setDetailsLoading] = useState(false);
     const [grantItemId, setGrantItemId] = useState(ALL_PLAYER_ITEMS[0] ?? '');
+    const [grantKnowledgeKey, setGrantKnowledgeKey] = useState<'Crystals' | 'Forging' | 'Research'>('Crystals');
+
+    const sortedAccounts = useMemo(() => {
+        return [...accounts].sort((a, b) => a.name.localeCompare(b.name));
+    }, [accounts]);
+
+    const loadAccounts = useCallback(async () => {
+        setAccountsLoading(true);
+        try {
+            const list = await lobbyClient.listAdminAccounts();
+            setAccounts(list as AccountState[]);
+        } catch (error) {
+            console.error('Failed to load admin accounts list:', error);
+            setAccounts([]);
+        } finally {
+            setAccountsLoading(false);
+        }
+    }, [lobbyClient]);
 
     const loadDetails = useCallback(
-        async (playerId: string) => {
-            setLoading(true);
+        async (accountId: number) => {
+            setDetailsLoading(true);
             try {
-                const res = await lobbyClient.getAdminAccountDetails(playerId);
+                const res = await lobbyClient.getAdminAccountDetails(accountId);
                 setDetails({
                     account: res.account as AccountState,
                     characters: (res.characters as CampaignCharacterData[]).map((data) => fromCampaignCharacterData(data)),
                 });
             } catch (error) {
-                console.error('Failed to load admin player details:', error);
+                console.error('Failed to load admin account details:', error);
                 setDetails(null);
             } finally {
-                setLoading(false);
+                setDetailsLoading(false);
             }
         },
         [lobbyClient],
     );
 
     useEffect(() => {
-        if (!selectedPlayerId) {
+        void loadAccounts();
+    }, [loadAccounts]);
+
+    useEffect(() => {
+        if (selectedAccountId == null) {
             setDetails(null);
             setSelectedCharacterId(null);
             return;
         }
-        void loadDetails(selectedPlayerId);
-    }, [loadDetails, selectedPlayerId]);
+        void loadDetails(selectedAccountId);
+    }, [loadDetails, selectedAccountId]);
 
     useEffect(() => {
         if (!details) {
@@ -196,67 +209,96 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
         }
     }, [details, selectedCharacterId]);
 
-    const selectedPlayer = selectedPlayerId ? players[selectedPlayerId] ?? null : null;
+    const selectedAccount = useMemo(() => {
+        if (selectedAccountId == null) return null;
+        return accounts.find((a) => a.id === selectedAccountId) ?? null;
+    }, [accounts, selectedAccountId]);
+
     const selectedCharacter = useMemo(
         () => details?.characters.find((character) => character.id === selectedCharacterId) ?? null,
         [details, selectedCharacterId],
     );
-    const inventoryCounts = useMemo(
-        () => buildCounts(details?.account.inventoryItemIds ?? []),
-        [details],
-    );
+
+    const inventoryCounts = useMemo(() => buildCounts(details?.account.inventoryItemIds ?? []), [details]);
+
     const handleInventoryDragStart = useCallback((itemId: string, event: React.DragEvent<HTMLDivElement>) => {
         event.dataTransfer.setData('text/plain', itemId);
         event.dataTransfer.effectAllowed = 'copy';
     }, []);
 
-    const refreshCurrentPlayer = useCallback(async () => {
-        if (!selectedPlayerId) return;
-        await loadDetails(selectedPlayerId);
-    }, [loadDetails, selectedPlayerId]);
+    const refreshSelectedAccount = useCallback(async () => {
+        if (selectedAccountId == null) return;
+        await loadDetails(selectedAccountId);
+    }, [loadDetails, selectedAccountId]);
 
     const handleGrantItem = useCallback(async () => {
-        if (!selectedPlayerId || !grantItemId) return;
+        if (selectedAccountId == null || !grantItemId) return;
         try {
-            await lobbyClient.grantAccountItem(selectedPlayerId, grantItemId);
-            await refreshCurrentPlayer();
+            await lobbyClient.grantAccountItem(selectedAccountId, grantItemId);
+            await refreshSelectedAccount();
         } catch (error) {
             console.error('Failed to grant item:', error);
         }
-    }, [grantItemId, lobbyClient, refreshCurrentPlayer, selectedPlayerId]);
+    }, [grantItemId, lobbyClient, refreshSelectedAccount, selectedAccountId]);
 
     const handleRemoveItem = useCallback(
         async (itemId: string) => {
-            if (!selectedPlayerId) return;
+            if (selectedAccountId == null) return;
             try {
-                await lobbyClient.removeAccountItem(selectedPlayerId, itemId);
-                await refreshCurrentPlayer();
+                await lobbyClient.removeAccountItem(selectedAccountId, itemId);
+                await refreshSelectedAccount();
             } catch (error) {
                 console.error('Failed to remove item:', error);
             }
         },
-        [lobbyClient, refreshCurrentPlayer, selectedPlayerId],
+        [lobbyClient, refreshSelectedAccount, selectedAccountId],
     );
 
     const handleSaved = useCallback(() => {
-        void refreshCurrentPlayer();
-    }, [refreshCurrentPlayer]);
+        void refreshSelectedAccount();
+    }, [refreshSelectedAccount]);
 
-    if (!selectedPlayerId) {
+    const handleGrantKnowledge = useCallback(async () => {
+        if (selectedAccountId == null) return;
+        try {
+            await lobbyClient.grantAccountKnowledge(selectedAccountId, grantKnowledgeKey, {});
+            await refreshSelectedAccount();
+        } catch (error) {
+            console.error('Failed to grant knowledge:', error);
+        }
+    }, [grantKnowledgeKey, lobbyClient, refreshSelectedAccount, selectedAccountId]);
+
+    if (selectedAccountId == null) {
         return (
             <div className="w-full h-full overflow-auto p-5">
                 <div className="mx-auto flex max-w-[1400px] flex-col gap-5">
                     <div className="flex items-center justify-between gap-3">
-                        <h2 className="text-[32px] font-bold">Players</h2>
-                        <p className="text-sm text-muted">Admin overview for lobby members</p>
+                        <div>
+                            <h2 className="text-[32px] font-bold">Players</h2>
+                            <p className="text-sm text-muted">Admin overview for all accounts</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => void loadAccounts()}
+                            className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom disabled:opacity-60"
+                            disabled={accountsLoading}
+                        >
+                            {accountsLoading ? 'Refreshing…' : 'Refresh'}
+                        </button>
                     </div>
+                    {accountsLoading && sortedAccounts.length === 0 && (
+                        <div className="text-sm text-muted">Loading accounts…</div>
+                    )}
+                    {!accountsLoading && sortedAccounts.length === 0 && (
+                        <div className="text-sm text-muted">No accounts found</div>
+                    )}
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
-                        {playerList.map((player) => (
-                            <PlayerCard
-                                key={player.id}
-                                player={player}
+                        {sortedAccounts.map((account) => (
+                            <AccountCard
+                                key={account.id}
+                                account={account}
                                 selected={false}
-                                onSelect={() => setSelectedPlayerId(player.id)}
+                                onSelect={() => setSelectedAccountId(account.id)}
                             />
                         ))}
                     </div>
@@ -271,17 +313,25 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
                 <div className="flex items-center justify-between gap-3 shrink-0">
                     <div>
                         <h2 className="text-[32px] font-bold">Players</h2>
-                        <p className="text-sm text-muted">
-                            {selectedPlayer?.name ?? `Player ${selectedPlayerId}`}
-                        </p>
+                        <p className="text-sm text-muted">{selectedAccount?.name ?? `Account #${selectedAccountId}`}</p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setSelectedPlayerId(null)}
-                        className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom"
-                    >
-                        Back
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => void refreshSelectedAccount()}
+                            className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom disabled:opacity-60"
+                            disabled={detailsLoading}
+                        >
+                            {detailsLoading ? 'Refreshing…' : 'Refresh'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedAccountId(null)}
+                            className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom"
+                        >
+                            Back
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-3 overflow-x-auto rounded-lg border border-border-custom bg-surface px-4 py-3 shrink-0">
@@ -317,9 +367,55 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
                         <button
                             type="button"
                             onClick={() => void handleGrantItem()}
-                            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-secondary hover:bg-primary-hover"
+                            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
+                            disabled={detailsLoading}
                         >
                             Give
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 overflow-x-auto rounded-lg border border-border-custom bg-surface px-4 py-3 shrink-0">
+                    <span className="text-sm font-semibold text-muted shrink-0">Knowledge</span>
+                    <div className="flex flex-wrap gap-2">
+                        {Object.keys(details?.account.knowledge ?? {}).length > 0 ? (
+                            Object.keys(details?.account.knowledge ?? {}).sort().map((key) => (
+                                <span
+                                    key={key}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
+                                    title={key}
+                                >
+                                    {key}
+                                </span>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted">No knowledge yet</p>
+                        )}
+                    </div>
+                    <div className="ml-auto flex items-center gap-2 shrink-0">
+                        <label className="text-xs text-muted">Grant</label>
+                        <select
+                            value={grantKnowledgeKey}
+                            onChange={(e) => setGrantKnowledgeKey(e.target.value as typeof grantKnowledgeKey)}
+                            className="rounded-md border border-border-custom bg-white px-3 py-2 text-sm text-black"
+                        >
+                            <option value="Crystals" className="bg-white text-black">
+                                Crystals
+                            </option>
+                            <option value="Forging" className="bg-white text-black">
+                                Forging
+                            </option>
+                            <option value="Research" className="bg-white text-black">
+                                Research
+                            </option>
+                        </select>
+                        <button
+                            type="button"
+                            onClick={() => void handleGrantKnowledge()}
+                            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
+                            disabled={detailsLoading}
+                        >
+                            Grant
                         </button>
                     </div>
                 </div>
@@ -328,8 +424,8 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
                     <div className="w-[280px] shrink-0 overflow-auto rounded-lg border border-border-custom bg-surface p-3">
                         <p className="mb-3 text-sm font-semibold text-white">Characters</p>
                         <div className="space-y-3">
-                            {loading && <p className="text-sm text-muted">Loading…</p>}
-                            {!loading && details?.characters.length === 0 && (
+                            {detailsLoading && <p className="text-sm text-muted">Loading…</p>}
+                            {!detailsLoading && details?.characters.length === 0 && (
                                 <p className="text-sm text-muted">No characters found</p>
                             )}
                             {details?.characters.map((character) => (
@@ -369,3 +465,4 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
         </div>
     );
 }
+

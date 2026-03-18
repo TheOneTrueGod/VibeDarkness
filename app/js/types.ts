@@ -26,6 +26,7 @@ export interface AccountState {
     recentLobbies?: string[];
     campaignIds?: string[];
     inventoryItemIds?: string[];
+    knowledge?: Record<string, Record<string, unknown>>;
 }
 
 export interface CampaignCharacter {
@@ -44,7 +45,10 @@ export interface CampaignResources {
     food: number;
     metal: number;
     population: number;
+    crystals: number;
 }
+
+export type CampaignResourceKey = keyof CampaignResources;
 
 export interface CampaignState {
     id: string;

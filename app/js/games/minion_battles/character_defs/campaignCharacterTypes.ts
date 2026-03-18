@@ -39,6 +39,7 @@ export interface CampaignCharacterData {
     battleChipDetails: BattleChipDetails;
     campaignId: string;
     missionId: string;
+    researchTrees?: Record<string, string[]>;
 }
 
 /** One-word reason a character cannot be used on a mission. */

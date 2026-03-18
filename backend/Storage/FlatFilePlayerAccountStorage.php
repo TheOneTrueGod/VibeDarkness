@@ -103,4 +103,23 @@ class FlatFilePlayerAccountStorage implements PlayerAccountStorageInterface
         $this->writeIndex($index['nextId'], $index['byName']);
         return $id;
     }
+
+    /**
+     * @return list<PlayerAccount>
+     */
+    public function listAll(): array
+    {
+        $index = $this->readIndex();
+        $accountIds = array_values(array_unique(array_map('intval', array_values($index['byName']))));
+        sort($accountIds);
+
+        $accounts = [];
+        foreach ($accountIds as $accountId) {
+            $account = $this->findById($accountId);
+            if ($account !== null) {
+                $accounts[] = $account;
+            }
+        }
+        return $accounts;
+    }
 }

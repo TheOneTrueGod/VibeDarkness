@@ -9,10 +9,11 @@ import type { CampaignState } from '../types';
 import { STORYLINES, MISSION_MAP } from '../games/minion_battles/storylines';
 import { getUnlockedMissionIds, getAllMissionIdsInOrder, hasVictoryResult } from '../games/minion_battles/storylines/unlock';
 import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
+import AdminPlayersHomePanel from './AdminPlayersHomePanel';
 
-type TabId = 'welcome' | 'mission_select' | 'join_mission';
+type TabId = 'welcome' | 'mission_select' | 'join_mission' | 'players';
 
-const TAB_IDS: TabId[] = ['welcome', 'mission_select', 'join_mission'];
+const TAB_IDS: TabId[] = ['welcome', 'mission_select', 'join_mission', 'players'];
 
 /** Per-tab settings: label and whether the tab is visible for the current user. */
 const TAB_SETTINGS: Record<
@@ -22,6 +23,7 @@ const TAB_SETTINGS: Record<
     welcome: { label: 'Welcome', isVisible: () => true },
     mission_select: { label: 'Mission Select', isVisible: (isAdmin) => isAdmin },
     join_mission: { label: 'Join Mission', isVisible: () => true },
+    players: { label: 'Players', isVisible: (isAdmin) => isAdmin },
 };
 
 /** Default tab when no tab is selected; non-admins see Join Mission first. */
@@ -145,7 +147,11 @@ export default function CampaignHomeScreen({
 
     return (
         <div className="min-h-screen flex flex-col">
-            <div className="flex-1 max-w-[800px] mx-auto w-full px-5 py-8 max-md:px-5 max-md:py-5">
+            <div
+                className={`flex-1 mx-auto w-full px-5 py-8 max-md:px-5 max-md:py-5 ${
+                    activeTab === 'players' ? 'max-w-[1800px]' : 'max-w-[800px]'
+                }`}
+            >
                 <h1 className="text-center text-4xl max-md:text-3xl font-bold mb-8 text-primary">
                     Minion Battles
                 </h1>
@@ -247,6 +253,12 @@ export default function CampaignHomeScreen({
                                     Join by Code
                                 </button>
                                 <RecentLobbiesList lobbies={recentLobbyInfos} onJoin={onJoinLobby} />
+                            </div>
+                        )}
+
+                        {activeTab === 'players' && isAdmin && (
+                            <div className="rounded-lg border border-border-custom bg-surface overflow-hidden min-h-[600px]">
+                                <AdminPlayersHomePanel lobbyClient={lobbyClient} />
                             </div>
                         )}
                     </>

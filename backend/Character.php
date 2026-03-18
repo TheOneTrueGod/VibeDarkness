@@ -22,6 +22,8 @@ class Character
     private array $battleChipDetails;
     private string $campaignId;
     private string $missionId;
+    /** @var array<string, string[]> */
+    private array $researchTrees;
 
     public function __construct(
         string $id,
@@ -33,7 +35,8 @@ class Character
         string $portraitId = '',
         array $battleChipDetails = [],
         string $campaignId = '',
-        string $missionId = ''
+        string $missionId = '',
+        array $researchTrees = []
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -45,6 +48,7 @@ class Character
         $this->battleChipDetails = $battleChipDetails;
         $this->campaignId = $campaignId;
         $this->missionId = $missionId;
+        $this->researchTrees = self::normalizeResearchTrees($researchTrees);
     }
 
     public function getId(): string
@@ -101,6 +105,18 @@ class Character
         return $this->missionId;
     }
 
+    /** @return array<string, string[]> */
+    public function getResearchTrees(): array
+    {
+        return $this->researchTrees;
+    }
+
+    /** @param array<string, string[]> $researchTrees */
+    public function setResearchTrees(array $researchTrees): void
+    {
+        $this->researchTrees = self::normalizeResearchTrees($researchTrees);
+    }
+
     /** API and storage array (serializable) */
     public function toArray(): array
     {
@@ -115,6 +131,7 @@ class Character
             'battleChipDetails' => $this->battleChipDetails,
             'campaignId' => $this->campaignId,
             'missionId' => $this->missionId,
+            'researchTrees' => $this->researchTrees,
         ];
     }
 
@@ -124,6 +141,7 @@ class Character
         $knowledge = $data['knowledge'] ?? [];
         $traits = $data['traits'] ?? [];
         $battleChipDetails = $data['battleChipDetails'] ?? [];
+        $researchTrees = $data['researchTrees'] ?? [];
         return new self(
             $data['id'] ?? '',
             (int) ($data['ownerAccountId'] ?? 0),
@@ -134,7 +152,38 @@ class Character
             (string) ($data['portraitId'] ?? ''),
             is_array($battleChipDetails) ? $battleChipDetails : [],
             (string) ($data['campaignId'] ?? ''),
-            (string) ($data['missionId'] ?? '')
+            (string) ($data['missionId'] ?? ''),
+            is_array($researchTrees) ? $researchTrees : []
         );
+    }
+
+    /**
+     * @param mixed $researchTrees
+     * @return array<string, string[]>
+     */
+    private static function normalizeResearchTrees(mixed $researchTrees): array
+    {
+        if (!is_array($researchTrees)) {
+            return [];
+        }
+        $out = [];
+        foreach ($researchTrees as $treeId => $nodeIds) {
+            if (!is_string($treeId) || $treeId === '') {
+                continue;
+            }
+            if (!is_array($nodeIds)) {
+                continue;
+            }
+            $clean = [];
+            foreach ($nodeIds as $nid) {
+                $nid = is_string($nid) ? trim($nid) : '';
+                if ($nid === '') {
+                    continue;
+                }
+                $clean[] = $nid;
+            }
+            $out[$treeId] = array_values(array_unique($clean));
+        }
+        return $out;
     }
 }

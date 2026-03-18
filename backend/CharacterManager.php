@@ -94,10 +94,10 @@ class CharacterManager
     }
 
     /**
-     * Update a character's fields (equipment, name, portraitId). Caller must ensure ownership.
+     * Update a character's fields (equipment, name, portraitId, researchTrees). Caller must ensure ownership.
      *
      * @param string $characterId
-     * @param array{equipment?: string[], name?: string, portraitId?: string} $updates
+     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>} $updates
      * @return Character|null Updated character or null if not found
      */
     public function updateCharacter(string $characterId, array $updates): ?Character
@@ -115,6 +115,9 @@ class CharacterManager
         }
         if (array_key_exists('portraitId', $updates)) {
             $data['portraitId'] = (string) $updates['portraitId'];
+        }
+        if (isset($updates['researchTrees']) && is_array($updates['researchTrees'])) {
+            $data['researchTrees'] = $updates['researchTrees'];
         }
         $updated = Character::fromArray($data);
         $this->persist($updated);

@@ -75,6 +75,14 @@ class AccountService
         return $this->storage->findById($id);
     }
 
+    /**
+     * @return list<PlayerAccount>
+     */
+    public function listAllAccounts(): array
+    {
+        return $this->storage->listAll();
+    }
+
     /** Record that the user visited a lobby (add to recent list, limit 10) */
     public function recordRecentLobby(int $accountId, string $lobbyId): void
     {
@@ -127,6 +135,53 @@ class AccountService
             return;
         }
         $account->addInventoryItemId($itemId);
+        $this->storage->save($account);
+    }
+
+    /** Remove a single inventory item ID from the account and persist. */
+    public function removeInventoryItemFromAccount(int $accountId, string $itemId): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->removeInventoryItemId($itemId);
+        $this->storage->save($account);
+    }
+
+    /**
+     * Grant a knowledge key to the account and persist.
+     *
+     * @param array<string, mixed> $details
+     */
+    public function grantKnowledgeToAccount(int $accountId, string $key, array $details = []): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->grantKnowledge($key, $details);
+        $this->storage->save($account);
+    }
+
+    public function removeKnowledgeFromAccount(int $accountId, string $key): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->removeKnowledge($key);
+        $this->storage->save($account);
+    }
+
+    /** Adjust an elemental resource (fire/water/earth/air) and persist. */
+    public function adjustResourceOnAccount(int $accountId, string $resourceKey, int $delta): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        $account->adjustResource($resourceKey, $delta);
         $this->storage->save($account);
     }
 }

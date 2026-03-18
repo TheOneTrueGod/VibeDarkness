@@ -29,7 +29,8 @@ class GetCampaignHandler
             return ['success' => false, 'error' => 'Account not found'];
         }
 
-        if (!in_array($campaignId, $account->getCampaignIds(), true)) {
+        $isAdmin = $account->getRole() === \App\PlayerAccount::ROLE_ADMIN;
+        if (!$isAdmin && !in_array($campaignId, $account->getCampaignIds(), true)) {
             http_response_code(403);
             return ['success' => false, 'error' => 'Access denied to this campaign'];
         }

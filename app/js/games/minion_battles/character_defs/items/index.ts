@@ -7,6 +7,8 @@ import type { ItemDef, EquipmentSlotType, CoreSlotLayout } from './types';
 import { rocksItem } from './hands/001_rocks';
 import { torchItem } from './hands/002_torch';
 import { potShieldItem } from './hands/003_pot_shield';
+import { crystalEmbeddedShieldItem } from './hands/011_crystal_embedded_shield';
+import { throwingCrystalShieldItem } from './hands/012_throwing_crystal_shield';
 import { coreBasicItem } from './core/004_core_basic';
 import { coreWeaponsItem } from './core/006_core_weapons';
 import { throwTorchUtilityItem } from './utility/005_throw_torch';
@@ -18,6 +20,8 @@ import { laserSwordItem } from './weapons/010_laser_sword';
 import rocksIcon from './assets/001_rocks.svg';
 import torchIcon from './assets/002_torch.svg';
 import potShieldIcon from './assets/003_pot_shield.svg';
+import crystalEmbeddedShieldIcon from './assets/011_crystal_embedded_shield.svg';
+import throwingCrystalShieldIcon from './assets/012_throwing_crystal_shield.svg';
 import coreBasicIcon from './assets/004_core_basic.svg';
 import throwTorchIcon from './assets/005_throw_torch.svg';
 import coreWeaponsIcon from './assets/006_core_weapons.svg';
@@ -39,6 +43,8 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [rocksItem.id]: rocksIcon,
     [torchItem.id]: torchIcon,
     [potShieldItem.id]: potShieldIcon,
+    [crystalEmbeddedShieldItem.id]: crystalEmbeddedShieldIcon,
+    [throwingCrystalShieldItem.id]: throwingCrystalShieldIcon,
     [coreBasicItem.id]: coreBasicIcon,
     [throwTorchUtilityItem.id]: throwTorchIcon,
     [coreWeaponsItem.id]: coreWeaponsIcon,
@@ -51,8 +57,8 @@ export const ITEM_ICON_URLS: Record<string, string> = {
 /** Default core for World of Darkness (1 weapon, 1 utility). */
 export const DEFAULT_CORE_ITEM_ID = coreBasicItem.id;
 
-/** Default item IDs available in inventory (all equippable items). */
-export const DEFAULT_PLAYER_INVENTORY: string[] = [
+/** All item IDs available to players (all equippable items). */
+export const ALL_PLAYER_ITEMS: string[] = [
     torchItem.id,
     rocksItem.id,
     potShieldItem.id,
@@ -69,6 +75,8 @@ export const ITEMS: Record<string, ItemDef> = {
     [rocksItem.id]: rocksItem,
     [torchItem.id]: torchItem,
     [potShieldItem.id]: potShieldItem,
+    [crystalEmbeddedShieldItem.id]: crystalEmbeddedShieldItem,
+    [throwingCrystalShieldItem.id]: throwingCrystalShieldItem,
     [coreBasicItem.id]: coreBasicItem,
     [coreWeaponsItem.id]: coreWeaponsItem,
     [throwTorchUtilityItem.id]: throwTorchUtilityItem,

@@ -27,6 +27,8 @@ class PlayerAccount
     private array $characterIds;
     /** @var string[] Item IDs owned by this account. */
     private array $inventoryItemIds;
+    /** @var array<string, array<string, mixed>> */
+    private array $knowledge;
 
     public function __construct(
         int $id,
@@ -40,7 +42,8 @@ class PlayerAccount
         array $recentLobbies = [],
         array $campaignIds = [],
         array $characterIds = [],
-        array $inventoryItemIds = []
+        array $inventoryItemIds = [],
+        array $knowledge = []
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -54,6 +57,7 @@ class PlayerAccount
         $this->campaignIds = $campaignIds;
         $this->characterIds = $characterIds;
         $this->inventoryItemIds = array_values($inventoryItemIds);
+        $this->knowledge = is_array($knowledge) ? $knowledge : [];
     }
 
     public function getRecentLobbies(): array
@@ -102,6 +106,41 @@ class PlayerAccount
         return $this->inventoryItemIds;
     }
 
+    /** @return array<string, array<string, mixed>> */
+    public function getKnowledge(): array
+    {
+        return $this->knowledge;
+    }
+
+    /**
+     * Grant a knowledge key to this account and persist via AccountService.
+     *
+     * @param array<string, mixed> $details
+     */
+    public function grantKnowledge(string $key, array $details = []): void
+    {
+        $k = trim($key);
+        if ($k === '') {
+            return;
+        }
+        $existing = $this->knowledge[$k] ?? [];
+        $existing = is_array($existing) ? $existing : [];
+        $this->knowledge[$k] = array_merge(
+            $existing,
+            $details,
+            ['acquiredAt' => (int) (($existing['acquiredAt'] ?? 0) ?: time())]
+        );
+    }
+
+    public function removeKnowledge(string $key): void
+    {
+        $k = trim($key);
+        if ($k === '') {
+            return;
+        }
+        unset($this->knowledge[$k]);
+    }
+
     public function addCharacterId(string $characterId): void
     {
         $id = trim($characterId);
@@ -133,6 +172,20 @@ class PlayerAccount
             return;
         }
         $this->inventoryItemIds[] = $id;
+    }
+
+    /** Remove a single inventory item occurrence from the account. */
+    public function removeInventoryItemId(string $itemId): void
+    {
+        $id = trim($itemId);
+        if ($id === '') {
+            return;
+        }
+        $index = array_search($id, $this->inventoryItemIds, true);
+        if ($index === false) {
+            return;
+        }
+        array_splice($this->inventoryItemIds, (int) $index, 1);
     }
 
     public function getId(): int
@@ -188,6 +241,24 @@ class PlayerAccount
         ];
     }
 
+    /**
+     * Adjust a resource by delta (can be negative). Floors at 0.
+     */
+    public function adjustResource(string $key, int $delta): void
+    {
+        $k = strtolower(trim($key));
+        if ($k === '') {
+            return;
+        }
+        match ($k) {
+            'fire' => $this->fire = max(0, $this->fire + $delta),
+            'water' => $this->water = max(0, $this->water + $delta),
+            'earth' => $this->earth = max(0, $this->earth + $delta),
+            'air' => $this->air = max(0, $this->air + $delta),
+            default => null,
+        };
+    }
+
     /** API-safe array (no password) */
     public function toArray(): array
     {
@@ -203,6 +274,7 @@ class PlayerAccount
             'campaignIds' => array_values($this->campaignIds),
             'characterIds' => array_values($this->characterIds),
             'inventoryItemIds' => array_values($this->inventoryItemIds),
+            'knowledge' => $this->knowledge,
         ];
     }
 
@@ -229,6 +301,8 @@ class PlayerAccount
         $characterIds = is_array($characterIds) ? array_values(array_map('strval', $characterIds)) : [];
         $inventoryItemIds = $data['inventoryItemIds'] ?? $data['inventoryItems'] ?? [];
         $inventoryItemIds = is_array($inventoryItemIds) ? array_values(array_map('strval', $inventoryItemIds)) : [];
+        $knowledge = $data['knowledge'] ?? [];
+        $knowledge = is_array($knowledge) ? $knowledge : [];
         return new self(
             (int) $data['id'],
             $data['name'],
@@ -241,7 +315,8 @@ class PlayerAccount
             $recent,
             $campaignIds,
             $characterIds,
-            $inventoryItemIds
+            $inventoryItemIds,
+            $knowledge
         );
     }
 

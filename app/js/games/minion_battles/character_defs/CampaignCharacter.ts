@@ -29,6 +29,7 @@ export class CampaignCharacter {
     readonly battleChipDetails: Record<string, unknown>;
     readonly campaignId: string;
     readonly missionId: string;
+    readonly researchTrees: Record<string, string[]>;
 
     constructor(data: CampaignCharacterData) {
         this.id = data.id;
@@ -45,6 +46,8 @@ export class CampaignCharacter {
                 : {};
         this.campaignId = typeof data.campaignId === 'string' ? data.campaignId : '';
         this.missionId = typeof data.missionId === 'string' ? data.missionId : '';
+        this.researchTrees =
+            data.researchTrees && typeof data.researchTrees === 'object' ? (data.researchTrees as Record<string, string[]>) : {};
     }
 
     /**
@@ -129,6 +132,7 @@ export class CampaignCharacter {
             battleChipDetails: this.battleChipDetails as CampaignCharacterData['battleChipDetails'],
             campaignId: this.campaignId,
             missionId: this.missionId,
+            researchTrees: this.researchTrees,
         };
     }
 }

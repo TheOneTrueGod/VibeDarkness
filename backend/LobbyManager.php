@@ -623,7 +623,38 @@ class LobbyManager
             }
             $character = $characterManager->getCharacter($characterId);
             if ($character !== null) {
-                $byPlayer[$playerId] = $character->getEquipment();
+                $equipment = $character->getEquipment();
+
+                // Apply research-derived equipment changes deterministically (Tech Shield).
+                $trees = $character->getResearchTrees();
+                $tech = $trees['tech_shield'] ?? [];
+                $tech = is_array($tech) ? $tech : [];
+                $hasEmbedded = in_array('crystal_embedded_shield', $tech, true);
+                $hasThrowing = in_array('throwing_crystal_shield', $tech, true);
+                $hasExtra = in_array('extra_shields', $tech, true);
+
+                if ($hasEmbedded) {
+                    // Replace pot lid (003) with crystal embedded (011)
+                    if (in_array('003', $equipment, true) && !in_array('011', $equipment, true)) {
+                        $equipment = array_values(array_filter($equipment, static fn (string $id): bool => $id !== '003'));
+                        $equipment[] = '011';
+                    }
+                }
+                if ($hasThrowing) {
+                    // Replace embedded (011) with throwing (012)
+                    if (in_array('011', $equipment, true) && !in_array('012', $equipment, true)) {
+                        $equipment = array_values(array_filter($equipment, static fn (string $id): bool => $id !== '011'));
+                        $equipment[] = '012';
+                    }
+                }
+                if ($hasExtra && !$hasThrowing) {
+                    // Extra Shields: add one extra copy of the embedded shield cards by duplicating the item id.
+                    if (in_array('011', $equipment, true)) {
+                        $equipment[] = '011';
+                    }
+                }
+
+                $byPlayer[$playerId] = $equipment;
             }
         }
 

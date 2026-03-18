@@ -3,6 +3,8 @@
  * Handles HTTP API calls for lobby management
  */
 
+import type { CampaignResourceKey } from './types';
+
 /** Campaign character as returned from API (serializable). */
 export interface CampaignCharacterPayload {
     id: string;
@@ -15,6 +17,7 @@ export interface CampaignCharacterPayload {
     battleChipDetails: Record<string, unknown>;
     campaignId: string;
     missionId: string;
+    researchTrees?: Record<string, string[]>;
 }
 
 /** Payload to create a campaign character. */
@@ -44,6 +47,7 @@ interface ApiResponse {
     success: boolean;
     error?: string;
     account?: AccountInfo;
+    accounts?: AccountInfo[];
     campaign?: import('./types').CampaignState;
     lobbies?: LobbySummary[];
     activeLobbies?: ActiveLobbyEntry[];
@@ -97,6 +101,7 @@ interface AccountInfo {
     recentLobbies?: string[];
     campaignIds?: string[];
     inventoryItemIds?: string[];
+    knowledge?: Record<string, Record<string, unknown>>;
 }
 
 interface AdminAccountDetailsResponse {
@@ -187,7 +192,11 @@ export class LobbyClient {
     async updateCampaign(
         campaignId: string,
         payload: Partial<import('./types').CampaignState> & {
-            addMissionResult?: { missionId: string; result: string; resourceDelta?: { food?: number; metal?: number; population?: number } };
+            addMissionResult?: {
+                missionId: string;
+                result: string;
+                resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
+            };
         }
     ): Promise<import('./types').CampaignState> {
         const data = await this.request(`/api/campaigns/${encodeURIComponent(campaignId)}`, {
@@ -351,12 +360,28 @@ export class LobbyClient {
         return (data.characters as CampaignCharacterPayload[]) ?? [];
     }
 
+    async researchCharacterNode(
+        characterId: string,
+        payload: { treeId: string; nodeId: string }
+    ): Promise<CampaignCharacterPayload> {
+        const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}/research`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+        return data.character as CampaignCharacterPayload;
+    }
+
     async getAdminAccountDetails(accountId: number | string): Promise<AdminAccountDetailsResponse> {
         const data = await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}`);
         return {
             account: data.account as AccountInfo,
             characters: (data.characters as CampaignCharacterPayload[]) ?? [],
         };
+    }
+
+    async listAdminAccounts(): Promise<AccountInfo[]> {
+        const data = await this.request('/api/admin/accounts');
+        return (data.accounts as AccountInfo[]) ?? [];
     }
 
     async grantAccountItem(accountId: number | string, itemId: string): Promise<AdminAccountDetailsResponse> {
@@ -368,6 +393,59 @@ export class LobbyClient {
             account: data.account as AccountInfo,
             characters: (data.characters as CampaignCharacterPayload[]) ?? [],
         };
+    }
+
+    async removeAccountItem(accountId: number | string, itemId: string): Promise<AdminAccountDetailsResponse> {
+        const data = await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}/items/remove`, {
+            method: 'POST',
+            body: JSON.stringify({ itemId }),
+        });
+        return {
+            account: data.account as AccountInfo,
+            characters: (data.characters as CampaignCharacterPayload[]) ?? [],
+        };
+    }
+
+    async grantAccountKnowledge(
+        accountId: number | string,
+        key: string,
+        details?: Record<string, unknown>
+    ): Promise<AdminAccountDetailsResponse> {
+        const data = await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}/knowledge`, {
+            method: 'POST',
+            body: JSON.stringify({ key, details: details ?? {} }),
+        });
+        return {
+            account: data.account as AccountInfo,
+            characters: (data.characters as CampaignCharacterPayload[]) ?? [],
+        };
+    }
+
+    async grantAccountResource(
+        accountId: number | string,
+        resourceKey: 'fire' | 'water' | 'earth' | 'air',
+        delta: number,
+    ): Promise<AdminAccountDetailsResponse> {
+        const data = await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}/resources`, {
+            method: 'POST',
+            body: JSON.stringify({ resourceKey, delta }),
+        });
+        return {
+            account: data.account as AccountInfo,
+            characters: (data.characters as CampaignCharacterPayload[]) ?? [],
+        };
+    }
+
+    async grantCampaignResource(
+        campaignId: string,
+        resourceKey: CampaignResourceKey,
+        delta: number,
+    ): Promise<import('./types').CampaignState> {
+        const data = await this.request(`/api/admin/campaigns/${encodeURIComponent(campaignId)}/resources`, {
+            method: 'POST',
+            body: JSON.stringify({ resourceKey, delta }),
+        });
+        return data.campaign as import('./types').CampaignState;
     }
 
     async updateGameState(
