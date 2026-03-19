@@ -1,0 +1,234 @@
+import { AbilityState } from '../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import { AbilityPhase } from '../../abilities/abilityTimings';
+import type { TargetDef } from '../../abilities/targeting';
+import { drawClampedLine, drawCrosshair, drawRangeRings } from '../../abilities/previewHelpers';
+import { getDirectionFromTo, getPixelTargetPosition } from '../../abilities/targetHelpers';
+import type { ResolvedTarget } from '../../engine/types';
+import type { Unit } from '../../objects/Unit';
+import { Projectile } from '../../objects/Projectile';
+import { Effect } from '../../objects/Effect';
+import { areEnemies } from '../../engine/teams';
+import type { EventBus } from '../../engine/EventBus';
+import { asCardDefId, type CardDef } from '../types';
+
+const THROW_CHARGED_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+  <path d="M20 4 L32 12 L36 24 L28 36 L12 34 L4 20 Z" fill="#6b6b6b" stroke="#5a5a5a" stroke-width="1"/>
+  <path d="M12 14 L20 10 L28 16 L30 26 L22 32 L12 28 Z" fill="#7a7a7a"/>
+  <path d="M16 20 L24 16 L26 24 L18 28 Z" fill="#525252"/>
+  <path d="M9 11 L14 9 L12 15 L17 13 L15 19" fill="none" stroke="#8ef9ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22 8 L27 6 L24 12 L30 10 L26 18" fill="none" stroke="#8ef9ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 27 L15 25 L13 31 L18 29 L15 35" fill="none" stroke="#8ef9ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+const CARD_ID = 'throw_charged_rock';
+const RANGE = 200;
+const BASE_EXPLOSION_RADIUS = 50;
+const BASE_EXPLOSION_DAMAGE = 10;
+const BASE_MAX_TARGETS = 3;
+const DIRECT_HIT_DAMAGE = 5;
+
+const MORE_ROCK_EXPLOSION_RADIUS_MULT = 0.75;
+const MORE_ROCK_EXPLOSION_DAMAGE = 8;
+
+const MORE_POWER_EXPLOSION_DAMAGE = 12;
+const MORE_POWER_MAX_TARGETS = 4;
+
+const KNOCKBACK_MAGNITUDE = 24;
+const KNOCKBACK_POISE_DAMAGE = 3;
+const KNOCKBACK_AIR_TIME = 0.1;
+const KNOCKBACK_SLIDE_TIME = 0.08;
+
+interface GameEngineLike {
+    addProjectile(projectile: Projectile): void;
+    addEffect(effect: Effect): void;
+    getUnit(id: string): Unit | undefined;
+    getUnits(): Unit[];
+    eventBus: EventBus;
+    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
+}
+
+function getResearchSet(engine: GameEngineLike, playerId: string): Set<string> {
+    const researched = engine.getPlayerResearchNodes?.(playerId, 'crystal_rocks') ?? [];
+    return new Set(researched);
+}
+
+function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: number; y: number }): void {
+    const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, targetPos.x, targetPos.y);
+    if (dist === 0) return;
+
+    const speed = 900;
+    const projectile = new Projectile({
+        x: caster.x,
+        y: caster.y,
+        velocityX: dirX * speed,
+        velocityY: dirY * speed,
+        damage: DIRECT_HIT_DAMAGE,
+        sourceTeamId: caster.teamId,
+        sourceUnitId: caster.id,
+        sourceAbilityId: CARD_ID,
+        maxDistance: RANGE,
+        projectileType: 'charged_rock',
+    });
+    engine.addProjectile(projectile);
+}
+
+export const ThrowChargedRock: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Throw Charged Rock',
+    image: THROW_CHARGED_ROCK_IMAGE,
+    cooldownTime: 1.3,
+    resourceCost: null,
+    rechargeTurns: 1,
+    prefireTime: 0.3,
+    abilityTimings: [
+        { duration: 0.3, abilityPhase: AbilityPhase.Windup },
+        { duration: 1.3, abilityPhase: AbilityPhase.Cooldown },
+    ],
+    targets: [
+        { type: 'pixel', label: 'Target location' },
+        { type: 'pixel', label: 'Second target (More Rock)' },
+    ] as TargetDef[],
+    aiSettings: { minRange: 0, maxRange: RANGE },
+
+    getTooltipText(): string[] {
+        return [
+            'Throw a charged rock dealing {5} direct damage.',
+            'Explodes on hit or max range for {10} to up to {3} enemies.',
+        ];
+    },
+
+    getAbilityStates(currentTime: number): AbilityStateEntry[] {
+        const states: AbilityStateEntry[] = [];
+        if (currentTime < 0.6) {
+            states.push({ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } });
+        }
+        return states;
+    },
+
+    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+        if (prevTime >= 0.3 || currentTime < 0.3) return;
+        const eng = engine as GameEngineLike;
+        const research = getResearchSet(eng, caster.ownerId);
+        const hasMoreRock = research.has('more_rock');
+
+        const firstTarget = getPixelTargetPosition(targets, 0);
+        if (!firstTarget) return;
+        spawnProjectile(eng, caster, firstTarget);
+
+        if (hasMoreRock) {
+            const secondTarget = getPixelTargetPosition(targets, 1);
+            if (secondTarget) {
+                spawnProjectile(eng, caster, secondTarget);
+            }
+        }
+    },
+
+    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
+        if (attackInfo.type === 'projectile' && attackInfo.projectile) {
+            (attackInfo.projectile as Projectile).active = false;
+        }
+    },
+
+    onProjectileExpired(engine: unknown, caster: Unit, projectile: Projectile, hitUnitId?: string): void {
+        const eng = engine as GameEngineLike;
+        const sourceUnit = eng.getUnit(caster.id);
+        if (!sourceUnit) return;
+
+        const research = getResearchSet(eng, sourceUnit.ownerId);
+        const hasMoreRock = research.has('more_rock');
+        const hasMorePower = research.has('more_power');
+
+        const explosionRadius = hasMoreRock ? BASE_EXPLOSION_RADIUS * MORE_ROCK_EXPLOSION_RADIUS_MULT : BASE_EXPLOSION_RADIUS;
+        let explosionDamage = hasMoreRock ? MORE_ROCK_EXPLOSION_DAMAGE : BASE_EXPLOSION_DAMAGE;
+        let maxTargets = BASE_MAX_TARGETS;
+        if (hasMorePower) {
+            explosionDamage = MORE_POWER_EXPLOSION_DAMAGE;
+            maxTargets = MORE_POWER_MAX_TARGETS;
+        }
+
+        eng.addEffect(
+            new Effect({
+                x: projectile.x,
+                y: projectile.y,
+                duration: 0.25,
+                effectType: 'ChargedRockExplosion',
+                effectRadius: explosionRadius,
+            }),
+        );
+
+        const units = eng
+            .getUnits()
+            .filter((u) => u.isAlive() && areEnemies(sourceUnit.teamId, u.teamId))
+            .map((u) => ({ unit: u, dist: Math.hypot(u.x - projectile.x, u.y - projectile.y) }))
+            .filter((entry) => entry.dist <= explosionRadius + entry.unit.radius)
+            .sort((a, b) => a.dist - b.dist)
+            .slice(0, maxTargets)
+            .map((entry) => entry.unit);
+
+        for (const unit of units) {
+            unit.takeDamage(explosionDamage, sourceUnit.id, eng.eventBus);
+            const { dirX, dirY } = getDirectionFromTo(projectile.x, projectile.y, unit.x, unit.y);
+            unit.applyKnockback(
+                KNOCKBACK_POISE_DAMAGE,
+                {
+                    knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
+                    knockbackAirTime: KNOCKBACK_AIR_TIME,
+                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
+                    knockbackSource: { unitId: sourceUnit.id, abilityId: CARD_ID },
+                },
+                eng.eventBus,
+            );
+        }
+
+        if (hitUnitId) {
+            const hitUnit = eng.getUnit(hitUnitId);
+            if (
+                hitUnit &&
+                hitUnit.isAlive() &&
+                areEnemies(sourceUnit.teamId, hitUnit.teamId) &&
+                !units.includes(hitUnit)
+            ) {
+                const dist = Math.hypot(hitUnit.x - projectile.x, hitUnit.y - projectile.y);
+                if (dist <= explosionRadius + hitUnit.radius && units.length < maxTargets) {
+                    hitUnit.takeDamage(explosionDamage, sourceUnit.id, eng.eventBus);
+                    const { dirX, dirY } = getDirectionFromTo(projectile.x, projectile.y, hitUnit.x, hitUnit.y);
+                    hitUnit.applyKnockback(
+                        KNOCKBACK_POISE_DAMAGE,
+                        {
+                            knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
+                            knockbackAirTime: KNOCKBACK_AIR_TIME,
+                            knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
+                            knockbackSource: { unitId: sourceUnit.id, abilityId: CARD_ID },
+                        },
+                        eng.eventBus,
+                    );
+                }
+            }
+        }
+    },
+
+    renderTargetingPreview(gr, caster, currentTargets, mouseWorld): void {
+        gr.clear();
+        const target = currentTargets.length > 0 ? getPixelTargetPosition(currentTargets, currentTargets.length - 1) : mouseWorld;
+        if (!target) return;
+        drawClampedLine(gr, caster, target, RANGE, { color: 0x8ef9ff, width: 2, alpha: 0.7 });
+        drawRangeRings(gr, caster.x, caster.y, 0, RANGE, { fillAlpha: 0.08, strokeColor: 0x8ef9ff, strokeAlpha: 0.55 });
+    },
+
+    renderTargetingPreviewSelectedTargets(gr, _caster, currentTargets): void {
+        for (const t of currentTargets) {
+            if (t.type === 'pixel' && t.position) {
+                drawCrosshair(gr, t.position.x, t.position.y, 10, { color: 0x8ef9ff, width: 2, alpha: 0.95 });
+            }
+        }
+    },
+};
+
+export const ThrowChargedRockCard: CardDef = {
+    id: asCardDefId('throw_charged_rock'),
+    name: 'Throw Charged Rock',
+    abilityId: 'throw_charged_rock',
+    durability: 3,
+    discardDuration: { duration: 1, unit: 'rounds' },
+};

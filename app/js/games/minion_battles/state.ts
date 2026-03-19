@@ -26,6 +26,8 @@ export interface MinionBattlesState {
     playerStoryChoices?: Record<string, Record<string, string>>;
     /** Derived or stored: playerId -> item IDs equipped from story (e.g. from playerStoryChoices). */
     playerEquippedItems?: Record<string, string[]>;
+    /** Player research trees snapshot for runtime battle logic. */
+    playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
 }
 
 export interface MinionBattlesGameOptions {

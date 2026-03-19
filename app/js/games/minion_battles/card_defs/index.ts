@@ -1,7 +1,8 @@
 import type { CardDef, CardDefId } from './types';
 import { asCardDefId } from './types';
-import throwKnifeCard from './throw_knife_card';
-import throwRockCard from './throw_rock_card';
+import { ThrowRockCard } from './0107_ThrowRock/0107Ability';
+import { ThrowChargedRockCard } from './0108_ThrowChargedRock/0108Ability';
+import { ThrowKnifeCard } from './0109_ThrowKnife/0109Ability';
 import { DodgeCard } from './0101_Dodge/0101Ability';
 import { EnemyArcherShotCard } from './0001_EnemyArcherShot/0001Ability';
 import { EnemyMeleeAttackCard } from './0002_EnemyMeleeAttack/0002Ability';
@@ -17,8 +18,9 @@ import { SMGCard } from './0204_SMG/0204Ability';
 import { ShotgunCard } from './0205_Shotgun/0205Ability';
 
 const cardDefs: CardDef[] = [
-    throwKnifeCard,
-    throwRockCard,
+    ThrowKnifeCard,
+    ThrowRockCard,
+    ThrowChargedRockCard,
     DodgeCard,
     EnemyArcherShotCard,
     EnemyMeleeAttackCard,

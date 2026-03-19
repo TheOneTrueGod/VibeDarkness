@@ -172,6 +172,17 @@ export interface AbilityStatic {
     ): void;
 
     /**
+     * Optional. Called by projectile logic when a projectile reaches max range or hits a target.
+     * Use this for on-expire side effects like explosions.
+     */
+    onProjectileExpired?(
+        engine: unknown,
+        caster: Unit,
+        projectile: unknown,
+        hitUnitId?: string,
+    ): void;
+
+    /**
      * Optional. Called on the blocking ability when it successfully blocks an attack.
      * Receives the engine and the defender (unit holding the shield). Use to e.g. draw a card.
      */

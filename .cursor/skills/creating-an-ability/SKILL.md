@@ -7,6 +7,8 @@ description: Guides creating new abilities and card definitions in Minion Battle
 
 When adding a new ability to Minion Battles, follow this layout and ID scheme so abilities stay consistent and discoverable.
 
+Important: ability implementation files belong in `card_defs/` folders (not directly under `abilities/`).
+
 ## Literate programming: abilities as a list of behaviours
 
 **Abilities should contain as little logic as possible.** Use utility functions from `abilities/` so that reading an ability’s functions is like reading a list of behaviours, not a block of implementation details.
@@ -31,7 +33,8 @@ When adding new behaviour that might be reused, add or extend a helper in the ap
 2. **Single file inside that folder**: `####_ABILITY_NAME.ts`
    - The **file name must match the folder name** exactly (e.g. folder `0101_Dodge`, file `0101_Dodge.ts`).
    - Example: folder `0201_ThrowKnife`, file `0201_ThrowKnife.ts`.
-   - This file holds **both** the `CardDef` and the ability (`AbilityStatic` implementation).
+  - This file holds **both** the `CardDef` and the ability (`AbilityStatic` implementation).
+  - Legacy/non-numbered abilities should still live under `card_defs/<ability_name>/<ability_name>.ts` (for example: `card_defs/throw_rock/throw_rock.ts`).
 
 ## Ability ID (####)
 
@@ -72,13 +75,13 @@ Both live in the same file. Export the ability for `AbilityRegistry` and the car
 
 1. **`doCardEffect(engine, caster, targets, prevTime, currentTime)`**
    - Runs every tick while the ability is active for a unit using this card.
-   - Use `prevTime` and `currentTime` (seconds since start) for one-shot effects (e.g. fire at `currentTime >= prefireTime`). See `ThrowKnife` in `abilities/ThrowKnife.ts` for a threshold example.
+   - Use `prevTime` and `currentTime` (seconds since start) for one-shot effects (e.g. fire at `currentTime >= prefireTime`). See `ThrowKnife` in `card_defs/throw_knife/throw_knife.ts` for a threshold example.
 
 2. **`renderTargetingPreview(gr, caster, currentTargets, mouseWorld, units)`**
    - Draws a hint in the targeting overlay for where the skill will affect (range, area, line, etc.).
    - Called each frame while the player is choosing targets.
 
-Implement the rest of `AbilityStatic` (e.g. `getDescription`, `getAbilityStates`, `targets`, `prefireTime`, `cooldownTime`, `resourceCost`, `rechargeTurns`, `image`, `aiSettings` as needed). Use existing abilities under `abilities/` and `card_defs/` as reference.
+Implement the rest of `AbilityStatic` (e.g. `getDescription`, `getAbilityStates`, `targets`, `prefireTime`, `cooldownTime`, `resourceCost`, `rechargeTurns`, `image`, `aiSettings` as needed). Use existing abilities under `card_defs/` as reference.
 
 ### Blocking and `onAttackBlocked`
 

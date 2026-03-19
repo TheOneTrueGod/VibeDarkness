@@ -13,6 +13,7 @@ import { areEnemies } from '../engine/teams';
 import type { Unit } from './Unit';
 import type { EventBus } from '../engine/EventBus';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../abilities/blockingHelpers';
+import { getAbility } from '../abilities/AbilityRegistry';
 
 export class Projectile extends GameObject {
     velocityX: number;
@@ -27,6 +28,8 @@ export class Projectile extends GameObject {
     radius: number = 5;
     /** Optional visual trail type (e.g. 'bullet'). When set, update() will spawn matching effects as the projectile moves. */
     trailType?: 'bullet';
+    /** Projectile look variant for custom rendering. */
+    projectileType?: 'default' | 'charged_rock';
 
     constructor(config: {
         id?: string;
@@ -40,6 +43,7 @@ export class Projectile extends GameObject {
         sourceAbilityId: string;
         maxDistance: number;
         trailType?: 'bullet';
+        projectileType?: 'default' | 'charged_rock';
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -50,6 +54,7 @@ export class Projectile extends GameObject {
         this.sourceAbilityId = config.sourceAbilityId;
         this.maxDistance = config.maxDistance;
         this.trailType = config.trailType;
+        this.projectileType = config.projectileType ?? 'default';
     }
 
     update(dt: number, engine: unknown): void {
@@ -85,6 +90,7 @@ export class Projectile extends GameObject {
 
         // Deactivate if max distance reached
         if (this.distanceTraveled >= this.maxDistance) {
+            this.triggerExpireEffect(engine);
             this.active = false;
         }
     }
@@ -92,9 +98,25 @@ export class Projectile extends GameObject {
     /** Create the Pixi Graphics for this projectile. The projectile owns its own visual representation. */
     static createVisual(projectile: Projectile): Graphics {
         const visual = new Graphics();
-        visual.circle(0, 0, projectile.radius);
-        visual.fill(0xc0c0c0);
-        visual.stroke({ color: 0xffffff, width: 1 });
+        if (projectile.projectileType === 'charged_rock') {
+            visual.circle(0, 0, projectile.radius + 1);
+            visual.fill(0x7a7a7a);
+            visual.stroke({ color: 0xd9d9d9, width: 1 });
+            visual.moveTo(-8, -4);
+            visual.lineTo(-3, -6);
+            visual.lineTo(-5, -1);
+            visual.lineTo(0, -3);
+            visual.stroke({ color: 0x8ef9ff, width: 2, alpha: 0.95 });
+            visual.moveTo(2, 1);
+            visual.lineTo(7, -1);
+            visual.lineTo(4, 4);
+            visual.lineTo(9, 3);
+            visual.stroke({ color: 0x8ef9ff, width: 2, alpha: 0.95 });
+        } else {
+            visual.circle(0, 0, projectile.radius);
+            visual.fill(0xc0c0c0);
+            visual.stroke({ color: 0xffffff, width: 1 });
+        }
         return visual;
     }
 
@@ -134,6 +156,9 @@ export class Projectile extends GameObject {
                     targetUnitId: unit.id,
                     damage: this.damage,
                 });
+                if (engine) {
+                    this.triggerExpireEffect(engine, unit.id);
+                }
                 this.active = false;
                 return unit;
             }
@@ -159,6 +184,7 @@ export class Projectile extends GameObject {
             distanceTraveled: this.distanceTraveled,
             radius: this.radius,
             trailType: this.trailType,
+            projectileType: this.projectileType,
         };
     }
 
@@ -179,6 +205,15 @@ export class Projectile extends GameObject {
         proj.distanceTraveled = data.distanceTraveled as number;
         proj.radius = (data.radius as number) ?? 5;
         proj.trailType = (data.trailType as 'bullet' | undefined) ?? undefined;
+        proj.projectileType = (data.projectileType as 'default' | 'charged_rock' | undefined) ?? 'default';
         return proj;
+    }
+
+    private triggerExpireEffect(engine: unknown, hitUnitId?: string): void {
+        if (!this.active) return;
+        const caster = (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(this.sourceUnitId);
+        if (!caster) return;
+        const ability = getAbility(this.sourceAbilityId);
+        ability?.onProjectileExpired?.(engine, caster, this, hitUnitId);
     }
 }

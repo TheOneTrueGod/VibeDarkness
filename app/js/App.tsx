@@ -12,7 +12,7 @@ import { MISSION_MAP } from './games/minion_battles/storylines';
 import GameScreen from './components/GameScreen';
 import type { MessageEntry } from './components/Chat';
 import type { ClickData } from './components/GameCanvas';
-import DebugConsole from './components/DebugConsole';
+import DebugConsole from './components/DebugConsole/DebugConsole';
 import { LobbyClient } from './LobbyClient';
 import { MessageType } from './MessageTypes';
 import { Messages } from './MessageTypes';

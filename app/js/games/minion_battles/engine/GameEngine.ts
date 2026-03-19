@@ -180,6 +180,8 @@ export class GameEngine {
 
     // -- Cards per player --
     cards: Record<string, CardInstance[]> = {};
+    /** Player research trees available to runtime ability logic. */
+    playerResearchTreesByPlayer: Record<string, Record<string, string[]>> = {};
 
     /** Orders scheduled to be applied at specific game ticks (from players or AI). */
     pendingOrders: OrderAtTick[] = [];
@@ -1035,6 +1037,21 @@ export class GameEngine {
         this.effects.push(effect);
     }
 
+    setPlayerResearchTreesByPlayer(map: Record<string, Record<string, string[]>>): void {
+        this.playerResearchTreesByPlayer = {};
+        for (const [playerId, trees] of Object.entries(map ?? {})) {
+            const normalizedTrees: Record<string, string[]> = {};
+            for (const [treeId, nodeIds] of Object.entries(trees ?? {})) {
+                normalizedTrees[treeId] = Array.isArray(nodeIds) ? [...nodeIds] : [];
+            }
+            this.playerResearchTreesByPlayer[playerId] = normalizedTrees;
+        }
+    }
+
+    getPlayerResearchNodes(playerId: string, treeId: string): string[] {
+        return this.playerResearchTreesByPlayer[playerId]?.[treeId] ?? [];
+    }
+
     /**
      * Picks a random ally (same owner, alive, not caster) and adds the given card to that ally's draw pile
      * (or the caster's if no allies). If the target unit doesn't have the ability in their list, adds it.
@@ -1068,6 +1085,10 @@ export class GameEngine {
 
     getUnit(id: string): Unit | undefined {
         return this.units.find((u) => u.id === id);
+    }
+
+    getUnits(): Unit[] {
+        return this.units;
     }
 
     /** Get the local player's unit. */
@@ -1682,6 +1703,12 @@ export class GameEngine {
             continuousSpawnLastSpawnedAt: Object.fromEntries(
                 Object.entries(this.continuousSpawnLastSpawnedAt).map(([k, v]) => [k, v]),
             ),
+            playerResearchTreesByPlayer: Object.fromEntries(
+                Object.entries(this.playerResearchTreesByPlayer).map(([playerId, trees]) => [
+                    playerId,
+                    Object.fromEntries(Object.entries(trees).map(([treeId, nodeIds]) => [treeId, [...nodeIds]])),
+                ]),
+            ),
         };
     }
 
@@ -1704,6 +1731,9 @@ export class GameEngine {
         }
         if (data.continuousSpawnLastSpawnedAt && typeof data.continuousSpawnLastSpawnedAt === 'object') {
             engine.continuousSpawnLastSpawnedAt = { ...data.continuousSpawnLastSpawnedAt } as Record<number, number>;
+        }
+        if (data.playerResearchTreesByPlayer && typeof data.playerResearchTreesByPlayer === 'object') {
+            engine.setPlayerResearchTreesByPlayer(data.playerResearchTreesByPlayer);
         }
         engine.pendingOrders = (data.orders ?? []).map((o) => ({
             gameTick: o.gameTick,

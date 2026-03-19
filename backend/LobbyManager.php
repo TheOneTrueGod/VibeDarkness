@@ -616,6 +616,7 @@ class LobbyManager
         }
         $characterManager = CharacterManager::getInstance();
         $byPlayer = [];
+        $researchByPlayer = [];
         foreach ($selections as $playerId => $characterId) {
             $playerId = is_int($playerId) ? (string) $playerId : $playerId;
             if (!is_string($playerId) || !is_string($characterId)) {
@@ -627,11 +628,15 @@ class LobbyManager
 
                 // Apply research-derived equipment changes deterministically (Tech Shield).
                 $trees = $character->getResearchTrees();
+                $researchByPlayer[$playerId] = is_array($trees) ? $trees : [];
                 $tech = $trees['tech_shield'] ?? [];
                 $tech = is_array($tech) ? $tech : [];
                 $hasEmbedded = in_array('crystal_embedded_shield', $tech, true);
                 $hasThrowing = in_array('throwing_crystal_shield', $tech, true);
                 $hasExtra = in_array('extra_shields', $tech, true);
+                $crystalRocks = $trees['crystal_rocks'] ?? [];
+                $crystalRocks = is_array($crystalRocks) ? $crystalRocks : [];
+                $hasChargedRocks = in_array('charged_rocks', $crystalRocks, true);
 
                 if ($hasEmbedded) {
                     // Replace pot lid (003) with crystal embedded (011)
@@ -651,6 +656,13 @@ class LobbyManager
                     // Extra Shields: add one extra copy of the embedded shield cards by duplicating the item id.
                     if (in_array('011', $equipment, true)) {
                         $equipment[] = '011';
+                    }
+                }
+                if ($hasChargedRocks) {
+                    // Crystal Rocks: replace rocks (001) with charged rocks (013).
+                    if (in_array('001', $equipment, true) && !in_array('013', $equipment, true)) {
+                        $equipment = array_values(array_filter($equipment, static fn (string $id): bool => $id !== '001'));
+                        $equipment[] = '013';
                     }
                 }
 
@@ -682,6 +694,9 @@ class LobbyManager
 
         if ($byPlayer !== []) {
             $state['playerEquipmentByPlayer'] = $byPlayer;
+        }
+        if ($researchByPlayer !== []) {
+            $state['playerResearchTreesByPlayer'] = $researchByPlayer;
         }
         return $state;
     }

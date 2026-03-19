@@ -9,6 +9,7 @@ import { torchItem } from './hands/002_torch';
 import { potShieldItem } from './hands/003_pot_shield';
 import { crystalEmbeddedShieldItem } from './hands/011_crystal_embedded_shield';
 import { throwingCrystalShieldItem } from './hands/012_throwing_crystal_shield';
+import { chargedRocksItem } from './hands/013_charged_rocks';
 import { coreBasicItem } from './core/004_core_basic';
 import { coreWeaponsItem } from './core/006_core_weapons';
 import { throwTorchUtilityItem } from './utility/005_throw_torch';
@@ -22,6 +23,7 @@ import torchIcon from './assets/002_torch.svg';
 import potShieldIcon from './assets/003_pot_shield.svg';
 import crystalEmbeddedShieldIcon from './assets/011_crystal_embedded_shield.svg';
 import throwingCrystalShieldIcon from './assets/012_throwing_crystal_shield.svg';
+import chargedRocksIcon from './assets/013_charged_rocks.svg';
 import coreBasicIcon from './assets/004_core_basic.svg';
 import throwTorchIcon from './assets/005_throw_torch.svg';
 import coreWeaponsIcon from './assets/006_core_weapons.svg';
@@ -45,6 +47,7 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [potShieldItem.id]: potShieldIcon,
     [crystalEmbeddedShieldItem.id]: crystalEmbeddedShieldIcon,
     [throwingCrystalShieldItem.id]: throwingCrystalShieldIcon,
+    [chargedRocksItem.id]: chargedRocksIcon,
     [coreBasicItem.id]: coreBasicIcon,
     [throwTorchUtilityItem.id]: throwTorchIcon,
     [coreWeaponsItem.id]: coreWeaponsIcon,
@@ -77,6 +80,7 @@ export const ITEMS: Record<string, ItemDef> = {
     [potShieldItem.id]: potShieldItem,
     [crystalEmbeddedShieldItem.id]: crystalEmbeddedShieldItem,
     [throwingCrystalShieldItem.id]: throwingCrystalShieldItem,
+    [chargedRocksItem.id]: chargedRocksItem,
     [coreBasicItem.id]: coreBasicItem,
     [coreWeaponsItem.id]: coreWeaponsItem,
     [throwTorchUtilityItem.id]: throwTorchUtilityItem,

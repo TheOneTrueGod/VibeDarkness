@@ -262,6 +262,8 @@ export default function BattlePhase({
             // characterSelections in state, (2) every character lookup fails (wrong ID, or no
             // storage/characters/<id>.json). BaseMissionDef applies a hand fallback when this is {}.
             const equippedItemsByPlayer = (init?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
+            const playerResearchTreesByPlayer =
+                (init?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
             mission.initializeGameState(engine, {
                 playerUnits,
                 localPlayerId: playerId,
@@ -269,6 +271,7 @@ export default function BattlePhase({
                 terrainManager,
                 equippedItemsByPlayer,
             });
+            engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
         }
 
         engineRef.current = engine;
