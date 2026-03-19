@@ -97,6 +97,11 @@ export interface LevelEventContinuousSpawn extends LevelEventBase {
         /** Last round when spawning is active (inclusive). Omitted = no end. */
         endRound?: number;
     };
+    /**
+     * Optional per-team cap. If the destination team already has more than this many units,
+     * the spawn entry is skipped for that tick.
+     */
+    maxUnits?: number;
     spawns: SpawnWaveEntry[];
 }
 

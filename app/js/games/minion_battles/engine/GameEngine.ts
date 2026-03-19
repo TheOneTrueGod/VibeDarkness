@@ -1390,6 +1390,15 @@ export class GameEngine {
             lightGrid = getLightGrid(this.globalLightLevel, width, height, this.getAllLightSources());
         }
 
+        const maxUnits = evt.maxUnits;
+        const unitCountByTeam: Record<string, number> | null =
+            maxUnits != null
+                ? this.units.reduce<Record<string, number>>((acc, u) => {
+                      acc[u.teamId] = (acc[u.teamId] ?? 0) + 1;
+                      return acc;
+                  }, {})
+                : null;
+
         const occupiedCells = new Set<string>();
 
         const collectCandidates = (
@@ -1446,11 +1455,14 @@ export class GameEngine {
             if (count <= 0) continue;
             if (behaviour === 'darkness' && (!this.lightLevelEnabled || !lightGrid)) continue;
 
+            if (maxUnits != null && unitCountByTeam && unitCountByTeam[base.teamId] > maxUnits) continue;
+
             const candidates = collectCandidates(behaviour, entry.spawnTarget);
             if (candidates.length === 0) continue;
             const spawnAttempts = Math.min(count, candidates.length);
             const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);
             for (const idx of chosenIndices) {
+                if (maxUnits != null && unitCountByTeam && unitCountByTeam[base.teamId] > maxUnits) break;
                 const cell = candidates[idx]!;
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
@@ -1466,6 +1478,7 @@ export class GameEngine {
                 };
                 const unit = createUnitFromSpawnConfig(config, this.eventBus);
                 this.addUnit(unit);
+                if (unitCountByTeam) unitCountByTeam[base.teamId] += 1;
             }
         }
     }
