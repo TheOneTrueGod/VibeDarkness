@@ -10,6 +10,7 @@ import type { AIContext } from './types';
 import { areEnemies } from '../../engine/teams';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { getPerceptionRange } from '../../engine/unitDef';
+import { getAbilityTargets } from '../../abilities/Ability';
 
 /** Euclidean distance between two points. */
 export function distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -67,7 +68,8 @@ export function findAIAbilityTarget(
 
 /** Build ResolvedTarget[] for an ability aimed at a single unit. */
 export function buildResolvedTargets(ability: AbilityStatic, targetUnit: Unit): ResolvedTarget[] {
-    return ability.targets.map((t) => {
+    const targetDefs = getAbilityTargets(ability, targetUnit, null);
+    return targetDefs.map((t) => {
         if (t.type === 'pixel') {
             return { type: 'pixel' as const, position: { x: targetUnit.x, y: targetUnit.y } };
         }

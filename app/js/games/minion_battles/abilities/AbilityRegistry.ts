@@ -26,6 +26,9 @@ import { ShotgunAbility } from '../card_defs/0205_Shotgun/0205Ability';
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
 
 function register(ability: AbilityStatic): void {
+    if (!ability.getTargets) {
+        ability.getTargets = () => ability.targets;
+    }
     ABILITY_MAP.set(ability.id, ability);
 }
 

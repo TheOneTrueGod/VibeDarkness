@@ -11,6 +11,7 @@ import type { ResolvedTarget } from '../engine/types';
 import type { ActiveAbility } from '../engine/types';
 import type { Unit } from '../objects/Unit';
 import type { AbilityTiming } from './abilityTimings';
+import type { CardDefId } from '../card_defs/types';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
 export interface IAbilityPreviewGraphics {
@@ -49,6 +50,20 @@ export interface AbilityAISettings {
     maxRange: number;
 }
 
+export type AbilityKeyword = 'exhaust';
+
+export interface AbilityKeywordDefs {
+    exhaust: {
+        newCards?: {
+            cardDefId: CardDefId;
+            abilityId: string;
+            location: 'deck' | 'hand' | 'discard';
+            rounds: number;
+            quantity?: number;
+        }[];
+    };
+}
+
 /** The shape every static ability class must implement. */
 export interface AbilityStatic {
     /** Unique ability ID. */
@@ -65,6 +80,13 @@ export interface AbilityStatic {
     readonly rechargeTurns: number;
     /** Ordered list of targets the player must select. */
     readonly targets: TargetDef[];
+    /** Optional ability keywords that alter card lifecycle behavior. */
+    readonly keywords?: Partial<{ [K in AbilityKeyword]: AbilityKeywordDefs[K] }>;
+    /**
+     * Optional target resolver. If omitted, callers should use `ability.targets`.
+     * Use when target count/labels depend on runtime state (e.g. research).
+     */
+    getTargets?(caster?: Unit, gameState?: unknown): TargetDef[];
     /** AI settings controlling when this ability is used (range check). */
     readonly aiSettings?: AbilityAISettings;
     /**
@@ -225,4 +247,9 @@ export function refundAbilityCost(unit: Unit, ability: AbilityStatic): void {
     if (!ability.resourceCost) return;
     const resource = unit.getResource(ability.resourceCost.resourceId);
     if (resource) resource.add(ability.resourceCost.amount);
+}
+
+/** Resolve runtime targets for an ability (dynamic if provided, otherwise static). */
+export function getAbilityTargets(ability: AbilityStatic, caster?: Unit, gameState?: unknown): TargetDef[] {
+    return ability.getTargets ? ability.getTargets(caster, gameState) : ability.targets;
 }

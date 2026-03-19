@@ -40,6 +40,9 @@ export const ThrowKnife: AbilityStatic = {
         { duration: 2, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
+    getTargets(): TargetDef[] {
+        return this.targets;
+    },
     aiSettings: { minRange: 0, maxRange: 200 },
 
     getTooltipText(_gameState?: unknown): string[] {

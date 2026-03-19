@@ -854,11 +854,13 @@ export class GameEngine {
         });
 
         // Move the card to discard when durability reaches 0 (for the unit's owner)
-        this.onCardUsed(unit.ownerId, ability.id);
+        this.onCardUsed(unit, ability);
     }
 
     /** Move the first in-hand card matching the ability: decrement durability; if 0, discard (or remove if discardDuration.unit is 'never'). Otherwise card stays in hand. */
-    private onCardUsed(playerId: string, abilityId: string): void {
+    private onCardUsed(unit: Unit, ability: AbilityStatic): void {
+        const playerId = unit.ownerId;
+        const abilityId = ability.id;
         const playerCards = this.cards[playerId];
         if (!playerCards) return;
         const card = playerCards.find(
@@ -868,6 +870,25 @@ export class GameEngine {
 
         card.durability--;
         if (card.durability <= 0) {
+            const exhaust = ability.keywords?.exhaust;
+            if (exhaust) {
+                const idx = playerCards.indexOf(card);
+                if (idx >= 0) playerCards.splice(idx, 1);
+                const generated = exhaust.newCards ?? [];
+                for (const entry of generated) {
+                    const quantity = Math.max(1, entry.quantity ?? 1);
+                    for (let i = 0; i < quantity; i++) {
+                        const newCard = createCardInstance(entry.cardDefId, entry.abilityId, entry.location);
+                        if (entry.location === 'discard') {
+                            newCard.durability = 0;
+                            newCard.discardRoundsRemaining = entry.rounds;
+                            delete newCard.discardAddedAtTime;
+                        }
+                        playerCards.push(newCard);
+                    }
+                }
+                return;
+            }
             const def = getCardDef(card.cardDefId);
             const discardDuration = def?.discardDuration ?? { duration: 1, unit: 'rounds' as const };
             if (discardDuration.unit === 'never') {

@@ -39,6 +39,9 @@ export const ThrowRock: AbilityStatic = {
         { duration: 1.3, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
+    getTargets(): TargetDef[] {
+        return this.targets;
+    },
     aiSettings: { minRange: 0, maxRange: 200 },
 
     getTooltipText(_gameState?: unknown): string[] {

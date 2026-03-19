@@ -16,6 +16,7 @@ import { Camera } from '../engine/Camera';
 import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../engine/types';
 import { resolveClick, validateAndResolveTarget } from '../abilities/targeting';
 import type { AbilityStatic } from '../abilities/Ability';
+import { getAbilityTargets } from '../abilities/Ability';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import { TerrainManager } from '../terrain/TerrainManager';
@@ -516,7 +517,9 @@ export default function BattlePhase({
 
         // Get the next required target
         const targetIndex = currentTargets.length;
-        const targetDef = selectedAbility.targets[targetIndex];
+        const caster = waitingForOrders ? engine.getUnit(waitingForOrders.unitId) : undefined;
+        const resolvedTargets = getAbilityTargets(selectedAbility, caster, engine);
+        const targetDef = resolvedTargets[targetIndex];
         if (!targetDef) return;
 
         // Validate and resolve
@@ -527,7 +530,7 @@ export default function BattlePhase({
         setCurrentTargets(newTargets);
 
         // Check if all targets are now fulfilled
-        if (newTargets.length >= selectedAbility.targets.length) {
+        if (newTargets.length >= resolvedTargets.length) {
             submitOrder(engine, selectedAbility.id, newTargets);
             setSelectedCardIndex(null);
             setSelectedAbility(null);
@@ -801,6 +804,7 @@ export default function BattlePhase({
                 selectedCardIndex={selectedCardIndex}
                 onSelectCard={handleSelectCard}
                 onWait={handleWait}
+                gameState={engine}
                 gameTime={engine.gameTime}
             />
         </div>
