@@ -353,6 +353,7 @@ export class GameRenderer {
                 currentTargets: unknown[],
                 mouseWorld: { x: number; y: number },
                 units: unknown[],
+                gameState?: unknown,
             ) => void;
             renderTargetingPreviewSelectedTargets?: (
                 gr: unknown,
@@ -360,6 +361,7 @@ export class GameRenderer {
                 currentTargets: unknown[],
                 mouseWorld: { x: number; y: number },
                 units: unknown[],
+                gameState?: unknown,
             ) => void;
         } | null;
         currentTargets: unknown[];
@@ -379,6 +381,7 @@ export class GameRenderer {
                     currentTargets: unknown[],
                     mouseWorld: { x: number; y: number },
                     units: unknown[],
+                    gameState?: unknown,
                 ) => void;
                 renderTargetingPreviewSelectedTargets?: (
                     gr: unknown,
@@ -386,6 +389,7 @@ export class GameRenderer {
                     currentTargets: unknown[],
                     mouseWorld: { x: number; y: number },
                     units: unknown[],
+                    gameState?: unknown,
                 ) => void;
             } | null;
             currentTargets: unknown[];
@@ -828,6 +832,7 @@ export class GameRenderer {
             ts.currentTargets,
             ts.mouseWorld,
             engine.units,
+            engine,
         );
 
         if (ability.renderTargetingPreviewSelectedTargets) {
@@ -837,6 +842,7 @@ export class GameRenderer {
                 ts.currentTargets,
                 ts.mouseWorld,
                 engine.units,
+                engine,
             );
         }
     }

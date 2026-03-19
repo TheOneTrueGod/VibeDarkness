@@ -157,6 +157,7 @@ export interface AbilityStatic {
         currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
         units: Unit[],
+        gameState?: unknown,
     ): void;
 
     /**
@@ -169,6 +170,7 @@ export interface AbilityStatic {
         currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
         units: Unit[],
+        gameState?: unknown,
     ): void;
 
     /**

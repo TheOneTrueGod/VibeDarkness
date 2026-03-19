@@ -2,7 +2,7 @@ import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import { drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
+import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../../abilities/targetHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
@@ -38,6 +38,7 @@ const KNOCKBACK_MAGNITUDE = 24;
 const KNOCKBACK_POISE_DAMAGE = 3;
 const KNOCKBACK_AIR_TIME = 0.1;
 const KNOCKBACK_SLIDE_TIME = 0.08;
+const PREVIEW_TEAL = 0x2dd4bf;
 
 interface GameEngineLike {
     addProjectile(projectile: Projectile): void;
@@ -60,6 +61,10 @@ const TWO_TARGETS: TargetDef[] = [
     { type: 'pixel', label: 'Second target (More Rock)' },
 ];
 
+function getExplosionRadiusForResearch(research: Set<string>): number {
+    return research.has('more_rock') ? BASE_EXPLOSION_RADIUS * MORE_ROCK_EXPLOSION_RADIUS_MULT : BASE_EXPLOSION_RADIUS;
+}
+
 function getOwnerResearch(engine: GameEngineLike, caster?: Unit): Set<string> {
     const ownerId = caster?.ownerId ?? engine.localPlayerId ?? '';
     return ownerId ? getResearchSet(engine, ownerId) : new Set<string>();
@@ -68,6 +73,7 @@ function getOwnerResearch(engine: GameEngineLike, caster?: Unit): Set<string> {
 function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: number; y: number }): void {
     const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, targetPos.x, targetPos.y);
     if (dist === 0) return;
+    const travelDistance = Math.min(dist, RANGE);
 
     const speed = 900;
     const projectile = new Projectile({
@@ -79,7 +85,7 @@ function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: n
         sourceTeamId: caster.teamId,
         sourceUnitId: caster.id,
         sourceAbilityId: CARD_ID,
-        maxDistance: RANGE,
+        maxDistance: travelDistance,
         projectileType: 'charged_rock',
     });
     engine.addProjectile(projectile);
@@ -255,17 +261,37 @@ export const ThrowChargedRock: AbilityStatic = {
         }*/
     },
 
-    renderTargetingPreview(gr, caster, currentTargets, mouseWorld): void {
+    renderTargetingPreview(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
         gr.clear();
-        const target = currentTargets.length > 0 ? getPixelTargetPosition(currentTargets, currentTargets.length - 1) : mouseWorld;
+        const target = mouseWorld;
         if (!target) return;
+        const eng = gameState as GameEngineLike | undefined;
+        const research = eng ? getOwnerResearch(eng, caster) : new Set<string>();
+        const explosionRadius = getExplosionRadiusForResearch(research);
+        const clamped = clampToMaxRange(caster, target, RANGE);
+        const impactX = clamped.endX;
+        const impactY = clamped.endY;
+
         drawClampedLine(gr, caster, target, RANGE, { color: 0x8ef9ff, width: 2, alpha: 0.7 });
+        gr.circle(impactX, impactY, explosionRadius);
+        gr.fill({ color: PREVIEW_TEAL, alpha: 0.15 });
+        gr.circle(impactX, impactY, explosionRadius);
+        gr.stroke({ color: PREVIEW_TEAL, width: 2, alpha: 0.5 });
     },
 
-    renderTargetingPreviewSelectedTargets(gr, _caster, currentTargets): void {
+    renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, _mouseWorld, _units, gameState): void {
+        const eng = gameState as GameEngineLike | undefined;
+        const research = eng ? getOwnerResearch(eng, caster) : new Set<string>();
+        const explosionRadius = getExplosionRadiusForResearch(research);
+
         for (const t of currentTargets) {
             if (t.type === 'pixel' && t.position) {
-                drawCrosshair(gr, t.position.x, t.position.y, 10, { color: 0x8ef9ff, width: 2, alpha: 0.95 });
+                const clamped = clampToMaxRange(caster, t.position, RANGE);
+                drawCrosshair(gr, clamped.endX, clamped.endY, 10, { color: 0x8ef9ff, width: 2, alpha: 0.95 });
+                gr.circle(clamped.endX, clamped.endY, explosionRadius);
+                gr.fill({ color: PREVIEW_TEAL, alpha: 0.1 });
+                gr.circle(clamped.endX, clamped.endY, explosionRadius);
+                gr.stroke({ color: PREVIEW_TEAL, width: 2, alpha: 0.45 });
             }
         }
     },
