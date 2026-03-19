@@ -343,7 +343,7 @@ export class LobbyClient {
     /** Update a campaign character (equipment, name, portraitId). Must be owned by current account. */
     async updateCharacter(
         characterId: string,
-        updates: { equipment?: string[]; name?: string; portraitId?: string }
+        updates: { equipment?: string[]; name?: string; portraitId?: string; researchTrees?: Record<string, string[]> }
     ): Promise<CampaignCharacterPayload> {
         const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}`, {
             method: 'PATCH',

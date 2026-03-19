@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PlayerState, AccountState } from '../../../types';
 import { LobbyClient } from '../../../LobbyClient';
-import CharacterEditor from './CharacterEditor';
+import CharacterEditor from './CharacterEditor/CharacterEditor';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../character_defs/campaignCharacterTypes';
 import { getPortrait } from '../character_defs/portraits';
@@ -325,7 +325,7 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
                 </div>
 
                 <div className="flex flex-1 min-h-0 gap-4 overflow-hidden">
-                    <div className="w-[280px] shrink-0 overflow-auto rounded-lg border border-border-custom bg-surface p-3">
+                    <div className="w-[200px] shrink-0 overflow-auto rounded-lg border border-border-custom bg-surface p-3">
                         <p className="mb-3 text-sm font-semibold text-white">Characters</p>
                         <div className="space-y-3">
                             {loading && <p className="text-sm text-muted">Loading…</p>}
@@ -353,7 +353,7 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
                                 onClose={() => {}}
                                 editMode
                                 inventoryItems={details?.account.inventoryItemIds ?? []}
-                                showInventoryPanel={false}
+                                showInventoryPanel
                                 account={details?.account ?? null}
                                 viewerAccount={user ?? null}
                                 campaign={null}

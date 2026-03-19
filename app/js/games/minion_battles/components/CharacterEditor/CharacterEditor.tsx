@@ -4,7 +4,7 @@
  * Bottom 2/3: tabs (Equipment). Doll with core/weapon/utility slots; inventory grid; drag to equip.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { getPortraitIds, getPortrait } from '../character_defs/portraits';
+import { getPortraitIds, getPortrait } from '../../character_defs/portraits';
 import {
     getItemDef,
     getEquippedForSlot,
@@ -13,20 +13,21 @@ import {
     ALL_PLAYER_ITEMS,
     ITEM_ICON_URLS,
     type EquipmentSlotType,
-} from '../character_defs/items';
-import type { CampaignCharacter } from '../character_defs/CampaignCharacter';
-import type { LobbyClient } from '../../../LobbyClient';
-import CharacterPortrait from './CharacterPortrait';
+} from '../../character_defs/items';
+import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
+import type { LobbyClient } from '../../../../LobbyClient';
+import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
-import ResearchTreePanel from './ResearchTreePanel';
-import type { AccountState, CampaignState } from '../../../types';
-import { RESEARCH_TREES } from '../../../researchTrees/list';
+import ResearchTreePanel from '../ResearchTreePanel';
+import type { AccountState, CampaignState } from '../../../../types';
+import { RESEARCH_TREES } from '../../../../researchTrees/list';
 import {
     canResearchNode,
     applyResearchEffects,
+    sortNodesDeterministic,
     prereqClosure,
     treeHasAnyResearch,
-} from '../../../researchTrees/evaluator';
+} from '../../../../researchTrees/evaluator';
 
 interface CharacterEditorProps {
     character: CampaignCharacter;
@@ -184,11 +185,10 @@ export default function CharacterEditor({
     }, [character.portraitId, portraitIds, portraitIndex, savePortrait, totalPortraits]);
 
     const visibleInventoryItems = useMemo(() => {
-        if (inventoryItems) {
-            return inventoryItems;
-        }
-        return ALL_PLAYER_ITEMS.filter((id) => !equipment.includes(id));
-    }, [equipment, inventoryItems]);
+        const isAdminViewer = permissionAccount?.role === 'admin';
+        const base = isAdminViewer ? ALL_PLAYER_ITEMS : inventoryItems ?? [];
+        return base.filter((id) => !equipment.includes(id));
+    }, [permissionAccount?.role, equipment, inventoryItems]);
 
     const researchEnabled = useMemo(() => {
         const isAdmin = permissionAccount?.role === 'admin';
@@ -213,6 +213,57 @@ export default function CharacterEditor({
         }
     }, [grantResourceAmount, grantResourceKey, lobbyClient, permissionAccount?.role, resolvedCampaign?.id]);
 
+    const handleResetResearch = useCallback(
+        async (treeIds: string[]) => {
+            if (permissionAccount?.role !== 'admin') return;
+            if (!treeIds.length) return;
+            if (!window.confirm('Reset research for the currently visible research trees?')) return;
+
+            setSaving(true);
+            try {
+                const nextResearchTrees: Record<string, string[]> = { ...researchTrees };
+                let nextEquipment = [...equipment];
+
+                for (const treeId of treeIds) {
+                    const tree = RESEARCH_TREES.find((t) => t.id === treeId);
+                    if (!tree) continue;
+
+                    const researchedForTree = researchTrees[treeId] ?? [];
+                    const researchedSet = new Set(researchedForTree);
+                    nextResearchTrees[treeId] = [];
+
+                    // Reverse any replaceEquippedItem operations coming from nodes we are un-researching.
+                    const researchedNodes = tree.nodes.filter((n) => researchedSet.has(n.id));
+                    const ordered = sortNodesDeterministic(researchedNodes);
+                    for (const node of [...ordered].reverse()) {
+                        for (const eff of node.effects) {
+                            if (eff.type !== 'replaceEquippedItem') continue;
+                            // Undo "from -> to" by reverting any current "to" back to "from".
+                            if (nextEquipment.includes(eff.toItemId)) {
+                                nextEquipment = nextEquipment.filter((id) => id !== eff.toItemId);
+                                if (!nextEquipment.includes(eff.fromItemId)) nextEquipment.push(eff.fromItemId);
+                            }
+                        }
+                    }
+                }
+
+                const updatedChar = await lobbyClient.updateCharacter(character.id, {
+                    equipment: nextEquipment,
+                    researchTrees: nextResearchTrees,
+                });
+
+                setResearchTrees(updatedChar.researchTrees ?? nextResearchTrees);
+                setEquipment(updatedChar.equipment ?? nextEquipment);
+                onSaved?.({ equipment: updatedChar.equipment ?? nextEquipment, name, portraitId: selectedPortraitId });
+            } catch (e) {
+                console.error('Failed to reset research:', e);
+            } finally {
+                setSaving(false);
+            }
+        },
+        [character.id, equipment, lobbyClient, name, permissionAccount?.role, researchTrees, selectedPortraitId, onSaved]
+    );
+
     const availableTrees = useMemo(() => {
         const res = resolvedCampaign?.resources;
         if (!res) return [];
@@ -229,7 +280,7 @@ export default function CharacterEditor({
             // here we only gate by accessRequirements.
             return t.accessRequirements.every((req) => {
                 // Minimal check using canResearchNode helpers: treat as node requirement list.
-                // evaluator.meetsRequirement isn’t exported; keep logic consistent with known cases:
+                // evaluator.meetsRequirement isn't exported; keep logic consistent with known cases:
                 if (req.type === 'accountKnowledge') return !!ctx.account.knowledge?.[req.key];
                 if (req.type === 'campaignResourceMin') return (ctx.campaignResources[req.resource] ?? 0) >= req.min;
                 if (req.type === 'characterHasEquippedItem') return ctx.character.equipment.includes(req.itemId);
@@ -419,7 +470,7 @@ export default function CharacterEditor({
             <div className="flex-1 min-h-0 flex overflow-hidden">
                 {activeTab === 'equipment' && (
                     <>
-                        <div className="flex-1 flex items-center justify-center p-4 min-w-0">
+                        <div className="shrink-0 flex items-center justify-start p-4">
                             <EquipmentDoll
                                 equipment={equipment}
                                 slotDescriptors={getSlotDescriptors(equipment)}
@@ -433,7 +484,7 @@ export default function CharacterEditor({
                             />
                         </div>
                         {showInventoryPanel && (
-                            <div className="w-[280px] shrink-0 border-l border-border-custom p-3 overflow-auto">
+                            <div className="flex-1 min-w-0 border-l border-border-custom p-3 overflow-auto">
                                 <InventoryPanel
                                     visibleInventoryItems={visibleInventoryItems}
                                     editMode={editMode}
@@ -493,7 +544,9 @@ export default function CharacterEditor({
                                     researchTrees={researchTrees}
                                     campaignResources={resolvedCampaign.resources}
                                     saving={saving}
+                                canResetResearch={permissionAccount?.role === 'admin'}
                                     onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
+                                onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
                                 />
                             </>
                         ) : (

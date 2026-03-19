@@ -59,7 +59,7 @@ All data sent to or from the server must be serializable (JSON-friendly):
 | Game state / messages | `backend/Http/Handlers/PostMessageHandler.php` (character_select + portraitId), `backend/LobbyManager.php` (characterPortraitIds in merge) |
 | Frontend types | `app/js/games/minion_battles/character_defs/campaignCharacterTypes.ts`, `portraits.ts` |
 | Frontend class | `app/js/games/minion_battles/character_defs/CampaignCharacter.ts` |
-| UI | `app/js/games/minion_battles/phases/CharacterSelectPhase.tsx`, `app/js/games/minion_battles/components/CharacterCreator.tsx` |
+| UI | `app/js/games/minion_battles/phases/CharacterSelectPhase.tsx`, `app/js/games/minion_battles/components/CharacterEditor/CharacterCreator.tsx`, `CharacterEditor/CharacterEditor.tsx` |
 | Mission config | `app/js/games/minion_battles/storylines/types.ts` (allowedTraits, disallowedTraits, campaignId) |
 | Battle | `app/js/games/minion_battles/phases/BattlePhase.tsx` (characterPortraitIds for playerUnits) |
 | Client API | `app/js/LobbyClient.ts` (getMyCharacters, createCharacter, getCharacter) |

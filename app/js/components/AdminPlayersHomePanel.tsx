@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AccountState } from '../types';
 import { LobbyClient } from '../LobbyClient';
-import CharacterEditor from '../games/minion_battles/components/CharacterEditor';
+import CharacterEditor from '../games/minion_battles/components/CharacterEditor/CharacterEditor';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../games/minion_battles/character_defs/campaignCharacterTypes';
 import { getPortrait } from '../games/minion_battles/character_defs/portraits';
@@ -421,7 +421,7 @@ export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: Lo
                 </div>
 
                 <div className="flex flex-1 min-h-0 gap-4 overflow-hidden">
-                    <div className="w-[280px] shrink-0 overflow-auto rounded-lg border border-border-custom bg-surface p-3">
+                    <div className="w-[200px] shrink-0 overflow-auto rounded-lg border border-border-custom bg-surface p-3">
                         <p className="mb-3 text-sm font-semibold text-white">Characters</p>
                         <div className="space-y-3">
                             {detailsLoading && <p className="text-sm text-muted">Loading…</p>}
@@ -449,7 +449,7 @@ export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: Lo
                                 onClose={() => {}}
                                 editMode
                                 inventoryItems={details?.account.inventoryItemIds ?? []}
-                                showInventoryPanel={false}
+                                showInventoryPanel
                                 account={details?.account ?? null}
                                 viewerAccount={user ?? null}
                                 campaign={null}

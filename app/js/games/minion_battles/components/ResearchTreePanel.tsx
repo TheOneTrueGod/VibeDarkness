@@ -15,7 +15,9 @@ interface ResearchTreePanelProps {
     researchTrees: Record<string, string[]>;
     campaignResources: CampaignResources;
     saving: boolean;
+    canResetResearch: boolean;
     onResearchNode: (treeId: string, nodeId: string) => void;
+    onResetResearch: (treeIds: string[]) => void;
 }
 
 export default function ResearchTreePanel({
@@ -26,7 +28,9 @@ export default function ResearchTreePanel({
     researchTrees,
     campaignResources,
     saving,
+    canResetResearch,
     onResearchNode,
+    onResetResearch,
 }: ResearchTreePanelProps) {
     const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
 
@@ -46,6 +50,8 @@ export default function ResearchTreePanel({
     const PAD_TOP = NODE_H; // push top node down by 1x height
     const PAD_BOTTOM = NODE_H; // pull bottom node up by 1x height
     const FIRST_NODE_X_NUDGE = NODE_W / 2; // extra 50% width to the right
+    const resetTreeIds = availableTrees.map((t) => t.id);
+    const firstTreeId = availableTrees[0]?.id;
 
     if (availableTrees.length === 0) {
         return <p className="text-sm text-muted">No research trees available.</p>;
@@ -88,13 +94,25 @@ export default function ResearchTreePanel({
 
                 return (
                     <div key={tree.id} className="rounded-lg border border-border-custom bg-surface-light p-4">
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex flex-col items-start gap-2">
                                 <p className="text-lg font-semibold text-white">{tree.title}</p>
                                 <p className="text-xs text-muted">
                                     Effective resources: food {effective.food}, metal {effective.metal}, population {effective.population}, crystals {effective.crystals}
                                 </p>
                             </div>
+
+                            {canResetResearch && tree.id === firstTreeId && (
+                                <button
+                                    type="button"
+                                    onClick={() => onResetResearch(resetTreeIds)}
+                                    disabled={saving}
+                                    className="rounded-md bg-surface-light border border-border-custom px-3 py-1.5 text-sm font-semibold text-white hover:bg-border-custom disabled:opacity-60 mt-0.5"
+                                    title="Un-research all researched nodes shown in this view"
+                                >
+                                    Reset research
+                                </button>
+                            )}
                         </div>
 
                         <div

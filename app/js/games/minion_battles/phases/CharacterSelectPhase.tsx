@@ -14,8 +14,8 @@ import { fromCampaignCharacterData, type CampaignCharacter } from '../character_
 import type { CampaignCharacterData } from '../character_defs/campaignCharacterTypes';
 import { getPortrait } from '../character_defs/portraits';
 import { ALL_PLAYER_ITEMS } from '../character_defs/items';
-import CharacterCreator from '../components/CharacterCreator';
-import CharacterEditor from '../components/CharacterEditor';
+import CharacterCreator from '../components/CharacterEditor/CharacterCreator';
+import CharacterEditor from '../components/CharacterEditor/CharacterEditor';
 import AdminPlayersPanel from '../components/AdminPlayersPanel';
 import { useUser } from '../../../contexts/UserContext';
 
@@ -366,7 +366,7 @@ export default function CharacterSelectPhase({
                             setEditorForceEditable(false);
                         }}
                         editMode={isAdmin || editorForceEditable}
-                        inventoryItems={ALL_PLAYER_ITEMS}
+                        inventoryItems={isAdmin ? ALL_PLAYER_ITEMS : user?.inventoryItemIds ?? []}
                         account={user}
                         campaign={campaign}
                     />
