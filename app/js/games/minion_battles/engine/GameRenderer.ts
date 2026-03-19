@@ -33,6 +33,9 @@ const HIT_FLASH_DURATION = 0.3;
 /** Color for move target markers (dark gray so visible in darkness). */
 const MOVE_TARGET_COLOR = 0x333333;
 
+/** Light background stroke for move target paths for readability on all terrain. */
+const MOVE_TARGET_PATH_BG_COLOR = 0xffffff;
+
 /** Z-index constants for game container layers (lower = behind). */
 const Z_INDEX = {
     terrain: 0,
@@ -64,6 +67,9 @@ export class GameRenderer {
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
     private initialized: boolean = false;
+
+    /** Optional debug: draw a yellow outline around this unit. */
+    private debugUnitOutlineId: string | null = null;
 
     /** The team ID used to determine friend/foe glow colors. */
     localTeamId: TeamId = 'player';
@@ -111,6 +117,11 @@ export class GameRenderer {
     constructor() {
         this.app = new Application();
         this.gameContainer = new Container();
+    }
+
+    /** Set the debug unit outline target (or null to clear). */
+    setDebugUnitOutline(unitId: string | null): void {
+        this.debugUnitOutlineId = unitId;
     }
 
     async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
@@ -547,6 +558,7 @@ export class GameRenderer {
             const light = this.getLightAt(col, row);
             const inFullDarkness =
                 light !== null && light <= -20 && areEnemies(this.localTeamId, unit.teamId);
+            const isDebugOutlined = this.debugUnitOutlineId === unit.id;
 
             const body = visual.children.find((c) => c.label === 'body') as Graphics | undefined;
             const hpBg = visual.children.find((c) => c.label === 'hpBg');
@@ -561,6 +573,12 @@ export class GameRenderer {
                 body.circle(0, 0, unit.radius);
                 body.fill({ color: 0xef4444 });
                 body.stroke({ color: 0xef4444, width: 1 });
+                if (isDebugOutlined) {
+                    // Yellow outline for debug focus (even in full darkness).
+                    body.stroke({ color: 0xfacc15, width: 3 });
+                    body.circle(0, 0, unit.radius + 4);
+                    body.stroke({ color: 0xfacc15, width: 2 });
+                }
                 if (hpBg) hpBg.visible = false;
                 if (hpFill) hpFill.visible = false;
                 if (characterSprite) characterSprite.visible = false;
@@ -573,6 +591,12 @@ export class GameRenderer {
                     body.circle(0, 0, unit.radius);
                     body.fill(getBodyColor(unit.characterId));
                     body.stroke({ color: 0x000000, width: 1 });
+                    if (isDebugOutlined) {
+                        // Yellow outline for debug focus.
+                        body.stroke({ color: 0xfacc15, width: 3 });
+                        body.circle(0, 0, unit.radius + 4);
+                        body.stroke({ color: 0xfacc15, width: 2 });
+                    }
                 }
                 if (hpBg) hpBg.visible = true;
                 if (hpFill) hpFill.visible = true;
@@ -699,13 +723,24 @@ export class GameRenderer {
             const path = unit.movement.path;
 
             // Draw path line from unit position through grid cell centers
+            // First: thick light outline underneath (1px thicker than main stroke).
             visual.moveTo(unit.x, unit.y);
             for (const cell of path) {
                 const wx = cell.col * CELL_SIZE + CELL_SIZE / 2;
                 const wy = cell.row * CELL_SIZE + CELL_SIZE / 2;
                 visual.lineTo(wx, wy);
             }
-            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 0.4 });
+            visual.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
+
+            // Second: original dark path on top.
+            visual.moveTo(unit.x, unit.y);
+            for (const cell of path) {
+                const wx = cell.col * CELL_SIZE + CELL_SIZE / 2;
+                const wy = cell.row * CELL_SIZE + CELL_SIZE / 2;
+                visual.lineTo(wx, wy);
+            }
+            // Darker inner path stroke should be fully opaque for readability.
+            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
 
             // Destination marker at last cell
             const lastCell = path[path.length - 1];
@@ -714,11 +749,21 @@ export class GameRenderer {
 
             // Outer ring at destination
             visual.circle(destX, destY, 8);
-            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
+            // Light background ring (1px thicker than dark ring).
+            visual.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
+
+            // Dark ring on top.
+            visual.circle(destX, destY, 8);
+            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 1 });
 
             // Inner dot at destination
             visual.circle(destX, destY, 2);
-            visual.fill({ color: MOVE_TARGET_COLOR });
+            // Light dot background for two-tone treatment.
+            visual.fill({ color: MOVE_TARGET_PATH_BG_COLOR, alpha: 0.7 });
+
+            // Dark dot on top.
+            visual.circle(destX, destY, 2);
+            visual.fill({ color: MOVE_TARGET_COLOR, alpha: 1 });
         }
 
         // Hide visuals for units that no longer have a move target

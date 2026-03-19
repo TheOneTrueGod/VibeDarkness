@@ -39,6 +39,15 @@ declare global {
             col: number;
             terrainName: string;
         };
+        /**
+         * Debug focus/outline: used by DebugConsole when the user hovers a unit in the UI.
+         * When unitId is null, the highlight is cleared.
+         */
+        __minionBattlesDebugSetUnitHover?: (unitId: string | null) => void;
+        /**
+         * When > Date.now(), BattleCanvas pauses auto-follow centering to give debug camera focus time.
+         */
+        __minionBattlesDebugAutoFollowPausedUntil?: number;
     }
 }
 
@@ -107,6 +116,41 @@ export default function BattlePhase({
 
     // Is it my turn?
     const isMyTurn = waitingForOrders?.ownerId === playerId;
+
+    // ========================================================================
+    // Debug unit focus/outline bridge (DebugConsole -> Pixi world)
+    // ========================================================================
+    useEffect(() => {
+        window.__minionBattlesDebugSetUnitHover = (unitId: string | null) => {
+            // Highlight in Pixi world.
+            rendererRef.current?.setDebugUnitOutline(unitId);
+
+            if (!unitId) {
+                // Allow camera auto-follow to resume.
+                window.__minionBattlesDebugAutoFollowPausedUntil = Date.now();
+                return;
+            }
+
+            // Attempt to snap camera to the unit.
+            const engine = engineRef.current;
+            const camera = cameraRef.current;
+            if (!engine || !camera) return;
+            const unit = engine.getUnit(unitId);
+            if (!unit) return;
+
+            camera.snapTo(unit.x, unit.y, unit.radius);
+            // Pause auto-follow centering briefly so the snap doesn't immediately get lerped back.
+            window.__minionBattlesDebugAutoFollowPausedUntil = Date.now() + 2500;
+        };
+
+        return () => {
+            if (rendererRef.current) rendererRef.current.setDebugUnitOutline(null);
+            window.__minionBattlesDebugSetUnitHover = undefined;
+            window.__minionBattlesDebugAutoFollowPausedUntil = undefined;
+        };
+        // Intentionally exclude refs from deps: we always want to use latest .current values.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Get the player's unit from the engine
     const playerUnit = useMemo(() => {

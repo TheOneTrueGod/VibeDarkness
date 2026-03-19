@@ -82,7 +82,10 @@ export default function BattleCanvas({
                 const playerUnit = engine.getLocalPlayerUnit();
                 if (playerUnit) {
                     camera.setFocusTarget(playerUnit.x, playerUnit.y, playerUnit.radius);
-                    const isAutoFollowPaused = Date.now() < autoFollowPausedUntilRef.current;
+                    const debugPauseUntil = (window as unknown as { __minionBattlesDebugAutoFollowPausedUntil?: number })
+                        .__minionBattlesDebugAutoFollowPausedUntil;
+                    const isDebugAutoFollowPaused = typeof debugPauseUntil === 'number' && Date.now() < debugPauseUntil;
+                    const isAutoFollowPaused = isDebugAutoFollowPaused || Date.now() < autoFollowPausedUntilRef.current;
                     if (!dragStateRef.current?.dragging && !isAutoFollowPaused) {
                         camera.centerOn(playerUnit.x, playerUnit.y, playerUnit.radius);
                     }

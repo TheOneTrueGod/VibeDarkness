@@ -205,7 +205,6 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     defendPoint: p.defendPoint ?? false,
                     destructible: isDestructible,
                     emitsLight: p.emitsLight,
-                    decayLightPerRound: p.decayLightPerRound,
                 };
                 if (p.protectRadius !== undefined) tile.protectRadius = p.protectRadius;
                 engine.addSpecialTile(tile);

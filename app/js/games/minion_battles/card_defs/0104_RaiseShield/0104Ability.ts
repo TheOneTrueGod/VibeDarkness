@@ -26,10 +26,16 @@ const MAX_DRAW_PER_USE = 1;
 const SHIELD_ARC_DEG = 120;
 const SHIELD_ARC_RAD = (SHIELD_ARC_DEG * Math.PI) / 180;
 const SHIELD_HALF_ARC_RAD = SHIELD_ARC_RAD / 2;
-const SHIELD_INNER_OFFSET = 0; // from creature's size (radius)
-const SHIELD_THICKNESS_PX = 5;
+// Inner radius is the "start" of the visual block, so keep it slightly outside the unit.
+const SHIELD_INNER_OFFSET = 5; // from creature's size (radius)
+const SHIELD_THICKNESS_PX = 10;
+const SHIELD_FILL_ALPHA = 0.9;
+const SHIELD_STROKE_ALPHA = 0.9;
 const MAX_RANGE = 300;
 const MIN_RANGE = 10;
+
+const SHIELD_FILL_COLOR = 0xbdbdbd;
+const SHIELD_STROKE_COLOR = 0x878787;
 
 interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
@@ -108,13 +114,22 @@ export const RaiseShieldAbility: AbilityStatic = {
         const centerAngle = Math.atan2(dirY, dirX);
         const innerR = caster.radius + SHIELD_INNER_OFFSET;
         const outerR = caster.radius + SHIELD_THICKNESS_PX;
-        drawArcWedge(gr, caster.x, caster.y, centerAngle, SHIELD_HALF_ARC_RAD, innerR, outerR);
+        drawArcWedge(gr, caster.x, caster.y, centerAngle, SHIELD_HALF_ARC_RAD, innerR, outerR, 24, {
+            fillAlpha: SHIELD_FILL_ALPHA,
+            strokeAlpha: SHIELD_STROKE_ALPHA,
+            strokeColor: SHIELD_STROKE_COLOR,
+            fillColor: SHIELD_FILL_COLOR,
+        });
     },
 
     renderTargetingPreview: createArcTargetPreview({
         arcDeg: SHIELD_ARC_DEG,
         innerOffset: SHIELD_INNER_OFFSET,
         outerThickness: SHIELD_THICKNESS_PX,
+        fillAlpha: SHIELD_FILL_ALPHA,
+        strokeAlpha: SHIELD_STROKE_ALPHA,
+        strokeColor: SHIELD_STROKE_COLOR,
+        fillColor: SHIELD_FILL_COLOR,
     }),
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {

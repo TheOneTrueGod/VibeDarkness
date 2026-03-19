@@ -40,7 +40,7 @@ import { getEdgePositions } from '../storylines/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../objects/units/index';
 import { ENEMY_MELEE, ENEMY_RANGED, ENEMY_DARK_WOLF, getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import type { SpecialTile } from '../objects/SpecialTile';
-import { specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
+import { isTileDefendPoint, specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import { buildAIController } from '../storylines/ai';
 import type { AIContext } from '../storylines/ai';
@@ -423,6 +423,9 @@ export class GameEngine {
         for (const { order } of toApply) {
             this.applyOrderLogic(order);
         }
+
+        // Special tiles light emission decay (supports fractional-round intervals).
+        this.processSpecialTileLightDecays();
 
         // Check for round end
         const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
@@ -902,8 +905,7 @@ export class GameEngine {
             getUnit: (id) => this.getUnit(id),
             getUnits: () => this.units,
             getSpecialTiles: () => this.specialTiles,
-            getAliveDefendPoints: () =>
-                this.specialTiles.filter((t) => t.defendPoint === true && t.hp > 0),
+            getAliveDefendPoints: () => this.specialTiles.filter(isTileDefendPoint),
             getLightSources: () => this.getLightSourcesForAI(),
             terrainManager: this.terrainManager,
             findGridPathForUnit: (unit, fromCol, fromRow, toCol, toRow) => {
@@ -1543,16 +1545,47 @@ export class GameEngine {
         }
     }
 
-    private handleRoundEnd(_roundNumber: number): void {
-        // Special tiles with decayLightPerRound: reduce light each round
-        for (const tile of this.specialTiles) {
-            if (!tile.decayLightPerRound || !tile.emitsLight) continue;
-            tile.emitsLight = {
-                lightAmount: Math.max(0, tile.emitsLight.lightAmount - 1),
-                radius: Math.max(0, tile.emitsLight.radius - 0.5),
-            };
-        }
+    /** Decay special tiles' `emitsLight` using `decayRate` + `decayInterval` (both expressed in rounds). */
+    private processSpecialTileLightDecays(): void {
+        const totalRoundsElapsed = this.gameTime / ROUND_DURATION;
+        const eps = 1e-9;
+        const radiusLossPerLightLoss = 0.5; // legacy: -1 light and -0.5 radius per 1 round decay step
 
+        for (const tile of this.specialTiles) {
+            const light = tile.emitsLight;
+            if (!light) continue;
+
+            const decayRate = light.decayRate;
+            const decayInterval = light.decayInterval;
+            if (decayRate === undefined || decayInterval === undefined) continue;
+            if (decayRate <= 0 || decayInterval <= 0) continue;
+            if (light.lightAmount <= 0 && light.radius <= 0) continue;
+
+            if (tile.lightDecayNextAtRound === undefined || !Number.isFinite(tile.lightDecayNextAtRound)) {
+                const stepsElapsed = Math.floor((totalRoundsElapsed + eps) / decayInterval);
+                // Next boundary after current time. Avoid immediate decay when we're exactly on a boundary.
+                tile.lightDecayNextAtRound = (stepsElapsed + 1) * decayInterval;
+            }
+
+            while (totalRoundsElapsed + eps >= tile.lightDecayNextAtRound) {
+                const radiusLoss = radiusLossPerLightLoss * decayRate;
+                light.lightAmount = Math.max(0, light.lightAmount - decayRate);
+                light.radius = Math.max(0, light.radius - radiusLoss);
+
+                tile.lightDecayNextAtRound += decayInterval;
+
+                // Once both hit 0, further decay steps won't affect gameplay.
+                if (light.lightAmount <= 0 && light.radius <= 0) {
+                    light.lightAmount = Math.max(0, light.lightAmount);
+                    light.radius = Math.max(0, light.radius);
+                    tile.lightDecayNextAtRound = Number.POSITIVE_INFINITY;
+                    break;
+                }
+            }
+        }
+    }
+
+    private handleRoundEnd(_roundNumber: number): void {
         // Torch effects: decay light/radius each round from initial values and remove when expired
         for (const effect of this.effects) {
             if (!effect.active || effect.effectType !== 'Torch') continue;

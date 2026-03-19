@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import { Unit } from '../../objects/Unit';
 import type { AIContext } from './types';
-import type { SpecialTile } from '../../objects/SpecialTile';
+import { isTileDefendPoint, type SpecialTile } from '../../objects/SpecialTile';
 import type { BattleOrder } from '../../engine/types';
 import { DefensePointsAIController } from './DefensePointsAIController';
 import { TerrainGrid } from '../../terrain/TerrainGrid';
@@ -76,6 +76,19 @@ function createDefendPoint(id: string, col: number, row: number, hp: number): Sp
     return { id, defId: 'Campfire', col, row, hp, maxHp: 5, defendPoint: true };
 }
 
+function createLitDefendPoint(id: string, col: number, row: number, hp: number, lightAmount: number): SpecialTile {
+    return {
+        id,
+        defId: 'Campfire',
+        col,
+        row,
+        hp,
+        maxHp: 5,
+        defendPoint: true,
+        emitsLight: { lightAmount, radius: 8 },
+    };
+}
+
 function createMockContext(options: {
     aliveDefendPoints: SpecialTile[];
     units: Unit[];
@@ -96,7 +109,7 @@ function createMockContext(options: {
         getUnit: (id) => options.units.find((u) => u.id === id),
         getUnits: () => options.units,
         getSpecialTiles: () => options.aliveDefendPoints,
-        getAliveDefendPoints: () => options.aliveDefendPoints.filter((t) => t.defendPoint === true && t.hp > 0),
+        getAliveDefendPoints: () => options.aliveDefendPoints.filter(isTileDefendPoint),
         terrainManager: options.terrainManager ?? null,
         findGridPathForUnit: (_, fromCol, fromRow, toCol, toRow) =>
             options.terrainManager?.findGridPath(fromCol, fromRow, toCol, toRow) ?? null,
@@ -169,6 +182,24 @@ describe('DefensePointsAIController', () => {
             const dpAlive = createDefendPoint('dp_alive', 5, 10, 5);
             const { context } = createMockContext({
                 aliveDefendPoints: [dpDead, dpAlive],
+                units: [unit],
+                terrainManager: tm,
+                gameTick: 50,
+            });
+
+            DefensePointsAIController.executeTurn(unit, context);
+
+            expect(unit.aiContext.defensePointTargetId).toBe('dp_alive');
+        });
+
+        it('reassigns defensePointTarget when current target emits 0 light', () => {
+            const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
+            const tm = new TerrainManager(grid);
+            const unit = createAIUnit({ x: 200, y: 400, defensePointTargetId: 'dp_dead_light' });
+            const dpDeadLight = createLitDefendPoint('dp_dead_light', 3, 3, 5, 0);
+            const dpAlive = createLitDefendPoint('dp_alive', 5, 10, 5, 10);
+            const { context } = createMockContext({
+                aliveDefendPoints: [dpDeadLight, dpAlive],
                 units: [unit],
                 terrainManager: tm,
                 gameTick: 50,

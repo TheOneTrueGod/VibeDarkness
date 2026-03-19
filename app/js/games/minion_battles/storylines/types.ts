@@ -144,9 +144,20 @@ export interface SpecialTilePlacement {
     /** Optional tags (e.g. destructible = can be corrupted by AI). */
     tags?: Partial<Record<SpecialTilesTags, boolean>>;
     /** Light at full HP: amount and radius (mission-configured). */
-    emitsLight?: { lightAmount: number; radius: number };
-    /** If true, each round this tile's emitsLight is reduced (lightAmount -1, radius -0.5 per round). */
-    decayLightPerRound?: boolean;
+    emitsLight?: {
+        lightAmount: number;
+        radius: number;
+        /**
+         * Optional decay config.
+         * `decayRate` is how much light it loses each `decayInterval` (expressed in rounds).
+         */
+        decayRate?: number;
+        /**
+         * How often to decay, expressed in rounds.
+         * Example: decayInterval=0.25 means decay happens 4 times per round.
+         */
+        decayInterval?: number;
+    };
     /** For Crystal: tile distance (Chebyshev) for protection aura and terrain blocking. */
     protectRadius?: number;
 }

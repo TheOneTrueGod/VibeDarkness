@@ -144,7 +144,7 @@ const ENEMIES = [
 const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'continuousSpawn',
-        trigger: { intervalRounds: 0.5 },
+        trigger: { intervalRounds: 0.25 },
         spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2 }],
     },
     {
@@ -165,8 +165,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         row: 10,
         defendPoint: true,
         hp: 5,
-        emitsLight: { lightAmount: 10, radius: 8 },
-        decayLightPerRound: true,
+        emitsLight: { lightAmount: 10, radius: 8, decayRate: 1, decayInterval: 0.25 },
     },
     // Campfire at back of cave — reach within 1 tile to win
     {

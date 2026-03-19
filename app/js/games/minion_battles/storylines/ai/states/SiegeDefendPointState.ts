@@ -48,6 +48,7 @@ export class SiegeDefendPointState extends AIState {
 
         unit.aiContext.defensePointTargetId = this.defendPointId;
         const currentDefendPoint = getDefendPointFromContext(unit, defendPoints);
+
         if (!currentDefendPoint) {
             const picked = defendPoints.find((t) => t.id === this.defendPointId) ?? defendPoints[0]!;
             unit.aiContext.defensePointTargetId = picked.id;

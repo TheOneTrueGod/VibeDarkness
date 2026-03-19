@@ -17,9 +17,22 @@ export interface SpecialTile {
     /** If true, AI can "corrupt" this tile (deal damage over time when at the tile). */
     destructible?: boolean;
     /** Light at full HP (amount and radius); scaled by hp/maxHp for actual emission. */
-    emitsLight?: { lightAmount: number; radius: number };
-    /** If true, each round light amount and radius are reduced (campfire dying down). */
-    decayLightPerRound?: boolean;
+    emitsLight?: {
+        lightAmount: number;
+        radius: number;
+        /**
+         * Optional decay config.
+         * `decayRate` is how much light amount is lost each `decayInterval` (expressed in rounds).
+         */
+        decayRate?: number;
+        /**
+         * How often to decay, expressed in rounds.
+         * Example: decayInterval=0.25 means 4 decays per round.
+         */
+        decayInterval?: number;
+    };
+    /** Internal: next time (in rounds since start) we apply one decay step. */
+    lightDecayNextAtRound?: number;
     /** For Crystal: tile distance (Chebyshev) for protection aura and terrain blocking. Set from mission placement. */
     protectRadius?: number;
 }
@@ -29,7 +42,7 @@ export function specialTileToJSON(t: SpecialTile): Record<string, unknown> {
     if (t.defendPoint !== undefined) out.defendPoint = t.defendPoint;
     if (t.destructible !== undefined) out.destructible = t.destructible;
     if (t.emitsLight !== undefined) out.emitsLight = t.emitsLight;
-    if (t.decayLightPerRound !== undefined) out.decayLightPerRound = t.decayLightPerRound;
+    if (t.lightDecayNextAtRound !== undefined) out.lightDecayNextAtRound = t.lightDecayNextAtRound;
     if (t.protectRadius !== undefined) out.protectRadius = t.protectRadius;
     return out;
 }
@@ -47,9 +60,25 @@ export function specialTileFromJSON(
     const rawEmits = data.emitsLight;
     const emitsLight =
         rawEmits && typeof rawEmits === 'object' && 'lightAmount' in rawEmits && 'radius' in rawEmits
-            ? { lightAmount: (rawEmits as { lightAmount: number }).lightAmount, radius: (rawEmits as { radius: number }).radius }
+            ? {
+                  lightAmount: (rawEmits as { lightAmount: number }).lightAmount,
+                  radius: (rawEmits as { radius: number }).radius,
+                  decayRate: (rawEmits as { decayRate?: number }).decayRate,
+                  decayInterval: (rawEmits as { decayInterval?: number }).decayInterval,
+              }
             : undefined;
     const maxHp = (data.maxHp as number) ?? 1;
+    const legacyDecayLightPerRound = data.decayLightPerRound as boolean | undefined;
+
+    // Backward compat: migrate legacy `decayLightPerRound` -> emitsLight.decayRate/decayInterval.
+    const migratedEmitsLight =
+        legacyDecayLightPerRound && emitsLight
+            ? {
+                  ...emitsLight,
+                  decayRate: emitsLight.decayRate ?? 1,
+                  decayInterval: emitsLight.decayInterval ?? 1,
+              }
+            : emitsLight;
     return {
         id: data.id as string,
         defId: data.defId as string,
@@ -59,8 +88,24 @@ export function specialTileFromJSON(
         maxHp,
         defendPoint: data.defendPoint as boolean | undefined,
         destructible: data.destructible as boolean | undefined,
-        emitsLight,
-        decayLightPerRound: data.decayLightPerRound as boolean | undefined,
+        emitsLight: migratedEmitsLight,
+        lightDecayNextAtRound: data.lightDecayNextAtRound as number | undefined,
         protectRadius: data.protectRadius as number | undefined,
     };
+}
+
+/**
+ * Decide whether a special tile should be treated as a "defend point" by AI.
+ * - `defendPoint` flag must be enabled
+ * - `hp` must be > 0
+ * - if the tile emits light, it must currently still emit > 0 light
+ */
+export function isTileDefendPoint(tile: SpecialTile): boolean {
+    if (tile.defendPoint !== true) return false;
+    if (tile.hp <= 0) return false;
+    if (!tile.emitsLight) return true;
+
+    const maxHp = tile.maxHp > 0 ? tile.maxHp : 1;
+    const effectiveLight = tile.emitsLight.lightAmount * (tile.hp / maxHp);
+    return effectiveLight > 0;
 }
