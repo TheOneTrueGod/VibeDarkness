@@ -13,6 +13,7 @@ import GameList from './GameList';
 import type { PlayerState, AccountState, LobbyState, GameSidebarInfo } from '../types';
 import { LobbyClient } from '../LobbyClient';
 import { getGameById } from '../games/list';
+import { useGameSyncOptional, WAITING_FOR_HOST_THRESHOLD } from '../contexts/GameSyncContext';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -106,21 +107,36 @@ export default function GameScreen({
     pingEnabled = true,
     flashingPlayerIds,
 }: GameScreenProps) {
+    const gameSync = useGameSyncOptional();
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
     const [gameLoadError, setGameLoadError] = useState<string | null>(null);
     const [gameSidebarInfo, setGameSidebarInfo] = useState<GameSidebarInfo | null>(null);
     const [battlePlayerListHidden, setBattlePlayerListHidden] = useState(false);
 
+    const effectiveLobbyPageState = gameSync?.gameState?.lobbyState ?? lobbyPageState;
+    const effectiveLobbyGameId = gameSync?.gameState?.gameId ?? lobbyGameId;
+    const effectiveLobbyGameType = gameSync?.gameState?.gameType ?? lobbyGameType;
+    const effectiveLobbyGameData = gameSync?.gameState?.game ?? lobbyGameData;
+    const effectivePlayers = gameSync?.gameState?.players
+        ? Object.fromEntries(Object.entries(gameSync.gameState.players).map(([k, p]) => [k, p as PlayerState]))
+        : players;
+
+    const isLoading = gameSync?.syncStatus === 'loading';
+    const isResyncing = gameSync?.syncStatus === 'resyncing';
+    const showWaitingForHost =
+        gameSync?.syncStatus === 'waiting_for_host' &&
+        (gameSync?.consecutiveWaitCount ?? 0) >= WAITING_FOR_HOST_THRESHOLD;
+
     // Load game component dynamically when game type changes
     useEffect(() => {
-        if (lobbyPageState !== 'in_game' || !lobbyGameType) {
+        if (effectiveLobbyPageState !== 'in_game' || !effectiveLobbyGameType) {
             setGameComp(null);
             setGameLoadError(null);
             setBattlePlayerListHidden(false);
             return;
         }
 
-        const game = getGameById(lobbyGameType);
+        const game = getGameById(effectiveLobbyGameType);
         if (!game) {
             setGameLoadError('Unknown game type');
             return;
@@ -129,7 +145,7 @@ export default function GameScreen({
         let cancelled = false;
         setGameLoadError(null);
 
-        import(`../games/${lobbyGameType}/Game.tsx`)
+        import(`../games/${effectiveLobbyGameType}/Game.tsx`)
             .then((mod) => {
                 if (!cancelled) {
                     setGameComp(() => mod.default);
@@ -145,11 +161,11 @@ export default function GameScreen({
         return () => {
             cancelled = true;
         };
-    }, [lobbyPageState, lobbyGameType]);
+    }, [effectiveLobbyPageState, effectiveLobbyGameType]);
 
     useEffect(() => {
         setBattlePlayerListHidden(false);
-    }, [lobbyGameId, lobbyGameType]);
+    }, [effectiveLobbyGameId, effectiveLobbyGameType]);
 
     const isHost = player.isHost ?? false;
     const isMobileOrTablet = useIsMobileOrTablet();
@@ -206,7 +222,7 @@ export default function GameScreen({
                         {/* Player unit health list */}
                         <div className="flex flex-col gap-1.5">
                             {gameSidebarInfo.playerUnits.map((pu) => {
-                                const pState = players[pu.playerId];
+                                const pState = effectivePlayers[pu.playerId];
                                 const hpPct = pu.maxHp > 0 ? Math.round((pu.hp / pu.maxHp) * 100) : 0;
                                 const barColor = !pu.isAlive
                                     ? 'bg-gray-600'
@@ -240,14 +256,14 @@ export default function GameScreen({
                                             </span>
                                         </div>
                                     </div>
-                                );
-                            })}
+                );
+            })}
                         </div>
                     </>
                 )}
             </div>
         );
-    }, [account, gameSidebarInfo, players]);
+    }, [account, gameSidebarInfo, effectivePlayers]);
 
     const chatHeaderLeaveButton = (
         <div className="flex items-center gap-2">
@@ -270,10 +286,10 @@ export default function GameScreen({
     );
 
     const shouldHideBattlePlayerList =
-        lobbyPageState === 'in_game' &&
-        lobbyGameType === 'minion_battles' &&
+        effectiveLobbyPageState === 'in_game' &&
+        effectiveLobbyGameType === 'minion_battles' &&
         (battlePlayerListHidden ||
-            (lobbyGameData?.gamePhase ?? lobbyGameData?.game_phase) === 'battle');
+            (effectiveLobbyGameData?.gamePhase ?? effectiveLobbyGameData?.game_phase) === 'battle');
 
     return (
         <div className="flex h-screen max-md:flex-col">
@@ -318,36 +334,54 @@ export default function GameScreen({
 
                 {/* Central area */}
                 <div className="flex-1 relative flex flex-col min-h-0">
-                    {lobbyPageState === 'home' && (
+                    {effectiveLobbyPageState === 'home' && (
                         <GameList isHost={isHost} onSelectGame={onSelectGame} />
                     )}
-                    {lobbyPageState === 'in_game' && lobbyGameType && (
+                    {effectiveLobbyPageState === 'in_game' && effectiveLobbyGameType && (
                         <div className="flex-1 relative flex items-center justify-center bg-surface rounded-lg overflow-hidden min-h-0">
-                            {gameLoadError ? (
+                            {isLoading ? (
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                                    <p className="text-muted">Loading game state...</p>
+                                </div>
+                            ) : gameLoadError ? (
                                 <p className="p-5 text-danger">{gameLoadError}</p>
                             ) : GameComp ? (
-                                <GameComp
-                                    lobbyClient={lobbyClient}
-                                    lobbyId={lobby.id}
-                                    gameId={lobbyGameId ?? ''}
-                                    playerId={player.id}
-                                    isHost={isHost}
-                                    isAdmin={account?.role === 'admin'}
-                                    players={players}
-                                    gameData={lobbyGameData}
-                                    onSidebarInfoChange={setGameSidebarInfo}
-                                    onRecordMissionResult={onRecordMissionResult}
-                                    onLeave={onLeave}
-                                    onTryAgain={onTryAgain}
-                                    onEmittedChatMessage={onEmittedChatMessage}
-                                    onBattleStartStatusChange={setBattlePlayerListHidden}
-                                />
+                                <>
+                                    {isResyncing && (
+                                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 bg-surface-light rounded-lg border border-primary">
+                                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                            <span className="text-sm font-medium">Resyncing...</span>
+                                        </div>
+                                    )}
+                                    {showWaitingForHost && (
+                                        <div className="absolute top-4 left-4 z-10 px-3 py-2 bg-surface-light rounded-lg border border-warning text-sm text-warning">
+                                            Waiting for host
+                                        </div>
+                                    )}
+                                    <GameComp
+                                        lobbyClient={lobbyClient}
+                                        lobbyId={lobby.id}
+                                        gameId={effectiveLobbyGameId ?? ''}
+                                        playerId={player.id}
+                                        isHost={isHost}
+                                        isAdmin={account?.role === 'admin'}
+                                        players={effectivePlayers}
+                                        gameData={effectiveLobbyGameData}
+                                        onSidebarInfoChange={setGameSidebarInfo}
+                                        onRecordMissionResult={onRecordMissionResult}
+                                        onLeave={onLeave}
+                                        onTryAgain={onTryAgain}
+                                        onEmittedChatMessage={onEmittedChatMessage}
+                                        onBattleStartStatusChange={setBattlePlayerListHidden}
+                                    />
+                                </>
                             ) : (
                                 <p className="text-muted">Loading game...</p>
                             )}
                         </div>
                     )}
-                    {lobbyPageState === 'home' && (
+                    {effectiveLobbyPageState === 'home' && (
                         <GameCanvas clicks={clicks} onCanvasClick={onCanvasClick} />
                     )}
                 </div>
@@ -355,19 +389,19 @@ export default function GameScreen({
                 {/* Player List (hidden during battle phase in minion_battles) */}
                 {!shouldHideBattlePlayerList && (
                     <PlayerList
-                        players={players}
+                        players={effectivePlayers}
                         currentPlayerId={player.id}
                         characterSelections={
-                            lobbyGameData != null
-                                ? (lobbyGameData.characterSelections as Record<string, string>) ??
-                                  (lobbyGameData.character_selections as Record<string, string>)
+                            effectiveLobbyGameData != null
+                                ? (effectiveLobbyGameData.characterSelections as Record<string, string>) ??
+                                  (effectiveLobbyGameData.character_selections as Record<string, string>)
                                 : undefined
                         }
                         readyPlayerIds={
-                            lobbyGameData != null &&
-                            (lobbyGameData.gamePhase ?? lobbyGameData.game_phase) === 'character_select'
-                                ? ((lobbyGameData.characterSelectReadyPlayerIds ??
-                                      lobbyGameData.character_select_ready_player_ids) as string[] | undefined) ?? []
+                            effectiveLobbyGameData != null &&
+                            (effectiveLobbyGameData.gamePhase ?? effectiveLobbyGameData.game_phase) === 'character_select'
+                                ? ((effectiveLobbyGameData.characterSelectReadyPlayerIds ??
+                                      effectiveLobbyGameData.character_select_ready_player_ids) as string[] | undefined) ?? []
                                 : undefined
                         }
                         flashingPlayerIds={flashingPlayerIds}

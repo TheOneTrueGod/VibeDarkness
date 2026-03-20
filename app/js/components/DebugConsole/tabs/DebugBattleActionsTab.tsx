@@ -6,9 +6,11 @@ interface DebugBattleActionsTabProps {
     isActive: boolean;
     inBattle: boolean;
     isAdmin: boolean;
+    isHost?: boolean;
+    skipCurrentTurn?: (() => void) | null;
 }
 
-export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin }: DebugBattleActionsTabProps) {
+export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isHost = false, skipCurrentTurn = null }: DebugBattleActionsTabProps) {
     const { darkOverlayEnabled, godModeEnabled, superSpeedEnabled, setDarkOverlayEnabled, setGodModeEnabled, setSuperSpeedEnabled } =
         useDebugSettings();
 
@@ -16,6 +18,18 @@ export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin }: D
 
     return (
         <div className="flex flex-col gap-2 text-sm text-muted">
+            {isHost && skipCurrentTurn && (
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        className="px-3 py-2 bg-warning text-secondary text-xs font-medium rounded hover:bg-warning/80 transition-colors"
+                        onClick={skipCurrentTurn}
+                    >
+                        Skip current turn
+                    </button>
+                    <span className="text-[11px] text-muted">Host only: applies a wait order for the current unit.</span>
+                </div>
+            )}
             <div className="flex items-center gap-2">
                 <span>Darkness layer</span>
                 <DebugOnOffButton

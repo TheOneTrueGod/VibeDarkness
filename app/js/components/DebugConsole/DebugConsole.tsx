@@ -22,6 +22,10 @@ export interface DebugConsoleProps {
     inBattle?: boolean;
     /** When true, show Battle Actions only to admins and prefer it as the default tab. */
     isAdmin?: boolean;
+    /** Host-only: skip the current player's turn (battle phase). */
+    skipCurrentTurn?: (() => void) | null;
+    /** When true, show skip turn button (host only). */
+    isHost?: boolean;
     fetchPlayerData: () => Promise<Record<string, unknown> | null>;
     fetchCampaignData: () => Promise<CampaignState | null>;
     fetchCharactersList: () => Promise<CampaignCharacterPayload[]>;
@@ -41,6 +45,8 @@ export default function DebugConsole({
     playerName,
     inBattle = false,
     isAdmin = false,
+    skipCurrentTurn = null,
+    isHost = false,
     fetchPlayerData,
     fetchCampaignData,
     fetchCharactersList,
@@ -119,7 +125,7 @@ export default function DebugConsole({
     const content = useMemo(() => {
         return (
             <>
-                <DebugBattleActionsTab isActive={activeTab === 'battle-actions'} inBattle={inBattle} isAdmin={isAdmin} />
+                <DebugBattleActionsTab isActive={activeTab === 'battle-actions'} inBattle={inBattle} isAdmin={isAdmin} isHost={isHost} skipCurrentTurn={skipCurrentTurn} />
                 <DebugGameStateTab isActive={activeTab === 'game-state'} gameState={gameState} />
                 <DebugUnitsTab isActive={activeTab === 'units'} inBattle={inBattle} gameState={gameState} />
                 <DebugPlayerDataTab isActive={activeTab === 'player-data'} fetchPlayerData={fetchPlayerData} />
@@ -132,7 +138,7 @@ export default function DebugConsole({
                 />
             </>
         );
-    }, [activeTab, fetchCampaignData, fetchCharactersList, fetchPlayerData, getCharacter, gameState, inBattle, isAdmin]);
+    }, [activeTab, fetchCampaignData, fetchCharactersList, fetchPlayerData, getCharacter, gameState, inBattle, isAdmin, isHost, skipCurrentTurn]);
 
     if (!debugMode) return null;
 

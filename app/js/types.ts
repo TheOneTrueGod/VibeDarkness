@@ -90,6 +90,13 @@ export interface PollMessagePayload {
     data: Record<string, unknown>;
 }
 
+/** Minimal game state from GET /games/{id}/minimal - for sync verification during battle */
+export interface MinimalStateResult {
+    gameTick: number | null;
+    synchash: string | null;
+    orders: Array<{ gameTick: number; order: Record<string, unknown> }>;
+}
+
 /** Chat message payload used when adding a message from poll (matches ChatManager.addMessage) */
 export interface ChatMessageData {
     playerId?: string;

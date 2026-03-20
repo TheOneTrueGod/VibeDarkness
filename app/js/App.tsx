@@ -26,6 +26,7 @@ import type {
     ChatMessageData,
 } from './types';
 import { WebRtcLobbyMesh, WebRtcPingTestFn } from './WebRtcLobbyMesh';
+import { GameSyncProvider, useGameSyncOptional } from './contexts/GameSyncContext';
 
 const LOBBY_PATH_PREFIX = '/lobby/';
 
@@ -114,7 +115,6 @@ function AppInner() {
     // Polling
     const lastMessageIdRef = useRef<number | null>(null);
     const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const statusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Debug
     const [debugGameState, setDebugGameState] = useState<GameStatePayload | null>(null);
@@ -328,50 +328,16 @@ function AppInner() {
         }
     }, [currentLobby, lobbyClient, handlePollMessage]);
 
-    const fetchLobbyStatus = useCallback(async () => {
-        const lobby = currentLobby;
-        const player = currentPlayerRef.current;
-        if (!lobby || !player) return;
-        try {
-            const { gameState } = await lobbyClient.getLobbyState(lobby.id, player.id);
-            const payload = gameState as unknown as GameStatePayload;
-            setDebugGameState(payload);
-
-            const newState = payload.lobbyState === 'in_game' ? 'in_game' : 'home';
-            const newGameId = payload.gameId ?? null;
-            const newGameType = payload.gameType ?? null;
-            const newGameData = payload.game ?? null;
-
-            if (
-                newState !== lobbyPageStateRef.current ||
-                newGameId !== lobbyGameIdRef.current ||
-                newGameType !== lobbyGameTypeRef.current
-            ) {
-                setLobbyPageState(newState as 'home' | 'in_game');
-                setLobbyGameId(newGameId);
-                setLobbyGameType(newGameType);
-                setLobbyGameData(newGameData);
-            } else if (newState === 'in_game' && newGameData != null) {
-                // In-game: always update game data so other players get orders via the next poll
-                setLobbyGameData(newGameData);
-            }
-        } catch {
-            // ignore
-        }
-    }, [currentLobby, lobbyClient]);
-
-    // Start/stop polling when in lobby
+    // Start/stop polling when in lobby (messages only; GameSyncContext owns state fetching)
     useEffect(() => {
         if (!currentLobby || !currentPlayer) return;
 
         pollIntervalRef.current = setInterval(pollMessages, 5000);
-        statusIntervalRef.current = setInterval(fetchLobbyStatus, 5000);
 
         return () => {
             if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-            if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
         };
-    }, [currentLobby, currentPlayer, pollMessages, fetchLobbyStatus]);
+    }, [currentLobby, currentPlayer, pollMessages]);
 
     // ==================== Lobby operations ====================
 
@@ -751,67 +717,139 @@ function AppInner() {
                 />
             )}
             {screen === 'game' && currentLobby && currentPlayer && (
-                <GameScreen
+                <GameSyncProvider
+                    lobbyId={currentLobby.id}
+                    playerId={currentPlayer.id}
+                    isHost={currentPlayer.isHost ?? false}
+                    externalGameId={lobbyGameId}
                     lobbyClient={lobbyClient}
-                    lobby={currentLobby}
-                    player={currentPlayer}
-                    account={currentAccount}
-                    players={players}
-                    chatMessages={chatMessages}
-                    connectionStatus={connectionStatus}
-                    chatEnabled={chatEnabled}
-                    clicks={clicks}
-                    lobbyPageState={lobbyPageState}
-                    lobbyGameType={lobbyGameType}
-                    lobbyGameId={lobbyGameId}
-                    lobbyGameData={lobbyGameData}
-                    onSendChat={handleSendChat}
-                    onCanvasClick={handleCanvasClick}
-                    onLeave={handleLeaveLobby}
-                    onSelectGame={handleSelectGame}
-                    onRecordMissionResult={recordMissionResult}
-                    onTryAgain={(missionId) => handleCreateLobbyForMission(missionId, currentCampaignId)}
-                    onEmittedChatMessage={handleEmittedChatMessage}
-                    onPing={() => {
-                        const mesh = webRtcMeshRef.current;
-                        if (ENABLE_WEBRTC_LOBBY && mesh && currentPlayer) {
-                            mesh.sendEventToAll({ type: 'ping', fromPlayerId: currentPlayer.id });
-                        }
-                        // Also send a lobby-level PING so all players see the flash even if WebRTC is unavailable.
-                        lobbyClient
-                            .sendMessage(currentLobby.id, currentPlayer.id, MessageType.PING, {
-                                fromPlayerId: currentPlayer.id,
-                            })
-                            .catch(() => {});
-                        triggerPlayerFlash(currentPlayer.id);
+                >
+                    <>
+                    <GameScreen
+                        lobbyClient={lobbyClient}
+                        lobby={currentLobby}
+                        player={currentPlayer}
+                        account={currentAccount}
+                        players={players}
+                        chatMessages={chatMessages}
+                        connectionStatus={connectionStatus}
+                        chatEnabled={chatEnabled}
+                        clicks={clicks}
+                        lobbyPageState={lobbyPageState}
+                        lobbyGameType={lobbyGameType}
+                        lobbyGameId={lobbyGameId}
+                        lobbyGameData={lobbyGameData}
+                        onSendChat={handleSendChat}
+                        onCanvasClick={handleCanvasClick}
+                        onLeave={handleLeaveLobby}
+                        onSelectGame={handleSelectGame}
+                        onRecordMissionResult={recordMissionResult}
+                        onTryAgain={(missionId) => handleCreateLobbyForMission(missionId, currentCampaignId)}
+                        onEmittedChatMessage={handleEmittedChatMessage}
+                        onPing={() => {
+                            const mesh = webRtcMeshRef.current;
+                            if (ENABLE_WEBRTC_LOBBY && mesh && currentPlayer) {
+                                mesh.sendEventToAll({ type: 'ping', fromPlayerId: currentPlayer.id });
+                            }
+                            lobbyClient
+                                .sendMessage(currentLobby.id, currentPlayer.id, MessageType.PING, {
+                                    fromPlayerId: currentPlayer.id,
+                                })
+                                .catch(() => {});
+                            triggerPlayerFlash(currentPlayer.id);
+                        }}
+                        pingEnabled={webRtcReady}
+                        flashingPlayerIds={flashingPlayerIds}
+                    />
+                    <DebugConsoleInGame
+                        lobbyPageState={lobbyPageState}
+                        lobbyGameType={lobbyGameType}
+                        lobbyGameData={lobbyGameData}
+                        user={user}
+                        role={role}
+                        currentCampaignId={currentCampaignId}
+                        lobbyClient={lobbyClient}
+                        currentPlayer={currentPlayer}
+                        debugGameState={debugGameState}
+                    />
+                    </>
+                </GameSyncProvider>
+            )}
+            {screen === 'lobby' && (
+                <DebugConsole
+                    gameState={null}
+                    playerName={user?.name ?? null}
+                    isAdmin={role === 'admin'}
+                    inBattle={false}
+                    skipCurrentTurn={null}
+                    isHost={false}
+                    fetchPlayerData={async () => {
+                        const u = await lobbyClient.getMe();
+                        return u as Record<string, unknown> | null;
                     }}
-                    pingEnabled={webRtcReady}
-                    flashingPlayerIds={flashingPlayerIds}
+                    fetchCampaignData={async () => {
+                        const campaignId = currentCampaignId ?? user?.campaignIds?.[0];
+                        if (!campaignId) return null;
+                        return lobbyClient.getCampaign(campaignId);
+                    }}
+                    fetchCharactersList={() => lobbyClient.getMyCharacters()}
+                    getCharacter={(id) => lobbyClient.getCharacter(id)}
                 />
             )}
-            <DebugConsole
-                gameState={debugGameState}
-                playerName={user?.name ?? null}
-                isAdmin={role === 'admin'}
-                inBattle={
-                    screen === 'game' &&
-                    lobbyPageState === 'in_game' &&
-                    lobbyGameType === 'minion_battles' &&
-                    ((lobbyGameData?.gamePhase ?? lobbyGameData?.game_phase) === 'battle')
-                }
-                fetchPlayerData={async () => {
-                    const u = await lobbyClient.getMe();
-                    return u as Record<string, unknown> | null;
-                }}
-                fetchCampaignData={async () => {
-                    const campaignId = currentCampaignId ?? user?.campaignIds?.[0];
-                    if (!campaignId) return null;
-                    return lobbyClient.getCampaign(campaignId);
-                }}
-                fetchCharactersList={() => lobbyClient.getMyCharacters()}
-                getCharacter={(id) => lobbyClient.getCharacter(id)}
-            />
         </>
+    );
+}
+
+/** DebugConsole when in game - uses GameSyncContext for skip turn */
+function DebugConsoleInGame({
+    lobbyPageState,
+    lobbyGameType,
+    lobbyGameData,
+    user,
+    role,
+    currentCampaignId,
+    lobbyClient,
+    currentPlayer,
+    debugGameState,
+}: {
+    lobbyPageState: string;
+    lobbyGameType: string | null;
+    lobbyGameData: Record<string, unknown> | null;
+    user: AccountState | null;
+    role: string | null;
+    currentCampaignId: string | null;
+    lobbyClient: LobbyClient;
+    currentPlayer: PlayerState;
+    debugGameState: GameStatePayload | null;
+}) {
+    const gameSync = useGameSyncOptional();
+    const gameState = gameSync?.gameState ?? debugGameState;
+    const skipCurrentTurn = gameSync?.skipCurrentTurn ?? null;
+    const isHost = currentPlayer?.isHost ?? false;
+    const inBattle =
+        lobbyPageState === 'in_game' &&
+        lobbyGameType === 'minion_battles' &&
+        ((lobbyGameData?.gamePhase ?? lobbyGameData?.game_phase) === 'battle');
+    return (
+        <DebugConsole
+            gameState={gameState}
+            playerName={user?.name ?? null}
+            isAdmin={role === 'admin'}
+            inBattle={inBattle}
+            skipCurrentTurn={skipCurrentTurn}
+            isHost={isHost}
+            fetchPlayerData={async () => {
+                const u = await lobbyClient.getMe();
+                return u as Record<string, unknown> | null;
+            }}
+            fetchCampaignData={async () => {
+                const campaignId = currentCampaignId ?? user?.campaignIds?.[0];
+                if (!campaignId) return null;
+                return lobbyClient.getCampaign(campaignId);
+            }}
+            fetchCharactersList={() => lobbyClient.getMyCharacters()}
+            getCharacter={(id) => lobbyClient.getCharacter(id)}
+        />
     );
 }
 

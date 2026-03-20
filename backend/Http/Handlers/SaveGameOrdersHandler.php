@@ -44,15 +44,20 @@ class SaveGameOrdersHandler
 
         $orders = [];
         $state = null;
+        $synchash = null;
         $gameTick = $checkpointGameTick;
         if (is_file($path)) {
             $decoded = json_decode(file_get_contents($path), true);
             $state = $decoded['state'] ?? null;
             $orders = $decoded['orders'] ?? [];
             $gameTick = (int) ($decoded['gameTick'] ?? $checkpointGameTick);
+            $synchash = $decoded['synchash'] ?? null;
         }
         $orders[] = ['gameTick' => (int) $atTick, 'order' => $order];
         $payload = ['gameTick' => $gameTick, 'state' => $state, 'orders' => $orders];
+        if ($synchash !== null) {
+            $payload['synchash'] = $synchash;
+        }
         file_put_contents($path, json_encode($payload, JSON_PRETTY_PRINT));
 
         return ['success' => true];

@@ -519,6 +519,26 @@ export class LobbyClient {
         });
     }
 
+    /** Get minimal sync state (gameTick, synchash, orders) for the latest or specified checkpoint. */
+    async getGameMinimalState(
+        lobbyId: string,
+        gameId: string,
+        checkpointGameTick?: number,
+    ): Promise<{ gameTick: number | null; synchash: string | null; orders: Array<{ gameTick: number; order: Record<string, unknown> }> }> {
+        const params = new URLSearchParams({ playerId: this._currentPlayerId ?? '' });
+        if (checkpointGameTick !== undefined) {
+            params.set('checkpointGameTick', String(checkpointGameTick));
+        }
+        const data = await this.request(
+            `/api/lobbies/${lobbyId}/games/${gameId}/minimal?${params}`,
+        ) as { gameTick: number | null; synchash: string | null; orders: Array<{ gameTick: number; order: Record<string, unknown> }> };
+        return {
+            gameTick: data.gameTick ?? null,
+            synchash: data.synchash ?? null,
+            orders: data.orders ?? [],
+        };
+    }
+
     /** Get orders (and optional state) for a checkpoint. */
     async getGameOrders(
         lobbyId: string,

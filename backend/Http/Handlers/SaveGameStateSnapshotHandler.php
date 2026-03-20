@@ -2,6 +2,7 @@
 
 namespace App\Http\Handlers;
 
+use App\GameStateSync;
 use App\LobbyManager;
 use App\AccountService;
 
@@ -51,8 +52,9 @@ class SaveGameStateSnapshotHandler
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
+        $synchash = GameStateSync::computeSynchash($state);
+        $payload = ['gameTick' => $gameTick, 'state' => $state, 'orders' => $orders, 'synchash' => $synchash];
         $path = $dir . '/game_' . $gameId . '_' . $gameTick . '.json';
-        $payload = ['gameTick' => $gameTick, 'state' => $state, 'orders' => $orders];
         file_put_contents($path, json_encode($payload, JSON_PRETTY_PRINT));
 
         return ['success' => true, 'gameTick' => $gameTick];

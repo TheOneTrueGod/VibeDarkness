@@ -18,7 +18,6 @@ import { resolveClick, validateAndResolveTarget } from '../abilities/targeting';
 import type { AbilityStatic } from '../abilities/Ability';
 import { getAbilityTargets } from '../abilities/Ability';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
-import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { TERRAIN_PROPERTIES } from '../terrain/TerrainType';
 import BattleCanvas from '../components/BattleCanvas';
@@ -30,6 +29,8 @@ import { throwError } from '../utils/errors';
 import { diffSnapshotFields } from '../utils/snapshotDiff';
 import { MessageType } from '../../../MessageTypes';
 import type { MessageEntry } from '../../../components/Chat';
+import { useGameSyncOptional } from '../../../contexts/GameSyncContext';
+import type { OrderPollingCallbacks } from '../../../contexts/GameSyncContext';
 
 declare global {
     interface Window {
@@ -87,6 +88,13 @@ export default function BattlePhase({
     onDefeat,
     onEmittedChatMessage,
 }: BattlePhaseProps) {
+    const gameSync = useGameSyncOptional();
+    const canSubmitOrders = gameSync?.canSubmitOrders ?? true;
+
+    // Keep a ref so engine callbacks (inside the mount effect) always access latest context
+    const gameSyncRef = useRef(gameSync);
+    gameSyncRef.current = gameSync;
+
     // Refs for objects that persist across renders
     const engineRef = useRef<GameEngine | null>(null);
     const rendererRef = useRef<GameRenderer | null>(null);
@@ -111,9 +119,6 @@ export default function BattlePhase({
     targetingStateRef.current = { selectedAbility, currentTargets, mouseWorld: mouseWorldRef.current, waitingForOrders };
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     const [, forceRender] = useState(0);
-
-    // Polling refs
-    const orderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Is it my turn?
     const isMyTurn = waitingForOrders?.ownerId === playerId;
@@ -205,6 +210,30 @@ export default function BattlePhase({
     // ========================================================================
     // Initialize engine
     // ========================================================================
+
+    const updateCardStateRef = useRef<((engine: GameEngine) => void) | null>(null);
+
+    useEffect(() => {
+        const skipHandler = () => {
+            const engine = engineRef.current;
+            if (!engine?.waitingForOrders || !isHost) return;
+            engine.applyOrder({
+                unitId: engine.waitingForOrders.unitId,
+                abilityId: 'wait',
+                targets: [],
+            });
+            engine.resumeAfterOrders();
+            setWaitingForOrders(null);
+            setIsPaused(false);
+            updateCardStateRef.current?.(engine);
+            const ordersFormatted = engine.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
+            gameSync?.saveCheckpoint(engine.gameTick, engine.toJSON() as unknown as Record<string, unknown>, ordersFormatted);
+        };
+        gameSync?.registerSkipTurnHandler?.(isHost ? skipHandler : null);
+        return () => {
+            gameSync?.registerSkipTurnHandler?.(null);
+        };
+    }, [gameSync?.registerSkipTurnHandler, gameSync?.saveCheckpoint, isHost]);
 
     useEffect(() => {
         // Ensure lobbyClient knows our playerId for snapshot/order API calls
@@ -354,12 +383,12 @@ export default function BattlePhase({
                 if (info.ownerId !== playerId) {
                     const nextTick = newEngine.gameTick + 1;
                     const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-                    startOrderPolling(checkpointGameTick);
+                    gameSyncRef.current?.startOrderPolling(checkpointGameTick, makeOrderPollingCallbacks());
                 }
             });
             newEngine.setOnCheckpoint((gameTick, state, orders) => {
-                if (!isHost) return;
-                saveCheckpoint(gameTick, state as unknown as Record<string, unknown>, orders);
+                const ordersFormatted = (orders as OrderAtTick[]).map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
+                gameSyncRef.current?.saveCheckpoint(gameTick, state as unknown as Record<string, unknown>, ordersFormatted);
             });
             newEngine.setOnRoundEnd((rn) => {
                 setRoundNumber(rn + 1);
@@ -413,16 +442,15 @@ export default function BattlePhase({
             updateCardState(engine);
 
             if (info.ownerId !== playerId) {
-                // If not our turn: start polling for orders at the checkpoint that contains the next tick
                 const nextTick = engine.gameTick + 1;
                 const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-                startOrderPolling(checkpointGameTick);
+                gameSyncRef.current?.startOrderPolling(checkpointGameTick, makeOrderPollingCallbacks());
             }
         });
 
         engine.setOnCheckpoint((gameTick, state, orders) => {
-            if (!isHost) return;
-            saveCheckpoint(gameTick, state as unknown as Record<string, unknown>, orders);
+            const ordersFormatted = (orders as OrderAtTick[]).map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
+            gameSyncRef.current?.saveCheckpoint(gameTick, state as unknown as Record<string, unknown>, ordersFormatted);
         });
 
         engine.setOnRoundEnd((rn) => {
@@ -467,7 +495,7 @@ export default function BattlePhase({
         if (hasSnapshot && engine.waitingForOrders && engine.waitingForOrders.ownerId !== playerId) {
             const nextTick = engine.gameTick + 1;
             const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-            startOrderPolling(checkpointGameTick);
+            gameSyncRef.current?.startOrderPolling(checkpointGameTick, makeOrderPollingCallbacks());
         }
 
         // Start the engine
@@ -476,7 +504,7 @@ export default function BattlePhase({
         return () => {
             engine.destroy();
             renderer.destroy();
-            stopOrderPolling();
+            gameSyncRef.current?.stopOrderPolling();
         };
     }, []); // Run once on mount
 
@@ -488,6 +516,7 @@ export default function BattlePhase({
         const cards = engine.cards[playerId] ?? [];
         setMyCards([...cards]);
     }
+    updateCardStateRef.current = updateCardState;
 
     // ========================================================================
     // Card selection and targeting
@@ -633,7 +662,7 @@ export default function BattlePhase({
     // ========================================================================
 
     function submitOrder(engine: GameEngine, abilityId: string, targets: ResolvedTarget[]) {
-        if (!waitingForOrders) return;
+        if (!waitingForOrders || !canSubmitOrders) return;
 
         // Read move path from ref to avoid stale closures when
         // right-click (move) and left-click (ability) happen in quick succession
@@ -648,7 +677,6 @@ export default function BattlePhase({
 
         // Apply locally and resume (order is queued for gameTick + 1)
         engine.applyOrder(order);
-        // Clear targeting preview immediately so it doesn't linger between frames
         targetingStateRef.current.selectedAbility = null;
         targetingStateRef.current.currentTargets = [];
         targetingStateRef.current.waitingForOrders = null;
@@ -657,13 +685,14 @@ export default function BattlePhase({
         pendingMovePathRef.current = null;
         updateCardState(engine);
 
-        const atTick = engine.gameTick + 1; // order is scheduled for next tick
-        saveOrder(atTick, order);
+        // Persist order and checkpoint via GameSyncContext
+        const atTick = engine.gameTick + 1;
+        const checkpointGameTick = Math.floor(atTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+        const orderRecord: Record<string, unknown> = JSON.parse(JSON.stringify(order));
+        gameSync?.submitOrder(checkpointGameTick, atTick, orderRecord);
 
-        // Host: save snapshot when a player has submitted their actions so others can sync
-        if (isHost) {
-            saveCheckpoint(engine.gameTick, engine.toJSON() as unknown as Record<string, unknown>, [...engine.pendingOrders]);
-        }
+        const ordersFormatted = engine.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
+        gameSync?.saveCheckpoint(engine.gameTick, engine.toJSON() as unknown as Record<string, unknown>, ordersFormatted);
 
         lobbyClient.sendMessage(lobbyId, playerId, 'battle_orders_ready', {
             snapshotIndex: engine.snapshotIndex,
@@ -671,77 +700,28 @@ export default function BattlePhase({
     }
 
     // ========================================================================
-    // Server sync: checkpoints (on turn start) and orders
+    // Order polling callbacks (ref-based so engine closures always get latest)
     // ========================================================================
 
-    async function saveCheckpoint(gameTick: number, state: Record<string, unknown>, orders: OrderAtTick[]) {
-        try {
-            const ordersFormatted = orders.map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
-            await lobbyClient.saveGameStateSnapshot(
-                lobbyId, gameId, gameTick,
-                state,
-                ordersFormatted,
-            );
-        } catch (err) {
-            console.error('Failed to save checkpoint:', err);
-        }
-    }
-
-    async function saveOrder(atTick: number, order: BattleOrder) {
-        try {
-            const checkpointGameTick = Math.floor(atTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-            const orderRecord: Record<string, unknown> = JSON.parse(JSON.stringify(order));
-            await lobbyClient.saveGameOrders(
-                lobbyId, gameId, checkpointGameTick, atTick,
-                orderRecord,
-            );
-        } catch (err) {
-            console.error('Failed to save order:', err);
-        }
-    }
-
-    async function pollForOrders(checkpointGameTick: number): Promise<void> {
-        try {
-            const result = await lobbyClient.getGameOrders(lobbyId, gameId, checkpointGameTick);
-            if (!result?.orders?.length) return;
-
-            const engine = engineRef.current;
-            if (!engine) return;
-
-            // Only apply orders for ticks we haven't processed yet (avoids re-applying stale orders)
-            const newOrders = result.orders.filter(
-                (o) => o.gameTick > engine.gameTick,
-            );
-            if (newOrders.length === 0) return;
-
-            for (const { gameTick: atTick, order } of newOrders) {
-                engine.queueOrder(atTick, order as unknown as BattleOrder);
-            }
-            engine.resumeAfterOrders();
-            setWaitingForOrders(null);
-            setIsPaused(false);
-            updateCardState(engine);
-            stopOrderPolling();
-        } catch {
-            // Silently retry
-        }
-    }
-
-    function startOrderPolling(checkpointGameTick: number) {
-        stopOrderPolling();
-        // Poll immediately, then every 1 second (avoids 1s delay if order already on server)
-        pollForOrders(checkpointGameTick);
-        orderPollRef.current = setInterval(
-            () => pollForOrders(checkpointGameTick),
-            1000,
-        );
-    }
-
-    function stopOrderPolling() {
-        if (orderPollRef.current) {
-            clearInterval(orderPollRef.current);
-            orderPollRef.current = null;
-        }
+    function makeOrderPollingCallbacks(): OrderPollingCallbacks {
+        return {
+            getEngineSnapshot: () => {
+                const eng = engineRef.current;
+                if (!eng) return null;
+                return { gameTick: eng.gameTick, state: eng.toJSON() as unknown as Record<string, unknown> };
+            },
+            onOrdersReceived: (orders) => {
+                const eng = engineRef.current;
+                if (!eng) return;
+                for (const { gameTick: atTick, order } of orders) {
+                    eng.queueOrder(atTick, order as unknown as BattleOrder);
+                }
+                eng.resumeAfterOrders();
+                setWaitingForOrders(null);
+                setIsPaused(false);
+                updateCardStateRef.current?.(eng);
+            },
+        };
     }
 
     // ========================================================================

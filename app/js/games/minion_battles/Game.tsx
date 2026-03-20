@@ -135,52 +135,37 @@ export default function MinionBattlesGame({
     const missionDef = MISSION_MAP[selectedMissionId];
     const preMissionStory = missionDef?.preMissionStory ?? null;
 
-    // ---- Polling ----------------------------------------------------------
-    // Periodically refresh game state from server
+    // ---- Sync from gameData (GameSyncContext owns fetching; gameData flows from there) ----
     useEffect(() => {
-        const interval = setInterval(async () => {
-            try {
-                const { gameState } = await lobbyClient.getLobbyState(lobbyId, playerId);
-                const gd = (gameState as { game?: Record<string, unknown> }).game;
-                if (gd) {
-                    setLastGameStateFromServer(gd);
-                    let newPhase = (gd.gamePhase ?? gd.game_phase) as GamePhase | undefined;
-                    if (!newPhase) {
-                        const hasBattleData =
-                            (Array.isArray(gd.units) && gd.units.length > 0) ||
-                            typeof (gd.gameTick ?? gd.game_tick) === 'number';
-                        if (hasBattleData) newPhase = 'battle';
-                    }
-                    const newVotes = (gd.missionVotes ?? gd.mission_votes) as
-                        | Record<string, string>
-                        | undefined;
-                    const newCharSel = (gd.characterSelections ?? gd.character_selections) as
-                        | Record<string, string>
-                        | undefined;
-                    const newStoryReady = (gd.storyReadyPlayerIds as string[] | undefined) ?? [];
-                    const newReady =
-                        (gd.characterSelectReadyPlayerIds as string[] | undefined) ??
-                        (gd.character_select_ready_player_ids as string[] | undefined) ??
-                        [];
-                    if (newPhase) setGamePhase(newPhase);
-                    if (newVotes) setMissionVotes(newVotes);
-                    if (newCharSel) setCharacterSelections(newCharSel);
-                    setStoryReadyPlayerIds(newStoryReady);
-                    setCharacterSelectReadyPlayerIds(newReady);
+        const gd = gameData ?? {};
+        if (!gd || Object.keys(gd).length === 0) return;
 
-                    // Reconcile local overrides: any override whose value now
-                    // matches the server is automatically pruned.
-                    localOverrides.reconcile({
-                        missionVotes: newVotes ?? {},
-                        characterSelections: newCharSel ?? {},
-                    });
-                }
-            } catch {
-                // Silently fail
-            }
-        }, 2000);
-        return () => clearInterval(interval);
-    }, [lobbyClient, lobbyId, playerId, localOverrides.reconcile]);
+        setLastGameStateFromServer(gd);
+        let newPhase = (gd.gamePhase ?? gd.game_phase) as GamePhase | undefined;
+        if (!newPhase) {
+            const hasBattleData =
+                (Array.isArray(gd.units) && gd.units.length > 0) ||
+                typeof (gd.gameTick ?? gd.game_tick) === 'number';
+            if (hasBattleData) newPhase = 'battle';
+        }
+        const newVotes = (gd.missionVotes ?? gd.mission_votes) as Record<string, string> | undefined;
+        const newCharSel = (gd.characterSelections ?? gd.character_selections) as Record<string, string> | undefined;
+        const newStoryReady = (gd.storyReadyPlayerIds as string[] | undefined) ?? [];
+        const newReady =
+            (gd.characterSelectReadyPlayerIds as string[] | undefined) ??
+            (gd.character_select_ready_player_ids as string[] | undefined) ??
+            [];
+        if (newPhase) setGamePhase(newPhase);
+        if (newVotes) setMissionVotes(newVotes);
+        if (newCharSel) setCharacterSelections(newCharSel);
+        setStoryReadyPlayerIds(newStoryReady);
+        setCharacterSelectReadyPlayerIds(newReady);
+
+        localOverrides.reconcile({
+            missionVotes: newVotes ?? {},
+            characterSelections: newCharSel ?? {},
+        });
+    }, [gameData, localOverrides.reconcile]);
 
     // ---- Phase transitions ------------------------------------------------
     const handlePhaseChange = useCallback(
@@ -281,6 +266,7 @@ export default function MinionBattlesGame({
             {gamePhase === 'battle' && (
                 <>
                     <BattlePhase
+                        key={`battle-${(raw as Record<string, unknown>)?.synchash ?? (raw as Record<string, unknown>)?.gameTick ?? (raw as Record<string, unknown>)?.game_tick ?? 'init'}`}
                         lobbyClient={lobbyClient}
                         lobbyId={lobbyId}
                         gameId={gameId}
@@ -289,7 +275,7 @@ export default function MinionBattlesGame({
                         players={players}
                         characterSelections={effective.characterSelections as Record<string, string>}
                         missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
-                        initialGameState={phaseChangeGameState ?? raw}
+                        initialGameState={raw}
                         onSidebarInfoChange={onSidebarInfoChange}
                         onEmittedChatMessage={onEmittedChatMessage}
                         onVictory={(missionResult) => {

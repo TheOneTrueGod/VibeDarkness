@@ -4,6 +4,7 @@ namespace App;
 
 use App\Game\BaseGame;
 use App\Game\MinionBattlesGame;
+use App\GameStateSync;
 
 /**
  * Singleton manager for all game lobbies.
@@ -561,9 +562,11 @@ class LobbyManager
                 $checkpoint = json_decode($json, true);
                 if (is_array($checkpoint)) {
                     $state = $checkpoint['state'] ?? [];
+                    $synchash = $checkpoint['synchash'] ?? GameStateSync::computeSynchash($state);
                     $result = array_merge($state, [
                         'gameTick' => $checkpoint['gameTick'] ?? $latestTick,
                         'orders' => $checkpoint['orders'] ?? [],
+                        'synchash' => $synchash,
                     ]);
                     // Merge phase metadata from main game file (checkpoints only have engine state)
                     $basePathFile = $basePath . '/game_' . $gameId . '.json';
