@@ -14,7 +14,6 @@ import type { Unit } from '../objects/Unit';
 import { getCardDef, asCardDefId } from '../card_defs';
 import CardComponent from './CardComponent';
 import CardTooltip from './CardTooltip';
-import CooldownIndicator from './CooldownIndicator';
 
 interface CardHandProps {
     /** Cards in the player's hand. */
@@ -221,25 +220,34 @@ export default function CardHand({
                                 )}
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0 flex-col">
-                            <CooldownIndicator
-                                unit={playerUnit}
-                                size={48}
-                                gameTime={gameTime ?? 0}
-                            />
-                            <button
-                                onClick={onWait}
-                                disabled={!isMyTurn}
-                                className={`text-xs px-3 py-1 rounded border transition-colors flex-shrink-0 ${
-                                    isMyTurn
-                                        ? 'bg-dark-700 border-dark-500 text-gray-200 hover:bg-dark-600 hover:border-gray-400'
-                                        : 'bg-dark-800 border-dark-700 text-gray-600 cursor-not-allowed'
-                                }`}
-                                title="Wait (Space)"
+                        <button
+                            onClick={onWait}
+                            disabled={!isMyTurn}
+                            className={`flex flex-col items-center justify-center w-[80px] h-[104px] rounded-lg border-2 transition-all duration-150 flex-shrink-0 ${
+                                isMyTurn
+                                    ? 'bg-dark-700 border-dark-500 text-gray-200 hover:bg-dark-600 hover:border-gray-400 hover:-translate-y-1 cursor-pointer'
+                                    : 'bg-dark-800 border-dark-700 text-gray-600 cursor-not-allowed'
+                            }`}
+                            title="Wait (Space)"
+                        >
+                            <span className="text-sm font-medium">Wait</span>
+                            <svg
+                                viewBox="0 0 80 20"
+                                className="w-12 h-3 mt-1 text-gray-400"
+                                aria-hidden
                             >
-                                Wait
-                            </button>
-                        </div>
+                                <rect
+                                    x="2"
+                                    y="2"
+                                    width="76"
+                                    height="16"
+                                    rx="3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                />
+                            </svg>
+                        </button>
                         <div>
                             {/* Active ability card: same height as hand cards, visible for full ability duration (use active.abilityId, not hand) */}
                             {(() => {

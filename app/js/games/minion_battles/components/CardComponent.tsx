@@ -61,30 +61,33 @@ export default function CardComponent({
     const usesLeft = Math.max(0, Math.min(card.durability, maxDurability));
 
     return (
-        <div className="relative">
+        <div
+            className={`relative ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+            role="button"
+            tabIndex={0}
+            onClick={handleClick}
+            onPointerEnter={() => onHoverChange(true)}
+            onPointerLeave={() => onHoverChange(false)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleClick();
+                }
+            }}
+            aria-disabled={isDisabled}
+        >
             <div
-                role="button"
-                tabIndex={0}
-                onClick={handleClick}
-                onPointerEnter={() => onHoverChange(true)}
-                onPointerLeave={() => onHoverChange(false)}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleClick();
-                    }
-                }}
-                aria-disabled={isDisabled}
                 className={`
                     relative w-[104px] h-[136px] rounded-lg border-2 transition-all duration-150
-                    flex flex-col items-center justify-between p-2 overflow-hidden
+                    flex flex-col items-center justify-between p-2 overflow-hidden pointer-events-none
                     ${isSelected
                         ? 'border-yellow-400 bg-dark-700 -translate-y-2 shadow-lg shadow-yellow-400/20'
                         : isDisabled
-                            ? 'border-dark-600 bg-dark-800 opacity-50 cursor-not-allowed'
-                            : 'border-dark-500 bg-dark-700 hover:border-dark-400 hover:-translate-y-1 cursor-pointer'
+                            ? 'border-dark-600 bg-dark-800 opacity-50'
+                            : isHovered
+                                ? 'border-dark-400 bg-dark-700 -translate-y-1'
+                                : 'border-dark-500 bg-dark-700'
                     }
-                    hover:border-dark-400 hover:-translate-y-1
                 `}
             >
                 {/* Card image */}

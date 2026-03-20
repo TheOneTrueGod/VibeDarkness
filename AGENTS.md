@@ -129,6 +129,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 |-------|-------------|
 | **working-on-minion-battles** | When working on anything called minion battles; work primarily in `app/js/games/minion_battles/`. See `.cursor/skills/working-on-minion-battles/SKILL.md`. |
 | **working-on-ai-controllers** | When adding or changing enemy unit AI (UnitAIController, mission AI). See `.cursor/skills/working-on-ai-controllers/SKILL.md`. |
+| **game-sync-data-flow** | When working on battle sync, order submission, checkpoint saves, polling, desync recovery, or `GameSyncContext`. See `.cursor/skills/game-sync-data-flow/SKILL.md`. |
 
 ## Testing Locally
 

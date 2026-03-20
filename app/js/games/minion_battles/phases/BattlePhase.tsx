@@ -17,6 +17,7 @@ import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../engine/ty
 import { resolveClick, validateAndResolveTarget } from '../abilities/targeting';
 import type { AbilityStatic } from '../abilities/Ability';
 import { getAbilityTargets } from '../abilities/Ability';
+import { getAbility } from '../abilities/AbilityRegistry';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { TERRAIN_PROPERTIES } from '../terrain/TerrainType';
@@ -616,11 +617,26 @@ export default function BattlePhase({
             if (e.code === 'Space' && !e.repeat) {
                 e.preventDefault();
                 handleWait();
+                return;
+            }
+            // Card selection hotkeys: 1 = leftmost, 2 = second, etc.
+            const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key, 10) : 0;
+            if (digit > 0) {
+                const handCards = myCards.filter((c) => c.location === 'hand');
+                const index = digit - 1;
+                if (index < handCards.length) {
+                    const card = handCards[index];
+                    const ability = card ? getAbility(card.abilityId) : null;
+                    if (ability) {
+                        e.preventDefault();
+                        handleSelectCard(index, ability);
+                    }
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleWait]);
+    }, [handleWait, handleSelectCard, myCards]);
 
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number) => {
         const engine = engineRef.current;
