@@ -15,6 +15,7 @@ import type {
     PostMissionPhrase,
     StoryChoiceActionGrantResources,
 } from '../storylines/storyTypes';
+import { SPECTATOR_ID } from '../state';
 import VNTextBox from '../components/VNTextBox';
 import CharacterPortrait from '../components/CharacterPortrait';
 import StoryTextEffect from '../components/StoryTextEffect';
@@ -43,6 +44,8 @@ interface PostMissionStoryPhaseProps {
     playerId: string;
     missionId: string;
     players: Record<string, PlayerState>;
+    /** Character selections; spectators do not get rewards. */
+    characterSelections?: Record<string, string>;
     postMissionStory: PostMissionStoryDef;
     /** Current equipment per player (from server); used to show item from first choice. */
     playerEquipmentByPlayer?: Record<string, string[]>;
@@ -56,6 +59,7 @@ export default function PostMissionStoryPhase({
     playerId,
     missionId,
     players,
+    characterSelections = {},
     postMissionStory,
     playerEquipmentByPlayer = {},
     onComplete,
@@ -67,6 +71,7 @@ export default function PostMissionStoryPhase({
     const phrases: PostMissionPhrase[] = postMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
     const isEnd = phraseIndex >= phrases.length;
+    const amSpectator = (characterSelections[playerId] ?? '') === SPECTATOR_ID;
 
     useEffect(() => {
         if (currentPhrase && isDialogue(currentPhrase) && currentPhrase.backgroundImage) {
@@ -203,25 +208,38 @@ export default function PostMissionStoryPhase({
                                 )}
                             </VNTextBox>
                         ) : isChoice(currentPhrase) ? (
-                            <>
-                                <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-6">
-                                    <div className="space-y-3">
-                                        {currentPhrase.options.map((opt) => (
-                                            <button
-                                                key={opt.id}
-                                                type="button"
-                                                onClick={() =>
-                                                    handleChoice(currentPhrase.choiceId, opt.id, opt)
-                                                }
-                                                className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white"
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        ))}
-                                    </div>
+                            amSpectator ? (
+                                <div className="shrink-0 pb-6">
+                                    <p className="text-muted mb-4">Spectators do not receive rewards.</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => onComplete({})}
+                                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
+                                    >
+                                        Next
+                                    </button>
                                 </div>
-                                <div className="min-h-[16rem]" aria-hidden />
-                            </>
+                            ) : (
+                                <>
+                                    <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-6">
+                                        <div className="space-y-3">
+                                            {currentPhrase.options.map((opt) => (
+                                                <button
+                                                    key={opt.id}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleChoice(currentPhrase.choiceId, opt.id, opt)
+                                                    }
+                                                    className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white"
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="min-h-[16rem]" aria-hidden />
+                                </>
+                            )
                         ) : null}
                     </div>
                 </div>

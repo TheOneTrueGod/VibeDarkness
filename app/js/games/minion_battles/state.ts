@@ -1,4 +1,13 @@
 /**
+ * Special character selection value meaning the player is spectating (no character, no orders, no rewards).
+ */
+export const SPECTATOR_ID = 'spectator';
+
+export function isSpectator(characterId: string | undefined | null): boolean {
+    return characterId === SPECTATOR_ID;
+}
+
+/**
  * Minion Battles game state (from server or createInitialState).
  * Server sends snake_case (lobby_id, players, hands); we accept both for compatibility.
  */

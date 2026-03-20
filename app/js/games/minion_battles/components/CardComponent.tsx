@@ -16,6 +16,8 @@ interface CardComponentProps {
     /** Card instance for durability display. */
     card: CardInstance;
     isSelected: boolean;
+    /** Whether this card is currently being used (ability executing). */
+    isActive?: boolean;
     isDisabled: boolean;
     onSelect: () => void;
     isHovered: boolean;
@@ -34,6 +36,7 @@ export default function CardComponent({
     ability,
     card,
     isSelected,
+    isActive = false,
     isDisabled,
     onSelect,
     isHovered,
@@ -82,11 +85,13 @@ export default function CardComponent({
                     flex flex-col items-center justify-between p-2 overflow-hidden pointer-events-none
                     ${isSelected
                         ? 'border-yellow-400 bg-dark-700 -translate-y-2 shadow-lg shadow-yellow-400/20'
-                        : isDisabled
-                            ? 'border-dark-600 bg-dark-800 opacity-50'
-                            : isHovered
-                                ? 'border-dark-400 bg-dark-700 -translate-y-1'
-                                : 'border-dark-500 bg-dark-700'
+                        : isHovered
+                            ? 'border-dark-400 bg-dark-700 -translate-y-1'
+                            : isActive
+                                ? 'border-green-500 bg-dark-700 shadow-lg shadow-green-500/30'
+                                : isDisabled
+                                    ? 'border-dark-600 bg-dark-800 opacity-50'
+                                    : 'border-dark-500 bg-dark-700'
                     }
                 `}
             >

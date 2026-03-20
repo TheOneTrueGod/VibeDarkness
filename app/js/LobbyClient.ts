@@ -196,6 +196,7 @@ export class LobbyClient {
                 missionId: string;
                 result: string;
                 resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
+                grantKnowledgeKeys?: string[];
             };
         }
     ): Promise<import('./types').CampaignState> {

@@ -11,7 +11,7 @@ import { getAbility } from '../abilities/AbilityRegistry';
 import { canAffordAbility } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
 import type { Unit } from '../objects/Unit';
-import { getCardDef, asCardDefId } from '../card_defs';
+import { getCardDef } from '../card_defs';
 import CardComponent from './CardComponent';
 import CardTooltip from './CardTooltip';
 
@@ -148,9 +148,9 @@ export default function CardHand({
 
     return (
         <div className="relative bg-dark-900/80 border-t border-dark-700 px-4 py-2">
-            {/* Fixed-height row so canvas above does not resize when active card appears */}
+            {/* Fixed-height row for deck, discard, Wait, and hand */}
             <div className="flex items-center gap-4 h-[152px]">
-                {/* Deck / discard indicators + cooldown + Wait + active card + hand */}
+                {/* Deck / discard indicators + cooldown + Wait + hand */}
                 {playerUnit && (
                     <>
                         <div className="flex flex-col gap-2 mr-2 flex-shrink-0">
@@ -248,39 +248,6 @@ export default function CardHand({
                                 />
                             </svg>
                         </button>
-                        <div>
-                            {/* Active ability card: same height as hand cards, visible for full ability duration (use active.abilityId, not hand) */}
-                            {(() => {
-                                const active = playerUnit.activeAbilities[0];
-                                const activeAbility = active ? getAbility(active.abilityId) : null;
-                                if (!active || !activeAbility) return null;
-                                const syntheticCard: CardInstance = {
-                                    instanceId: `active-${active.abilityId}`,
-                                    cardDefId: asCardDefId(active.abilityId),
-                                    abilityId: active.abilityId,
-                                    location: 'hand',
-                                    durability: 1,
-                                };
-                                return (
-                                    <div className="opacity-90 flex-shrink-0">
-                                        <CardComponent
-                                            ability={activeAbility}
-                                            card={syntheticCard}
-                                            isSelected={false}
-                                            isDisabled
-                                            onSelect={() => {}}
-                                            isHovered={false}
-                                            onHoverChange={() => {}}
-                                            isMobile={false}
-                                            showMobileDescription={false}
-                                            onMobileDescriptionToggle={() => {}}
-                                            onMobileDescriptionDismiss={() => {}}
-                                            gameState={gameState}
-                                        />
-                                    </div>
-                                );
-                            })()}
-                        </div>
                     </>
                 )}
 
@@ -296,6 +263,9 @@ export default function CardHand({
                         const canAfford = playerUnit ? canAffordAbility(playerUnit, ability) : false;
                         const isDisabled = !isMyTurn || !canAfford;
                         const isHovered = hoveredCardId === card.instanceId;
+                        const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
+                        const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
+                        const isActive = activeHandIndex >= 0 && index === activeHandIndex;
 
                         return (
                             <CardComponent
@@ -303,6 +273,7 @@ export default function CardHand({
                                 ability={ability}
                                 card={card}
                                 isSelected={selectedCardIndex === index}
+                                isActive={isActive}
                                 isDisabled={isDisabled}
                                 onSelect={() => handleSelectCard(index)}
                                 isHovered={isHovered}

@@ -17,7 +17,7 @@ import { computeSynchash } from '../utils/synchash';
 
 export type SyncStatus = 'loading' | 'synced' | 'resyncing' | 'waiting_for_host';
 
-export const WAITING_FOR_HOST_THRESHOLD = 3;
+export const WAITING_FOR_HOST_THRESHOLD = 10;
 
 /** Callbacks provided by BattlePhase so polling can deliver orders back to the engine. */
 export interface OrderPollingCallbacks {
@@ -32,7 +32,7 @@ interface GameSyncContextValue {
     syncStatus: SyncStatus;
     canSubmitOrders: boolean;
     consecutiveWaitCount: number;
-    fetchFullState: () => Promise<void>;
+    fetchFullState: (desyncContext?: { currentState: Record<string, unknown>; reason: string; serverTick?: number | null; serverHash?: string | null }) => Promise<void>;
     registerSkipTurnHandler: (handler: (() => void) | null) => void;
     skipCurrentTurn: (() => void) | null;
 
@@ -92,12 +92,30 @@ export function GameSyncProvider({
     // Full state fetch (lobby-level)
     // ========================================================================
 
-    const fetchFullState = useCallback(async () => {
+    /** Optional context when resync is triggered by desync; used to log current vs server state. */
+    type DesyncContext = {
+        currentState: Record<string, unknown>;
+        reason: string;
+        serverTick?: number | null;
+        serverHash?: string | null;
+    };
+
+    const fetchFullState = useCallback(async (desyncContext?: DesyncContext) => {
         const run = async () => {
             try {
                 setSyncStatus((prev) => (prev === 'loading' ? 'loading' : 'resyncing'));
                 const { gameState: gs } = await lobbyClient.getLobbyState(lobbyId, playerId);
                 const payload = gs as GameStatePayload;
+                if (desyncContext) {
+                    const serverState = (payload?.game as Record<string, unknown>) ?? payload;
+                    console.warn('Desync: full resync triggered', {
+                        reason: desyncContext.reason,
+                        serverTick: desyncContext.serverTick,
+                        serverHash: desyncContext.serverHash,
+                        currentState: desyncContext.currentState,
+                        serverState,
+                    });
+                }
                 setGameState(payload);
                 setSyncStatus('synced');
                 setCanSubmitOrders(true);
@@ -212,7 +230,12 @@ export function GameSyncProvider({
                     });
                     if (shouldResync) {
                         setSyncStatus('resyncing');
-                        await fetchFullState();
+                        await fetchFullState({
+                            currentState: snapshot.state,
+                            reason: 'waiting_for_host_threshold',
+                            serverTick: -1,
+                            serverHash: null,
+                        });
                         stopOrderPolling();
                     } else {
                         setSyncStatus('waiting_for_host');
@@ -242,7 +265,12 @@ export function GameSyncProvider({
                     const clientSynchash = await computeSynchash(snapshot.state);
                     if (serverHash !== null && clientSynchash !== null && serverHash !== clientSynchash) {
                         setSyncStatus('resyncing');
-                        await fetchFullState();
+                        await fetchFullState({
+                            currentState: snapshot.state,
+                            reason: 'synchash_mismatch',
+                            serverTick,
+                            serverHash,
+                        });
                         stopOrderPolling();
                         return;
                     }
@@ -252,7 +280,12 @@ export function GameSyncProvider({
                 // boundary), trigger a resync so we pick up the latest state.
                 if (serverTick > snapshot.gameTick) {
                     setSyncStatus('resyncing');
-                    await fetchFullState();
+                    await fetchFullState({
+                        currentState: snapshot.state,
+                        reason: 'client_fell_behind',
+                        serverTick,
+                        serverHash,
+                    });
                     stopOrderPolling();
                     return;
                 }

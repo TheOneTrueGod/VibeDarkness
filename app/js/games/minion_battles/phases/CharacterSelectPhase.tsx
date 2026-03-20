@@ -11,6 +11,7 @@ import { MessageType } from '../../../MessageTypes';
 import type { PreMissionStoryDef } from '../storylines/storyTypes';
 import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../character_defs/CampaignCharacter';
+import { SPECTATOR_ID } from '../state';
 import type { CampaignCharacterData } from '../character_defs/campaignCharacterTypes';
 import { getPortrait } from '../character_defs/portraits';
 import { ALL_PLAYER_ITEMS } from '../character_defs/items';
@@ -74,6 +75,8 @@ export default function CharacterSelectPhase({
     const [activeTab, setActiveTab] = useState<'characters' | 'players'>('characters');
     const [campaign, setCampaign] = useState<import('../../../types').CampaignState | null>(null);
     const [setReadyLoading, setSetReadyLoading] = useState(false);
+    /** Optimistic: true after API succeeds, before next poll confirms. Keeps button disabled. */
+    const [optimisticAmReady, setOptimisticAmReady] = useState(false);
 
     useEffect(() => {
         if (!isAdmin && activeTab === 'players') {
@@ -131,9 +134,17 @@ export default function CharacterSelectPhase({
         () => new Set(characterSelectReadyPlayerIds),
         [characterSelectReadyPlayerIds],
     );
+    /** All players (including spectators) must have clicked Ready. */
     const allReady =
         allPlayerIds.length > 0 && allPlayerIds.every((pid) => readySet.has(pid));
+    /** At least one player must have chosen a character (not spectator) to start. */
+    const atLeastOneCharacter =
+        allPlayerIds.some((pid) => {
+            const sel = characterSelections[pid];
+            return sel != null && sel !== SPECTATOR_ID;
+        });
     const amReady = readySet.has(playerId);
+    const effectivelyReady = amReady || optimisticAmReady;
 
     const missionTraitFilter = useMemo(
         () =>
@@ -198,6 +209,7 @@ export default function CharacterSelectPhase({
         setSetReadyLoading(true);
         try {
             await lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHARACTER_SELECT_READY, {});
+            setOptimisticAmReady(true);
         } catch (error) {
             console.error('Failed to set ready:', error);
         } finally {
@@ -258,16 +270,16 @@ export default function CharacterSelectPhase({
             hasTriggeredAdvanceRef.current = false;
         }
     }, [allReady]);
-    // When all players are ready, host advances to next phase (pre_mission_story or battle).
+    // When all players are ready and at least one has a character, host advances to next phase (pre_mission_story or battle).
     useEffect(() => {
-        if (!isHost || !allSelected || !allReady || hasTriggeredAdvanceRef.current) return;
+        if (!isHost || !allSelected || !allReady || !atLeastOneCharacter || hasTriggeredAdvanceRef.current) return;
         hasTriggeredAdvanceRef.current = true;
         if (preMissionStory) {
             handleContinueToStory();
         } else {
             handleStartGame();
         }
-    }, [isHost, allSelected, allReady, preMissionStory, handleContinueToStory, handleStartGame]);
+    }, [isHost, allSelected, allReady, atLeastOneCharacter, preMissionStory, handleContinueToStory, handleStartGame]);
 
     const createCharacterApi = useCallback(
         async (payload: {
@@ -378,7 +390,12 @@ export default function CharacterSelectPhase({
             ) : (
                 <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
                     <div className="grid grid-cols-[repeat(auto-fill,200px)] justify-center gap-6">
-                        {/* Create Character card - top left (first in list) */}
+                        {/* Spectator card - first option */}
+                        <SpectatorCard
+                            isMySelection={mySelection === SPECTATOR_ID}
+                            onSelect={() => handleSelectCharacter(SPECTATOR_ID, '')}
+                        />
+                        {/* Create Character card */}
                         <CreateCharacterCard ref={setCreateCardRef} onClick={() => setCreatorOpen(true)} />
                         {charactersLoading ? (
                             <div className="w-[200px] h-[200px] flex items-center justify-center text-gray-400">
@@ -427,7 +444,7 @@ export default function CharacterSelectPhase({
                         </button>
                     ) : (
                         <>
-                            {mySelection && characterToEdit && (
+                            {mySelection && mySelection !== SPECTATOR_ID && characterToEdit && (
                                 <button
                                     type="button"
                                     className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
@@ -439,9 +456,9 @@ export default function CharacterSelectPhase({
                             {mySelection && (
                                 <button
                                     type="button"
-                                    disabled={amReady || setReadyLoading}
+                                    disabled={effectivelyReady || setReadyLoading}
                                     className={`px-8 py-3 text-lg font-bold rounded-lg transition-colors shadow-lg ${
-                                        amReady || setReadyLoading
+                                        effectivelyReady || setReadyLoading
                                             ? 'bg-gray-600 text-gray-400 cursor-default'
                                             : 'bg-primary text-secondary hover:opacity-90 cursor-pointer'
                                     }`}
@@ -450,13 +467,58 @@ export default function CharacterSelectPhase({
                                     Ready
                                 </button>
                             )}
-                            {allSelected && allReady && (
+                            {allSelected && allReady && !atLeastOneCharacter && (
+                                <p className="text-muted py-2">At least one player must choose a character to start.</p>
+                            )}
+                            {allSelected && allReady && atLeastOneCharacter && (
                                 <p className="text-muted py-2">All ready! Proceeding...</p>
                             )}
                         </>
                     )}
                 </div>
             )}
+        </div>
+    );
+}
+
+/** Spectator card: eye icon, "Spectator" label - watch without playing */
+function SpectatorCard({
+    isMySelection,
+    onSelect,
+}: {
+    isMySelection: boolean;
+    onSelect: () => void;
+}) {
+    return (
+        <div
+            role="button"
+            tabIndex={0}
+            className={`
+                w-[200px] h-[200px] rounded-lg border-2 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all
+                ${isMySelection
+                    ? 'border-primary bg-surface-light shadow-[0_0_12px_rgba(78,205,196,0.4)]'
+                    : 'border-border-custom bg-surface hover:border-primary hover:bg-surface-light'
+                }
+            `}
+            onClick={onSelect}
+            onKeyDown={(e) => e.key === 'Enter' && onSelect()}
+        >
+            <svg
+                className="w-14 h-14 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+            </svg>
+            <span className="text-sm font-semibold text-gray-300">Spectator</span>
+            <span className="text-xs text-muted text-center px-2">Watch without playing</span>
         </div>
     );
 }

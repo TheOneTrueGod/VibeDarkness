@@ -125,7 +125,7 @@ export class GameEngine {
     gameTick: number = 0;
     roundNumber: number = 1;
     snapshotIndex: number = 0;
-    isPaused: boolean = false;
+    isPaused: boolean = true;
     waitingForOrders: WaitingForOrders | null = null;
 
     // -- Game objects --
@@ -473,8 +473,8 @@ export class GameEngine {
             // Check if a player-owned unit just finished cooldown
             if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive() && !this.waitingForOrders) {
                 this.runVictoryChecks(); // before turn
-                this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
                 this.pauseForOrders(unit);
+                this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
                 return; // Stop processing this tick
             }
 
@@ -756,6 +756,7 @@ export class GameEngine {
             unitId: unit.id,
             ownerId: unit.ownerId,
         };
+        this.isPaused = true;
         this.snapshotIndex++;
         this.onWaitingForOrders?.(this.waitingForOrders);
     }
@@ -825,6 +826,7 @@ export class GameEngine {
     resumeAfterOrders(): void {
         const prev = this.waitingForOrders;
         this.waitingForOrders = null;
+        this.isPaused = false;
 
         if (prev) {
             this.eventBus.emit('turn_end', { unitId: prev.unitId });
@@ -1897,6 +1899,18 @@ export class GameEngine {
 
         // Re-register core event listeners so restored games behave like new ones.
         engine.registerCoreEventListeners();
+
+        // Infer waitingForOrders when restoring from legacy checkpoints that saved before pauseForOrders.
+        // This prevents advancing one frame on host refresh when the game was waiting for orders.
+        if (!engine.waitingForOrders) {
+            for (const unit of engine.units) {
+                if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
+                    engine.waitingForOrders = { unitId: unit.id, ownerId: unit.ownerId };
+                    engine.isPaused = true;
+                    break;
+                }
+            }
+        }
 
         return engine;
     }

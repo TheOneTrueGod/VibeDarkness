@@ -15,6 +15,7 @@ import type {
     GroupVotePhrase,
     PreMissionPhrase,
 } from '../storylines/storyTypes';
+import { SPECTATOR_ID } from '../state';
 import { getItemDef } from '../character_defs/items';
 import VNTextBox from '../components/VNTextBox';
 import CharacterPortrait from '../components/CharacterPortrait';
@@ -29,6 +30,8 @@ interface PreMissionStoryPhaseProps {
     /** Mission ID for this story; used for deterministic equipment grants. */
     missionId: string;
     players: Record<string, PlayerState>;
+    /** Character selections; spectators (SPECTATOR_ID) don't vote or get choices. */
+    characterSelections?: Record<string, string>;
     preMissionStory: PreMissionStoryDef;
     /** Player IDs that have reached the final "start game" card (synced from server). */
     storyReadyPlayerIds: string[];
@@ -65,6 +68,7 @@ export default function PreMissionStoryPhase({
     isHost,
     missionId,
     players,
+    characterSelections = {},
     preMissionStory,
     storyReadyPlayerIds,
     playerEquipmentByPlayer,
@@ -80,6 +84,7 @@ export default function PreMissionStoryPhase({
     const phrases: PreMissionPhrase[] = preMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
     const isEnd = phraseIndex >= phrases.length;
+    const amSpectator = (characterSelections[playerId] ?? '') === SPECTATOR_ID;
 
     // When this player reaches the end, notify the server so the host can gate "Start Game".
     useEffect(() => {
@@ -218,7 +223,12 @@ export default function PreMissionStoryPhase({
     }, [currentPhrase, isHost, lobbyClient, lobbyId, playerId, phraseIndex, advancePhrase]);
 
     const allPlayerIds = Object.keys(players);
-    const singlePlayer = allPlayerIds.length === 1;
+    /** Playing players (non-spectators); used for single-player shortcut. */
+    const playingPlayerIds = allPlayerIds.filter(
+        (id) => (characterSelections[id] ?? '') !== SPECTATOR_ID,
+    );
+    const singlePlayer = allPlayerIds.length <= 1;
+    /** All players (including spectators) must reach the end before host can start. */
     const allReady =
         allPlayerIds.length > 0 &&
         (singlePlayer || allPlayerIds.every((id) => storyReadyPlayerIds.includes(id)));
@@ -342,18 +352,31 @@ export default function PreMissionStoryPhase({
                         ) : isChoice(currentPhrase) ? (
                             <>
                                 <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-6">
-                                    <div className="space-y-3">
-                                        {currentPhrase.options.map((opt) => (
+                                    {amSpectator ? (
+                                        <div className="space-y-3">
+                                            <p className="text-muted mb-4">Spectators do not make choices.</p>
                                             <button
-                                                key={opt.id}
                                                 type="button"
-                                                onClick={() => handleChoice(currentPhrase.choiceId, opt.id, opt)}
-                                                className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white"
+                                                onClick={advancePhrase}
+                                                className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
                                             >
-                                                {opt.label}
+                                                Next
                                             </button>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {currentPhrase.options.map((opt) => (
+                                                <button
+                                                    key={opt.id}
+                                                    type="button"
+                                                    onClick={() => handleChoice(currentPhrase.choiceId, opt.id, opt)}
+                                                    className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white"
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                                 {/* Spacer so choice card sits above where the text box would be */}
                                 <div className="min-h-[16rem]" aria-hidden />
@@ -363,14 +386,14 @@ export default function PreMissionStoryPhase({
                                 const voteId = currentPhrase.voteId;
                                 const options =
                                     currentPhrase.optionSource === 'players'
-                                        ? allPlayerIds.map((id) => ({
+                                        ? playingPlayerIds.map((id) => ({
                                               id,
                                               label: players[id]?.name ?? id,
                                           }))
                                         : currentPhrase.options ?? [];
                                 const votesForVote = groupVoteVotes[voteId] ?? {};
                                 const myVote = votesForVote[playerId];
-                                const allVoted = allPlayerIds.every((pid) => votesForVote[pid] != null);
+                                const allVoted = playingPlayerIds.every((pid) => votesForVote[pid] != null);
                                 const voterNames = (optionId: string) =>
                                     allPlayerIds
                                         .filter((pid) => votesForVote[pid] === optionId)
@@ -390,17 +413,7 @@ export default function PreMissionStoryPhase({
                                                             className="rounded-lg border-2 border-border-custom bg-surface overflow-hidden"
                                                         >
                                                             <div className="flex items-center gap-3 px-4 py-3">
-                                                                {myVote == null ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            handleGroupVote(voteId, opt.id)
-                                                                        }
-                                                                        className="flex-1 text-left px-2 py-2 rounded-lg text-lg text-white hover:bg-surface-light/80 transition-colors"
-                                                                    >
-                                                                        {opt.label}
-                                                                    </button>
-                                                                ) : (
+                                                                {myVote != null ? (
                                                                     <span
                                                                         className={`flex-1 text-lg text-white ${
                                                                             isMyVote ? 'font-semibold' : ''
@@ -413,6 +426,20 @@ export default function PreMissionStoryPhase({
                                                                             </span>
                                                                         )}
                                                                     </span>
+                                                                ) : amSpectator ? (
+                                                                    <span className="flex-1 text-lg text-muted">
+                                                                        {opt.label} (spectators do not vote)
+                                                                    </span>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            handleGroupVote(voteId, opt.id)
+                                                                        }
+                                                                        className="flex-1 text-left px-2 py-2 rounded-lg text-lg text-white hover:bg-surface-light/80 transition-colors"
+                                                                    >
+                                                                        {opt.label}
+                                                                    </button>
                                                                 )}
                                                                 {voters ? (
                                                                     <span className="text-sm text-muted shrink-0">

@@ -18,6 +18,7 @@ import PreMissionStoryPhase from './phases/PreMissionStoryPhase';
 import PostMissionStoryPhase from './phases/PostMissionStoryPhase';
 import BattlePhase from './phases/BattlePhase';
 import { MISSION_MAP } from './storylines';
+import { SPECTATOR_ID } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
 import VictoryModal from './components/VictoryModal';
@@ -52,7 +53,8 @@ interface MinionBattlesGameProps {
     onRecordMissionResult?: (
         missionId: string,
         result: string,
-        resourceDelta?: Partial<Record<CampaignResourceKey, number>>
+        resourceDelta?: Partial<Record<CampaignResourceKey, number>>,
+        grantKnowledgeKeys?: string[]
     ) => Promise<void>;
     /** Called when user clicks Leave in the defeat modal. */
     onLeave?: () => void;
@@ -266,6 +268,7 @@ export default function MinionBattlesGame({
                     playerId={playerId}
                     missionId={selectedMissionId}
                     players={players}
+                    characterSelections={effective.characterSelections as Record<string, string>}
                     postMissionStory={postMissionStory}
                     playerEquipmentByPlayer={
                         (lastGameStateFromServer ?? raw).playerEquipmentByPlayer as
@@ -274,7 +277,16 @@ export default function MinionBattlesGame({
                     }
                     onComplete={(rewards) => {
                         const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
-                        void onRecordMissionResult?.(missionId, 'victory', rewards.resourceDelta);
+                        const missionDef = MISSION_MAP[missionId];
+                        const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
+                        const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
+                        const amSpectator = sel === SPECTATOR_ID;
+                        void onRecordMissionResult?.(
+                            missionId,
+                            'victory',
+                            amSpectator ? undefined : rewards.resourceDelta,
+                            amSpectator ? undefined : grantKnowledgeKeys,
+                        );
                         setMissionRewards(rewards);
                         setVictoryModalOpen(true);
                     }}
@@ -289,6 +301,7 @@ export default function MinionBattlesGame({
                     isHost={isHost}
                     missionId={selectedMissionId}
                     players={players}
+                    characterSelections={effective.characterSelections as Record<string, string>}
                     preMissionStory={preMissionStory}
                     storyReadyPlayerIds={storyReadyPlayerIds}
                     playerEquipmentByPlayer={
@@ -339,15 +352,13 @@ export default function MinionBattlesGame({
                             }
                             setGamePhase('post_mission_story');
                         } else {
-                            void onRecordMissionResult?.(missionId, missionResult);
+                            const missionDef = MISSION_MAP[missionId];
+                            const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
+                            void onRecordMissionResult?.(missionId, missionResult, undefined, grantKnowledgeKeys);
                             setVictoryModalOpen(true);
                         }
                     }}
                     onDefeat={() => {
-                        void onRecordMissionResult?.(
-                            getSelectedMission(effective.missionVotes as Record<string, string>),
-                            'defeat'
-                        );
                         setDefeatModalOpen(true);
                     }}
                 />

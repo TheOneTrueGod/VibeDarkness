@@ -39,6 +39,8 @@ export interface MissionResult {
     missionId: string;
     result: string;
     timestamp?: number;
+    /** Mission reward deltas; summed with campaign.resources for effective display. */
+    resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
 }
 
 export interface CampaignResources {

@@ -631,19 +631,27 @@ function AppInner() {
         async (
             missionId: string,
             result: string,
-            resourceDelta?: Partial<Record<import('./types').CampaignResourceKey, number>>
+            resourceDelta?: Partial<Record<import('./types').CampaignResourceKey, number>>,
+            grantKnowledgeKeys?: string[]
         ) => {
             const campaignId = currentCampaignId ?? user?.campaignIds?.[0] ?? null;
             if (!campaignId) return;
             try {
                 await lobbyClient.updateCampaign(campaignId, {
-                    addMissionResult: { missionId, result, resourceDelta },
+                    addMissionResult: { missionId, result, resourceDelta, grantKnowledgeKeys },
                 });
+                if (grantKnowledgeKeys?.length) {
+                    const updated = await lobbyClient.getMe();
+                    if (updated) {
+                        setCurrentAccount(updated);
+                        await refetchUser();
+                    }
+                }
             } catch (e) {
                 console.warn('Failed to record mission result:', e);
             }
         },
-        [currentCampaignId, user, lobbyClient]
+        [currentCampaignId, user, lobbyClient, refetchUser]
     );
 
     const handleSelectGame = useCallback(
@@ -809,7 +817,7 @@ function AppInner() {
     );
 }
 
-/** DebugConsole when in game - uses GameSyncContext for skip turn */
+/** DebugConsole when in game - uses GameSyncContext for skip turn and effective in-battle state */
 function DebugConsoleInGame({
     lobbyPageState,
     lobbyGameType,
@@ -835,10 +843,15 @@ function DebugConsoleInGame({
     const gameState = gameSync?.gameState ?? debugGameState;
     const skipCurrentTurn = gameSync?.skipCurrentTurn ?? null;
     const isHost = currentPlayer?.isHost ?? false;
+    // Use effective values from GameSyncContext (like GameScreen) so in-battle tabs appear
+    // immediately when phase changes, not only after next poll/refresh.
+    const effectivePageState = gameSync?.gameState?.lobbyState ?? lobbyPageState;
+    const effectiveGameType = gameSync?.gameState?.gameType ?? lobbyGameType;
+    const effectiveGameData = gameSync?.gameState?.game ?? lobbyGameData;
     const inBattle =
-        lobbyPageState === 'in_game' &&
-        lobbyGameType === 'minion_battles' &&
-        ((lobbyGameData?.gamePhase ?? lobbyGameData?.game_phase) === 'battle');
+        effectivePageState === 'in_game' &&
+        effectiveGameType === 'minion_battles' &&
+        ((effectiveGameData?.gamePhase ?? effectiveGameData?.game_phase) === 'battle');
     return (
         <DebugConsole
             gameState={gameState}

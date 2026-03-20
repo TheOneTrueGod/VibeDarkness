@@ -4,6 +4,7 @@
 import React from 'react';
 import type { PlayerState } from '../types';
 import PlayerPill from './PlayerPill';
+import { SPECTATOR_ID } from '../games/minion_battles/state';
 
 interface PlayerListProps {
     players: Record<string, PlayerState>;
@@ -35,9 +36,11 @@ export default function PlayerList({
                 {Object.values(players).map((player) => {
                     const characterId = characterSelections?.[player.id];
                     const secondLine =
-                        characterId != null && characterIdToName?.[characterId] != null
-                            ? characterIdToName[characterId]
-                            : undefined;
+                        characterId === SPECTATOR_ID
+                            ? 'Spectator'
+                            : characterId != null && characterIdToName?.[characterId] != null
+                              ? characterIdToName[characterId]
+                                : undefined;
                     const readyStatus =
                         readySet != null
                             ? (readySet.has(player.id) ? 'ready' : 'not_ready')

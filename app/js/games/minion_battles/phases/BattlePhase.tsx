@@ -19,6 +19,7 @@ import type { AbilityStatic } from '../abilities/Ability';
 import { getAbilityTargets } from '../abilities/Ability';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
+import { SPECTATOR_ID } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { TERRAIN_PROPERTIES } from '../terrain/TerrainType';
 import BattleCanvas from '../components/BattleCanvas';
@@ -51,6 +52,8 @@ declare global {
          * When > Date.now(), BattleCanvas pauses auto-follow centering to give debug camera focus time.
          */
         __minionBattlesDebugAutoFollowPausedUntil?: number;
+        /** Live game tick from engine; DebugConsole polls this for up-to-date display. */
+        __minionBattlesDebugGameTick?: number;
     }
 }
 
@@ -154,9 +157,24 @@ export default function BattlePhase({
             if (rendererRef.current) rendererRef.current.setDebugUnitOutline(null);
             window.__minionBattlesDebugSetUnitHover = undefined;
             window.__minionBattlesDebugAutoFollowPausedUntil = undefined;
+            window.__minionBattlesDebugGameTick = undefined;
         };
         // Intentionally exclude refs from deps: we always want to use latest .current values.
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Expose live game tick for DebugConsole Game State tab
+    useEffect(() => {
+        const id = window.setInterval(() => {
+            const tick = engineRef.current?.gameTick;
+            if (typeof tick === 'number') {
+                window.__minionBattlesDebugGameTick = tick;
+            }
+        }, 100);
+        return () => {
+            window.clearInterval(id);
+            window.__minionBattlesDebugGameTick = undefined;
+        };
     }, []);
 
     // Get the player's unit from the engine
@@ -286,11 +304,13 @@ export default function BattlePhase({
                 ? characterSelections
                 : ((init?.characterSelections ?? init?.character_selections) as Record<string, string>) ?? {};
             const portraitIds = (init?.characterPortraitIds ?? init?.character_portrait_ids) as Record<string, string> | undefined;
-            const playerUnits = Object.entries(selections).map(([pid]) => ({
-                playerId: pid,
-                name: players[pid]?.name ?? 'Unknown',
-                portraitId: portraitIds?.[pid],
-            }));
+            const playerUnits = Object.entries(selections)
+                .filter(([, charId]) => charId !== SPECTATOR_ID)
+                .map(([pid]) => ({
+                    playerId: pid,
+                    name: players[pid]?.name ?? 'Unknown',
+                    portraitId: portraitIds?.[pid],
+                }));
             // Backend sets playerEquipmentByPlayer only when characterSelections exist and each
             // CharacterManager.getCharacter(characterId) returns a character. Empty when: (1) no
             // characterSelections in state, (2) every character lookup fails (wrong ID, or no
@@ -340,6 +360,12 @@ export default function BattlePhase({
                     return;
                 }
 
+                console.warn('Desync: full resync triggered (client snapshot mismatch)', {
+                    reason: 'client_snapshot_desync',
+                    criticalDiffs,
+                    currentState: clientState,
+                    serverState,
+                });
                 throwError({
                     severity: 'medium',
                     message: 'Client Snapshot desync',
@@ -426,6 +452,9 @@ export default function BattlePhase({
             if (myUnit && cameraRef.current) {
                 cameraRef.current.snapTo(myUnit.x, myUnit.y, myUnit.radius);
             }
+            if (!newEngine.waitingForOrders) {
+                newEngine.isPaused = false;
+            }
             newEngine.start();
         }
 
@@ -500,6 +529,11 @@ export default function BattlePhase({
             const nextTick = engine.gameTick + 1;
             const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
             gameSyncRef.current?.startOrderPolling(checkpointGameTick, makeOrderPollingCallbacks());
+        }
+
+        // Resume simulation when not waiting for orders (fresh game or restored mid-round)
+        if (!engine.waitingForOrders) {
+            engine.isPaused = false;
         }
 
         // Start the engine

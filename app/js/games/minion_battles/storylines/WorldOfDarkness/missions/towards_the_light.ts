@@ -15,6 +15,8 @@ import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { MAP_SEGMENT_48_50_WAKEUP } from '../MapSegments/48_50_wakeup';
+import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
 import { MAP_SEGMENT_50_50_CRYSTAL_CAVE } from '../MapSegments/50_50_crystal_cave';
 
 const COLS = 66;
@@ -24,64 +26,6 @@ const WORLD_HEIGHT = ROWS * CELL_SIZE;
 
 const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
-const T = TerrainType.ThickGrass;
-const D = TerrainType.Dirt;
-
-/** Left third (0–21): campfire area, rocks and grass. Campfire at (11,10). */
-function buildLeftSection(): TerrainType[][] {
-    return [
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, _, _, _, _, _, T, T, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, _, _, _, _, _, T, T, T, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, _, _, _, R, R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, T],
-        [R, _, _, _, R, R, R, _, _, _, _, _, _, _, _, _, _, _, D, D, D, T],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, _, D],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R, _, _],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R, _, _],
-        [R, _, R, R, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R, R, _],
-        [R, _, R, R, _, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R, T],
-        [R, _, _, R, R, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R, R],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, T, T, R],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, T, R],
-        [R, _, _, _, _, _, _, T, T, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, _, _, _, _, _, _, T, T, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, _, _, _, _, _, _, _, T, _, _, _, _, _, _, _, _, _, _, D, D, D],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R]
-    ];
-}
-
-/** Middle third (22–43): scattered rocks and grass. */
-function buildMiddleSection(): TerrainType[][] {
-    return [
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [_, _, R, R, _, _, _, _, R, R, R, _, _, _, _, _, _, _, _, _, _, _],
-        [_, _, _, _, _, _, _, _, R, R, _, _, T, T, T, R, _, _, _, _, _, _],
-        [T, _, T, T, _, _, _, _, _, _, _, _, T, _, R, R, _, _, R, R, _, _],
-        [T, T, _, _, _, _, _, _, _, _, _, _, _, _, R, _, _, _, R, _, _, _],
-        [D, _, _, _, R, R, _, _, _, D, D, D, _, _, _, _, _, _, _, _, _, _],
-        [_, D, D, _, _, _, R, D, D, _, _, _, D, _, _, _, _, _, _, _, _, _],
-        [_, _, _, D, D, D, D, _, _, _, _, _, _, D, _, _, _, _, _, _, _, _],
-        [_, _, _, _, _, _, _, _, _, _, R, R, _, _, D, D, D, D, D, D, D, _],
-        [_, _, _, _, _, _, _, T, _, _, _, R, R, _, D, D, D, D, D, D, D, D],
-        [_, R, _, _, _, T, T, T, T, T, _, _, _, _, D, _, _, _, _, _, _, D],
-        [R, R, R, R, _, _, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _, _],
-        [R, R, _, _, _, _, _, _, _, D, D, D, _, _, T, T, _, _, _, _, _, _],
-        [R, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [_, _, _, _, _, D, D, _, _, _, _, _, _, _, _, _, R, R, _, _, _, _],
-        [_, _, D, D, D, _, _, _, _, _, T, _, T, _, _, _, R, R, R, _, _, _],
-        [D, D, _, _, _, _, _, _, _, _, T, T, T, _, _, _, _, _, _, _, T, _],
-        [_, _, _, _, _, _, _, R, R, R, T, T, T, _, R, _, _, _, _, _, _, T],
-        [_, _, _, _, _, _, _, R, R, _, T, T, T, R, R, _, _, _, _, _, _, _],
-        [_, _, _, R, R, R, R, R, _, _, _, _, _, _, R, R, _, _, _, _, _, _],
-        [_, _, R, R, R, R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R]
-    ];
-}
 
 /** Right third (44–65): rocky cave from shared map segment. */
 function buildRightSection(): TerrainType[][] {
@@ -105,8 +49,8 @@ function applyBorder(grid: TerrainType[][], cols: number, rows: number): void {
 }
 
 function createTerrain(): TerrainGrid {
-    const left = buildLeftSection();
-    const middle = buildMiddleSection();
+    const left = MAP_SEGMENT_48_50_WAKEUP;
+    const middle = MAP_SEGMENT_49_50_PATH_TO_CAVE;
     const right = buildRightSection();
     const stitched = stitchTerrain([[left, middle, right]], _);
     applyBorder(stitched, COLS, ROWS);
@@ -239,6 +183,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     missionId = 'towards_the_light';
     campaignId = 'world_of_darkness';
     name = 'Towards the Light';
+    completionRewards = { knowledgeKeys: ['Research'] };
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;

@@ -224,6 +224,10 @@ export interface MissionBattleConfig {
     worldWidth: number;
     /** World height in pixels (e.g. terrain rows × cell size). */
     worldHeight: number;
+    /** Rewards granted automatically on mission victory (e.g. knowledge keys for research trees). */
+    completionRewards?: {
+        knowledgeKeys?: string[];
+    };
 }
 
 /** Storyline flow edge: fromMissionId + result unlocks toMissionId. */

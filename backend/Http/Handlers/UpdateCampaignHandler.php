@@ -66,6 +66,16 @@ class UpdateCampaignHandler
             $result = $mr['result'] ?? 'victory';
             $delta = $mr['resourceDelta'] ?? null;
             $campaign->addMissionResult($missionId, $result, $delta);
+
+            $grantKnowledgeKeys = $mr['grantKnowledgeKeys'] ?? null;
+            if (is_array($grantKnowledgeKeys) && count($grantKnowledgeKeys) > 0) {
+                foreach ($grantKnowledgeKeys as $key) {
+                    $k = trim((string) $key);
+                    if ($k !== '') {
+                        $accountService->grantKnowledgeToAccount($accountId, $k, []);
+                    }
+                }
+            }
         }
 
         $campaignManager->updateCampaign($campaign);

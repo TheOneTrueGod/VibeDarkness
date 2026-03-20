@@ -461,7 +461,7 @@ export default function CharacterEditor({
                         }`}
                         onClick={() => setActiveTab('research')}
                     >
-                        Research
+                        Upgrades
                     </button>
                 )}
             </div>

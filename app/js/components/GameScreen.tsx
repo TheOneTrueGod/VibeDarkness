@@ -43,7 +43,8 @@ export interface GameComponentProps {
     onRecordMissionResult?: (
         missionId: string,
         result: string,
-        resourceDelta?: Partial<Record<import('../types').CampaignResourceKey, number>>
+        resourceDelta?: Partial<Record<import('../types').CampaignResourceKey, number>>,
+        grantKnowledgeKeys?: string[]
     ) => Promise<void>;
     /** Called when user leaves (e.g. from defeat modal). */
     onLeave?: () => void;
@@ -76,7 +77,8 @@ interface GameScreenProps {
     onRecordMissionResult?: (
         missionId: string,
         result: string,
-        resourceDelta?: Partial<Record<import('../types').CampaignResourceKey, number>>
+        resourceDelta?: Partial<Record<import('../types').CampaignResourceKey, number>>,
+        grantKnowledgeKeys?: string[]
     ) => Promise<void>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
     onTryAgain?: (missionId: string) => Promise<void>;
@@ -350,9 +352,16 @@ export default function GameScreen({
                             ) : GameComp ? (
                                 <>
                                     {showWaitingForHost && (
-                                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-surface-light rounded-lg border border-warning text-sm text-warning">
+                                        <div className="absolute left-1/2 bottom-[calc(12rem+80px)] -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-2 bg-surface-light rounded-lg border border-warning text-sm text-warning">
                                             <div className="h-4 w-4 flex-shrink-0 border-2 border-warning border-t-transparent rounded-full animate-spin" />
                                             Waiting for host
+                                            <button
+                                                type="button"
+                                                onClick={() => gameSync?.fetchFullState()}
+                                                className="ml-1 px-2 py-1 rounded border border-warning bg-warning/10 hover:bg-warning/20 text-warning text-xs font-medium transition-colors"
+                                            >
+                                                Resync
+                                            </button>
                                         </div>
                                     )}
                                     <GameComp
