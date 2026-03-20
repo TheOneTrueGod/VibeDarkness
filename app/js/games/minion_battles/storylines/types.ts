@@ -8,7 +8,7 @@
 import type { TeamId } from '../engine/teams';
 import type { AISettings } from '../objects/Unit';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
-import type { InBattleStoryDef, PreMissionStoryDef } from './storyTypes';
+import type { InBattleStoryDef, PostMissionStoryDef, PreMissionStoryDef } from './storyTypes';
 
 /** Trigger for level events: at round, after round (checks start), or after seconds. */
 export type LevelEventTrigger =
@@ -28,7 +28,7 @@ export interface SpawnTarget {
 
 /** Single enemy entry in a spawn wave (position is computed at spawn time). */
 export interface SpawnWaveEntry {
-    characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf';
+    characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf' | 'alpha_wolf';
     name?: string;
     hp?: number;
     speed?: number;
@@ -201,6 +201,8 @@ export interface MissionBattleConfig {
     playerSpawnPoints?: PlayerSpawnPoint[];
     /** Optional pre-mission story (visual novel segment before battle). */
     preMissionStory?: PreMissionStoryDef;
+    /** Optional post-mission story (after victory, before victory screen). */
+    postMissionStory?: PostMissionStoryDef;
     /** Optional in-battle story segments (types only; no runtime yet). */
     inBattleStories?: InBattleStoryDef[];
     /** If true, apply global and source-based light level (darkness overlay, enemy visibility). Default true. */

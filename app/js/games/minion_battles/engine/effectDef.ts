@@ -363,9 +363,41 @@ const particleImageEffectDef: IEffectDef = {
     },
 };
 
+/** Pulse effect: three waves of colored circles expanding and fading at different speeds. */
+const pulseEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const progress = effect.progress;
+        const data = (effect.effectData ?? {}) as { colors?: number[] };
+        const colors = data.colors ?? [0x8b5a2b, 0x5d4e37, 0x2d2d2d];
+
+        // Three waves: different start phases and growth rates
+        const waves = [
+            { startPhase: 0, growthRate: 70, opacityRate: 1.2 },
+            { startPhase: 0.12, growthRate: 90, opacityRate: 1.0 },
+            { startPhase: 0.24, growthRate: 110, opacityRate: 0.9 },
+        ];
+
+        for (let i = 0; i < 3; i++) {
+            const w = waves[i]!;
+            const effectiveProgress = progress <= w.startPhase ? 0 : Math.min(1, (progress - w.startPhase) / (1 - w.startPhase));
+            const radius = 10 + effectiveProgress * w.growthRate;
+            const alpha = Math.max(0, 0.9 - effectiveProgress * w.opacityRate);
+            const color = colors[i] ?? 0x5d4e37;
+            g.circle(0, 0, radius);
+            g.stroke({ color, width: 2, alpha });
+        }
+    },
+};
+
 const effectDefRegistry: Record<string, IEffectDef> = {
     default: defaultEffectDef,
     bash: bashEffectDef,
+    Pulse: pulseEffectDef,
     bite: biteEffectDef,
     CorruptionOrb: corruptionOrbEffectDef,
     CorruptionProgressBar: corruptionProgressBarDef,

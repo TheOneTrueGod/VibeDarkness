@@ -153,6 +153,24 @@ export function tryQueueAbilityOrder(unit: Unit, context: AIContext, candidateEn
     for (const abilityId of unit.abilities) {
         const ability = getAbility(abilityId);
         if (!ability) continue;
+
+        const ai = ability.aiSettings;
+        if (ai?.maxUsesPerRound != null && context.getAbilityUsesThisRound) {
+            const used = context.getAbilityUsesThisRound(unit.id, ability.id);
+            if (used >= ai.maxUsesPerRound) continue;
+        }
+
+        if (ability.targets.length === 0) {
+            context.queueOrder(context.gameTick, {
+                unitId: unit.id,
+                abilityId: ability.id,
+                targets: [],
+                movePath: unit.pathInvalidated ? undefined : (unit.movement?.path ? [...unit.movement.path] : undefined),
+            });
+            context.emitTurnEnd(unit.id);
+            return true;
+        }
+
         const validTarget = findAIAbilityTarget(unit, ability, candidateEnemies, randomInt);
         if (!validTarget) continue;
         const resolvedTargets = buildResolvedTargets(ability, validTarget);

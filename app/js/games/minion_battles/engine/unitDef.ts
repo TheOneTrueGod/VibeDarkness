@@ -9,6 +9,7 @@ import type { TeamId } from './teams';
 import { areEnemies } from './teams';
 import { ParticleExplosion } from './deathEffects/ParticleExplosion';
 import type { EffectImageKey } from './effectImages';
+import { UNIT_SIZE_MAP, type UnitSize } from '../constants/unitConstants';
 
 /** Color for allied unit glows. */
 const ALLY_GLOW_COLOR = 0x22c55e; // green-500
@@ -40,13 +41,13 @@ export type UnitDeathEffectDef =
 const PLAYER_UNIT_IDS = ['warrior', 'mage', 'ranger', 'healer', 'rogue', 'necromancer'] as const;
 
 /** Enemy unit character IDs. */
-const ENEMY_UNIT_IDS = ['enemy_melee', 'enemy_ranged', 'dark_wolf'] as const;
+const ENEMY_UNIT_IDS = ['enemy_melee', 'enemy_ranged', 'dark_wolf', 'alpha_wolf'] as const;
 
 export type PlayerUnitId = (typeof PLAYER_UNIT_IDS)[number];
 export type EnemyUnitId = (typeof ENEMY_UNIT_IDS)[number];
 export type UnitDefId = PlayerUnitId | EnemyUnitId;
 
-/** Body color, optional character sprite key, default HP/speed, and perception range (px) for AI. */
+/** Body color, optional character sprite key, default HP/speed, size, and perception range (px) for AI. */
 const UNIT_DEFS: Record<
     UnitDefId,
     {
@@ -54,24 +55,27 @@ const UNIT_DEFS: Record<
         characterSpriteKey?: string;
         hp?: number;
         speed?: number;
+        /** Size category; radius derived from UNIT_SIZE_MAP. Overrides radius if both set. */
+        size?: UnitSize;
         radius?: number;
         perceptionRange?: number;
         deathEffect?: UnitDeathEffectDef;
     }
 > = {
     // Player characters: slightly reduced default move speed for tighter control.
-    warrior: { bodyColor: 0x8b0000, hp: 50, speed: 90, radius: 22 },
-    mage: { bodyColor: 0x4a148c, hp: 50, speed: 90, radius: 18 },
-    ranger: { bodyColor: 0x2e7d32, hp: 50, speed: 90, radius: 20 },
-    healer: { bodyColor: 0xf5f5dc, hp: 50, speed: 90, radius: 20 },
-    rogue: { bodyColor: 0x2c2c2c, hp: 50, speed: 90, radius: 18 },
-    necromancer: { bodyColor: 0x1a1a2e, hp: 50, speed: 90, radius: 20 },
+    warrior: { bodyColor: 0x8b0000, hp: 50, speed: 90, size: 'Large' },
+    mage: { bodyColor: 0x4a148c, hp: 50, speed: 90, size: 'Small' },
+    ranger: { bodyColor: 0x2e7d32, hp: 50, speed: 90, size: 'Medium' },
+    healer: { bodyColor: 0xf5f5dc, hp: 50, speed: 90, size: 'Medium' },
+    rogue: { bodyColor: 0x2c2c2c, hp: 50, speed: 90, size: 'Small' },
+    necromancer: { bodyColor: 0x1a1a2e, hp: 50, speed: 90, size: 'Medium' },
     // Enemies
     enemy_melee: {
         bodyColor: 0x555555,
         characterSpriteKey: 'enemy_melee',
         hp: 12,
         speed: 80,
+        size: 'Medium',
         perceptionRange: 250,
     },
     enemy_ranged: {
@@ -79,6 +83,7 @@ const UNIT_DEFS: Record<
         characterSpriteKey: 'enemy_ranged',
         hp: 30,
         speed: 60,
+        size: 'Medium',
         perceptionRange: 400,
     },
     dark_wolf: {
@@ -86,14 +91,24 @@ const UNIT_DEFS: Record<
         characterSpriteKey: 'dark_wolf',
         hp: 12,
         speed: 120,
-        radius: 15,
+        size: 'Small',
         perceptionRange: 300,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 8 },
+    },
+    alpha_wolf: {
+        bodyColor: 0x1a1a2e,
+        characterSpriteKey: 'alpha_wolf',
+        hp: 200,
+        speed: 135,
+        size: 'Extra Large',
+        perceptionRange: 350,
+        deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 12 },
     },
 };
 
 export function getDefaultRadius(characterId: string, fallbackRadius: number): number {
     const def = UNIT_DEFS[characterId as UnitDefId];
+    if (def?.size) return UNIT_SIZE_MAP[def.size];
     return def?.radius ?? fallbackRadius;
 }
 

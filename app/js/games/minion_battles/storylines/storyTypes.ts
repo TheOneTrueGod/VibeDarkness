@@ -36,8 +36,16 @@ export interface StoryChoiceActionEquipItem {
     itemId: string;
 }
 
+/** Choice action: grant campaign resources (used in post-mission choices). */
+export interface StoryChoiceActionGrantResources {
+    type: 'grant_resources';
+    food?: number;
+    metal?: number;
+    crystals?: number;
+}
+
 /** Extensible choice action union. */
-export type StoryChoiceAction = StoryChoiceActionEquipItem;
+export type StoryChoiceAction = StoryChoiceActionEquipItem | StoryChoiceActionGrantResources;
 
 /** Choice phrase: player selects one option; action is applied (e.g. equip item). */
 export interface ChoicePhrase {
@@ -96,6 +104,14 @@ export type PreMissionPhrase =
 /** Pre-mission story shown in lobby after character select, before battle. */
 export interface PreMissionStoryDef {
     phrases: PreMissionPhrase[];
+}
+
+/** Post-mission phrase: dialogue or per-player choice (each player chooses independently). */
+export type PostMissionPhrase = DialoguePhrase | ChoicePhrase;
+
+/** Post-mission story shown after victory, before the victory screen. */
+export interface PostMissionStoryDef {
+    phrases: PostMissionPhrase[];
 }
 
 // --- In-battle story (infrastructure only; no runtime handling yet) ---

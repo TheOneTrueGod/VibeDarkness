@@ -38,7 +38,13 @@ import type {
 } from '../storylines/types';
 import { getEdgePositions } from '../storylines/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../objects/units/index';
-import { ENEMY_MELEE, ENEMY_RANGED, ENEMY_DARK_WOLF, getEnemyHealthMultiplier } from '../constants/enemyConstants';
+import {
+    ENEMY_MELEE,
+    ENEMY_RANGED,
+    ENEMY_DARK_WOLF,
+    ENEMY_ALPHA_WOLF,
+    getEnemyHealthMultiplier,
+} from '../constants/enemyConstants';
 import type { SpecialTile } from '../objects/SpecialTile';
 import { isTileDefendPoint, specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
@@ -124,6 +130,8 @@ export class GameEngine {
     units: Unit[] = [];
     projectiles: Projectile[] = [];
     effects: Effect[] = [];
+    /** Ability uses this round per unit: `${unitId}:${abilityId}` -> count. Reset on round end. */
+    private abilityUsesThisRound: Map<string, number> = new Map();
     /** Special tiles (defend points, etc.) with grid position and HP. */
     specialTiles: SpecialTile[] = [];
 
@@ -942,6 +950,8 @@ export class GameEngine {
             queueOrder: (atTick, order) => this.queueOrder(atTick, order),
             emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId }),
             generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
+            getAbilityUsesThisRound: (unitId, abilityId) =>
+                this.abilityUsesThisRound.get(`${unitId}:${abilityId}`) ?? 0,
             WORLD_WIDTH: this.getWorldWidth(),
             WORLD_HEIGHT: this.getWorldHeight(),
             hasLineOfSight: (fromX, fromY, toX, toY) =>
@@ -1229,7 +1239,12 @@ export class GameEngine {
         const width = grid.width;
         const height = grid.height;
         const cellSize = grid.cellSize;
-        const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED, dark_wolf: ENEMY_DARK_WOLF };
+        const baseDefs = {
+            enemy_melee: ENEMY_MELEE,
+            enemy_ranged: ENEMY_RANGED,
+            dark_wolf: ENEMY_DARK_WOLF,
+            alpha_wolf: ENEMY_ALPHA_WOLF,
+        };
         const playerCount = this.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
 
@@ -1258,7 +1273,7 @@ export class GameEngine {
 
         for (const entry of evt.spawns) {
             const cid = entry.characterId;
-            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf') continue;
+            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf' && cid !== 'alpha_wolf') continue;
             const base = baseDefs[cid];
             const behaviour = entry.spawnBehaviour ?? 'edgeOfMap';
             const count = Math.max(0, entry.spawnCount ?? 1);
@@ -1422,7 +1437,12 @@ export class GameEngine {
         const width = grid.width;
         const height = grid.height;
         const cellSize = grid.cellSize;
-        const baseDefs = { enemy_melee: ENEMY_MELEE, enemy_ranged: ENEMY_RANGED, dark_wolf: ENEMY_DARK_WOLF };
+        const baseDefs = {
+            enemy_melee: ENEMY_MELEE,
+            enemy_ranged: ENEMY_RANGED,
+            dark_wolf: ENEMY_DARK_WOLF,
+            alpha_wolf: ENEMY_ALPHA_WOLF,
+        };
         const playerCount = this.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
 
@@ -1490,7 +1510,7 @@ export class GameEngine {
 
         for (const entry of evt.spawns) {
             const cid = entry.characterId;
-            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf') continue;
+            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf' && cid !== 'alpha_wolf') continue;
             const base = baseDefs[cid];
             const behaviour = (entry.spawnBehaviour ?? 'darkness') as 'darkness' | 'anywhere';
             const count = Math.max(0, entry.spawnCount ?? 1);
@@ -1641,6 +1661,8 @@ export class GameEngine {
     }
 
     private handleRoundEnd(_roundNumber: number): void {
+        this.abilityUsesThisRound.clear();
+
         // Torch effects: decay light/radius each round from initial values and remove when expired
         for (const effect of this.effects) {
             if (!effect.active || effect.effectType !== 'Torch') continue;

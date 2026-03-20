@@ -2,15 +2,15 @@
  * The Last Holdout - Mission enemy and terrain definitions.
  *
  * C-shaped bunker on the left where players defend. Darkness -20; campfire in the
- * middle of the C (10 HP, defense point). Continuous spawn: 2 wolves + 1 archer
+ * middle of the C (10 HP, defense point). Continuous spawn: 2 wolves + 1 slime
  * every 0.25 rounds from round 1 to 4, in a box on the right in darkness. Initial
- * 4 wolves + 1 archer on the right; same wave at start of round 4. Victory: defeat
+ * 4 wolves + 1 slime on the right; same wave at start of round 4. Victory: defeat
  * all enemies after round 4.
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
-import { ENEMY_DARK_WOLF, ENEMY_RANGED } from '../../../constants/enemyConstants';
+import { ENEMY_ALPHA_WOLF, ENEMY_DARK_WOLF, ENEMY_RANGED } from '../../../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
@@ -103,13 +103,13 @@ function createTerrain(): TerrainGrid {
     return grid;
 }
 
-/** Initial enemies: 4 wolves + 1 archer on the right side in the darkness box. */
+/** Initial enemies: Alpha Wolf boss + 3 wolves + 1 slime on the right side in the darkness box. */
 const ENEMIES = [
+    { ...ENEMY_ALPHA_WOLF, name: 'Alpha Wolf', position: { x: 1000, y: 360 } },
     { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 960, y: 280 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1040, y: 360 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1000, y: 440 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1080, y: 520 } },
-    { ...ENEMY_RANGED, name: 'Archer', position: { x: 1000, y: 360 } },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1040, y: 400 } },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1000, y: 480 } },
+    { ...ENEMY_RANGED, position: { x: 1080, y: 320 } },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [

@@ -39,6 +39,8 @@ export interface AIContext {
     hasLineOfSight(fromX: number, fromY: number, toX: number, toY: number): boolean;
     /** Cancel an active ability on a unit (e.g. so AI can interrupt and queue a different order). */
     cancelActiveAbility(unitId: string, abilityId: string): void;
+    /** Get how many times this unit has used this ability this round (for maxUsesPerRound). */
+    getAbilityUsesThisRound?(unitId: string, abilityId: string): number;
 }
 
 /**

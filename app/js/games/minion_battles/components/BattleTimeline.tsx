@@ -5,6 +5,18 @@ import { getAbility } from '../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../abilities/Ability';
 import type { Unit } from '../objects/Unit';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
+import slimeIcon from '../assets/characters/slime.svg';
+import swordwomanIcon from '../assets/characters/swordwoman.svg';
+import wolfHeadIcon from '../assets/characters/dark_animals/wolf-head.svg';
+import wolfHowlIcon from '../assets/characters/dark_animals/wolf-howl.svg';
+
+/** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
+const ENEMY_CHARACTER_ICONS: Record<string, string> = {
+    enemy_melee: swordwomanIcon,
+    enemy_ranged: slimeIcon,
+    dark_wolf: wolfHeadIcon,
+    alpha_wolf: wolfHowlIcon,
+};
 
 /** Light gray background line with half-second ticks and time labels for a timeline row. */
 function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
@@ -224,6 +236,7 @@ function renderEnemyRow(
                         const widthPercent = (duration / windowSeconds) * 100;
                         const endPercent = (marker.endFromNow / windowSeconds) * 100;
 
+                        const iconUrl = ENEMY_CHARACTER_ICONS[marker.unit.characterId];
                         const nameInitial = marker.unit.name?.[0]?.toUpperCase() ?? '?';
 
                         return (
@@ -236,13 +249,23 @@ function renderEnemyRow(
                                     }}
                                 />
                                 <div
-                                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-sm bg-red-600 border border-black flex items-center justify-center text-[10px] font-bold text-white"
+                                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-sm bg-red-600 border border-black flex items-center justify-center overflow-hidden"
                                     style={{
                                         left: `${endPercent}%`,
                                     }}
                                     title={marker.unit.name || 'Enemy'}
                                 >
-                                    {nameInitial}
+                                    {iconUrl ? (
+                                        <img
+                                            src={iconUrl}
+                                            alt=""
+                                            className="w-full h-full object-contain"
+                                        />
+                                    ) : (
+                                        <span className="text-[10px] font-bold text-white">
+                                            {nameInitial}
+                                        </span>
+                                    )}
                                 </div>
                             </React.Fragment>
                         );

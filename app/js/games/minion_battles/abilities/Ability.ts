@@ -48,6 +48,8 @@ export interface AbilityAISettings {
     minRange: number;
     /** Maximum distance (px) to target for the AI to consider using this ability. */
     maxRange: number;
+    /** Max uses per round (for enemies). Omitted = no limit. */
+    maxUsesPerRound?: number;
 }
 
 export type AbilityKeyword = 'exhaust';

@@ -624,11 +624,15 @@ function AppInner() {
     );
 
     const recordMissionResult = useCallback(
-        async (missionId: string, result: string) => {
+        async (
+            missionId: string,
+            result: string,
+            resourceDelta?: Partial<Record<import('./types').CampaignResourceKey, number>>
+        ) => {
             if (!currentCampaignId) return;
             try {
                 await lobbyClient.updateCampaign(currentCampaignId, {
-                    addMissionResult: { missionId, result },
+                    addMissionResult: { missionId, result, resourceDelta },
                 });
             } catch (e) {
                 console.warn('Failed to record mission result:', e);

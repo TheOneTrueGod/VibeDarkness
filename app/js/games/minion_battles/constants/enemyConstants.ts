@@ -32,10 +32,10 @@ export const ENEMY_MELEE: EnemySpawnDef = {
     aiSettings: { minRange: 30, maxRange: 80 },
 };
 
-/** Ranged enemy: knows ability 0001 (Enemy Archer Shot). */
+/** Ranged enemy (slime): knows ability 0001 (Enemy Archer Shot). */
 export const ENEMY_RANGED: EnemySpawnDef = {
     characterId: 'enemy_ranged',
-    name: 'Ranged Enemy',
+    name: 'Slime',
     hp: 30,
     speed: 60,
     position: { x: 0, y: 0 },
@@ -44,7 +44,7 @@ export const ENEMY_RANGED: EnemySpawnDef = {
     aiSettings: { minRange: 100, maxRange: 200 },
 };
 
-/** Dark Wolf: small fast enemy with DarkWolfBite (0003). 12 HP, 120 speed, 75% of default size. */
+/** Dark Wolf: small fast enemy with DarkWolfBite (0003). 12 HP, 120 speed. */
 export const ENEMY_DARK_WOLF: EnemySpawnDef = {
     characterId: 'dark_wolf',
     name: 'Dark Wolf',
@@ -54,6 +54,17 @@ export const ENEMY_DARK_WOLF: EnemySpawnDef = {
     teamId: 'enemy',
     abilities: ['0003'],
     aiSettings: { minRange: 0, maxRange: 80 },
-    // Radius 15 = 50% larger than the previous 10px size.
-    radius: 15,
+};
+
+/** Alpha Wolf: boss with 200 HP, Claw (0004) and Summon (0005). Extra Large (26px), speed 135. */
+export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
+    characterId: 'alpha_wolf',
+    name: 'Alpha Wolf',
+    hp: 200,
+    speed: 135,
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['0004', '0005'],
+    aiSettings: { minRange: 0, maxRange: 100 },
+    radius: 26,
 };

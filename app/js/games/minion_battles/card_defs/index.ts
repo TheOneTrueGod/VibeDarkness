@@ -10,6 +10,8 @@ import { BashCard } from './0102_Bash/0102Ability';
 import { SwingBatCard } from './0103_SwingBat/0103Ability';
 import { LaserSwordCard } from './0105_LaserSword/0105Ability';
 import { DarkWolfBiteCard } from './dark_animals/0003_DarkWolfBite/0003Ability';
+import { AlphaWolfClawCard } from './dark_animals/0004_AlphaWolfClaw/0004Ability';
+import { AlphaWolfSummonCard } from './dark_animals/0005_AlphaWolfSummon/0005Ability';
 import { RaiseShieldCard } from './0104_RaiseShield/0104Ability';
 import { LaserShieldCard } from './0106_LaserShield/0106Ability';
 import { ThrowTorchCard } from './0501_ThrowTorch/0501Ability';
@@ -28,6 +30,8 @@ const cardDefs: CardDef[] = [
     SwingBatCard,
     LaserSwordCard,
     DarkWolfBiteCard,
+    AlphaWolfClawCard,
+    AlphaWolfSummonCard,
     RaiseShieldCard,
     LaserShieldCard,
     ThrowTorchCard,

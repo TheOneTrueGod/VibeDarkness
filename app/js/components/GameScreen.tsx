@@ -40,7 +40,11 @@ export interface GameComponentProps {
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
-    onRecordMissionResult?: (missionId: string, result: string) => Promise<void>;
+    onRecordMissionResult?: (
+        missionId: string,
+        result: string,
+        resourceDelta?: Partial<Record<import('../types').CampaignResourceKey, number>>
+    ) => Promise<void>;
     /** Called when user leaves (e.g. from defeat modal). */
     onLeave?: () => void;
     /** Called when user clicks Try Again after defeat; creates a new lobby for the given mission. */
@@ -69,7 +73,11 @@ interface GameScreenProps {
     onCanvasClick: (x: number, y: number) => void;
     onLeave: () => void;
     onSelectGame: (gameId: string) => void;
-    onRecordMissionResult?: (missionId: string, result: string) => Promise<void>;
+    onRecordMissionResult?: (
+        missionId: string,
+        result: string,
+        resourceDelta?: Partial<Record<import('../types').CampaignResourceKey, number>>
+    ) => Promise<void>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
     onTryAgain?: (missionId: string) => Promise<void>;
     /** Called when the game sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */

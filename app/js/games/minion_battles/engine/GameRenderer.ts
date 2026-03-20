@@ -50,12 +50,14 @@ const Z_INDEX = {
     targetingPreview: 101,
 } as const;
 
-/** Ranged enemy character sprite: displayed slightly smaller than the unit hitbox circle. */
-const BOWMAN_SVG_URL = new URL('../assets/characters/bowman.svg', import.meta.url).href;
+/** Ranged enemy character sprite (slime): displayed slightly smaller than the unit hitbox circle. */
+const SLIME_SVG_URL = new URL('../assets/characters/slime.svg', import.meta.url).href;
 /** Melee enemy character sprite (swordwoman). */
 const SWORDWOMAN_SVG_URL = new URL('../assets/characters/swordwoman.svg', import.meta.url).href;
 /** Dark Wolf character sprite (wolf head). */
 const WOLF_HEAD_SVG_URL = new URL('../assets/characters/dark_animals/wolf-head.svg', import.meta.url).href;
+/** Alpha Wolf boss character sprite (wolf howl). */
+const WOLF_HOWL_SVG_URL = new URL('../assets/characters/dark_animals/wolf-howl.svg', import.meta.url).href;
 
 export class GameRenderer {
     app: Application;
@@ -84,12 +86,14 @@ export class GameRenderer {
     /** Soft blue overlay on tiles in crystal light radius (10% opacity). */
     private crystalAuraGraphics: Graphics = new Graphics();
 
-    /** Cached texture for ranged enemy (bowman) character sprite. */
-    private bowmanTexture: Texture | null = null;
+    /** Cached texture for ranged enemy (slime) character sprite. */
+    private slimeTexture: Texture | null = null;
     /** Cached texture for melee enemy (swordwoman) character sprite. */
     private swordwomanTexture: Texture | null = null;
     /** Cached texture for dark_wolf (wolf head) character sprite. */
     private wolfHeadTexture: Texture | null = null;
+    /** Cached texture for alpha_wolf (wolf howl) character sprite. */
+    private wolfHowlTexture: Texture | null = null;
     /** Cached texture for Campfire. */
     private campfireTexture: Texture | null = null;
 
@@ -143,7 +147,7 @@ export class GameRenderer {
         this.initialized = true;
 
         try {
-            this.bowmanTexture = (await Assets.load(BOWMAN_SVG_URL)) as Texture;
+            this.slimeTexture = (await Assets.load(SLIME_SVG_URL)) as Texture;
         } catch {
             // Non-fatal: ranged enemies will show the default circle + initial
         }
@@ -156,6 +160,11 @@ export class GameRenderer {
             this.wolfHeadTexture = (await Assets.load(WOLF_HEAD_SVG_URL)) as Texture;
         } catch {
             // Non-fatal: dark_wolf will show the default circle + initial
+        }
+        try {
+            this.wolfHowlTexture = (await Assets.load(WOLF_HOWL_SVG_URL)) as Texture;
+        } catch {
+            // Non-fatal: alpha_wolf will show the default circle + initial
         }
         const campfireDef = getSpecialTileDef('Campfire');
         if (campfireDef?.image) {
@@ -534,9 +543,10 @@ export class GameRenderer {
         return {
             localTeamId: this.localTeamId,
             getCharacterTexture: (characterId: string) => {
-                if (characterId === 'enemy_ranged') return this.bowmanTexture;
+                if (characterId === 'enemy_ranged') return this.slimeTexture;
                 if (characterId === 'enemy_melee') return this.swordwomanTexture;
                 if (characterId === 'dark_wolf') return this.wolfHeadTexture;
+                if (characterId === 'alpha_wolf') return this.wolfHowlTexture;
                 return null;
             },
         };

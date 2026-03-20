@@ -10,7 +10,7 @@
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
-import type { PreMissionStoryDef } from '../../storyTypes';
+import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
@@ -203,6 +203,60 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
     ],
 };
 
+const POST_MISSION_STORY: PostMissionStoryDef = {
+    phrases: [
+        {
+            type: 'dialogue',
+            speakerId: '1',
+            text: "You run toward the light, desperate to put distance between yourself and the wolves. Your heart pounds. You turn, expecting to fight—but they only skulk at the entrance, eyes gleaming. They do not follow. You wait. Nothing comes but growls, fading into the dark.",
+            portraitSide: 'left',
+            backgroundImage: STORY_BACKGROUNDS.campfire,
+        },
+        {
+            type: 'dialogue',
+            speakerId: '1',
+            text: "You take a moment to steady yourself. Inside the cave, the walls are studded with glittering crystals—the first real light you've seen in this endless darkness. They pulse softly, like distant stars.",
+            portraitSide: 'left',
+            backgroundImage: STORY_BACKGROUNDS.campfire,
+        },
+        {
+            type: 'dialogue',
+            speakerId: '1',
+            text: "In the center, a cauldron sits over a firepit, wood stacked nearby. In one corner: bones, scraps of cloth, rusted tools and armour. Someone was here before. The thought is unsettling—and yet, for now, you are safe.",
+            portraitSide: 'left',
+            backgroundImage: STORY_BACKGROUNDS.campfire,
+        },
+        {
+            type: 'dialogue',
+            speakerId: '1',
+            text: "You figure now is as good a time as any to catch your breath. What would you like to do with this moment of respite?",
+            portraitSide: 'left',
+            backgroundImage: STORY_BACKGROUNDS.campfire,
+        },
+        {
+            type: 'choice',
+            choiceId: 'towards_the_light_cave_choice',
+            options: [
+                {
+                    id: 'investigate_crystals',
+                    label: 'Investigate Crystals (reward: 5 crystals, 2 metal)',
+                    action: { type: 'grant_resources', crystals: 5, metal: 2 },
+                },
+                {
+                    id: 'gather_materials',
+                    label: 'Gather Materials (reward: 5 metal, 2 crystals)',
+                    action: { type: 'grant_resources', metal: 5, crystals: 2 },
+                },
+                {
+                    id: 'prepare_soup',
+                    label: 'Prepare Soup (reward: 1 metal, 1 crystals, 5 food)',
+                    action: { type: 'grant_resources', metal: 1, crystals: 1, food: 5 },
+                },
+            ],
+        },
+    ],
+};
+
 export class TowardsTheLightMission extends BaseMissionDef {
     missionId = 'towards_the_light';
     campaignId = 'world_of_darkness';
@@ -215,6 +269,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     specialTiles = SPECIAL_TILES;
     aiController = 'stateBased' as const;
     preMissionStory = PRE_MISSION_STORY;
+    postMissionStory = POST_MISSION_STORY;
     lightLevelEnabled = true;
     globalLightLevel = -20;
     playerSpawnPoints = [

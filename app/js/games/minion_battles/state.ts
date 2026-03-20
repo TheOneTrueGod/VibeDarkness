@@ -8,6 +8,7 @@ export type GamePhase =
     | 'character_select'
     | 'pre_mission_story'
     | 'battle'
+    | 'post_mission_story'
     | 'in_mission';
 
 export interface MinionBattlesState {
