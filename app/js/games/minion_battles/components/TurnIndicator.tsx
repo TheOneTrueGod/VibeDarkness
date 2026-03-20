@@ -74,6 +74,15 @@ export default function TurnIndicator({ state, allyName = 'Player' }: TurnIndica
                 timeoutRef.current = null;
                 setPhase('open');
             }, BLINK_DURATION_MS);
+        } else if (phase === 'closing' || phase === 'opening') {
+            // State changed mid-animation: cancel the blink and jump to the correct state
+            clearTimer();
+            setDisplayState(state);
+            if (state === 'playing') {
+                setPhase('closed');
+            } else {
+                setPhase('open');
+            }
         }
         return clearTimer;
     }, [state]);

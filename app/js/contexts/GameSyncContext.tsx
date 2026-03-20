@@ -200,8 +200,23 @@ export function GameSyncProvider({
                 // No checkpoint file exists at this boundary yet — host hasn't reached it.
                 if (serverTick < 0) {
                     setCanSubmitOrders(false);
-                    setConsecutiveWaitCount((c) => c + 1);
-                    setSyncStatus('waiting_for_host');
+                    let nextCount: number;
+                    let shouldResync = false;
+                    setConsecutiveWaitCount((c) => {
+                        nextCount = c + 1;
+                        if (nextCount >= WAITING_FOR_HOST_THRESHOLD) {
+                            shouldResync = true;
+                            return c; // Don't increment; we're about to resync
+                        }
+                        return nextCount;
+                    });
+                    if (shouldResync) {
+                        setSyncStatus('resyncing');
+                        await fetchFullState();
+                        stopOrderPolling();
+                    } else {
+                        setSyncStatus('waiting_for_host');
+                    }
                     return;
                 }
 

@@ -13,7 +13,7 @@ import GameList from './GameList';
 import type { PlayerState, AccountState, LobbyState, GameSidebarInfo } from '../types';
 import { LobbyClient } from '../LobbyClient';
 import { getGameById } from '../games/list';
-import { useGameSyncOptional, WAITING_FOR_HOST_THRESHOLD } from '../contexts/GameSyncContext';
+import { useGameSyncOptional } from '../contexts/GameSyncContext';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -123,9 +123,7 @@ export default function GameScreen({
 
     const isLoading = gameSync?.syncStatus === 'loading';
     const isResyncing = gameSync?.syncStatus === 'resyncing';
-    const showWaitingForHost =
-        gameSync?.syncStatus === 'waiting_for_host' &&
-        (gameSync?.consecutiveWaitCount ?? 0) >= WAITING_FOR_HOST_THRESHOLD;
+    const showWaitingForHost = gameSync?.syncStatus === 'waiting_for_host';
 
     // Load game component dynamically when game type changes
     useEffect(() => {
@@ -339,23 +337,13 @@ export default function GameScreen({
                     )}
                     {effectiveLobbyPageState === 'in_game' && effectiveLobbyGameType && (
                         <div className="flex-1 relative flex items-center justify-center bg-surface rounded-lg overflow-hidden min-h-0">
-                            {isLoading ? (
-                                <div className="flex flex-col items-center gap-4">
-                                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                                    <p className="text-muted">Loading game state...</p>
-                                </div>
-                            ) : gameLoadError ? (
+                            {gameLoadError ? (
                                 <p className="p-5 text-danger">{gameLoadError}</p>
                             ) : GameComp ? (
                                 <>
-                                    {isResyncing && (
-                                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 bg-surface-light rounded-lg border border-primary">
-                                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                            <span className="text-sm font-medium">Resyncing...</span>
-                                        </div>
-                                    )}
                                     {showWaitingForHost && (
-                                        <div className="absolute top-4 left-4 z-10 px-3 py-2 bg-surface-light rounded-lg border border-warning text-sm text-warning">
+                                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-surface-light rounded-lg border border-warning text-sm text-warning">
+                                            <div className="h-4 w-4 flex-shrink-0 border-2 border-warning border-t-transparent rounded-full animate-spin" />
                                             Waiting for host
                                         </div>
                                     )}
@@ -375,9 +363,42 @@ export default function GameScreen({
                                         onEmittedChatMessage={onEmittedChatMessage}
                                         onBattleStartStatusChange={setBattlePlayerListHidden}
                                     />
+                                    {/* Loading/resyncing overlay: keeps canvas visible, blocks interaction */}
+                                    {(isLoading || isResyncing) && (
+                                        <div
+                                            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 rounded-lg"
+                                            style={{ pointerEvents: 'auto' }}
+                                            aria-busy="true"
+                                            aria-live="polite"
+                                        >
+                                            <div className="flex flex-col items-center gap-4 px-6 py-6 bg-surface rounded-xl border border-border-custom shadow-xl">
+                                                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                                                <p className="text-muted">
+                                                    {isLoading ? 'Loading game state...' : 'Resyncing...'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </>
                             ) : (
-                                <p className="text-muted">Loading game...</p>
+                                <>
+                                    <div className="flex flex-col items-center gap-4 text-muted">
+                                        <p>Loading game...</p>
+                                    </div>
+                                    {/* Overlay during initial load so layout stays stable */}
+                                    {(isLoading || isResyncing) && (
+                                        <div
+                                            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 rounded-lg"
+                                            style={{ pointerEvents: 'auto' }}
+                                            aria-busy="true"
+                                        >
+                                            <div className="flex flex-col items-center gap-4 px-6 py-6 bg-surface rounded-xl border border-border-custom shadow-xl">
+                                                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                                                <p className="text-muted">Loading game state...</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}

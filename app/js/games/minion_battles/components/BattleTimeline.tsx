@@ -222,8 +222,7 @@ function renderEnemyRow(
                         const startPercent = (marker.startFromNow / windowSeconds) * 100;
                         const duration = marker.endFromNow - marker.startFromNow;
                         const widthPercent = (duration / windowSeconds) * 100;
-                        const centerTime = marker.startFromNow + duration / 2;
-                        const centerPercent = (centerTime / windowSeconds) * 100;
+                        const endPercent = (marker.endFromNow / windowSeconds) * 100;
 
                         const nameInitial = marker.unit.name?.[0]?.toUpperCase() ?? '?';
 
@@ -237,9 +236,9 @@ function renderEnemyRow(
                                     }}
                                 />
                                 <div
-                                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-dark-900 flex items-center justify-center text-xs text-red-200"
+                                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-sm bg-red-600 border border-black flex items-center justify-center text-[10px] font-bold text-white"
                                     style={{
-                                        left: `${centerPercent}%`,
+                                        left: `${endPercent}%`,
                                     }}
                                     title={marker.unit.name || 'Enemy'}
                                 >
