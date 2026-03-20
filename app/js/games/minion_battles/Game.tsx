@@ -144,6 +144,11 @@ export default function MinionBattlesGame({
     const preMissionStory = missionDef?.preMissionStory ?? null;
     const postMissionStory = missionDef?.postMissionStory ?? null;
 
+    /** For battle phase: use phaseChangeGameState when available (host's updateGameState response).
+     * This avoids a flash when GameSyncContext later receives checkpoint data — we keep a stable
+     * initial state instead of remounting BattlePhase when raw gets units/gameTick. */
+    const battleInitState = gamePhase === 'battle' ? (phaseChangeGameState ?? raw) : raw;
+
     /** Rewards from post-mission choice (for victory screen). */
     const [missionRewards, setMissionRewards] = useState<{
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
@@ -302,7 +307,7 @@ export default function MinionBattlesGame({
             )}
             {gamePhase === 'battle' && (
                 <BattlePhase
-                    key={`battle-${(raw as Record<string, unknown>)?.synchash ?? (raw as Record<string, unknown>)?.gameTick ?? (raw as Record<string, unknown>)?.game_tick ?? 'init'}`}
+                    key={`battle-${(battleInitState as Record<string, unknown>)?.synchash ?? (battleInitState as Record<string, unknown>)?.gameTick ?? (battleInitState as Record<string, unknown>)?.game_tick ?? 'init'}`}
                     lobbyClient={lobbyClient}
                     lobbyId={lobbyId}
                     gameId={gameId}
@@ -311,7 +316,7 @@ export default function MinionBattlesGame({
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
-                    initialGameState={raw}
+                    initialGameState={battleInitState}
                     onSidebarInfoChange={onSidebarInfoChange}
                     onEmittedChatMessage={onEmittedChatMessage}
                     onVictory={(missionResult) => {

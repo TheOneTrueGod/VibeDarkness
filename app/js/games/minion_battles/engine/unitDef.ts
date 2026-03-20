@@ -75,7 +75,7 @@ const UNIT_DEFS: Record<
         characterSpriteKey: 'enemy_melee',
         hp: 12,
         speed: 80,
-        size: 'Medium',
+        size: 'Small',
         perceptionRange: 250,
     },
     enemy_ranged: {
@@ -91,7 +91,7 @@ const UNIT_DEFS: Record<
         characterSpriteKey: 'dark_wolf',
         hp: 12,
         speed: 120,
-        size: 'Small',
+        size: 'Extra Small',
         perceptionRange: 300,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 8 },
     },
@@ -204,6 +204,12 @@ const defaultUnitDef = new DefaultUnitDef();
 /** Get the unit def for a character ID. */
 export function getUnitDef(characterId: string): IUnitDef {
     return defaultUnitDef;
+}
+
+/** Character sprite key for a character ID (for effects that mimic unit appearance). */
+export function getCharacterSpriteKey(characterId: string): string | undefined {
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.characterSpriteKey;
 }
 
 /** Body color for a character ID (for restoring unit visual after full-darkness mode). */

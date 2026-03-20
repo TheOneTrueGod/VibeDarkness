@@ -325,6 +325,15 @@ export function GameSyncProvider({
         return () => document.removeEventListener('visibilitychange', onVisibilityChange);
     }, [fetchFullState]);
 
+    // Refetch when host broadcasts phase change (e.g. battle start) so non-host gets state immediately
+    useEffect(() => {
+        const onPhaseChanged = () => {
+            fetchFullState().catch(() => {});
+        };
+        window.addEventListener('game-phase-changed', onPhaseChanged);
+        return () => window.removeEventListener('game-phase-changed', onPhaseChanged);
+    }, [fetchFullState]);
+
     // Clean up polling on unmount
     useEffect(() => {
         return () => stopOrderPolling();

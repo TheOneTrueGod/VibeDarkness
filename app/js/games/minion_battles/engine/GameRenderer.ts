@@ -891,8 +891,10 @@ export class GameRenderer {
     // ========================================================================
 
     private renderEffects(effects: Effect[]): void {
+        const unitContext = this.getUnitRenderContext();
         const context: IEffectRenderContext = {
             getEffectTexture: (imageKey: EffectImageKey) => this.effectTextures[imageKey] ?? null,
+            getCharacterTexture: (characterId: string) => unitContext.getCharacterTexture(characterId),
         };
         for (const effect of effects) {
             let visual = this.effectVisuals.get(effect.id);

@@ -1,5 +1,6 @@
 /**
  * Dodge - Warrior card. Move toward target up to 200px over 0.4s at constant rate.
+ * Spawns afterimages every 2 ticks during the dodge.
  */
 
 import { AbilityState } from '../../abilities/Ability';
@@ -9,16 +10,21 @@ import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
+import { Effect } from '../../objects/Effect';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { drawCardForPlayer, applyForcedDisplacementToward } from '../../abilities/effectHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
+import { getBodyColor, getCharacterSpriteKey } from '../../engine/unitDef';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const DODGE_DURATION = 0.4;
 const DODGE_MAX_DISTANCE = 160;
 /** Step size (px) when testing passability along the dodge path to avoid moving into terrain. */
 const COLLISION_STEP = 4;
+
+/** Duration of each afterimage in seconds (6 frames at 60 fps). */
+const AFTERIMAGE_DURATION = 6 / 60;
 
 const DODGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <ellipse cx="32" cy="32" rx="24" ry="28" fill="none" stroke="#8B4513" stroke-width="3"/>
@@ -64,15 +70,53 @@ export const DodgeAbility: AbilityStatic = {
         if (currentTime >= DODGE_DURATION) return;
 
         const pos = getPixelTargetPosition(targets, 0);
-        if (!pos) return;
-        const { dist: distToTarget } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
-        if (distToTarget === 0) return;
+        const dirResult = pos ? getDirectionFromTo(caster.x, caster.y, pos.x, pos.y) : null;
+        const distToTarget = dirResult?.dist ?? 0;
+        const moveDistance =
+            distToTarget > 0
+                ? Math.min(
+                      ((currentTime - prevTime) / DODGE_DURATION) * DODGE_MAX_DISTANCE,
+                      distToTarget,
+                  )
+                : 0;
 
-        const moveDistance = Math.min(
-            ((currentTime - prevTime) / DODGE_DURATION) * DODGE_MAX_DISTANCE,
-            distToTarget,
-        );
-        if (moveDistance <= 0) return;
+        // Spawn afterimages every 2 ticks
+        const twoTickPeriods = Math.floor(currentTime * 30);
+        const prevTwoTickPeriods = prevTime < 0 ? -1 : Math.floor(prevTime * 30);
+        const isMoving = moveDistance > 0;
+
+        for (let i = prevTwoTickPeriods + 1; i <= twoTickPeriods; i++) {
+            const eng = engine as { addEffect(e: Effect): void };
+            const effectData: Record<string, unknown> = {
+                bodyColor: getBodyColor(caster.characterId),
+                radius: caster.radius,
+                characterSpriteKey: getCharacterSpriteKey(caster.characterId),
+            };
+            if (isMoving && dirResult && dirResult.dist > 0) {
+                // Opposite of movement direction, with slight random variance
+                const baseAngle = Math.atan2(-dirResult.dirY, -dirResult.dirX);
+                const angleVariance = (Math.random() - 0.5) * 0.6;
+                const speed = 30 + Math.random() * 20;
+                effectData.vx = Math.cos(baseAngle + angleVariance) * speed;
+                effectData.vy = Math.sin(baseAngle + angleVariance) * speed;
+            } else if (!isMoving) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 30 + Math.random() * 20;
+                effectData.vx = Math.cos(angle) * speed;
+                effectData.vy = Math.sin(angle) * speed;
+            }
+            eng.addEffect(
+                new Effect({
+                    x: caster.x,
+                    y: caster.y,
+                    duration: AFTERIMAGE_DURATION,
+                    effectType: 'Afterimage',
+                    effectData,
+                }),
+            );
+        }
+
+        if (!pos || distToTarget === 0 || moveDistance <= 0) return;
 
         applyForcedDisplacementToward(engine, caster, pos.x, pos.y, moveDistance, { step: COLLISION_STEP });
     },

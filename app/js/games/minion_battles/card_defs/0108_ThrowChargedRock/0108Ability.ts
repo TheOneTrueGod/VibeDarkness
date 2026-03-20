@@ -209,6 +209,23 @@ export const ThrowChargedRock: AbilityStatic = {
             }),
         );
 
+        // Leave behind a light source: 10 light, radius 5, decay 2 per 0.25 rounds
+        eng.addEffect(
+            new Effect({
+                x: projectile.x,
+                y: projectile.y,
+                duration: 999,
+                effectType: 'Torch',
+                effectData: {
+                    lightAmount: 10,
+                    radius: 4,
+                    decayRate: 1,
+                    decayInterval: 0.25,
+                    showVisual: false,
+                },
+            }),
+        );
+
         const units = eng
             .getUnits()
             .filter((u) => u.isAlive() && areEnemies(sourceUnit.teamId, u.teamId))
@@ -233,32 +250,6 @@ export const ThrowChargedRock: AbilityStatic = {
                 eng.eventBus,
             );
         }
-
-        /*if (hitUnitId) {
-            const hitUnit = eng.getUnit(hitUnitId);
-            if (
-                hitUnit &&
-                hitUnit.isAlive() &&
-                areEnemies(sourceUnit.teamId, hitUnit.teamId) &&
-                !units.includes(hitUnit)
-            ) {
-                const dist = Math.hypot(hitUnit.x - projectile.x, hitUnit.y - projectile.y);
-                if (dist <= explosionRadius + hitUnit.radius && units.length < maxTargets) {
-                    hitUnit.takeDamage(explosionDamage, sourceUnit.id, eng.eventBus);
-                    const { dirX, dirY } = getDirectionFromTo(projectile.x, projectile.y, hitUnit.x, hitUnit.y);
-                    hitUnit.applyKnockback(
-                        KNOCKBACK_POISE_DAMAGE,
-                        {
-                            knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
-                            knockbackAirTime: KNOCKBACK_AIR_TIME,
-                            knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                            knockbackSource: { unitId: sourceUnit.id, abilityId: CARD_ID },
-                        },
-                        eng.eventBus,
-                    );
-                }
-            }
-        }*/
     },
 
     renderTargetingPreview(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
@@ -301,6 +292,6 @@ export const ThrowChargedRockCard: CardDef = {
     id: asCardDefId('throw_charged_rock'),
     name: 'Throw Charged Rock',
     abilityId: 'throw_charged_rock',
-    durability: 2,
+    durability: 3,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

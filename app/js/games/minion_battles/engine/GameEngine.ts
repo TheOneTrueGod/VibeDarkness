@@ -439,6 +439,9 @@ export class GameEngine {
         // Special tiles light emission decay (supports fractional-round intervals).
         this.processSpecialTileLightDecays();
 
+        // Torch effects with decayRate/decayInterval (e.g. charged crystal light)
+        this.processTorchEffectDecays();
+
         // Check for round end
         const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
         if (roundTime >= ROUND_DURATION) {
@@ -1627,6 +1630,44 @@ export class GameEngine {
         }
     }
 
+    /** Decay Torch effects that have decayRate/decayInterval (e.g. charged crystal light). */
+    private processTorchEffectDecays(): void {
+        const totalRoundsElapsed = this.gameTime / ROUND_DURATION;
+        const eps = 1e-9;
+
+        for (const effect of this.effects) {
+            if (!effect.active || effect.effectType !== 'Torch') continue;
+            const data = effect.effectData as {
+                lightAmount?: number;
+                radius?: number;
+                decayRate?: number;
+                decayInterval?: number;
+                lightDecayNextAtRound?: number;
+            };
+            const decayRate = data.decayRate;
+            const decayInterval = data.decayInterval;
+            if (decayRate == null || decayInterval == null || decayRate <= 0 || decayInterval <= 0) continue;
+            if ((data.lightAmount ?? 0) <= 0) {
+                effect.active = false;
+                continue;
+            }
+
+            if (data.lightDecayNextAtRound == null || !Number.isFinite(data.lightDecayNextAtRound)) {
+                data.lightDecayNextAtRound = totalRoundsElapsed + decayInterval;
+            }
+
+            while (totalRoundsElapsed + eps >= data.lightDecayNextAtRound) {
+                data.lightAmount = Math.max(0, (data.lightAmount ?? 0) - decayRate);
+                data.lightDecayNextAtRound += decayInterval;
+
+                if ((data.lightAmount ?? 0) <= 0) {
+                    effect.active = false;
+                    break;
+                }
+            }
+        }
+    }
+
     /** Decay special tiles' `emitsLight` using `decayRate` + `decayInterval` (both expressed in rounds). */
     private processSpecialTileLightDecays(): void {
         const totalRoundsElapsed = this.gameTime / ROUND_DURATION;
@@ -1671,6 +1712,7 @@ export class GameEngine {
         this.abilityUsesThisRound.clear();
 
         // Torch effects: decay light/radius each round from initial values and remove when expired
+        // (skip effects with decayRate/decayInterval, handled by processTorchEffectDecays)
         for (const effect of this.effects) {
             if (!effect.active || effect.effectType !== 'Torch') continue;
             const data = effect.effectData as {
@@ -1680,7 +1722,10 @@ export class GameEngine {
                 lightAmount?: number;
                 radius?: number;
                 roundsTotal?: number;
+                decayRate?: number;
+                decayInterval?: number;
             };
+            if (data.decayRate != null && data.decayInterval != null) continue;
             const roundCreated = data.roundCreated ?? this.roundNumber;
             const initialLight = data.initialLightAmount ?? 15;
             const initialRadius = data.initialRadius ?? 5;

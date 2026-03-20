@@ -303,8 +303,12 @@ function AppInner() {
                 if (fromPlayerId) {
                     triggerPlayerFlash(fromPlayerId);
                 }
+            } else if (type === MessageType.GAME_PHASE_CHANGED) {
+                // Non-host receives phase change from host; trigger immediate refetch so we get
+                // battle state without waiting for the 5s poll.
+                window.dispatchEvent(new CustomEvent('game-phase-changed'));
             }
-            // MISSION_VOTE and GAME_PHASE_CHANGED are handled by game components directly via polling
+            // MISSION_VOTE handled by game components via polling
         },
         [showToast, isDuplicateChatEntry, triggerPlayerFlash]
     );

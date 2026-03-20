@@ -47,6 +47,9 @@ export default function BattleCanvas({
     const suppressClickRef = useRef(false);
     const autoFollowPausedUntilRef = useRef(0);
     const resumeAutoFollowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const keysHeldRef = useRef<Set<string>>(new Set());
+
+    const PAN_SPEED = 10;
 
     const clearResumeAutoFollowTimer = useCallback(() => {
         if (resumeAutoFollowTimerRef.current) {
@@ -78,6 +81,21 @@ export default function BattleCanvas({
 
             // Start render loop
             const renderLoop = () => {
+                // WASD / arrow key camera pan
+                const keys = keysHeldRef.current;
+                if (keys.size > 0) {
+                    let dx = 0;
+                    let dy = 0;
+                    if (keys.has('KeyW') || keys.has('ArrowUp')) dy -= PAN_SPEED;
+                    if (keys.has('KeyS') || keys.has('ArrowDown')) dy += PAN_SPEED;
+                    if (keys.has('KeyA') || keys.has('ArrowLeft')) dx -= PAN_SPEED;
+                    if (keys.has('KeyD') || keys.has('ArrowRight')) dx += PAN_SPEED;
+                    if (dx !== 0 || dy !== 0) {
+                        camera.panBy(dx, dy);
+                        autoFollowPausedUntilRef.current = Date.now() + 5000;
+                    }
+                }
+
                 // Follow local player's unit
                 const playerUnit = engine.getLocalPlayerUnit();
                 if (playerUnit) {
@@ -137,6 +155,34 @@ export default function BattleCanvas({
         observer.observe(container);
         return () => observer.disconnect();
     }, [renderer, camera]);
+
+    // WASD and arrow key camera movement
+    useEffect(() => {
+        const movementKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+        const isTyping = () => {
+            const el = document.activeElement;
+            return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+        };
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (isTyping()) return;
+            if (movementKeys.has(e.code)) {
+                e.preventDefault();
+                keysHeldRef.current.add(e.code);
+            }
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (movementKeys.has(e.code)) {
+                e.preventDefault();
+                keysHeldRef.current.delete(e.code);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []);
 
     const handleContextMenu = useCallback(
         (e: React.MouseEvent<HTMLCanvasElement>) => {

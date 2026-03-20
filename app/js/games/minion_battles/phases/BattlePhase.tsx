@@ -170,17 +170,20 @@ export default function BattlePhase({
 
     const onSidebarInfoChangeRef = useRef(onSidebarInfoChange);
     onSidebarInfoChangeRef.current = onSidebarInfoChange;
+    const playersRef = useRef(players);
+    playersRef.current = players;
 
     useEffect(() => {
         const update = () => {
             const engine = engineRef.current;
             if (!engine || !onSidebarInfoChangeRef.current) return;
+            const currentPlayers = playersRef.current;
 
             const playerUnits = engine.units
                 .filter((u) => u.isPlayerControlled())
                 .map((u) => ({
                     playerId: u.ownerId,
-                    playerName: players[u.ownerId]?.name ?? 'Unknown',
+                    playerName: currentPlayers[u.ownerId]?.name ?? 'Unknown',
                     characterId: u.characterId,
                     hp: u.hp,
                     maxHp: u.maxHp,
@@ -199,7 +202,7 @@ export default function BattlePhase({
         update();
         const interval = setInterval(update, 500);
         return () => clearInterval(interval);
-    }, [isMyTurn, roundNumber, players]);
+    }, [isMyTurn, roundNumber]);
 
     // Clear sidebar info on unmount
     useEffect(() => {

@@ -65,6 +65,14 @@ export class Effect extends GameObject {
             data.vx = vx * factor;
             data.vy = vy * factor;
         }
+        // Afterimage: optional drift when unit was standing still (no damping; constant drift)
+        if (this.effectType === 'Afterimage') {
+            const data = this.effectData as { vx?: number; vy?: number };
+            const vx = data.vx ?? 0;
+            const vy = data.vy ?? 0;
+            this.x += vx * dt;
+            this.y += vy * dt;
+        }
         // TorchProjectile: when it reaches the target, spawn the ground Torch effect then deactivate
         if (this.effectType === 'TorchProjectile' && this.elapsed >= this.duration) {
             const data = this.effectData as {

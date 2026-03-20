@@ -143,13 +143,6 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: 'Hunger',
-            textEffect: 'title_bounce',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
             text: "Your stomach growls. The crystals glow softly in the cave, but they cannot fill an empty belly. You need to venture out and find food.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,

@@ -3,7 +3,7 @@
  * GameRenderer calls renderEffect to create/update effect visuals; the appropriate EffectDef does the drawing.
  */
 
-import { FillGradient, Graphics, Sprite, Texture, type Container, type Texture as TextureType } from 'pixi.js';
+import { Container, FillGradient, Graphics, Sprite, Texture, type Texture as TextureType } from 'pixi.js';
 import type { Effect } from '../objects/Effect';
 import type { EffectImageKey } from './effectImages';
 
@@ -17,6 +17,8 @@ export interface IEffectDef {
 
 export interface IEffectRenderContext {
     getEffectTexture(imageKey: EffectImageKey): TextureType | null;
+    /** Optional: for effects that mimic unit appearance (e.g. Afterimage). */
+    getCharacterTexture?(characterId: string): TextureType | null;
 }
 
 /** Default effect: expanding ring that fades out. */
@@ -202,7 +204,8 @@ const torchEffectDef: IEffectDef = {
     updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
         const g = visual as Graphics;
         g.clear();
-        const data = effect.effectData as { lightAmount?: number; radius?: number };
+        const data = effect.effectData as { lightAmount?: number; radius?: number; showVisual?: boolean };
+        if (data.showVisual === false) return;
         const lightAmount = data.lightAmount ?? 15;
         const radius = data.radius ?? 5;
         const size = Math.max(8, Math.min(20, radius * 4));
@@ -319,6 +322,51 @@ const slashTrailEffectDef: IEffectDef = {
     },
 };
 
+/** Afterimage: unit silhouette that fades out over duration. Looks like the source unit (body + optional sprite). */
+const CHARACTER_SPRITE_SCALE = 0.85;
+
+const afterimageEffectDef: IEffectDef = {
+    createVisual(effect: Effect, context: IEffectRenderContext): Container {
+        const container = new Container();
+        const data = effect.effectData as {
+            bodyColor?: number;
+            radius?: number;
+            characterSpriteKey?: string;
+        };
+        const bodyColor = data.bodyColor ?? 0x555555;
+        const radius = data.radius ?? 12;
+
+        const body = new Graphics();
+        body.circle(0, 0, radius);
+        body.fill(bodyColor);
+        body.stroke({ color: 0x000000, width: 1 });
+        body.label = 'body';
+        container.addChild(body);
+
+        const characterSpriteKey = data.characterSpriteKey;
+        const characterTexture =
+            characterSpriteKey && context.getCharacterTexture?.(characterSpriteKey);
+        if (characterTexture) {
+            const spriteSize = radius * 2 * CHARACTER_SPRITE_SCALE;
+            const charSprite = new Sprite(characterTexture);
+            charSprite.anchor.set(0.5, 0.5);
+            charSprite.width = spriteSize;
+            charSprite.height = spriteSize;
+            charSprite.label = 'characterSprite';
+            container.addChild(charSprite);
+        }
+
+        return container;
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const progress = effect.progress;
+        const alpha = Math.max(0, 1 - progress);
+        for (const child of visual.children) {
+            child.alpha = alpha;
+        }
+    },
+};
+
 /** Charged rock explosion: solid teal circle that shrinks to 50% size over lifetime. */
 const chargedRockExplosionEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
@@ -396,6 +444,7 @@ const pulseEffectDef: IEffectDef = {
 
 const effectDefRegistry: Record<string, IEffectDef> = {
     default: defaultEffectDef,
+    Afterimage: afterimageEffectDef,
     bash: bashEffectDef,
     Pulse: pulseEffectDef,
     bite: biteEffectDef,
