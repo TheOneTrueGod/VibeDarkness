@@ -33,6 +33,13 @@ const MISSIONS: Mission[] = [
         heroImage: generateTowardsTheLightSVG(),
     },
     {
+        id: 'light_empowered',
+        title: 'Light Empowered',
+        description:
+            'Hunger drives you from the cave. Hunt the boar in the cliff inlet, then return to safety.',
+        heroImage: generateTowardsTheLightSVG(),
+    },
+    {
         id: 'last_holdout',
         title: 'The Last Holdout',
         description: 'The players will need to defend a bunker from the dark hordes.',
@@ -42,7 +49,7 @@ const MISSIONS: Mission[] = [
 
 /** Mission groups for the select UI: group title and ordered mission ids. */
 const MISSION_GROUPS: { title: string; missionIds: string[] }[] = [
-    { title: 'World of Darkness', missionIds: ['dark_awakening', 'towards_the_light'] },
+    { title: 'World of Darkness', missionIds: ['dark_awakening', 'towards_the_light', 'light_empowered'] },
     { title: 'Bunker at the End', missionIds: ['last_holdout'] },
 ];
 

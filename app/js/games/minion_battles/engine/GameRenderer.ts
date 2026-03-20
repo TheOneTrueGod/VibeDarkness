@@ -58,6 +58,8 @@ const SWORDWOMAN_SVG_URL = new URL('../assets/characters/swordwoman.svg', import
 const WOLF_HEAD_SVG_URL = new URL('../assets/characters/dark_animals/wolf-head.svg', import.meta.url).href;
 /** Alpha Wolf boss character sprite (wolf howl). */
 const WOLF_HOWL_SVG_URL = new URL('../assets/characters/dark_animals/wolf-howl.svg', import.meta.url).href;
+/** Boar character sprite. */
+const BOAR_SVG_URL = new URL('../assets/characters/dark_animals/boar.svg', import.meta.url).href;
 
 export class GameRenderer {
     app: Application;
@@ -94,6 +96,8 @@ export class GameRenderer {
     private wolfHeadTexture: Texture | null = null;
     /** Cached texture for alpha_wolf (wolf howl) character sprite. */
     private wolfHowlTexture: Texture | null = null;
+    /** Cached texture for boar character sprite. */
+    private boarTexture: Texture | null = null;
     /** Cached texture for Campfire. */
     private campfireTexture: Texture | null = null;
 
@@ -165,6 +169,11 @@ export class GameRenderer {
             this.wolfHowlTexture = (await Assets.load(WOLF_HOWL_SVG_URL)) as Texture;
         } catch {
             // Non-fatal: alpha_wolf will show the default circle + initial
+        }
+        try {
+            this.boarTexture = (await Assets.load(BOAR_SVG_URL)) as Texture;
+        } catch {
+            // Non-fatal: boar will show the default circle + initial
         }
         const campfireDef = getSpecialTileDef('Campfire');
         if (campfireDef?.image) {
@@ -547,6 +556,7 @@ export class GameRenderer {
                 if (characterId === 'enemy_melee') return this.swordwomanTexture;
                 if (characterId === 'dark_wolf') return this.wolfHeadTexture;
                 if (characterId === 'alpha_wolf') return this.wolfHowlTexture;
+                if (characterId === 'boar') return this.boarTexture;
                 return null;
             },
         };

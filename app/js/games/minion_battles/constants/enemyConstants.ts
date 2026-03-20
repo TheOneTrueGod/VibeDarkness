@@ -56,6 +56,19 @@ export const ENEMY_DARK_WOLF: EnemySpawnDef = {
     aiSettings: { minRange: 0, maxRange: 80 },
 };
 
+/** Boar: like wolf but bigger, double HP, Charge (0006). Large (22px), 24 HP, speed 100. */
+export const ENEMY_BOAR: EnemySpawnDef = {
+    characterId: 'boar',
+    name: 'Boar',
+    hp: 24,
+    speed: 100,
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['0006'],
+    aiSettings: { minRange: 0, maxRange: 90 },
+    radius: 22,
+};
+
 /** Alpha Wolf: boss with 200 HP, Claw (0004) and Summon (0005). Extra Large (26px), speed 135. */
 export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     characterId: 'alpha_wolf',

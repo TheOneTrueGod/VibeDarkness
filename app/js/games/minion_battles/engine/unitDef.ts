@@ -41,7 +41,7 @@ export type UnitDeathEffectDef =
 const PLAYER_UNIT_IDS = ['warrior', 'mage', 'ranger', 'healer', 'rogue', 'necromancer'] as const;
 
 /** Enemy unit character IDs. */
-const ENEMY_UNIT_IDS = ['enemy_melee', 'enemy_ranged', 'dark_wolf', 'alpha_wolf'] as const;
+const ENEMY_UNIT_IDS = ['enemy_melee', 'enemy_ranged', 'dark_wolf', 'alpha_wolf', 'boar'] as const;
 
 export type PlayerUnitId = (typeof PLAYER_UNIT_IDS)[number];
 export type EnemyUnitId = (typeof ENEMY_UNIT_IDS)[number];
@@ -103,6 +103,15 @@ const UNIT_DEFS: Record<
         size: 'Extra Large',
         perceptionRange: 350,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 12 },
+    },
+    boar: {
+        bodyColor: 0x4a3728,
+        characterSpriteKey: 'boar',
+        hp: 24,
+        speed: 100,
+        size: 'Large',
+        perceptionRange: 280,
+        deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 10 },
     },
 };
 

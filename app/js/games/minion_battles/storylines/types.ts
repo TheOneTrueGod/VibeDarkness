@@ -28,7 +28,7 @@ export interface SpawnTarget {
 
 /** Single enemy entry in a spawn wave (position is computed at spawn time). */
 export interface SpawnWaveEntry {
-    characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf' | 'alpha_wolf';
+    characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf' | 'alpha_wolf' | 'boar';
     name?: string;
     hp?: number;
     speed?: number;
@@ -58,9 +58,16 @@ export interface VictoryConditionAllUnitsNearPosition {
     maxDistance?: number;
 }
 
+/** Victory condition: all units with characterId are dead. */
+export interface VictoryConditionUnitDead {
+    type: 'unitDead';
+    unitCharacterId: string;
+}
+
 export type VictoryCondition =
     | VictoryConditionEliminateAllEnemies
-    | VictoryConditionAllUnitsNearPosition;
+    | VictoryConditionAllUnitsNearPosition
+    | VictoryConditionUnitDead;
 
 /** Base fields shared by all level events. */
 interface LevelEventBase {

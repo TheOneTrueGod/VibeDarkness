@@ -8,7 +8,7 @@ import type { AIContext } from '../types';
 
 export const AI_STATE_ID_KEY = 'stateId';
 
-export type AIStateId = 'idle' | 'attack' | 'siegeDefendPoint' | 'findLight' | 'wander';
+export type AIStateId = 'idle' | 'attack' | 'siegeDefendPoint' | 'findLight' | 'wander' | 'leash' | 'leashAttack';
 
 /** Serializable snapshot of an AI state. Must include stateId. */
 export type SerializedAIState = Record<string, unknown> & { stateId: AIStateId };

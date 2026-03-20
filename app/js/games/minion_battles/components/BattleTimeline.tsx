@@ -9,6 +9,7 @@ import slimeIcon from '../assets/characters/slime.svg';
 import swordwomanIcon from '../assets/characters/swordwoman.svg';
 import wolfHeadIcon from '../assets/characters/dark_animals/wolf-head.svg';
 import wolfHowlIcon from '../assets/characters/dark_animals/wolf-howl.svg';
+import boarIcon from '../assets/characters/dark_animals/boar.svg';
 
 /** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
 const ENEMY_CHARACTER_ICONS: Record<string, string> = {
@@ -16,6 +17,7 @@ const ENEMY_CHARACTER_ICONS: Record<string, string> = {
     enemy_ranged: slimeIcon,
     dark_wolf: wolfHeadIcon,
     alpha_wolf: wolfHowlIcon,
+    boar: boarIcon,
 };
 
 /** Light gray background line with half-second ticks and time labels for a timeline row. */

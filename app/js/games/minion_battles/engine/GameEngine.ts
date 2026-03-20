@@ -34,6 +34,7 @@ import type {
     LevelEvent,
     LevelEventSpawnWave,
     LevelEventVictoryCheck,
+    type VictoryCondition,
     LevelEventContinuousSpawn,
 } from '../storylines/types';
 import { getEdgePositions } from '../storylines/edgeSpawns';
@@ -43,6 +44,7 @@ import {
     ENEMY_RANGED,
     ENEMY_DARK_WOLF,
     ENEMY_ALPHA_WOLF,
+    ENEMY_BOAR,
     getEnemyHealthMultiplier,
 } from '../constants/enemyConstants';
 import type { SpecialTile } from '../objects/SpecialTile';
@@ -1244,6 +1246,7 @@ export class GameEngine {
             enemy_ranged: ENEMY_RANGED,
             dark_wolf: ENEMY_DARK_WOLF,
             alpha_wolf: ENEMY_ALPHA_WOLF,
+            boar: ENEMY_BOAR,
         };
         const playerCount = this.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
@@ -1273,7 +1276,7 @@ export class GameEngine {
 
         for (const entry of evt.spawns) {
             const cid = entry.characterId;
-            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf' && cid !== 'alpha_wolf') continue;
+            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf' && cid !== 'alpha_wolf' && cid !== 'boar') continue;
             const base = baseDefs[cid];
             const behaviour = entry.spawnBehaviour ?? 'edgeOfMap';
             const count = Math.max(0, entry.spawnCount ?? 1);
@@ -1442,6 +1445,7 @@ export class GameEngine {
             enemy_ranged: ENEMY_RANGED,
             dark_wolf: ENEMY_DARK_WOLF,
             alpha_wolf: ENEMY_ALPHA_WOLF,
+            boar: ENEMY_BOAR,
         };
         const playerCount = this.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
@@ -1510,7 +1514,7 @@ export class GameEngine {
 
         for (const entry of evt.spawns) {
             const cid = entry.characterId;
-            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf' && cid !== 'alpha_wolf') continue;
+            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf' && cid !== 'alpha_wolf' && cid !== 'boar') continue;
             const base = baseDefs[cid];
             const behaviour = (entry.spawnBehaviour ?? 'darkness') as 'darkness' | 'anywhere';
             const count = Math.max(0, entry.spawnCount ?? 1);
@@ -1557,7 +1561,7 @@ export class GameEngine {
         }
     }
 
-    /** Run a single victory check. */
+    /** Run a single victory check. All conditions in the array must pass for victory. */
     private runVictoryCheck(i: number, evt: LevelEventVictoryCheck): void {
         if (this.victoryFired) return;
         // First time: emit the message if present
@@ -1566,38 +1570,41 @@ export class GameEngine {
             if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
         }
 
-        for (const cond of evt.conditions) {
-            if (cond.type === 'eliminateAllEnemies') {
-                const hasEnemies = this.units.some(
-                    (u) => u.isAlive() && u.teamId === 'enemy',
-                );
-                if (!hasEnemies) {
-                    this.victoryFired = true;
-                    this.victorious = true;
-                    const missionResult = evt.missionResult ?? 'victory';
-                    this.onVictory?.(missionResult);
-                    return;
-                }
-            }
-            if (cond.type === 'allUnitsNearPosition') {
-                const maxDist = cond.maxDistance ?? 1;
-                const alivePlayers = this.units.filter((u) => u.isPlayerControlled() && u.isAlive());
-                if (alivePlayers.length === 0) continue;
-                const grid = this.terrainManager?.grid;
-                if (!grid) continue;
-                const allNear = alivePlayers.every((u) => {
-                    const { col: uc, row: ur } = grid.worldToGrid(u.x, u.y);
-                    return Math.max(Math.abs(uc - cond.col), Math.abs(ur - cond.row)) <= maxDist;
-                });
-                if (allNear) {
-                    this.victoryFired = true;
-                    this.victorious = true;
-                    const missionResult = evt.missionResult ?? 'victory';
-                    this.onVictory?.(missionResult);
-                    return;
-                }
-            }
+        const allPass = evt.conditions.every((cond) => this.evaluateVictoryCondition(cond));
+        if (allPass) {
+            this.victoryFired = true;
+            this.victorious = true;
+            const missionResult = evt.missionResult ?? 'victory';
+            this.onVictory?.(missionResult);
         }
+    }
+
+    /** Evaluate a single victory condition. Returns true if the condition is satisfied. */
+    private evaluateVictoryCondition(cond: VictoryCondition): boolean {
+        if (cond.type === 'eliminateAllEnemies') {
+            const hasEnemies = this.units.some(
+                (u) => u.isAlive() && u.teamId === 'enemy',
+            );
+            return !hasEnemies;
+        }
+        if (cond.type === 'allUnitsNearPosition') {
+            const maxDist = cond.maxDistance ?? 1;
+            const alivePlayers = this.units.filter((u) => u.isPlayerControlled() && u.isAlive());
+            if (alivePlayers.length === 0) return false;
+            const grid = this.terrainManager?.grid;
+            if (!grid) return false;
+            return alivePlayers.every((u) => {
+                const { col: uc, row: ur } = grid.worldToGrid(u.x, u.y);
+                return Math.max(Math.abs(uc - cond.col), Math.abs(ur - cond.row)) <= maxDist;
+            });
+        }
+        if (cond.type === 'unitDead') {
+            const hasTargetAlive = this.units.some(
+                (u) => u.isAlive() && u.characterId === cond.unitCharacterId,
+            );
+            return !hasTargetAlive;
+        }
+        return false;
     }
 
     /** Process discard pile: seconds-based cards (called each tick). */

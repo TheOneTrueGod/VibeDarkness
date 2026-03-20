@@ -15,6 +15,7 @@ import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { MAP_SEGMENT_50_50_CRYSTAL_CAVE } from '../MapSegments/50_50_crystal_cave';
 
 const COLS = 66;
 const ROWS = 22;
@@ -82,32 +83,9 @@ function buildMiddleSection(): TerrainType[][] {
     ];
 }
 
-/** Right third (44–65): rocky cave (backwards C). Opening at left, crystals on right wall. */
+/** Right third (44–65): rocky cave from shared map segment. */
 function buildRightSection(): TerrainType[][] {
-    return [
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-        [_, _, R, R, _, _, R, _, _, R, R, _, _, _, R, R, R, R, R, R, R, R],
-        [_, R, R, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R, R, R, R, R],
-        [_, R, _, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R, R, R, R],
-        [_, _, _, _, _, R, _, _, _, _, _, _, _, R, R, R, R, R, R, R, R, R],
-        [_, _, _, _, R, R, R, _, _, _, _, _, _, R, R, R, D, D, D, R, R, R],
-        [_, _, _, _, R, _, _, _, _, _, _, _, _, R, R, R, D, D, D, D, D, R],
-        [_, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, D, D, D, D, D, R],
-        [_, _, _, D, D, D, D, D, _, _, _, _, _, R, R, R, D, D, D, D, D, R],
-        [D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, R, R],
-        [D, D, D, _, _, _, _, _, D, D, D, D, D, D, D, D, D, D, D, D, R, R],
-        [_, _, _, _, _, _, _, _, _, _, _, _, _, D, D, D, D, D, D, D, R, R],
-        [_, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, D, D, D, D, D, R],
-        [_, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, D, D, D, D, D, R],
-        [_, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, D, D, D, D, D, R],
-        [_, _, _, T, T, _, _, _, _, _, _, _, _, R, R, R, D, D, D, D, D, R],
-        [_, _, T, T, T, T, T, T, _, _, _, _, _, R, R, R, D, D, D, D, D, R],
-        [_, _, T, T, T, R, R, T, _, _, _, _, _, _, R, R, D, D, D, R, R, R],
-        [_, _, T, T, T, R, R, T, _, _, _, _, _, _, R, R, R, R, R, R, R, R],
-        [_, _, T, _, T, T, T, T, _, _, _, _, _, R, R, R, R, R, R, R, R, R],
-        [_, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R, R, R, R, R, R],
-        [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-    ];
+    return MAP_SEGMENT_50_50_CRYSTAL_CAVE;
 }
 
 /** Apply global rocky border and small protrusions to a 2D terrain array (mutates). */
