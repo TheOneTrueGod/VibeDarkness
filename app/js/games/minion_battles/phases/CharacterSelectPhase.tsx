@@ -73,6 +73,7 @@ export default function CharacterSelectPhase({
     const [editorForceEditable, setEditorForceEditable] = useState(false);
     const [activeTab, setActiveTab] = useState<'characters' | 'players'>('characters');
     const [campaign, setCampaign] = useState<import('../../../types').CampaignState | null>(null);
+    const [setReadyLoading, setSetReadyLoading] = useState(false);
 
     useEffect(() => {
         if (!isAdmin && activeTab === 'players') {
@@ -194,10 +195,13 @@ export default function CharacterSelectPhase({
     );
 
     const handleSetReady = useCallback(async () => {
+        setSetReadyLoading(true);
         try {
             await lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHARACTER_SELECT_READY, {});
         } catch (error) {
             console.error('Failed to set ready:', error);
+        } finally {
+            setSetReadyLoading(false);
         }
     }, [lobbyClient, lobbyId, playerId]);
 
@@ -435,15 +439,15 @@ export default function CharacterSelectPhase({
                             {mySelection && (
                                 <button
                                     type="button"
-                                    disabled={amReady}
+                                    disabled={amReady || setReadyLoading}
                                     className={`px-8 py-3 text-lg font-bold rounded-lg transition-colors shadow-lg ${
-                                        amReady
-                                            ? 'bg-green-600 text-white cursor-default'
+                                        amReady || setReadyLoading
+                                            ? 'bg-gray-600 text-gray-400 cursor-default'
                                             : 'bg-primary text-secondary hover:opacity-90 cursor-pointer'
                                     }`}
                                     onClick={handleSetReady}
                                 >
-                                    {amReady ? 'Ready' : 'Ready'}
+                                    Ready
                                 </button>
                             )}
                             {allSelected && allReady && (

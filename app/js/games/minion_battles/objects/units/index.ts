@@ -112,7 +112,7 @@ export function createUnitFromSpawnConfig(
         maxHp: config.hp,
         speed: config.speed,
         characterId: config.characterId,
-        radius: config.radius ?? DEFAULT_UNIT_RADIUS,
+        radius: config.radius ?? getDefaultRadius(config.characterId, DEFAULT_UNIT_RADIUS),
     });
 
     if (config.aiSettings) {

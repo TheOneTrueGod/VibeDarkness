@@ -633,16 +633,17 @@ function AppInner() {
             result: string,
             resourceDelta?: Partial<Record<import('./types').CampaignResourceKey, number>>
         ) => {
-            if (!currentCampaignId) return;
+            const campaignId = currentCampaignId ?? user?.campaignIds?.[0] ?? null;
+            if (!campaignId) return;
             try {
-                await lobbyClient.updateCampaign(currentCampaignId, {
+                await lobbyClient.updateCampaign(campaignId, {
                     addMissionResult: { missionId, result, resourceDelta },
                 });
             } catch (e) {
                 console.warn('Failed to record mission result:', e);
             }
         },
-        [currentCampaignId, lobbyClient]
+        [currentCampaignId, user, lobbyClient]
     );
 
     const handleSelectGame = useCallback(

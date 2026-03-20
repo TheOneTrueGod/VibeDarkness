@@ -35,8 +35,8 @@ export default function PlayerList({
                 {Object.values(players).map((player) => {
                     const characterId = characterSelections?.[player.id];
                     const secondLine =
-                        characterId != null
-                            ? (characterIdToName?.[characterId] ?? '(selected)')
+                        characterId != null && characterIdToName?.[characterId] != null
+                            ? characterIdToName[characterId]
                             : undefined;
                     const readyStatus =
                         readySet != null
