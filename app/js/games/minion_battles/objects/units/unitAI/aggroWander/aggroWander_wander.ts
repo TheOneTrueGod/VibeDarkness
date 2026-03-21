@@ -9,11 +9,11 @@
 import type { Unit } from '../../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
+import type { AggroWanderAITreeContext, AggroWanderNodeId } from './context';
 import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
 import { getPerceptionRange } from '../../../../engine/unitDef';
 
 const TREE_NAME = 'aggroWander';
-type AggroWanderNodeId = 'aggroWander_wander' | 'aggroWander_attack';
 
 const ROUND_DURATION = 10;
 
@@ -36,17 +36,17 @@ export const aggroWander_wander: AINode<typeof TREE_NAME, AggroWanderNodeId> = {
                 return;
             }
 
-            const ai = unit.aiContext;
+            const ctx = unit.aiContext as AggroWanderAITreeContext;
 
-            if (ai.aggroWanderStartCol == null || ai.aggroWanderStartRow == null) {
+            if (ctx.startCol == null || ctx.startRow == null) {
                 const start = grid.worldToGrid(unit.x, unit.y);
-                ai.aggroWanderStartCol = start.col;
-                ai.aggroWanderStartRow = start.row;
+                ctx.startCol = start.col;
+                ctx.startRow = start.row;
             }
 
-            const lastScan = ai.aggroWanderLastScanTime ?? -Infinity;
+            const lastScan = ctx.lastScanTime ?? -Infinity;
             if (context.gameTime - lastScan >= SCAN_INTERVAL_ROUNDS * ROUND_DURATION) {
-                ai.aggroWanderLastScanTime = context.gameTime;
+                ctx.lastScanTime = context.gameTime;
                 const perceptionRange = getPerceptionRange(unit.characterId);
                 const enemies = findEnemies(unit, context.getUnits());
                 const inSight = getEnemiesInPerceptionAndLOS(
@@ -57,23 +57,20 @@ export const aggroWander_wander: AINode<typeof TREE_NAME, AggroWanderNodeId> = {
                 );
                 if (inSight.length > 0) {
                     const nearest = inSight[0]!;
-                    unit.aiContext = {
-                        ...unit.aiContext,
-                        unitAINodeId: 'aggroWander_attack',
-                        aiTargetUnitId: nearest.id,
-                    };
+                    ctx.aiState = 'aggroWander_attack';
+                    ctx.targetUnitId = nearest.id;
                     return;
                 }
             }
 
-            const lastMove = ai.aggroWanderLastMoveTime ?? -Infinity;
+            const lastMove = ctx.lastMoveTime ?? -Infinity;
             if (context.gameTime - lastMove >= WANDER_INTERVAL_ROUNDS * ROUND_DURATION) {
-                ai.aggroWanderLastMoveTime = context.gameTime;
+                ctx.lastMoveTime = context.gameTime;
                 const unitGrid = grid.worldToGrid(unit.x, unit.y);
                 const dest = pickRandomWalkableNearStart(
                     unitGrid,
-                    ai.aggroWanderStartCol!,
-                    ai.aggroWanderStartRow!,
+                    ctx.startCol!,
+                    ctx.startRow!,
                     MAX_WANDER_DISTANCE,
                     unit,
                     context,

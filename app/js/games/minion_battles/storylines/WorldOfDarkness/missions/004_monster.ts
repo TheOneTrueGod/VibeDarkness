@@ -154,10 +154,7 @@ export class MonsterMission extends BaseMissionDef {
 
         const alphaWolf = engine.units.find((u) => u.characterId === 'alpha_wolf');
         if (alphaWolf) {
-            alphaWolf.aiContext = {
-                ...alphaWolf.aiContext,
-                sightRadius: 400,
-            };
+            alphaWolf.aiContext = { aiTree: 'alphaWolfBoss' as const, sightRadius: 400 };
         }
     }
 }

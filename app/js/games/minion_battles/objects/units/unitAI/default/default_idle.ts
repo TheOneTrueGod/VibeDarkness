@@ -5,13 +5,13 @@
 import type { Unit } from '../../../Unit';
 import type { AIContext, AILightSource } from '../types';
 import type { AINode } from '../types';
+import type { DefaultAITreeContext, DefaultNodeId } from './context';
 import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
 import { getPerceptionRange } from '../../../../engine/unitDef';
 import { distance } from '../utils';
 import { getOrPickClosestDefendPoint } from '../utils';
 
 const TREE_NAME = 'default';
-type DefaultNodeId = 'default_idle' | 'default_attack' | 'default_siegeDefendPoint' | 'default_findLight' | 'default_wander';
 
 function getOrPickDefendPoint(unit: Unit, context: AIContext): { id: string } | null {
     const defendPoints = context.getAliveDefendPoints();
@@ -29,8 +29,7 @@ export const default_idle: AINode<typeof TREE_NAME, DefaultNodeId> = {
                 tryTransitionToAttack(unit, context) ||
                 tryTransitionToSiegeDefendPoint(unit, context) ||
                 tryTransitionToFindLight(unit, context) ||
-                transitionToWander(unit, context);
-            // Don't emit here; the target node will emit when it finishes (runner recurses).
+                transitionToWander(unit);
         },
     },
     edges: [],
@@ -47,7 +46,9 @@ function tryTransitionToAttack(unit: Unit, context: AIContext): boolean {
     );
     if (inSight.length > 0) {
         const target = inSight[context.generateRandomInteger(0, inSight.length - 1)]!;
-        unit.aiContext = { ...unit.aiContext, unitAINodeId: 'default_attack', aiTargetUnitId: target.id };
+        const ctx = unit.aiContext as DefaultAITreeContext;
+        ctx.aiState = 'default_attack';
+        ctx.targetUnitId = target.id;
         return true;
     }
     return false;
@@ -56,11 +57,9 @@ function tryTransitionToAttack(unit: Unit, context: AIContext): boolean {
 function tryTransitionToSiegeDefendPoint(unit: Unit, context: AIContext): boolean {
     const dp = getOrPickDefendPoint(unit, context);
     if (!dp) return false;
-    unit.aiContext = {
-        ...unit.aiContext,
-        unitAINodeId: 'default_siegeDefendPoint',
-        defensePointTargetId: dp.id,
-    };
+    const ctx = unit.aiContext as DefaultAITreeContext;
+    ctx.aiState = 'default_siegeDefendPoint';
+    ctx.defensePointTargetId = dp.id;
     return true;
 }
 
@@ -80,13 +79,16 @@ function tryTransitionToFindLight(unit: Unit, context: AIContext): boolean {
         }
     }
     if (nearest) {
-        unit.aiContext = { ...unit.aiContext, unitAINodeId: 'default_findLight', findLightSourceId: nearest.id };
+        const ctx = unit.aiContext as DefaultAITreeContext;
+        ctx.aiState = 'default_findLight';
+        ctx.findLightSourceId = nearest.id;
         return true;
     }
     return false;
 }
 
 function transitionToWander(unit: Unit): boolean {
-    unit.aiContext = { ...unit.aiContext, unitAINodeId: 'default_wander' };
+    const ctx = unit.aiContext as DefaultAITreeContext;
+    ctx.aiState = 'default_wander';
     return true;
 }

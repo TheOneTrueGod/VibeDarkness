@@ -620,13 +620,15 @@ export class GameEngine implements EngineContext {
         if (!grid) return;
 
         for (const unit of this.units) {
-            const tileId = unit.aiContext.corruptingTargetId;
+            if (unit.aiContext.aiTree !== 'default') continue;
+            const ctx = unit.aiContext;
+            const tileId = ctx.corruptingTargetId;
             if (!tileId) continue;
 
             const tile = this.specialTiles.find((t) => t.id === tileId);
             if (!tile || tile.hp <= 0 || !tile.destructible) {
-                unit.aiContext.corruptingTargetId = undefined;
-                unit.aiContext.corruptingStartedAt = undefined;
+                ctx.corruptingTargetId = undefined;
+                ctx.corruptingStartedAt = undefined;
                 const bar = this.effects.find(
                     (e) => e.effectType === 'CorruptionProgressBar' && (e.effectData as { unitId?: string }).unitId === unit.id,
                 );
@@ -641,8 +643,8 @@ export class GameEngine implements EngineContext {
                     Math.abs(unitGrid.row - tile.row),
                 ) <= 1;
             if (!atTile) {
-                unit.aiContext.corruptingTargetId = undefined;
-                unit.aiContext.corruptingStartedAt = undefined;
+                ctx.corruptingTargetId = undefined;
+                ctx.corruptingStartedAt = undefined;
                 const bar = this.effects.find(
                     (e) => e.effectType === 'CorruptionProgressBar' && (e.effectData as { unitId?: string }).unitId === unit.id,
                 );
@@ -650,7 +652,7 @@ export class GameEngine implements EngineContext {
                 continue;
             }
 
-            const startedAt = unit.aiContext.corruptingStartedAt ?? this.gameTime;
+            const startedAt = ctx.corruptingStartedAt ?? this.gameTime;
             const elapsed = this.gameTime - startedAt;
 
             let barEffect = this.effects.find(
@@ -672,7 +674,7 @@ export class GameEngine implements EngineContext {
 
             if (elapsed >= 2) {
                 this.damageSpecialTile(tileId, 1);
-                unit.aiContext.corruptingStartedAt = this.gameTime;
+                ctx.corruptingStartedAt = this.gameTime;
 
                 const targetWorld = grid.gridToWorld(tile.col, tile.row);
                 const angle = (this.generateRandomInteger(0, 629) / 100) * Math.PI;

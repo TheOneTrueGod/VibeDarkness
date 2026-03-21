@@ -5,11 +5,11 @@
 import type { Unit } from '../../../Unit';
 import type { AIContext, AILightSource } from '../types';
 import type { AINode } from '../types';
+import type { DefaultAITreeContext, DefaultNodeId } from './context';
 import { queueWaitAndEndTurn, findEnemies, getEnemiesInPerceptionAndLOS } from '../utils';
 import { getPerceptionRange } from '../../../../engine/unitDef';
 
 const TREE_NAME = 'default';
-type DefaultNodeId = 'default_idle' | 'default_attack' | 'default_siegeDefendPoint' | 'default_findLight' | 'default_wander';
 
 const IDLE_AT_LIGHT_DURATION = 2.5;
 
@@ -17,16 +17,18 @@ export const default_findLight: AINode<typeof TREE_NAME, DefaultNodeId> = {
     nodeId: 'default_findLight',
     actions: {
         execute(unit: Unit, context: AIContext): void {
-            const lightId = unit.aiContext?.findLightSourceId;
+            const ctx = unit.aiContext as DefaultAITreeContext;
+            const lightId = ctx.findLightSourceId;
             const sources = context.getLightSources();
             const light = lightId ? sources.find((s) => s.id === lightId) : null;
             if (!light) {
-                unit.aiContext = { ...unit.aiContext, unitAINodeId: 'default_idle', findLightSourceId: undefined };
+                ctx.aiState = 'default_idle';
+                ctx.findLightSourceId = undefined;
                 context.emitTurnEnd(unit.id);
                 return;
             }
 
-            const idleUntil = unit.aiContext?.findLightIdleUntil as number | undefined;
+            const idleUntil = ctx.findLightIdleUntil;
             if (idleUntil != null && context.gameTime < idleUntil) {
                 queueWaitAndEndTurn(unit, context);
                 return;
@@ -55,7 +57,8 @@ export const default_findLight: AINode<typeof TREE_NAME, DefaultNodeId> = {
                 context.hasLineOfSight.bind(context),
             );
             if (inSight.length > 0) {
-                unit.aiContext = { ...unit.aiContext, unitAINodeId: 'default_idle', findLightSourceId: undefined };
+                ctx.aiState = 'default_idle';
+                ctx.findLightSourceId = undefined;
                 context.emitTurnEnd(unit.id);
                 return;
             }
@@ -65,11 +68,8 @@ export const default_findLight: AINode<typeof TREE_NAME, DefaultNodeId> = {
                 const idleUntilTime = context.gameTime + IDLE_AT_LIGHT_DURATION;
                 const otherLights = sources.filter((s) => s.id !== lightId);
                 const next = otherLights.length > 0 ? otherLights[context.generateRandomInteger(0, otherLights.length - 1)]! : light;
-                unit.aiContext = {
-                    ...unit.aiContext,
-                    findLightSourceId: next.id,
-                    findLightIdleUntil: idleUntilTime,
-                };
+                ctx.findLightSourceId = next.id;
+                ctx.findLightIdleUntil = idleUntilTime;
                 queueWaitAndEndTurn(unit, context);
                 return;
             }
@@ -88,7 +88,8 @@ export const default_findLight: AINode<typeof TREE_NAME, DefaultNodeId> = {
         {
             targetNodeId: 'default_idle',
             evaluate(unit: Unit, context: AIContext): boolean {
-                const lightId = unit.aiContext?.findLightSourceId;
+                const ctx = unit.aiContext as DefaultAITreeContext;
+                const lightId = ctx.findLightSourceId;
                 return !context.getLightSources().some((s) => s.id === lightId);
             },
         },

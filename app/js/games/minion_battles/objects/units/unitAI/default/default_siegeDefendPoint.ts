@@ -5,6 +5,7 @@
 import type { Unit } from '../../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
+import type { DefaultAITreeContext, DefaultNodeId } from './context';
 import {
     findEnemies,
     getDefendPointFromContext,
@@ -17,7 +18,6 @@ import {
 import { getPerceptionRange } from '../../../../engine/unitDef';
 
 const TREE_NAME = 'default';
-type DefaultNodeId = 'default_idle' | 'default_attack' | 'default_siegeDefendPoint' | 'default_findLight' | 'default_wander';
 
 const DEFAULT_PATH_RETRIGGER = 50;
 
@@ -25,13 +25,16 @@ export const default_siegeDefendPoint: AINode<typeof TREE_NAME, DefaultNodeId> =
     nodeId: 'default_siegeDefendPoint',
     actions: {
         execute(unit: Unit, context: AIContext): void {
+            const ctx = unit.aiContext as DefaultAITreeContext;
             const defendPoints = context.getAliveDefendPoints();
             const terrainManager = context.terrainManager;
             const grid = terrainManager?.grid ?? null;
 
             if (defendPoints.length === 0) {
                 unit.clearMovement();
-                unit.aiContext = { ...unit.aiContext, defensePointTargetId: undefined, aiTargetUnitId: undefined, unitAINodeId: 'default_idle' };
+                ctx.defensePointTargetId = undefined;
+                ctx.targetUnitId = undefined;
+                ctx.aiState = 'default_idle';
                 context.emitTurnEnd(unit.id);
                 return;
             }
@@ -43,7 +46,8 @@ export const default_siegeDefendPoint: AINode<typeof TREE_NAME, DefaultNodeId> =
                     queueWaitAndEndTurn(unit, context);
                     return;
                 }
-                unit.aiContext = { ...unit.aiContext, defensePointTargetId: picked.id, unitAINodeId: 'default_siegeDefendPoint' };
+                ctx.defensePointTargetId = picked.id;
+                ctx.aiState = 'default_siegeDefendPoint';
                 queueWaitAndEndTurn(unit, context);
                 return;
             }
@@ -52,7 +56,7 @@ export const default_siegeDefendPoint: AINode<typeof TREE_NAME, DefaultNodeId> =
             const onRetriggerTick = retrigger > 0 && context.gameTick % retrigger === 0;
             const shouldRecalcPathToDefend =
                 (unit.pathInvalidated || !unit.movement?.path?.length || onRetriggerTick) &&
-                !unit.aiContext.aiTargetUnitId &&
+                !ctx.targetUnitId &&
                 unit.activeAbilities.length === 0;
             if (shouldRecalcPathToDefend && terrainManager && grid) {
                 const unitGrid = grid.worldToGrid(unit.x, unit.y);
@@ -78,9 +82,10 @@ export const default_siegeDefendPoint: AINode<typeof TREE_NAME, DefaultNodeId> =
             );
 
             if (inPerceptionAndLOS.length > 0) {
-                unit.aiContext = { ...unit.aiContext, corruptingTargetId: undefined, corruptingStartedAt: undefined };
+                ctx.corruptingTargetId = undefined;
+                ctx.corruptingStartedAt = undefined;
                 const combatTarget = inPerceptionAndLOS[0]!;
-                unit.aiContext.aiTargetUnitId = combatTarget.id;
+                ctx.targetUnitId = combatTarget.id;
                 if (unit.aiSettings && terrainManager) {
                     applyAIMovementToUnit(unit, combatTarget, {
                         findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
@@ -103,26 +108,26 @@ export const default_siegeDefendPoint: AINode<typeof TREE_NAME, DefaultNodeId> =
                         Math.abs(unitGrid.row - currentDefendPoint.row),
                     ) <= 1;
                 if (atDefendPoint && currentDefendPoint.destructible) {
-                    unit.aiContext = {
-                        ...unit.aiContext,
-                        aiTargetUnitId: undefined,
-                        defensePointTargetId: currentDefendPoint.id,
-                        corruptingTargetId: currentDefendPoint.id,
-                        corruptingStartedAt: context.gameTime,
-                    };
+                    ctx.targetUnitId = undefined;
+                    ctx.defensePointTargetId = currentDefendPoint.id;
+                    ctx.corruptingTargetId = currentDefendPoint.id;
+                    ctx.corruptingStartedAt = context.gameTime;
                     unit.clearMovement();
                     queueWaitAndEndTurn(unit, context);
                     return;
                 }
             }
 
-            unit.aiContext = { ...unit.aiContext, aiTargetUnitId: undefined, corruptingTargetId: undefined, corruptingStartedAt: undefined };
+            ctx.targetUnitId = undefined;
+            ctx.corruptingTargetId = undefined;
+            ctx.corruptingStartedAt = undefined;
             queueWaitAndEndTurn(unit, context);
         },
         onPathfindingRetrigger(unit: Unit, context: AIContext): void {
+            const ctx = unit.aiContext as DefaultAITreeContext;
             const defendPoints = context.getAliveDefendPoints();
             if (defendPoints.length === 0) return;
-            if (unit.aiContext.aiTargetUnitId || unit.activeAbilities.length > 0) return;
+            if (ctx.targetUnitId || unit.activeAbilities.length > 0) return;
             const targetTile = getDefendPointFromContext(unit, defendPoints);
             if (!targetTile || !context.terrainManager?.grid) return;
             const grid = context.terrainManager.grid;
@@ -145,7 +150,9 @@ export const default_siegeDefendPoint: AINode<typeof TREE_NAME, DefaultNodeId> =
             evaluate(unit: Unit, context: AIContext): boolean {
                 if (context.getAliveDefendPoints().length === 0) {
                     unit.clearMovement();
-                    unit.aiContext = { ...unit.aiContext, defensePointTargetId: undefined, aiTargetUnitId: undefined };
+                    const ctx = unit.aiContext as DefaultAITreeContext;
+                    ctx.defensePointTargetId = undefined;
+                    ctx.targetUnitId = undefined;
                     return true;
                 }
                 return false;

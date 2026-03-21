@@ -5,19 +5,27 @@
 import type { Unit } from '../../Unit';
 import type { AIContext } from './types';
 import type { UnitAITree } from './types';
+import type { UnitAIContext } from './contextTypes';
 import { isNodeInTree } from './types';
 
-/** Key for current node in unit.aiContext. */
-const AI_NODE_KEY = 'unitAINodeId';
-
-/** Get the unit's current AI node ID. */
+/** Get the unit's current AI node ID (aiState). */
 export function getCurrentNodeId(unit: Unit): string | undefined {
-    return unit.aiContext?.unitAINodeId as string | undefined;
+    return unit.aiContext?.aiState as string | undefined;
 }
 
-/** Set the unit's current AI node ID. */
+/** Set the unit's current AI node ID (aiState). */
 export function setCurrentNodeId(unit: Unit, nodeId: string): void {
-    unit.aiContext = { ...unit.aiContext, unitAINodeId: nodeId };
+    (unit.aiContext as Record<string, unknown>).aiState = nodeId;
+}
+
+/**
+ * Ensure the context has aiTree set to match the tree being run.
+ * Called once at the start of runUnitAI.
+ */
+function ensureTreeContext(unit: Unit, tree: UnitAITree): void {
+    if (!unit.aiContext || unit.aiContext.aiTree !== tree.name) {
+        unit.aiContext = { ...unit.aiContext, aiTree: tree.name } as UnitAIContext;
+    }
 }
 
 /**
@@ -29,6 +37,8 @@ export function runUnitAI<T extends UnitAITree>(
     tree: T,
     context: AIContext,
 ): void {
+    ensureTreeContext(unit, tree);
+
     let currentNodeId = getCurrentNodeId(unit) ?? tree.entryNodeId;
     if (!isNodeInTree(tree, currentNodeId)) {
         currentNodeId = tree.entryNodeId;

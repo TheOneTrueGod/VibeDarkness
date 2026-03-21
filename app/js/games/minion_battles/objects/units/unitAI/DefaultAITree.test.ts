@@ -3,12 +3,13 @@
  * 1. No DefendPoints → transition to idle, clear state, wait.
  * 2. No defensePointTarget or dead → pick closest alive DefendPoint, store on unit.
  * 3. No path or gameTick % retrigger === 0 → recalc path to defensePointTarget.
- * 4. Hostiles in perception + LOS → set aiTargetUnitId, move to range, use ability or wait.
- * 5. No hostiles → clear aiTargetUnitId, wait.
+ * 4. Hostiles in perception + LOS → set targetUnitId, move to range, use ability or wait.
+ * 5. No hostiles → clear targetUnitId, wait.
  */
 import { describe, it, expect } from 'vitest';
 import { Unit } from '../../Unit';
 import type { AIContext } from './types';
+import type { DefaultAITreeContext } from './default/context';
 import { isTileDefendPoint, type SpecialTile } from '../../SpecialTile';
 import type { BattleOrder } from '../../../engine/types';
 import { runUnitAI, DEFAULT_AI_TREE } from './index';
@@ -25,7 +26,7 @@ function createAIUnit(overrides: Partial<{
     x: number;
     y: number;
     defensePointTargetId: string | undefined;
-    aiTargetUnitId: string | undefined;
+    targetUnitId: string | undefined;
     pathfindingRetriggerOffset: number;
     movement: { path: { col: number; row: number }[]; targetUnitId: string | undefined; pathfindingTick: number } | null;
 }> = {}) {
@@ -41,16 +42,18 @@ function createAIUnit(overrides: Partial<{
         characterId: 'dark_wolf',
         name: 'Wolf',
         abilities: ['0003'],
-        aiSettings: { minRange: 30, maxRange: 80 },
+        aiSettings: {    minRange: 30, maxRange: 80 },
         radius: 10,
         unitAITreeId: 'default',
     });
-    unit.aiContext.unitAINodeId = 'default_siegeDefendPoint';
+    const ctx = unit.aiContext as DefaultAITreeContext;
+    ctx.aiTree = 'default';
+    ctx.aiState = 'default_siegeDefendPoint';
     if (overrides.defensePointTargetId !== undefined) {
-        unit.aiContext.defensePointTargetId = overrides.defensePointTargetId;
+        ctx.defensePointTargetId = overrides.defensePointTargetId;
     }
-    if (overrides.aiTargetUnitId !== undefined) {
-        unit.aiContext.aiTargetUnitId = overrides.aiTargetUnitId;
+    if (overrides.targetUnitId !== undefined) {
+        ctx.targetUnitId = overrides.targetUnitId;
     }
     if (overrides.pathfindingRetriggerOffset !== undefined) unit.pathfindingRetriggerOffset = overrides.pathfindingRetriggerOffset;
     if (overrides.movement !== undefined) unit.movement = overrides.movement;
@@ -137,7 +140,7 @@ describe('DefaultAITree siegeDefendPoint', () => {
         it('clears movement and AI state and queues wait when no DefendPoints are alive', () => {
             const unit = createAIUnit({
                 defensePointTargetId: 'dp_1',
-                aiTargetUnitId: 'player_1',
+                targetUnitId: 'player_1',
                 movement: { path: [{ col: 5, row: 5 }], targetUnitId: undefined, pathfindingTick: 0 },
             });
             const { context, orders, turnEnds } = createMockContext({
@@ -147,9 +150,10 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(unit, DEFAULT_AI_TREE, context);
 
+            const ctx = unit.aiContext as DefaultAITreeContext;
             expect(unit.movement).toBeNull();
-            expect(unit.aiContext.defensePointTargetId).toBeUndefined();
-            expect(unit.aiContext.aiTargetUnitId).toBeUndefined();
+            expect(ctx.defensePointTargetId).toBeUndefined();
+            expect(ctx.targetUnitId).toBeUndefined();
             expect(orders).toHaveLength(1);
             expect(orders[0].abilityId).toBe('wait');
             expect(orders[0].unitId).toBe(unit.id);
@@ -173,7 +177,8 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(unit, DEFAULT_AI_TREE, context);
 
-            expect(unit.aiContext.defensePointTargetId).toBe('dp_near');
+            const ctx = unit.aiContext as DefaultAITreeContext;
+            expect(ctx.defensePointTargetId).toBe('dp_near');
             expect(orders).toHaveLength(1);
             expect(turnEnds).toHaveLength(1);
         });
@@ -193,7 +198,8 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(unit, DEFAULT_AI_TREE, context);
 
-            expect(unit.aiContext.defensePointTargetId).toBe('dp_alive');
+            const ctx = unit.aiContext as DefaultAITreeContext;
+            expect(ctx.defensePointTargetId).toBe('dp_alive');
         });
 
         it('reassigns defensePointTarget when current target emits 0 light', () => {
@@ -211,7 +217,8 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(unit, DEFAULT_AI_TREE, context);
 
-            expect(unit.aiContext.defensePointTargetId).toBe('dp_alive');
+            const ctx = unit.aiContext as DefaultAITreeContext;
+            expect(ctx.defensePointTargetId).toBe('dp_alive');
         });
     });
 
@@ -266,7 +273,7 @@ describe('DefaultAITree siegeDefendPoint', () => {
     });
 
     describe('step 4: hostiles in perception + LOS', () => {
-        it('sets aiTargetUnitId to closest hostile in perception with LOS and queues ability when in range', () => {
+        it('sets targetUnitId to closest hostile in perception with LOS and queues ability when in range', () => {
             const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
             const tm = new TerrainManager(grid);
             const aiUnit = createAIUnit({
@@ -286,12 +293,13 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
-            expect(aiUnit.aiContext.aiTargetUnitId).toBe('player_1');
+            const ctx = aiUnit.aiContext as DefaultAITreeContext;
+            expect(ctx.targetUnitId).toBe('player_1');
             expect(orders.some((o) => o.abilityId !== 'wait')).toBe(true);
             expect(orders.some((o) => o.abilityId === '0003')).toBe(true);
         });
 
-        it('sets aiTargetUnitId and does not queue wait when hostile in perception but no ability in range (keeps chasing)', () => {
+        it('sets targetUnitId and does not queue wait when hostile in perception but no ability in range (keeps chasing)', () => {
             const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
             const tm = new TerrainManager(grid);
             const aiUnit = createAIUnit({
@@ -310,20 +318,21 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
-            expect(aiUnit.aiContext.aiTargetUnitId).toBe('player_1');
+            const ctx = aiUnit.aiContext as DefaultAITreeContext;
+            expect(ctx.targetUnitId).toBe('player_1');
             expect(orders).toHaveLength(0);
         });
     });
 
     describe('step 5: no hostiles → clear target, wait', () => {
-        it('clears aiTargetUnitId and queues wait when no hostiles in perception', () => {
+        it('clears targetUnitId and queues wait when no hostiles in perception', () => {
             const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
             const tm = new TerrainManager(grid);
             const aiUnit = createAIUnit({
                 x: 400,
                 y: 400,
                 defensePointTargetId: 'dp_1',
-                aiTargetUnitId: 'player_1',
+                targetUnitId: 'player_1',
             });
             const playerUnit = createPlayerUnit('player_1', 50, 50); // far, outside perception 300
             const dp = createDefendPoint('dp_1', 10, 10, 5);
@@ -336,7 +345,8 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
-            expect(aiUnit.aiContext.aiTargetUnitId).toBeUndefined();
+            const ctx = aiUnit.aiContext as DefaultAITreeContext;
+            expect(ctx.targetUnitId).toBeUndefined();
             expect(orders).toHaveLength(1);
             expect(orders[0].abilityId).toBe('wait');
         });
@@ -360,7 +370,8 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
-            expect(aiUnit.aiContext.aiTargetUnitId).toBeUndefined();
+            const ctx = aiUnit.aiContext as DefaultAITreeContext;
+            expect(ctx.targetUnitId).toBeUndefined();
             expect(orders[0].abilityId).toBe('wait');
         });
     });
@@ -375,7 +386,8 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(unit, DEFAULT_AI_TREE, context);
 
-            expect(unit.aiContext.defensePointTargetId).toBeUndefined();
+            const ctx = unit.aiContext as DefaultAITreeContext;
+            expect(ctx.defensePointTargetId).toBeUndefined();
             expect(unit.movement).toBeNull();
         });
 
@@ -398,7 +410,8 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
-            expect(aiUnit.aiContext.defensePointTargetId).toBe('dp_1');
+            const ctx = aiUnit.aiContext as DefaultAITreeContext;
+            expect(ctx.defensePointTargetId).toBe('dp_1');
             expect(orders).toHaveLength(1);
             expect(orders[0].abilityId).toBe('wait');
         });

@@ -257,10 +257,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
         if (boar && params.terrainManager?.grid) {
             const grid = params.terrainManager.grid;
             const { col, row } = grid.worldToGrid(boar.x, boar.y);
-            boar.aiContext = {
-                ...boar.aiContext,
-                aiStateSerialized: { stateId: 'leash', startCol: col, startRow: row },
-            };
+            boar.aiContext = { aiTree: 'aggroWander' as const, startCol: col, startRow: row };
         }
     }
 }

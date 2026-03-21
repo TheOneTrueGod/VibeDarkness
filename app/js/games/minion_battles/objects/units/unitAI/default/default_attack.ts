@@ -5,27 +5,29 @@
 import type { Unit } from '../../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
+import type { DefaultAITreeContext, DefaultNodeId } from './context';
 import { findEnemies, applyAIMovementToUnit, tryQueueAbilityOrder } from '../utils';
-import { getPerceptionRange } from '../../../../engine/unitDef';
 
 const TREE_NAME = 'default';
-type DefaultNodeId = 'default_idle' | 'default_attack' | 'default_siegeDefendPoint' | 'default_findLight' | 'default_wander';
 
 export const default_attack: AINode<typeof TREE_NAME, DefaultNodeId> = {
     nodeId: 'default_attack',
     actions: {
         execute(unit: Unit, context: AIContext): void {
-            const targetId = unit.aiContext?.aiTargetUnitId;
+            const ctx = unit.aiContext as DefaultAITreeContext;
+            const targetId = ctx.targetUnitId;
             const target = targetId ? context.getUnit(targetId) : null;
             if (!target?.isAlive()) {
-                unit.aiContext = { ...unit.aiContext, unitAINodeId: 'default_idle', aiTargetUnitId: undefined };
+                ctx.aiState = 'default_idle';
+                ctx.targetUnitId = undefined;
                 context.emitTurnEnd(unit.id);
                 return;
             }
             const enemies = findEnemies(unit, context.getUnits());
             const targetInEnemies = enemies.filter((e) => e.id === targetId);
             if (targetInEnemies.length === 0) {
-                unit.aiContext = { ...unit.aiContext, unitAINodeId: 'default_idle', aiTargetUnitId: undefined };
+                ctx.aiState = 'default_idle';
+                ctx.targetUnitId = undefined;
                 context.emitTurnEnd(unit.id);
                 return;
             }
@@ -42,7 +44,8 @@ export const default_attack: AINode<typeof TREE_NAME, DefaultNodeId> = {
             context.emitTurnEnd(unit.id);
         },
         onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const targetId = unit.aiContext?.aiTargetUnitId;
+            const ctx = unit.aiContext as DefaultAITreeContext;
+            const targetId = ctx.targetUnitId;
             const target = targetId ? context.getUnit(targetId) : null;
             if (!target?.isAlive() || !unit.aiSettings || !context.terrainManager) return;
             applyAIMovementToUnit(unit, target, {
@@ -57,9 +60,10 @@ export const default_attack: AINode<typeof TREE_NAME, DefaultNodeId> = {
     edges: [
         {
             targetNodeId: 'default_idle',
-            evaluate(unit: Unit, context: AIContext): boolean {
-                const targetId = unit.aiContext?.aiTargetUnitId;
-                const target = targetId ? context.getUnit(targetId) : null;
+            evaluate(unit: Unit, _context: AIContext): boolean {
+                const ctx = unit.aiContext as DefaultAITreeContext;
+                const targetId = ctx.targetUnitId;
+                const target = targetId ? _context.getUnit(targetId) : null;
                 return !target?.isAlive();
             },
         },

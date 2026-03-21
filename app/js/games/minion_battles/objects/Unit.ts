@@ -33,36 +33,8 @@ export interface AISettings {
     maxRange: number;
 }
 
-/** Bag for per-controller AI context. Stored on the unit and serialized. */
-export interface UnitAIContext {
-    /** default_siegeDefendPoint: ID of the DefendPoint this unit is moving toward. */
-    defensePointTargetId?: string;
-    /** AI combat target: ID of the unit this AI is currently targeting in combat. */
-    aiTargetUnitId?: string;
-    /** When corrupting a destructible defend point: tile ID and game time when corruption started. */
-    corruptingTargetId?: string;
-    corruptingStartedAt?: number;
-    /** State-based AI: serialized current state (stateId + state-specific props). Sent as JSON to/from server. */
-    aiStateSerialized?: Record<string, unknown>;
-    /** alphaWolfBoss: sight radius (px) to detect players before charging. */
-    sightRadius?: number;
-    /** alphaWolfBoss: unit ID of current prey for this round. */
-    preyUnitId?: string;
-    /** UnitAITree: current node ID within the unit's AI tree. */
-    unitAINodeId?: string;
-    /** default_findLight: light source ID we are moving toward. */
-    findLightSourceId?: string;
-    /** default_findLight: gameTime when we finish idling at light. */
-    findLightIdleUntil?: number;
-    /** aggroWander: starting grid column (anchor for wander radius). */
-    aggroWanderStartCol?: number;
-    /** aggroWander: starting grid row (anchor for wander radius). */
-    aggroWanderStartRow?: number;
-    /** aggroWander: gameTime when last wander move was picked. */
-    aggroWanderLastMoveTime?: number;
-    /** aggroWander: gameTime when last enemy scan was performed. */
-    aggroWanderLastScanTime?: number;
-}
+import type { UnitAIContext } from './units/unitAI/contextTypes';
+export type { UnitAIContext } from './units/unitAI/contextTypes';
 
 /** Movement state for a unit. */
 export interface UnitMovement {
@@ -701,7 +673,10 @@ export class Unit extends GameObject {
         unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
         unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
         unit.pathInvalidated = (data.pathInvalidated as boolean) ?? false;
-        unit.aiContext = ((data.aiContext as UnitAIContext) ?? {}) as UnitAIContext;
+        const rawCtx = (data.aiContext ?? {}) as Record<string, unknown>;
+        if (rawCtx.unitAINodeId !== undefined) { rawCtx.aiState = rawCtx.unitAINodeId; delete rawCtx.unitAINodeId; }
+        if (rawCtx.aiTargetUnitId !== undefined) { rawCtx.targetUnitId = rawCtx.aiTargetUnitId; delete rawCtx.aiTargetUnitId; }
+        unit.aiContext = rawCtx as UnitAIContext;
         unit.unitAITreeId = (data.unitAITreeId as string) ?? 'default';
         unit.moveJitter = (data.moveJitter as number) ?? 0;
         unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;

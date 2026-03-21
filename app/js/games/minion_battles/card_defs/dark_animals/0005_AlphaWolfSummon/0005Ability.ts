@@ -143,7 +143,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
             }, null);
 
             if (closest && biteAbility) {
-                wolf.aiContext = { aiStateSerialized: { stateId: 'attack', targetUnitId: closest.id } };
+                wolf.aiContext = { aiTree: 'alphaWolfBoss' as const, targetUnitId: closest.id };
                 const resolvedTargets = buildResolvedTargets(biteAbility, closest);
                 eng.queueOrder(eng.gameTick + 1, {
                     unitId: wolf.id,

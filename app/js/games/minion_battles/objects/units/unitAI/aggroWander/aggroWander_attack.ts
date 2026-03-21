@@ -9,6 +9,7 @@
 import type { Unit } from '../../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
+import type { AggroWanderAITreeContext, AggroWanderNodeId } from './context';
 import {
     findEnemies,
     getEnemiesInPerceptionAndLOS,
@@ -18,7 +19,6 @@ import {
 import { getPerceptionRange } from '../../../../engine/unitDef';
 
 const TREE_NAME = 'aggroWander';
-type AggroWanderNodeId = 'aggroWander_wander' | 'aggroWander_attack';
 
 const ROUND_DURATION = 10;
 
@@ -29,11 +29,11 @@ export const aggroWander_attack: AINode<typeof TREE_NAME, AggroWanderNodeId> = {
     nodeId: 'aggroWander_attack',
     actions: {
         execute(unit: Unit, context: AIContext): void {
-            const ai = unit.aiContext;
-            const lastScan = ai.aggroWanderLastScanTime ?? -Infinity;
+            const ctx = unit.aiContext as AggroWanderAITreeContext;
+            const lastScan = ctx.lastScanTime ?? -Infinity;
 
             if (context.gameTime - lastScan >= RESCAN_INTERVAL_ROUNDS * ROUND_DURATION) {
-                ai.aggroWanderLastScanTime = context.gameTime;
+                ctx.lastScanTime = context.gameTime;
                 const perceptionRange = getPerceptionRange(unit.characterId);
                 const enemies = findEnemies(unit, context.getUnits());
                 const inSight = getEnemiesInPerceptionAndLOS(
@@ -43,19 +43,16 @@ export const aggroWander_attack: AINode<typeof TREE_NAME, AggroWanderNodeId> = {
                     context.hasLineOfSight.bind(context),
                 );
                 if (inSight.length > 0) {
-                    ai.aiTargetUnitId = inSight[0]!.id;
+                    ctx.targetUnitId = inSight[0]!.id;
                 }
             }
 
-            const targetId = ai.aiTargetUnitId;
+            const targetId = ctx.targetUnitId;
             const target = targetId ? context.getUnit(targetId) : null;
 
             if (!target?.isAlive() || !hasLOS(unit, target, context)) {
-                unit.aiContext = {
-                    ...unit.aiContext,
-                    unitAINodeId: 'aggroWander_wander',
-                    aiTargetUnitId: undefined,
-                };
+                ctx.aiState = 'aggroWander_wander';
+                ctx.targetUnitId = undefined;
                 return;
             }
 
@@ -77,7 +74,8 @@ export const aggroWander_attack: AINode<typeof TREE_NAME, AggroWanderNodeId> = {
         },
 
         onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const targetId = unit.aiContext?.aiTargetUnitId;
+            const ctx = unit.aiContext as AggroWanderAITreeContext;
+            const targetId = ctx.targetUnitId;
             const target = targetId ? context.getUnit(targetId) : null;
             if (!target?.isAlive() || !unit.aiSettings || !context.terrainManager) return;
             applyAIMovementToUnit(unit, target, {
@@ -93,7 +91,8 @@ export const aggroWander_attack: AINode<typeof TREE_NAME, AggroWanderNodeId> = {
         {
             targetNodeId: 'aggroWander_wander',
             evaluate(unit: Unit, context: AIContext): boolean {
-                const targetId = unit.aiContext?.aiTargetUnitId;
+                const ctx = unit.aiContext as AggroWanderAITreeContext;
+                const targetId = ctx.targetUnitId;
                 const target = targetId ? context.getUnit(targetId) : null;
                 if (!target?.isAlive()) return true;
                 return !hasLOS(unit, target, context);

@@ -25,12 +25,21 @@ export {
 } from './utils';
 export type { GridLike, ApplyAIMovementParams } from './utils';
 
+export type {
+    UnitAIContext,
+    UnitAIContextBase,
+    UnitAIContextUninitialized,
+    AITreeContextMap,
+    AITreeId,
+} from './contextTypes';
+export { initTreeContext } from './contextTypes';
+
 export { DEFAULT_AI_TREE } from './default';
-export type { DefaultNodeId } from './default';
+export type { DefaultNodeId, DefaultAITreeContext } from './default';
 export { ALPHA_WOLF_BOSS_AI_TREE } from './alphaWolfBoss';
-export type { AlphaWolfBossNodeId } from './alphaWolfBoss';
+export type { AlphaWolfBossNodeId, AlphaWolfBossAITreeContext } from './alphaWolfBoss';
 export { AGGRO_WANDER_AI_TREE } from './aggroWander';
-export type { AggroWanderNodeId } from './aggroWander';
+export type { AggroWanderNodeId, AggroWanderAITreeContext } from './aggroWander';
 
 /** Registry: tree ID -> tree. */
 const TREE_REGISTRY: Record<string, UnitAITree> = {

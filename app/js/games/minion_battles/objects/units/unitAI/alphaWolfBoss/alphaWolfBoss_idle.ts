@@ -5,14 +5,15 @@
 import type { Unit } from '../../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
+import type { AlphaWolfBossAITreeContext, AlphaWolfBossNodeId } from './context';
 import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
 import { getPerceptionRange } from '../../../../engine/unitDef';
 
 const TREE_NAME = 'alphaWolfBoss';
-type AlphaWolfBossNodeId = 'alphaWolfBoss_idle' | 'alphaWolfBoss_attack';
 
 function getSightRadius(unit: Unit): number {
-    return (unit.aiContext?.sightRadius as number | undefined) ?? getPerceptionRange(unit.characterId);
+    const ctx = unit.aiContext as AlphaWolfBossAITreeContext;
+    return ctx.sightRadius ?? getPerceptionRange(unit.characterId);
 }
 
 function pickOrGetPrey(unit: Unit, context: AIContext): Unit | null {
@@ -28,7 +29,8 @@ function pickOrGetPrey(unit: Unit, context: AIContext): Unit | null {
     );
     if (inSight.length === 0) return null;
 
-    const storedPreyId = unit.aiContext?.preyUnitId as string | undefined;
+    const ctx = unit.aiContext as AlphaWolfBossAITreeContext;
+    const storedPreyId = ctx.preyUnitId;
     const storedPrey = storedPreyId ? context.getUnit(storedPreyId) : null;
     if (storedPrey?.isAlive() && inSight.some((e) => e.id === storedPreyId)) {
         return storedPrey;
@@ -36,7 +38,7 @@ function pickOrGetPrey(unit: Unit, context: AIContext): Unit | null {
 
     const prey = inSight[context.generateRandomInteger(0, inSight.length - 1)] ?? null;
     if (prey) {
-        unit.aiContext = { ...unit.aiContext, preyUnitId: prey.id };
+        ctx.preyUnitId = prey.id;
     }
     return prey;
 }
@@ -57,7 +59,9 @@ export const alphaWolfBoss_idle: AINode<typeof TREE_NAME, AlphaWolfBossNodeId> =
             if (inSight.length > 0) {
                 const prey = pickOrGetPrey(unit, context);
                 if (prey) {
-                    unit.aiContext = { ...unit.aiContext, unitAINodeId: 'alphaWolfBoss_attack', aiTargetUnitId: prey.id };
+                    const ctx = unit.aiContext as AlphaWolfBossAITreeContext;
+                    ctx.aiState = 'alphaWolfBoss_attack';
+                    ctx.targetUnitId = prey.id;
                 }
             }
             queueWaitAndEndTurn(unit, context);
@@ -78,7 +82,8 @@ export const alphaWolfBoss_idle: AINode<typeof TREE_NAME, AlphaWolfBossNodeId> =
                 if (inSight.length === 0) return false;
                 const prey = pickOrGetPrey(unit, context);
                 if (prey) {
-                    unit.aiContext = { ...unit.aiContext, aiTargetUnitId: prey.id };
+                    const ctx = unit.aiContext as AlphaWolfBossAITreeContext;
+                    ctx.targetUnitId = prey.id;
                     return true;
                 }
                 return false;

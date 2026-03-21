@@ -3,7 +3,9 @@
  * Abilities are selected via AISettings (priority, ranges); nodes use these helpers.
  */
 
-import type { Unit, UnitAIContext } from '../../Unit';
+import type { Unit } from '../../Unit';
+import type { UnitAIContext } from './contextTypes';
+import type { DefaultAITreeContext } from './default/context';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { ResolvedTarget } from '../../../engine/types';
 import type { SpecialTile } from '../../SpecialTile';
@@ -62,9 +64,9 @@ export interface GridLike {
     gridToWorld(col: number, row: number): { x: number; y: number };
 }
 
-/** Look up the current defend point by id stored in unit.aiContext, if any. */
+/** Look up the current defend point by id stored in unit.aiContext, if any. Only valid for default tree. */
 export function getDefendPointFromContext(unit: Unit, defendPoints: SpecialTile[]): SpecialTile | undefined {
-    const ctx: UnitAIContext = unit.aiContext ?? {};
+    const ctx = unit.aiContext as DefaultAITreeContext;
     return ctx.defensePointTargetId
         ? defendPoints.find((t) => t.id === ctx.defensePointTargetId)
         : undefined;
@@ -79,7 +81,7 @@ export function getOrPickClosestDefendPoint(
     grid: GridLike | null,
 ): SpecialTile | null {
     if (!grid || defendPoints.length === 0) return null;
-    const ctx: UnitAIContext = unit.aiContext ?? {};
+    const ctx = unit.aiContext as DefaultAITreeContext;
     const current = ctx.defensePointTargetId
         ? defendPoints.find((t) => t.id === ctx.defensePointTargetId)
         : undefined;
@@ -98,7 +100,6 @@ export function getOrPickClosestDefendPoint(
     const chosen = best ?? defendPoints[0] ?? null;
     if (chosen) {
         ctx.defensePointTargetId = chosen.id;
-        unit.aiContext = ctx;
     }
     return chosen;
 }

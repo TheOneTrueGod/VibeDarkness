@@ -5,10 +5,10 @@
 import type { Unit } from '../../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
+import type { DefaultNodeId } from './context';
 import { queueWaitAndEndTurn } from '../utils';
 
 const TREE_NAME = 'default';
-type DefaultNodeId = 'default_idle' | 'default_attack' | 'default_siegeDefendPoint' | 'default_findLight' | 'default_wander';
 
 const WANDER_RADIUS = 4;
 
