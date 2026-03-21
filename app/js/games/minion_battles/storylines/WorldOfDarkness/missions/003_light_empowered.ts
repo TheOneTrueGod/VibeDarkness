@@ -9,7 +9,7 @@
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
-import { ENEMY_DARK_WOLF, ENEMY_BOAR } from '../../../constants/enemyConstants';
+import { ENEMY_DARK_WOLF, ENEMY_BOAR, ENEMY_RANGED } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -51,17 +51,35 @@ function gridToWorld(col: number, row: number): { x: number; y: number } {
     };
 }
 
-/** 3 wolves outside cave (in middle segment, south path area). */
-const wolfPositions = [
+/** Wolves outside cave (in middle segment, south path area). */
+const wolvesOutsideCave = [
     gridToWorld(cliffPathPOI.south_path.col, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW),
-    gridToWorld(cliffPathPOI.south_path.col - 1, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW),
     gridToWorld(cliffPathPOI.south_path.col + 1, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW),
+    gridToWorld(cliffPathPOI.south_path.col, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW + 1),
+    gridToWorld(cliffPathPOI.south_path.col + 1, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW + 1),
+];
+
+/** Wolves in the other group (north path area). */
+const wolvesNorthPath = [
+    gridToWorld(cliffPathPOI.north_path.col, cliffPathPOI.north_path.row + MIDDLE_OFFSET_ROW),
+    gridToWorld(cliffPathPOI.north_path.col + 1, cliffPathPOI.north_path.row + MIDDLE_OFFSET_ROW),
 ];
 
 const ENEMIES = [
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolfPositions[0]! },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolfPositions[1]! },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolfPositions[2]! },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesOutsideCave[0]! },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesOutsideCave[1]! },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesOutsideCave[2]! },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesOutsideCave[3]! },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesNorthPath[0]! },
+    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesNorthPath[1]! },
+    {
+        ...ENEMY_RANGED,
+        name: 'Slime',
+        position: gridToWorld(
+            cliffPathPOI.north_path.col + 1,
+            cliffPathPOI.north_path.row + MIDDLE_OFFSET_ROW + 1,
+        ),
+    },
     {
         ...ENEMY_BOAR,
         name: 'Boar',

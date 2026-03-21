@@ -135,6 +135,12 @@ export default function GameScreen({
     const isResyncing = gameSync?.syncStatus === 'resyncing';
     const showWaitingForHost = gameSync?.syncStatus === 'waiting_for_host';
 
+    // Only show resyncing overlay during battle; during character select / mission select we poll
+    // every 5s for updates and don't need to block the whole screen
+    const gamePhase = effectiveLobbyGameData?.gamePhase ?? effectiveLobbyGameData?.game_phase;
+    const inBattle = gamePhase === 'battle';
+    const showResyncOverlay = isLoading || (isResyncing && inBattle);
+
     // Load game component dynamically when game type changes
     useEffect(() => {
         if (effectiveLobbyPageState !== 'in_game' || !effectiveLobbyGameType) {
@@ -381,7 +387,7 @@ export default function GameScreen({
                                         onBattleStartStatusChange={setBattlePlayerListHidden}
                                     />
                                     {/* Loading/resyncing overlay: keeps canvas visible, blocks interaction */}
-                                    {(isLoading || isResyncing) && (
+                                    {showResyncOverlay && (
                                         <div
                                             className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 rounded-lg"
                                             style={{ pointerEvents: 'auto' }}
@@ -403,7 +409,7 @@ export default function GameScreen({
                                         <p>Loading game...</p>
                                     </div>
                                     {/* Overlay during initial load so layout stays stable */}
-                                    {(isLoading || isResyncing) && (
+                                    {showResyncOverlay && (
                                         <div
                                             className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 rounded-lg"
                                             style={{ pointerEvents: 'auto' }}
