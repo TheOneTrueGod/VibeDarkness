@@ -7,16 +7,16 @@
  * 5. No hostiles → clear aiTargetUnitId, wait.
  */
 import { describe, it, expect } from 'vitest';
-import { Unit } from '../../objects/Unit';
-import type { AIContext } from '../../objects/units/unitAI';
-import { isTileDefendPoint, type SpecialTile } from '../../objects/SpecialTile';
-import type { BattleOrder } from '../../engine/types';
-import { runUnitAI, DEFAULT_AI_TREE } from '../../objects/units/unitAI';
-import { TerrainGrid } from '../../terrain/TerrainGrid';
-import { TerrainManager } from '../../terrain/TerrainManager';
-import { TerrainType } from '../../terrain/TerrainType';
-import { CELL_SIZE } from '../../terrain/TerrainGrid';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../../engine/GameEngine';
+import { Unit } from '../../Unit';
+import type { AIContext } from './types';
+import { isTileDefendPoint, type SpecialTile } from '../../SpecialTile';
+import type { BattleOrder } from '../../../engine/types';
+import { runUnitAI, DEFAULT_AI_TREE } from './index';
+import { TerrainGrid } from '../../../terrain/TerrainGrid';
+import { TerrainManager } from '../../../terrain/TerrainManager';
+import { TerrainType } from '../../../terrain/TerrainType';
+import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { WORLD_WIDTH, WORLD_HEIGHT } from '../../../engine/GameEngine';
 
 const GAME_TICK = 100;
 
@@ -132,7 +132,7 @@ function createMockContext(options: {
     return { context, orders, turnEnds };
 }
 
-describe('DefensePointsAIController', () => {
+describe('DefaultAITree siegeDefendPoint', () => {
     describe('step 1: no DefendPoints (no DefendPoints → wait)', () => {
         it('clears movement and AI state and queues wait when no DefendPoints are alive', () => {
             const unit = createAIUnit({
@@ -311,7 +311,6 @@ describe('DefensePointsAIController', () => {
             runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
             expect(aiUnit.aiContext.aiTargetUnitId).toBe('player_1');
-            // Controller does not queue wait here so it can run again next frame and keep chasing.
             expect(orders).toHaveLength(0);
         });
     });

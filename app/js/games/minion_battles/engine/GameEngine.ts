@@ -962,7 +962,7 @@ export class GameEngine {
     }
 
     // ========================================================================
-    // AI (delegates to mission's UnitAIController)
+    // AI (unit runs its own UnitAITree via runUnitAI)
     // ========================================================================
 
     private buildAIContext(): AIContext {

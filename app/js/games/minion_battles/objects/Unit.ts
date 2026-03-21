@@ -35,7 +35,7 @@ export interface AISettings {
 
 /** Bag for per-controller AI context. Stored on the unit and serialized. */
 export interface UnitAIContext {
-    /** DefensePointsAIController: ID of the DefendPoint this unit is moving toward. */
+    /** default_siegeDefendPoint: ID of the DefendPoint this unit is moving toward. */
     defensePointTargetId?: string;
     /** AI combat target: ID of the unit this AI is currently targeting in combat. */
     aiTargetUnitId?: string;
@@ -44,9 +44,9 @@ export interface UnitAIContext {
     corruptingStartedAt?: number;
     /** State-based AI: serialized current state (stateId + state-specific props). Sent as JSON to/from server. */
     aiStateSerialized?: Record<string, unknown>;
-    /** AlphaWolfBossAIController: sight radius (px) to detect players before charging. */
+    /** alphaWolfBoss: sight radius (px) to detect players before charging. */
     sightRadius?: number;
-    /** AlphaWolfBossAIController: unit ID of current prey for this round. */
+    /** alphaWolfBoss: unit ID of current prey for this round. */
     preyUnitId?: string;
     /** UnitAITree: current node ID within the unit's AI tree. */
     unitAINodeId?: string;
