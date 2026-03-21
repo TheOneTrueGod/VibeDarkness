@@ -50,6 +50,8 @@ export interface AbilityAISettings {
     maxRange: number;
     /** Max uses per round (for enemies). Omitted = no limit. */
     maxUsesPerRound?: number;
+    /** Priority when multiple abilities can be used. Higher = preferred. Default 0. */
+    priority?: number;
 }
 
 export type AbilityKeyword = 'exhaust';

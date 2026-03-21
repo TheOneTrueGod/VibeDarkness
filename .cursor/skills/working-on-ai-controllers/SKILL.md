@@ -1,13 +1,15 @@
 ---
 name: working-on-ai-controllers
-description: When adding or changing enemy unit AI in Minion Battles. Use when working on AI controllers, mission AI behaviour, UnitAIController implementations, or state-based AI states.
+description: When adding or changing enemy unit AI in Minion Battles. Use when working on UnitAITree, AI nodes, or mission AI behaviour.
 ---
 
-# Working on AI Controllers
+# Working on Unit AI
+
+**See `app/js/games/minion_battles/objects/units/unitAI/SKILL.md` for the full guide.**
 
 ## Where it lives
 
-- **`app/js/games/minion_battles/storylines/ai/`** – Unit AI: interface, utils, controller implementations, and state-based AI states.
+- **`app/js/games/minion_battles/objects/units/unitAI/`** – UnitAITree system. Each unit runs its own tree; no global AIController.
 - **Interface**: `UnitAIController` in `storylines/ai/types.ts` – defines `executeTurn(unit, context)` and optional `onPathfindingRetrigger(unit, context)`.
 - **Factory**: `buildAIController(aiControllerId?)` in `storylines/ai/index.ts` – returns the controller for a mission; default `'legacy'` when mission does not set `aiController`.
 - **Mission**: Set `aiController: 'legacy' | 'defensePoints' | 'stateBased'` on the mission def; engine gets `aiControllerId` from mission at init or from serialized state on restore.

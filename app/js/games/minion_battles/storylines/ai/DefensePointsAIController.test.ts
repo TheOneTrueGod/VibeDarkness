@@ -1,6 +1,6 @@
 /**
- * Tests that each step of DefensePointsAIController executes in order:
- * 1. No DefendPoints → stand still, clear state, wait.
+ * Tests that the default tree's siegeDefendPoint node executes in order:
+ * 1. No DefendPoints → transition to idle, clear state, wait.
  * 2. No defensePointTarget or dead → pick closest alive DefendPoint, store on unit.
  * 3. No path or gameTick % retrigger === 0 → recalc path to defensePointTarget.
  * 4. Hostiles in perception + LOS → set aiTargetUnitId, move to range, use ability or wait.
@@ -8,10 +8,10 @@
  */
 import { describe, it, expect } from 'vitest';
 import { Unit } from '../../objects/Unit';
-import type { AIContext } from './types';
+import type { AIContext } from '../../objects/units/unitAI';
 import { isTileDefendPoint, type SpecialTile } from '../../objects/SpecialTile';
 import type { BattleOrder } from '../../engine/types';
-import { DefensePointsAIController } from './DefensePointsAIController';
+import { runUnitAI, DEFAULT_AI_TREE } from '../../objects/units/unitAI';
 import { TerrainGrid } from '../../terrain/TerrainGrid';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainType } from '../../terrain/TerrainType';
@@ -43,7 +43,9 @@ function createAIUnit(overrides: Partial<{
         abilities: ['0003'],
         aiSettings: { minRange: 30, maxRange: 80 },
         radius: 10,
+        unitAITreeId: 'default',
     });
+    unit.aiContext.unitAINodeId = 'default_siegeDefendPoint';
     if (overrides.defensePointTargetId !== undefined) {
         unit.aiContext.defensePointTargetId = overrides.defensePointTargetId;
     }
@@ -108,8 +110,9 @@ function createMockContext(options: {
         gameTime,
         getUnit: (id) => options.units.find((u) => u.id === id),
         getUnits: () => options.units,
-        getSpecialTiles: () => options.aliveDefendPoints,
+        getSpecialTiles: () => options.aliveDefendPoints as SpecialTile[],
         getAliveDefendPoints: () => options.aliveDefendPoints.filter(isTileDefendPoint),
+        getLightSources: () => [],
         terrainManager: options.terrainManager ?? null,
         findGridPathForUnit: (_, fromCol, fromRow, toCol, toRow) =>
             options.terrainManager?.findGridPath(fromCol, fromRow, toCol, toRow) ?? null,
@@ -124,6 +127,7 @@ function createMockContext(options: {
         WORLD_HEIGHT,
         hasLineOfSight: () => hasLineOfSight,
         cancelActiveAbility: () => {},
+        getAbilityUsesThisRound: () => 0,
     };
     return { context, orders, turnEnds };
 }
@@ -141,7 +145,7 @@ describe('DefensePointsAIController', () => {
                 units: [unit],
             });
 
-            DefensePointsAIController.executeTurn(unit, context);
+            runUnitAI(unit, DEFAULT_AI_TREE, context);
 
             expect(unit.movement).toBeNull();
             expect(unit.aiContext.defensePointTargetId).toBeUndefined();
@@ -167,7 +171,7 @@ describe('DefensePointsAIController', () => {
                 gameTick: 50,
             });
 
-            DefensePointsAIController.executeTurn(unit, context);
+            runUnitAI(unit, DEFAULT_AI_TREE, context);
 
             expect(unit.aiContext.defensePointTargetId).toBe('dp_near');
             expect(orders).toHaveLength(1);
@@ -187,7 +191,7 @@ describe('DefensePointsAIController', () => {
                 gameTick: 50,
             });
 
-            DefensePointsAIController.executeTurn(unit, context);
+            runUnitAI(unit, DEFAULT_AI_TREE, context);
 
             expect(unit.aiContext.defensePointTargetId).toBe('dp_alive');
         });
@@ -205,7 +209,7 @@ describe('DefensePointsAIController', () => {
                 gameTick: 50,
             });
 
-            DefensePointsAIController.executeTurn(unit, context);
+            runUnitAI(unit, DEFAULT_AI_TREE, context);
 
             expect(unit.aiContext.defensePointTargetId).toBe('dp_alive');
         });
@@ -229,7 +233,7 @@ describe('DefensePointsAIController', () => {
                 gameTick: 50,
             });
 
-            DefensePointsAIController.executeTurn(unit, context);
+            runUnitAI(unit, DEFAULT_AI_TREE, context);
 
             expect(unit.movement).not.toBeNull();
             expect(unit.movement!.path.length).toBeGreaterThan(0);
@@ -254,7 +258,7 @@ describe('DefensePointsAIController', () => {
                 gameTick: 100,
             });
 
-            DefensePointsAIController.executeTurn(unit, context);
+            runUnitAI(unit, DEFAULT_AI_TREE, context);
 
             expect(unit.movement).not.toBeNull();
             expect(unit.movement!.pathfindingTick).toBe(100);
@@ -280,7 +284,7 @@ describe('DefensePointsAIController', () => {
                 hasLineOfSight: true,
             });
 
-            DefensePointsAIController.executeTurn(aiUnit, context);
+            runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
             expect(aiUnit.aiContext.aiTargetUnitId).toBe('player_1');
             expect(orders.some((o) => o.abilityId !== 'wait')).toBe(true);
@@ -304,7 +308,7 @@ describe('DefensePointsAIController', () => {
                 hasLineOfSight: true,
             });
 
-            DefensePointsAIController.executeTurn(aiUnit, context);
+            runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
             expect(aiUnit.aiContext.aiTargetUnitId).toBe('player_1');
             // Controller does not queue wait here so it can run again next frame and keep chasing.
@@ -331,7 +335,7 @@ describe('DefensePointsAIController', () => {
                 hasLineOfSight: true,
             });
 
-            DefensePointsAIController.executeTurn(aiUnit, context);
+            runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
             expect(aiUnit.aiContext.aiTargetUnitId).toBeUndefined();
             expect(orders).toHaveLength(1);
@@ -355,7 +359,7 @@ describe('DefensePointsAIController', () => {
                 hasLineOfSight: false,
             });
 
-            DefensePointsAIController.executeTurn(aiUnit, context);
+            runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
             expect(aiUnit.aiContext.aiTargetUnitId).toBeUndefined();
             expect(orders[0].abilityId).toBe('wait');
@@ -370,7 +374,7 @@ describe('DefensePointsAIController', () => {
                 units: [unit],
             });
 
-            DefensePointsAIController.executeTurn(unit, context);
+            runUnitAI(unit, DEFAULT_AI_TREE, context);
 
             expect(unit.aiContext.defensePointTargetId).toBeUndefined();
             expect(unit.movement).toBeNull();
@@ -393,7 +397,7 @@ describe('DefensePointsAIController', () => {
                 terrainManager: tm,
             });
 
-            DefensePointsAIController.executeTurn(aiUnit, context);
+            runUnitAI(aiUnit, DEFAULT_AI_TREE, context);
 
             expect(aiUnit.aiContext.defensePointTargetId).toBe('dp_1');
             expect(orders).toHaveLength(1);

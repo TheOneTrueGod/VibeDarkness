@@ -16,7 +16,7 @@ import { Effect } from '../../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { areEnemies } from '../../../engine/teams';
 import { createUnitFromSpawnConfig } from '../../../objects/units/index';
-import { buildResolvedTargets } from '../../../storylines/ai/utils';
+import { buildResolvedTargets } from '../../../objects/units/unitAI/utils';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 
@@ -68,6 +68,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
         minRange: 0,
         maxRange: 0,
         maxUsesPerRound: 1,
+        priority: 20,
     },
 
     getTooltipText(_gameState?: unknown): string[] {
@@ -129,6 +130,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
                 position: { x: spawnX, y: spawnY },
                 teamId: caster.teamId,
                 ownerId: caster.ownerId,
+                unitAITreeId: caster.unitAITreeId,
             };
 
             const wolf = createUnitFromSpawnConfig(config, eng.eventBus);

@@ -48,6 +48,12 @@ export interface UnitAIContext {
     sightRadius?: number;
     /** AlphaWolfBossAIController: unit ID of current prey for this round. */
     preyUnitId?: string;
+    /** UnitAITree: current node ID within the unit's AI tree. */
+    unitAINodeId?: string;
+    /** default_findLight: light source ID we are moving toward. */
+    findLightSourceId?: string;
+    /** default_findLight: gameTime when we finish idling at light. */
+    findLightIdleUntil?: number;
 }
 
 /** Movement state for a unit. */
@@ -135,6 +141,9 @@ export class Unit extends GameObject {
     /** Per-controller AI context bag (serialized via toJSON/fromJSON). */
     aiContext: UnitAIContext = {};
 
+    /** UnitAITree ID for AI-controlled units. Default 'default'. */
+    unitAITreeId: string = 'default';
+
     /** Optional tags (e.g. 'protectedByCrystal' when near a crystal; enemies cannot see the unit). Not serialized by default; mission logic can set. */
     tags: string[] = [];
 
@@ -172,6 +181,8 @@ export class Unit extends GameObject {
         name: string;
         abilities?: string[];
         aiSettings?: AISettings | null;
+        /** UnitAITree ID for AI. Default 'default'. */
+        unitAITreeId?: string;
         /** Visual/collision radius. Defaults to DEFAULT_UNIT_RADIUS. */
         radius?: number;
         /** Max Poise HP. Default 0 (no poise). */
@@ -187,6 +198,7 @@ export class Unit extends GameObject {
         this.name = config.name;
         this.abilities = config.abilities ?? [];
         this.aiSettings = config.aiSettings ?? null;
+        this.unitAITreeId = config.unitAITreeId ?? 'default';
         this.radius = config.radius ?? DEFAULT_UNIT_RADIUS;
         this.maxPoiseHp = config.maxPoiseHp ?? 0;
         this.poiseHp = this.maxPoiseHp;
@@ -627,6 +639,7 @@ export class Unit extends GameObject {
             pathfindingRetriggerOffset: this.pathfindingRetriggerOffset,
             pathInvalidated: this.pathInvalidated,
             aiContext: this.aiContext,
+            unitAITreeId: this.unitAITreeId,
             moveJitter: this.moveJitter,
             waitMinEndTime: this.waitMinEndTime,
             waitMaxEndTime: this.waitMaxEndTime,
@@ -681,6 +694,7 @@ export class Unit extends GameObject {
         unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
         unit.pathInvalidated = (data.pathInvalidated as boolean) ?? false;
         unit.aiContext = ((data.aiContext as UnitAIContext) ?? {}) as UnitAIContext;
+        unit.unitAITreeId = (data.unitAITreeId as string) ?? 'default';
         unit.moveJitter = (data.moveJitter as number) ?? 0;
         unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
         unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;

@@ -50,8 +50,8 @@ import {
 import type { SpecialTile } from '../objects/SpecialTile';
 import { isTileDefendPoint, specialTileToJSON, specialTileFromJSON } from '../objects/SpecialTile';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
-import { buildAIController } from '../storylines/ai';
-import type { AIContext } from '../storylines/ai';
+import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from '../objects/units/unitAI';
+import type { AIContext } from '../objects/units/unitAI';
 import { getLightGrid, type LightSource } from './LightGrid';
 import { getDeathEffectDef } from './unitDef';
 
@@ -486,9 +486,9 @@ export class GameEngine {
 
             // Periodic pathfinding retrigger for AI units
             if (unit.pathfindingRetriggerOffset > 0 && this.gameTick % unit.pathfindingRetriggerOffset === 0) {
-                const controller = buildAIController(this.aiControllerId);
-                if (controller.onPathfindingRetrigger) {
-                    controller.onPathfindingRetrigger(unit, this.buildAIContext());
+                const tree = getUnitAITree(unit.unitAITreeId);
+                if (tree) {
+                    runPathfindingRetrigger(unit, tree, this.buildAIContext());
                 }
             }
 
@@ -505,8 +505,10 @@ export class GameEngine {
             // AI units auto-act when cooldown finishes (no snapshot here; host saves only on player pause or player submit)
             if (!unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
                 this.runVictoryChecks(); // before turn
-                const controller = buildAIController(this.aiControllerId);
-                controller.executeTurn(unit, this.buildAIContext());
+                const tree = getUnitAITree(unit.unitAITreeId);
+                if (tree) {
+                    runUnitAI(unit, tree, this.buildAIContext());
+                }
             }
         }
 
@@ -707,8 +709,8 @@ export class GameEngine {
     }
 
     /** Light sources with id for AI (FindLight state). */
-    private getLightSourcesForAI(): import('../storylines/ai/types').AILightSource[] {
-        const out: import('../storylines/ai/types').AILightSource[] = [];
+    private getLightSourcesForAI(): import('../objects/units/unitAI').AILightSource[] {
+        const out: import('../objects/units/unitAI').AILightSource[] = [];
         for (const tile of this.specialTiles) {
             if (tile.hp <= 0) continue;
             const light = tile.emitsLight;
@@ -1333,6 +1335,7 @@ export class GameEngine {
                 for (let n = 0; n < count; n++) {
                     const pos = positions[idx] ?? { x: 40, y: 40 };
                     idx++;
+                    const unitAITreeId = this.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
                     const config = {
                         ...base,
                         ...entry,
@@ -1341,6 +1344,7 @@ export class GameEngine {
                         y: pos.y,
                         ownerId: 'ai' as const,
                         hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
+                        unitAITreeId,
                     };
                     const unit = createUnitFromSpawnConfig(config, this.eventBus);
                     this.addUnit(unit);
@@ -1436,6 +1440,7 @@ export class GameEngine {
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);
+                const unitAITreeId = this.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
                 const config = {
                     ...base,
                     ...entry,
@@ -1444,6 +1449,7 @@ export class GameEngine {
                     y: pos.y,
                     ownerId: 'ai' as const,
                     hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
+                    unitAITreeId,
                 };
                 const unit = createUnitFromSpawnConfig(config, this.eventBus);
                 this.addUnit(unit);
@@ -1566,6 +1572,7 @@ export class GameEngine {
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);
+                const unitAITreeId = this.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
                 const config = {
                     ...base,
                     ...entry,
@@ -1574,6 +1581,7 @@ export class GameEngine {
                     y: pos.y,
                     ownerId: 'ai' as const,
                     hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
+                    unitAITreeId,
                 };
                 const unit = createUnitFromSpawnConfig(config, this.eventBus);
                 this.addUnit(unit);

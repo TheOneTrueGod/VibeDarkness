@@ -116,6 +116,7 @@ export const AlphaWolfClawAbility: AbilityStatic = {
         minRange: getMinRange({} as Unit),
         maxRange: getMaxRange({ radius: 26 } as Unit),
         maxUsesPerRound: 2,
+        priority: 10,
     },
 
     getTooltipText(_gameState?: unknown): string[] {

@@ -116,9 +116,6 @@ function AppInner() {
     const lastMessageIdRef = useRef<number | null>(null);
     const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // Debug
-    const [debugGameState, setDebugGameState] = useState<GameStatePayload | null>(null);
-
     // WebRTC mesh for peer-to-peer events (e.g. Ping)
     const webRtcMeshRef = useRef<WebRtcLobbyMesh | null>(null);
     const [webRtcReady, setWebRtcReady] = useState(false);
@@ -373,8 +370,6 @@ function AppInner() {
         // Load chat history
         const history = (state.chatHistory ?? []) as MessageEntry[];
         setChatMessages(history);
-
-        setDebugGameState(state);
     }, []);
 
     // Initialize or dispose WebRTC mesh when lobby / player changes
@@ -667,7 +662,6 @@ function AppInner() {
                 const payload = gameState as unknown as GameStatePayload;
                 setLobbyGameId(payload.gameId ?? null);
                 setLobbyGameData(payload.game ?? null);
-                setDebugGameState(payload);
             } catch (error) {
                 showToast(
                     'Failed to start game: ' + (error instanceof Error ? error.message : 'Unknown error'),
@@ -779,15 +773,11 @@ function AppInner() {
                         flashingPlayerIds={flashingPlayerIds}
                     />
                     <DebugConsoleInGame
-                        lobbyPageState={lobbyPageState}
-                        lobbyGameType={lobbyGameType}
-                        lobbyGameData={lobbyGameData}
                         user={user}
                         role={role}
                         currentCampaignId={currentCampaignId}
                         lobbyClient={lobbyClient}
                         currentPlayer={currentPlayer}
-                        debugGameState={debugGameState}
                     />
                     </>
                 </GameSyncProvider>
@@ -817,37 +807,27 @@ function AppInner() {
     );
 }
 
-/** DebugConsole when in game - uses GameSyncContext for skip turn and effective in-battle state */
+/** DebugConsole when in game - uses GameSyncContext as single data source (same as GameScreen) */
 function DebugConsoleInGame({
-    lobbyPageState,
-    lobbyGameType,
-    lobbyGameData,
     user,
     role,
     currentCampaignId,
     lobbyClient,
     currentPlayer,
-    debugGameState,
 }: {
-    lobbyPageState: string;
-    lobbyGameType: string | null;
-    lobbyGameData: Record<string, unknown> | null;
     user: AccountState | null;
     role: string | null;
     currentCampaignId: string | null;
     lobbyClient: LobbyClient;
     currentPlayer: PlayerState;
-    debugGameState: GameStatePayload | null;
 }) {
     const gameSync = useGameSyncOptional();
-    const gameState = gameSync?.gameState ?? debugGameState;
+    const gameState = gameSync?.gameState ?? null;
     const skipCurrentTurn = gameSync?.skipCurrentTurn ?? null;
     const isHost = currentPlayer?.isHost ?? false;
-    // Use effective values from GameSyncContext (like GameScreen) so in-battle tabs appear
-    // immediately when phase changes, not only after next poll/refresh.
-    const effectivePageState = gameSync?.gameState?.lobbyState ?? lobbyPageState;
-    const effectiveGameType = gameSync?.gameState?.gameType ?? lobbyGameType;
-    const effectiveGameData = gameSync?.gameState?.game ?? lobbyGameData;
+    const effectivePageState = gameSync?.gameState?.lobbyState ?? 'home';
+    const effectiveGameType = gameSync?.gameState?.gameType ?? null;
+    const effectiveGameData = gameSync?.gameState?.game ?? null;
     const inBattle =
         effectivePageState === 'in_game' &&
         effectiveGameType === 'minion_battles' &&

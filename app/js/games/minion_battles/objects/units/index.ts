@@ -100,6 +100,7 @@ export function createUnitFromSpawnConfig(
         abilities?: string[];
         aiSettings?: import('../Unit').AISettings | null;
         radius?: number;
+        unitAITreeId?: string;
     },
     _eventBus: EventBus,
 ): Unit {
@@ -116,6 +117,7 @@ export function createUnitFromSpawnConfig(
         speed: config.speed,
         characterId: config.characterId,
         radius: config.radius ?? getDefaultRadius(config.characterId, DEFAULT_UNIT_RADIUS),
+        unitAITreeId: config.unitAITreeId,
     });
 
     if (config.aiSettings) {

@@ -130,7 +130,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 | **missions** | When creating or editing campaign missions. See `.cursor/skills/missions/SKILL.md`. |
 | **map-segments** | When creating reusable map segments for missions. See `.cursor/skills/map-segments/SKILL.md`. |
 | **working-on-minion-battles** | When working on anything called minion battles; work primarily in `app/js/games/minion_battles/`. See `.cursor/skills/working-on-minion-battles/SKILL.md`. |
-| **working-on-ai-controllers** | When adding or changing enemy unit AI (UnitAIController, mission AI). See `.cursor/skills/working-on-ai-controllers/SKILL.md`. |
+| **working-on-ai-controllers** | When adding or changing enemy unit AI (UnitAITree, AI nodes, mission AI). See `.cursor/skills/working-on-ai-controllers/SKILL.md` and `app/js/games/minion_battles/objects/units/unitAI/SKILL.md`. |
 | **game-sync-data-flow** | When working on battle sync, order submission, checkpoint saves, polling, desync recovery, or `GameSyncContext`. See `.cursor/skills/game-sync-data-flow/SKILL.md`. |
 
 ## Testing Locally
