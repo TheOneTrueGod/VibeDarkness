@@ -54,6 +54,8 @@ declare global {
         __minionBattlesDebugAutoFollowPausedUntil?: number;
         /** Live game tick from engine; DebugConsole polls this for up-to-date display. */
         __minionBattlesDebugGameTick?: number;
+        /** Live serialized engine state; DebugConsole Units tab polls this for up-to-date unit data. */
+        __minionBattlesDebugGameState?: Record<string, unknown> | null;
     }
 }
 
@@ -158,22 +160,27 @@ export default function BattlePhase({
             window.__minionBattlesDebugSetUnitHover = undefined;
             window.__minionBattlesDebugAutoFollowPausedUntil = undefined;
             window.__minionBattlesDebugGameTick = undefined;
+            window.__minionBattlesDebugGameState = undefined;
         };
         // Intentionally exclude refs from deps: we always want to use latest .current values.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Expose live game tick for DebugConsole Game State tab
+    // Expose live game tick and engine state for DebugConsole tabs
     useEffect(() => {
         const id = window.setInterval(() => {
-            const tick = engineRef.current?.gameTick;
-            if (typeof tick === 'number') {
-                window.__minionBattlesDebugGameTick = tick;
+            const engine = engineRef.current;
+            if (engine) {
+                if (typeof engine.gameTick === 'number') {
+                    window.__minionBattlesDebugGameTick = engine.gameTick;
+                }
+                window.__minionBattlesDebugGameState = engine.toJSON() as unknown as Record<string, unknown>;
             }
         }, 100);
         return () => {
             window.clearInterval(id);
             window.__minionBattlesDebugGameTick = undefined;
+            window.__minionBattlesDebugGameState = undefined;
         };
     }, []);
 

@@ -70,7 +70,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         col: WOLF_COL,
         row: WOLF_ROW,
         emitsLight: { lightAmount: 20, radius: 10 },
-        colorFilter: { color: 0x6633aa, alpha: 0.2, filterRadius: 3 },
+        colorFilter: { color: 0x6633aa, alpha: 0.35, filterRadius: 8 },
     },
     {
         defId: 'Campfire',
@@ -115,7 +115,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             options: [
                 {
                     id: 'claim_beastcore',
-                    label: 'Claim the BeastCore (2 Dodge, 2 Beast Claw)',
+                    label: 'Claim the BeastCore',
                     action: { type: 'equip_item', itemId: '014' },
                 },
             ],

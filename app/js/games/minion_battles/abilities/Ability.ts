@@ -122,7 +122,14 @@ export interface AbilityStatic {
      *
      * On the first tick, prevTime is 0.
      */
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void;
+    doCardEffect(
+        engine: unknown,
+        caster: Unit,
+        targets: ResolvedTarget[],
+        prevTime: number,
+        currentTime: number,
+        active?: import('../engine/types').ActiveAbility,
+    ): void;
 
     /**
      * Return a list of active ability states at the given elapsed time.

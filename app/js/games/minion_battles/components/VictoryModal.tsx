@@ -47,7 +47,7 @@ export default function VictoryModal({ missionRewards, onClose }: VictoryModalPr
                                             {itemDef.name}
                                         </p>
                                     </div>
-                                    <span className="text-xs text-muted">From mission start</span>
+                                    <span className="text-xs text-muted">From your choice</span>
                                 </div>
                             )}
                             {(resourceDelta.metal != null && resourceDelta.metal > 0) ||

@@ -1,5 +1,5 @@
 /**
- * Claw - Mage card. Dodge-like dash toward target with iframes.
+ * Claw - Warrior card. Dodge-like dash toward target with iframes.
  * Damages and knocks back any enemies the caster touches during the dash.
  */
 
@@ -22,7 +22,7 @@ import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import type { EventBus } from '../../engine/EventBus';
 import type { Effect as EffectType } from '../../objects/Effect';
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Mage)}01`;
+const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11`;
 const CLAW_DURATION = 0.4;
 const CLAW_MAX_DISTANCE = 160;
 const COLLISION_STEP = 4;
@@ -137,9 +137,11 @@ export const ClawAbility: AbilityStatic = {
             applyForcedDisplacementToward(engine, caster, pos.x, pos.y, moveDistance, { step: COLLISION_STEP });
         }
 
-        if (isAbilityNote(caster.abilityNote, CARD_ID)) {
+        if (isAbilityNote(caster.abilityNote, CARD_ID) && dirResult && dirResult.dist > 0) {
             const note = caster.abilityNote.abilityNote;
             const touchRadius = caster.radius;
+            const moveDirX = dirResult.dirX;
+            const moveDirY = dirResult.dirY;
 
             for (const unit of eng.units) {
                 if (!unit.active || !unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
@@ -167,12 +169,20 @@ export const ClawAbility: AbilityStatic = {
 
                 note.hitTargetIds.push(unit.id);
 
-                const dirX = dist > 0 ? dx / dist : 1;
-                const dirY = dist > 0 ? dy / dist : 0;
+                // Knockback perpendicular to movement. Cross product: moveDir x enemyVec = moveDirX*dy - moveDirY*dx
+                // > 0: enemy is to the left of movement → push left (-moveDirY, moveDirX)
+                // < 0: enemy is to the right → push right (moveDirY, -moveDirX)
+                const cross = moveDirX * dy - moveDirY * dx;
+                const perpX = cross > 0 ? -moveDirY : moveDirY;
+                const perpY = cross > 0 ? moveDirX : -moveDirX;
+                const perpLen = Math.sqrt(perpX * perpX + perpY * perpY);
+                const knockX = perpLen > 0 ? (perpX / perpLen) * KNOCKBACK_MAGNITUDE : KNOCKBACK_MAGNITUDE;
+                const knockY = perpLen > 0 ? (perpY / perpLen) * KNOCKBACK_MAGNITUDE : 0;
+
                 unit.applyKnockback(
                     POISE_DAMAGE,
                     {
-                        knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
+                        knockbackVector: { x: knockX, y: knockY },
                         knockbackAirTime: KNOCKBACK_AIR_TIME,
                         knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
                         knockbackSource: { unitId: caster.id, abilityId: CARD_ID },

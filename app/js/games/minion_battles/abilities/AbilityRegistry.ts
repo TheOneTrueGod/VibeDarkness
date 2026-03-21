@@ -27,7 +27,7 @@ import { SMGAbility } from '../card_defs/0204_SMG/0204Ability';
 import { ShotgunAbility } from '../card_defs/0205_Shotgun/0205Ability';
 import { ShiningBlockAbility } from '../card_defs/0110_ShiningBlock/0110Ability';
 import { BeastClawAbility } from '../card_defs/0511_BeastClaw/0511Ability';
-import { ClawAbility } from '../card_defs/0301_Claw/0301Ability';
+import { ClawAbility } from '../card_defs/0111_Claw/0111Ability';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
 

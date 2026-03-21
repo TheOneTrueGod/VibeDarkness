@@ -10,7 +10,7 @@ import type { AbilityStatic, AbilityStateEntry } from '../../../abilities/Abilit
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../objects/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
-import type { ResolvedTarget } from '../../../engine/types';
+import type { ResolvedTarget, ActiveAbility } from '../../../engine/types';
 import { asCardDefId, type CardDef } from '../../types';
 import { Effect } from '../../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
@@ -85,9 +85,16 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
         return [];
     },
 
-    doCardEffect(engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+    doCardEffect(
+        engine: unknown,
+        caster: Unit,
+        _targets: ResolvedTarget[],
+        prevTime: number,
+        currentTime: number,
+        active?: ActiveAbility,
+    ): void {
         if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
-
+        
         const eng = engine as GameEngineLike;
 
         eng.addEffect(

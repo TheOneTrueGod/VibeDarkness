@@ -122,4 +122,6 @@ export interface ActiveAbility {
     startTime: number;
     /** Resolved targets for this ability. */
     targets: ResolvedTarget[];
+    /** Set by one-shot abilities when their effect has fired (prevents duplicate triggers). */
+    fired?: boolean;
 }

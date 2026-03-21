@@ -198,9 +198,10 @@ export class GameEngine {
         );
         for (const c of darkCrystals) {
             const radius = c.colorFilter!.filterRadius;
+            const rSq = radius * radius;
             for (let dr = -radius; dr <= radius; dr++) {
                 for (let dc = -radius; dc <= radius; dc++) {
-                    if (Math.max(Math.abs(dc), Math.abs(dr)) > radius) continue;
+                    if (dc * dc + dr * dr > rSq) continue;
                     const col = c.col + dc;
                     const row = c.row + dr;
                     if (col < 0 || col >= grid.width || row < 0 || row >= grid.height) continue;
@@ -885,6 +886,10 @@ export class GameEngine {
             targets: targets.map((t) => ({ ...t })),
         });
 
+        // Track uses per round (for maxUsesPerRound AI constraint)
+        const key = `${unit.id}:${ability.id}`;
+        this.abilityUsesThisRound.set(key, (this.abilityUsesThisRound.get(key) ?? 0) + 1);
+
         // Emit event
         this.eventBus.emit('ability_used', {
             unitId: unit.id,
@@ -1018,7 +1023,7 @@ export class GameEngine {
                 const currentTime = this.gameTime - active.startTime;
                 const prevTime = currentTime - dt;
 
-                ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime);
+                ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime, active);
 
                 const totalDuration = getTotalAbilityDuration(ability);
                 if (currentTime >= totalDuration) {

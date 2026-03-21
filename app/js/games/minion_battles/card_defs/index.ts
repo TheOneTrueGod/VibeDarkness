@@ -21,7 +21,7 @@ import { SMGCard } from './0204_SMG/0204Ability';
 import { ShotgunCard } from './0205_Shotgun/0205Ability';
 import { ShiningBlockCard } from './0110_ShiningBlock/0110Ability';
 import { BeastClawCard } from './0511_BeastClaw/0511Ability';
-import { ClawCard } from './0301_Claw/0301Ability';
+import { ClawCard } from './0111_Claw/0111Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,

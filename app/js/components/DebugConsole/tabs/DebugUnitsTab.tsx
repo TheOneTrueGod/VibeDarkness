@@ -4,6 +4,7 @@ import { DebugButton } from '../DebugButton';
 
 interface MouseDebugBridge {
     __minionBattlesDebugSetUnitHover?: (unitId: string | null) => void;
+    __minionBattlesDebugGameState?: Record<string, unknown> | null;
 }
 
 interface DebugUnitsTabProps {
@@ -32,6 +33,8 @@ type DebugUnit = Record<string, unknown> & {
         [k: string]: unknown;
     };
     activeAbilities?: unknown[];
+    abilities?: string[];
+    abilityNote?: unknown;
     movement?: unknown;
 };
 
@@ -40,19 +43,37 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
     const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null);
     const [unitStateOpen, setUnitStateOpen] = useState(false);
     const [aiStateOpen, setAiStateOpen] = useState(false);
+    const [abilitiesOpen, setAbilitiesOpen] = useState(false);
 
     // Lazy-load portrait assets only when the user opens the Units debug tab.
     const [getPortraitFn, setGetPortraitFn] = useState<((id: string) => { picture: string } | undefined) | null>(null);
     const portraitUriCacheRef = useRef<Map<string, string>>(new Map());
 
+    // Lazy-load ability registry for ability names and metadata.
+    const [getAbilityFn, setGetAbilityFn] = useState<
+        ((id: string) => { name: string; cooldownTime: number; prefireTime: number } | undefined) | null
+    >(null);
+
+    // Poll live engine state when in battle so Units tab stays up to date
+    const [liveGameState, setLiveGameState] = useState<Record<string, unknown> | null>(null);
+    useEffect(() => {
+        if (!isActive || !inBattle) return;
+        const id = window.setInterval(() => {
+            const live = (window as unknown as MouseDebugBridge).__minionBattlesDebugGameState;
+            setLiveGameState(live ?? null);
+        }, 100);
+        return () => window.clearInterval(id);
+    }, [isActive, inBattle]);
+
     const units = useMemo(() => {
-        if (!gameState?.game) return [];
-        const raw = (gameState.game as unknown as { units?: unknown }).units;
+        const source = liveGameState ?? (gameState?.game as Record<string, unknown> | undefined);
+        if (!source) return [];
+        const raw = (source as { units?: unknown }).units;
         if (!Array.isArray(raw)) return [];
         return raw.filter(
             (u): u is DebugUnit => typeof u === 'object' && u !== null && typeof (u as any).id === 'string',
         );
-    }, [gameState]);
+    }, [gameState, liveGameState]);
 
     useEffect(() => {
         // When not in battle, units are irrelevant; clear selection and any hover highlight.
@@ -61,6 +82,7 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
             setHoveredUnitId(null);
             setUnitStateOpen(false);
             setAiStateOpen(false);
+            setAbilitiesOpen(false);
             (window as unknown as MouseDebugBridge).__minionBattlesDebugSetUnitHover?.(null);
             return;
         }
@@ -86,6 +108,17 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
                 setGetPortraitFn(null);
             });
     }, [inBattle, getPortraitFn, isActive]);
+
+    useEffect(() => {
+        if (!isActive || !inBattle || getAbilityFn) return;
+        void import('../../../games/minion_battles/abilities/AbilityRegistry')
+            .then((mod) => {
+                setGetAbilityFn(
+                    () => (mod as { getAbility: (id: string) => { name: string; cooldownTime: number; prefireTime: number } | undefined }).getAbility,
+                );
+            })
+            .catch(() => setGetAbilityFn(null));
+    }, [inBattle, getAbilityFn, isActive]);
 
     const getPortraitDataUri = useCallback(
         (characterId: unknown): string | null => {
@@ -121,13 +154,14 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
         // Collapse expanders when switching which unit is being inspected.
         setUnitStateOpen(false);
         setAiStateOpen(false);
+        setAbilitiesOpen(false);
     }, [selectedUnitId]);
 
     if (!isActive) return null;
 
     return (
-        <div className="flex flex-1 min-h-0 gap-3">
-            <div className="flex flex-col shrink-0 w-56 border-r border-border-custom pr-2 min-h-0">
+        <div className="flex flex-1 min-h-0 gap-3 h-full overflow-hidden">
+            <div className="flex flex-col shrink-0 w-56 border-r border-border-custom pr-2 min-h-0 overflow-hidden">
                 <div className="px-2 py-1 text-[11px] text-muted font-mono border-b border-border-custom">
                     Units ({units.length})
                 </div>
@@ -166,7 +200,7 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
                                         onClick={() => setSelectedUnitId(unitId)}
                                         title={name}
                                     >
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 min-w-0">
                                             <div className="w-6 h-6 rounded border border-border-custom bg-surface-light/20 overflow-hidden flex items-center justify-center shrink-0">
                                                 {portraitSrc ? (
                                                     <img src={portraitSrc} alt={name} className="w-6 h-6 block" />
@@ -176,7 +210,10 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
                                                     </span>
                                                 )}
                                             </div>
-                                            <span className="truncate">{name}</span>
+                                            <span className="truncate">
+                                                {name}{' '}
+                                                <span className="text-[11px] text-muted">({unitId})</span>
+                                            </span>
                                         </div>
                                     </button>
                                 );
@@ -186,7 +223,7 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
                 </div>
             </div>
 
-            <div className="flex-1 min-w-0 overflow-auto">
+            <div className="flex-1 min-w-0 overflow-auto min-h-0">
                 {!selectedUnit ? (
                     <p className="m-0 text-muted text-sm">Select a unit to inspect.</p>
                 ) : (
@@ -265,6 +302,79 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
                                     : '-'}
                             </span>
                         </div>
+
+                        <DebugButton onClick={() => setAbilitiesOpen((v) => !v)}>Abilities</DebugButton>
+                        {abilitiesOpen && (
+                            <div className="border border-border-custom rounded bg-surface-light/20 p-2 overflow-auto max-h-72">
+                                {(() => {
+                                    const abilityIds = Array.isArray(selectedUnit.abilities) ? (selectedUnit.abilities as string[]) : [];
+                                    const activeList = Array.isArray((selectedUnit as any).activeAbilities)
+                                        ? ((selectedUnit as any).activeAbilities as Array<{
+                                              abilityId: string;
+                                              startTime: number;
+                                              targets: unknown[];
+                                              fired?: boolean;
+                                          }>)
+                                        : [];
+                                    const activeMap = new Map(activeList.map((a) => [a.abilityId, a]));
+
+                                    return (
+                                        <div className="flex flex-col gap-3">
+                                            {abilityIds.length === 0 ? (
+                                                <p className="m-0 text-muted text-sm">No abilities.</p>
+                                            ) : (
+                                                <div className="flex flex-col gap-2">
+                                                    {abilityIds.map((abilityId) => {
+                                                        const def = getAbilityFn?.(abilityId);
+                                                        const active = activeMap.get(abilityId);
+                                                        return (
+                                                            <div
+                                                                key={abilityId}
+                                                                className="border-b border-border-custom/50 pb-2 last:border-0 last:pb-0"
+                                                            >
+                                                                <div className="font-mono text-xs font-semibold text-white">
+                                                                    {def?.name ?? abilityId}
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mt-1">
+                                                                    <span className="text-muted">status</span>
+                                                                    <span className="text-white">{active ? 'active' : 'ready'}</span>
+                                                                    {def && (
+                                                                        <>
+                                                                            <span className="text-muted">cooldownTime</span>
+                                                                            <span className="text-white">{def.cooldownTime}s</span>
+                                                                            <span className="text-muted">prefireTime</span>
+                                                                            <span className="text-white">{def.prefireTime}s</span>
+                                                                        </>
+                                                                    )}
+                                                                    {active && (
+                                                                        <>
+                                                                            <span className="text-muted">startTime</span>
+                                                                            <span className="text-white">{active.startTime.toFixed(2)}</span>
+                                                                            <span className="text-muted">fired</span>
+                                                                            <span className="text-white">{active.fired ? 'yes' : 'no'}</span>
+                                                                            <span className="text-muted">targets</span>
+                                                                            <span className="text-white">{JSON.stringify(active.targets)}</span>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            {(selectedUnit as any).abilityNote && (
+                                                <div className="mt-2 pt-2 border-t border-border-custom">
+                                                    <div className="text-muted text-xs">abilityNote</div>
+                                                    <pre className="m-0 font-mono text-xs text-white whitespace-pre-wrap break-all">
+                                                        {JSON.stringify((selectedUnit as any).abilityNote, null, 2)}
+                                                    </pre>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
 
                         <DebugButton onClick={() => setAiStateOpen((v) => !v)}>AI state</DebugButton>
                         {aiStateOpen && (

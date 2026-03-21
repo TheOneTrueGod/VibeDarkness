@@ -120,7 +120,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         col: CAVE_CAMPFIRE.col,
         row: CAVE_CAMPFIRE.row + BOTTOM_OFFSET_ROW,
         hp: 5,
-        emitsLight: { lightAmount: 10, radius: 8 },
+        emitsLight: { lightAmount: 20, radius: 8 },
     },
     {
         defId: 'Crystal',

@@ -1,6 +1,6 @@
 import type { ItemDef } from '../types';
 
-/** BeastCore: 2 Dodge, 2 Beast Claw. Reward from mission 004 (Monster). */
+/** BeastCore: 2 Dodge, 2 Beast Claw, 2 Claw. Reward from mission 004 (Monster). */
 export const beastCoreItem: ItemDef = {
     id: '014',
     name: 'BeastCore',
@@ -8,7 +8,7 @@ export const beastCoreItem: ItemDef = {
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
     cardsToAdd: [
         { cardId: '0101', count: 2 }, // Dodge
-        { cardId: '0511', count: 2 }, // Beast Claw
+        { cardId: '0111', count: 2 }, // Claw
     ],
     icon: '014_beast_core.svg',
 };

@@ -355,6 +355,7 @@ export default function MinionBattlesGame({
                             const missionDef = MISSION_MAP[missionId];
                             const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
                             void onRecordMissionResult?.(missionId, missionResult, undefined, grantKnowledgeKeys);
+                            setMissionRewards(null);
                             setVictoryModalOpen(true);
                         }
                     }}

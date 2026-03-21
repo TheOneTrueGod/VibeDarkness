@@ -124,8 +124,8 @@ export default function PostMissionStoryPhase({
                       }
                     : undefined;
 
-            const myEquipment = playerEquipmentByPlayer[playerId] ?? [];
-            const itemFromFirstChoice = myEquipment.includes('005') ? '005' : undefined;
+            const itemFromFirstChoice =
+                action?.type === 'equip_item' && action.itemId ? action.itemId : undefined;
 
             onComplete({
                 resourceDelta: resourceDelta ?? undefined,

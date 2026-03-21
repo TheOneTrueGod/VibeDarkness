@@ -14,6 +14,7 @@ import {
     getEnemiesInPerceptionAndLOS,
     applyAIMovementToUnit,
     buildResolvedTargets,
+    tryQueueAbilityOrder,
     queueWaitAndEndTurn,
 } from './utils';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -66,6 +67,24 @@ export const AlphaWolfBossAIController: UnitAIController = {
         );
 
         if (inSight.length === 0) {
+            queueWaitAndEndTurn(unit, context);
+            return;
+        }
+
+        // Summoned wolves (dark_wolf) and other non-Alpha units use their own abilities, not boss abilities.
+        if (unit.characterId !== 'alpha_wolf') {
+            if (unit.aiSettings && context.terrainManager) {
+                const combatTarget = inSight[0]!;
+                unit.aiContext = { ...unit.aiContext, aiTargetUnitId: combatTarget.id };
+                applyAIMovementToUnit(unit, combatTarget, {
+                    findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
+                    worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
+                    gameTick: context.gameTick,
+                    worldWidth: context.WORLD_WIDTH,
+                    worldHeight: context.WORLD_HEIGHT,
+                });
+            }
+            if (tryQueueAbilityOrder(unit, context, inSight)) return;
             queueWaitAndEndTurn(unit, context);
             return;
         }
@@ -129,9 +148,20 @@ export const AlphaWolfBossAIController: UnitAIController = {
     },
 
     onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-        const prey = pickOrGetPrey(unit, context);
-        if (!prey?.isAlive() || !unit.aiSettings || !context.terrainManager) return;
-        applyAIMovementToUnit(unit, prey, {
+        const enemies = findEnemies(unit, context.getUnits());
+        const sightRadius = getSightRadius(unit);
+        const inSight = getEnemiesInPerceptionAndLOS(
+            unit,
+            enemies,
+            sightRadius,
+            context.hasLineOfSight.bind(context),
+        );
+        const target =
+            unit.characterId === 'alpha_wolf'
+                ? pickOrGetPrey(unit, context)
+                : inSight[0] ?? null;
+        if (!target?.isAlive() || !unit.aiSettings || !context.terrainManager) return;
+        applyAIMovementToUnit(unit, target, {
             findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
             worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
             gameTick: context.gameTick,
