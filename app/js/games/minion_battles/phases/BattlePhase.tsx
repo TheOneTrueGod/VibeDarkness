@@ -324,6 +324,7 @@ export default function BattlePhase({
                 eventBus: engine.eventBus,
                 terrainManager,
                 equippedItemsByPlayer,
+                playerResearchTreesByPlayer,
             });
             engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
         }

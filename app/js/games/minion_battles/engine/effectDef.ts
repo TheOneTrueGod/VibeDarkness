@@ -36,8 +36,8 @@ const defaultEffectDef: IEffectDef = {
     },
 };
 
-/** Bash effect: 9-pointed star with left-to-right gradient fill, black border, grows over duration. */
-const bashEffectDef: IEffectDef = {
+/** Punch effect: 9-pointed star with left-to-right gradient fill, black border, grows over duration. */
+const punchEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
         return new Graphics();
     },
@@ -247,7 +247,7 @@ const bulletTrailEffectDef: IEffectDef = {
 /** Light cyan color for laser/slash effects. */
 const LASER_CYAN = 0x7fdfef;
 
-/** Slashing sword impact: 9-pointed star like bash but light cyan, grows over duration. */
+/** Slashing sword impact: 9-pointed star like punch but light cyan, grows over duration. */
 const slashingSwordEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
         return new Graphics();
@@ -367,6 +367,48 @@ const afterimageEffectDef: IEffectDef = {
     },
 };
 
+/** Cone flash: teal cone wedge that fades out. effectData: centerAngle, halfArcRad, innerR, outerR. */
+const CONE_FLASH_TEAL = 0x27d3c8; // crystal colour
+
+const coneFlashEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const data = effect.effectData as {
+            centerAngle?: number;
+            halfArcRad?: number;
+            innerR?: number;
+            outerR?: number;
+        };
+        const centerAngle = data.centerAngle ?? 0;
+        const halfArcRad = data.halfArcRad ?? Math.PI / 3;
+        const innerR = data.innerR ?? 0;
+        const outerR = data.outerR ?? 200;
+        const progress = effect.progress;
+        const alpha = Math.max(0, 0.2 * (1 - progress)); // 80% transparent, fade out over duration
+
+        const startAngle = centerAngle - halfArcRad;
+        const arcRad = halfArcRad * 2;
+        const segments = 24;
+        g.moveTo(innerR * Math.cos(startAngle), innerR * Math.sin(startAngle));
+        for (let i = 1; i <= segments; i++) {
+            const t = i / segments;
+            const a = startAngle + t * arcRad;
+            g.lineTo(outerR * Math.cos(a), outerR * Math.sin(a));
+        }
+        for (let i = segments - 1; i >= 0; i--) {
+            const t = i / segments;
+            const a = startAngle + t * arcRad;
+            g.lineTo(innerR * Math.cos(a), innerR * Math.sin(a));
+        }
+        g.lineTo(innerR * Math.cos(startAngle), innerR * Math.sin(startAngle));
+        g.fill({ color: CONE_FLASH_TEAL, alpha });
+    },
+};
+
 /** Charged rock explosion: solid teal circle that shrinks to 50% size over lifetime. */
 const chargedRockExplosionEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
@@ -445,7 +487,8 @@ const pulseEffectDef: IEffectDef = {
 const effectDefRegistry: Record<string, IEffectDef> = {
     default: defaultEffectDef,
     Afterimage: afterimageEffectDef,
-    bash: bashEffectDef,
+    punch: punchEffectDef,
+    ConeFlash: coneFlashEffectDef,
     Pulse: pulseEffectDef,
     bite: biteEffectDef,
     CorruptionOrb: corruptionOrbEffectDef,

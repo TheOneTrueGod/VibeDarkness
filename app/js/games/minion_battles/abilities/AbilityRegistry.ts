@@ -12,7 +12,7 @@ import { ThrowKnife } from '../card_defs/0109_ThrowKnife/0109Ability';
 import { DodgeAbility } from '../card_defs/0101_Dodge/0101Ability';
 import { EnemyArcherShotAbility } from '../card_defs/0001_EnemyArcherShot/0001Ability';
 import { EnemyMeleeAttackAbility } from '../card_defs/0002_EnemyMeleeAttack/0002Ability';
-import { BashAbility } from '../card_defs/0102_Bash/0102Ability';
+import { PunchAbility } from '../card_defs/0102_Punch/0102Ability';
 import { SwingBatAbility } from '../card_defs/0103_SwingBat/0103Ability';
 import { LaserSwordAbility } from '../card_defs/0105_LaserSword/0105Ability';
 import { DarkWolfBiteAbility } from '../card_defs/dark_animals/0003_DarkWolfBite/0003Ability';
@@ -25,6 +25,7 @@ import { ThrowTorchAbility } from '../card_defs/0501_ThrowTorch/0501Ability';
 import { PistolAbility } from '../card_defs/0203_Pistol/0203Ability';
 import { SMGAbility } from '../card_defs/0204_SMG/0204Ability';
 import { ShotgunAbility } from '../card_defs/0205_Shotgun/0205Ability';
+import { ShiningBlockAbility } from '../card_defs/0110_ShiningBlock/0110Ability';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
 
@@ -42,7 +43,7 @@ register(ThrowChargedRock);
 register(DodgeAbility);
 register(EnemyArcherShotAbility);
 register(EnemyMeleeAttackAbility);
-register(BashAbility);
+register(PunchAbility);
 register(SwingBatAbility);
 register(LaserSwordAbility);
 register(DarkWolfBiteAbility);
@@ -55,6 +56,7 @@ register(ThrowTorchAbility);
 register(PistolAbility);
 register(SMGAbility);
 register(ShotgunAbility);
+register(ShiningBlockAbility);
 
 /** Look up an ability by its ID. */
 export function getAbility(id: string): AbilityStatic | undefined {

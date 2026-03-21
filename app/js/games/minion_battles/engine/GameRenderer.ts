@@ -19,6 +19,7 @@ import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainRenderer } from '../terrain/TerrainRenderer';
 import { renderUnit, updateUnitHpBar, getBodyColor, type IUnitRenderContext } from './unitDef';
+import { getBuffVisualRenderer } from '../buffs/buffVisuals';
 import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from './effectDef';
 import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from './effectImages';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
@@ -436,7 +437,7 @@ export class GameRenderer {
             if (this.darknessOverlaySprite) this.darknessOverlaySprite.visible = false;
         }
 
-        this.renderUnits(engine.units);
+        this.renderUnits(engine);
         this.renderCrystalAura(engine);
         this.renderSpecialTiles(engine.specialTiles);
         this.renderMoveTargets(engine.units);
@@ -562,9 +563,11 @@ export class GameRenderer {
         };
     }
 
-    private renderUnits(units: Unit[]): void {
+    private renderUnits(engine: GameEngine): void {
+        const units = engine.units;
         const context = this.getUnitRenderContext();
         const cellSize = CELL_SIZE;
+        const gameTime = engine.gameTime;
         for (const unit of units) {
             let visual = this.unitVisuals.get(unit.id);
             if (!visual) {
@@ -652,6 +655,25 @@ export class GameRenderer {
                 corruptionBar.stroke({ color: 0x9966cc, width: 1 });
             } else {
                 if (corruptionBar) corruptionBar.visible = false;
+            }
+
+            // Buff effects: each buff renders its own visual (e.g. stunned stars)
+            let buffEffects = visual.children.find((c) => c.label === 'buffEffects') as Graphics | undefined;
+            if (unit.buffs.length > 0 && !inFullDarkness) {
+                if (!buffEffects) {
+                    buffEffects = new Graphics();
+                    buffEffects.label = 'buffEffects';
+                    visual.addChild(buffEffects);
+                }
+                buffEffects.visible = true;
+                buffEffects.clear();
+                const buffCtx = { gameTime };
+                for (const buff of unit.buffs) {
+                    const renderer = getBuffVisualRenderer(buff._type);
+                    renderer(buffEffects, unit, buff, buffCtx);
+                }
+            } else {
+                if (buffEffects) buffEffects.visible = false;
             }
         }
     }

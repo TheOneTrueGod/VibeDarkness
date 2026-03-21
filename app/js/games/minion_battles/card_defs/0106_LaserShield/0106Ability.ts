@@ -138,7 +138,7 @@ export const LaserShieldAbility: AbilityStatic = {
         // Not used; we are the blocker, not the attacker.
     },
 
-    onBlockSuccess(engine: unknown, defender: Unit): void {
+    onBlockSuccess(engine: unknown, defender: Unit, _attackInfo: AttackBlockedInfo): void {
         if (!defender.ownerId) return;
         const note = defender.abilityNote;
         if (!isAbilityNote(note, '0106')) return;

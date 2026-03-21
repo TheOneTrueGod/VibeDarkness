@@ -2,7 +2,7 @@
  * Swing Bat - Warrior melee ability.
  *
  * Thick line perpendicular to the aim direction, at a distance between min and max range.
- * Hits the enemy closest to the left end of the line. Wind up 0.2s, bash effect to centre of line,
+ * Hits the enemy closest to the left end of the line. Wind up 0.2s, punch effect to centre of line,
  * damage + knockback (poise check). Line thickness 26, swing length 80.
  */
 
@@ -155,7 +155,7 @@ export const SwingBatAbility: AbilityStatic = {
             x: line.rightX,
             y: line.rightY,
             duration: SWING_BAT_EFFECT_DURATION,
-            effectType: 'bash',
+            effectType: 'punch',
             startX: line.leftX,
             startY: line.leftY,
         }));

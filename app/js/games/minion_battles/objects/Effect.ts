@@ -30,7 +30,7 @@ export class Effect extends GameObject {
         y: number;
         duration: number;
         effectType: string;
-        /** Start position for traveling effects (e.g. bash). */
+        /** Start position for traveling effects (e.g. punch). */
         startX?: number;
         startY?: number;
         /** Optional radius for size-dependent effects (e.g. bite). */

@@ -6,7 +6,7 @@ import { ThrowKnifeCard } from './0109_ThrowKnife/0109Ability';
 import { DodgeCard } from './0101_Dodge/0101Ability';
 import { EnemyArcherShotCard } from './0001_EnemyArcherShot/0001Ability';
 import { EnemyMeleeAttackCard } from './0002_EnemyMeleeAttack/0002Ability';
-import { BashCard } from './0102_Bash/0102Ability';
+import { PunchCard } from './0102_Punch/0102Ability';
 import { SwingBatCard } from './0103_SwingBat/0103Ability';
 import { LaserSwordCard } from './0105_LaserSword/0105Ability';
 import { DarkWolfBiteCard } from './dark_animals/0003_DarkWolfBite/0003Ability';
@@ -19,6 +19,7 @@ import { ThrowTorchCard } from './0501_ThrowTorch/0501Ability';
 import { PistolCard } from './0203_Pistol/0203Ability';
 import { SMGCard } from './0204_SMG/0204Ability';
 import { ShotgunCard } from './0205_Shotgun/0205Ability';
+import { ShiningBlockCard } from './0110_ShiningBlock/0110Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -27,7 +28,7 @@ const cardDefs: CardDef[] = [
     DodgeCard,
     EnemyArcherShotCard,
     EnemyMeleeAttackCard,
-    BashCard,
+    PunchCard,
     SwingBatCard,
     LaserSwordCard,
     DarkWolfBiteCard,
@@ -40,6 +41,7 @@ const cardDefs: CardDef[] = [
     PistolCard,
     SMGCard,
     ShotgunCard,
+    ShiningBlockCard,
 ];
 
 /** Map card ID -> card definition for resolving hands (arrays of card IDs) to card data. */

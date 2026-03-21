@@ -7,6 +7,48 @@ import type { Unit } from '../objects/Unit';
 import type { AttackBlockedInfo } from './Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../engine/forceMove';
+import { Effect } from '../objects/Effect';
+
+/** Options for CrystalLightEffect. Brief invisible light that decays over time. */
+export interface CrystalLightEffectOptions {
+    lightAmount?: number;
+    radius?: number;
+    decayRate?: number;
+    decayInterval?: number;
+}
+
+const DEFAULT_LIGHT_AMOUNT = 10;
+const DEFAULT_RADIUS = 4;
+const DEFAULT_DECAY_RATE = 1;
+const DEFAULT_DECAY_INTERVAL = 0.25;
+
+/**
+ * Create a brief light source with no visuals (e.g. charged crystal, Shining Block retaliation).
+ * Uses Torch effect with showVisual: false and decayRate/decayInterval for gradual fade.
+ */
+export function createCrystalLightEffect(
+    x: number,
+    y: number,
+    options: CrystalLightEffectOptions = {},
+): Effect {
+    const lightAmount = options.lightAmount ?? DEFAULT_LIGHT_AMOUNT;
+    const radius = options.radius ?? DEFAULT_RADIUS;
+    const decayRate = options.decayRate ?? DEFAULT_DECAY_RATE;
+    const decayInterval = options.decayInterval ?? DEFAULT_DECAY_INTERVAL;
+    return new Effect({
+        x,
+        y,
+        duration: 999,
+        effectType: 'Torch',
+        effectData: {
+            lightAmount,
+            radius,
+            decayRate,
+            decayInterval,
+            showVisual: false,
+        },
+    });
+}
 
 /**
  * Find the nearest alive ally (same team, not self) to the caster.

@@ -8,6 +8,7 @@ import type { ResolvedTarget } from '../../engine/types';
 import type { Unit } from '../../objects/Unit';
 import { Projectile } from '../../objects/Projectile';
 import { Effect } from '../../objects/Effect';
+import { createCrystalLightEffect } from '../../abilities/effectHelpers';
 import { areEnemies } from '../../engine/teams';
 import type { EventBus } from '../../engine/EventBus';
 import { asCardDefId, type CardDef } from '../types';
@@ -209,22 +210,7 @@ export const ThrowChargedRock: AbilityStatic = {
             }),
         );
 
-        // Leave behind a light source: 10 light, radius 5, decay 2 per 0.25 rounds
-        eng.addEffect(
-            new Effect({
-                x: projectile.x,
-                y: projectile.y,
-                duration: 999,
-                effectType: 'Torch',
-                effectData: {
-                    lightAmount: 10,
-                    radius: 4,
-                    decayRate: 1,
-                    decayInterval: 0.25,
-                    showVisual: false,
-                },
-            }),
-        );
+        eng.addEffect(createCrystalLightEffect(projectile.x, projectile.y));
 
         const units = eng
             .getUnits()

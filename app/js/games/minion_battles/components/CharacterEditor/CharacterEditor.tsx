@@ -20,6 +20,7 @@ import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
 import ResearchTreePanel from '../ResearchTreePanel';
 import type { AccountState, CampaignState } from '../../../../types';
+import { getCoreFromEquipment } from '../../character_defs/items';
 import { RESEARCH_TREES } from '../../../../researchTrees/list';
 import {
     canResearchNode,
@@ -284,6 +285,7 @@ export default function CharacterEditor({
                 if (req.type === 'accountKnowledge') return !!ctx.account.knowledge?.[req.key];
                 if (req.type === 'campaignResourceMin') return (ctx.campaignResources[req.resource] ?? 0) >= req.min;
                 if (req.type === 'characterHasEquippedItem') return ctx.character.equipment.includes(req.itemId);
+                if (req.type === 'characterHasCore') return getCoreFromEquipment(ctx.character.equipment) !== null;
                 if (req.type === 'characterHasTrait') return ctx.character.traits.includes(req.trait);
                 if (req.type === 'notResearched') {
                     const set = new Set(ctx.character.researchTrees?.[req.treeId] ?? []);

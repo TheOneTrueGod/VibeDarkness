@@ -27,6 +27,8 @@ export type UnitFactoryConfig = {
     abilities?: string[];
     /** Override default HP for this unit. Uses getDefaultHp(characterId) when not set. */
     hp?: number;
+    /** Override max HP (e.g. from research). Defaults to hp when not set. */
+    maxHp?: number;
     /** Override default speed for this unit. Uses getDefaultSpeed(characterId) when not set. */
     speed?: number;
 };
@@ -41,13 +43,14 @@ export function createUnitByCharacterId(
     eventBus: EventBus,
 ): Unit {
     const hp = config.hp ?? getDefaultHp(characterId);
+    const maxHp = config.maxHp ?? hp;
     const speed = config.speed ?? getDefaultSpeed(characterId);
     const radius = getDefaultRadius(characterId, DEFAULT_UNIT_RADIUS);
 
     const unit = new Unit({
         ...config,
         hp,
-        maxHp: hp,
+        maxHp,
         speed,
         characterId,
         radius,

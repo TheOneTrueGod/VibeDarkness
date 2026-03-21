@@ -1,6 +1,6 @@
 import type { ItemDef } from '../types';
 
-/** BasicCore: 3 Bash, 2 Dodge. One weapon slot, one utility slot. Default for World of Darkness. */
+/** BasicCore: 3 Punch, 2 Dodge. One weapon slot, one utility slot. Default for World of Darkness. */
 export const coreBasicItem: ItemDef = {
     id: '004',
     name: 'BasicCore',

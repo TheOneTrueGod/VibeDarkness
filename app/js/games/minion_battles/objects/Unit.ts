@@ -13,13 +13,17 @@ import type { AbilityNote } from '../engine/AbilityNote';
 import type { Resource } from '../resources/Resource';
 import type { EventBus } from '../engine/EventBus';
 import { getAbility } from '../abilities/AbilityRegistry';
-import { AbilityState } from '../abilities/Ability';
+import { AbilityState, refundAbilityCost } from '../abilities/Ability';
+import type { Buff, BuffSerialized } from '../buffs/Buff';
+import { buffFromJSON } from '../buffs/buffRegistry';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { computeForcedDisplacement } from '../engine/forceMove';
 import { DEFAULT_UNIT_RADIUS } from '../constants/unitConstants';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
+import { getDefaultHp } from '../engine/unitDef';
+import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
 
 /** AI behavior settings for enemy units. */
 export interface AISettings {
@@ -148,6 +152,9 @@ export class Unit extends GameObject {
     /** Active knockback state; unit cannot move while set. */
     knockback: KnockbackState | null = null;
 
+    /** Active buffs/debuffs on this unit. Serialized for checkpoints. */
+    buffs: Buff[] = [];
+
     constructor(config: {
         id?: string;
         x: number;
@@ -208,6 +215,17 @@ export class Unit extends GameObject {
     /** Whether this unit is alive. */
     isAlive(): boolean {
         return this.hp > 0 && this.active;
+    }
+
+    /**
+     * Calculate max health from unit def base + health-affecting research.
+     * Loops through RESEARCH_HEALTH_BONUSES for each researched node.
+     * @param getResearchNodes Callback (treeId) => researched node IDs for this unit's owner.
+     */
+    calculateMaxHealth(getResearchNodes: (treeId: string) => string[]): number {
+        const base = getDefaultHp(this.characterId);
+        const bonus = getHealthBonusFromResearch(getResearchNodes);
+        return base + bonus;
     }
 
     /** Apply damage to this unit. Returns actual damage dealt. */
@@ -335,7 +353,12 @@ export class Unit extends GameObject {
     }
 
     update(dt: number, engine: unknown): void {
-        const gameTime = (engine as { gameTime: number }).gameTime;
+        const eng = engine as { gameTime: number; roundNumber: number };
+        const gameTime = eng.gameTime;
+        const roundNumber = eng.roundNumber ?? 1;
+
+        // Expire buffs
+        this.buffs = this.buffs.filter((b) => !b.isExpired(gameTime, roundNumber));
 
         // Decrement cooldown
         if (this.cooldownRemaining > 0) {
@@ -525,7 +548,34 @@ export class Unit extends GameObject {
 
     /** Whether the unit's cooldown has finished and it can act. */
     canAct(): boolean {
-        return this.cooldownRemaining <= 0 && this.isAlive() && !this.isInKnockback();
+        return (
+            this.cooldownRemaining <= 0 &&
+            this.isAlive() &&
+            !this.isInKnockback() &&
+            !this.hasBuff('stunned')
+        );
+    }
+
+    /** Fast check: does this unit have a buff of the given type? */
+    hasBuff(buffType: string): boolean {
+        return this.buffs.some((b) => b._type === buffType);
+    }
+
+    /** Add a buff to this unit. Caller sets appliedAtTime/appliedAtRound on the buff. */
+    addBuff(buff: Buff, gameTime: number, roundNumber: number): void {
+        buff.appliedAtTime = gameTime;
+        buff.appliedAtRound = roundNumber;
+        this.buffs.push(buff);
+    }
+
+    /** Interrupt all active abilities (e.g. when stunned). Refunds resource costs. */
+    interruptAllAbilities(): void {
+        for (const active of this.activeAbilities) {
+            const ability = getAbility(active.abilityId);
+            if (ability) refundAbilityCost(this, ability);
+        }
+        this.activeAbilities = [];
+        this.clearAbilityNote();
     }
 
     /** Set cooldown after using an ability. */
@@ -586,6 +636,7 @@ export class Unit extends GameObject {
                 knockbackElapsed: this.knockback.knockbackElapsed,
             } : null,
             resources: this.resources.map((r) => r.toJSON()),
+            buffs: this.buffs.map((b) => b.toJSON()),
         };
     }
 
@@ -644,6 +695,9 @@ export class Unit extends GameObject {
         }
         unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
         unit.abilityNote = (data.abilityNote as AbilityNote | null) ?? null;
+
+        const buffsData = (data.buffs as BuffSerialized[] | undefined) ?? [];
+        unit.buffs = buffsData.map((b) => buffFromJSON(b));
 
         // Resources are reattached by the unit subclass factory
         return unit;

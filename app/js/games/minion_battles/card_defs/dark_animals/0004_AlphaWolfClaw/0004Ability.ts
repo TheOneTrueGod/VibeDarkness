@@ -1,6 +1,6 @@
 /**
  * AlphaWolfClaw - Alpha Wolf boss melee ability.
- * Hits in a square in front of the caster. 0.8s windup, bash effect, moderate knockback.
+ * Hits in a square in front of the caster. 0.8s windup, punch effect, moderate knockback.
  * Damage similar to wolf bite. Max 2 uses per round.
  */
 
@@ -158,7 +158,7 @@ export const AlphaWolfClawAbility: AbilityStatic = {
                 x: centerX + (corners[2]!.x - centerX) * 0.5,
                 y: centerY + (corners[2]!.y - centerY) * 0.5,
                 duration: CLAW_EFFECT_DURATION,
-                effectType: 'bash',
+                effectType: 'punch',
                 startX: corners[0]!.x,
                 startY: corners[0]!.y,
             }),

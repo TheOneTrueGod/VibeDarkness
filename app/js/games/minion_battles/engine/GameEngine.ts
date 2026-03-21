@@ -25,7 +25,7 @@ import { asCardDefId, getCardDef } from '../card_defs';
 import type { CardDefId } from '../card_defs';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
-import { type TeamId, areAllies, areEnemies } from './teams';
+import { areAllies, areEnemies } from './teams';
 import { Rage } from '../resources/Rage';
 import { Mana } from '../resources/Mana';
 import type { Resource } from '../resources/Resource';
@@ -34,7 +34,7 @@ import type {
     LevelEvent,
     LevelEventSpawnWave,
     LevelEventVictoryCheck,
-    type VictoryCondition,
+    VictoryCondition,
     LevelEventContinuousSpawn,
 } from '../storylines/types';
 import { getEdgePositions } from '../storylines/edgeSpawns';

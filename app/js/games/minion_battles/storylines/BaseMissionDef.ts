@@ -19,6 +19,8 @@ import { createCardInstance, MAX_HAND_SIZE } from '../engine/GameEngine';
 import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
+import { getDefaultHp } from '../engine/unitDef';
+import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
 
 const PLAYER_APPEARANCE_CHARACTER_IDS: readonly CharacterId[] = ['warrior', 'mage', 'ranger', 'healer'];
 
@@ -41,6 +43,8 @@ export interface InitializeGameStateParams {
     terrainManager?: import('../terrain/TerrainManager').TerrainManager | null;
     /** Item IDs equipped per player (e.g. from pre-mission story choices); add cards to deck. */
     equippedItemsByPlayer?: Record<string, string[]>;
+    /** Player research trees (playerId -> treeId -> researched node ids). Used for max health etc. */
+    playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
 }
 
 /** Mission definition extending MissionBattleConfig with initializeGameState. */
@@ -131,6 +135,13 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 spawnY = sp.row * cellSize + cellSize / 2;
             }
 
+            const appearanceCharacterId = getAppearanceCharacterId(pu.portraitId);
+            const researchByPlayer = params.playerResearchTreesByPlayer ?? {};
+            const getResearchNodes = (treeId: string) =>
+                researchByPlayer[pu.playerId]?.[treeId] ?? [];
+            const baseHp = getDefaultHp(appearanceCharacterId);
+            const healthBonus = getHealthBonusFromResearch(getResearchNodes);
+            const maxHp = baseHp + healthBonus;
             const unit = createPlayerUnit(
                 {
                     x: spawnX,
@@ -139,7 +150,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     ownerId: pu.playerId,
                     name: pu.name,
                     abilities,
-                    appearanceCharacterId: getAppearanceCharacterId(pu.portraitId),
+                    appearanceCharacterId,
+                    hp: maxHp,
+                    maxHp,
                 },
                 params.eventBus,
             );

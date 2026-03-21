@@ -265,7 +265,7 @@ export default function CardHand({
                         const isHovered = hoveredCardId === card.instanceId;
                         const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
                         const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
-                        const isActive = activeHandIndex >= 0 && index === activeHandIndex;
+                        const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
 
                         return (
                             <CardComponent

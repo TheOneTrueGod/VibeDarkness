@@ -210,9 +210,9 @@ export interface AbilityStatic {
 
     /**
      * Optional. Called on the blocking ability when it successfully blocks an attack.
-     * Receives the engine and the defender (unit holding the shield). Use to e.g. draw a card.
+     * Receives the engine, defender (unit holding the shield), and attackInfo (includes attackSourceX/Y for retaliation direction).
      */
-    onBlockSuccess?(engine: unknown, defender: Unit): void;
+    onBlockSuccess?(engine: unknown, defender: Unit, attackInfo: AttackBlockedInfo): void;
 }
 
 /** Information about an attack that was blocked. */
@@ -222,6 +222,9 @@ export interface AttackBlockedInfo {
     projectile?: unknown;
     /** Unit ID of the attacker. */
     sourceUnitId?: string;
+    /** World position of the attack source (projectile position or attacker position). Used for retaliation direction. */
+    attackSourceX?: number;
+    attackSourceY?: number;
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { AccountState, CampaignResources } from '../types';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
+import { getCoreFromEquipment } from '../games/minion_battles/character_defs/items';
 import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect } from './types';
 
 export interface ResearchContext {
@@ -53,6 +54,8 @@ export function meetsRequirement(req: Requirement, ctx: ResearchContext, researc
             return (ctx.campaignResources[req.resource] ?? 0) >= req.min;
         case 'characterHasEquippedItem':
             return ctx.character.equipment.includes(req.itemId);
+        case 'characterHasCore':
+            return getCoreFromEquipment(ctx.character.equipment) !== null;
         case 'characterHasTrait':
             return ctx.character.traits.includes(req.trait);
         case 'notResearched': {

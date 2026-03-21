@@ -7,6 +7,7 @@ export type Requirement =
     | { type: 'accountKnowledge'; key: string }
     | { type: 'campaignResourceMin'; resource: CampaignResourceKey; min: number }
     | { type: 'characterHasEquippedItem'; itemId: string }
+    | { type: 'characterHasCore' }
     | { type: 'characterHasTrait'; trait: string }
     | { type: 'notResearched'; treeId: string; nodeId: string };
 

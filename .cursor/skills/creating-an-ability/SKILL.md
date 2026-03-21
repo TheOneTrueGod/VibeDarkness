@@ -87,7 +87,7 @@ Implement the rest of `AbilityStatic` (e.g. `getDescription`, `getAbilityStates`
 
 - **`onAttackBlocked(engine, defender, attackInfo)`** — **Required** on every ability. Called on **this** ability when **its** attack is blocked by a blocking ability (e.g. Raise Shield). Each ability implements the behaviour when its attack is blocked:
   - **Projectile abilities** (Throw Knife, Throw Rock, Enemy Archer Shot): in `onAttackBlocked`, set `attackInfo.projectile.active = false` to destroy the projectile; no damage is dealt.
-  - **Melee abilities** (Bash, Swing Bat, Enemy Melee): no-op; no damage is dealt.
+  - **Melee abilities** (Punch, Swing Bat, Enemy Melee): no-op; no damage is dealt.
   - **Charging abilities** (e.g. Dark Wolf Bite): get the attacker via `engine.getUnit(attackInfo.sourceUnitId)`, apply knockback to the attacker (direction from defender to attacker), and call `attacker.clearAbilityNote()` so the lunge stops; the attack is not refunded.
 - **Blocking abilities** (e.g. Raise Shield): implement **`getBlockingArc(caster, activeAbility, currentTime)`** to return `{ arcStartAngle, arcEndAngle }` in radians while the ability is active. When an attack is blocked, the **attacking** ability's `onAttackBlocked` is invoked (via `executeBlock(engine, defender, attackInfo, attackingAbilityId)`). Projectiles must be created with **`sourceAbilityId`** so the engine knows which ability's `onAttackBlocked` to call.
 

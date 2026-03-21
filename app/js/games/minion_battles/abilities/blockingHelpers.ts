@@ -109,7 +109,7 @@ export function executeBlock(
     const ability = getAbility(attackingAbilityId);
     ability?.onAttackBlocked(engine, defender, attackInfo);
     if (block?.ability.onBlockSuccess) {
-        block.ability.onBlockSuccess(engine, defender);
+        block.ability.onBlockSuccess(engine, defender, attackInfo);
     }
 }
 
@@ -138,7 +138,13 @@ export function tryDamageOrBlock(
     if (canAttackBeBlocked(defender, attackerX, attackerY, gameTime)) {
         const block = getBlockingArcForUnit(defender, gameTime);
         if (block) {
-            executeBlock(engine, defender, { type: attackType, sourceUnitId: attackerId }, abilityId, block);
+            executeBlock(
+                engine,
+                defender,
+                { type: attackType, sourceUnitId: attackerId, attackSourceX: attackerX, attackSourceY: attackerY },
+                abilityId,
+                block,
+            );
             return false;
         }
     }
