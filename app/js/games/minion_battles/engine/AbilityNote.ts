@@ -19,6 +19,7 @@ export interface AbilityNoteMap {
     '0104': { drewFromBlockCount: number };
     '0106': { drewFromBlockCount: number };
     '0110': { retaliationCount: number };
+    '0301': { hitTargetIds: string[] };
 }
 
 /** Discriminated union: { abilityId: K, abilityNote: AbilityNoteMap[K] } for each K. */

@@ -36,8 +36,12 @@ export const MAP_SEGMENT_50_50_CRYSTAL_CAVE: TerrainType[][] = [
     [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
 ];
 
-/** Point of interest: center of cave floor (campfire location in mission 2). */
+/** Point of interest: center of cave floor (campfire location in missions 2 and 3). */
 export const CAVE_CAMPFIRE = { row: 10, col: 19 } as const;
+
+export const pointsOfInterest = {
+    campfire: CAVE_CAMPFIRE,
+} as const;
 
 /** Points of interest for crystal placements (same as mission 2). */
 export const CRYSTAL_POINTS = {

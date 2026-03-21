@@ -13,7 +13,7 @@ import { ENEMY_DARK_WOLF, ENEMY_BOAR, ENEMY_RANGED } from '../../../constants/en
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { MAP_SEGMENT_50_50_CRYSTAL_CAVE, CRYSTAL_POINTS } from '../MapSegments/50_50_crystal_cave';
+import { MAP_SEGMENT_50_50_CRYSTAL_CAVE, CAVE_CAMPFIRE, CRYSTAL_POINTS } from '../MapSegments/50_50_crystal_cave';
 import {
     MAP_SEGMENT_50_49_CLIFF_PATH_NORTH,
     pointsOfInterest as cliffPathPOI,
@@ -100,7 +100,12 @@ const LEVEL_EVENTS: LevelEvent[] = [
         trigger: { afterRound: 0 },
         conditions: [
             { type: 'unitDead', unitCharacterId: 'boar' },
-            { type: 'allUnitsNearPosition', col: 19, row: 54, maxDistance: 2 },
+            {
+                type: 'allUnitsNearPosition',
+                col: CAVE_CAMPFIRE.col,
+                row: CAVE_CAMPFIRE.row + BOTTOM_OFFSET_ROW,
+                maxDistance: 2,
+            },
         ],
         emittedMessage: 'Kill the boar and return to the cave',
         emittedByNpcId: '1',
@@ -112,8 +117,8 @@ const LEVEL_EVENTS: LevelEvent[] = [
 const SPECIAL_TILES: SpecialTilePlacement[] = [
     {
         defId: 'Campfire',
-        col: 19,
-        row: 54,
+        col: CAVE_CAMPFIRE.col,
+        row: CAVE_CAMPFIRE.row + BOTTOM_OFFSET_ROW,
         hp: 5,
         emitsLight: { lightAmount: 10, radius: 8 },
     },

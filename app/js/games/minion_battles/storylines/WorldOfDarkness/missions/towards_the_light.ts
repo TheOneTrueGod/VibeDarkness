@@ -17,10 +17,12 @@ import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainG
 import { TerrainType } from '../../../terrain/TerrainType';
 import { MAP_SEGMENT_48_50_WAKEUP } from '../MapSegments/48_50_wakeup';
 import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
-import { MAP_SEGMENT_50_50_CRYSTAL_CAVE } from '../MapSegments/50_50_crystal_cave';
+import { MAP_SEGMENT_50_50_CRYSTAL_CAVE, CAVE_CAMPFIRE } from '../MapSegments/50_50_crystal_cave';
 
 const COLS = 66;
 const ROWS = 22;
+/** Column offset for the right section (crystal cave): left 22 + middle 22. */
+const RIGHT_OFFSET_COL = 44;
 const WORLD_WIDTH = COLS * CELL_SIZE;
 const WORLD_HEIGHT = ROWS * CELL_SIZE;
 
@@ -73,7 +75,14 @@ const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'victoryCheck',
         trigger: { afterRound: 0 },
-        conditions: [{ type: 'allUnitsNearPosition', col: 63, row: 10, maxDistance: 2 }],
+        conditions: [
+            {
+                type: 'allUnitsNearPosition',
+                col: CAVE_CAMPFIRE.col + RIGHT_OFFSET_COL,
+                row: CAVE_CAMPFIRE.row,
+                maxDistance: 2,
+            },
+        ],
         emittedMessage: 'Find safety',
         emittedByNpcId: '1',
         missionResult: 'victory',
@@ -90,11 +99,11 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         hp: 5,
         emitsLight: { lightAmount: 10, radius: 8, decayRate: 1, decayInterval: 0.25 },
     },
-    // Campfire at back of cave — reach within 1 tile to win
+    // Campfire at back of cave — reach within 1 tile to win (light only, not a defend point)
     {
         defId: 'Campfire',
-        col: 63,
-        row: 10,
+        col: CAVE_CAMPFIRE.col + RIGHT_OFFSET_COL,
+        row: CAVE_CAMPFIRE.row,
         hp: 5,
         emitsLight: { lightAmount: 10, radius: 8 },
     },
