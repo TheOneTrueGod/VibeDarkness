@@ -18,7 +18,7 @@ import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import type { LobbyClient } from '../../../../LobbyClient';
 import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
-import ResearchTreePanel from '../ResearchTreePanel';
+import { ResearchTreeList, ResearchTreeContent } from '../ResearchTreePanel';
 import type { AccountState, CampaignState } from '../../../../types';
 import { getCoreFromEquipment } from '../../character_defs/items';
 import { RESEARCH_TREES } from '../../../../researchTrees/list';
@@ -96,6 +96,7 @@ export default function CharacterEditor({
     const [dragItemId, setDragItemId] = useState<string | null>(null);
     const [dragSlot, setDragSlot] = useState<EquipmentSlotType | null>(null);
     const [researchTrees, setResearchTrees] = useState<Record<string, string[]>>(() => character.researchTrees ?? {});
+    const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
     const [localCampaign, setLocalCampaign] = useState<CampaignState | null>(null);
     const [grantResourceKey, setGrantResourceKey] = useState<'food' | 'metal' | 'population' | 'crystals'>('food');
     const [grantResourceAmount, setGrantResourceAmount] = useState<string>('1');
@@ -110,6 +111,41 @@ export default function CharacterEditor({
         setEquipment([...character.equipment]);
         setResearchTrees(character.researchTrees ?? {});
     }, [character.equipment, character.researchTrees]);
+
+    // Sync selected research tree when available trees change
+    const availableTrees = useMemo(() => {
+        const res = resolvedCampaign?.resources;
+        if (!res) return [];
+        const ctx = {
+            account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
+            character: { ...character, equipment, researchTrees } as CampaignCharacter,
+            campaignResources: res,
+        };
+        return RESEARCH_TREES.filter((t) => {
+            const any = treeHasAnyResearch(ctx.character, t.id);
+            if (any) return true;
+            return t.accessRequirements.every((req) => {
+                if (req.type === 'accountKnowledge') return !!ctx.account.knowledge?.[req.key];
+                if (req.type === 'campaignResourceMin') return (ctx.campaignResources[req.resource] ?? 0) >= req.min;
+                if (req.type === 'characterHasEquippedItem') return ctx.character.equipment.includes(req.itemId);
+                if (req.type === 'characterHasCore') return getCoreFromEquipment(ctx.character.equipment) !== null;
+                if (req.type === 'characterHasTrait') return ctx.character.traits.includes(req.trait);
+                if (req.type === 'notResearched') {
+                    const set = new Set(ctx.character.researchTrees?.[req.treeId] ?? []);
+                    return !set.has(req.nodeId);
+                }
+                return false;
+            });
+        });
+    }, [account, character, equipment, researchTrees, resolvedCampaign?.resources]);
+
+    useEffect(() => {
+        const firstId = availableTrees[0]?.id ?? null;
+        const isSelectedStillAvailable = selectedTreeId != null && availableTrees.some((t) => t.id === selectedTreeId);
+        if (!isSelectedStillAvailable) {
+            setSelectedTreeId(firstId);
+        }
+    }, [availableTrees, selectedTreeId]);
 
     useEffect(() => {
         if (campaign) {
@@ -265,37 +301,6 @@ export default function CharacterEditor({
         [character.id, equipment, lobbyClient, name, permissionAccount?.role, researchTrees, selectedPortraitId, onSaved]
     );
 
-    const availableTrees = useMemo(() => {
-        const res = resolvedCampaign?.resources;
-        if (!res) return [];
-        const ctx = {
-            account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-            character: { ...character, equipment, researchTrees } as CampaignCharacter,
-            campaignResources: res,
-        };
-        return RESEARCH_TREES.filter((t) => {
-            // Show tree if access requirements pass OR it has any node researched.
-            const any = treeHasAnyResearch(ctx.character, t.id);
-            if (any) return true;
-            // Reuse canResearchNode-style requirement evaluation by checking a synthetic node closure:
-            // here we only gate by accessRequirements.
-            return t.accessRequirements.every((req) => {
-                // Minimal check using canResearchNode helpers: treat as node requirement list.
-                // evaluator.meetsRequirement isn't exported; keep logic consistent with known cases:
-                if (req.type === 'accountKnowledge') return !!ctx.account.knowledge?.[req.key];
-                if (req.type === 'campaignResourceMin') return (ctx.campaignResources[req.resource] ?? 0) >= req.min;
-                if (req.type === 'characterHasEquippedItem') return ctx.character.equipment.includes(req.itemId);
-                if (req.type === 'characterHasCore') return getCoreFromEquipment(ctx.character.equipment) !== null;
-                if (req.type === 'characterHasTrait') return ctx.character.traits.includes(req.trait);
-                if (req.type === 'notResearched') {
-                    const set = new Set(ctx.character.researchTrees?.[req.treeId] ?? []);
-                    return !set.has(req.nodeId);
-                }
-                return false;
-            });
-        });
-    }, [account, character, equipment, researchTrees, resolvedCampaign?.resources]);
-
     const handleResearchNode = useCallback(
         async (treeId: string, nodeId: string) => {
             if (!resolvedCampaign?.resources) return;
@@ -398,48 +403,11 @@ export default function CharacterEditor({
         setDragSlot(null);
     }, []);
 
-    const portraitSectionStyle = useMemo(() => {
-        return { height: 240, minHeight: 180 };
-    }, []);
+    const firstTreeId = availableTrees[0]?.id ?? null;
+    const selectedTree = availableTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
 
     return (
         <div className="flex flex-col h-full w-full bg-surface rounded-lg border border-border-custom overflow-hidden">
-            {/* Top ~30%: portrait left, name right */}
-            <div className="flex shrink-0 border-b border-border-custom" style={portraitSectionStyle}>
-                <div className="flex items-center justify-center p-4 shrink-0 bg-background/50">
-                    <div className="flex flex-col items-center gap-2">
-                        <CharacterPortrait
-                            picture={portrait?.picture ?? ''}
-                            size="medium"
-                            className="border border-border-custom"
-                        />
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
-                                onClick={goPrevPortrait}
-                                aria-label="Previous portrait"
-                            >
-                                ‹
-                            </button>
-                            <button
-                                type="button"
-                                className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
-                                onClick={goNextPortrait}
-                                aria-label="Next portrait"
-                            >
-                                ›
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex-1 flex items-start justify-end pt-4 pr-4">
-                    <span className="text-lg font-semibold text-white truncate max-w-[200px]" title={name}>
-                        {name || 'Adventurer'}
-                    </span>
-                </div>
-            </div>
-
             {/* Tabs */}
             <div className="flex gap-1 px-2 pt-2 border-b border-border-custom shrink-0">
                 <button
@@ -468,11 +436,45 @@ export default function CharacterEditor({
                 )}
             </div>
 
-            {/* Tab content */}
+            {/* Content: left (portrait + sidebar) | right (main) */}
             <div className="flex-1 min-h-0 flex overflow-hidden">
-                {activeTab === 'equipment' && (
-                    <>
-                        <div className="shrink-0 flex items-center justify-start p-4">
+                {/* Left column: portrait + panel-specific sidebar */}
+                <div className="flex flex-col shrink-0 border-r border-border-custom bg-background/50">
+                    {/* Character portrait - always visible on every panel */}
+                    <div className="flex items-center gap-3 p-4 border-b border-border-custom shrink-0">
+                        <div className="flex flex-col items-center gap-2">
+                            <CharacterPortrait
+                                picture={portrait?.picture ?? ''}
+                                size="medium"
+                                className="border border-border-custom"
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
+                                    onClick={goPrevPortrait}
+                                    aria-label="Previous portrait"
+                                >
+                                    ‹
+                                </button>
+                                <button
+                                    type="button"
+                                    className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
+                                    onClick={goNextPortrait}
+                                    aria-label="Next portrait"
+                                >
+                                    ›
+                                </button>
+                            </div>
+                        </div>
+                        <span className="text-lg font-semibold text-white truncate max-w-[140px]" title={name}>
+                            {name || 'Adventurer'}
+                        </span>
+                    </div>
+
+                    {/* Panel-specific sidebar */}
+                    <div className="flex-1 min-h-0 overflow-auto p-3">
+                        {activeTab === 'equipment' && (
                             <EquipmentDoll
                                 equipment={equipment}
                                 slotDescriptors={getSlotDescriptors(equipment)}
@@ -484,78 +486,95 @@ export default function CharacterEditor({
                                 dragSlot={dragSlot}
                                 editMode={editMode}
                             />
-                        </div>
-                        {showInventoryPanel && (
-                            <div className="flex-1 min-w-0 border-l border-border-custom p-3 overflow-auto">
-                                <InventoryPanel
-                                    visibleInventoryItems={visibleInventoryItems}
-                                    editMode={editMode}
-                                    saving={saving}
-                                    onDragStartItem={handleDragStartItem}
-                                    onDragEnd={handleDragEnd}
-                                />
-                            </div>
                         )}
-                    </>
-                )}
-
-                {activeTab === 'research' && researchEnabled && (
-                    <div className="flex-1 min-h-0 overflow-auto p-4">
-                        {resolvedCampaign?.resources ? (
-                            <>
-                                {permissionAccount?.role === 'admin' && (
-                                    <div className="mb-4 rounded-lg border border-border-custom bg-surface-light p-3">
-                                        <p className="text-xs text-muted mb-2">Admin: grant campaign resource</p>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <select
-                                                className="rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
-                                                value={grantResourceKey}
-                                                onChange={(e) => setGrantResourceKey(e.target.value as typeof grantResourceKey)}
-                                            >
-                                                <option value="food">food</option>
-                                                <option value="metal">metal</option>
-                                                <option value="population">population</option>
-                                                <option value="crystals">crystals</option>
-                                            </select>
-                                            <input
-                                                className="w-24 rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
-                                                value={grantResourceAmount}
-                                                onChange={(e) => setGrantResourceAmount(e.target.value)}
-                                                inputMode="numeric"
-                                                placeholder="amount"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => void handleGrantResource()}
-                                                className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover"
-                                            >
-                                                Give
-                                            </button>
-                                            <span className="text-xs text-muted">
-                                                Current: food {resolvedCampaign.resources.food}, metal {resolvedCampaign.resources.metal}, pop {resolvedCampaign.resources.population}, crystals {resolvedCampaign.resources.crystals}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <ResearchTreePanel
-                                    availableTrees={availableTrees}
-                                    account={account ?? null}
-                                    character={character}
-                                    equipment={equipment}
-                                    researchTrees={researchTrees}
-                                    campaignResources={resolvedCampaign.resources}
-                                    saving={saving}
-                                canResetResearch={permissionAccount?.role === 'admin'}
-                                    onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
-                                onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
-                                />
-                            </>
-                        ) : (
-                            <p className="text-sm text-muted">Campaign resources not loaded.</p>
+                        {activeTab === 'research' && researchEnabled && (
+                            <ResearchTreeList
+                                availableTrees={availableTrees}
+                                selectedTreeId={selectedTreeId}
+                                onSelectTree={(id) => setSelectedTreeId(id)}
+                                researchTrees={researchTrees}
+                            />
                         )}
                     </div>
-                )}
+                </div>
+
+                {/* Right column: panel main container */}
+                <div className="flex-1 min-w-0 overflow-auto p-4">
+                    {activeTab === 'equipment' && showInventoryPanel && (
+                        <InventoryPanel
+                            visibleInventoryItems={visibleInventoryItems}
+                            editMode={editMode}
+                            saving={saving}
+                            onDragStartItem={handleDragStartItem}
+                            onDragEnd={handleDragEnd}
+                        />
+                    )}
+
+                    {activeTab === 'research' && researchEnabled && (
+                        <>
+                            {resolvedCampaign?.resources ? (
+                                <>
+                                    {permissionAccount?.role === 'admin' && (
+                                        <div className="mb-4 rounded-lg border border-border-custom bg-surface-light p-3">
+                                            <p className="text-xs text-muted mb-2">Admin: grant campaign resource</p>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <select
+                                                    className="rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
+                                                    value={grantResourceKey}
+                                                    onChange={(e) => setGrantResourceKey(e.target.value as typeof grantResourceKey)}
+                                                >
+                                                    <option value="food">food</option>
+                                                    <option value="metal">metal</option>
+                                                    <option value="population">population</option>
+                                                    <option value="crystals">crystals</option>
+                                                </select>
+                                                <input
+                                                    className="w-24 rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
+                                                    value={grantResourceAmount}
+                                                    onChange={(e) => setGrantResourceAmount(e.target.value)}
+                                                    inputMode="numeric"
+                                                    placeholder="amount"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void handleGrantResource()}
+                                                    className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover"
+                                                >
+                                                    Give
+                                                </button>
+                                                <span className="text-xs text-muted">
+                                                    Current: food {resolvedCampaign.resources.food}, metal{' '}
+                                                    {resolvedCampaign.resources.metal}, pop {resolvedCampaign.resources.population},{' '}
+                                                    crystals {resolvedCampaign.resources.crystals}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {availableTrees.length === 0 ? (
+                                        <p className="text-sm text-muted">No research trees available.</p>
+                                    ) : selectedTree ? (
+                                        <ResearchTreeContent
+                                            tree={selectedTree}
+                                            account={account ?? null}
+                                            character={character}
+                                            equipment={equipment}
+                                            researchTrees={researchTrees}
+                                            campaignResources={resolvedCampaign.resources}
+                                            saving={saving}
+                                            canResetResearch={permissionAccount?.role === 'admin'}
+                                            firstTreeId={firstTreeId}
+                                            onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
+                                            onResetResearch={(treeIds) => void handleResetResearch(availableTrees.map((t) => t.id))}
+                                        />
+                                    ) : null}
+                                </>
+                            ) : (
+                                <p className="text-sm text-muted">Campaign resources not loaded.</p>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );
