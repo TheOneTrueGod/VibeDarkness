@@ -11,7 +11,7 @@ import { MessageType } from '../../../MessageTypes';
 import type { PreMissionStoryDef } from '../storylines/storyTypes';
 import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../character_defs/CampaignCharacter';
-import { SPECTATOR_ID } from '../state';
+import { SPECTATOR_ID, CONTROL_ENEMY_ALPHA_WOLF, isControlEnemy } from '../state';
 import type { CampaignCharacterData } from '../character_defs/campaignCharacterTypes';
 import { getPortrait } from '../character_defs/portraits';
 import { ALL_PLAYER_ITEMS } from '../character_defs/items';
@@ -143,6 +143,9 @@ export default function CharacterSelectPhase({
             const sel = characterSelections[pid];
             return sel != null && sel !== SPECTATOR_ID;
         });
+    const controlEnemySelectedBy = Object.entries(characterSelections).find(
+        ([, sel]) => sel === CONTROL_ENEMY_ALPHA_WOLF,
+    )?.[0] ?? null;
     const amReady = readySet.has(playerId);
     const effectivelyReady = amReady || optimisticAmReady;
 
@@ -395,6 +398,14 @@ export default function CharacterSelectPhase({
                             isMySelection={mySelection === SPECTATOR_ID}
                             onSelect={() => handleSelectCharacter(SPECTATOR_ID, '')}
                         />
+                        {/* Control Enemy card - mission 004 (Monster) only */}
+                        {missionId === 'monster' && (
+                            <ControlEnemyCard
+                                isMySelection={mySelection === CONTROL_ENEMY_ALPHA_WOLF}
+                                isDisabled={controlEnemySelectedBy != null && controlEnemySelectedBy !== playerId}
+                                onSelect={() => handleSelectCharacter(CONTROL_ENEMY_ALPHA_WOLF, '')}
+                            />
+                        )}
                         {/* Create Character card */}
                         <CreateCharacterCard ref={setCreateCardRef} onClick={() => setCreatorOpen(true)} />
                         {charactersLoading ? (
@@ -444,7 +455,7 @@ export default function CharacterSelectPhase({
                         </button>
                     ) : (
                         <>
-                            {mySelection && mySelection !== SPECTATOR_ID && characterToEdit && (
+                            {mySelection && mySelection !== SPECTATOR_ID && !isControlEnemy(mySelection) && characterToEdit && (
                                 <button
                                     type="button"
                                     className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
@@ -519,6 +530,52 @@ function SpectatorCard({
             </svg>
             <span className="text-sm font-semibold text-gray-300">Spectator</span>
             <span className="text-xs text-muted text-center px-2">Watch without playing</span>
+        </div>
+    );
+}
+
+/** Control Enemy card: claw icon, red border - control the Alpha Wolf (mission 004 only) */
+function ControlEnemyCard({
+    isMySelection,
+    isDisabled,
+    onSelect,
+}: {
+    isMySelection: boolean;
+    isDisabled: boolean;
+    onSelect: () => void;
+}) {
+    return (
+        <div
+            role="button"
+            tabIndex={0}
+            className={`
+                w-[200px] h-[200px] rounded-lg border-2 flex flex-col items-center justify-center gap-3 transition-all
+                ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                ${isMySelection
+                    ? 'border-red-500 bg-red-950/40 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
+                    : 'border-red-700/70 bg-surface hover:border-red-500 hover:bg-red-950/20'
+                }
+            `}
+            onClick={() => !isDisabled && onSelect()}
+            onKeyDown={(e) => e.key === 'Enter' && !isDisabled && onSelect()}
+            title={isDisabled ? 'Another player is controlling the Alpha Wolf' : 'Control the Alpha Wolf'}
+        >
+            <svg
+                className="w-14 h-14 text-red-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                />
+            </svg>
+            <span className="text-sm font-semibold text-red-300">Control Alpha Wolf</span>
+            <span className="text-xs text-red-400/80 text-center px-2">Play as the boss</span>
         </div>
     );
 }

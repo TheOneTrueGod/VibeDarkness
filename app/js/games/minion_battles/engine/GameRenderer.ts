@@ -88,6 +88,8 @@ export class GameRenderer {
     private specialTileVisuals: Map<string, Container> = new Map();
     /** Soft blue overlay on tiles in crystal light radius (10% opacity). */
     private crystalAuraGraphics: Graphics = new Graphics();
+    /** Purple overlay on tiles in dark crystal filter radius (arena effect). */
+    private darkCrystalAuraGraphics: Graphics = new Graphics();
 
     /** Cached texture for ranged enemy (slime) character sprite. */
     private slimeTexture: Texture | null = null;
@@ -248,6 +250,10 @@ export class GameRenderer {
         this.crystalAuraGraphics.zIndex = Z_INDEX.crystalAura;
         if (!this.crystalAuraGraphics.parent) {
             this.gameContainer.addChildAt(this.crystalAuraGraphics, 1);
+        }
+        this.darkCrystalAuraGraphics.zIndex = Z_INDEX.crystalAura + 1;
+        if (!this.darkCrystalAuraGraphics.parent) {
+            this.gameContainer.addChildAt(this.darkCrystalAuraGraphics, 1);
         }
         // Special tiles container above darkness overlay (index 2)
         if (!this.specialTilesContainer.parent) {
@@ -439,6 +445,7 @@ export class GameRenderer {
 
         this.renderUnits(engine);
         this.renderCrystalAura(engine);
+        this.renderDarkCrystalAura(engine);
         this.renderSpecialTiles(engine.specialTiles);
         this.renderMoveTargets(engine.units);
         this.renderProjectiles(engine.projectiles);
@@ -464,6 +471,26 @@ export class GameRenderer {
             if (Number.isNaN(col) || Number.isNaN(row)) continue;
             this.crystalAuraGraphics.rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
             this.crystalAuraGraphics.fill({ color: 0x4488ff, alpha: 0.15 });
+        }
+    }
+
+    /** Draw a purple filter on each tile in dark crystal filter radius (arena effect). */
+    private renderDarkCrystalAura(engine: GameEngine): void {
+        this.darkCrystalAuraGraphics.clear();
+        const grid = engine.terrainManager?.grid;
+        if (!grid) return;
+        const filterSet = engine.getDarkCrystalFilterSet();
+        if (filterSet.size === 0) return;
+        const darkCrystals = engine.specialTiles.filter(
+            (t) => t.defId === 'DarkCrystal' && t.hp > 0 && t.colorFilter,
+        );
+        const alpha = darkCrystals[0]?.colorFilter?.alpha ?? 0.2;
+        const color = darkCrystals[0]?.colorFilter?.color ?? 0x6633aa;
+        for (const key of filterSet) {
+            const [col, row] = key.split(',').map(Number);
+            if (Number.isNaN(col) || Number.isNaN(row)) continue;
+            this.darkCrystalAuraGraphics.rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            this.darkCrystalAuraGraphics.fill({ color, alpha });
         }
     }
 
@@ -535,6 +562,18 @@ export class GameRenderer {
             g.closePath();
             g.fill({ color: 0x7dd3fc }); // light blue
             g.stroke({ color: 0x38bdf8, width: 1.5 });
+            container.addChild(g);
+        } else if (tile.defId === 'DarkCrystal') {
+            const g = new Graphics();
+            g.label = 'darkCrystal';
+            const halfSize = 10;
+            g.moveTo(0, -halfSize);
+            g.lineTo(halfSize, 0);
+            g.lineTo(0, halfSize);
+            g.lineTo(-halfSize, 0);
+            g.closePath();
+            g.fill({ color: 0x8866cc });
+            g.stroke({ color: 0x6633aa, width: 1.5 });
             container.addChild(g);
         } else {
             return undefined;

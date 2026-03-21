@@ -6,13 +6,15 @@ import type { UnitAIController } from './types';
 import { LegacyAIController } from './LegacyAIController';
 import { DefensePointsAIController } from './DefensePointsAIController';
 import { StateBasedAIController } from './StateBasedAIController';
+import { AlphaWolfBossAIController } from './AlphaWolfBossAIController';
 
-export type AIControllerId = 'legacy' | 'defensePoints' | 'stateBased';
+export type AIControllerId = 'legacy' | 'defensePoints' | 'stateBased' | 'alphaWolfBoss';
 
 const CONTROLLERS: Record<AIControllerId, UnitAIController> = {
     legacy: LegacyAIController,
     defensePoints: DefensePointsAIController,
     stateBased: StateBasedAIController,
+    alphaWolfBoss: AlphaWolfBossAIController,
 };
 
 /**
@@ -20,11 +22,13 @@ const CONTROLLERS: Record<AIControllerId, UnitAIController> = {
  */
 export function buildAIController(aiControllerId?: string | null): UnitAIController {
     const id: AIControllerId =
-        aiControllerId === 'defensePoints'
-            ? 'defensePoints'
-            : aiControllerId === 'legacy'
-              ? 'legacy'
-              : 'stateBased';
+        aiControllerId === 'alphaWolfBoss'
+            ? 'alphaWolfBoss'
+            : aiControllerId === 'defensePoints'
+              ? 'defensePoints'
+              : aiControllerId === 'legacy'
+                ? 'legacy'
+                : 'stateBased';
     return CONTROLLERS[id] ?? StateBasedAIController;
 }
 

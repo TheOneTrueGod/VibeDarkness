@@ -320,6 +320,7 @@ export default function BattlePhase({
                 (init?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
             mission.initializeGameState(engine, {
                 playerUnits,
+                characterSelections: selections,
                 localPlayerId: playerId,
                 eventBus: engine.eventBus,
                 terrainManager,

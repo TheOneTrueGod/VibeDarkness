@@ -172,6 +172,8 @@ export interface SpecialTilePlacement {
     };
     /** For Crystal: tile distance (Chebyshev) for protection aura and terrain blocking. */
     protectRadius?: number;
+    /** For DarkCrystal: purple color filter in a square area. Tile distance (Chebyshev) from center. */
+    colorFilter?: { color: number; alpha: number; filterRadius: number };
 }
 
 /** Grid-based player spawn point (col/row on the terrain grid). */
@@ -181,7 +183,7 @@ export interface PlayerSpawnPoint {
 }
 
 /** AI controller ID. Default is 'legacy' when omitted. */
-export type AIControllerId = 'legacy' | 'defensePoints' | 'stateBased';
+export type AIControllerId = 'legacy' | 'defensePoints' | 'stateBased' | 'alphaWolfBoss';
 
 /** Full battle configuration for a mission. */
 export interface MissionBattleConfig {

@@ -294,7 +294,7 @@ const slashingSwordEffectDef: IEffectDef = {
     },
 };
 
-/** Thick fading line perpendicular to swing (slash trail): light cyan, thick stroke, fades out. */
+/** Thick fading line (slash trail): configurable color, thick stroke, fades out. */
 const slashTrailEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
         return new Graphics();
@@ -302,9 +302,11 @@ const slashTrailEffectDef: IEffectDef = {
     updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
         const g = visual as Graphics;
         g.clear();
-        const data = effect.effectData as { endX?: number; endY?: number };
+        if (effect.delay !== undefined && effect.elapsed < effect.delay) return;
+        const data = effect.effectData as { endX?: number; endY?: number; color?: number };
         const endX = data.endX ?? effect.x;
         const endY = data.endY ?? effect.y;
+        const color = data.color ?? LASER_CYAN;
         const dx = endX - effect.x;
         const dy = endY - effect.y;
         const lengthSq = dx * dx + dy * dy;
@@ -318,7 +320,7 @@ const slashTrailEffectDef: IEffectDef = {
 
         g.moveTo(0, 0);
         g.lineTo(dx, dy);
-        g.stroke({ color: LASER_CYAN, width, alpha });
+        g.stroke({ color, width, alpha });
     },
 };
 

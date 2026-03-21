@@ -19,7 +19,14 @@ export interface CrystalDef {
     image: string;
 }
 
-export type SpecialTileDef = CampfireDef | CrystalDef;
+/** Dark Crystal: emits purple-tinted light; colorFilter creates arena effect. */
+export interface DarkCrystalDef {
+    id: 'DarkCrystal';
+    /** SVG image URL (data URL or file URL). */
+    image: string;
+}
+
+export type SpecialTileDef = CampfireDef | CrystalDef | DarkCrystalDef;
 
 /** Inline campfire SVG: two logs and a small flame. */
 const CAMPFIRE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
@@ -49,10 +56,25 @@ const CRYSTAL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"
 </svg>`;
 const CRYSTAL_DATA_URL = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(CRYSTAL_SVG)))}`;
 
+/** Dark crystal SVG (purple tint). */
+const DARK_CRYSTAL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="darkCrystalGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#aa88ff"/>
+      <stop offset="50%" stop-color="#6633aa"/>
+      <stop offset="100%" stop-color="#441188"/>
+    </linearGradient>
+  </defs>
+  <polygon points="16,2 28,14 16,30 4,14" fill="url(#darkCrystalGrad)" stroke="#8866cc" stroke-width="1"/>
+  <polygon points="16,6 22,14 16,24 10,14" fill="#cc99ff" opacity="0.5"/>
+</svg>`;
+const DARK_CRYSTAL_DATA_URL = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(DARK_CRYSTAL_SVG)))}`;
+
 /** Registry of special tile definitions by ID. Light, maxHp, protectRadius come from mission placement. */
 export const SPECIAL_TILE_DEFS: Record<string, SpecialTileDef> = {
     Campfire: { id: 'Campfire', image: CAMPFIRE_DATA_URL },
     Crystal: { id: 'Crystal', image: CRYSTAL_DATA_URL },
+    DarkCrystal: { id: 'DarkCrystal', image: DARK_CRYSTAL_DATA_URL },
 };
 
 export function getSpecialTileDef(id: string): SpecialTileDef | undefined {

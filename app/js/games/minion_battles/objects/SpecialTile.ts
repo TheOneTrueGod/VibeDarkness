@@ -35,6 +35,8 @@ export interface SpecialTile {
     lightDecayNextAtRound?: number;
     /** For Crystal: tile distance (Chebyshev) for protection aura and terrain blocking. Set from mission placement. */
     protectRadius?: number;
+    /** For DarkCrystal: purple color filter. Set from mission placement. */
+    colorFilter?: { color: number; alpha: number; filterRadius: number };
 }
 
 export function specialTileToJSON(t: SpecialTile): Record<string, unknown> {
@@ -44,6 +46,7 @@ export function specialTileToJSON(t: SpecialTile): Record<string, unknown> {
     if (t.emitsLight !== undefined) out.emitsLight = t.emitsLight;
     if (t.lightDecayNextAtRound !== undefined) out.lightDecayNextAtRound = t.lightDecayNextAtRound;
     if (t.protectRadius !== undefined) out.protectRadius = t.protectRadius;
+    if (t.colorFilter !== undefined) out.colorFilter = t.colorFilter;
     return out;
 }
 
@@ -91,6 +94,7 @@ export function specialTileFromJSON(
         emitsLight: migratedEmitsLight,
         lightDecayNextAtRound: data.lightDecayNextAtRound as number | undefined,
         protectRadius: data.protectRadius as number | undefined,
+        colorFilter: data.colorFilter as { color: number; alpha: number; filterRadius: number } | undefined,
     };
 }
 

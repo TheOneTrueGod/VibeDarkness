@@ -7,5 +7,6 @@ export const WorldOfDarknessStoryline: StorylineDef = {
     edges: [
         { fromMissionId: 'dark_awakening', result: 'victory', toMissionId: 'towards_the_light' },
         { fromMissionId: 'towards_the_light', result: 'victory', toMissionId: 'light_empowered' },
+        { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'monster' },
     ],
 };

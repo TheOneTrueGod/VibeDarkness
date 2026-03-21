@@ -20,6 +20,7 @@ import { PistolCard } from './0203_Pistol/0203Ability';
 import { SMGCard } from './0204_SMG/0204Ability';
 import { ShotgunCard } from './0205_Shotgun/0205Ability';
 import { ShiningBlockCard } from './0110_ShiningBlock/0110Ability';
+import { BeastClawCard } from './0511_BeastClaw/0511Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -42,6 +43,7 @@ const cardDefs: CardDef[] = [
     SMGCard,
     ShotgunCard,
     ShiningBlockCard,
+    BeastClawCard,
 ];
 
 /** Map card ID -> card definition for resolving hands (arrays of card IDs) to card data. */

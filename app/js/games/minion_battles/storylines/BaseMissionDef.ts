@@ -35,6 +35,8 @@ function getAppearanceCharacterId(portraitId: string | undefined): CharacterId {
 export interface InitializeGameStateParams {
     /** Player units to spawn (from character selections). portraitId is used for appearance only. */
     playerUnits: { playerId: string; name: string; portraitId?: string }[];
+    /** Map of playerId -> characterId (or special IDs like control_enemy_alpha_wolf). */
+    characterSelections?: Record<string, string>;
     /** Local player's ID (for camera/turn handling). */
     localPlayerId: string;
     /** Event bus for game events. */
@@ -220,6 +222,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     emitsLight: p.emitsLight,
                 };
                 if (p.protectRadius !== undefined) tile.protectRadius = p.protectRadius;
+                if (p.colorFilter !== undefined) tile.colorFilter = p.colorFilter;
                 engine.addSpecialTile(tile);
             }
         }

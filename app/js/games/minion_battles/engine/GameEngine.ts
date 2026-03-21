@@ -188,6 +188,29 @@ export class GameEngine {
         return this.getCrystalProtectionMap().get(`${col},${row}`) ?? 0;
     }
 
+    /** Set of "col,row" keys for tiles in DarkCrystal color filter radius (purple arena effect). */
+    getDarkCrystalFilterSet(): Set<string> {
+        const set = new Set<string>();
+        const grid = this.terrainManager?.grid;
+        if (!grid) return set;
+        const darkCrystals = this.specialTiles.filter(
+            (t) => t.defId === 'DarkCrystal' && t.hp > 0 && t.colorFilter,
+        );
+        for (const c of darkCrystals) {
+            const radius = c.colorFilter!.filterRadius;
+            for (let dr = -radius; dr <= radius; dr++) {
+                for (let dc = -radius; dc <= radius; dc++) {
+                    if (Math.max(Math.abs(dc), Math.abs(dr)) > radius) continue;
+                    const col = c.col + dc;
+                    const row = c.row + dr;
+                    if (col < 0 || col >= grid.width || row < 0 || row >= grid.height) continue;
+                    set.add(`${col},${row}`);
+                }
+            }
+        }
+        return set;
+    }
+
     // -- Cards per player --
     cards: Record<string, CardInstance[]> = {};
     /** Player research trees available to runtime ability logic. */

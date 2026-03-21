@@ -13,7 +13,9 @@ import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../engine/types';
 import { asCardDefId, type CardDef } from '../types';
-import { Effect } from '../../objects/Effect';
+import { createSlashTrailEffect } from '../../abilities/effectHelpers';
+import type { Effect } from '../../objects/Effect';
+import type { EventBus } from '../../engine/EventBus';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
@@ -155,14 +157,14 @@ export const LaserSwordAbility: AbilityStatic = {
         );
 
         // Always play slash trail (same animation whether we hit or not).
-        eng.addEffect(new Effect({
-            x: line.leftX,
-            y: line.leftY,
-            duration: SLASH_TRAIL_DURATION,
-            effectType: 'SlashTrail',
-            effectRadius: SLASH_TRAIL_THICKNESS,
-            effectData: { endX: line.rightX, endY: line.rightY },
-        }));
+        eng.addEffect(createSlashTrailEffect(
+            line.leftX,
+            line.leftY,
+            line.rightX,
+            line.rightY,
+            SLASH_TRAIL_DURATION,
+            SLASH_TRAIL_THICKNESS,
+        ));
 
         if (hitUnits.length === 0) return;
 

@@ -3,8 +3,15 @@
  */
 export const SPECTATOR_ID = 'spectator';
 
+/** Mission 004 (Monster): player controls the Alpha Wolf boss instead of a hero. Only one player can select. */
+export const CONTROL_ENEMY_ALPHA_WOLF = 'control_enemy_alpha_wolf';
+
 export function isSpectator(characterId: string | undefined | null): boolean {
     return characterId === SPECTATOR_ID;
+}
+
+export function isControlEnemy(characterId: string | undefined | null): boolean {
+    return characterId === CONTROL_ENEMY_ALPHA_WOLF;
 }
 
 /**

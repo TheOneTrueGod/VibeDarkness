@@ -10,6 +10,8 @@ import { GameObject, generateGameObjectId } from './GameObject';
 export class Effect extends GameObject {
     /** Total duration in seconds. */
     duration: number;
+    /** Optional delay before effect starts (progress stays 0 until elapsed >= delay). */
+    delay?: number;
     /** Elapsed time in seconds. */
     elapsed: number = 0;
     /** String key the renderer uses to decide how to draw this effect. */
@@ -37,9 +39,12 @@ export class Effect extends GameObject {
         effectRadius?: number;
         /** Optional payload for effect-type-specific state. */
         effectData?: Record<string, unknown>;
+        /** Optional delay before effect starts. */
+        delay?: number;
     }) {
         super(config.id ?? generateGameObjectId('fx'), config.x, config.y);
         this.duration = config.duration;
+        this.delay = config.delay;
         this.effectType = config.effectType;
         this.effectRadius = config.effectRadius;
         this.endX = config.x;
@@ -103,7 +108,8 @@ export class Effect extends GameObject {
             this.active = false;
             return;
         }
-        if (this.elapsed >= this.duration) {
+        const totalDuration = (this.delay ?? 0) + this.duration;
+        if (this.elapsed >= totalDuration) {
             this.active = false;
         }
         // CorruptionOrb: phase 0 = straight for ~10 ticks, then phase 1 = arc to target
@@ -148,9 +154,11 @@ export class Effect extends GameObject {
         }
     }
 
-    /** Progress 0..1 through the effect's lifetime. */
+    /** Progress 0..1 through the effect's lifetime (0 until delay elapses if set). */
     get progress(): number {
-        return Math.min(1, this.elapsed / this.duration);
+        if (this.delay !== undefined && this.elapsed < this.delay) return 0;
+        const start = this.delay ?? 0;
+        return Math.min(1, (this.elapsed - start) / this.duration);
     }
 
     toJSON(): Record<string, unknown> {
@@ -171,6 +179,7 @@ export class Effect extends GameObject {
             out.endY = this.endY;
         }
         if (Object.keys(this.effectData).length > 0) out.effectData = { ...this.effectData };
+        if (this.delay !== undefined) out.delay = this.delay;
         return out;
     }
 
@@ -188,6 +197,7 @@ export class Effect extends GameObject {
         if (data.startY != null) config.startY = data.startY as number;
         if (data.effectRadius != null) config.effectRadius = data.effectRadius as number;
         if (data.effectData != null) config.effectData = data.effectData as Record<string, unknown>;
+        if (data.delay != null) config.delay = data.delay as number;
         const effect = new Effect(config);
         effect.active = data.active as boolean;
         effect.elapsed = data.elapsed as number;

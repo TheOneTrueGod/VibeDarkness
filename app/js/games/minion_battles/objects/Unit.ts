@@ -44,6 +44,10 @@ export interface UnitAIContext {
     corruptingStartedAt?: number;
     /** State-based AI: serialized current state (stateId + state-specific props). Sent as JSON to/from server. */
     aiStateSerialized?: Record<string, unknown>;
+    /** AlphaWolfBossAIController: sight radius (px) to detect players before charging. */
+    sightRadius?: number;
+    /** AlphaWolfBossAIController: unit ID of current prey for this round. */
+    preyUnitId?: string;
 }
 
 /** Movement state for a unit. */

@@ -15,6 +15,7 @@ import type {
     PostMissionPhrase,
     StoryChoiceActionGrantResources,
 } from '../storylines/storyTypes';
+import { getItemDef } from '../character_defs/items';
 import { SPECTATOR_ID } from '../state';
 import VNTextBox from '../components/VNTextBox';
 import CharacterPortrait from '../components/CharacterPortrait';
@@ -86,11 +87,28 @@ export default function PostMissionStoryPhase({
     }, [phrases.length]);
 
     const handleChoice = useCallback(
-        async (choiceId: string, optionId: string, option?: { action?: { type: string } }) => {
+        async (choiceId: string, optionId: string, option?: { action?: { type: string; itemId?: string } }) => {
             try {
+                const currentEquipment = playerEquipmentByPlayer?.[playerId] ?? [];
+                let itemId: string | undefined;
+                let replaceItemIds: string[] = [];
+                if (option?.action?.type === 'equip_item' && option.action.itemId) {
+                    itemId = option.action.itemId;
+                    const newItemDef = getItemDef(itemId);
+                    const newSlots = new Set(newItemDef?.slots ?? []);
+                    if (newSlots.size > 0) {
+                        for (const equippedId of currentEquipment) {
+                            const equippedDef = getItemDef(equippedId);
+                            if (equippedDef?.slots.some((s) => newSlots.has(s))) {
+                                replaceItemIds.push(equippedId);
+                            }
+                        }
+                    }
+                }
                 await lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_CHOICE, {
                     choiceId,
                     optionId,
+                    ...(itemId !== undefined && { itemId, replaceItemIds }),
                 });
             } catch (error) {
                 console.error('Failed to send story choice:', error);

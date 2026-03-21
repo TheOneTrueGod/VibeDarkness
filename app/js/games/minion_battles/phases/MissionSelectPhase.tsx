@@ -40,6 +40,13 @@ const MISSIONS: Mission[] = [
         heroImage: generateTowardsTheLightSVG(),
     },
     {
+        id: 'monster',
+        title: 'Monster',
+        description:
+            'The Alpha Wolf waits outside the cave. When you venture out, he will attack. Defeat him to survive.',
+        heroImage: generateTowardsTheLightSVG(),
+    },
+    {
         id: 'last_holdout',
         title: 'The Last Holdout',
         description: 'The players will need to defend a bunker from the dark hordes.',
@@ -49,7 +56,7 @@ const MISSIONS: Mission[] = [
 
 /** Mission groups for the select UI: group title and ordered mission ids. */
 const MISSION_GROUPS: { title: string; missionIds: string[] }[] = [
-    { title: 'World of Darkness', missionIds: ['dark_awakening', 'towards_the_light', 'light_empowered'] },
+    { title: 'World of Darkness', missionIds: ['dark_awakening', 'towards_the_light', 'light_empowered', 'monster'] },
     { title: 'Bunker at the End', missionIds: ['last_holdout'] },
 ];
 

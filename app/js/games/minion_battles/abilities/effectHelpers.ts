@@ -9,6 +9,35 @@ import type { TerrainManager } from '../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../engine/forceMove';
 import { Effect } from '../objects/Effect';
 
+/** Default slash trail color (light cyan). */
+const DEFAULT_SLASH_TRAIL_COLOR = 0x7fdfef;
+
+/**
+ * Create a slash trail effect: thick fading line from (startX, startY) to (endX, endY).
+ * Used by LaserSword and BeastClaw. Color defaults to light cyan; pass color for BeastClaw (amber).
+ * @param delay - Optional delay in seconds before the effect starts.
+ */
+export function createSlashTrailEffect(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    duration: number,
+    thickness: number,
+    color: number = DEFAULT_SLASH_TRAIL_COLOR,
+    delay?: number,
+): Effect {
+    return new Effect({
+        x: startX,
+        y: startY,
+        duration,
+        effectType: 'SlashTrail',
+        effectRadius: thickness,
+        effectData: { endX, endY, color },
+        delay,
+    });
+}
+
 /** Options for CrystalLightEffect. Brief invisible light that decays over time. */
 export interface CrystalLightEffectOptions {
     lightAmount?: number;

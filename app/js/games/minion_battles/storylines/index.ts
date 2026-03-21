@@ -9,6 +9,7 @@ import { BunkerAtTheEndStoryline } from './BunkerAtTheEnd/BunkerAtTheEnd';
 import { DARK_AWAKENING } from './WorldOfDarkness/missions/dark_awakening';
 import { TOWARDS_THE_LIGHT } from './WorldOfDarkness/missions/towards_the_light';
 import { LIGHT_EMPOWERED } from './WorldOfDarkness/missions/003_light_empowered';
+import { MONSTER } from './WorldOfDarkness/missions/004_monster';
 import { LAST_HOLDOUT } from './BunkerAtTheEnd/missions/last_holdout';
 
 /** Default mission when missionId is unknown (e.g. fallback in BattlePhase). */
@@ -23,6 +24,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     dark_awakening: DARK_AWAKENING,
     towards_the_light: TOWARDS_THE_LIGHT,
     light_empowered: LIGHT_EMPOWERED,
+    monster: MONSTER,
     last_holdout: LAST_HOLDOUT,
 };
 
