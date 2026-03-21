@@ -189,7 +189,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
 
         // Add enemies (health scaled by player count)
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
-        const unitAITreeId = missionConfig.aiController === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
+        const fallbackTreeId = missionConfig.aiController === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
         const enemySpawns: UnitSpawnConfig[] = this.enemies.map((e) => ({ ...e, ownerId: 'ai' }));
         for (const spawn of enemySpawns) {
             const unit = createUnitFromSpawnConfig(
@@ -198,7 +198,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     hp: Math.round(spawn.hp * enemyHealthMult),
                     x: spawn.position.x,
                     y: spawn.position.y,
-                    unitAITreeId,
+                    unitAITreeId: spawn.unitAITreeId ?? fallbackTreeId,
                 },
                 params.eventBus,
             );

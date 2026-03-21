@@ -54,6 +54,14 @@ export interface UnitAIContext {
     findLightSourceId?: string;
     /** default_findLight: gameTime when we finish idling at light. */
     findLightIdleUntil?: number;
+    /** aggroWander: starting grid column (anchor for wander radius). */
+    aggroWanderStartCol?: number;
+    /** aggroWander: starting grid row (anchor for wander radius). */
+    aggroWanderStartRow?: number;
+    /** aggroWander: gameTime when last wander move was picked. */
+    aggroWanderLastMoveTime?: number;
+    /** aggroWander: gameTime when last enemy scan was performed. */
+    aggroWanderLastScanTime?: number;
 }
 
 /** Movement state for a unit. */

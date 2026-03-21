@@ -56,7 +56,7 @@ export const ENEMY_DARK_WOLF: EnemySpawnDef = {
     aiSettings: { minRange: 0, maxRange: 80 },
 };
 
-/** Boar: like wolf but bigger, double HP, Charge (0006). Large (22px), 24 HP, speed 100. */
+/** Boar: like wolf but bigger, double HP, Charge (0006). Large (22px), 24 HP, speed 100. Uses aggroWander AI. */
 export const ENEMY_BOAR: EnemySpawnDef = {
     characterId: 'boar',
     name: 'Boar',
@@ -67,6 +67,7 @@ export const ENEMY_BOAR: EnemySpawnDef = {
     abilities: ['0006'],
     aiSettings: { minRange: 0, maxRange: 90 },
     radius: 22,
+    unitAITreeId: 'aggroWander',
 };
 
 /** Alpha Wolf: boss with 200 HP, Claw (0004) and Summon (0005). Extra Large (26px), speed 135. */

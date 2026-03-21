@@ -42,6 +42,8 @@ export interface SpawnWaveEntry {
     spawnTarget?: SpawnTarget;
     /** How many units to attempt spawning for this entry. Defaults to 1. */
     spawnCount?: number;
+    /** Override the AI tree for this spawn entry (e.g. 'aggroWander'). Falls back to mission aiController mapping. */
+    unitAITreeId?: string;
 }
 
 /** Victory condition: eliminate all enemy units. */
@@ -137,6 +139,8 @@ export interface EnemySpawnDef {
     aiSettings?: AISettings;
     /** Visual/collision radius. Omitted uses unit default for that character. */
     radius?: number;
+    /** Override the AI tree for this enemy (e.g. 'aggroWander'). Falls back to mission aiController mapping. */
+    unitAITreeId?: string;
 }
 
 /** Tags that can be applied to special tile placements (e.g. destructible). */
