@@ -4,7 +4,8 @@
  * Capsule radius is 1.5× caster radius for a wider attack.
  */
 
-import type { AbilityStatic, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../../abilities/Ability';
+import { AbilityState } from '../../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../objects/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
@@ -101,7 +102,10 @@ export const BoarChargeAbility: AbilityStatic = {
         return { minRange: 0, maxRange: getMaxRange(caster) };
     },
 
-    getAbilityStates() {
+    getAbilityStates(currentTime: number): AbilityStateEntry[] {
+        if (currentTime < PREFIRE_TIME) {
+            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
+        }
         return [];
     },
 

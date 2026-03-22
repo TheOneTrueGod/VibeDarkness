@@ -143,7 +143,7 @@ export const EnemyArcherShotAbility: AbilityStatic = {
             gr.moveTo(caster.x, caster.y);
             gr.lineTo(caster.x + rightX * lineLen, caster.y + rightY * lineLen);
             gr.stroke({ color: RED, width: 2, alpha: sideAlpha });
-        } else {
+        } else if (elapsed < PREFIRE_TIME) {
             gr.moveTo(caster.x, caster.y);
             gr.lineTo(caster.x + ux * lineLen, caster.y + uy * lineLen);
             gr.stroke({ color: RED, width: 3, alpha: 1 });
