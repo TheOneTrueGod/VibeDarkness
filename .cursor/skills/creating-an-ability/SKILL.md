@@ -23,6 +23,7 @@ Important: ability implementation files belong in `card_defs/` folders (not dire
   - **blockingHelpers.ts**: `tryDamageOrBlock`, `canAttackBeBlocked`, `executeBlock`, `getBlockingArcForUnit`
 
 When adding new behaviour that might be reused, add or extend a helper in the appropriate `abilities/*.ts` file first, then have the ability call it.
+  - **hitboxes**: For hit-detection shapes (e.g. `ThickLineHitbox`), see the **working-with-hitboxes** skill.
 
 ## Where to put it
 

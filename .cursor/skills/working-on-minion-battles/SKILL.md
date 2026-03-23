@@ -13,6 +13,7 @@ When working on Minion Battles (the game):
 2. **Entrypoint**: The game entrypoint is `app/js/games/minion_battles/game.ts` (default export `MinionBattlesGame`).
 3. **Integration**: If wiring to the lobby (e.g. game selection, messages), follow AGENTS.md for adding game state and message types; keep Minion Battles–specific code under `app/js/games/minion_battles/` where possible.
 4. **Creating abilities**: When adding a new ability or card, use the **creating-an-ability** skill: create a folder `card_defs/####_ABILITY_NAME` with `####Ability.ts` containing both the CardDef and the ability, implement `doCardEffect` and `renderPreview`, and register in AbilityRegistry and card_defs/index. See that skill for the full workflow and group ID enum.
+5. **Hitboxes**: When an ability needs collision detection against enemies (melee, lunge, AoE), use the hitbox classes in `hitboxes/`. See the **working-with-hitboxes** skill for available types, usage patterns, and how to add new shapes.
 
 ## Teams
 
