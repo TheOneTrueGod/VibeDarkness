@@ -581,8 +581,8 @@ export class Unit extends GameObject {
     }
 
     /** Set the ability note (overwrites any existing). Used by abilities during execution. */
-    setAbilityNote(note: AbilityNote | null): void {
-        this.abilityNote = note;
+    setAbilityNote(note: { abilityId: string; abilityNote: unknown } | null): void {
+        this.abilityNote = note as AbilityNote | null;
     }
 
     /** Clear the ability note. */

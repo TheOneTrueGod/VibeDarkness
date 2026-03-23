@@ -70,7 +70,7 @@ export const ENEMY_BOAR: EnemySpawnDef = {
     unitAITreeId: 'aggroWander',
 };
 
-/** Alpha Wolf: boss with 200 HP, Claw (0004) and Summon (0005). Extra Large (26px), speed 135. */
+/** Alpha Wolf: boss with 200 HP, Claw (0004), Summon (0005), and Charge (0007). Extra Large (26px), speed 135. */
 export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     characterId: 'alpha_wolf',
     name: 'Alpha Wolf',
@@ -78,7 +78,7 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     speed: 135,
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['0004', '0005'],
+    abilities: ['0004', '0005', '0007'],
     aiSettings: { minRange: 0, maxRange: 100 },
     radius: 26,
 };
