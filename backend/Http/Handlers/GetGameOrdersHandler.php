@@ -2,6 +2,7 @@
 
 namespace App\Http\Handlers;
 
+use App\GameCheckpointFiles;
 use App\LobbyManager;
 use App\AccountService;
 
@@ -36,16 +37,24 @@ class GetGameOrdersHandler
         }
 
         $dir = self::getGameDir($lobbyId, $gameId);
-        $path = $dir . '/game_' . $gameId . '_' . $checkpointGameTick . '.json';
+        // Union orders from every file in this checkpoint window (aligned bucket + host snapshot ticks).
+        // Host must see remote orders even when they live in a different filename than resolveSnapshotPathForOrders picks first.
+        $orders = GameCheckpointFiles::mergeOrdersInCheckpointWindow($dir, $gameId, $checkpointGameTick);
+        $pathMeta = GameCheckpointFiles::resolveSnapshotPathForMinimal($dir, $gameId, $checkpointGameTick);
 
-        if (!is_file($path)) {
+        if ($orders === [] && $pathMeta === null) {
             return ['success' => true, 'orders' => null, 'gameTick' => $checkpointGameTick, 'state' => null];
         }
 
-        $data = json_decode(file_get_contents($path), true);
-        $orders = $data['orders'] ?? [];
-        $state = $data['state'] ?? null;
-        $gameTick = (int) ($data['gameTick'] ?? $checkpointGameTick);
+        $gameTick = $checkpointGameTick;
+        $state = null;
+        if ($pathMeta !== null && is_file($pathMeta)) {
+            $data = json_decode((string) file_get_contents($pathMeta), true);
+            if (is_array($data)) {
+                $gameTick = (int) ($data['gameTick'] ?? $checkpointGameTick);
+                $state = $data['state'] ?? null;
+            }
+        }
 
         return ['success' => true, 'orders' => $orders, 'gameTick' => $gameTick, 'state' => $state];
     }

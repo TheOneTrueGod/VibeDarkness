@@ -392,20 +392,6 @@ function AppInner() {
                 lobbyClient.sendMessage(lobby.id, me.id, msg.type, msg.data).catch(() => {});
             },
             onPeerEvent: (fromPlayerId, event) => {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/2a2554c3-e9f5-4502-827c-f3f11769724c', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        runId: 'pre-fix',
-                        hypothesisId: 'H3',
-                        location: 'App.tsx:onPeerEvent',
-                        message: 'Received WebRTC peer event',
-                        data: { fromPlayerId, eventType: event.type },
-                        timestamp: Date.now(),
-                    }),
-                }).catch(() => {});
-                // #endregion agent log
                 if ((event.type as string | undefined) === 'ping') {
                     triggerPlayerFlash(fromPlayerId);
                 }

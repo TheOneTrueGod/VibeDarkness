@@ -33,6 +33,7 @@ import { MessageType } from '../../../MessageTypes';
 import type { MessageEntry } from '../../../components/Chat';
 import { useGameSyncOptional } from '../../../contexts/GameSyncContext';
 import type { OrderPollingCallbacks } from '../../../contexts/GameSyncContext';
+import { computeSynchash } from '../../../utils/synchash';
 
 declare global {
     interface Window {
@@ -56,6 +57,8 @@ declare global {
         __minionBattlesDebugGameTick?: number;
         /** Live serialized engine state; DebugConsole Units tab polls this for up-to-date unit data. */
         __minionBattlesDebugGameState?: Record<string, unknown> | null;
+        /** Client synchash of live engine state (Game State debug tab). */
+        __minionBattlesDebugSynchash?: string;
     }
 }
 
@@ -166,21 +169,30 @@ export default function BattlePhase({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Expose live game tick and engine state for DebugConsole tabs
+    // Expose live game tick, engine state, and synchash for DebugConsole tabs
     useEffect(() => {
+        let hashSeq = 0;
         const id = window.setInterval(() => {
             const engine = engineRef.current;
             if (engine) {
                 if (typeof engine.gameTick === 'number') {
                     window.__minionBattlesDebugGameTick = engine.gameTick;
                 }
-                window.__minionBattlesDebugGameState = engine.toJSON() as unknown as Record<string, unknown>;
+                const state = engine.toJSON() as unknown as Record<string, unknown>;
+                window.__minionBattlesDebugGameState = state;
+                const seq = ++hashSeq;
+                void computeSynchash(state).then((h) => {
+                    if (seq === hashSeq) {
+                        window.__minionBattlesDebugSynchash = h;
+                    }
+                });
             }
         }, 100);
         return () => {
             window.clearInterval(id);
             window.__minionBattlesDebugGameTick = undefined;
             window.__minionBattlesDebugGameState = undefined;
+            window.__minionBattlesDebugSynchash = undefined;
         };
     }, []);
 

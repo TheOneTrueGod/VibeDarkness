@@ -360,7 +360,14 @@ export default function GameScreen({
                                     {showWaitingForHost && (
                                         <div className="absolute left-1/2 bottom-[calc(12rem+80px)] -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-2 bg-surface-light rounded-lg border border-warning text-sm text-warning">
                                             <div className="h-4 w-4 flex-shrink-0 border-2 border-warning border-t-transparent rounded-full animate-spin" />
-                                            Waiting for host
+                                            <div className="flex flex-col items-start gap-0.5 min-w-0">
+                                                <span className="font-medium">Waiting for host</span>
+                                                {gameSync?.waitingForHostReason ? (
+                                                    <span className="text-xs text-warning/80 font-normal leading-snug max-w-[14rem]">
+                                                        {gameSync.waitingForHostReason}
+                                                    </span>
+                                                ) : null}
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={() => gameSync?.fetchFullState()}

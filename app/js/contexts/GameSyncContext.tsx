@@ -19,6 +19,92 @@ export type SyncStatus = 'loading' | 'synced' | 'resyncing' | 'waiting_for_host'
 
 export const WAITING_FOR_HOST_THRESHOLD = 10;
 
+function isWaitingForRemotePlayerOrder(
+    state: Record<string, unknown>,
+    localPlayerId: string,
+): boolean {
+    const w = state.waitingForOrders as { ownerId?: string } | null | undefined;
+    return w != null && typeof w.ownerId === 'string' && w.ownerId !== localPlayerId;
+}
+
+/** Unit id the engine is paused on, or null if not waiting for orders. */
+function extractWaitingUnitId(state: Record<string, unknown>): string | null {
+    const w = state.waitingForOrders as { unitId?: string } | null | undefined;
+    return w != null && typeof w.unitId === 'string' ? w.unitId : null;
+}
+
+function getUnitOwnerIdFromState(state: Record<string, unknown>, unitId: string): string | null {
+    const units = state.units;
+    if (!Array.isArray(units)) return null;
+    for (const u of units) {
+        if (u && typeof u === 'object') {
+            const rec = u as Record<string, unknown>;
+            if (rec.id === unitId) {
+                const oid = rec.ownerId;
+                return typeof oid === 'string' ? oid : null;
+            }
+        }
+    }
+    return null;
+}
+
+function appliedRemoteOrderKey(gameTick: number, unitId: string): string {
+    return `${gameTick}:${unitId}`;
+}
+
+function markAppliedRemoteOrders(
+    orders: Array<{ gameTick: number; order: Record<string, unknown> }>,
+    applied: Set<string>,
+): void {
+    for (const o of orders) {
+        const uid = (o.order as { unitId?: string }).unitId;
+        if (typeof uid === 'string') {
+            applied.add(appliedRemoteOrderKey(o.gameTick, uid));
+        }
+    }
+}
+
+type RemoteOrderFilterOpts = {
+    localPlayerId: string;
+    state: Record<string, unknown>;
+    appliedKeys: Set<string>;
+};
+
+/**
+ * Orders from the server that still need to be applied locally.
+ * Same tick: include when paused on that unit, or when the order targets another unit owned by the
+ * remote player (unit iteration can pause on a different unit before the merged order arrives).
+ */
+function remoteOrdersToApply(
+    serverOrders: Array<{ gameTick: number; order: Record<string, unknown> }>,
+    engineTick: number,
+    waitingUnitId: string | null,
+    opts: RemoteOrderFilterOpts | null,
+): Array<{ gameTick: number; order: Record<string, unknown> }> {
+    return serverOrders.filter((o) => {
+        const t = Number(o.gameTick);
+        const uid = (o.order as { unitId?: string }).unitId;
+        if (typeof uid !== 'string') return false;
+
+        if (opts != null && opts.appliedKeys.has(appliedRemoteOrderKey(t, uid))) {
+            return false;
+        }
+
+        if (t > engineTick) return true;
+        if (t < engineTick) return false;
+
+        if (waitingUnitId != null && uid === waitingUnitId) return true;
+
+        if (opts != null) {
+            const owner = getUnitOwnerIdFromState(opts.state, uid);
+            if (owner != null && owner !== opts.localPlayerId) {
+                return true;
+            }
+        }
+        return false;
+    });
+}
+
 /** Callbacks provided by BattlePhase so polling can deliver orders back to the engine. */
 export interface OrderPollingCallbacks {
     /** Return the engine's current gameTick and serialized state, or null if the engine isn't ready. */
@@ -30,6 +116,8 @@ export interface OrderPollingCallbacks {
 interface GameSyncContextValue {
     gameState: GameStatePayload | null;
     syncStatus: SyncStatus;
+    /** When syncStatus is waiting_for_host, short UI hint for why (non-host battle sync). */
+    waitingForHostReason: string | null;
     canSubmitOrders: boolean;
     consecutiveWaitCount: number;
     fetchFullState: (desyncContext?: { currentState: Record<string, unknown>; reason: string; serverTick?: number | null; serverHash?: string | null }) => Promise<void>;
@@ -75,12 +163,15 @@ export function GameSyncProvider({
 }: GameSyncProviderProps) {
     const [gameState, setGameState] = useState<GameStatePayload | null>(null);
     const [syncStatus, setSyncStatus] = useState<SyncStatus>('loading');
+    const [waitingForHostReason, setWaitingForHostReason] = useState<string | null>(null);
     const [canSubmitOrders, setCanSubmitOrders] = useState(true);
     const [consecutiveWaitCount, setConsecutiveWaitCount] = useState(0);
     const skipTurnHandlerRef = useRef<(() => void) | null>(null);
     const stateFetchPromiseRef = useRef<Promise<unknown>>(Promise.resolve());
     const orderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const orderPollCallbacksRef = useRef<OrderPollingCallbacks | null>(null);
+    /** Dedupe merged server orders after delivery (same tick + unit can reappear in merged files). */
+    const appliedRemoteOrdersRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         lobbyClient.setCurrentPlayerId(playerId);
@@ -136,7 +227,9 @@ export function GameSyncProvider({
 
     const saveCheckpoint = useCallback(
         async (gameTick: number, state: Record<string, unknown>, orders: Array<{ gameTick: number; order: Record<string, unknown> }>) => {
-            if (!isHost || !gameId) return;
+            if (!isHost || !gameId) {
+                return;
+            }
             try {
                 await lobbyClient.saveGameStateSnapshot(lobbyId, gameId, gameTick, state, orders);
             } catch (err) {
@@ -187,10 +280,32 @@ export function GameSyncProvider({
                     const result = await lobbyClient.getGameOrders(lobbyId, gameId, checkpointGameTick);
                     if (!result?.orders?.length) return;
 
-                    const newOrders = result.orders.filter((o) => o.gameTick > snapshot.gameTick);
+                    const fresh = callbacks.getEngineSnapshot();
+                    if (!fresh) return;
+                    const snapTick = Number(fresh.gameTick);
+                    const waitingUnitId =
+                        extractWaitingUnitId(fresh.state) ??
+                        (result.state ? extractWaitingUnitId(result.state) : null);
+                    const newOrders = remoteOrdersToApply(result.orders, snapTick, waitingUnitId, {
+                        localPlayerId: playerId,
+                        state: fresh.state,
+                        appliedKeys: appliedRemoteOrdersRef.current,
+                    });
+                    // After a remote order is applied, resumeAfterOrders clears waitingForOrders but merged
+                    // checkpoint files still list that order — same-tick filter drops all and polling never stops.
+                    const staleMergedOrdersReplay =
+                        newOrders.length === 0 &&
+                        result.orders.length > 0 &&
+                        !isWaitingForRemotePlayerOrder(fresh.state, playerId) &&
+                        result.orders.every((o) => Number(o.gameTick) <= snapTick);
+                    if (staleMergedOrdersReplay) {
+                        stopOrderPolling();
+                        return;
+                    }
                     if (newOrders.length === 0) return;
 
                     callbacks.onOrdersReceived(newOrders);
+                    markAppliedRemoteOrders(newOrders, appliedRemoteOrdersRef.current);
                     stopOrderPolling();
                 } catch {
                     // Silently retry on next interval
@@ -214,6 +329,15 @@ export function GameSyncProvider({
 
                 const serverTick = minimalResult.gameTick ?? -1;
                 const serverHash = minimalResult.synchash ?? null;
+                const liveForTick = callbacks.getEngineSnapshot();
+                const engineTick = Number(liveForTick?.gameTick ?? snapshot.gameTick);
+                const waitingUnitId = extractWaitingUnitId(liveForTick?.state ?? snapshot.state);
+                const stateForFilter = liveForTick?.state ?? snapshot.state;
+                const pendingRemoteOrders = remoteOrdersToApply(minimalResult.orders, engineTick, waitingUnitId, {
+                    localPlayerId: playerId,
+                    state: stateForFilter,
+                    appliedKeys: appliedRemoteOrdersRef.current,
+                });
 
                 // No checkpoint file exists at this boundary yet — host hasn't reached it.
                 if (serverTick < 0) {
@@ -238,30 +362,25 @@ export function GameSyncProvider({
                         });
                         stopOrderPolling();
                     } else {
+                        setWaitingForHostReason('Host snapshot not available yet');
                         setSyncStatus('waiting_for_host');
                     }
                     return;
                 }
 
-                // Deliver any orders newer than our current tick.
-                // serverTick is the checkpoint boundary (e.g. 580), which is normally
-                // less than the engine's current tick (e.g. 584). This is expected.
-                if (minimalResult.orders.length > 0) {
-                    const freshSnapshot = callbacks.getEngineSnapshot();
-                    const currentTick = freshSnapshot?.gameTick ?? snapshot.gameTick;
-                    const newOrders = minimalResult.orders.filter((o) => o.gameTick > currentTick);
-                    if (newOrders.length > 0) {
-                        setCanSubmitOrders(true);
-                        setConsecutiveWaitCount(0);
-                        setSyncStatus('synced');
-                        callbacks.onOrdersReceived(newOrders);
-                        stopOrderPolling();
-                        return;
-                    }
+                // Deliver remote orders (same tick as engine is valid when paused on that unit).
+                if (pendingRemoteOrders.length > 0) {
+                    setCanSubmitOrders(true);
+                    setConsecutiveWaitCount(0);
+                    setSyncStatus('synced');
+                    callbacks.onOrdersReceived(pendingRemoteOrders);
+                    markAppliedRemoteOrders(pendingRemoteOrders, appliedRemoteOrdersRef.current);
+                    stopOrderPolling();
+                    return;
                 }
 
                 // No new orders yet. Verify synchash if ticks match exactly.
-                if (serverTick === snapshot.gameTick) {
+                if (Number(serverTick) === engineTick) {
                     const clientSynchash = await computeSynchash(snapshot.state);
                     if (serverHash !== null && clientSynchash !== null && serverHash !== clientSynchash) {
                         setSyncStatus('resyncing');
@@ -274,11 +393,29 @@ export function GameSyncProvider({
                         stopOrderPolling();
                         return;
                     }
+                    const hashAligned =
+                        serverHash !== null && clientSynchash !== null && serverHash === clientSynchash;
+                    const liveState = callbacks.getEngineSnapshot()?.state ?? snapshot.state;
+                    if (
+                        hashAligned &&
+                        pendingRemoteOrders.length === 0 &&
+                        !(
+                            isWaitingForRemotePlayerOrder(liveState, playerId) &&
+                            minimalResult.orders.length === 0
+                        )
+                    ) {
+                        stopOrderPolling();
+                        setCanSubmitOrders(true);
+                        setConsecutiveWaitCount(0);
+                        setSyncStatus('synced');
+                        return;
+                    }
                 }
 
-                // If the host has saved a checkpoint beyond ours (different checkpoint
-                // boundary), trigger a resync so we pick up the latest state.
-                if (serverTick > snapshot.gameTick) {
+                // Host snapshot tick can legitimately exceed ours while we wait to apply remote
+                // orders (overlapping checkpoint window). Full-resync only when we're behind and the
+                // merged order list has nothing left to apply.
+                if (Number(serverTick) > engineTick && pendingRemoteOrders.length === 0) {
                     setSyncStatus('resyncing');
                     await fetchFullState({
                         currentState: snapshot.state,
@@ -297,12 +434,19 @@ export function GameSyncProvider({
                 // Silently retry on next interval
             }
         },
-        [isHost, lobbyId, gameId, lobbyClient, fetchFullState, stopOrderPolling],
+        [isHost, lobbyId, gameId, playerId, lobbyClient, fetchFullState, stopOrderPolling],
     );
+
+    useEffect(() => {
+        if (syncStatus !== 'waiting_for_host') {
+            setWaitingForHostReason(null);
+        }
+    }, [syncStatus]);
 
     const startOrderPolling = useCallback(
         (checkpointGameTick: number, callbacks: OrderPollingCallbacks) => {
             stopOrderPolling();
+            appliedRemoteOrdersRef.current.clear();
             orderPollCallbacksRef.current = callbacks;
             pollForOrdersImpl(checkpointGameTick);
             orderPollRef.current = setInterval(
@@ -375,6 +519,7 @@ export function GameSyncProvider({
     const value: GameSyncContextValue = {
         gameState,
         syncStatus,
+        waitingForHostReason,
         canSubmitOrders,
         consecutiveWaitCount,
         fetchFullState,

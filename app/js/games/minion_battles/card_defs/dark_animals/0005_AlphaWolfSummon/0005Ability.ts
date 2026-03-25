@@ -19,6 +19,7 @@ import { createUnitFromSpawnConfig } from '../../../objects/units/index';
 import { buildResolvedTargets } from '../../../objects/units/unitAI/utils';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
+import type { EventBus } from '../../../engine/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}05`;
 const PREFIRE_TIME = 0.5;
@@ -40,7 +41,7 @@ interface GameEngineLike {
     queueOrder(atTick: number, order: { unitId: string; abilityId: string; targets: ResolvedTarget[] }): void;
     gameTick: number;
     gameTime: number;
-    eventBus: { emit: (event: string, data: unknown) => void };
+    eventBus: EventBus;
 }
 
 const SUMMON_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
