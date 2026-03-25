@@ -402,7 +402,7 @@ export class GameEngine implements EngineContext {
 
             unit.update(dt, this);
 
-            if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive() && !this.waitingForOrders) {
+            if (this.shouldPauseForOrders(unit) && !this.waitingForOrders) {
                 this.levelEventManager.runVictoryChecks();
                 this.pauseForOrders(unit);
                 this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
@@ -422,6 +422,16 @@ export class GameEngine implements EngineContext {
     // ========================================================================
     // Turn / Pause System
     // ========================================================================
+
+    /**
+     * Whether this engine should be (or remain) paused for orders with the given unit.
+     * Used both for initiating the pause during the tick loop and for UI replay after resync.
+     */
+    shouldPauseForOrders(unit: Unit): boolean {
+        if (!unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive()) return false;
+        if (!this.waitingForOrders) return true;
+        return this.waitingForOrders.unitId === unit.id && this.waitingForOrders.ownerId === unit.ownerId;
+    }
 
     private pauseForOrders(unit: Unit): void {
         this.waitingForOrders = {

@@ -128,6 +128,8 @@ export default function BattlePhase({
     targetingStateRef.current = { selectedAbility, currentTargets, mouseWorld: mouseWorldRef.current, waitingForOrders };
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     const [, forceRender] = useState(0);
+    const prevSyncStatusRef = useRef<string | null>(null);
+    const lastWaitingPollKeyRef = useRef<string | null>(null);
 
     // Is it my turn?
     const isMyTurn = waitingForOrders?.ownerId === playerId;
@@ -253,6 +255,42 @@ export default function BattlePhase({
     // ========================================================================
 
     const updateCardStateRef = useRef<((engine: GameEngine) => void) | null>(null);
+    const maybeStartOrderPollingForWaiting = useCallback(
+        (engine: GameEngine, info: WaitingForOrders, source: 'engine_callback' | 'post_full_state_sync') => {
+            if (info.ownerId === playerId) {
+                lastWaitingPollKeyRef.current = null;
+                return;
+            }
+            const nextTick = engine.gameTick + 1;
+            const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+            const pollKey = `${checkpointGameTick}:${engine.gameTick}:${info.unitId}:${info.ownerId}`;
+            const sameAsLast = lastWaitingPollKeyRef.current === pollKey;
+            if (source === 'post_full_state_sync' && sameAsLast) return;
+            lastWaitingPollKeyRef.current = pollKey;
+            gameSyncRef.current?.startOrderPolling(checkpointGameTick, makeOrderPollingCallbacks());
+        },
+        [playerId],
+    );
+
+    const handleWaitingForOrdersState = useCallback(
+        (engine: GameEngine, info: WaitingForOrders, source: 'engine_callback' | 'post_full_state_sync') => {
+            setWaitingForOrders(info);
+            setIsPaused(true);
+
+            // Preserve the unit's existing movement path so it carries over
+            // into the next order (unit keeps walking between turns).
+            // Do not reuse path after forced movement (knockback, abilities).
+            const unit = engine.getUnit(info.unitId);
+            const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
+            pendingMovePathRef.current = existingPath && existingPath.length > 0
+                ? existingPath.map((p) => ({ ...p }))
+                : null;
+
+            updateCardStateRef.current?.(engine);
+            maybeStartOrderPollingForWaiting(engine, info, source);
+        },
+        [maybeStartOrderPollingForWaiting],
+    );
 
     useEffect(() => {
         const skipHandler = () => {
@@ -351,54 +389,6 @@ export default function BattlePhase({
 
         engineRef.current = engine;
 
-        async function performDesyncCheck(currentEngine: GameEngine) {
-            try {
-                const snapshot = await lobbyClient.getGameStateSnapshot(lobbyId, gameId);
-                if (!snapshot?.state) return;
-
-                const clientState = currentEngine.toJSON() as unknown as Record<string, unknown>;
-                const serverState = snapshot.state as Record<string, unknown>;
-                const diffPaths = diffSnapshotFields(clientState, serverState);
-
-                if (diffPaths.length === 0) {
-                    return;
-                }
-
-                // Only treat differences in core simulation state as critical; allow
-                // benign drift in bookkeeping fields (waitingForOrders, snapshotIndex,
-                // timestamps, etc.) without forcing a rollback for clients.
-                const CRITICAL_PREFIXES = ['units', 'projectiles', 'effects', 'specialTiles', 'cards'];
-                const criticalDiffs = diffPaths.filter((p) =>
-                    CRITICAL_PREFIXES.some(
-                        (prefix) =>
-                            p === prefix ||
-                            p.startsWith(`${prefix}.`) ||
-                            p.startsWith(`${prefix}[`),
-                    ),
-                );
-
-                if (criticalDiffs.length === 0) {
-                    return;
-                }
-
-                console.warn('Desync: full resync triggered (client snapshot mismatch)', {
-                    reason: 'client_snapshot_desync',
-                    criticalDiffs,
-                    currentState: clientState,
-                    serverState,
-                });
-                throwError({
-                    severity: 'medium',
-                    message: 'Client Snapshot desync',
-                    details: { fields: diffPaths },
-                });
-                await reloadEngineFromSnapshot(snapshot);
-            } catch (err) {
-                // Non-critical: log and continue (e.g. network error)
-                console.warn('Desync check failed:', err);
-            }
-        }
-
         function reloadEngineFromSnapshot(
             serverSnapshot: { gameTick: number; state: Record<string, unknown>; orders: Array<{ gameTick: number; order: Record<string, unknown> }> },
         ) {
@@ -422,20 +412,7 @@ export default function BattlePhase({
             engineRef.current = newEngine;
 
             newEngine.setOnWaitingForOrders((info) => {
-                setWaitingForOrders(info);
-                setIsPaused(true);
-
-                const unit = newEngine.getUnit(info.unitId);
-                const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
-                pendingMovePathRef.current = existingPath && existingPath.length > 0
-                    ? existingPath.map((p) => ({ ...p }))
-                    : null;
-                updateCardState(newEngine);
-                if (info.ownerId !== playerId) {
-                    const nextTick = newEngine.gameTick + 1;
-                    const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-                    gameSyncRef.current?.startOrderPolling(checkpointGameTick, makeOrderPollingCallbacks());
-                }
+                handleWaitingForOrdersState(newEngine, info, 'engine_callback');
             });
             newEngine.setOnCheckpoint((gameTick, state, orders) => {
                 const ordersFormatted = (orders as OrderAtTick[]).map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
@@ -481,25 +458,7 @@ export default function BattlePhase({
 
         // Set up callbacks
         engine.setOnWaitingForOrders((info) => {
-            setWaitingForOrders(info);
-            setIsPaused(true);
-
-            // Preserve the unit's existing movement path so it carries over
-            // into the next order (unit keeps walking between turns).
-            // Do not reuse path after forced movement (knockback, abilities).
-            const unit = engine.getUnit(info.unitId);
-            const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
-            pendingMovePathRef.current = existingPath && existingPath.length > 0
-                ? existingPath.map((p) => ({ ...p }))
-                : null;
-
-            updateCardState(engine);
-
-            if (info.ownerId !== playerId) {
-                const nextTick = engine.gameTick + 1;
-                const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-                gameSyncRef.current?.startOrderPolling(checkpointGameTick, makeOrderPollingCallbacks());
-            }
+            handleWaitingForOrdersState(engine, info, 'engine_callback');
         });
 
         engine.setOnCheckpoint((gameTick, state, orders) => {
@@ -566,6 +525,29 @@ export default function BattlePhase({
             gameSyncRef.current?.stopOrderPolling();
         };
     }, []); // Run once on mount
+
+    useEffect(() => {
+        const currentSyncStatus = gameSync?.syncStatus ?? null;
+        const prevSyncStatus = prevSyncStatusRef.current;
+        prevSyncStatusRef.current = currentSyncStatus;
+
+        if (currentSyncStatus !== 'synced') return;
+        if (prevSyncStatus !== 'resyncing' && prevSyncStatus !== 'loading') return;
+
+        const engine = engineRef.current;
+        if (!engine || !engine.waitingForOrders) return;
+        const waiting = engine.waitingForOrders;
+        const unit = engine.getUnit(waiting.unitId);
+        if (!unit || !engine.shouldPauseForOrders(unit)) return;
+
+        console.debug('[BattlePhase] Replaying waiting-for-orders after full-state sync', {
+            fromSyncStatus: prevSyncStatus,
+            toSyncStatus: currentSyncStatus,
+            gameTick: engine.gameTick,
+            waitingForOrders: waiting,
+        });
+        handleWaitingForOrdersState(engine, waiting, 'post_full_state_sync');
+    }, [gameSync?.syncStatus, gameSync?.gameState, handleWaitingForOrdersState]);
 
     // ========================================================================
     // Card state helper

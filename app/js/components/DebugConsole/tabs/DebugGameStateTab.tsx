@@ -29,13 +29,10 @@ export default function DebugGameStateTab({ isActive, gameState }: DebugGameStat
         return () => window.clearInterval(id);
     }, [isActive]);
 
-    if (!isActive) return null;
-
     const game = gameState?.game as Record<string, unknown> | undefined;
     const stateTick = game != null ? (game.gameTick ?? game.game_tick) : undefined;
     /** Live engine tick when in battle; lobby payload tick often lags between checkpoints. */
     const gameTick = liveGameTick ?? (typeof stateTick === 'number' ? stateTick : undefined);
-    const tickDisplay = typeof gameTick === 'number' ? String(gameTick) : '-';
 
     /** Prefer live engine hash in battle; otherwise `game.synchash` from synced payload. */
     const syncHashForDisplay =
@@ -43,7 +40,6 @@ export default function DebugGameStateTab({ isActive, gameState }: DebugGameStat
         ?? (game != null && typeof game.synchash === 'string' && game.synchash.length > 0
             ? game.synchash
             : null);
-    const syncHashDisplay = syncHashForDisplay ?? '-';
 
     /** Shown JSON uses the same tick and synchash as the header so debug output stays consistent. */
     const displayGameState = useMemo((): GameStatePayload | null => {
@@ -74,6 +70,11 @@ export default function DebugGameStateTab({ isActive, gameState }: DebugGameStat
             // ignore
         }
     }, [displayGameState]);
+
+    if (!isActive) return null;
+
+    const tickDisplay = typeof gameTick === 'number' ? String(gameTick) : '-';
+    const syncHashDisplay = syncHashForDisplay ?? '-';
 
     return (
         <div className="flex flex-col gap-2">

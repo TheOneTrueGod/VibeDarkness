@@ -18,6 +18,12 @@ import { computeSynchash } from '../utils/synchash';
 export type SyncStatus = 'loading' | 'synced' | 'resyncing' | 'waiting_for_host';
 
 export const WAITING_FOR_HOST_THRESHOLD = 10;
+const ORDER_POLL_DEBUG = true;
+
+function logOrderPoll(event: string, details: Record<string, unknown> = {}): void {
+    if (!ORDER_POLL_DEBUG) return;
+    console.debug(`[GameSync] ${event}`, details);
+}
 
 function isWaitingForRemotePlayerOrder(
     state: Record<string, unknown>,
@@ -194,6 +200,10 @@ export function GameSyncProvider({
     const fetchFullState = useCallback(async (desyncContext?: DesyncContext) => {
         const run = async () => {
             try {
+                logOrderPoll('fetchFullStateStart', {
+                    reason: desyncContext?.reason ?? 'normal',
+                    hasDesyncContext: desyncContext != null,
+                });
                 setSyncStatus((prev) => (prev === 'loading' ? 'loading' : 'resyncing'));
                 const { gameState: gs } = await lobbyClient.getLobbyState(lobbyId, playerId);
                 const payload = gs as GameStatePayload;
@@ -211,8 +221,22 @@ export function GameSyncProvider({
                 setSyncStatus('synced');
                 setCanSubmitOrders(true);
                 setConsecutiveWaitCount(0);
+                const phase = (payload?.game as Record<string, unknown> | undefined)?.gamePhase
+                    ?? (payload?.game as Record<string, unknown> | undefined)?.game_phase
+                    ?? null;
+                logOrderPoll('fetchFullStateDone', {
+                    phase,
+                    gameId: payload?.gameId ?? null,
+                    gameTick:
+                        (payload?.game as Record<string, unknown> | undefined)?.gameTick
+                        ?? (payload?.game as Record<string, unknown> | undefined)?.game_tick
+                        ?? null,
+                });
             } catch (err) {
                 console.error('Failed to fetch full game state:', err);
+                logOrderPoll('fetchFullStateError', {
+                    reason: desyncContext?.reason ?? 'normal',
+                });
                 setSyncStatus('synced');
             }
         };
@@ -267,12 +291,30 @@ export function GameSyncProvider({
         orderPollCallbacksRef.current = null;
     }, []);
 
+    const stopOrderPollingWithReason = useCallback((reason: string, details: Record<string, unknown> = {}) => {
+        logOrderPoll('stopOrderPolling', { reason, ...details });
+        stopOrderPolling();
+    }, [stopOrderPolling]);
+
     const pollForOrdersImpl = useCallback(
         async (checkpointGameTick: number) => {
             const callbacks = orderPollCallbacksRef.current;
-            if (!callbacks || !gameId) return;
+            if (!callbacks || !gameId) {
+                logOrderPoll('pollSkipped', {
+                    checkpointGameTick,
+                    hasCallbacks: callbacks != null,
+                    hasGameId: gameId != null,
+                });
+                return;
+            }
             const snapshot = callbacks.getEngineSnapshot();
-            if (!snapshot) return;
+            if (!snapshot) {
+                logOrderPoll('pollSkipped', {
+                    checkpointGameTick,
+                    reason: 'engine_snapshot_unavailable',
+                });
+                return;
+            }
 
             if (isHost) {
                 // Host is canonical: just fetch orders, no sync verification.
@@ -299,14 +341,21 @@ export function GameSyncProvider({
                         !isWaitingForRemotePlayerOrder(fresh.state, playerId) &&
                         result.orders.every((o) => Number(o.gameTick) <= snapTick);
                     if (staleMergedOrdersReplay) {
-                        stopOrderPolling();
+                        stopOrderPollingWithReason('host_stale_merged_orders_replay', {
+                            checkpointGameTick,
+                            snapTick,
+                            orderCount: result.orders.length,
+                        });
                         return;
                     }
                     if (newOrders.length === 0) return;
 
                     callbacks.onOrdersReceived(newOrders);
                     markAppliedRemoteOrders(newOrders, appliedRemoteOrdersRef.current);
-                    stopOrderPolling();
+                    stopOrderPollingWithReason('host_orders_received', {
+                        checkpointGameTick,
+                        receivedOrders: newOrders.length,
+                    });
                 } catch {
                     // Silently retry on next interval
                 }
@@ -315,17 +364,20 @@ export function GameSyncProvider({
 
             // Non-host: fetch minimal state, deliver orders, verify sync.
             try {
-                const run = async () => {
+                const runMinimal = async () => {
                     try {
                         return await lobbyClient.getGameMinimalState(lobbyId, gameId, checkpointGameTick);
                     } catch {
                         return null;
                     }
                 };
-                const next = stateFetchPromiseRef.current.then(run, run);
+                const next = stateFetchPromiseRef.current.then(runMinimal, runMinimal);
                 stateFetchPromiseRef.current = next;
                 const minimalResult = await next;
-                if (!minimalResult) return;
+                if (!minimalResult) {
+                    logOrderPoll('minimalPollNoResult', { checkpointGameTick });
+                    return;
+                }
 
                 const serverTick = minimalResult.gameTick ?? -1;
                 const serverHash = minimalResult.synchash ?? null;
@@ -337,6 +389,14 @@ export function GameSyncProvider({
                     localPlayerId: playerId,
                     state: stateForFilter,
                     appliedKeys: appliedRemoteOrdersRef.current,
+                });
+                logOrderPoll('minimalPolled', {
+                    checkpointGameTick,
+                    serverTick,
+                    engineTick,
+                    serverOrders: minimalResult.orders.length,
+                    pendingRemoteOrders: pendingRemoteOrders.length,
+                    waitingUnitId,
                 });
 
                 // No checkpoint file exists at this boundary yet — host hasn't reached it.
@@ -360,7 +420,9 @@ export function GameSyncProvider({
                             serverTick: -1,
                             serverHash: null,
                         });
-                        stopOrderPolling();
+                        stopOrderPollingWithReason('non_host_waiting_for_host_threshold_resync', {
+                            checkpointGameTick,
+                        });
                     } else {
                         setWaitingForHostReason('Host snapshot not available yet');
                         setSyncStatus('waiting_for_host');
@@ -375,7 +437,10 @@ export function GameSyncProvider({
                     setSyncStatus('synced');
                     callbacks.onOrdersReceived(pendingRemoteOrders);
                     markAppliedRemoteOrders(pendingRemoteOrders, appliedRemoteOrdersRef.current);
-                    stopOrderPolling();
+                    stopOrderPollingWithReason('non_host_orders_received', {
+                        checkpointGameTick,
+                        receivedOrders: pendingRemoteOrders.length,
+                    });
                     return;
                 }
 
@@ -390,7 +455,11 @@ export function GameSyncProvider({
                             serverTick,
                             serverHash,
                         });
-                        stopOrderPolling();
+                        stopOrderPollingWithReason('non_host_synchash_mismatch_resync', {
+                            checkpointGameTick,
+                            serverTick,
+                            engineTick,
+                        });
                         return;
                     }
                     const hashAligned =
@@ -404,7 +473,12 @@ export function GameSyncProvider({
                             minimalResult.orders.length === 0
                         )
                     ) {
-                        stopOrderPolling();
+                        stopOrderPollingWithReason('non_host_hash_aligned_not_waiting', {
+                            checkpointGameTick,
+                            serverTick,
+                            engineTick,
+                            waitingForRemoteOrder: isWaitingForRemotePlayerOrder(liveState, playerId),
+                        });
                         setCanSubmitOrders(true);
                         setConsecutiveWaitCount(0);
                         setSyncStatus('synced');
@@ -423,18 +497,26 @@ export function GameSyncProvider({
                         serverTick,
                         serverHash,
                     });
-                    stopOrderPolling();
+                    stopOrderPollingWithReason('non_host_client_fell_behind_resync', {
+                        checkpointGameTick,
+                        serverTick,
+                        engineTick,
+                    });
                     return;
                 }
 
                 setCanSubmitOrders(true);
                 setConsecutiveWaitCount(0);
                 setSyncStatus('synced');
-            } catch {
+            } catch (err) {
+                logOrderPoll('minimalPollError', {
+                    checkpointGameTick,
+                    error: err instanceof Error ? err.message : 'unknown',
+                });
                 // Silently retry on next interval
             }
         },
-        [isHost, lobbyId, gameId, playerId, lobbyClient, fetchFullState, stopOrderPolling],
+        [isHost, lobbyId, gameId, playerId, lobbyClient, fetchFullState, stopOrderPollingWithReason],
     );
 
     useEffect(() => {
@@ -445,16 +527,17 @@ export function GameSyncProvider({
 
     const startOrderPolling = useCallback(
         (checkpointGameTick: number, callbacks: OrderPollingCallbacks) => {
-            stopOrderPolling();
+            stopOrderPollingWithReason('restart_polling', { checkpointGameTick });
             appliedRemoteOrdersRef.current.clear();
             orderPollCallbacksRef.current = callbacks;
+            logOrderPoll('startOrderPolling', { checkpointGameTick, isHost });
             pollForOrdersImpl(checkpointGameTick);
             orderPollRef.current = setInterval(
                 () => pollForOrdersImpl(checkpointGameTick),
                 1000,
             );
         },
-        [stopOrderPolling, pollForOrdersImpl],
+        [stopOrderPollingWithReason, pollForOrdersImpl, isHost],
     );
 
     // ========================================================================
@@ -487,8 +570,18 @@ export function GameSyncProvider({
         const phase = (gameState?.game as Record<string, unknown>)?.gamePhase
             ?? (gameState?.game as Record<string, unknown>)?.game_phase;
         const inBattle = phase === 'battle';
-        if (!inBattle && gameId) {
-            const interval = setInterval(fetchFullState, 5000);
+        const battleGame = (gameState?.game as Record<string, unknown>) ?? null;
+        const hasBattleSnapshot =
+            battleGame != null &&
+            Array.isArray(battleGame.units) &&
+            (battleGame.units as unknown[]).length > 0 &&
+            typeof (battleGame.gameTick ?? battleGame.game_tick) === 'number';
+        // Keep a short-lived fallback poll during battle until a real snapshot arrives.
+        // This prevents clients from getting stuck after story->battle transition where
+        // phase flips to "battle" before units/tick are persisted.
+        if (gameId && (!inBattle || !hasBattleSnapshot)) {
+            const intervalMs = inBattle ? 1000 : 5000;
+            const interval = setInterval(fetchFullState, intervalMs);
             return () => clearInterval(interval);
         }
     }, [gameState?.game, gameId, fetchFullState]);
@@ -513,8 +606,8 @@ export function GameSyncProvider({
 
     // Clean up polling on unmount
     useEffect(() => {
-        return () => stopOrderPolling();
-    }, [stopOrderPolling]);
+        return () => stopOrderPollingWithReason('provider_unmount');
+    }, [stopOrderPollingWithReason]);
 
     const value: GameSyncContextValue = {
         gameState,

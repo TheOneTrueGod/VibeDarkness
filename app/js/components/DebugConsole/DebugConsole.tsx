@@ -7,13 +7,14 @@ import type { GameStatePayload, CampaignState } from '../../types';
 import type { CampaignCharacterPayload } from '../../LobbyClient';
 import DebugBattleActionsTab from './tabs/DebugBattleActionsTab';
 import DebugGameStateTab from './tabs/DebugGameStateTab';
+import DebugOrdersTab from './tabs/DebugOrdersTab';
 import DebugUnitsTab from './tabs/DebugUnitsTab';
 import DebugPlayerDataTab from './tabs/DebugPlayerDataTab';
 import DebugCampaignDataTab from './tabs/DebugCampaignDataTab';
 import DebugCharactersTab from './tabs/DebugCharactersTab';
 import DebugTabButton from './DebugTabButton';
 
-export type TabId = 'battle-actions' | 'game-state' | 'units' | 'player-data' | 'campaign-data' | 'characters';
+export type TabId = 'battle-actions' | 'game-state' | 'units' | 'orders' | 'player-data' | 'campaign-data' | 'characters';
 
 export interface DebugConsoleProps {
     gameState: GameStatePayload | null;
@@ -112,9 +113,9 @@ export default function DebugConsole({
         }
     }, [inBattle, isAdmin, activeTab]);
 
-    // When leaving battle, units tab no longer exists.
+    // When leaving battle, units / orders tabs no longer exist.
     useEffect(() => {
-        if (!inBattle && activeTab === 'units') {
+        if (!inBattle && (activeTab === 'units' || activeTab === 'orders')) {
             setActiveTab('game-state');
         }
     }, [inBattle, activeTab]);
@@ -128,6 +129,7 @@ export default function DebugConsole({
                 <DebugBattleActionsTab isActive={activeTab === 'battle-actions'} inBattle={inBattle} isAdmin={isAdmin} isHost={isHost} skipCurrentTurn={skipCurrentTurn} />
                 <DebugGameStateTab isActive={activeTab === 'game-state'} gameState={gameState} />
                 <DebugUnitsTab isActive={activeTab === 'units'} inBattle={inBattle} gameState={gameState} />
+                <DebugOrdersTab isActive={activeTab === 'orders'} inBattle={inBattle} gameState={gameState} />
                 <DebugPlayerDataTab isActive={activeTab === 'player-data'} fetchPlayerData={fetchPlayerData} />
                 <DebugCampaignDataTab isActive={activeTab === 'campaign-data'} fetchCampaignData={fetchCampaignData} />
                 <DebugCharactersTab
@@ -198,6 +200,12 @@ export default function DebugConsole({
                         {inBattle && (
                             <DebugTabButton isActive={activeTab === 'units'} onClick={() => setActiveTab('units')}>
                                 Units
+                            </DebugTabButton>
+                        )}
+
+                        {inBattle && (
+                            <DebugTabButton isActive={activeTab === 'orders'} onClick={() => setActiveTab('orders')}>
+                                Orders
                             </DebugTabButton>
                         )}
 
