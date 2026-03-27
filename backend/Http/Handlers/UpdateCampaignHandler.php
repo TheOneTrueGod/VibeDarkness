@@ -65,7 +65,8 @@ class UpdateCampaignHandler
             $missionId = $mr['missionId'] ?? '';
             $result = $mr['result'] ?? 'victory';
             $delta = $mr['resourceDelta'] ?? null;
-            $campaign->addMissionResult($missionId, $result, $delta);
+            $itemIds = $mr['itemIds'] ?? null;
+            $campaign->addMissionResult($missionId, $result, $delta, $itemIds);
 
             $grantKnowledgeKeys = $mr['grantKnowledgeKeys'] ?? null;
             if (is_array($grantKnowledgeKeys) && count($grantKnowledgeKeys) > 0) {

@@ -613,13 +613,14 @@ function AppInner() {
             missionId: string,
             result: string,
             resourceDelta?: Partial<Record<import('./types').CampaignResourceKey, number>>,
-            grantKnowledgeKeys?: string[]
+            grantKnowledgeKeys?: string[],
+            itemIds?: string[]
         ) => {
             const campaignId = currentCampaignId ?? user?.campaignIds?.[0] ?? null;
             if (!campaignId) return;
             try {
                 await lobbyClient.updateCampaign(campaignId, {
-                    addMissionResult: { missionId, result, resourceDelta, grantKnowledgeKeys },
+                    addMissionResult: { missionId, result, resourceDelta, grantKnowledgeKeys, itemIds } as any,
                 });
                 if (grantKnowledgeKeys?.length) {
                     const updated = await lobbyClient.getMe();

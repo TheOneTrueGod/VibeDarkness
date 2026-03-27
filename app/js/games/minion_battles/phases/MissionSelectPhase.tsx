@@ -34,7 +34,7 @@ const MISSIONS: Mission[] = [
     },
     {
         id: 'light_empowered',
-        title: 'Light Empowered',
+        title: 'Find some food',
         description:
             'Hunger drives you from the cave. Hunt the boar in the cliff inlet, then return to safety.',
         heroImage: generateTowardsTheLightSVG(),

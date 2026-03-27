@@ -41,6 +41,12 @@ export interface MissionResult {
     timestamp?: number;
     /** Mission reward deltas; summed with campaign.resources for effective display. */
     resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
+    /** Optional item card reward ids granted for the mission result. */
+    itemCardIds?: string[];
+    /** Optional single item reward id for compatibility with older payload shapes. */
+    itemId?: string;
+    /** Optional generic item id array for compatibility with alternate payload shapes. */
+    itemIds?: string[];
 }
 
 export interface CampaignResources {

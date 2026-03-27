@@ -27,8 +27,6 @@ import CardHand from '../components/CardHand';
 import RoundProgressBar from '../components/RoundProgressBar';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
-import { throwError } from '../utils/errors';
-import { diffSnapshotFields } from '../utils/snapshotDiff';
 import { MessageType } from '../../../MessageTypes';
 import type { MessageEntry } from '../../../components/Chat';
 import { useGameSyncOptional } from '../../../contexts/GameSyncContext';

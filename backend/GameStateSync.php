@@ -18,7 +18,7 @@ class GameStateSync
         if ($gameTick !== null) {
             $canonical['gameTick'] = (int) $gameTick;
         }
-        foreach (['units', 'projectiles', 'effects', 'specialTiles', 'special_tiles', 'cards', 'orders'] as $key) {
+        foreach (['units', 'projectiles', 'effects', 'specialTiles'] as $key) {
             if (array_key_exists($key, $state)) {
                 $val = $state[$key];
                 if ($key === 'orders' && is_array($val)) {

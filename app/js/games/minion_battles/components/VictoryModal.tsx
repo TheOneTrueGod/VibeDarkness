@@ -4,6 +4,7 @@
 import React from 'react';
 import { getItemDef, ITEM_ICON_URLS } from '../character_defs/items';
 import type { CampaignResourceKey } from '../../../types';
+import ResourcePill, { campaignResourceGains } from '../../../components/ResourcePill';
 
 interface VictoryModalProps {
     missionRewards: {
@@ -25,6 +26,7 @@ export default function VictoryModal({ missionRewards, onClose }: VictoryModalPr
     const itemId = missionRewards?.itemFromFirstChoice;
     const itemDef = itemId ? getItemDef(itemId) : null;
     const itemIconUrl = itemId ? ITEM_ICON_URLS[itemId] : null;
+    const gainedResources = campaignResourceGains(resourceDelta as Partial<Record<CampaignResourceKey, number>>);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -50,28 +52,11 @@ export default function VictoryModal({ missionRewards, onClose }: VictoryModalPr
                                     <span className="text-xs text-muted">From your choice</span>
                                 </div>
                             )}
-                            {(resourceDelta.metal != null && resourceDelta.metal > 0) ||
-                            (resourceDelta.crystals != null && resourceDelta.crystals > 0) ||
-                            (resourceDelta.food != null && resourceDelta.food > 0) ? (
+                            {gainedResources.length > 0 ? (
                                 <div className="flex flex-wrap justify-center gap-3">
-                                    {resourceDelta.metal != null && resourceDelta.metal > 0 && (
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border-custom text-white">
-                                            <span className="text-muted text-sm">Metal</span>
-                                            <span className="font-bold text-primary">+{resourceDelta.metal}</span>
-                                        </span>
-                                    )}
-                                    {resourceDelta.crystals != null && resourceDelta.crystals > 0 && (
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border-custom text-white">
-                                            <span className="text-muted text-sm">Crystals</span>
-                                            <span className="font-bold text-primary">+{resourceDelta.crystals}</span>
-                                        </span>
-                                    )}
-                                    {resourceDelta.food != null && resourceDelta.food > 0 && (
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border-custom text-white">
-                                            <span className="text-muted text-sm">Food</span>
-                                            <span className="font-bold text-primary">+{resourceDelta.food}</span>
-                                        </span>
-                                    )}
+                                    {gainedResources.map(({ resource, count }) => (
+                                        <ResourcePill key={resource} resource={resource} count={count} />
+                                    ))}
                                 </div>
                             ) : null}
                         </div>

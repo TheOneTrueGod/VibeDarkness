@@ -5,11 +5,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
-import type { CampaignState } from '../types';
+import type { CampaignState, MissionResult } from '../types';
 import { STORYLINES, MISSION_MAP } from '../games/minion_battles/storylines';
 import { getUnlockedMissionIds, getAllMissionIdsInOrder, hasVictoryResult } from '../games/minion_battles/storylines/unlock';
 import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
 import AdminPlayersHomePanel from './AdminPlayersHomePanel';
+import ResourcePill, { campaignResourceGains } from './ResourcePill';
+import { ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
 
 type TabId = 'welcome' | 'mission_select' | 'join_mission' | 'players';
 
@@ -37,6 +39,12 @@ interface CampaignHomeScreenProps {
     onJoinLobby: (lobbyId: string) => Promise<void>;
     refetchUser: () => Promise<void>;
 }
+
+type MissionResultWithItems = MissionResult & {
+    itemCardIds?: string[];
+    itemIds?: string[];
+    itemId?: string;
+};
 
 export default function CampaignHomeScreen({
     lobbyClient,
@@ -144,6 +152,22 @@ export default function CampaignHomeScreen({
     );
 
     const missionResults = campaign?.missionResults ?? [];
+    const latestMissionResultById = useMemo(() => {
+        const map = new Map<string, MissionResultWithItems>();
+        for (const result of missionResults as MissionResultWithItems[]) {
+            const existing = map.get(result.missionId);
+            if (!existing) {
+                map.set(result.missionId, result);
+                continue;
+            }
+            const existingTs = existing.timestamp ?? 0;
+            const nextTs = result.timestamp ?? 0;
+            if (nextTs >= existingTs) {
+                map.set(result.missionId, result);
+            }
+        }
+        return map;
+    }, [missionResults]);
 
     return (
         <div className="min-h-screen flex flex-col">
@@ -196,28 +220,99 @@ export default function CampaignHomeScreen({
                                                     const name = def?.name ?? missionId;
                                                     const isUnlocked = unlocked.has(missionId);
                                                     const hasVictory = hasVictoryResult(missionId, missionResults);
+                                                    const missionResult = latestMissionResultById.get(missionId);
+                                                    const gainedResources = campaignResourceGains(missionResult?.resourceDelta);
+                                                    const gainedItemCardIds = [
+                                                        ...(Array.isArray(missionResult?.itemCardIds)
+                                                            ? missionResult.itemCardIds
+                                                            : []),
+                                                        ...(Array.isArray(missionResult?.itemIds) ? missionResult.itemIds : []),
+                                                        ...(missionResult?.itemId ? [missionResult.itemId] : []),
+                                                    ];
                                                     return (
                                                         <li key={missionId}>
                                                             <button
                                                                 type="button"
-                                                                className="w-full text-left px-4 py-3 rounded border transition-all flex items-center justify-between gap-3 bg-surface-light border-border-custom hover:border-primary hover:bg-surface disabled:opacity-70 disabled:cursor-wait"
+                                                                className="w-full text-left px-4 py-3 rounded border transition-all bg-surface-light border-border-custom hover:border-primary hover:bg-surface disabled:opacity-70 disabled:cursor-wait"
                                                                 disabled={selectingMission || !isUnlocked}
                                                                 onClick={() => handleMissionClick(missionId)}
                                                                 title={!isUnlocked ? 'Complete the previous mission to unlock' : undefined}
                                                             >
-                                                                <span className="flex items-center gap-2">
-                                                                    {!isUnlocked && (
-                                                                        <svg className="w-5 h-5 flex-shrink-0 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                                        </svg>
+                                                                <span className="flex items-center justify-between gap-3">
+                                                                    <span className="flex items-center gap-2">
+                                                                        {!isUnlocked && (
+                                                                            <svg className="w-5 h-5 flex-shrink-0 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                                            </svg>
+                                                                        )}
+                                                                        {name}
+                                                                    </span>
+                                                                    {hasVictory && (
+                                                                        <span className="flex-shrink-0 text-success" aria-hidden>
+                                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                            </svg>
+                                                                        </span>
                                                                     )}
-                                                                    {name}
                                                                 </span>
-                                                                {hasVictory && (
-                                                                    <span className="flex-shrink-0 text-success" aria-hidden>
-                                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                        </svg>
+                                                                {missionResult && (
+                                                                    <span className="mt-3 pt-3 border-t border-border-custom flex flex-col gap-2">
+                                                                        <span className="text-sm text-muted">
+                                                                            Result:{' '}
+                                                                            <span
+                                                                                className={
+                                                                                    missionResult.result.toLowerCase() === 'victory'
+                                                                                        ? 'text-success font-semibold'
+                                                                                        : 'text-danger font-semibold'
+                                                                                }
+                                                                            >
+                                                                                {missionResult.result.toLowerCase() === 'victory'
+                                                                                    ? 'Victory'
+                                                                                    : missionResult.result}
+                                                                            </span>
+                                                                        </span>
+                                                                        <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
+                                                                            Resources gained:
+                                                                            {gainedResources.length > 0 ? (
+                                                                                gainedResources.map(({ resource, count }) => (
+                                                                                    <ResourcePill
+                                                                                        key={`${missionId}-${resource}`}
+                                                                                        resource={resource}
+                                                                                        count={count}
+                                                                                    />
+                                                                                ))
+                                                                            ) : (
+                                                                                <span className="text-muted">None</span>
+                                                                            )}
+                                                                        </span>
+                                                                        <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
+                                                                            Item cards gained:
+                                                                            {gainedItemCardIds.length > 0 ? (
+                                                                                gainedItemCardIds.map((itemId, idx) => {
+                                                                                    const itemDef = getItemDef(itemId);
+                                                                                    const iconUrl = ITEM_ICON_URLS[itemId];
+                                                                                    return (
+                                                                                        <span
+                                                                                            key={`${missionId}-${itemId}-${idx}`}
+                                                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
+                                                                                            title={itemDef?.name ?? itemId}
+                                                                                        >
+                                                                                            {iconUrl ? (
+                                                                                                <img
+                                                                                                    src={iconUrl}
+                                                                                                    alt=""
+                                                                                                    className="w-4 h-4 object-contain"
+                                                                                                    aria-hidden
+                                                                                                />
+                                                                                            ) : null}
+                                                                                            {itemDef?.name ?? itemId}
+                                                                                        </span>
+                                                                                    );
+                                                                                })
+                                                                            ) : (
+                                                                                <span className="text-muted">None</span>
+                                                                            )}
+                                                                        </span>
                                                                     </span>
                                                                 )}
                                                             </button>

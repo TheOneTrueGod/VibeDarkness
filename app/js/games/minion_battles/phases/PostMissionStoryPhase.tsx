@@ -17,6 +17,7 @@ import type {
 } from '../storylines/storyTypes';
 import { getItemDef } from '../character_defs/items';
 import { SPECTATOR_ID } from '../state';
+import ResourcePill, { campaignResourceGains } from '../../../components/ResourcePill';
 import VNTextBox from '../components/VNTextBox';
 import CharacterPortrait from '../components/CharacterPortrait';
 import StoryTextEffect from '../components/StoryTextEffect';
@@ -248,9 +249,24 @@ export default function PostMissionStoryPhase({
                                                     onClick={() =>
                                                         handleChoice(currentPhrase.choiceId, opt.id, opt)
                                                     }
-                                                    className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white"
+                                                    className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white flex flex-col gap-2"
                                                 >
-                                                    {opt.label}
+                                                    <span>{opt.label}</span>
+                                                    {isGrantResources(opt.action) && (
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            {campaignResourceGains({
+                                                                food: opt.action.food,
+                                                                metal: opt.action.metal,
+                                                                crystals: opt.action.crystals,
+                                                            }).map(({ resource, count }) => (
+                                                                <ResourcePill
+                                                                    key={`${opt.id}-${resource}`}
+                                                                    resource={resource}
+                                                                    count={count}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>

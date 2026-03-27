@@ -207,18 +207,18 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             options: [
                 {
                     id: 'investigate_crystals',
-                    label: 'Investigate Crystals (reward: 5 crystals, 2 metal)',
-                    action: { type: 'grant_resources', crystals: 5, metal: 2 },
+                    label: 'Investigate Crystals',
+                    action: { type: 'grant_resources', crystals: 5, metal: 2, food: 5 },
                 },
                 {
                     id: 'gather_materials',
-                    label: 'Gather Materials (reward: 5 metal, 2 crystals)',
-                    action: { type: 'grant_resources', metal: 5, crystals: 2 },
+                    label: 'Gather Materials',
+                    action: { type: 'grant_resources', metal: 5, crystals: 2, food: 5 },
                 },
                 {
                     id: 'prepare_soup',
-                    label: 'Prepare Soup (reward: 1 metal, 1 crystals, 5 food)',
-                    action: { type: 'grant_resources', metal: 1, crystals: 1, food: 5 },
+                    label: 'Prepare Soup',
+                    action: { type: 'grant_resources', metal: 1, crystals: 1, food: 10 },
                 },
             ],
         },
@@ -228,7 +228,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 export class LightEmpoweredMission extends BaseMissionDef {
     missionId = 'light_empowered';
     campaignId = 'world_of_darkness';
-    name = 'Light Empowered';
+    name = 'Find some food';
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;

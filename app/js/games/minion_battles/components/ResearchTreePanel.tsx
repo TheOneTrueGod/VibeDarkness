@@ -6,6 +6,7 @@ import {
     canResearchNode,
     computeEffectiveResourcesForTree,
 } from '../../../researchTrees/evaluator';
+import ResourcePill, { campaignResourceGains, RESOURCE_ORDER } from '../../../components/ResourcePill';
 
 interface ResearchTreePanelProps {
     availableTrees: ResearchTreeDef[];
@@ -147,10 +148,19 @@ export function ResearchTreeContent({
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-col items-start gap-2">
                         <p className="text-lg font-semibold text-white">{tree.title}</p>
-                        <p className="text-xs text-muted">
-                            Effective resources: food {effective.food}, metal {effective.metal}, population{' '}
-                            {effective.population}, crystals {effective.crystals}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                            <span>Effective resources:</span>
+                            <div className="flex flex-wrap items-center gap-2">
+                                    {RESOURCE_ORDER.map((resource) => (
+                                        <ResourcePill
+                                            key={resource}
+                                            resource={resource}
+                                            count={effective[resource]}
+                                            className="text-xs"
+                                        />
+                                    ))}
+                            </div>
+                        </div>
                     </div>
 
                     {canResetResearch && tree.id === firstTreeId && (
@@ -218,7 +228,7 @@ export function ResearchTreeContent({
                             const researched = researchedSet.has(n.id);
                             const check = canResearchNode(tree, n.id, ctx);
                             const enabled = !researched && check.ok;
-                            const cost = n.cost?.crystals ? `${n.cost.crystals} crystals` : 'free';
+                            const costGains = campaignResourceGains(n.cost);
                             const pos = mapPos(n.position);
                             return (
                                 <button
@@ -237,7 +247,20 @@ export function ResearchTreeContent({
                                     title={researched ? 'Researched' : enabled ? 'Click to research' : check.missing.join(', ')}
                                 >
                                     <div className="text-sm font-semibold truncate">{n.title}</div>
-                                    <div className="text-[11px] text-muted">{cost}</div>
+                                    <div className="text-[11px] text-muted flex flex-wrap items-center gap-2">
+                                        {costGains.length > 0 ? (
+                                            costGains.map(({ resource, count }) => (
+                                                <ResourcePill
+                                                    key={`${n.id}-${resource}`}
+                                                    resource={resource}
+                                                    count={count}
+                                                    className="text-[11px]"
+                                                />
+                                            ))
+                                        ) : (
+                                            <span>Free</span>
+                                        )}
+                                    </div>
                                 </button>
                             );
                         })}

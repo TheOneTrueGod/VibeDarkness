@@ -29,6 +29,7 @@ import {
     prereqClosure,
     treeHasAnyResearch,
 } from '../../../../researchTrees/evaluator';
+import ResourcePill from '../../../../components/ResourcePill';
 
 interface CharacterEditorProps {
     character: CampaignCharacter;
@@ -542,10 +543,12 @@ export default function CharacterEditor({
                                                 >
                                                     Give
                                                 </button>
-                                                <span className="text-xs text-muted">
-                                                    Current: food {resolvedCampaign.resources.food}, metal{' '}
-                                                    {resolvedCampaign.resources.metal}, pop {resolvedCampaign.resources.population},{' '}
-                                                    crystals {resolvedCampaign.resources.crystals}
+                                                <span className="text-xs text-muted flex flex-wrap items-center gap-2">
+                                                    <span>Current:</span>
+                                                    <ResourcePill resource="food" count={resolvedCampaign.resources.food} className="text-xs" />
+                                                    <ResourcePill resource="metal" count={resolvedCampaign.resources.metal} className="text-xs" />
+                                                    <ResourcePill resource="population" count={resolvedCampaign.resources.population} className="text-xs" />
+                                                    <ResourcePill resource="crystals" count={resolvedCampaign.resources.crystals} className="text-xs" />
                                                 </span>
                                             </div>
                                         </div>

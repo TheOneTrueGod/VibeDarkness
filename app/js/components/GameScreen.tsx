@@ -44,7 +44,8 @@ export interface GameComponentProps {
         missionId: string,
         result: string,
         resourceDelta?: Partial<Record<import('../types').CampaignResourceKey, number>>,
-        grantKnowledgeKeys?: string[]
+        grantKnowledgeKeys?: string[],
+        itemIds?: string[]
     ) => Promise<void>;
     /** Called when user leaves (e.g. from defeat modal). */
     onLeave?: () => void;
@@ -78,7 +79,8 @@ interface GameScreenProps {
         missionId: string,
         result: string,
         resourceDelta?: Partial<Record<import('../types').CampaignResourceKey, number>>,
-        grantKnowledgeKeys?: string[]
+        grantKnowledgeKeys?: string[],
+        itemIds?: string[]
     ) => Promise<void>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
     onTryAgain?: (missionId: string) => Promise<void>;

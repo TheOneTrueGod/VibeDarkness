@@ -54,7 +54,8 @@ interface MinionBattlesGameProps {
         missionId: string,
         result: string,
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>,
-        grantKnowledgeKeys?: string[]
+        grantKnowledgeKeys?: string[],
+        itemIds?: string[]
     ) => Promise<void>;
     /** Called when user clicks Leave in the defeat modal. */
     onLeave?: () => void;
@@ -145,6 +146,57 @@ export default function MinionBattlesGame({
     const missionDef = MISSION_MAP[selectedMissionId];
     const preMissionStory = missionDef?.preMissionStory ?? null;
     const postMissionStory = missionDef?.postMissionStory ?? null;
+
+    /**
+     * Starting items granted via pre-mission story (choice equip_item / group vote grant_item_to_player).
+     * Derived by intersecting the player's battle-start equipment with the set of possible pre-mission reward items.
+     */
+    const getStartingItemIdsForPlayer = useCallback(
+        (mid: string, pid: string): string[] => {
+            const def = MISSION_MAP[mid];
+            const pre = def?.preMissionStory as unknown;
+
+            const possible = new Set<string>();
+            if (pre && typeof pre === 'object') {
+                const phrases = (pre as { phrases?: unknown }).phrases;
+                if (Array.isArray(phrases)) {
+                    for (const phrase of phrases) {
+                        if (!phrase || typeof phrase !== 'object') continue;
+                        const p = phrase as Record<string, unknown>;
+
+                        if (p.type === 'choice') {
+                            const options = p.options;
+                            if (Array.isArray(options)) {
+                                for (const opt of options) {
+                                    if (!opt || typeof opt !== 'object') continue;
+                                    const action = (opt as Record<string, unknown>).action as
+                                        | Record<string, unknown>
+                                        | undefined;
+                                    if (!action) continue;
+                                    if (action.type === 'equip_item' && typeof action.itemId === 'string') {
+                                        possible.add(action.itemId);
+                                    }
+                                }
+                            }
+                        }
+
+                        if (p.type === 'groupVote') {
+                            const effect = p.effect as Record<string, unknown> | undefined;
+                            if (effect?.type === 'grant_item_to_player' && typeof effect.itemId === 'string') {
+                                possible.add(effect.itemId);
+                            }
+                        }
+                    }
+                }
+            }
+
+            const state = (lastGameStateFromServer ?? raw) as Record<string, unknown>;
+            const equipByPlayer = state.playerEquipmentByPlayer as Record<string, string[]> | undefined;
+            const equipment = (equipByPlayer?.[pid] ?? []) as string[];
+            return [...possible].filter((id) => equipment.includes(id));
+        },
+        [lastGameStateFromServer, raw]
+    );
 
     /** For battle phase: use phaseChangeGameState when available (host's updateGameState response).
      * This avoids a flash when GameSyncContext later receives checkpoint data — we keep a stable
@@ -281,13 +333,25 @@ export default function MinionBattlesGame({
                         const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
                         const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
                         const amSpectator = sel === SPECTATOR_ID;
+                        const startingItemIds = amSpectator ? [] : getStartingItemIdsForPlayer(missionId, playerId);
+                        const chosenPostItemId = rewards.itemFromFirstChoice;
+                        const itemIds = Array.from(
+                            new Set([
+                                ...startingItemIds,
+                                ...(chosenPostItemId ? [chosenPostItemId] : []),
+                            ])
+                        );
                         void onRecordMissionResult?.(
                             missionId,
                             'victory',
                             amSpectator ? undefined : rewards.resourceDelta,
                             amSpectator ? undefined : grantKnowledgeKeys,
+                            amSpectator ? undefined : itemIds,
                         );
-                        setMissionRewards(rewards);
+                        setMissionRewards({
+                            ...rewards,
+                            itemFromFirstChoice: rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
+                        });
                         setVictoryModalOpen(true);
                     }}
                 />
@@ -354,8 +418,23 @@ export default function MinionBattlesGame({
                         } else {
                             const missionDef = MISSION_MAP[missionId];
                             const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
-                            void onRecordMissionResult?.(missionId, missionResult, undefined, grantKnowledgeKeys);
-                            setMissionRewards(null);
+                            const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
+                            const amSpectator = sel === SPECTATOR_ID;
+                            const startingItemIds = amSpectator ? [] : getStartingItemIdsForPlayer(missionId, playerId);
+                            void onRecordMissionResult?.(
+                                missionId,
+                                missionResult,
+                                undefined,
+                                grantKnowledgeKeys,
+                                amSpectator ? undefined : startingItemIds
+                            );
+                            setMissionRewards(
+                                amSpectator
+                                    ? null
+                                    : {
+                                          itemFromFirstChoice: startingItemIds[0] ?? undefined,
+                                      }
+                            );
                             setVictoryModalOpen(true);
                         }
                     }}

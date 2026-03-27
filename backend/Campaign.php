@@ -12,7 +12,7 @@ class Campaign
     private string $name;
     /** @var array<int, array{id: string, name: string, characterId: string}> */
     private array $campaignCharacters;
-    /** @var array<int, array{missionId: string, result: string, timestamp?: float, resourceDelta?: array{food?: int, metal?: int, population?: int, crystals?: int}}> */
+    /** @var array<int, array{missionId: string, result: string, timestamp?: float, resourceDelta?: array{food?: int, metal?: int, population?: int, crystals?: int}, itemIds?: array<int, string>}> */
     private array $missionResults;
     /** @var array{food: int, metal: int, population: int, crystals: int} */
     private array $resources;
@@ -84,7 +84,7 @@ class Campaign
     }
 
     /** Add or override a mission result. Only one result per mission; new result replaces existing. Does not add resources to campaign; use getEffectiveResources() for display. */
-    public function addMissionResult(string $missionId, string $result, ?array $resourceDelta = null): void
+    public function addMissionResult(string $missionId, string $result, ?array $resourceDelta = null, ?array $itemIds = null): void
     {
         $entry = [
             'missionId' => $missionId,
@@ -96,6 +96,19 @@ class Campaign
                 array_map('intval', $resourceDelta),
                 array_flip(['food', 'metal', 'population', 'crystals'])
             );
+        }
+        if ($itemIds !== null && is_array($itemIds)) {
+            $filtered = array_values(
+                array_filter(
+                    array_map(static fn ($id) => is_string($id) ? trim($id) : '',
+                        $itemIds
+                    ),
+                    static fn ($id): bool => $id !== ''
+                )
+            );
+            if ($filtered !== []) {
+                $entry['itemIds'] = $filtered;
+            }
         }
         $existingIndex = null;
         foreach ($this->missionResults as $i => $r) {

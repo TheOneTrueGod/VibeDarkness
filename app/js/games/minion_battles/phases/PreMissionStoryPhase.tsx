@@ -14,12 +14,14 @@ import type {
     GrantEquipmentRandomPhrase,
     GroupVotePhrase,
     PreMissionPhrase,
+    StoryChoiceActionGrantResources,
 } from '../storylines/storyTypes';
 import { SPECTATOR_ID } from '../state';
 import { getItemDef } from '../character_defs/items';
 import VNTextBox from '../components/VNTextBox';
 import CharacterPortrait from '../components/CharacterPortrait';
 import StoryTextEffect from '../components/StoryTextEffect';
+import ResourcePill, { campaignResourceGains } from '../../../components/ResourcePill';
 
 interface PreMissionStoryPhaseProps {
     lobbyClient: LobbyClient;
@@ -58,6 +60,10 @@ function isGrantEquipmentRandom(phrase: PreMissionPhrase | undefined): phrase is
 
 function isGroupVote(phrase: PreMissionPhrase | undefined): phrase is GroupVotePhrase {
     return phrase?.type === 'groupVote';
+}
+
+function isGrantResources(action: { type: string } | undefined): action is StoryChoiceActionGrantResources {
+    return !!action && action.type === 'grant_resources';
 }
 
 export default function PreMissionStoryPhase({
@@ -278,9 +284,9 @@ export default function PreMissionStoryPhase({
                     style={{ backgroundImage: `url(${backgroundImage})`, opacity: bgOpacity }}
                 />
             )}
-            <div className="relative z-10 flex-1 flex flex-col min-h-0 justify-end items-center">
+            <div className="relative z-10 flex-1 flex flex-col min-h-0 justify-end items-center overflow-y-auto overflow-x-hidden">
                 {/* Content constrained to max-width for narrator text boxes & images */}
-                <div className="w-full max-w-[1200px] flex flex-col flex-1 min-h-0 justify-end mx-auto px-6">
+                <div className="w-full max-w-[1200px] flex flex-col flex-1 min-h-0 justify-end mx-auto px-3 sm:px-6 min-w-0">
                     {/* Portrait row: when dialogue (including textEffect phrases) */}
                     {isDialogue(currentPhrase) && (
                         <div className="flex shrink-0 justify-between gap-4 pt-4 pb-0 h-[140px] items-end">
@@ -328,7 +334,7 @@ export default function PreMissionStoryPhase({
                     )}
 
                     {/* Dialogue: text box. Choice: separate card above where text box would be; text box hidden. */}
-                    <div className="shrink-0 pb-6 flex flex-col gap-4">
+                    <div className="shrink-0 pb-4 sm:pb-6 flex flex-col gap-4 w-full min-w-0 max-w-full">
                         {isDialogue(currentPhrase) ? (
                             <VNTextBox
                                 title={getNpc(currentPhrase.speakerId)?.name ?? 'Unknown'}
@@ -351,9 +357,9 @@ export default function PreMissionStoryPhase({
                             </VNTextBox>
                         ) : isChoice(currentPhrase) ? (
                             <>
-                                <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-6">
+                                <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-4 sm:p-6 w-full max-w-full min-w-0 mx-auto">
                                     {amSpectator ? (
-                                        <div className="space-y-3">
+                                        <div className="flex flex-col items-center space-y-3 text-center">
                                             <p className="text-muted mb-4">Spectators do not make choices.</p>
                                             <button
                                                 type="button"
@@ -364,22 +370,37 @@ export default function PreMissionStoryPhase({
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="space-y-3">
+                                        <div className="flex flex-col items-stretch gap-3 w-full min-w-0">
                                             {currentPhrase.options.map((opt) => (
                                                 <button
                                                     key={opt.id}
                                                     type="button"
                                                     onClick={() => handleChoice(currentPhrase.choiceId, opt.id, opt)}
-                                                    className="block w-full text-left px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white"
+                                                    className="block w-full max-w-full min-w-0 text-center px-4 sm:px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white flex flex-col gap-2 items-center justify-center"
                                                 >
-                                                    {opt.label}
+                                                    <span className="break-words">{opt.label}</span>
+                                                    {isGrantResources(opt.action) && (
+                                                        <div className="flex flex-wrap items-center justify-center gap-2">
+                                                            {campaignResourceGains({
+                                                                food: opt.action.food,
+                                                                metal: opt.action.metal,
+                                                                crystals: opt.action.crystals,
+                                                            }).map(({ resource, count }) => (
+                                                                <ResourcePill
+                                                                    key={`${opt.id}-${resource}`}
+                                                                    resource={resource}
+                                                                    count={count}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>
                                     )}
                                 </div>
-                                {/* Spacer so choice card sits above where the text box would be */}
-                                <div className="min-h-[16rem]" aria-hidden />
+                                {/* Spacer so choice card sits above where the text box would be (shorter on narrow viewports so options stay on-screen) */}
+                                <div className="min-h-[4rem] sm:min-h-[8rem] md:min-h-[16rem]" aria-hidden />
                             </>
                         ) : isGroupVote(currentPhrase) ? (
                             (() => {
@@ -401,9 +422,9 @@ export default function PreMissionStoryPhase({
                                         .join(', ');
                                 return (
                                     <>
-                                        <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-6">
-                                            <p className="text-white mb-4">{currentPhrase.text}</p>
-                                            <div className="space-y-3">
+                                        <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-4 sm:p-6 w-full max-w-full min-w-0 mx-auto">
+                                            <p className="text-white mb-4 text-center sm:text-left break-words">{currentPhrase.text}</p>
+                                            <div className="flex flex-col gap-3 w-full min-w-0">
                                                 {options.map((opt) => {
                                                     const voters = voterNames(opt.id);
                                                     const isMyVote = myVote === opt.id;
@@ -412,10 +433,10 @@ export default function PreMissionStoryPhase({
                                                             key={opt.id}
                                                             className="rounded-lg border-2 border-border-custom bg-surface overflow-hidden"
                                                         >
-                                                            <div className="flex items-center gap-3 px-4 py-3">
+                                                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 min-w-0">
                                                                 {myVote != null ? (
                                                                     <span
-                                                                        className={`flex-1 text-lg text-white ${
+                                                                        className={`flex-1 min-w-0 text-center sm:text-left text-lg text-white break-words ${
                                                                             isMyVote ? 'font-semibold' : ''
                                                                         }`}
                                                                     >
@@ -427,7 +448,7 @@ export default function PreMissionStoryPhase({
                                                                         )}
                                                                     </span>
                                                                 ) : amSpectator ? (
-                                                                    <span className="flex-1 text-lg text-muted">
+                                                                    <span className="flex-1 min-w-0 text-center sm:text-left text-lg text-muted break-words">
                                                                         {opt.label} (spectators do not vote)
                                                                     </span>
                                                                 ) : (
@@ -436,13 +457,13 @@ export default function PreMissionStoryPhase({
                                                                         onClick={() =>
                                                                             handleGroupVote(voteId, opt.id)
                                                                         }
-                                                                        className="flex-1 text-left px-2 py-2 rounded-lg text-lg text-white hover:bg-surface-light/80 transition-colors"
+                                                                        className="flex-1 min-w-0 text-center sm:text-left px-2 py-2 rounded-lg text-lg text-white hover:bg-surface-light/80 transition-colors break-words"
                                                                     >
                                                                         {opt.label}
                                                                     </button>
                                                                 )}
                                                                 {voters ? (
-                                                                    <span className="text-sm text-muted shrink-0">
+                                                                    <span className="text-sm text-muted shrink-0 text-center sm:text-right">
                                                                         {voters}
                                                                     </span>
                                                                 ) : null}
@@ -487,7 +508,7 @@ export default function PreMissionStoryPhase({
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="min-h-[16rem]" aria-hidden />
+                                        <div className="min-h-[4rem] sm:min-h-[8rem] md:min-h-[16rem]" aria-hidden />
                                     </>
                                 );
                             })()
