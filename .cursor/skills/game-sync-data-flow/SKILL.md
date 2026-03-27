@@ -7,17 +7,24 @@ description: Describes the multiplayer game state synchronization system for Min
 
 ## Architecture Overview
 
-All battle-phase network I/O is centralized in `GameSyncContext` (`app/js/contexts/GameSyncContext.tsx`). `BattlePhase` owns the `GameEngine` and provides callbacks; it never makes sync network calls directly.
+All lobby game-state and message polling is centralized in `GameSyncContext` (`app/js/contexts/GameSyncContext.tsx`). A single **500ms** `setInterval` runs `pollTick`, which decides what to fetch (full lobby state, minimal battle state, or lobby messages). `BattlePhase` owns the `GameEngine` and registers `BattleCallbacks` so the context can read the engine and deliver remote orders; it does not start/stop polling.
 
 | Layer | Responsibility |
 |-------|---------------|
-| **GameSyncContext** | Network I/O: `saveCheckpoint`, `submitOrder`, `startOrderPolling`, `stopOrderPolling`. Sync verification (non-host). Manages polling lifecycle. |
-| **BattlePhase** | Engine lifecycle, UI state, targeting. Calls GameSyncContext methods. Provides `OrderPollingCallbacks` for order delivery. |
-| **GameEngine** | Deterministic simulation. Fires `onCheckpoint` and `onWaitingForOrders` callbacks. Knows nothing about networking. |
+| **GameSyncContext** | Network I/O: `saveCheckpoint`, `submitOrder`, `registerBattleCallbacks`, `requestResync`. Full/minimal/message polling in one loop. Sync verification (non-host). |
+| **BattlePhase** | Engine lifecycle, UI, targeting. Registers `BattleCallbacks` (`getEngineSnapshot`, `onOrdersReceived`). |
+| **GameEngine** | Deterministic simulation. Fires `onCheckpoint` and `onWaitingForOrders`. Knows nothing about networking. |
+| **App.tsx** | Passes `onPollMessages` and `initialLastMessageId` into `GameSyncProvider`; seeds `pollMessagesReady` after `startInLobby`. |
+
+## Unified poll loop (500ms)
+
+- **Lobby messages**: every **5th** tick (~2.5s), `GET /messages` (unless in flight), then `onPollMessages` in App. `GAME_PHASE_CHANGED` in that batch sets an internal full-state refetch flag.
+- **Full state** (`GET /lobby state`): on `requestResync`, visibility regain, `externalGameId` change; phase-based cadence (e.g. character/story every tick if not in flight; mission_select ~5s; battle transitional ~1s until engine registers).
+- **Battle (minimal)**: only when phase is `battle`, `BattleCallbacks` registered, engine is **waiting for another player’s orders** (not local turn). Host and non-host use `getGameMinimalState` for orders; non-host also runs synchash / tick checks.
 
 ## Key Rule: Host Is Canonical
 
-The host's `GameEngine` is the single source of truth. The host **never** enters `waiting_for_host` status and **never** does sync verification against the server. The server is just a relay for the host's state.
+The host's `GameEngine` is the single source of truth. The host **never** enters `waiting_for_host` for synchash mismatch the same way as clients; minimal polling is for **pulling other players’ orders**.
 
 ## Data Flow: Host
 
@@ -35,132 +42,52 @@ Player unit can act ──► onCheckpoint fires
 pauseForOrders(unit)
     │
     ├── unit.ownerId === localPlayerId (host's turn)
-    │       │
-    │       ▼
-    │   Show card hand, let host interact
-    │       │
-    │       ▼
-    │   Host submits order
-    │       ├── engine.applyOrder(order)  [local]
-    │       ├── GameSyncContext.submitOrder()
-    │       │   ► POST /orders/{checkpointTick}
-    │       ├── GameSyncContext.saveCheckpoint()
-    │       │   ► POST /snapshots (updated state)
-    │       └── engine resumes ──► back to top
+    │       └── submit order + saveCheckpoint (local engine) …
     │
     └── unit.ownerId !== localPlayerId (another player's turn)
-            │
-            ▼
-      GameSyncContext.startOrderPolling(checkpointTick, callbacks)
-            │
-            ▼
-      Every 1s: GET /orders/{checkpointTick}
-            │
-            ├── No new orders ──► retry
-            │
-            └── Orders found (gameTick > engine.gameTick)
-                    │
-                    ▼
-              callbacks.onOrdersReceived(orders)
-                ├── engine.queueOrder() for each
-                ├── engine.resumeAfterOrders()
-                └── polling stops ──► back to top
+            └── Unified poll: GET /minimal (checkpoint) when waiting
+                ► orders → onOrdersReceived → queueOrder + resumeAfterOrders
 ```
 
 ## Data Flow: Non-Host Client
 
-```
-Engine running (not paused)
-    │
-    ▼
-Player unit can act ──► onCheckpoint fires
-    │                       │
-    │                       ▼
-    │                 GameSyncContext.saveCheckpoint()
-    │                 ► Internally guards: isHost === false → no-op
-    │
-    ▼
-pauseForOrders(unit)
-    │
-    ├── unit.ownerId === localPlayerId (client's turn)
-    │       │
-    │       ▼
-    │   Show card hand, let client interact
-    │       │
-    │       ▼
-    │   Client submits order
-    │       ├── engine.applyOrder(order)  [local]
-    │       ├── GameSyncContext.submitOrder()
-    │       │   ► POST /orders/{checkpointTick}
-    │       └── engine resumes ──► back to top
-    │
-    └── unit.ownerId !== localPlayerId (another player's turn)
-            │
-            ▼
-      GameSyncContext.startOrderPolling(checkpointTick, callbacks)
-            │
-            ▼
-      Every 1s: GET /minimal?checkpointGameTick=...
-            │
-            ▼
-      Sync verification:
-            │
-            ├── serverTick > clientTick
-            │   ► Client fell behind → fetchFullState() → resync
-            │
-            ├── serverTick < clientTick
-            │   ► Host hasn't caught up → syncStatus='waiting_for_host'
-            │   ► Retry (shown in UI after 3 consecutive waits)
-            │
-            ├── serverTick === clientTick, synchash mismatch
-            │   ► Desync detected → fetchFullState() → resync
-            │
-            └── serverTick === clientTick, synchash matches
-                ├── Orders found → callbacks.onOrdersReceived()
-                │   ► engine.queueOrder() + resumeAfterOrders()
-                │   ► Polling stops → back to top
-                └── No orders → retry
-```
+Same as host for local turn. When waiting on another player, unified poll uses **minimal state**: tick/hash checks, `waiting_for_host` when server is behind, full resync when behind or synchash mismatch.
 
 ## Key Files
 
 | File | Role |
 |------|------|
-| `app/js/contexts/GameSyncContext.tsx` | All battle sync network I/O and polling |
-| `app/js/games/minion_battles/phases/BattlePhase.tsx` | Engine lifecycle, provides `OrderPollingCallbacks` |
-| `app/js/games/minion_battles/engine/GameEngine.ts` | Deterministic simulation, fires `onCheckpoint` / `onWaitingForOrders` |
-| `app/js/LobbyClient.ts` | HTTP API client methods |
-| `app/js/utils/synchash.ts` | Client-side SHA-256 synchash computation |
-| `backend/GameStateSync.php` | Server-side synchash computation (must match client) |
-| `backend/Http/Handlers/SaveGameStateSnapshotHandler.php` | Host saves checkpoint (computes synchash) |
-| `backend/Http/Handlers/SaveGameOrdersHandler.php` | Any player appends order to checkpoint file |
-| `backend/Http/Handlers/GetGameMinimalStateHandler.php` | Returns gameTick + synchash + orders |
-| `backend/Http/Handlers/GetGameOrdersHandler.php` | Returns orders from a checkpoint file |
+| `app/js/contexts/GameSyncContext.tsx` | Unified poll loop, battle callbacks, checkpoints/orders |
+| `app/js/games/minion_battles/phases/BattlePhase.tsx` | Registers `BattleCallbacks` |
+| `app/js/games/minion_battles/engine/GameEngine.ts` | Simulation, `onCheckpoint` / `onWaitingForOrders` |
+| `app/js/LobbyClient.ts` | HTTP API (`getLobbyState`, `getMessages`, `getGameMinimalState`, …) |
+| `app/js/utils/synchash.ts` | Client synchash |
+| `backend/GameStateSync.php` | Server synchash (must match client) |
 
 ## GameSyncContext API
 
 ```typescript
 saveCheckpoint(gameTick, state, orders)   // Host-only (guarded internally)
 submitOrder(checkpointGameTick, atTick, order)
-startOrderPolling(checkpointGameTick, callbacks: OrderPollingCallbacks)
-stopOrderPolling()
+registerBattleCallbacks(callbacks: BattleCallbacks | null)
+requestResync()   // UI / internal: next poll tick may GET full lobby state
 ```
 
-`OrderPollingCallbacks`:
-- `getEngineSnapshot()` → `{ gameTick, state }` — used for sync hash comparison (non-host only)
-- `onOrdersReceived(orders)` — BattlePhase applies orders to engine and updates UI
+`BattleCallbacks`:
+
+- `getEngineSnapshot()` → `{ gameTick, state, waitingForOrders } | null`
+- `onOrdersReceived(orders)` — BattlePhase applies orders and resumes the engine
 
 ## Checkpoint Tick Alignment
 
-Orders and polling use aligned checkpoint ticks: `Math.floor(tick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL` where `CHECKPOINT_INTERVAL = 10`. Host checkpoint saves use the actual `gameTick` (not aligned). These are different files on the server.
+Orders and polling use aligned checkpoint ticks: `Math.floor(tick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL` where `CHECKPOINT_INTERVAL = 10`. Host checkpoint saves use the actual `gameTick` (not aligned).
 
 ## Synchash
 
-Both client (`app/js/utils/synchash.ts`) and server (`backend/GameStateSync.php`) compute SHA-256 over a canonical subset of game state: `gameTick`, `units`, `projectiles`, `effects`, `specialTiles`, `cards`, `orders`. Keys are sorted recursively. These implementations **must stay in sync**.
+Both client (`app/js/utils/synchash.ts`) and server (`backend/GameStateSync.php`) compute SHA-256 over a canonical subset of game state. These implementations **must stay in sync**.
 
 ## Common Pitfalls
 
-- **Host must never call `processMinimalResult`** — the host IS canonical; comparing against server state is meaningless.
 - **`SaveGameOrdersHandler` must preserve `synchash`** when appending orders to an existing checkpoint file.
-- **`gameSyncRef`** in BattlePhase: engine callbacks are created in a mount effect (`[]` deps) and would capture stale context. Use `gameSyncRef.current?.` to always access the latest GameSyncContext.
-- **`gameId` in GameSyncContext** uses `externalGameId ?? gameState?.gameId` so sync methods work immediately, before the first `fetchFullState` completes.
+- **`gameSyncRef`** in BattlePhase: engine mount effect uses `[]` deps; use refs for latest context where needed.
+- **`gameId` in GameSyncContext** uses `externalGameId ?? gameState?.gameId` so sync methods work before the first full fetch completes.

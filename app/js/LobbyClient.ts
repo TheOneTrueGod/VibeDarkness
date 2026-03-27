@@ -472,15 +472,20 @@ export class LobbyClient {
         gameTick: number,
         state: Record<string, unknown>,
         orders: Array<{ gameTick: number; order: Record<string, unknown> }> = [],
+        synchash?: string | null,
     ): Promise<void> {
+        const body: Record<string, unknown> = {
+            playerId: this._currentPlayerId ?? '',
+            gameTick,
+            state,
+            orders,
+        };
+        if (synchash != null) {
+            body.synchash = synchash;
+        }
         await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshots`, {
             method: 'POST',
-            body: JSON.stringify({
-                playerId: this._currentPlayerId ?? '',
-                gameTick,
-                state,
-                orders,
-            }),
+            body: JSON.stringify(body),
         });
     }
 

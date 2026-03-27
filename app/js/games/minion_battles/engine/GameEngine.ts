@@ -331,7 +331,7 @@ export class GameEngine implements EngineContext {
         const frameTime = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
         this.lastTimestamp = timestamp;
 
-        if (!this.levelEventManager.isTerminal && !this.isPaused && !this.waitingForOrders) {
+        if (!this.levelEventManager.isTerminal && !this.isPaused) {
             this.accumulator += frameTime;
         }
 
@@ -402,7 +402,7 @@ export class GameEngine implements EngineContext {
 
             unit.update(dt, this);
 
-            if (this.shouldPauseForOrders(unit) && !this.waitingForOrders) {
+            if (this.shouldPauseForOrders(unit)) {
                 this.levelEventManager.runVictoryChecks();
                 this.pauseForOrders(unit);
                 this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
@@ -424,13 +424,24 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     /**
-     * Whether this engine should be (or remain) paused for orders with the given unit.
+     * Returns true if there is already a pending order queued for the given unit at the next tick.
+     * Used to decide whether to pause for orders or let the engine apply the order naturally.
+     */
+    hasPendingOrderForUnit(unitId: string): boolean {
+        const atTick = this.gameTick + 1;
+        return this.pendingOrders.some(
+            (o) => o.gameTick === atTick && (o.order as { unitId?: string }).unitId === unitId,
+        );
+    }
+
+    /**
+     * Whether this engine should pause for orders for the given unit.
+     * Returns false when an order is already pending (engine will apply it naturally).
      * Used both for initiating the pause during the tick loop and for UI replay after resync.
      */
     shouldPauseForOrders(unit: Unit): boolean {
         if (!unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive()) return false;
-        if (!this.waitingForOrders) return true;
-        return this.waitingForOrders.unitId === unit.id && this.waitingForOrders.ownerId === unit.ownerId;
+        return !this.hasPendingOrderForUnit(unit.id);
     }
 
     private pauseForOrders(unit: Unit): void {
@@ -813,6 +824,14 @@ export class GameEngine implements EngineContext {
             order: { ...o.order, targets: (o.order.targets ?? []).map((t) => ({ ...t })) },
         }));
 
+        // If the order is already in pendingOrders, the engine does not need to pause — it will
+        // apply the order naturally on the appropriate tick. Clearing the pause state here allows
+        // the engine to run without waiting for external order delivery.
+        if (engine.waitingForOrders && engine.hasPendingOrderForUnit(engine.waitingForOrders.unitId)) {
+            engine.waitingForOrders = null;
+            engine.isPaused = false;
+        }
+
         // Restore units (direct push, bypasses addUnit jitter since state is serialized)
         engine.unitManager.restoreFromJSON(data.units, engine.eventBus);
 
@@ -834,12 +853,15 @@ export class GameEngine implements EngineContext {
         // Re-register core event listeners
         engine.registerCoreEventListeners();
 
-        // Infer waitingForOrders for legacy checkpoints
+        // Infer waitingForOrders for legacy checkpoints that omit the field.
+        // Skip inference when the unit already has a pending order: the engine will apply it naturally.
         if (!engine.waitingForOrders) {
             for (const unit of engine.units) {
                 if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
-                    engine.waitingForOrders = { unitId: unit.id, ownerId: unit.ownerId };
-                    engine.isPaused = true;
+                    if (!engine.hasPendingOrderForUnit(unit.id)) {
+                        engine.waitingForOrders = { unitId: unit.id, ownerId: unit.ownerId };
+                        engine.isPaused = true;
+                    }
                     break;
                 }
             }

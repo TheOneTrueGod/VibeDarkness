@@ -78,7 +78,10 @@ describe('GameEngine', () => {
         expect(restored.gameTime).toBe(engine.gameTime);
         expect(restored.roundNumber).toBe(engine.roundNumber);
         expect(restored.snapshotIndex).toBe(engine.snapshotIndex);
-        expect(restored.waitingForOrders).toEqual(engine.waitingForOrders);
+        // waitingForOrders is intentionally cleared when a matching pending order already exists,
+        // so the engine will apply the order naturally without pausing.
+        expect(restored.waitingForOrders).toBeNull();
+        expect(restored.isPaused).toBe(false);
         expect(restored.units.length).toBe(engine.units.length);
         expect(restored.pendingOrders.length).toBe(engine.pendingOrders.length);
         expect(restored.pendingOrders[0].gameTick).toBe(331);

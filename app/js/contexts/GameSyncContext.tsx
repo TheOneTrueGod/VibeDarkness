@@ -2,7 +2,7 @@
  * GameSyncContext - Centralizes game state ownership, fetching, and sync logic.
  * Host is canonical; non-host clients verify sync via synchash and recover from desyncs.
  *
- * Owns all battle-phase network I/O: checkpoint saves, order submission, and order polling.
+ * Owns all battle-phase network I/O: checkpoint saves, order submission, and a unified 500ms poll loop.
  */
 import React, {
     createContext,
@@ -12,8 +12,11 @@ import React, {
     useRef,
     useEffect,
 } from 'react';
-import type { GameStatePayload, MinimalStateResult } from '../types';
-import { computeSynchash } from '../utils/synchash';
+import type { GameStatePayload, MinimalStateResult, PollMessagePayload } from '../types';
+import { MessageType } from '../MessageTypes';
+
+/** Must match GameEngine.CHECKPOINT_INTERVAL */
+const CHECKPOINT_INTERVAL = 10;
 
 export type SyncStatus = 'loading' | 'synced' | 'resyncing' | 'waiting_for_host';
 
@@ -78,8 +81,6 @@ type RemoteOrderFilterOpts = {
 
 /**
  * Orders from the server that still need to be applied locally.
- * Same tick: include when paused on that unit, or when the order targets another unit owned by the
- * remote player (unit iteration can pause on a different unit before the merged order arrives).
  */
 function remoteOrdersToApply(
     serverOrders: Array<{ gameTick: number; order: Record<string, unknown> }>,
@@ -111,33 +112,36 @@ function remoteOrdersToApply(
     });
 }
 
-/** Callbacks provided by BattlePhase so polling can deliver orders back to the engine. */
-export interface OrderPollingCallbacks {
-    /** Return the engine's current gameTick and serialized state, or null if the engine isn't ready. */
-    getEngineSnapshot: () => { gameTick: number; state: Record<string, unknown> } | null;
-    /** Called when new orders arrive from the server. BattlePhase applies them to the engine. */
+/** Callbacks from BattlePhase: engine snapshot + order delivery (unified poll loop). */
+export interface BattleCallbacks {
+    getEngineSnapshot: () => {
+        gameTick: number;
+        state: Record<string, unknown>;
+        waitingForOrders: { unitId: string; ownerId: string } | null;
+        /** Pre-computed synchash captured at the moment the engine paused for orders. Null while computing. */
+        synchash: string | null;
+    } | null;
     onOrdersReceived: (orders: Array<{ gameTick: number; order: Record<string, unknown> }>) => void;
 }
 
 interface GameSyncContextValue {
     gameState: GameStatePayload | null;
     syncStatus: SyncStatus;
-    /** When syncStatus is waiting_for_host, short UI hint for why (non-host battle sync). */
     waitingForHostReason: string | null;
     canSubmitOrders: boolean;
     consecutiveWaitCount: number;
-    fetchFullState: (desyncContext?: { currentState: Record<string, unknown>; reason: string; serverTick?: number | null; serverHash?: string | null }) => Promise<void>;
+    requestResync: () => void;
     registerSkipTurnHandler: (handler: (() => void) | null) => void;
     skipCurrentTurn: (() => void) | null;
 
-    /** Host saves a full checkpoint so non-host clients can sync. */
-    saveCheckpoint: (gameTick: number, state: Record<string, unknown>, orders: Array<{ gameTick: number; order: Record<string, unknown> }>) => Promise<void>;
-    /** Any player publishes their order to the server. */
+    saveCheckpoint: (
+        gameTick: number,
+        state: Record<string, unknown>,
+        orders: Array<{ gameTick: number; order: Record<string, unknown> }>,
+        synchash?: string | null,
+    ) => Promise<void>;
     submitOrder: (checkpointGameTick: number, atTick: number, order: Record<string, unknown>) => Promise<void>;
-    /** Begin polling for remote orders at the given checkpoint tick. */
-    startOrderPolling: (checkpointGameTick: number, callbacks: OrderPollingCallbacks) => void;
-    /** Stop any active order polling. */
-    stopOrderPolling: () => void;
+    registerBattleCallbacks: (callbacks: BattleCallbacks | null) => void;
 }
 
 const GameSyncContext = createContext<GameSyncContextValue | null>(null);
@@ -147,17 +151,50 @@ interface GameSyncProviderProps {
     lobbyId: string;
     playerId: string;
     isHost: boolean;
-    /** When App's lobbyGameId changes (e.g. host selected game), trigger refetch */
     externalGameId?: string | null;
+    /** Cursor for lobby message polling (from getLobbyState.lastMessageId). */
+    initialLastMessageId?: number | null;
+    onPollMessages?: (messages: PollMessagePayload[]) => void;
     lobbyClient: {
-        getLobbyState: (lobbyId: string, playerId: string) => Promise<{ gameState: unknown; lastMessageId: number | null }>;
-        getGameMinimalState: (lobbyId: string, gameId: string, checkpointGameTick?: number) => Promise<MinimalStateResult>;
-        getGameOrders: (lobbyId: string, gameId: string, checkpointGameTick: number) => Promise<{ orders: Array<{ gameTick: number; order: Record<string, unknown> }> | null; state: Record<string, unknown> | null; gameTick: number } | null>;
-        saveGameStateSnapshot: (lobbyId: string, gameId: string, gameTick: number, state: Record<string, unknown>, orders: Array<{ gameTick: number; order: Record<string, unknown> }>) => Promise<void>;
-        saveGameOrders: (lobbyId: string, gameId: string, checkpointGameTick: number, atTick: number, order: Record<string, unknown>) => Promise<void>;
+        getLobbyState: (
+            lobbyId: string,
+            playerId: string,
+        ) => Promise<{ gameState: unknown; lastMessageId: number | null }>;
+        getMessages: (
+            lobbyId: string,
+            playerId: string,
+            afterMessageId: number | null,
+        ) => Promise<PollMessagePayload[]>;
+        getGameMinimalState: (
+            lobbyId: string,
+            gameId: string,
+            checkpointGameTick?: number,
+        ) => Promise<MinimalStateResult>;
+        saveGameStateSnapshot: (
+            lobbyId: string,
+            gameId: string,
+            gameTick: number,
+            state: Record<string, unknown>,
+            orders: Array<{ gameTick: number; order: Record<string, unknown> }>,
+            synchash?: string | null,
+        ) => Promise<void>;
+        saveGameOrders: (
+            lobbyId: string,
+            gameId: string,
+            checkpointGameTick: number,
+            atTick: number,
+            order: Record<string, unknown>,
+        ) => Promise<void>;
         setCurrentPlayerId: (id: string) => void;
     };
 }
+
+type DesyncContext = {
+    currentState: Record<string, unknown>;
+    reason: string;
+    serverTick?: number | null;
+    serverHash?: string | null;
+};
 
 export function GameSyncProvider({
     children,
@@ -165,6 +202,8 @@ export function GameSyncProvider({
     playerId,
     isHost,
     externalGameId,
+    initialLastMessageId,
+    onPollMessages,
     lobbyClient,
 }: GameSyncProviderProps) {
     const [gameState, setGameState] = useState<GameStatePayload | null>(null);
@@ -173,11 +212,24 @@ export function GameSyncProvider({
     const [canSubmitOrders, setCanSubmitOrders] = useState(true);
     const [consecutiveWaitCount, setConsecutiveWaitCount] = useState(0);
     const skipTurnHandlerRef = useRef<(() => void) | null>(null);
-    const stateFetchPromiseRef = useRef<Promise<unknown>>(Promise.resolve());
-    const orderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const orderPollCallbacksRef = useRef<OrderPollingCallbacks | null>(null);
-    /** Dedupe merged server orders after delivery (same tick + unit can reappear in merged files). */
+
+    const fullStateInFlightRef = useRef(false);
+    const minimalStateInFlightRef = useRef(false);
+    const messagesInFlightRef = useRef(false);
+    const tickCountRef = useRef(0);
+    const forceResyncRef = useRef(true);
+    const lastMessageIdRef = useRef<number | null>(initialLastMessageId ?? null);
+    const battleCallbacksRef = useRef<BattleCallbacks | null>(null);
     const appliedRemoteOrdersRef = useRef<Set<string>>(new Set());
+
+    const gameStateRef = useRef(gameState);
+    gameStateRef.current = gameState;
+    const gameIdRef = useRef<string | null>(null);
+    gameIdRef.current = externalGameId ?? gameState?.gameId ?? null;
+
+    useEffect(() => {
+        lastMessageIdRef.current = initialLastMessageId ?? null;
+    }, [initialLastMessageId]);
 
     useEffect(() => {
         lobbyClient.setCurrentPlayerId(playerId);
@@ -185,20 +237,10 @@ export function GameSyncProvider({
 
     const gameId = externalGameId ?? gameState?.gameId ?? null;
 
-    // ========================================================================
-    // Full state fetch (lobby-level)
-    // ========================================================================
-
-    /** Optional context when resync is triggered by desync; used to log current vs server state. */
-    type DesyncContext = {
-        currentState: Record<string, unknown>;
-        reason: string;
-        serverTick?: number | null;
-        serverHash?: string | null;
-    };
-
-    const fetchFullState = useCallback(async (desyncContext?: DesyncContext) => {
-        const run = async () => {
+    const doFullStateFetch = useCallback(
+        async (desyncContext?: DesyncContext) => {
+            if (fullStateInFlightRef.current) return;
+            fullStateInFlightRef.current = true;
             try {
                 logOrderPoll('fetchFullStateStart', {
                     reason: desyncContext?.reason ?? 'normal',
@@ -221,6 +263,7 @@ export function GameSyncProvider({
                 setSyncStatus('synced');
                 setCanSubmitOrders(true);
                 setConsecutiveWaitCount(0);
+                appliedRemoteOrdersRef.current.clear();
                 const phase = (payload?.game as Record<string, unknown> | undefined)?.gamePhase
                     ?? (payload?.game as Record<string, unknown> | undefined)?.game_phase
                     ?? null;
@@ -238,34 +281,35 @@ export function GameSyncProvider({
                     reason: desyncContext?.reason ?? 'normal',
                 });
                 setSyncStatus('synced');
+            } finally {
+                fullStateInFlightRef.current = false;
             }
-        };
-        const next = stateFetchPromiseRef.current.then(run, run);
-        stateFetchPromiseRef.current = next;
-        return next;
-    }, [lobbyId, playerId, lobbyClient]);
+        },
+        [lobbyId, playerId, lobbyClient],
+    );
 
-    // ========================================================================
-    // Battle sync: checkpoint persistence (host only)
-    // ========================================================================
+    const requestResync = useCallback(() => {
+        forceResyncRef.current = true;
+    }, []);
 
     const saveCheckpoint = useCallback(
-        async (gameTick: number, state: Record<string, unknown>, orders: Array<{ gameTick: number; order: Record<string, unknown> }>) => {
+        async (
+            tick: number,
+            state: Record<string, unknown>,
+            orders: Array<{ gameTick: number; order: Record<string, unknown> }>,
+            synchash?: string | null,
+        ) => {
             if (!isHost || !gameId) {
                 return;
             }
             try {
-                await lobbyClient.saveGameStateSnapshot(lobbyId, gameId, gameTick, state, orders);
+                await lobbyClient.saveGameStateSnapshot(lobbyId, gameId, tick, state, orders, synchash);
             } catch (err) {
                 console.error('Failed to save checkpoint:', err);
             }
         },
         [isHost, lobbyId, gameId, lobbyClient],
     );
-
-    // ========================================================================
-    // Battle sync: order submission
-    // ========================================================================
 
     const submitOrder = useCallback(
         async (checkpointGameTick: number, atTick: number, order: Record<string, unknown>) => {
@@ -279,101 +323,85 @@ export function GameSyncProvider({
         [lobbyId, gameId, lobbyClient],
     );
 
-    // ========================================================================
-    // Battle sync: order polling
-    // ========================================================================
-
-    const stopOrderPolling = useCallback(() => {
-        if (orderPollRef.current) {
-            clearInterval(orderPollRef.current);
-            orderPollRef.current = null;
+    const registerBattleCallbacks = useCallback((callbacks: BattleCallbacks | null) => {
+        battleCallbacksRef.current = callbacks;
+        if (callbacks == null) {
+            appliedRemoteOrdersRef.current.clear();
         }
-        orderPollCallbacksRef.current = null;
     }, []);
 
-    const stopOrderPollingWithReason = useCallback((reason: string, details: Record<string, unknown> = {}) => {
-        logOrderPoll('stopOrderPolling', { reason, ...details });
-        stopOrderPolling();
-    }, [stopOrderPolling]);
+    const registerSkipTurnHandler = useCallback((handler: (() => void) | null) => {
+        skipTurnHandlerRef.current = handler;
+    }, []);
 
-    const pollForOrdersImpl = useCallback(
-        async (checkpointGameTick: number) => {
-            const callbacks = orderPollCallbacksRef.current;
-            if (!callbacks || !gameId) {
-                logOrderPoll('pollSkipped', {
-                    checkpointGameTick,
-                    hasCallbacks: callbacks != null,
-                    hasGameId: gameId != null,
-                });
-                return;
-            }
-            const snapshot = callbacks.getEngineSnapshot();
-            if (!snapshot) {
-                logOrderPoll('pollSkipped', {
-                    checkpointGameTick,
-                    reason: 'engine_snapshot_unavailable',
-                });
-                return;
-            }
+    const skipCurrentTurn = useCallback(() => {
+        skipTurnHandlerRef.current?.();
+    }, []);
 
-            if (isHost) {
-                // Host is canonical: just fetch orders, no sync verification.
-                try {
-                    const result = await lobbyClient.getGameOrders(lobbyId, gameId, checkpointGameTick);
-                    if (!result?.orders?.length) return;
+    const runMinimalBattlePoll = useCallback(
+        async (checkpointGameTick: number, snapshot: NonNullable<ReturnType<BattleCallbacks['getEngineSnapshot']>>) => {
+            const callbacks = battleCallbacksRef.current;
+            if (!callbacks || !gameIdRef.current) return;
 
-                    const fresh = callbacks.getEngineSnapshot();
-                    if (!fresh) return;
-                    const snapTick = Number(fresh.gameTick);
-                    const waitingUnitId =
-                        extractWaitingUnitId(fresh.state) ??
-                        (result.state ? extractWaitingUnitId(result.state) : null);
-                    const newOrders = remoteOrdersToApply(result.orders, snapTick, waitingUnitId, {
-                        localPlayerId: playerId,
-                        state: fresh.state,
-                        appliedKeys: appliedRemoteOrdersRef.current,
-                    });
-                    // After a remote order is applied, resumeAfterOrders clears waitingForOrders but merged
-                    // checkpoint files still list that order — same-tick filter drops all and polling never stops.
-                    const staleMergedOrdersReplay =
-                        newOrders.length === 0 &&
-                        result.orders.length > 0 &&
-                        !isWaitingForRemotePlayerOrder(fresh.state, playerId) &&
-                        result.orders.every((o) => Number(o.gameTick) <= snapTick);
-                    if (staleMergedOrdersReplay) {
-                        stopOrderPollingWithReason('host_stale_merged_orders_replay', {
-                            checkpointGameTick,
-                            snapTick,
-                            orderCount: result.orders.length,
-                        });
-                        return;
-                    }
-                    if (newOrders.length === 0) return;
-
-                    callbacks.onOrdersReceived(newOrders);
-                    markAppliedRemoteOrders(newOrders, appliedRemoteOrdersRef.current);
-                    stopOrderPollingWithReason('host_orders_received', {
-                        checkpointGameTick,
-                        receivedOrders: newOrders.length,
-                    });
-                } catch {
-                    // Silently retry on next interval
-                }
-                return;
-            }
-
-            // Non-host: fetch minimal state, deliver orders, verify sync.
+            if (minimalStateInFlightRef.current) return;
+            minimalStateInFlightRef.current = true;
             try {
-                const runMinimal = async () => {
+                if (isHost) {
                     try {
-                        return await lobbyClient.getGameMinimalState(lobbyId, gameId, checkpointGameTick);
+                        const result = await lobbyClient.getGameMinimalState(
+                            lobbyId,
+                            gameIdRef.current,
+                            checkpointGameTick,
+                        );
+                        if (!result.orders?.length) return;
+
+                        const fresh = callbacks.getEngineSnapshot();
+                        if (!fresh) return;
+                        const snapTick = Number(fresh.gameTick);
+                        const waitingUnitId = extractWaitingUnitId(fresh.state);
+                        const newOrders = remoteOrdersToApply(result.orders, snapTick, waitingUnitId, {
+                            localPlayerId: playerId,
+                            state: fresh.state,
+                            appliedKeys: appliedRemoteOrdersRef.current,
+                        });
+                        const staleMergedOrdersReplay =
+                            newOrders.length === 0
+                            && result.orders.length > 0
+                            && !isWaitingForRemotePlayerOrder(fresh.state, playerId)
+                            && result.orders.every((o) => Number(o.gameTick) <= snapTick);
+                        if (staleMergedOrdersReplay) {
+                            logOrderPoll('host_stale_merged_orders_replay', {
+                                checkpointGameTick,
+                                snapTick,
+                                orderCount: result.orders.length,
+                            });
+                            return;
+                        }
+                        if (newOrders.length === 0) return;
+
+                        callbacks.onOrdersReceived(newOrders);
+                        markAppliedRemoteOrders(newOrders, appliedRemoteOrdersRef.current);
+                        logOrderPoll('host_orders_received', {
+                            checkpointGameTick,
+                            receivedOrders: newOrders.length,
+                        });
                     } catch {
-                        return null;
+                        // retry next tick
                     }
-                };
-                const next = stateFetchPromiseRef.current.then(runMinimal, runMinimal);
-                stateFetchPromiseRef.current = next;
-                const minimalResult = await next;
+                    return;
+                }
+
+                // Non-host: minimal state + sync verification
+                let minimalResult: MinimalStateResult | null = null;
+                try {
+                    minimalResult = await lobbyClient.getGameMinimalState(
+                        lobbyId,
+                        gameIdRef.current,
+                        checkpointGameTick,
+                    );
+                } catch {
+                    minimalResult = null;
+                }
                 if (!minimalResult) {
                     logOrderPoll('minimalPollNoResult', { checkpointGameTick });
                     return;
@@ -385,11 +413,16 @@ export function GameSyncProvider({
                 const engineTick = Number(liveForTick?.gameTick ?? snapshot.gameTick);
                 const waitingUnitId = extractWaitingUnitId(liveForTick?.state ?? snapshot.state);
                 const stateForFilter = liveForTick?.state ?? snapshot.state;
-                const pendingRemoteOrders = remoteOrdersToApply(minimalResult.orders, engineTick, waitingUnitId, {
-                    localPlayerId: playerId,
-                    state: stateForFilter,
-                    appliedKeys: appliedRemoteOrdersRef.current,
-                });
+                const pendingRemoteOrders = remoteOrdersToApply(
+                    minimalResult.orders,
+                    engineTick,
+                    waitingUnitId,
+                    {
+                        localPlayerId: playerId,
+                        state: stateForFilter,
+                        appliedKeys: appliedRemoteOrdersRef.current,
+                    },
+                );
                 logOrderPoll('minimalPolled', {
                     checkpointGameTick,
                     serverTick,
@@ -399,29 +432,23 @@ export function GameSyncProvider({
                     waitingUnitId,
                 });
 
-                // No checkpoint file exists at this boundary yet — host hasn't reached it.
                 if (serverTick < 0) {
                     setCanSubmitOrders(false);
-                    let nextCount: number;
                     let shouldResync = false;
                     setConsecutiveWaitCount((c) => {
-                        nextCount = c + 1;
+                        const nextCount = c + 1;
                         if (nextCount >= WAITING_FOR_HOST_THRESHOLD) {
                             shouldResync = true;
-                            return c; // Don't increment; we're about to resync
+                            return c;
                         }
                         return nextCount;
                     });
                     if (shouldResync) {
-                        setSyncStatus('resyncing');
-                        await fetchFullState({
+                        await doFullStateFetch({
                             currentState: snapshot.state,
                             reason: 'waiting_for_host_threshold',
                             serverTick: -1,
                             serverHash: null,
-                        });
-                        stopOrderPollingWithReason('non_host_waiting_for_host_threshold_resync', {
-                            checkpointGameTick,
                         });
                     } else {
                         setWaitingForHostReason('Host snapshot not available yet');
@@ -430,35 +457,40 @@ export function GameSyncProvider({
                     return;
                 }
 
-                // Deliver remote orders (same tick as engine is valid when paused on that unit).
                 if (pendingRemoteOrders.length > 0) {
                     setCanSubmitOrders(true);
                     setConsecutiveWaitCount(0);
                     setSyncStatus('synced');
                     callbacks.onOrdersReceived(pendingRemoteOrders);
                     markAppliedRemoteOrders(pendingRemoteOrders, appliedRemoteOrdersRef.current);
-                    stopOrderPollingWithReason('non_host_orders_received', {
+                    logOrderPoll('non_host_orders_received', {
                         checkpointGameTick,
                         receivedOrders: pendingRemoteOrders.length,
                     });
                     return;
                 }
 
-                // No new orders yet. Verify synchash if ticks match exactly.
                 if (Number(serverTick) === engineTick) {
-                    const clientSynchash = await computeSynchash(snapshot.state);
-                    if (serverHash !== null && clientSynchash !== null && serverHash !== clientSynchash) {
-                        setSyncStatus('resyncing');
-                        await fetchFullState({
+                    // Use the synchash captured at pause time rather than recomputing on the fly.
+                    // Both host and non-host compute the hash at the same well-defined moment
+                    // (when the engine pauses for orders), so timing drift cannot cause spurious mismatches.
+                    const clientSynchash = liveForTick?.synchash ?? snapshot.synchash ?? null;
+                    if (clientSynchash === null) {
+                        // Hash not ready yet (still computing asynchronously); skip check this tick.
+                        logOrderPoll('non_host_synchash_not_ready', { checkpointGameTick, serverTick, engineTick });
+                        return;
+                    }
+                    if (serverHash !== null && serverHash !== clientSynchash) {
+                        console.warn('Synchash mismatch vs server minimal state', {
+                            serverHash,
+                            clientSynchash,
+                            engineTick,
+                        });
+                        await doFullStateFetch({
                             currentState: snapshot.state,
                             reason: 'synchash_mismatch',
                             serverTick,
                             serverHash,
-                        });
-                        stopOrderPollingWithReason('non_host_synchash_mismatch_resync', {
-                            checkpointGameTick,
-                            serverTick,
-                            engineTick,
                         });
                         return;
                     }
@@ -466,14 +498,14 @@ export function GameSyncProvider({
                         serverHash !== null && clientSynchash !== null && serverHash === clientSynchash;
                     const liveState = callbacks.getEngineSnapshot()?.state ?? snapshot.state;
                     if (
-                        hashAligned &&
-                        pendingRemoteOrders.length === 0 &&
-                        !(
-                            isWaitingForRemotePlayerOrder(liveState, playerId) &&
-                            minimalResult.orders.length === 0
+                        hashAligned
+                        && pendingRemoteOrders.length === 0
+                        && !(
+                            isWaitingForRemotePlayerOrder(liveState, playerId)
+                            && minimalResult.orders.length === 0
                         )
                     ) {
-                        stopOrderPollingWithReason('non_host_hash_aligned_not_waiting', {
+                        logOrderPoll('non_host_hash_aligned_not_waiting', {
                             checkpointGameTick,
                             serverTick,
                             engineTick,
@@ -486,18 +518,14 @@ export function GameSyncProvider({
                     }
                 }
 
-                // Host snapshot tick can legitimately exceed ours while we wait to apply remote
-                // orders (overlapping checkpoint window). Full-resync only when we're behind and the
-                // merged order list has nothing left to apply.
                 if (Number(serverTick) > engineTick && pendingRemoteOrders.length === 0) {
-                    setSyncStatus('resyncing');
-                    await fetchFullState({
+                    await doFullStateFetch({
                         currentState: snapshot.state,
                         reason: 'client_fell_behind',
                         serverTick,
                         serverHash,
                     });
-                    stopOrderPollingWithReason('non_host_client_fell_behind_resync', {
+                    logOrderPoll('non_host_client_fell_behind_resync', {
                         checkpointGameTick,
                         serverTick,
                         engineTick,
@@ -508,16 +536,62 @@ export function GameSyncProvider({
                 setCanSubmitOrders(true);
                 setConsecutiveWaitCount(0);
                 setSyncStatus('synced');
+                if (Number(serverTick) < engineTick) {
+                    setWaitingForHostReason('Host is behind local simulation');
+                    setSyncStatus('waiting_for_host');
+                }
             } catch (err) {
                 logOrderPoll('minimalPollError', {
                     checkpointGameTick,
                     error: err instanceof Error ? err.message : 'unknown',
                 });
-                // Silently retry on next interval
+            } finally {
+                minimalStateInFlightRef.current = false;
             }
         },
-        [isHost, lobbyId, gameId, playerId, lobbyClient, fetchFullState, stopOrderPollingWithReason],
+        [isHost, lobbyId, playerId, lobbyClient, doFullStateFetch],
     );
+
+    const fetchMessagesBatch = useCallback(async () => {
+        if (!onPollMessages || messagesInFlightRef.current) return;
+        messagesInFlightRef.current = true;
+        try {
+            const messages = await lobbyClient.getMessages(lobbyId, playerId, lastMessageIdRef.current);
+            const out: PollMessagePayload[] = [];
+            for (const msg of messages) {
+                if (msg.type === MessageType.GAME_PHASE_CHANGED) {
+                    forceResyncRef.current = true;
+                }
+                out.push(msg as PollMessagePayload);
+                if (
+                    msg.messageId != null
+                    && (lastMessageIdRef.current == null || msg.messageId > lastMessageIdRef.current)
+                ) {
+                    lastMessageIdRef.current = msg.messageId;
+                }
+            }
+            if (out.length > 0) {
+                onPollMessages(out);
+            }
+        } catch (error) {
+            console.error('Poll messages error:', error);
+        } finally {
+            messagesInFlightRef.current = false;
+        }
+    }, [lobbyId, playerId, lobbyClient, onPollMessages]);
+
+    useEffect(() => {
+        forceResyncRef.current = true;
+    }, [externalGameId]);
+
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (document.visibilityState !== 'visible') return;
+            forceResyncRef.current = true;
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    }, []);
 
     useEffect(() => {
         if (syncStatus !== 'waiting_for_host') {
@@ -525,89 +599,86 @@ export function GameSyncProvider({
         }
     }, [syncStatus]);
 
-    const startOrderPolling = useCallback(
-        (checkpointGameTick: number, callbacks: OrderPollingCallbacks) => {
-            stopOrderPollingWithReason('restart_polling', { checkpointGameTick });
-            appliedRemoteOrdersRef.current.clear();
-            orderPollCallbacksRef.current = callbacks;
-            logOrderPoll('startOrderPolling', { checkpointGameTick, isHost });
-            pollForOrdersImpl(checkpointGameTick);
-            orderPollRef.current = setInterval(
-                () => pollForOrdersImpl(checkpointGameTick),
-                1000,
-            );
-        },
-        [stopOrderPollingWithReason, pollForOrdersImpl, isHost],
-    );
-
-    // ========================================================================
-    // Skip-turn handler
-    // ========================================================================
-
-    const registerSkipTurnHandler = useCallback((handler: (() => void) | null) => {
-        skipTurnHandlerRef.current = handler;
-    }, []);
-
-    const skipCurrentTurn = useCallback(() => {
-        skipTurnHandlerRef.current?.();
-    }, []);
-
-    // ========================================================================
-    // Auto-fetch effects
-    // ========================================================================
-
     useEffect(() => {
-        fetchFullState();
-    }, [fetchFullState]);
+        const pollTick = () => {
+            tickCountRef.current += 1;
+            const t = tickCountRef.current;
+            void (async () => {
+                if (t % 5 === 0) {
+                    await fetchMessagesBatch();
+                }
 
-    useEffect(() => {
-        if (externalGameId && externalGameId !== gameId) {
-            fetchFullState();
-        }
-    }, [externalGameId, gameId, fetchFullState]);
+                if (forceResyncRef.current && !fullStateInFlightRef.current) {
+                    forceResyncRef.current = false;
+                    await doFullStateFetch();
+                    return;
+                }
 
-    useEffect(() => {
-        const phase = (gameState?.game as Record<string, unknown>)?.gamePhase
-            ?? (gameState?.game as Record<string, unknown>)?.game_phase;
-        const inBattle = phase === 'battle';
-        const battleGame = (gameState?.game as Record<string, unknown>) ?? null;
-        const hasBattleSnapshot =
-            battleGame != null &&
-            Array.isArray(battleGame.units) &&
-            (battleGame.units as unknown[]).length > 0 &&
-            typeof (battleGame.gameTick ?? battleGame.game_tick) === 'number';
-        // Keep a short-lived fallback poll during battle until a real snapshot arrives.
-        // This prevents clients from getting stuck after story->battle transition where
-        // phase flips to "battle" before units/tick are persisted.
-        if (gameId && (!inBattle || !hasBattleSnapshot)) {
-            const intervalMs = inBattle ? 1000 : 5000;
-            const interval = setInterval(fetchFullState, intervalMs);
-            return () => clearInterval(interval);
-        }
-    }, [gameState?.game, gameId, fetchFullState]);
+                const gid = gameIdRef.current;
+                const gs = gameStateRef.current;
+                const rawGame = (gs?.game as Record<string, unknown> | undefined) ?? null;
+                const phase =
+                    rawGame?.gamePhase ?? rawGame?.game_phase ?? null;
 
-    useEffect(() => {
-        const onVisibilityChange = () => {
-            if (document.visibilityState !== 'visible') return;
-            fetchFullState().catch(() => {});
+                if (!gid) {
+                    return;
+                }
+
+                if (
+                    phase === 'character_select'
+                    || phase === 'pre_mission_story'
+                    || phase === 'post_mission_story'
+                ) {
+                    if (!fullStateInFlightRef.current) {
+                        await doFullStateFetch();
+                    }
+                    return;
+                }
+
+                if (phase === 'mission_select' || phase == null) {
+                    if (t % 10 === 0 && !fullStateInFlightRef.current) {
+                        await doFullStateFetch();
+                    }
+                    return;
+                }
+
+                if (phase === 'battle') {
+                    const cbs = battleCallbacksRef.current;
+                    if (!cbs) {
+                        // Story→battle transition: throttle full fetch (~1s) until BattlePhase mounts
+                        if (t % 2 === 0 && !fullStateInFlightRef.current) {
+                            await doFullStateFetch();
+                        }
+                        return;
+                    }
+
+                    const snap = cbs.getEngineSnapshot();
+                    if (!snap) {
+                        if (t % 2 === 0 && !fullStateInFlightRef.current) {
+                            await doFullStateFetch();
+                        }
+                        return;
+                    }
+
+                    if (snap.waitingForOrders === null) {
+                        return;
+                    }
+
+                    if (snap.waitingForOrders.ownerId === playerId) {
+                        return;
+                    }
+
+                    const nextTick = snap.gameTick + 1;
+                    const checkpointGameTick =
+                        Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+                    await runMinimalBattlePoll(checkpointGameTick, snap);
+                }
+            })();
         };
-        document.addEventListener('visibilitychange', onVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-    }, [fetchFullState]);
 
-    // Refetch when host broadcasts phase change (e.g. battle start) so non-host gets state immediately
-    useEffect(() => {
-        const onPhaseChanged = () => {
-            fetchFullState().catch(() => {});
-        };
-        window.addEventListener('game-phase-changed', onPhaseChanged);
-        return () => window.removeEventListener('game-phase-changed', onPhaseChanged);
-    }, [fetchFullState]);
-
-    // Clean up polling on unmount
-    useEffect(() => {
-        return () => stopOrderPollingWithReason('provider_unmount');
-    }, [stopOrderPollingWithReason]);
+        const id = window.setInterval(pollTick, 500);
+        return () => window.clearInterval(id);
+    }, [doFullStateFetch, fetchMessagesBatch, runMinimalBattlePoll, playerId]);
 
     const value: GameSyncContextValue = {
         gameState,
@@ -615,13 +686,12 @@ export function GameSyncProvider({
         waitingForHostReason,
         canSubmitOrders,
         consecutiveWaitCount,
-        fetchFullState,
+        requestResync,
         registerSkipTurnHandler,
         skipCurrentTurn: isHost ? skipCurrentTurn : null,
         saveCheckpoint,
         submitOrder,
-        startOrderPolling,
-        stopOrderPolling,
+        registerBattleCallbacks,
     };
 
     return <GameSyncContext.Provider value={value}>{children}</GameSyncContext.Provider>;

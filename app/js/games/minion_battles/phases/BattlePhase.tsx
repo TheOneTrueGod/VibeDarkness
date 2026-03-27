@@ -30,7 +30,7 @@ import BattleTimeline from '../components/BattleTimeline';
 import { MessageType } from '../../../MessageTypes';
 import type { MessageEntry } from '../../../components/Chat';
 import { useGameSyncOptional } from '../../../contexts/GameSyncContext';
-import type { OrderPollingCallbacks } from '../../../contexts/GameSyncContext';
+import type { BattleCallbacks } from '../../../contexts/GameSyncContext';
 import { computeSynchash } from '../../../utils/synchash';
 
 declare global {
@@ -106,6 +106,8 @@ export default function BattlePhase({
     const engineRef = useRef<GameEngine | null>(null);
     const rendererRef = useRef<GameRenderer | null>(null);
     const cameraRef = useRef<Camera | null>(null);
+    /** Synchash captured at the moment the engine last paused for orders. Null while computing or cleared. */
+    const waitingForOrdersSynchashRef = useRef<string | null>(null);
 
     // UI state
     const [roundNumber, setRoundNumber] = useState(1);
@@ -127,7 +129,6 @@ export default function BattlePhase({
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     const [, forceRender] = useState(0);
     const prevSyncStatusRef = useRef<string | null>(null);
-    const lastWaitingPollKeyRef = useRef<string | null>(null);
 
     // Is it my turn?
     const isMyTurn = waitingForOrders?.ownerId === playerId;
@@ -253,25 +254,9 @@ export default function BattlePhase({
     // ========================================================================
 
     const updateCardStateRef = useRef<((engine: GameEngine) => void) | null>(null);
-    const maybeStartOrderPollingForWaiting = useCallback(
-        (engine: GameEngine, info: WaitingForOrders, source: 'engine_callback' | 'post_full_state_sync') => {
-            if (info.ownerId === playerId) {
-                lastWaitingPollKeyRef.current = null;
-                return;
-            }
-            const nextTick = engine.gameTick + 1;
-            const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-            const pollKey = `${checkpointGameTick}:${engine.gameTick}:${info.unitId}:${info.ownerId}`;
-            const sameAsLast = lastWaitingPollKeyRef.current === pollKey;
-            if (source === 'post_full_state_sync' && sameAsLast) return;
-            lastWaitingPollKeyRef.current = pollKey;
-            gameSyncRef.current?.startOrderPolling(checkpointGameTick, makeOrderPollingCallbacks());
-        },
-        [playerId],
-    );
 
     const handleWaitingForOrdersState = useCallback(
-        (engine: GameEngine, info: WaitingForOrders, source: 'engine_callback' | 'post_full_state_sync') => {
+        (engine: GameEngine, info: WaitingForOrders, _source: 'engine_callback' | 'post_full_state_sync') => {
             setWaitingForOrders(info);
             setIsPaused(true);
 
@@ -285,10 +270,48 @@ export default function BattlePhase({
                 : null;
 
             updateCardStateRef.current?.(engine);
-            maybeStartOrderPollingForWaiting(engine, info, source);
         },
-        [maybeStartOrderPollingForWaiting],
+        [],
     );
+
+    /** Battle sync polls via GameSyncContext; we only register engine snapshot + order delivery. */
+    useEffect(() => {
+        if (!gameSync) return;
+
+        const callbacks: BattleCallbacks = {
+            getEngineSnapshot: () => {
+                const eng = engineRef.current;
+                if (!eng) return null;
+                const w = eng.waitingForOrders;
+                return {
+                    gameTick: eng.gameTick,
+                    state: eng.toJSON() as unknown as Record<string, unknown>,
+                    waitingForOrders: w
+                        ? { unitId: w.unitId, ownerId: w.ownerId }
+                        : null,
+                    synchash: waitingForOrdersSynchashRef.current,
+                };
+            },
+            onOrdersReceived: (orders) => {
+                waitingForOrdersSynchashRef.current = null;
+                const eng = engineRef.current;
+                if (!eng) return;
+                for (const { gameTick: atTick, order } of orders) {
+                    eng.queueOrder(atTick, order as unknown as BattleOrder);
+                }
+                eng.resumeAfterOrders();
+                setWaitingForOrders(null);
+                setIsPaused(false);
+                updateCardStateRef.current?.(eng);
+            },
+        };
+        gameSync.registerBattleCallbacks(callbacks);
+        return () => {
+            gameSync.registerBattleCallbacks(null);
+        };
+        // registerBattleCallbacks is stable; avoid depending on full gameSync object (new ref each render).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gameSync?.registerBattleCallbacks]);
 
     useEffect(() => {
         const skipHandler = () => {
@@ -345,7 +368,15 @@ export default function BattlePhase({
             setRoundNumber(engine.roundNumber);
             setRoundProgress(engine.roundProgress);
             setWaitingForOrders(engine.waitingForOrders);
-            if (engine.waitingForOrders) setIsPaused(true);
+            if (engine.waitingForOrders) {
+                setIsPaused(true);
+                // Engine starts already paused; onCheckpoint won't fire, so compute hash now.
+                waitingForOrdersSynchashRef.current = null;
+                const stateForHash = engine.toJSON() as unknown as Record<string, unknown>;
+                void computeSynchash(stateForHash).then((hash) => {
+                    waitingForOrdersSynchashRef.current = hash;
+                });
+            }
         } else {
             engine = new GameEngine();
             engine.prepareForNewGame({
@@ -413,8 +444,13 @@ export default function BattlePhase({
                 handleWaitingForOrdersState(newEngine, info, 'engine_callback');
             });
             newEngine.setOnCheckpoint((gameTick, state, orders) => {
+                const stateForHash = state as unknown as Record<string, unknown>;
                 const ordersFormatted = (orders as OrderAtTick[]).map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
-                gameSyncRef.current?.saveCheckpoint(gameTick, state as unknown as Record<string, unknown>, ordersFormatted);
+                waitingForOrdersSynchashRef.current = null;
+                void computeSynchash(stateForHash).then((hash) => {
+                    waitingForOrdersSynchashRef.current = hash;
+                    gameSyncRef.current?.saveCheckpoint(gameTick, stateForHash, ordersFormatted, hash);
+                });
             });
             newEngine.setOnRoundEnd((rn) => {
                 setRoundNumber(rn + 1);
@@ -448,7 +484,16 @@ export default function BattlePhase({
             if (myUnit && cameraRef.current) {
                 cameraRef.current.snapTo(myUnit.x, myUnit.y, myUnit.radius);
             }
-            if (!newEngine.waitingForOrders) {
+            // If the engine starts already paused for orders, onCheckpoint won't fire for this
+            // initial pause, so we must compute the synchash here.
+            waitingForOrdersSynchashRef.current = null;
+            if (newEngine.waitingForOrders) {
+                const stateForHash = newEngine.toJSON() as unknown as Record<string, unknown>;
+                void computeSynchash(stateForHash).then((hash) => {
+                    waitingForOrdersSynchashRef.current = hash;
+                });
+                // isPaused stays true; engine.start() runs but the engine remains paused
+            } else {
                 newEngine.isPaused = false;
             }
             newEngine.start();
@@ -460,8 +505,13 @@ export default function BattlePhase({
         });
 
         engine.setOnCheckpoint((gameTick, state, orders) => {
+            const stateForHash = state as unknown as Record<string, unknown>;
             const ordersFormatted = (orders as OrderAtTick[]).map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
-            gameSyncRef.current?.saveCheckpoint(gameTick, state as unknown as Record<string, unknown>, ordersFormatted);
+            waitingForOrdersSynchashRef.current = null;
+            void computeSynchash(stateForHash).then((hash) => {
+                waitingForOrdersSynchashRef.current = hash;
+                gameSyncRef.current?.saveCheckpoint(gameTick, stateForHash, ordersFormatted, hash);
+            });
         });
 
         engine.setOnRoundEnd((rn) => {
@@ -502,13 +552,6 @@ export default function BattlePhase({
         // Update initial card state
         updateCardState(engine);
 
-        // If restored and waiting for another player's orders, start polling
-        if (hasSnapshot && engine.waitingForOrders && engine.waitingForOrders.ownerId !== playerId) {
-            const nextTick = engine.gameTick + 1;
-            const checkpointGameTick = Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-            gameSyncRef.current?.startOrderPolling(checkpointGameTick, makeOrderPollingCallbacks());
-        }
-
         // Resume simulation when not waiting for orders (fresh game or restored mid-round)
         if (!engine.waitingForOrders) {
             engine.isPaused = false;
@@ -520,7 +563,6 @@ export default function BattlePhase({
         return () => {
             engine.destroy();
             renderer.destroy();
-            gameSyncRef.current?.stopOrderPolling();
         };
     }, []); // Run once on mount
 
@@ -751,31 +793,6 @@ export default function BattlePhase({
         lobbyClient.sendMessage(lobbyId, playerId, 'battle_orders_ready', {
             snapshotIndex: engine.snapshotIndex,
         }).catch(() => {});
-    }
-
-    // ========================================================================
-    // Order polling callbacks (ref-based so engine closures always get latest)
-    // ========================================================================
-
-    function makeOrderPollingCallbacks(): OrderPollingCallbacks {
-        return {
-            getEngineSnapshot: () => {
-                const eng = engineRef.current;
-                if (!eng) return null;
-                return { gameTick: eng.gameTick, state: eng.toJSON() as unknown as Record<string, unknown> };
-            },
-            onOrdersReceived: (orders) => {
-                const eng = engineRef.current;
-                if (!eng) return;
-                for (const { gameTick: atTick, order } of orders) {
-                    eng.queueOrder(atTick, order as unknown as BattleOrder);
-                }
-                eng.resumeAfterOrders();
-                setWaitingForOrders(null);
-                setIsPaused(false);
-                updateCardStateRef.current?.(eng);
-            },
-        };
     }
 
     // ========================================================================

@@ -112,9 +112,10 @@ function AppInner() {
     /** Set when creating a lobby from campaign Mission Select; used to record mission results on victory. */
     const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(null);
 
-    // Polling
-    const lastMessageIdRef = useRef<number | null>(null);
-    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    /** Message cursor for GameSyncProvider polling (seed from getLobbyState.lastMessageId). */
+    const [lastPollMessageId, setLastPollMessageId] = useState<number | null>(null);
+    /** Avoid GET /messages until startInLobby has seeded lastPollMessageId (pre-race duplicates). */
+    const [pollMessagesReady, setPollMessagesReady] = useState(false);
 
     // WebRTC mesh for peer-to-peer events (e.g. Ping)
     const webRtcMeshRef = useRef<WebRtcLobbyMesh | null>(null);
@@ -300,45 +301,21 @@ function AppInner() {
                 if (fromPlayerId) {
                     triggerPlayerFlash(fromPlayerId);
                 }
-            } else if (type === MessageType.GAME_PHASE_CHANGED) {
-                // Non-host receives phase change from host; trigger immediate refetch so we get
-                // battle state without waiting for the 5s poll.
-                window.dispatchEvent(new CustomEvent('game-phase-changed'));
             }
+            // GAME_PHASE_CHANGED: GameSyncContext refetches full state when it sees this in its poll loop.
             // MISSION_VOTE handled by game components via polling
         },
         [showToast, isDuplicateChatEntry, triggerPlayerFlash]
     );
 
-    // ==================== Polling ====================
-
-    const pollMessages = useCallback(async () => {
-        const lobby = currentLobby;
-        const player = currentPlayerRef.current;
-        if (!lobby || !player) return;
-        try {
-            const messages = await lobbyClient.getMessages(lobby.id, player.id, lastMessageIdRef.current);
+    const handlePollMessagesFromSync = useCallback(
+        (messages: PollMessagePayload[]) => {
             for (const msg of messages) {
-                handlePollMessage(msg as PollMessagePayload);
-                if (msg.messageId != null && (lastMessageIdRef.current == null || msg.messageId > lastMessageIdRef.current)) {
-                    lastMessageIdRef.current = msg.messageId;
-                }
+                handlePollMessage(msg);
             }
-        } catch (error) {
-            console.error('Poll error:', error);
-        }
-    }, [currentLobby, lobbyClient, handlePollMessage]);
-
-    // Start/stop polling when in lobby (messages only; GameSyncContext owns state fetching)
-    useEffect(() => {
-        if (!currentLobby || !currentPlayer) return;
-
-        pollIntervalRef.current = setInterval(pollMessages, 5000);
-
-        return () => {
-            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-        };
-    }, [currentLobby, currentPlayer, pollMessages]);
+        },
+        [handlePollMessage],
+    );
 
     // ==================== Lobby operations ====================
 
@@ -429,7 +406,8 @@ function AppInner() {
             try {
                 const { gameState, lastMessageId } = await lobbyClient.getLobbyState(lobby.id, player.id);
                 loadGameState(gameState as unknown as GameStatePayload);
-                lastMessageIdRef.current = lastMessageId ?? null;
+                setLastPollMessageId(lastMessageId ?? null);
+                setPollMessagesReady(true);
                 setConnectionStatus('connected');
                 setChatEnabled(true);
                 setChatMessages((prev) => [
@@ -440,6 +418,7 @@ function AppInner() {
                 console.error('Failed to load lobby state:', error);
                 showToast('Failed to load lobby', 'error');
                 setConnectionStatus('disconnected');
+                setPollMessagesReady(false);
             }
         },
         [lobbyClient, loadGameState, showToast]
@@ -512,7 +491,8 @@ function AppInner() {
                 setScreen('game');
                 window.history.pushState(null, '', `${LOBBY_PATH_PREFIX}${lobby.id}`);
 
-                lastMessageIdRef.current = null;
+                setPollMessagesReady(false);
+                setLastPollMessageId(null);
                 await startInLobby(lobby, player);
             } catch (error) {
                 showToast(
@@ -570,7 +550,8 @@ function AppInner() {
         setLobbyGameType(null);
         setLobbyGameData(null);
         setCurrentCampaignId(null);
-        lastMessageIdRef.current = null;
+        setLastPollMessageId(null);
+        setPollMessagesReady(false);
         window.history.replaceState(null, '', '/');
         setScreen('lobby');
         refetchUser();
@@ -720,6 +701,8 @@ function AppInner() {
                     playerId={currentPlayer.id}
                     isHost={currentPlayer.isHost ?? false}
                     externalGameId={lobbyGameId}
+                    initialLastMessageId={lastPollMessageId}
+                    onPollMessages={pollMessagesReady ? handlePollMessagesFromSync : undefined}
                     lobbyClient={lobbyClient}
                 >
                     <>
