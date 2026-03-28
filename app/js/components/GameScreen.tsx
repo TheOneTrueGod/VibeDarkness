@@ -385,7 +385,6 @@ export default function GameScreen({
                                         gameId={effectiveLobbyGameId ?? ''}
                                         playerId={player.id}
                                         isHost={isHost}
-                                        isAdmin={account?.role === 'admin'}
                                         players={effectivePlayers}
                                         gameData={effectiveLobbyGameData}
                                         onSidebarInfoChange={setGameSidebarInfo}

@@ -2,7 +2,6 @@
 
 namespace App\Http\Handlers;
 
-use App\GameStateSync;
 use App\LobbyManager;
 use App\AccountService;
 
@@ -52,10 +51,7 @@ class SaveGameStateSnapshotHandler
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
-        // Prefer the client-computed JS synchash when provided; it was computed from the same
-        // JS engine state that non-host clients will compare against, eliminating any PHP↔JS
-        // serialization discrepancy. Fall back to server-side computation when absent.
-        $synchash = $data['synchash'] ?? GameStateSync::computeSynchash($state);
+        $synchash = $data['synchash'] ?? null;
         $payload = ['gameTick' => $gameTick, 'state' => $state, 'orders' => $orders, 'synchash' => $synchash];
         $path = $dir . '/game_' . $gameId . '_' . $gameTick . '.json';
         file_put_contents($path, json_encode($payload, JSON_PRETTY_PRINT));

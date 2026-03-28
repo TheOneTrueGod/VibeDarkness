@@ -68,6 +68,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 - Tailwind utility classes for styling (no separate CSS except minimal custom styles in `app.css`)
 - Game components receive lobby state as props (no `window.app` globals)
 - Toast notifications via `useToast()` context hook
+- Use classes and inheritance for defining game objects
 
 ## File Purposes
 
@@ -102,7 +103,6 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 | `app/js/games/base.ts` | Base game class |
 | `app/js/games/minion_battles/Game.tsx` | Minion Battles React component |
 | `app/js/games/minion_battles/state.ts` | Minion Battles state types |
-| `app/js/games/minion_battles/phases/MissionSelectPhase.tsx` | Mission voting phase |
 | `app/js/games/minion_battles/phases/CharacterSelectPhase.tsx` | Character selection phase |
 
 ## Common Tasks
@@ -122,6 +122,11 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 1. Create `app/js/games/<game_id>/Game.tsx` exporting a default React component
 2. Component receives `GameComponentProps` (lobbyClient, lobbyId, gameId, playerId, isHost, players, gameData)
 3. Register in `app/js/games/list.ts`
+
+### Terms
+- "Server" represents the behaviour on the backend
+- "Host" means the user that is the host of a particular game
+- "Client" means the user(s) that are the clients of a particular game.  A user cannot be both a client and a host.
 
 ## Project Skills
 

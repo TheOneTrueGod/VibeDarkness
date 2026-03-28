@@ -472,7 +472,7 @@ export class LobbyClient {
         gameTick: number,
         state: Record<string, unknown>,
         orders: Array<{ gameTick: number; order: Record<string, unknown> }> = [],
-        synchash?: string | null,
+        synchash: string | null,
     ): Promise<void> {
         const body: Record<string, unknown> = {
             playerId: this._currentPlayerId ?? '',

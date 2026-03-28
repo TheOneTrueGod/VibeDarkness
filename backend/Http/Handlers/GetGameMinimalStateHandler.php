@@ -3,7 +3,6 @@
 namespace App\Http\Handlers;
 
 use App\GameCheckpointFiles;
-use App\GameStateSync;
 use App\LobbyManager;
 use App\AccountService;
 
@@ -46,9 +45,6 @@ class GetGameMinimalStateHandler
             $data = json_decode(file_get_contents($path), true);
             $gameTick = (int) ($data['gameTick'] ?? $checkpointGameTick);
             $synchash = $data['synchash'] ?? null;
-            if ($synchash === null && isset($data['state']) && is_array($data['state'])) {
-                $synchash = GameStateSync::computeSynchash($data['state']);
-            }
             $orders = GameCheckpointFiles::mergeOrdersInCheckpointWindow($dir, $gameId, $checkpointGameTick);
             return ['success' => true, 'gameTick' => $gameTick, 'synchash' => $synchash, 'orders' => $orders];
         }
@@ -79,9 +75,6 @@ class GetGameMinimalStateHandler
         $data = json_decode(file_get_contents($dir . '/' . $latestFile), true);
         $gameTick = (int) ($data['gameTick'] ?? $latestTick);
         $synchash = $data['synchash'] ?? null;
-        if ($synchash === null && isset($data['state']) && is_array($data['state'])) {
-            $synchash = GameStateSync::computeSynchash($data['state']);
-        }
         $orders = $data['orders'] ?? [];
 
         return ['success' => true, 'gameTick' => $gameTick, 'synchash' => $synchash, 'orders' => $orders];

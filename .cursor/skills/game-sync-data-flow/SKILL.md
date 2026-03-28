@@ -82,10 +82,6 @@ requestResync()   // UI / internal: next poll tick may GET full lobby state
 
 Orders and polling use aligned checkpoint ticks: `Math.floor(tick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL` where `CHECKPOINT_INTERVAL = 10`. Host checkpoint saves use the actual `gameTick` (not aligned).
 
-## Synchash
-
-Both client (`app/js/utils/synchash.ts`) and server (`backend/GameStateSync.php`) compute SHA-256 over a canonical subset of game state. These implementations **must stay in sync**.
-
 ## Common Pitfalls
 
 - **`SaveGameOrdersHandler` must preserve `synchash`** when appending orders to an existing checkpoint file.
