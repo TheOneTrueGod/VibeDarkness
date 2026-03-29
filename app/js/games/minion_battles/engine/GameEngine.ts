@@ -33,6 +33,7 @@ import { getLightGrid, type LightSource } from './LightGrid';
 import { getDeathEffectDef } from './unitDef';
 import type { CardDefId } from '../card_defs';
 import type { EngineContext } from './EngineContext';
+import { computeSynchash } from '../../../utils/synchash';
 
 import { UnitManager } from './managers/UnitManager';
 import { ProjectileManager } from './managers/ProjectileManager';
@@ -76,6 +77,8 @@ export class GameEngine implements EngineContext {
     snapshotIndex: number = 0;
     isPaused: boolean = true;
     waitingForOrders: WaitingForOrders | null = null;
+    /** Hash of serialized state at current tick; from server on load, recomputed after each sim tick while unpaused. */
+    synchash: string | null = null;
 
     // -- Managers --
     private unitManager: UnitManager;
@@ -96,6 +99,7 @@ export class GameEngine implements EngineContext {
     private lastTimestamp: number = 0;
     private animFrameId: number = 0;
     private running: boolean = false;
+    private synchashUpdateSeq: number = 0;
 
     // -- Callbacks --
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
@@ -386,6 +390,16 @@ export class GameEngine implements EngineContext {
         this.projectileManager.cleanupInactive();
         this.effectManager.cleanupInactive();
         this.levelEventManager.runDefeatCheck();
+        this.scheduleSynchashUpdate();
+    }
+
+    private scheduleSynchashUpdate(): void {
+        const seq = ++this.synchashUpdateSeq;
+        const state = this.toJSON() as unknown as Record<string, unknown>;
+        void computeSynchash(state).then((h) => {
+            if (seq !== this.synchashUpdateSeq) return;
+            this.synchash = h;
+        });
     }
 
     /** Per-tick unit processing: movement, pathfinding retriggering, AI, turn pausing. */
@@ -824,6 +838,8 @@ export class GameEngine implements EngineContext {
             order: { ...o.order, targets: (o.order.targets ?? []).map((t) => ({ ...t })) },
         }));
 
+        engine.synchash = typeof data.synchash === 'string' ? data.synchash : null;
+
         // If the order is already in pendingOrders, the engine does not need to pause — it will
         // apply the order naturally on the appropriate tick. Clearing the pause state here allows
         // the engine to run without waiting for external order delivery.
@@ -872,6 +888,7 @@ export class GameEngine implements EngineContext {
 
     destroy(): void {
         this.stop();
+        this.synchashUpdateSeq++;
         for (const unit of this.units) {
             unit.detachAllResources(this.eventBus);
         }

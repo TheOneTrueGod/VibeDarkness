@@ -121,6 +121,8 @@ export type EngineSnapshot = {
   gameTick: number;
   state: Record<string, unknown>;
   waitingForOrders: { unitId: string; ownerId: string } | null;
+  /** Client hash for `state` at `gameTick`; null until computed or loaded from server. */
+  synchash: string | null;
 }
 /** Callbacks from BattlePhase: engine snapshot + order delivery (unified poll loop). */
 export interface BattleCallbacks {
@@ -412,9 +414,16 @@ export function GameSyncProvider({
         }
 
         if (Number(serverTick) === engineTick) {
-          const stateForHash = liveForTick?.state ?? snapshot.state;
-          const clientSynchash = await computeSynchash(stateForHash);
-          if (serverHash !== null) {
+          const clientSynchash = liveForTick?.synchash ?? snapshot.synchash ?? null;
+          if (serverHash !== null && clientSynchash === null) {
+            logOrderPoll('non_host_synchash_pending', {
+              checkpointGameTick,
+              serverTick,
+              engineTick,
+            });
+            return;
+          }
+          if (serverHash !== null && clientSynchash !== null) {
             if (serverHash !== clientSynchash) {
               console.warn('Synchash mismatch vs server minimal state', {
                 serverHash,

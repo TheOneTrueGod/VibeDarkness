@@ -72,6 +72,8 @@ export class GameRenderer {
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
     private initialized: boolean = false;
+    /** Deduplicates concurrent `init` (e.g. React Strict Mode). */
+    private initInFlight: Promise<void> | null = null;
 
     /** Optional debug: draw a yellow outline around this unit. */
     private debugUnitOutlineId: string | null = null;
@@ -119,8 +121,8 @@ export class GameRenderer {
 
     /** Engine ref for damage_taken handler (set each render). */
     private currentEngine: GameEngine | null = null;
-    /** Whether we have subscribed to the engine's eventBus. */
-    private eventBusBound: boolean = false;
+    /** Engine whose eventBus is subscribed to `damage_taken` (must rebind when the engine instance changes). */
+    private eventBusSource: GameEngine | null = null;
     private readonly damageTakenBound = (data: DamageTakenEvent) => this.onDamageTaken(data);
     /** Active hit flashes: unitId -> { startTime (ms), rafId }. Animation uses real time so it is not paused. */
     private hitFlashState: Map<string, { startTime: number; rafId: number }> = new Map();
@@ -135,7 +137,52 @@ export class GameRenderer {
         this.debugUnitOutlineId = unitId;
     }
 
+    /** True after `init` completes successfully (Pixi app is bound to a canvas). */
+    isInitialized(): boolean {
+        return this.initialized;
+    }
+
+    /**
+     * Detach from an engine before it is destroyed or replaced. Clears hit flashes and darkness overlay cache.
+     * Safe to call with an engine this renderer was never bound to.
+     */
+    unbindFromEngine(engine: GameEngine | null | undefined): void {
+        if (!engine || this.eventBusSource !== engine) return;
+        engine.eventBus.off('damage_taken', this.damageTakenBound);
+        this.eventBusSource = null;
+        this.clearHitFlashes();
+        this.lastOverlayKey = null;
+        this.currentLightGrid = null;
+    }
+
+    private clearHitFlashes(): void {
+        for (const [, s] of this.hitFlashState) {
+            cancelAnimationFrame(s.rafId);
+        }
+        this.hitFlashState.clear();
+    }
+
     async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
+        if (this.initialized) {
+            this.resize(width, height);
+            return;
+        }
+        if (this.initInFlight) {
+            await this.initInFlight;
+            this.resize(width, height);
+            return;
+        }
+        this.initInFlight = this.performCanvasInit(canvas, width, height).finally(() => {
+            this.initInFlight = null;
+        });
+        try {
+            await this.initInFlight;
+        } finally {
+            this.resize(width, height);
+        }
+    }
+
+    private async performCanvasInit(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
         await this.app.init({
             canvas,
             width,
@@ -425,9 +472,17 @@ export class GameRenderer {
         if (!this.initialized) return;
 
         this.currentEngine = engine;
-        if (engine && !this.eventBusBound) {
-            this.eventBusBound = true;
-            engine.eventBus.on('damage_taken', this.damageTakenBound);
+        if (engine !== this.eventBusSource) {
+            if (this.eventBusSource) {
+                this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
+            }
+            this.eventBusSource = engine;
+            if (engine) {
+                engine.eventBus.on('damage_taken', this.damageTakenBound);
+            }
+            this.clearHitFlashes();
+            this.lastOverlayKey = null;
+            this.currentLightGrid = null;
         }
 
         this.targetingState = targetingState ?? null;
@@ -1018,6 +1073,11 @@ export class GameRenderer {
     /** Full cleanup. Idempotent: safe to call multiple times. */
     destroy(): void {
         if (!this.initialized) return;
+        if (this.eventBusSource) {
+            this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
+            this.eventBusSource = null;
+        }
+        this.clearHitFlashes();
         this.abilityPreviewGraphics.destroy();
         this.targetingPreviewGraphics.destroy();
         for (const visual of this.unitVisuals.values()) visual.destroy();
@@ -1037,6 +1097,7 @@ export class GameRenderer {
         this.terrainRenderer.destroy();
         this.terrainSprite = null;
         this.gameContainer.destroy();
+        this.initInFlight = null;
         this.app.destroy();
         clearLightGridCache();
         this.initialized = false;

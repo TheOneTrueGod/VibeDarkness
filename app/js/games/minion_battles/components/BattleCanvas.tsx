@@ -34,7 +34,6 @@ export default function BattleCanvas({
 }: BattleCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const initializedRef = useRef(false);
     const rafRef = useRef<number>(0);
     const dragStateRef = useRef<{
         pointerId: number;
@@ -66,21 +65,19 @@ export default function BattleCanvas({
         }, 5000);
     }, [clearResumeAutoFollowTimer]);
 
-    // Initialize PixiJS
+    // Initialize PixiJS once per GameRenderer; resize + restart RAF when engine/camera/renderer change.
     useEffect(() => {
         const canvas = canvasRef.current;
         const container = containerRef.current;
-        if (!canvas || !container || initializedRef.current) return;
+        if (!canvas || !container) return;
 
-        const width = container.clientWidth;
-        const height = container.clientHeight;
+        const width = Math.max(1, container.clientWidth || 1);
+        const height = Math.max(1, container.clientHeight || 1);
+        let cancelled = false;
 
-        initializedRef.current = true;
-        renderer.init(canvas, width, height).then(() => {
-            camera.setViewportSize(width, height);
-
-            // Start render loop
+        const startRenderLoop = () => {
             const renderLoop = () => {
+                if (cancelled) return;
                 // WASD / arrow key camera pan
                 const keys = keysHeldRef.current;
                 if (keys.size > 0) {
@@ -113,9 +110,27 @@ export default function BattleCanvas({
                 rafRef.current = requestAnimationFrame(renderLoop);
             };
             rafRef.current = requestAnimationFrame(renderLoop);
-        });
+        };
+
+        if (!renderer.isInitialized()) {
+            void renderer
+                .init(canvas, width, height)
+                .then(() => {
+                    if (cancelled) return;
+                    camera.setViewportSize(width, height);
+                    startRenderLoop();
+                })
+                .catch((err) => {
+                    console.error('[BattleCanvas] Pixi init failed', err);
+                });
+        } else {
+            renderer.resize(width, height);
+            camera.setViewportSize(width, height);
+            startRenderLoop();
+        }
 
         return () => {
+            cancelled = true;
             if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
             }
@@ -161,7 +176,10 @@ export default function BattleCanvas({
         const movementKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
         const isTyping = () => {
             const el = document.activeElement;
-            return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+            return (
+                !!el &&
+                (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable)
+            );
         };
         const handleKeyDown = (e: KeyboardEvent) => {
             if (isTyping()) return;

@@ -59,6 +59,8 @@ export interface SerializedGameState {
     continuousSpawnLastSpawnedAt?: Record<string, number>;
     /** Player research trees available during battle logic (playerId -> treeId -> researched node ids). */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
+    /** Host-computed state hash from last snapshot (optional; restored on load for sync). */
+    synchash?: string;
 }
 
 /** Serialized card instance. */

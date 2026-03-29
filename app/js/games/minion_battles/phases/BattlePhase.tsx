@@ -62,9 +62,9 @@ interface LoadGameStateParams {
 }
 
 /**
- * Builds terrain, renderer, camera, and engine from `init` (or fresh mission state),
- * wires callbacks, and starts the simulation. Destroys any previous engine/renderer on refs first.
- * @returns Cleanup that destroys the created engine and renderer.
+ * Builds terrain, camera, and engine from `init` (or fresh mission state),
+ * wires callbacks, and starts the simulation. Reuses `GameRenderer` across loads; destroys the previous engine only.
+ * @returns Cleanup that destroys the current engine and renderer (see refs at unmount).
  */
 function loadGameState(
     ctx: LoadGameStateParams,
@@ -72,10 +72,17 @@ function loadGameState(
 ): () => void {
     ctx.lobbyClient.setCurrentPlayerId(ctx.playerId);
 
-    ctx.engineRef.current?.destroy();
-    ctx.rendererRef.current?.destroy();
+    const prevEngine = ctx.engineRef.current;
+    let renderer = ctx.rendererRef.current;
+    if (!renderer) {
+        renderer = new GameRenderer();
+        ctx.rendererRef.current = renderer;
+    }
+    if (prevEngine) {
+        renderer.unbindFromEngine(prevEngine);
+    }
+    prevEngine?.destroy();
     ctx.engineRef.current = null;
-    ctx.rendererRef.current = null;
     ctx.cameraRef.current = null;
 
     const mission = MISSION_MAP[ctx.missionId] ?? DARK_AWAKENING;
@@ -84,9 +91,7 @@ function loadGameState(
     const worldWidth = terrainGrid.worldWidth;
     const worldHeight = terrainGrid.worldHeight;
 
-    const renderer = new GameRenderer();
     const camera = new Camera(800, 600, worldWidth, worldHeight);
-    ctx.rendererRef.current = renderer;
     ctx.cameraRef.current = camera;
     renderer.setTerrain(terrainGrid);
     renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
@@ -147,6 +152,7 @@ function loadGameState(
             playerResearchTreesByPlayer,
         });
         engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
+        engine.synchash = typeof initRecord?.synchash === 'string' ? initRecord.synchash : null;
     }
 
     ctx.engineRef.current = engine;
@@ -212,9 +218,19 @@ function loadGameState(
 
     engine.start();
 
+    if (engine.synchash == null) {
+        void computeSynchash(engine.toJSON() as unknown as Record<string, unknown>).then((h) => {
+            if (ctx.engineRef.current !== engine) return;
+            engine.synchash = h;
+        });
+    }
+
     return () => {
-        engine.destroy();
-        renderer.destroy();
+        ctx.engineRef.current?.destroy();
+        ctx.engineRef.current = null;
+        ctx.rendererRef.current?.destroy();
+        ctx.rendererRef.current = null;
+        ctx.cameraRef.current = null;
     };
 }
 
@@ -477,6 +493,7 @@ export default function BattlePhase({
                     waitingForOrders: w
                         ? { unitId: w.unitId, ownerId: w.ownerId }
                         : null,
+                    synchash: eng.synchash,
                 };
             },
             onOrdersReceived: (orders) => {
