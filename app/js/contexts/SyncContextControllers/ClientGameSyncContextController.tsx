@@ -27,6 +27,7 @@ export class ClientGameSyncContextController extends GameSyncContextController {
         reject('no result from get minimal state')
         return;
       }
+    });
 /*
       const serverTick = minimalResult.gameTick ?? -1;
       const serverHash = minimalResult.synchash ?? null;

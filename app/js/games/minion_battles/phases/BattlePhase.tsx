@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import type { PlayerState, GameSidebarInfo } from '../../../types';
+import type { PlayerState, GameSidebarInfo, GameStatePayload } from '../../../types';
 import type { LobbyClient } from '../../../LobbyClient';
 import { GameEngine, CHECKPOINT_INTERVAL } from '../engine/GameEngine';
 import type { CardInstance } from '../engine/GameEngine';
@@ -276,6 +276,9 @@ export default function BattlePhase({
         if (!gameSync) return;
 
         const callbacks: BattleCallbacks = {
+            onFullResync: (gameState: SerializedGameState) => {
+                
+            },
             getEngineSnapshot: () => {
                 const eng = engineRef.current;
                 if (!eng) return null;
@@ -434,9 +437,9 @@ export default function BattlePhase({
                 if (res.chatEntry) onEmittedChatMessage?.(res.chatEntry as MessageEntry);
             };
             if (npcId) {
-                lobbyClient.sendMessage(lobbyId, playerId, MessageType.NPC_CHAT, { npcId, message: text }).then(onSent).catch(() => {});
+                lobbyClient.sendMessage(lobbyId, playerId, MessageType.NPC_CHAT, { npcId, message: text }).then(onSent).catch(() => { });
             } else {
-                lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHAT, { message: text }).then(onSent).catch(() => {});
+                lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHAT, { message: text }).then(onSent).catch(() => { });
             }
         });
 
@@ -696,7 +699,7 @@ export default function BattlePhase({
 
         lobbyClient.sendMessage(lobbyId, playerId, 'battle_orders_ready', {
             snapshotIndex: engine.snapshotIndex,
-        }).catch(() => {});
+        }).catch(() => { });
     }
 
     // ========================================================================

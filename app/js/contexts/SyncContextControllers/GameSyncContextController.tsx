@@ -40,7 +40,6 @@ export abstract class GameSyncContextController {
     if (this.isFullStateInFlight) return Promise.reject();
     this.fullStateInFlight = true;
     return new Promise<FetchFullStateResult>(async (resolve) => {
-      this.logOrderPoll('fetchFullStateStart');
       const { gameState: gs } = await this.lobbyClient.getLobbyState(this.lobbyId, this.playerId);
       const payload = gs as GameStatePayload;
 
