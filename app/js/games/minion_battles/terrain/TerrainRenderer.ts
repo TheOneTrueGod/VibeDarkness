@@ -16,9 +16,9 @@ import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
  * terrain types paint over lower ones.
  */
 const LAYER_ORDER: TerrainType[] = [
+    TerrainType.Rock,
     TerrainType.Grass,
     TerrainType.ThickGrass,
-    TerrainType.Rock,
     TerrainType.Dirt,
 ];
 
