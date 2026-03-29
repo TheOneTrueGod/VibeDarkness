@@ -1,5 +1,5 @@
 /**
- * Client-side synchash computation - must match backend GameStateSync::computeSynchash.
+ * Client-side synchash computation - must match across different browsers and platforms.
  * Used for multiplayer sync verification during battle.
  */
 

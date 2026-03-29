@@ -33,6 +33,191 @@ import { useGameSyncOptional } from '../../../contexts/GameSyncContext';
 import type { BattleCallbacks } from '../../../contexts/GameSyncContext';
 import { computeSynchash } from '../../../utils/synchash';
 
+/** Parameters for {@link loadGameState}; kept in a ref so mount and full-resync use latest values. */
+interface LoadGameStateParams {
+    lobbyClient: LobbyClient;
+    lobbyId: string;
+    playerId: string;
+    isHost: boolean;
+    players: Record<string, PlayerState>;
+    characterSelections: Record<string, string>;
+    missionId: string;
+    rendererRef: React.MutableRefObject<GameRenderer | null>;
+    engineRef: React.MutableRefObject<GameEngine | null>;
+    cameraRef: React.MutableRefObject<Camera | null>;
+    gameSyncRef: React.MutableRefObject<ReturnType<typeof useGameSyncOptional> | null>;
+    setRoundNumber: React.Dispatch<React.SetStateAction<number>>;
+    setRoundProgress: React.Dispatch<React.SetStateAction<number>>;
+    setWaitingForOrders: React.Dispatch<React.SetStateAction<WaitingForOrders | null>>;
+    setIsPaused: React.Dispatch<React.SetStateAction<boolean>>;
+    handleWaitingForOrdersState: (
+        engine: GameEngine,
+        info: WaitingForOrders,
+        source: 'engine_callback' | 'post_full_state_sync',
+    ) => void;
+    updateCardStateRef: React.MutableRefObject<((engine: GameEngine) => void) | null>;
+    onVictory?: (missionResult: string) => void;
+    onDefeat?: () => void;
+    onEmittedChatMessage?: (entry: MessageEntry) => void;
+}
+
+/**
+ * Builds terrain, renderer, camera, and engine from `init` (or fresh mission state),
+ * wires callbacks, and starts the simulation. Destroys any previous engine/renderer on refs first.
+ * @returns Cleanup that destroys the created engine and renderer.
+ */
+function loadGameState(
+    ctx: LoadGameStateParams,
+    init: Record<string, unknown> | null | undefined,
+): () => void {
+    ctx.lobbyClient.setCurrentPlayerId(ctx.playerId);
+
+    ctx.engineRef.current?.destroy();
+    ctx.rendererRef.current?.destroy();
+    ctx.engineRef.current = null;
+    ctx.rendererRef.current = null;
+    ctx.cameraRef.current = null;
+
+    const mission = MISSION_MAP[ctx.missionId] ?? DARK_AWAKENING;
+    const terrainGrid = mission.createTerrain();
+    const terrainManager = new TerrainManager(terrainGrid);
+    const worldWidth = terrainGrid.worldWidth;
+    const worldHeight = terrainGrid.worldHeight;
+
+    const renderer = new GameRenderer();
+    const camera = new Camera(800, 600, worldWidth, worldHeight);
+    ctx.rendererRef.current = renderer;
+    ctx.cameraRef.current = camera;
+    renderer.setTerrain(terrainGrid);
+    renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
+
+    const initRecord = init as Record<string, unknown> | null | undefined;
+    const hasSnapshot =
+        initRecord &&
+        Array.isArray(initRecord.units) &&
+        (initRecord.units as unknown[]).length > 0 &&
+        typeof (initRecord.gameTick ?? initRecord.game_tick) === 'number';
+
+    let engine: GameEngine;
+    if (hasSnapshot && initRecord) {
+        engine = GameEngine.fromJSON(initRecord as unknown as SerializedGameState, ctx.playerId, terrainManager);
+        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
+        if (mission.levelEvents && mission.levelEvents.length > 0) {
+            engine.setLevelEvents(mission.levelEvents);
+        }
+        ctx.setRoundNumber(engine.roundNumber);
+        ctx.setRoundProgress(engine.roundProgress);
+        ctx.setWaitingForOrders(engine.waitingForOrders);
+        if (engine.waitingForOrders) {
+            ctx.setIsPaused(true);
+        }
+    } else {
+        engine = new GameEngine();
+        engine.prepareForNewGame({
+            localPlayerId: ctx.playerId,
+            terrainManager,
+            isHost: ctx.isHost,
+            aiControllerId: mission.aiController,
+        });
+        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
+        const selections =
+            Object.keys(ctx.characterSelections).length > 0
+                ? ctx.characterSelections
+                : ((initRecord?.characterSelections ?? initRecord?.character_selections) as Record<string, string>) ?? {};
+        const portraitIds = (initRecord?.characterPortraitIds ?? initRecord?.character_portrait_ids) as
+            | Record<string, string>
+            | undefined;
+        const playerUnits = Object.entries(selections)
+            .filter(([, charId]) => charId !== SPECTATOR_ID)
+            .map(([pid]) => ({
+                playerId: pid,
+                name: ctx.players[pid]?.name ?? 'Unknown',
+                portraitId: portraitIds?.[pid],
+            }));
+        const equippedItemsByPlayer = (initRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
+        const playerResearchTreesByPlayer =
+            (initRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
+        mission.initializeGameState(engine, {
+            playerUnits,
+            characterSelections: selections,
+            localPlayerId: ctx.playerId,
+            eventBus: engine.eventBus,
+            terrainManager,
+            equippedItemsByPlayer,
+            playerResearchTreesByPlayer,
+        });
+        engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
+    }
+
+    ctx.engineRef.current = engine;
+
+    engine.setOnWaitingForOrders((info) => {
+        ctx.handleWaitingForOrdersState(engine, info, 'engine_callback');
+    });
+
+    engine.setOnCheckpoint((gameTick, state, orders) => {
+        const stateForHash = state as unknown as Record<string, unknown>;
+        const ordersFormatted = (orders as OrderAtTick[]).map((o) => ({
+            gameTick: o.gameTick,
+            order: o.order as unknown as Record<string, unknown>,
+        }));
+        void ctx.gameSyncRef.current?.saveCheckpoint(gameTick, stateForHash, ordersFormatted);
+    });
+
+    engine.setOnRoundEnd((rn) => {
+        ctx.setRoundNumber(rn + 1);
+        ctx.updateCardStateRef.current?.(engine);
+    });
+
+    engine.setOnStateChanged(() => {
+        ctx.setRoundProgress(engine.roundProgress);
+        ctx.setRoundNumber(engine.roundNumber);
+    });
+
+    engine.setOnEmitMessage((text, npcId) => {
+        if (!ctx.isHost) return;
+        const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {
+            if (res.chatEntry) ctx.onEmittedChatMessage?.(res.chatEntry as MessageEntry);
+        };
+        if (npcId) {
+            ctx.lobbyClient
+                .sendMessage(ctx.lobbyId, ctx.playerId, MessageType.NPC_CHAT, { npcId, message: text })
+                .then(onSent)
+                .catch(() => { });
+        } else {
+            ctx.lobbyClient
+                .sendMessage(ctx.lobbyId, ctx.playerId, MessageType.CHAT, { message: text })
+                .then(onSent)
+                .catch(() => { });
+        }
+    });
+
+    if (ctx.onVictory) {
+        engine.setOnVictory(ctx.onVictory);
+    }
+    if (ctx.onDefeat) {
+        engine.setOnDefeat(ctx.onDefeat);
+    }
+
+    const myUnit = engine.getLocalPlayerUnit();
+    if (myUnit) {
+        camera.snapTo(myUnit.x, myUnit.y, myUnit.radius);
+    }
+
+    ctx.updateCardStateRef.current?.(engine);
+
+    if (!engine.waitingForOrders) {
+        engine.isPaused = false;
+    }
+
+    engine.start();
+
+    return () => {
+        engine.destroy();
+        renderer.destroy();
+    };
+}
+
 declare global {
     interface Window {
         __minionBattlesDebugMouse?: {
@@ -251,6 +436,7 @@ export default function BattlePhase({
     // ========================================================================
 
     const updateCardStateRef = useRef<((engine: GameEngine) => void) | null>(null);
+    const loadGameStateParamsRef = useRef<LoadGameStateParams | null>(null);
 
     const handleWaitingForOrdersState = useCallback(
         (engine: GameEngine, info: WaitingForOrders, _source: 'engine_callback' | 'post_full_state_sync') => {
@@ -277,7 +463,9 @@ export default function BattlePhase({
 
         const callbacks: BattleCallbacks = {
             onFullResync: (gameState: SerializedGameState) => {
-                
+                const params = loadGameStateParamsRef.current;
+                if (!params) return;
+                loadGameState(params, gameState as unknown as Record<string, unknown>);
             },
             getEngineSnapshot: () => {
                 const eng = engineRef.current;
@@ -334,143 +522,9 @@ export default function BattlePhase({
     }, [gameSync?.registerSkipTurnHandler, gameSync?.saveCheckpoint, isHost]);
 
     useEffect(() => {
-        // Ensure lobbyClient knows our playerId for snapshot/order API calls
-        lobbyClient.setCurrentPlayerId(playerId);
-
-        // Get mission config and terrain first so we can size the camera to the level
-        const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-        const terrainGrid = mission.createTerrain();
-        const terrainManager = new TerrainManager(terrainGrid);
-        const worldWidth = terrainGrid.worldWidth;
-        const worldHeight = terrainGrid.worldHeight;
-
-        // Create renderer and camera (world size = columns × cellSize, rows × cellSize)
-        const renderer = new GameRenderer();
-        const camera = new Camera(800, 600, worldWidth, worldHeight);
-        rendererRef.current = renderer;
-        cameraRef.current = camera;
-        renderer.setTerrain(terrainGrid);
-        renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-
-        const init = initialGameState as Record<string, unknown> | null | undefined;
-        const hasSnapshot = init && Array.isArray(init.units) && (init.units as unknown[]).length > 0 && typeof (init.gameTick ?? init.game_tick) === 'number';
-
-        let engine: GameEngine;
-        if (hasSnapshot && init) {
-            engine = GameEngine.fromJSON(init as unknown as SerializedGameState, playerId, terrainManager);
-            engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-            // Set level events without clearing fired indices so already-fired spawn waves do not re-fire
-            if (mission.levelEvents && mission.levelEvents.length > 0) {
-                engine.setLevelEvents(mission.levelEvents);
-            }
-            setRoundNumber(engine.roundNumber);
-            setRoundProgress(engine.roundProgress);
-            setWaitingForOrders(engine.waitingForOrders);
-            if (engine.waitingForOrders) {
-                setIsPaused(true);
-            }
-        } else {
-            engine = new GameEngine();
-            engine.prepareForNewGame({
-                localPlayerId: playerId,
-                terrainManager,
-                isHost,
-                aiControllerId: mission.aiController,
-            });
-            engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-            const selections = Object.keys(characterSelections).length > 0
-                ? characterSelections
-                : ((init?.characterSelections ?? init?.character_selections) as Record<string, string>) ?? {};
-            const portraitIds = (init?.characterPortraitIds ?? init?.character_portrait_ids) as Record<string, string> | undefined;
-            const playerUnits = Object.entries(selections)
-                .filter(([, charId]) => charId !== SPECTATOR_ID)
-                .map(([pid]) => ({
-                    playerId: pid,
-                    name: players[pid]?.name ?? 'Unknown',
-                    portraitId: portraitIds?.[pid],
-                }));
-            // Backend sets playerEquipmentByPlayer only when characterSelections exist and each
-            // CharacterManager.getCharacter(characterId) returns a character. Empty when: (1) no
-            // characterSelections in state, (2) every character lookup fails (wrong ID, or no
-            // storage/characters/<id>.json). BaseMissionDef applies a hand fallback when this is {}.
-            const equippedItemsByPlayer = (init?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
-            const playerResearchTreesByPlayer =
-                (init?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
-            mission.initializeGameState(engine, {
-                playerUnits,
-                characterSelections: selections,
-                localPlayerId: playerId,
-                eventBus: engine.eventBus,
-                terrainManager,
-                equippedItemsByPlayer,
-                playerResearchTreesByPlayer,
-            });
-            engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
-        }
-
-        engineRef.current = engine;
-
-        // Set up callbacks
-        engine.setOnWaitingForOrders((info) => {
-            handleWaitingForOrdersState(engine, info, 'engine_callback');
-        });
-
-        engine.setOnCheckpoint((gameTick, state, orders) => {
-            const stateForHash = state as unknown as Record<string, unknown>;
-            const ordersFormatted = (orders as OrderAtTick[]).map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
-            void gameSyncRef.current?.saveCheckpoint(gameTick, stateForHash, ordersFormatted);
-        });
-
-        engine.setOnRoundEnd((rn) => {
-            setRoundNumber(rn + 1);
-            updateCardState(engine);
-        });
-
-        engine.setOnStateChanged(() => {
-            setRoundProgress(engine.roundProgress);
-            setRoundNumber(engine.roundNumber);
-        });
-
-        engine.setOnEmitMessage((text, npcId) => {
-            if (!isHost) return;
-            const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {
-                if (res.chatEntry) onEmittedChatMessage?.(res.chatEntry as MessageEntry);
-            };
-            if (npcId) {
-                lobbyClient.sendMessage(lobbyId, playerId, MessageType.NPC_CHAT, { npcId, message: text }).then(onSent).catch(() => { });
-            } else {
-                lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHAT, { message: text }).then(onSent).catch(() => { });
-            }
-        });
-
-        if (onVictory) {
-            engine.setOnVictory(onVictory);
-        }
-        if (onDefeat) {
-            engine.setOnDefeat(onDefeat);
-        }
-
-        // Snap camera to player's unit
-        const myUnit = engine.getLocalPlayerUnit();
-        if (myUnit) {
-            camera.snapTo(myUnit.x, myUnit.y, myUnit.radius);
-        }
-
-        // Update initial card state
-        updateCardState(engine);
-
-        // Resume simulation when not waiting for orders (fresh game or restored mid-round)
-        if (!engine.waitingForOrders) {
-            engine.isPaused = false;
-        }
-
-        // Start the engine
-        engine.start();
-
-        return () => {
-            engine.destroy();
-            renderer.destroy();
-        };
+        const params = loadGameStateParamsRef.current;
+        if (!params) return;
+        return loadGameState(params, initialGameState ?? undefined);
     }, []); // Run once on mount
 
     useEffect(() => {
@@ -505,6 +559,29 @@ export default function BattlePhase({
         setMyCards([...cards]);
     }
     updateCardStateRef.current = updateCardState;
+
+    loadGameStateParamsRef.current = {
+        lobbyClient,
+        lobbyId,
+        playerId,
+        isHost,
+        players,
+        characterSelections,
+        missionId,
+        rendererRef,
+        engineRef,
+        cameraRef,
+        gameSyncRef,
+        setRoundNumber,
+        setRoundProgress,
+        setWaitingForOrders,
+        setIsPaused,
+        handleWaitingForOrdersState,
+        updateCardStateRef,
+        onVictory,
+        onDefeat,
+        onEmittedChatMessage,
+    };
 
     // ========================================================================
     // Card selection and targeting
