@@ -58,11 +58,16 @@ Same as host for local turn. When waiting on another player, unified poll uses *
 | File | Role |
 |------|------|
 | `app/js/contexts/GameSyncContext.tsx` | Unified poll loop, battle callbacks, checkpoints/orders |
+| `app/js/contexts/SyncContextControllers/GameSyncContextController.tsx` | Base sync controller logic |
+| `app/js/contexts/SyncContextControllers/HostGameSyncContextController.tsx` | Host-specific sync controller |
+| `app/js/contexts/SyncContextControllers/ClientGameSyncContextController.tsx` | Client-specific sync controller |
 | `app/js/games/minion_battles/phases/BattlePhase.tsx` | Registers `BattleCallbacks` |
 | `app/js/games/minion_battles/engine/GameEngine.ts` | Simulation, `onCheckpoint` / `onWaitingForOrders` |
 | `app/js/LobbyClient.ts` | HTTP API (`getLobbyState`, `getMessages`, `getGameMinimalState`, …) |
 | `app/js/utils/synchash.ts` | Client synchash |
-| `backend/GameStateSync.php` | Server synchash (must match client) |
+| `backend/GameCheckpointFiles.php` | Server-side checkpoint storage and synchash |
+| `backend/Http/Handlers/SaveGameStateSnapshotHandler.php` | Saves checkpoint snapshots with synchash |
+| `backend/Http/Handlers/SaveGameOrdersHandler.php` | Saves orders; preserves synchash on existing checkpoints |
 
 ## GameSyncContext API
 

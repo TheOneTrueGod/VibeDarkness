@@ -20,7 +20,7 @@ Use this skill when:
     - `trigger: { atRound } | { afterSeconds }`
     - `spawns: SpawnWaveEntry[]`
   - `SpawnWaveEntry` fields:
-    - `characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf'`
+    - `characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf' | 'alpha_wolf' | 'boar'`
     - Optional overrides: `name`, `hp`, `speed`, `aiSettings`
     - **New spawn controls**:
       - `spawnBehaviour?: 'edgeOfMap' | 'darkness' | 'anywhere'`

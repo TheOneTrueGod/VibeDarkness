@@ -91,6 +91,7 @@ Portrait rendering is also lazy:
 - Tabs:
   - `app/js/components/DebugConsole/tabs/DebugBattleActionsTab.tsx`
   - `app/js/components/DebugConsole/tabs/DebugGameStateTab.tsx`
+  - `app/js/components/DebugConsole/tabs/DebugOrdersTab.tsx`
   - `app/js/components/DebugConsole/tabs/DebugUnitsTab.tsx`
   - `app/js/components/DebugConsole/tabs/DebugPlayerDataTab.tsx`
   - `app/js/components/DebugConsole/tabs/DebugCampaignDataTab.tsx`

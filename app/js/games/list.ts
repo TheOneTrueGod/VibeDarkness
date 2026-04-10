@@ -8,8 +8,6 @@ export interface GameDef {
     image: string;
     description: string;
     enabled: boolean;
-    /** Module path relative to app/js, e.g. "games/minion_battles/game.js" */
-    entrypoint: string;
 }
 
 export const GAMES: GameDef[] = [
@@ -19,7 +17,6 @@ export const GAMES: GameDef[] = [
         image: '',
         description: 'This game is not available yet.',
         enabled: false,
-        entrypoint: 'games/placeholder_1/game.js',
     },
     {
         id: 'placeholder_2',
@@ -27,7 +24,6 @@ export const GAMES: GameDef[] = [
         image: '',
         description: 'Another game coming soon.',
         enabled: false,
-        entrypoint: 'games/placeholder_2/game.js',
     },
     {
         id: 'minion_battles',
@@ -35,7 +31,6 @@ export const GAMES: GameDef[] = [
         image: '',
         description: 'Battle with minions in this multiplayer game.',
         enabled: true,
-        entrypoint: 'games/minion_battles/game.js',
     },
 ];
 
