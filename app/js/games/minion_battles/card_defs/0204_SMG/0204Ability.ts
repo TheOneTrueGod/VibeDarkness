@@ -2,7 +2,7 @@ import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createConeTargetPreviewWithDistanceInaccuracy } from '../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../engine/types';
+import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../objects/Unit';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';

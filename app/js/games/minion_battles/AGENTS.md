@@ -172,6 +172,14 @@ Domain state may change only through a **defined set of entry points**:
 
 Arbitrary React handlers, canvas code, or API success callbacks must **not** mutate nested GameObject fields directly; they should go through those entry points (or thin facades that delegate to them).
 
+#### Accepted exceptions
+
+The following direct mutations exist outside the three entry points above and are **intentional**:
+
+- **Bootstrap / resync writes.** `BattlePhase.loadGameState` (or the future `BattleSession`) directly sets `engine.synchash` and `engine.isPaused` when constructing or rebuilding the engine from a snapshot. This is effectively part of the "load snapshot" path — treat it as such, not as a violation to fix.
+- **Movement preview.** On right-click, `BattlePhase` calls `unit.setMovement(gridPath)` for immediate visual feedback **before** the order is submitted via `engine.applyOrder()`. The canonical state comes from the next order+tick cycle; the preview is a UX shortcut. Do not remove this pattern.
+- **Camera.** `BattleCanvas` freely mutates the `Camera` (pan, zoom, follow). Camera is **ephemeral view state**, not domain state — it is never serialized or checkpointed.
+
 ### Commands (BattleOrder / OrderAtTick)
 
 Player and AI inputs are represented as **`BattleOrder`** records (`unitId`, `abilityId`, `targets: ResolvedTarget[]`, optional `movePath`), defined in `engine/types.ts`. Orders are scheduled for a specific game tick via **`OrderAtTick`** (`{ gameTick: number; order: BattleOrder }`).
@@ -256,9 +264,11 @@ Do not conflate these — they have different sources of truth, different persis
 
 ### GameEngine (single source of truth for battle state)
 
-- **GameState** — Aggregate **data**: managers, collections of GameObjects, and anything that belongs in a **snapshot** shape. It should be straightforward to serialize via the root snapshot builder.
-- **GameEngine** — **Orchestration**: tick loop, scheduling, applying **commands**, calling into managers, cross-cutting step order (projectiles, effects, round boundaries, etc.). It **uses** **GameState** rather than duplicating ownership of every list.
-- Today much logic lives in **GameEngine**; the target is a clear split so **GameState** is the "what" and **GameEngine** is the "when / how steps run," with both living under `engine/` (current) / `game/` (target).
+**`GameEngine`** is the single source of truth for all battle state at runtime. It owns the tick loop, managers, order application, and the full object graph. There is no separate `GameState` class.
+
+- **Runtime state** — `GameEngine` holds scalar timing fields (`gameTime`, `gameTick`, `roundNumber`), the random seed, pause/waiting state, and delegates collection storage to managers (`UnitManager`, `ProjectileManager`, `EffectManager`, `CardManager`, `SpecialTileManager`, `LevelEventManager`). Managers are accessed through the `EngineContext` interface.
+- **Serialized form** — `SerializedGameState` (`engine/types.ts`) is the checkpoint/wire format. `GameEngine.toJSON()` assembles it by reading scalars and calling each manager's `toJSON()`. `GameEngine.fromJSON()` is the only place that deserializes a snapshot into the live object graph.
+- **`EngineContext`** — The interface managers use to reference the engine without depending on the full class. It defines the contract (timing fields, `EventBus`, terrain, collection accessors, add/get helpers). New manager code should depend on `EngineContext`, not `GameEngine` directly.
 
 ### EventBus
 
@@ -302,14 +312,14 @@ Rules for what belongs in snapshots:
 - If a value can be **derived entirely** from another GameObject's context and the tick, prefer **derived / ephemeral** over a standalone snapshot type.
 - **Snapshot-shaped** parents should **recursively** include nested snapshot types in their serialized shape (especially under managers).
 
-**Root assembly for network transfer:** only the **root snapshot builder** (typically coordinated by **GameEngine** with **GameState** data) assembles the wire payload; it may call `toJSON` on children as part of that assembly.
+**Root assembly for network transfer:** only the **root snapshot builder** (typically coordinated by **GameEngine**) assembles the wire payload; it may call `toJSON` on children as part of that assembly.
 
 **TerrainManager is derived, not snapshot-shaped.** `TerrainManager` (`terrain/TerrainManager.ts`) wraps `TerrainGrid` and `Pathfinder` but is **not** serialized with `GameEngine.toJSON()`. Terrain is rebuilt from the mission definition on load: `mission.createTerrain()` → `new TerrainManager(terrainGrid)`, then passed into `GameEngine.fromJSON(snapshot, playerId, terrainManager)` or `prepareForNewGame({ terrainManager, ... })`. The same mission must always produce the same terrain, so terrain is deterministically derived from mission data and does not need to appear in checkpoints.
 
 #### Layout on disk
 
 - **Currently:** Engine and simulation core live in `engine/` (including `GameEngine`, managers under `engine/managers/`). Runtime GameObjects live in `objects/` (e.g. units under `objects/units/`). Unit definitions are in `constants/unitConstants.ts` and `engine/unitDef.ts`.
-- **Target:** merge into `game/` (including **GameEngine**, **GameState**, and managers), with each GameObject family in its own sub-folder (e.g. `game/units/`).
+- **Target:** merge into `game/` (including **GameEngine** and managers), with each GameObject family in its own sub-folder (e.g. `game/units/`).
 
 ### Missions and level flow
 

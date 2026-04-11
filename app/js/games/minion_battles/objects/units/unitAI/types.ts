@@ -5,7 +5,7 @@
 
 import type { Unit } from '../../Unit';
 import type { SpecialTile } from '../../SpecialTile';
-import type { BattleOrder } from '../../../engine/types';
+import type { BattleOrder } from '../../../game/types';
 
 /** Light source for AI (e.g. Torch effect, crystal tile). */
 export interface AILightSource {

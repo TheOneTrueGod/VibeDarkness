@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { Unit } from './Unit';
-import { EventBus } from '../engine/EventBus';
+import { EventBus } from '../game/EventBus';
 
 describe('Unit', () => {
     it('serializes and restores to an equivalent object', () => {

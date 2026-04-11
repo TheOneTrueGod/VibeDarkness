@@ -12,7 +12,7 @@ import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../engine/types';
+import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../objects/Unit';
 import { Effect } from '../../objects/Effect';
 import { asCardDefId, type CardDef, type CardDefId } from '../types';

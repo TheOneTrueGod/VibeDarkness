@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { PlayerState } from '../../../types';
-import type { GameEngine } from '../engine/GameEngine';
+import type { GameEngine } from '../game/GameEngine';
 import { getAbility } from '../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../abilities/Ability';
 import type { Unit } from '../objects/Unit';

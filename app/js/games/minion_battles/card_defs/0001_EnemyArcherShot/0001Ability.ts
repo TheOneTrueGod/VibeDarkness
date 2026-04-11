@@ -6,12 +6,12 @@ import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import type { ResolvedTarget } from '../../engine/types';
+import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../objects/Unit';
 import { Projectile } from '../../objects/Projectile';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { isAbilityNote } from '../../engine/AbilityNote';
+import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 

@@ -7,8 +7,8 @@
 
 import { Unit } from '../Unit';
 import type { AISettings } from '../Unit';
-import type { TeamId } from '../../engine/teams';
-import type { EventBus } from '../../engine/EventBus';
+import type { TeamId } from '../../game/teams';
+import type { EventBus } from '../../game/EventBus';
 
 export function createGenericEnemy(config: {
     id?: string;

@@ -4,8 +4,8 @@
  * the BattlePhase loads from it instead of starting a fresh game.
  */
 import { describe, it, expect } from 'vitest';
-import { GameEngine } from '../engine/GameEngine';
-import type { SerializedGameState } from '../engine/types';
+import { GameEngine } from '../game/GameEngine';
+import type { SerializedGameState } from '../game/types';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { DARK_AWAKENING } from '../storylines/WorldOfDarkness/missions/dark_awakening';
 

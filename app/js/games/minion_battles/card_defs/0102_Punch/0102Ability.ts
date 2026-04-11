@@ -12,11 +12,11 @@ import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPrevi
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../../abilities/targeting';
-import type { ResolvedTarget } from '../../engine/types';
+import type { ResolvedTarget } from '../../game/types';
 import { asCardDefId, type CardDef } from '../types';
 import { Effect } from '../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import type { EventBus } from '../../engine/EventBus';
+import type { EventBus } from '../../game/EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromTo } from '../../abilities/targetHelpers';

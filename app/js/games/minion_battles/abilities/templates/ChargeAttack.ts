@@ -4,7 +4,7 @@ import type { AbilityStatic, IAbilityPreviewGraphics, AttackBlockedInfo } from '
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../targeting';
-import type { ResolvedTarget } from '../../engine/types';
+import type { ResolvedTarget } from '../../game/types';
 import { asCardDefId, type CardDef } from '../../card_defs/types';
 import { LungeMovement } from '../behaviors/LungeMovement';
 import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';

@@ -7,11 +7,11 @@
  */
 
 import { GameObject, generateGameObjectId } from './GameObject';
-import type { TeamId } from '../engine/teams';
-import type { ActiveAbility } from '../engine/types';
-import type { AbilityNote } from '../engine/AbilityNote';
+import type { TeamId } from '../game/teams';
+import type { ActiveAbility } from '../game/types';
+import type { AbilityNote } from '../game/AbilityNote';
 import type { Resource } from '../resources/Resource';
-import type { EventBus } from '../engine/EventBus';
+import type { EventBus } from '../game/EventBus';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { AbilityState, refundAbilityCost } from '../abilities/Ability';
 import type { Buff, BuffSerialized } from '../buffs/Buff';
@@ -19,10 +19,10 @@ import { buffFromJSON } from '../buffs/buffRegistry';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
-import { computeForcedDisplacement } from '../engine/forceMove';
+import { computeForcedDisplacement } from '../game/forceMove';
 import { DEFAULT_UNIT_RADIUS } from '../constants/unitConstants';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
-import { getDefaultHp } from '../engine/unitDef';
+import { getDefaultHp } from '../game/units/unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
 
 /** AI behavior settings for enemy units. */

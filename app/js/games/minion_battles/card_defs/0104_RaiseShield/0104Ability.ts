@@ -9,9 +9,9 @@ import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackB
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createArcTargetPreview, drawArcWedge } from '../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../engine/types';
+import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../objects/Unit';
-import { isAbilityNote } from '../../engine/AbilityNote';
+import { isAbilityNote } from '../../game/AbilityNote';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { drawCardForPlayer, getNearestAlly } from '../../abilities/effectHelpers';

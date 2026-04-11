@@ -18,7 +18,7 @@ import type { TeamId } from './teams';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainRenderer } from '../terrain/TerrainRenderer';
-import { renderUnit, updateUnitHpBar, getBodyColor, type IUnitRenderContext } from './unitDef';
+import { renderUnit, updateUnitHpBar, getBodyColor, type IUnitRenderContext } from './units/unit_defs/unitDef';
 import { getBuffVisualRenderer } from '../buffs/buffVisuals';
 import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from './effectDef';
 import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from './effectImages';

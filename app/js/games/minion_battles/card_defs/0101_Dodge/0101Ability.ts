@@ -8,14 +8,14 @@ import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../engine/types';
+import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../objects/Unit';
 import { Effect } from '../../objects/Effect';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { drawCardForPlayer, applyForcedDisplacementToward } from '../../abilities/effectHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
-import { getBodyColor, getCharacterSpriteKey } from '../../engine/unitDef';
+import { getBodyColor, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const DODGE_DURATION = 0.4;

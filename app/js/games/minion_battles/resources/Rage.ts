@@ -5,7 +5,7 @@
  */
 
 import { Resource } from './Resource';
-import type { EventBus, DamageTakenEvent } from '../engine/EventBus';
+import type { EventBus, DamageTakenEvent } from '../game/EventBus';
 import type { Unit } from '../objects/Unit';
 
 export class Rage extends Resource {

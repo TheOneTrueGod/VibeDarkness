@@ -6,8 +6,8 @@
  */
 
 import type { Unit } from '../objects/Unit';
-import type { Camera } from '../engine/Camera';
-import type { ResolvedTarget } from '../engine/types';
+import type { Camera } from '../game/Camera';
+import type { ResolvedTarget } from '../game/types';
 
 /** The types of targets an ability can require. */
 export type TargetType = 'player' | 'unit' | 'pixel';

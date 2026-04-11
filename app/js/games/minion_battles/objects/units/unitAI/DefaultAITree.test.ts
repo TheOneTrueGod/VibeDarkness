@@ -11,13 +11,13 @@ import { Unit } from '../../Unit';
 import type { AIContext } from './types';
 import type { DefaultAITreeContext } from './default/context';
 import { isTileDefendPoint, type SpecialTile } from '../../SpecialTile';
-import type { BattleOrder } from '../../../engine/types';
+import type { BattleOrder } from '../../../game/types';
 import { runUnitAI, DEFAULT_AI_TREE } from './index';
 import { TerrainGrid } from '../../../terrain/TerrainGrid';
 import { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../../../engine/GameEngine';
+import { WORLD_WIDTH, WORLD_HEIGHT } from '../../../game/GameEngine';
 
 const GAME_TICK = 100;
 

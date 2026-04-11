@@ -4,13 +4,13 @@ import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../../abilities/targetHelpers';
-import type { ResolvedTarget } from '../../engine/types';
+import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../objects/Unit';
 import { Projectile } from '../../objects/Projectile';
 import { Effect } from '../../objects/Effect';
 import { createCrystalLightEffect } from '../../abilities/effectHelpers';
-import { areEnemies } from '../../engine/teams';
-import type { EventBus } from '../../engine/EventBus';
+import { areEnemies } from '../../game/teams';
+import type { EventBus } from '../../game/EventBus';
 import { asCardDefId, type CardDef } from '../types';
 
 const THROW_CHARGED_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">

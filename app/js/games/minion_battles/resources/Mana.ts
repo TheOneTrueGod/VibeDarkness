@@ -5,7 +5,7 @@
  */
 
 import { Resource } from './Resource';
-import type { EventBus, TurnEndEvent } from '../engine/EventBus';
+import type { EventBus, TurnEndEvent } from '../game/EventBus';
 import type { Unit } from '../objects/Unit';
 
 export class Mana extends Resource {

@@ -8,10 +8,10 @@
 import { Graphics } from 'pixi.js';
 import { GameObject, generateGameObjectId } from './GameObject';
 import { Effect } from './Effect';
-import type { TeamId } from '../engine/teams';
-import { areEnemies } from '../engine/teams';
+import type { TeamId } from '../game/teams';
+import { areEnemies } from '../game/teams';
 import type { Unit } from './Unit';
-import type { EventBus } from '../engine/EventBus';
+import type { EventBus } from '../game/EventBus';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../abilities/blockingHelpers';
 import { getAbility } from '../abilities/AbilityRegistry';
 

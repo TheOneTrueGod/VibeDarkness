@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import type { CardInstance } from '../engine/GameEngine';
+import type { CardInstance } from '../game/GameEngine';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { canAffordAbility } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';

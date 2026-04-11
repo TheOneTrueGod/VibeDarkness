@@ -10,11 +10,11 @@ import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPrevi
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { Unit } from '../../objects/Unit';
 import type { TargetDef } from '../../abilities/targeting';
-import type { ResolvedTarget } from '../../engine/types';
+import type { ResolvedTarget } from '../../game/types';
 import { asCardDefId, type CardDef } from '../types';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
 import type { Effect } from '../../objects/Effect';
-import type { EventBus } from '../../engine/EventBus';
+import type { EventBus } from '../../game/EventBus';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';

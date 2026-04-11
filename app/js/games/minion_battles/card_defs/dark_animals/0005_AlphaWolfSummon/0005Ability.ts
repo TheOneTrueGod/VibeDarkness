@@ -10,16 +10,16 @@ import type { AbilityStatic, AbilityStateEntry } from '../../../abilities/Abilit
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../objects/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
-import type { ResolvedTarget, ActiveAbility } from '../../../engine/types';
+import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import { asCardDefId, type CardDef } from '../../types';
 import { Effect } from '../../../objects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { areEnemies } from '../../../engine/teams';
+import { areEnemies } from '../../../game/teams';
 import { createUnitFromSpawnConfig } from '../../../objects/units/index';
 import { buildResolvedTargets } from '../../../objects/units/unitAI/utils';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
-import type { EventBus } from '../../../engine/EventBus';
+import type { EventBus } from '../../../game/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}05`;
 const PREFIRE_TIME = 0.5;

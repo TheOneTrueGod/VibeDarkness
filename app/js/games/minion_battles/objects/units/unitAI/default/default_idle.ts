@@ -7,7 +7,7 @@ import type { AIContext, AILightSource } from '../types';
 import type { AINode } from '../types';
 import type { DefaultAITreeContext, DefaultNodeId } from './context';
 import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
-import { getPerceptionRange } from '../../../../engine/unitDef';
+import { getPerceptionRange } from '../../../../game/units/unit_defs/unitDef';
 import { distance } from '../utils';
 import { getOrPickClosestDefendPoint } from '../utils';
 

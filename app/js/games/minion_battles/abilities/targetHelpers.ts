@@ -3,7 +3,7 @@
  * Use these so ability files stay minimal and read like a list of behaviours.
  */
 
-import type { ResolvedTarget } from '../engine/types';
+import type { ResolvedTarget } from '../game/types';
 
 /** Get pixel target position from resolved targets, or null if missing/invalid. */
 export function getPixelTargetPosition(

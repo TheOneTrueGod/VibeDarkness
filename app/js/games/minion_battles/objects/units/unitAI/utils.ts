@@ -7,12 +7,12 @@ import type { Unit } from '../../Unit';
 import type { UnitAIContext } from './contextTypes';
 import type { DefaultAITreeContext } from './default/context';
 import type { AbilityStatic } from '../../../abilities/Ability';
-import type { ResolvedTarget } from '../../../engine/types';
+import type { ResolvedTarget } from '../../../game/types';
 import type { SpecialTile } from '../../SpecialTile';
 import type { AIContext } from './types';
-import { areEnemies } from '../../../engine/teams';
+import { areEnemies } from '../../../game/teams';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-import { getPerceptionRange } from '../../../engine/unitDef';
+import { getPerceptionRange } from '../../../game/units/unit_defs/unitDef';
 import { getAbilityTargets } from '../../../abilities/Ability';
 
 /** Euclidean distance between two points. */

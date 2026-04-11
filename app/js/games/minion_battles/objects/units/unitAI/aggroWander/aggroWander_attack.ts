@@ -16,7 +16,7 @@ import {
     applyAIMovementToUnit,
     tryQueueAbilityOrder,
 } from '../utils';
-import { getPerceptionRange } from '../../../../engine/unitDef';
+import { getPerceptionRange } from '../../../../game/units/unit_defs/unitDef';
 
 const TREE_NAME = 'aggroWander';
 

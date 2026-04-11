@@ -6,7 +6,7 @@
  * logic decoupled from the Unit class.
  */
 
-import type { EventBus } from '../engine/EventBus';
+import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../objects/Unit';
 
 export abstract class Resource {

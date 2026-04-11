@@ -8,12 +8,12 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { PlayerState, GameSidebarInfo, GameStatePayload } from '../../../types';
 import type { LobbyClient } from '../../../LobbyClient';
-import { GameEngine, CHECKPOINT_INTERVAL } from '../engine/GameEngine';
-import type { CardInstance } from '../engine/GameEngine';
-import { GameRenderer } from '../engine/GameRenderer';
-import type { OrderAtTick, SerializedGameState } from '../engine/types';
-import { Camera } from '../engine/Camera';
-import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../engine/types';
+import { GameEngine, CHECKPOINT_INTERVAL } from '../game/GameEngine';
+import type { CardInstance } from '../game/GameEngine';
+import { GameRenderer } from '../game/GameRenderer';
+import type { OrderAtTick, SerializedGameState } from '../game/types';
+import { Camera } from '../game/Camera';
+import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../game/types';
 import { resolveClick, validateAndResolveTarget } from '../abilities/targeting';
 import type { AbilityStatic } from '../abilities/Ability';
 import { getAbilityTargets } from '../abilities/Ability';

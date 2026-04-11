@@ -8,7 +8,7 @@
 
 import type { Unit } from '../objects/Unit';
 import { Hitbox, type HitboxEngineContext, type HitboxPreviewCaster } from './Hitbox';
-import { areEnemies } from '../engine/teams';
+import { areEnemies } from '../game/teams';
 import { clampToMaxRange } from '../abilities/previewHelpers';
 import type { IAbilityPreviewGraphics } from '../abilities/Ability';
 

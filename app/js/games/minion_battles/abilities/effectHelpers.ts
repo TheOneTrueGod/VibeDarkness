@@ -6,7 +6,7 @@
 import type { Unit } from '../objects/Unit';
 import type { AttackBlockedInfo } from './Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
-import { computeForcedDisplacement } from '../engine/forceMove';
+import { computeForcedDisplacement } from '../game/forceMove';
 import { Effect } from '../objects/Effect';
 
 /** Default slash trail color (light cyan). */

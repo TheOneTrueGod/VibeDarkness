@@ -1,6 +1,6 @@
 import type { Unit } from '../../objects/Unit';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
-import { computeForcedDisplacement } from '../../engine/forceMove';
+import { computeForcedDisplacement } from '../../game/forceMove';
 
 export interface LungeConfig {
     maxRange: number;

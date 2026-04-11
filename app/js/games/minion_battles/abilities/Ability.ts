@@ -7,8 +7,8 @@
  */
 
 import type { TargetDef } from './targeting';
-import type { ResolvedTarget } from '../engine/types';
-import type { ActiveAbility } from '../engine/types';
+import type { ResolvedTarget } from '../game/types';
+import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../objects/Unit';
 import type { AbilityTiming } from './abilityTimings';
 import type { CardDefId } from '../card_defs/types';

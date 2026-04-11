@@ -4,8 +4,8 @@
  */
 
 import { Unit } from '../../Unit';
-import type { TeamId } from '../../../engine/teams';
-import type { EventBus } from '../../../engine/EventBus';
+import type { TeamId } from '../../../game/teams';
+import type { EventBus } from '../../../game/EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../../../constants/unitConstants';
 
 const DARK_WOLF_HP = 12;

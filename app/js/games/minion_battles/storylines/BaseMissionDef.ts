@@ -6,20 +6,20 @@
  * and define their own missionId, name, enemies, and createTerrain.
  */
 
-import type { GameEngine, CardInstance } from '../engine/GameEngine';
-import type { UnitSpawnConfig } from '../engine/types';
+import type { GameEngine, CardInstance } from '../game/GameEngine';
+import type { UnitSpawnConfig } from '../game/types';
 import type { EnemySpawnDef, MissionBattleConfig, LevelEvent, PlayerSpawnPoint } from './types';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
-import type { EventBus } from '../engine/EventBus';
+import type { EventBus } from '../game/EventBus';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import type { CharacterId } from '../objects/units/index';
 import { createPlayerUnit, createUnitFromSpawnConfig } from '../objects/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
-import { createCardInstance, MAX_HAND_SIZE } from '../engine/GameEngine';
+import { createCardInstance, MAX_HAND_SIZE } from '../game/GameEngine';
 import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
-import { getDefaultHp } from '../engine/unitDef';
+import { getDefaultHp } from '../game/units/unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
 
 const PLAYER_APPEARANCE_CHARACTER_IDS: readonly CharacterId[] = ['warrior', 'mage', 'ranger', 'healer'];

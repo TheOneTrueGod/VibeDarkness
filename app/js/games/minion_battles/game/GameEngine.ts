@@ -30,7 +30,7 @@ import { isTileDefendPoint } from '../objects/SpecialTile';
 import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from '../objects/units/unitAI';
 import type { AIContext } from '../objects/units/unitAI';
 import { getLightGrid, type LightSource } from './LightGrid';
-import { getDeathEffectDef } from './unitDef';
+import { getDeathEffectDef } from './units/unit_defs/unitDef';
 import type { CardDefId } from '../card_defs';
 import type { EngineContext } from './EngineContext';
 import { computeSynchash } from '../../../utils/synchash';

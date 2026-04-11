@@ -6,9 +6,9 @@
 
 import type { IAbilityPreviewGraphics } from './Ability';
 import type { Unit } from '../objects/Unit';
-import type { ResolvedTarget } from '../engine/types';
+import type { ResolvedTarget } from '../game/types';
 import { getUnitAtPosition } from './targeting';
-import { areEnemies } from '../engine/teams';
+import { areEnemies } from '../game/teams';
 import { getDistanceBasedInaccuracy } from './gunHelpers';
 
 /** Result of clamping a target position to max range from caster. */

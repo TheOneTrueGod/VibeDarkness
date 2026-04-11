@@ -6,11 +6,11 @@
  */
 
 import { Unit } from '../Unit';
-import type { TeamId } from '../../engine/teams';
-import type { EventBus } from '../../engine/EventBus';
+import type { TeamId } from '../../game/teams';
+import type { EventBus } from '../../game/EventBus';
 import { Rage } from '../../resources/Rage';
 import { Mana } from '../../resources/Mana';
-import { getDefaultHp, getDefaultSpeed, getDefaultRadius } from '../../engine/unitDef';
+import { getDefaultHp, getDefaultSpeed, getDefaultRadius } from '../../game/units/unit_defs/unitDef';
 import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
 
 /** Character IDs that have a dedicated unit factory. Used for createUnitByCharacterId only. */

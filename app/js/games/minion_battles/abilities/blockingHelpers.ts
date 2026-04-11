@@ -4,7 +4,7 @@
  */
 
 import type { Unit } from '../objects/Unit';
-import type { ActiveAbility } from '../engine/types';
+import type { ActiveAbility } from '../game/types';
 import { getAbility } from './AbilityRegistry';
 import type { AbilityStatic } from './Ability';
 import type { AttackBlockedInfo } from './Ability';

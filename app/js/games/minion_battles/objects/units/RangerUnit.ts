@@ -3,9 +3,9 @@
  */
 
 import { Unit } from '../Unit';
-import type { TeamId } from '../../engine/teams';
-import type { EventBus } from '../../engine/EventBus';
-import { getDefaultHp, getDefaultSpeed } from '../../engine/unitDef';
+import type { TeamId } from '../../game/teams';
+import type { EventBus } from '../../game/EventBus';
+import { getDefaultHp, getDefaultSpeed } from '../../game/units/unit_defs/unitDef';
 
 export const RANGER_DEFAULTS = {
     hp: 75,
