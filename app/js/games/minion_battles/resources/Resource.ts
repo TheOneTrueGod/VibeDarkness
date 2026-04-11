@@ -7,7 +7,7 @@
  */
 
 import type { EventBus } from '../game/EventBus';
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 
 export abstract class Resource {
     /** Unique resource type ID (e.g. 'rage', 'mana'). */

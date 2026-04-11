@@ -4,7 +4,7 @@
  * generation from Torch effects, and cleanup.
  */
 
-import { Effect } from '../../objects/Effect';
+import { Effect } from '../effects/Effect';
 import type { EngineContext } from '../EngineContext';
 import type { LightSource } from '../LightGrid';
 

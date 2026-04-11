@@ -3,16 +3,16 @@
  * Abilities are selected via AISettings (priority, ranges); nodes use these helpers.
  */
 
-import type { Unit } from '../../Unit';
+import type { Unit } from '../Unit';
 import type { UnitAIContext } from './contextTypes';
 import type { DefaultAITreeContext } from './default/context';
 import type { AbilityStatic } from '../../../abilities/Ability';
-import type { ResolvedTarget } from '../../../game/types';
-import type { SpecialTile } from '../../SpecialTile';
+import type { ResolvedTarget } from '../../types';
+import type { SpecialTile } from '../../specialTiles/SpecialTile';
 import type { AIContext } from './types';
-import { areEnemies } from '../../../game/teams';
+import { areEnemies } from '../../teams';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-import { getPerceptionRange } from '../../../game/units/unit_defs/unitDef';
+import { getPerceptionRange } from '../unit_defs/unitDef';
 import { getAbilityTargets } from '../../../abilities/Ability';
 
 /** Euclidean distance between two points. */

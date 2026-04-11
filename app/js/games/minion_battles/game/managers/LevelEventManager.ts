@@ -12,7 +12,7 @@ import type {
     LevelEventContinuousSpawn,
 } from '../../storylines/types';
 import { getEdgePositions } from '../../storylines/edgeSpawns';
-import { createUnitFromSpawnConfig } from '../../objects/units/index';
+import { createUnitFromSpawnConfig } from '../units/index';
 import {
     ENEMY_MELEE,
     ENEMY_RANGED,

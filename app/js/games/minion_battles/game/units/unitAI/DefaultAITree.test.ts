@@ -7,17 +7,17 @@
  * 5. No hostiles → clear targetUnitId, wait.
  */
 import { describe, it, expect } from 'vitest';
-import { Unit } from '../../Unit';
+import { Unit } from '../Unit';
 import type { AIContext } from './types';
 import type { DefaultAITreeContext } from './default/context';
-import { isTileDefendPoint, type SpecialTile } from '../../SpecialTile';
-import type { BattleOrder } from '../../../game/types';
+import { isTileDefendPoint, type SpecialTile } from '../../specialTiles/SpecialTile';
+import type { BattleOrder } from '../../types';
 import { runUnitAI, DEFAULT_AI_TREE } from './index';
 import { TerrainGrid } from '../../../terrain/TerrainGrid';
 import { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../../../game/GameEngine';
+import { WORLD_WIDTH, WORLD_HEIGHT } from '../../GameEngine';
 
 const GAME_TICK = 100;
 

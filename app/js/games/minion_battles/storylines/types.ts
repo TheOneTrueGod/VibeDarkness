@@ -6,7 +6,7 @@
  */
 
 import type { TeamId } from '../game/teams';
-import type { AISettings } from '../objects/Unit';
+import type { AISettings } from '../game/units/Unit';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { InBattleStoryDef, PostMissionStoryDef, PreMissionStoryDef } from './storyTypes';
 

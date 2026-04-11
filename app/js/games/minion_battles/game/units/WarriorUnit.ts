@@ -2,11 +2,11 @@
  * WarriorUnit - Tanky melee character with Rage resource.
  */
 
-import { Unit } from '../Unit';
+import { Unit } from './Unit';
 import { Rage } from '../../resources/Rage';
-import type { TeamId } from '../../game/teams';
-import type { EventBus } from '../../game/EventBus';
-import { getDefaultHp, getDefaultSpeed } from '../../game/units/unit_defs/unitDef';
+import type { TeamId } from '../teams';
+import type { EventBus } from '../EventBus';
+import { getDefaultHp, getDefaultSpeed } from './unit_defs/unitDef';
 
 export const WARRIOR_DEFAULTS = {
     hp: 100,

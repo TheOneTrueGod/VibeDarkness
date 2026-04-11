@@ -6,7 +6,7 @@
  * Overrides renderPreview to draw range ring + thick line (lighter fill, darker stroke).
  */
 
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import { Hitbox, type HitboxEngineContext, type HitboxPreviewCaster } from './Hitbox';
 import { areEnemies } from '../game/teams';
 import { clampToMaxRange } from '../abilities/previewHelpers';

@@ -4,7 +4,7 @@
  */
 
 import { Container, FillGradient, Graphics, Sprite, Texture, type Texture as TextureType } from 'pixi.js';
-import type { Effect } from '../objects/Effect';
+import type { Effect } from './effects/Effect';
 import type { EffectImageKey } from './effectImages';
 
 /** Effect definition: responsible for drawing one effect type. */

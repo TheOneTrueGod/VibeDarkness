@@ -2,12 +2,12 @@
  * alphaWolfBoss_idle - Wait when no enemies in sight. Transition to attack when enemies visible.
  */
 
-import type { Unit } from '../../../Unit';
+import type { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
 import type { AlphaWolfBossAITreeContext, AlphaWolfBossNodeId } from './context';
 import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
-import { getPerceptionRange } from '../../../../game/units/unit_defs/unitDef';
+import { getPerceptionRange } from '../../unit_defs/unitDef';
 
 const TREE_NAME = 'alphaWolfBoss';
 

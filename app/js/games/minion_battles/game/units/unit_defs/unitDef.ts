@@ -4,12 +4,12 @@
  */
 
 import { Container, Graphics, Sprite, Text, TextStyle, type Texture } from 'pixi.js';
-import type { Unit } from '../../../objects/Unit';
+import type { Unit } from '../Unit';
 import type { TeamId } from '../../teams';
 import { areEnemies } from '../../teams';
 import { ParticleExplosion } from '../../deathEffects/ParticleExplosion';
 import type { EffectImageKey } from '../../effectImages';
-import { UNIT_SIZE_MAP, type UnitSize } from '../../../constants/unitConstants';
+import { UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
 
 /** Color for allied unit glows. */
 const ALLY_GLOW_COLOR = 0x22c55e; // green-500

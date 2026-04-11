@@ -5,13 +5,13 @@
  * Unit instances with the right stats and resources.
  */
 
-import { Unit } from '../Unit';
-import type { TeamId } from '../../game/teams';
-import type { EventBus } from '../../game/EventBus';
+import { Unit } from './Unit';
+import type { TeamId } from '../teams';
+import type { EventBus } from '../EventBus';
 import { Rage } from '../../resources/Rage';
 import { Mana } from '../../resources/Mana';
-import { getDefaultHp, getDefaultSpeed, getDefaultRadius } from '../../game/units/unit_defs/unitDef';
-import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
+import { getDefaultHp, getDefaultSpeed, getDefaultRadius } from './unit_defs/unitDef';
+import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 
 /** Character IDs that have a dedicated unit factory. Used for createUnitByCharacterId only. */
 const CHARACTER_IDS = ['warrior', 'mage', 'ranger', 'healer', 'dark_wolf', 'alpha_wolf', 'boar'] as const;
@@ -98,7 +98,7 @@ export function createUnitFromSpawnConfig(
         teamId: TeamId;
         ownerId: string;
         abilities?: string[];
-        aiSettings?: import('../Unit').AISettings | null;
+        aiSettings?: import('./Unit').AISettings | null;
         radius?: number;
         unitAITreeId?: string;
     },

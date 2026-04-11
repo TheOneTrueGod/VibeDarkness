@@ -3,7 +3,7 @@
  * (e.g. Raise Shield) and for notifying the attacking ability via onAttackBlocked.
  */
 
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import type { ActiveAbility } from '../game/types';
 import { getAbility } from './AbilityRegistry';
 import type { AbilityStatic } from './Ability';

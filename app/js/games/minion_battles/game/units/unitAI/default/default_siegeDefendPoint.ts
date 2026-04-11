@@ -2,7 +2,7 @@
  * default_siegeDefendPoint - Move to defend point, corrupt when close; engage hostiles.
  */
 
-import type { Unit } from '../../../Unit';
+import type { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
 import type { DefaultAITreeContext, DefaultNodeId } from './context';
@@ -15,7 +15,7 @@ import {
     tryQueueAbilityOrder,
     queueWaitAndEndTurn,
 } from '../utils';
-import { getPerceptionRange } from '../../../../game/units/unit_defs/unitDef';
+import { getPerceptionRange } from '../../unit_defs/unitDef';
 
 const TREE_NAME = 'default';
 

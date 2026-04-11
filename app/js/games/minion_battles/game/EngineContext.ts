@@ -8,10 +8,10 @@
 
 import type { EventBus } from './EventBus';
 import type { TerrainManager } from '../terrain/TerrainManager';
-import type { Unit } from '../objects/Unit';
-import type { Effect } from '../objects/Effect';
-import type { Projectile } from '../objects/Projectile';
-import type { SpecialTile } from '../objects/SpecialTile';
+import type { Unit } from './units/Unit';
+import type { Effect } from './effects/Effect';
+import type { Projectile } from './projectiles/Projectile';
+import type { SpecialTile } from './specialTiles/SpecialTile';
 import type { LightSource } from './LightGrid';
 
 export interface EngineContext {

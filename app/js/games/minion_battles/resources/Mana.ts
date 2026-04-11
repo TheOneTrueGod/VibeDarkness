@@ -6,7 +6,7 @@
 
 import { Resource } from './Resource';
 import type { EventBus, TurnEndEvent } from '../game/EventBus';
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 
 export class Mana extends Resource {
     readonly id = 'mana';

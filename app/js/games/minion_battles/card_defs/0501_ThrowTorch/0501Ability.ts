@@ -13,11 +13,11 @@ import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../game/types';
-import type { Unit } from '../../objects/Unit';
-import { Effect } from '../../objects/Effect';
+import type { Unit } from '../../game/units/Unit';
+import { Effect } from '../../game/effects/Effect';
 import { asCardDefId, type CardDef, type CardDefId } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
+import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromTo } from '../../abilities/targetHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}01`;

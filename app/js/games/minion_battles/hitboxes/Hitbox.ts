@@ -2,7 +2,7 @@
  * Hitbox - Static interface for ability/effect hit detection.
  */
 
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 
 /** Minimal engine-like context for hitbox queries. */
 export interface HitboxEngineContext {

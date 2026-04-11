@@ -9,7 +9,7 @@
 import type { TargetDef } from './targeting';
 import type { ResolvedTarget } from '../game/types';
 import type { ActiveAbility } from '../game/types';
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import type { AbilityTiming } from './abilityTimings';
 import type { CardDefId } from '../card_defs/types';
 

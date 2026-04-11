@@ -6,24 +6,24 @@
  * Subclasses define per-character defaults.
  */
 
-import { GameObject, generateGameObjectId } from './GameObject';
-import type { TeamId } from '../game/teams';
-import type { ActiveAbility } from '../game/types';
-import type { AbilityNote } from '../game/AbilityNote';
-import type { Resource } from '../resources/Resource';
-import type { EventBus } from '../game/EventBus';
-import { getAbility } from '../abilities/AbilityRegistry';
-import { AbilityState, refundAbilityCost } from '../abilities/Ability';
-import type { Buff, BuffSerialized } from '../buffs/Buff';
-import { buffFromJSON } from '../buffs/buffRegistry';
-import type { TerrainManager } from '../terrain/TerrainManager';
-import { CELL_SIZE } from '../terrain/TerrainGrid';
-import type { TerrainGrid } from '../terrain/TerrainGrid';
-import { computeForcedDisplacement } from '../game/forceMove';
-import { DEFAULT_UNIT_RADIUS } from '../constants/unitConstants';
-import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
-import { getDefaultHp } from '../game/units/unit_defs/unitDef';
-import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
+import { GameObject, generateGameObjectId } from '../GameObject';
+import type { TeamId } from '../teams';
+import type { ActiveAbility } from '../types';
+import type { AbilityNote } from '../AbilityNote';
+import type { Resource } from '../../resources/Resource';
+import type { EventBus } from '../EventBus';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { AbilityState, refundAbilityCost } from '../../abilities/Ability';
+import type { Buff, BuffSerialized } from '../../buffs/Buff';
+import { buffFromJSON } from '../../buffs/buffRegistry';
+import type { TerrainManager } from '../../terrain/TerrainManager';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import type { TerrainGrid } from '../../terrain/TerrainGrid';
+import { computeForcedDisplacement } from '../forceMove';
+import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
+import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
+import { getDefaultHp } from './unit_defs/unitDef';
+import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 
 /** AI behavior settings for enemy units. */
 export interface AISettings {
@@ -33,8 +33,8 @@ export interface AISettings {
     maxRange: number;
 }
 
-import type { UnitAIContext } from './units/unitAI/contextTypes';
-export type { UnitAIContext } from './units/unitAI/contextTypes';
+import type { UnitAIContext } from './unitAI/contextTypes';
+export type { UnitAIContext } from './unitAI/contextTypes';
 
 /** Movement state for a unit. */
 export interface UnitMovement {

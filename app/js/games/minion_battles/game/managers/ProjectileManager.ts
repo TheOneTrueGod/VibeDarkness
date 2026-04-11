@@ -3,7 +3,7 @@
  * movement, collision detection, and cleanup.
  */
 
-import { Projectile } from '../../objects/Projectile';
+import { Projectile } from '../projectiles/Projectile';
 import type { EngineContext } from '../EngineContext';
 
 export class ProjectileManager {

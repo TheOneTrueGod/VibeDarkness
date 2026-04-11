@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { GameEngine } from './GameEngine';
-import { resetGameObjectIdCounter } from '../objects/GameObject';
+import { resetGameObjectIdCounter } from './GameObject';
 import { DARK_AWAKENING } from '../storylines/WorldOfDarkness/missions/dark_awakening';
 
 describe('GameEngine', () => {

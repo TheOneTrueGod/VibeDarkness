@@ -2,11 +2,11 @@
  * HealerUnit - Support character with Mana resource.
  */
 
-import { Unit } from '../Unit';
+import { Unit } from './Unit';
 import { Mana } from '../../resources/Mana.ts';
-import type { TeamId } from '../../game/teams';
-import type { EventBus } from '../../game/EventBus';
-import { getDefaultHp, getDefaultSpeed } from '../../game/units/unit_defs/unitDef';
+import type { TeamId } from '../teams';
+import type { EventBus } from '../EventBus';
+import { getDefaultHp, getDefaultSpeed } from './unit_defs/unitDef';
 
 export const HEALER_DEFAULTS = {
     hp: 70,

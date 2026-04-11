@@ -7,7 +7,7 @@
 import { getCardDef, asCardDefId } from '../../card_defs';
 import type { CardDefId } from '../../card_defs';
 import type { EngineContext } from '../EngineContext';
-import type { Unit } from '../../objects/Unit';
+import type { Unit } from '../units/Unit';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { SerializedCardInstance } from '../types';
 

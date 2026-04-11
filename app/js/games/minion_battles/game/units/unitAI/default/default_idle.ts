@@ -2,12 +2,12 @@
  * default_idle - Entry node. Scans for enemies, defend points, or light; otherwise wanders.
  */
 
-import type { Unit } from '../../../Unit';
+import type { Unit } from '../../Unit';
 import type { AIContext, AILightSource } from '../types';
 import type { AINode } from '../types';
 import type { DefaultAITreeContext, DefaultNodeId } from './context';
 import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
-import { getPerceptionRange } from '../../../../game/units/unit_defs/unitDef';
+import { getPerceptionRange } from '../../unit_defs/unitDef';
 import { distance } from '../utils';
 import { getOrPickClosestDefendPoint } from '../utils';
 

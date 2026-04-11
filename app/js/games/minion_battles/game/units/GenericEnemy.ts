@@ -5,10 +5,10 @@
  * HP, speed, and abilities through the spawn config.
  */
 
-import { Unit } from '../Unit';
-import type { AISettings } from '../Unit';
-import type { TeamId } from '../../game/teams';
-import type { EventBus } from '../../game/EventBus';
+import { Unit } from './Unit';
+import type { AISettings } from './Unit';
+import type { TeamId } from '../teams';
+import type { EventBus } from '../EventBus';
 
 export function createGenericEnemy(config: {
     id?: string;

@@ -5,7 +5,7 @@
  * for validating and resolving click targets.
  */
 
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import type { Camera } from '../game/Camera';
 import type { ResolvedTarget } from '../game/types';
 

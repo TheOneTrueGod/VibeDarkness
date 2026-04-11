@@ -2,7 +2,7 @@
  * default_wander - Pick a random walkable tile within radius and move towards it.
  */
 
-import type { Unit } from '../../../Unit';
+import type { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
 import type { DefaultNodeId } from './context';

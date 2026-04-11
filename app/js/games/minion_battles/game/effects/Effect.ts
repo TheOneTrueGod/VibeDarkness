@@ -5,7 +5,7 @@
  * The renderer picks the visual based on `effectType`.
  */
 
-import { GameObject, generateGameObjectId } from './GameObject';
+import { GameObject, generateGameObjectId } from '../GameObject';
 
 export class Effect extends GameObject {
     /** Total duration in seconds. */

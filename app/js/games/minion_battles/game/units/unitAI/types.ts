@@ -3,9 +3,9 @@
  * Nodes have actions and edge conditions; edges only transition within the same tree (type-safe).
  */
 
-import type { Unit } from '../../Unit';
-import type { SpecialTile } from '../../SpecialTile';
-import type { BattleOrder } from '../../../game/types';
+import type { Unit } from '../Unit';
+import type { SpecialTile } from '../../specialTiles/SpecialTile';
+import type { BattleOrder } from '../../types';
 
 /** Light source for AI (e.g. Torch effect, crystal tile). */
 export interface AILightSource {

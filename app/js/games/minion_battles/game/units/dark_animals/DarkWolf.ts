@@ -3,10 +3,10 @@
  * 12 HP, ~20% higher than default speed, 50% of default unit size.
  */
 
-import { Unit } from '../../Unit';
-import type { TeamId } from '../../../game/teams';
-import type { EventBus } from '../../../game/EventBus';
-import { DEFAULT_UNIT_RADIUS } from '../../../constants/unitConstants';
+import { Unit } from '../Unit';
+import type { TeamId } from '../../teams';
+import type { EventBus } from '../../EventBus';
+import { DEFAULT_UNIT_RADIUS } from '../unit_defs/unitConstants';
 
 const DARK_WOLF_HP = 12;
 /** Default speed is 100; 20% higher = 120. */

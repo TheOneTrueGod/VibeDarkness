@@ -7,12 +7,12 @@ import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackB
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
-import type { Unit } from '../../objects/Unit';
+import type { Unit } from '../../game/units/Unit';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { areEnemies } from '../../game/teams';
-import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
+import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getDirectionFromTo, pointInCone } from '../../abilities/targetHelpers';
 import { drawConeSlice } from '../../abilities/previewHelpers';

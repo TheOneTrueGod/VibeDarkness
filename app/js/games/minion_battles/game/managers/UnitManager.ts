@@ -3,7 +3,7 @@
  * per-tick crystal-aura tagging.
  */
 
-import { Unit } from '../../objects/Unit';
+import { Unit } from '../units/Unit';
 import { areAllies } from '../teams';
 import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';

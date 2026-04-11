@@ -7,11 +7,11 @@
 import { AbilityState } from '../../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
-import type { Unit } from '../../../objects/Unit';
+import type { Unit } from '../../../game/units/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { ResolvedTarget } from '../../../game/types';
 import { asCardDefId, type CardDef } from '../../types';
-import { Effect } from '../../../objects/Effect';
+import { Effect } from '../../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../../abilities/targetHelpers';

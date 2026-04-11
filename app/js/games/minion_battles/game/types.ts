@@ -3,7 +3,7 @@
  */
 
 import type { TeamId } from './teams';
-import type { AISettings } from '../objects/Unit';
+import type { AISettings } from './units/Unit';
 
 /** Snapshot of engine timing state. */
 export interface GameTime {

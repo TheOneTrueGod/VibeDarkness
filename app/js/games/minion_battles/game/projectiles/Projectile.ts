@@ -6,14 +6,14 @@
  */
 
 import { Graphics } from 'pixi.js';
-import { GameObject, generateGameObjectId } from './GameObject';
-import { Effect } from './Effect';
-import type { TeamId } from '../game/teams';
-import { areEnemies } from '../game/teams';
-import type { Unit } from './Unit';
-import type { EventBus } from '../game/EventBus';
-import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../abilities/blockingHelpers';
-import { getAbility } from '../abilities/AbilityRegistry';
+import { GameObject, generateGameObjectId } from '../GameObject';
+import { Effect } from '../effects/Effect';
+import type { TeamId } from '../teams';
+import { areEnemies } from '../teams';
+import type { Unit } from '../units/Unit';
+import type { EventBus } from '../EventBus';
+import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
+import { getAbility } from '../../abilities/AbilityRegistry';
 
 export class Projectile extends GameObject {
     velocityX: number;

@@ -10,7 +10,7 @@ import type { CardInstance } from '../game/GameEngine';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { canAffordAbility } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import { getCardDef } from '../card_defs';
 import CardComponent from './CardComponent';
 import CardTooltip from './CardTooltip';

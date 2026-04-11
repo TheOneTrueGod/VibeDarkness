@@ -4,8 +4,8 @@
  * per-tick light decay processing.
  */
 
-import type { SpecialTile } from '../../objects/SpecialTile';
-import { specialTileToJSON, specialTileFromJSON } from '../../objects/SpecialTile';
+import type { SpecialTile } from '../specialTiles/SpecialTile';
+import { specialTileToJSON, specialTileFromJSON } from '../specialTiles/SpecialTile';
 import { getSpecialTileDef } from '../../storylines/specialTileDefs';
 import type { EngineContext } from '../EngineContext';
 import type { LightSource } from '../LightGrid';

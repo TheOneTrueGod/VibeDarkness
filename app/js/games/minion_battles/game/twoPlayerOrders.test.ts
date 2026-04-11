@@ -6,8 +6,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { GameEngine } from './GameEngine';
-import { Unit } from '../objects/Unit';
-import { resetGameObjectIdCounter } from '../objects/GameObject';
+import { Unit } from './units/Unit';
+import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import type { BattleOrder, WaitingForOrders } from './types';
 

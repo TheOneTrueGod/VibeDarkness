@@ -2,12 +2,12 @@
  * default_findLight - Move towards a light source.
  */
 
-import type { Unit } from '../../../Unit';
+import type { Unit } from '../../Unit';
 import type { AIContext, AILightSource } from '../types';
 import type { AINode } from '../types';
 import type { DefaultAITreeContext, DefaultNodeId } from './context';
 import { queueWaitAndEndTurn, findEnemies, getEnemiesInPerceptionAndLOS } from '../utils';
-import { getPerceptionRange } from '../../../../game/units/unit_defs/unitDef';
+import { getPerceptionRange } from '../../unit_defs/unitDef';
 
 const TREE_NAME = 'default';
 

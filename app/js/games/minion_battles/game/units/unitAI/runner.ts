@@ -2,7 +2,7 @@
  * UnitAITree runner - executes a unit's AI tree and handles node transitions.
  */
 
-import type { Unit } from '../../Unit';
+import type { Unit } from '../Unit';
 import type { AIContext } from './types';
 import type { UnitAITree } from './types';
 import type { UnitAIContext } from './contextTypes';

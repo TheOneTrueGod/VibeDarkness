@@ -1,5 +1,5 @@
-import { Effect } from '../../objects/Effect';
-import type { Unit } from '../../objects/Unit';
+import { Effect } from '../effects/Effect';
+import type { Unit } from '../units/Unit';
 import type { GameEngine } from '../GameEngine';
 import type { EffectImageKey } from '../effectImages';
 import { DeathEffect } from './DeathEffect';

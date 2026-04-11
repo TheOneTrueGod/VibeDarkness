@@ -6,7 +6,7 @@
  * Returns to wander when the target dies or leaves line of sight.
  */
 
-import type { Unit } from '../../../Unit';
+import type { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
 import type { AggroWanderAITreeContext, AggroWanderNodeId } from './context';
@@ -16,7 +16,7 @@ import {
     applyAIMovementToUnit,
     tryQueueAbilityOrder,
 } from '../utils';
-import { getPerceptionRange } from '../../../../game/units/unit_defs/unitDef';
+import { getPerceptionRange } from '../../unit_defs/unitDef';
 
 const TREE_NAME = 'aggroWander';
 

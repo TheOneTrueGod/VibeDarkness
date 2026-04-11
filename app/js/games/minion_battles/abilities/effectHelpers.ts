@@ -3,11 +3,11 @@
  * Use these so ability files stay minimal and read like a list of behaviours.
  */
 
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import type { AttackBlockedInfo } from './Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../game/forceMove';
-import { Effect } from '../objects/Effect';
+import { Effect } from '../game/effects/Effect';
 
 /** Default slash trail color (light cyan). */
 const DEFAULT_SLASH_TRAIL_COLOR = 0x7fdfef;

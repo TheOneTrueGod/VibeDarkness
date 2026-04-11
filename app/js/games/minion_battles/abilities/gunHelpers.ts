@@ -1,5 +1,5 @@
-import { Projectile } from '../objects/Projectile';
-import type { Unit } from '../objects/Unit';
+import { Projectile } from '../game/projectiles/Projectile';
+import type { Unit } from '../game/units/Unit';
 
 interface GameEngineLikeForGuns {
     addProjectile(projectile: Projectile): void;

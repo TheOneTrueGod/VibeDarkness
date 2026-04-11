@@ -3,7 +3,7 @@ import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createConeTargetPreviewWithDistanceInaccuracy, drawClampedLine } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../game/types';
-import type { Unit } from '../../objects/Unit';
+import type { Unit } from '../../game/units/Unit';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { fireGunShotAtTarget } from '../../abilities/gunHelpers';

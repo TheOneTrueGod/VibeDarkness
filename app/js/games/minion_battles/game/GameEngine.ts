@@ -14,10 +14,10 @@ import type {
     OrderAtTick,
     ResolvedTarget,
 } from './types';
-import { Unit } from '../objects/Unit';
-import { Projectile } from '../objects/Projectile';
-import { Effect } from '../objects/Effect';
-import { resetGameObjectIdCounter } from '../objects/GameObject';
+import { Unit } from './units/Unit';
+import { Projectile } from './projectiles/Projectile';
+import { Effect } from './effects/Effect';
+import { resetGameObjectIdCounter } from './GameObject';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getTotalAbilityDuration } from '../abilities/abilityTimings';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
@@ -25,10 +25,10 @@ import type { AbilityStatic } from '../abilities/Ability';
 import { areEnemies } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { LevelEvent } from '../storylines/types';
-import type { SpecialTile } from '../objects/SpecialTile';
-import { isTileDefendPoint } from '../objects/SpecialTile';
-import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from '../objects/units/unitAI';
-import type { AIContext } from '../objects/units/unitAI';
+import type { SpecialTile } from './specialTiles/SpecialTile';
+import { isTileDefendPoint } from './specialTiles/SpecialTile';
+import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from './units/unitAI';
+import type { AIContext } from './units/unitAI';
 import { getLightGrid, type LightSource } from './LightGrid';
 import { getDeathEffectDef } from './units/unit_defs/unitDef';
 import type { CardDefId } from '../card_defs';

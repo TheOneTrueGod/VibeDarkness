@@ -5,7 +5,7 @@
  */
 
 import type { IAbilityPreviewGraphics } from './Ability';
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
 import { getUnitAtPosition } from './targeting';
 import { areEnemies } from '../game/teams';

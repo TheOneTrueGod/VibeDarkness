@@ -2,7 +2,7 @@
  * default_attack - Move to ideal range and use best ability (by priority) on target.
  */
 
-import type { Unit } from '../../../Unit';
+import type { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
 import type { DefaultAITreeContext, DefaultNodeId } from './context';

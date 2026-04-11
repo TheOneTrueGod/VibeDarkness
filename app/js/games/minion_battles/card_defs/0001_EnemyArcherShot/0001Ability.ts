@@ -7,8 +7,8 @@ import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
-import type { Unit } from '../../objects/Unit';
-import { Projectile } from '../../objects/Projectile';
+import type { Unit } from '../../game/units/Unit';
+import { Projectile } from '../../game/projectiles/Projectile';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';

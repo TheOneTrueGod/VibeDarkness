@@ -3,7 +3,7 @@ import type { PlayerState } from '../../../types';
 import type { GameEngine } from '../game/GameEngine';
 import { getAbility } from '../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../abilities/Ability';
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
 import slimeIcon from '../assets/characters/slime.svg';
 import swordwomanIcon from '../assets/characters/swordwoman.svg';

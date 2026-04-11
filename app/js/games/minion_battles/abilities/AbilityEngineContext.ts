@@ -1,5 +1,5 @@
-import type { Unit } from '../objects/Unit';
-import type { Effect } from '../objects/Effect';
+import type { Unit } from '../game/units/Unit';
+import type { Effect } from '../game/effects/Effect';
 import type { EventBus } from '../game/EventBus';
 import type { TerrainManager } from '../terrain/TerrainManager';
 

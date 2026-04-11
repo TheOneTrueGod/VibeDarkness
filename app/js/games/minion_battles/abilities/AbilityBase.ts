@@ -7,7 +7,7 @@ import {
     type AbilityAISettings,
 } from './Ability';
 import { AbilityPhase, type AbilityTiming } from './abilityTimings';
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import type { TargetDef } from './targeting';
 import type { ResolvedTarget } from '../game/types';
 

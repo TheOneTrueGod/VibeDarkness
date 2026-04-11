@@ -9,15 +9,15 @@
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { Unit } from '../../objects/Unit';
+import type { Unit } from '../../game/units/Unit';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import { asCardDefId, type CardDef } from '../types';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
-import type { Effect } from '../../objects/Effect';
+import type { Effect } from '../../game/effects/Effect';
 import type { EventBus } from '../../game/EventBus';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { DEFAULT_UNIT_RADIUS } from '../../constants/unitConstants';
+import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { ThickLineHitbox } from '../../hitboxes';

@@ -4,7 +4,7 @@
  */
 
 import { Graphics } from 'pixi.js';
-import type { Unit } from '../objects/Unit';
+import type { Unit } from '../game/units/Unit';
 import type { Buff } from './Buff';
 import { STUNNED_BUFF_TYPE } from './StunnedBuff';
 

@@ -1,4 +1,4 @@
-import type { Unit } from '../../objects/Unit';
+import type { Unit } from '../../game/units/Unit';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import { computeForcedDisplacement } from '../../game/forceMove';
 
