@@ -5,6 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { GameEngine } from '../engine/GameEngine';
+import type { SerializedGameState } from '../engine/types';
 import { resetGameObjectIdCounter } from '../objects/GameObject';
 import { DARK_AWAKENING } from '../storylines/WorldOfDarkness/missions/dark_awakening';
 
@@ -66,7 +67,7 @@ describe('Snapshot load on reconnection', () => {
     it('GameEngine restores correct gameTick from checkpoint snapshot', () => {
         const snapshot = makeCheckpointSnapshot();
         const restored = GameEngine.fromJSON(
-            snapshot as Parameters<typeof GameEngine.fromJSON>[0],
+            snapshot as unknown as SerializedGameState,
             'p1',
             null
         );

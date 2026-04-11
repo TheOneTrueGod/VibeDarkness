@@ -14,9 +14,9 @@ description: When adding or changing enemy unit AI in Minion Battles. Use when w
 ## Quick reference
 
 - **UnitAITree**: Named tree with nodes. Nodes have `actions` (execute, onPathfindingRetrigger) and `edges` (conditions that transition to other nodes in the same tree).
-- **unitAITreeId** on Unit: `'default'`, `'alphaWolfBoss'`, or `'aggroWander'`. Set when spawning from mission `aiController` or per-unit via `EnemySpawnDef.unitAITreeId` / `SpawnWaveEntry.unitAITreeId`.
+- **unitAITreeId** on Unit: Set when spawning from mission `aiController` or per-unit via `EnemySpawnDef.unitAITreeId` / `SpawnWaveEntry.unitAITreeId`. See `unitAI/index.ts` for available tree IDs.
 - **Abilities**: Define AISettings (priority, minRange, maxRange, maxUsesPerRound). Attack nodes use `tryQueueAbilityOrder` which picks best ability by priority.
-- **Mission aiController**: Maps to tree — `'alphaWolfBoss'` → alphaWolfBoss tree, `'aggroWander'` → aggroWander tree, else → default tree.
+- **Mission aiController**: Maps to a tree in the registry. See `unitAI/index.ts` for the mapping.
 
 ## Adding a new tree
 

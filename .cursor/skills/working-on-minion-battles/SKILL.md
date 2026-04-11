@@ -5,6 +5,9 @@ description: When working on anything called minion battles, work primarily in t
 
 # Working on Minion Battles
 
+## Agents.md
+Read `app/js/games/minion_battles/Agents.md` for coding conventions and folder structure
+
 ## Instructions
 
 When working on Minion Battles (the game):
@@ -19,11 +22,11 @@ When working on Minion Battles (the game):
 
 Each unit has a **team** via `unit.teamId` (`TeamId` in `engine/teams.ts`). Use teams (not `ownerId`) when you need “same side” or “ally” logic.
 
-- **TeamId**: `'player' | 'allied' | 'enemy'`.
-- **Defaults**: By default, enemy units use `teamId: 'enemy'`; player units use `teamId: 'player'`. Missions or spawn logic can set `teamId: 'allied'` (or change it) for NPCs that fight with the player.
-- **Alliances**: `player` and `allied` are allied with each other (see `ALLIANCE_MAP` in `engine/teams.ts`). Use **`areAllies(teamA, teamB)`** and **`areEnemies(teamA, teamB)`** from `engine/teams` to test relationship between two teams.
-- **Getting allies**: Use **`engine.getAllies(caster)`** to get all units on the same team as the caster (alive, excluding the caster). This filters by team alliance, not by `ownerId`.
-- **Where teamId is set**: Player units get `teamId: 'player'` in `storylines/BaseMissionDef.ts` when building player units; enemy spawn configs and constants (e.g. `enemyConstants.ts`) use `teamId: 'enemy'`. Override in mission or unit config when you need a different team (e.g. `allied`).
+See `engine/teams.ts` for team definitions (`TeamId`), alliance rules (`ALLIANCE_MAP`), and helpers (`areAllies`, `areEnemies`).
+
+- **Defaults**: Enemy units use the enemy team; player units use the player team. Missions or spawn logic can override the team for NPCs that fight with the player.
+- **Getting allies**: Use `engine.getAllies(caster)` to get all units allied with the caster (alive, excluding the caster). This filters by team alliance, not by `ownerId`.
+- **Where teamId is set**: See `storylines/BaseMissionDef.ts` for player unit team assignment and enemy spawn configs (e.g. `enemyConstants.ts`) for enemy teams.
 
 ## Host vs Client vs Server
 

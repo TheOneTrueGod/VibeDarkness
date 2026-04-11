@@ -43,9 +43,6 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 
 ### React Component Architecture
 - `App.tsx` is the root component holding all lobby/game state
-- `ToastProvider` wraps the app for toast notifications (via `useToast` hook)
-- `LobbyScreen` handles lobby creation/joining
-- `GameScreen` renders the game layout with header, central area, player list, chat
 - Game modules (e.g. minion_battles) are loaded dynamically via `import()`
 - Each game module exports a default React component receiving `GameComponentProps`
 
@@ -69,6 +66,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 - Game components receive lobby state as props (no `window.app` globals)
 - Toast notifications via `useToast()` context hook
 - Use classes and inheritance for defining game objects
+- Avoid typecasting when possible.  Prefer strictly defining return types or variable types.
 
 ## File Purposes
 
@@ -130,14 +128,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 
 ## Project Skills
 
-| Skill | When to use |
-|-------|-------------|
-| **missions** | When creating or editing campaign missions. See `.cursor/skills/missions/SKILL.md`. |
-| **map-segments** | When creating reusable map segments for missions. See `.cursor/skills/map-segments/SKILL.md`. |
-| **working-on-minion-battles** | When working on anything called minion battles; work primarily in `app/js/games/minion_battles/`. See `.cursor/skills/working-on-minion-battles/SKILL.md`. |
-| **working-on-ai-controllers** | When adding or changing enemy unit AI (UnitAITree, AI nodes, mission AI). See `.cursor/skills/working-on-ai-controllers/SKILL.md` and `app/js/games/minion_battles/objects/units/unitAI/SKILL.md`. |
-| **game-sync-data-flow** | When working on battle sync, order submission, checkpoint saves, polling, desync recovery, or `GameSyncContext`. See `.cursor/skills/game-sync-data-flow/SKILL.md`. |
-| **working-with-hitboxes** | When an ability needs collision detection against enemies (melee, lunge, AoE shapes). See `.cursor/skills/working-with-hitboxes/SKILL.md`. |
+Skills are located in the `.cursor/skills` directory
 
 ## Testing Locally
 

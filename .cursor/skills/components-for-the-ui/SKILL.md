@@ -11,7 +11,7 @@ This skill keeps a **list of component names** and a **one-line description** of
 
 | Component | Description |
 |-----------|-------------|
-| **CharacterPortrait** | Renders a character/NPC portrait from an SVG string in a fixed aspect-ratio (1:1) box; accepts `size` (small 96px / medium 180px / large 240px), scales and centers the SVG. |
+| **CharacterPortrait** | Renders a character/NPC portrait from an SVG string in a fixed aspect-ratio (1:1) box; accepts configurable `size` presets (small / medium / large), scales and centers the SVG. |
 | **CharacterEditor** | In-place editor for a campaign character: portrait carousel, name, and Equipment tab with doll and inventory grid (drag-to-equip). |
 | **CharacterCreator** | Modal for creating a new campaign character: portrait carousel and Create button. |
 | **VNTextBox** | Visual-novel style dialogue/choice box used in the pre-mission story phase. |

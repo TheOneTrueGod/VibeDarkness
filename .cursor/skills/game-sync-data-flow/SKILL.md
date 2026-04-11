@@ -7,85 +7,57 @@ description: Describes the multiplayer game state synchronization system for Min
 
 ## Architecture Overview
 
-All lobby game-state and message polling is centralized in `GameSyncContext` (`app/js/contexts/GameSyncContext.tsx`). A single **500ms** `setInterval` runs `pollTick`, which decides what to fetch (full lobby state, minimal battle state, or lobby messages). `BattlePhase` owns the `GameEngine` and registers `BattleCallbacks` so the context can read the engine and deliver remote orders; it does not start/stop polling.
+All lobby game-state and message polling is centralized in `GameSyncContext` (`app/js/contexts/GameSyncContext.tsx`). A single polling interval runs `pollTick`, which decides what to fetch (full lobby state, minimal battle state, or lobby messages). `BattlePhase` owns the `GameEngine` and registers `BattleCallbacks` so the context can read the engine and deliver remote orders; it does not start/stop polling.
 
 | Layer | Responsibility |
 |-------|---------------|
-| **GameSyncContext** | Network I/O: `saveCheckpoint`, `submitOrder`, `registerBattleCallbacks`, `requestResync`. Full/minimal/message polling in one loop. Sync verification (non-host). |
-| **BattlePhase** | Engine lifecycle, UI, targeting. Registers `BattleCallbacks` (`getEngineSnapshot`, `onOrdersReceived`). |
-| **GameEngine** | Deterministic simulation. Fires `onCheckpoint` and `onWaitingForOrders`. Knows nothing about networking. |
-| **App.tsx** | Passes `onPollMessages` and `initialLastMessageId` into `GameSyncProvider`; seeds `pollMessagesReady` after `startInLobby`. |
+| **GameSyncContext** | Network I/O: checkpoint saves, order submission, battle callbacks registration, resync requests. Full/minimal/message polling in one loop. Sync verification (non-host). |
+| **BattlePhase** | Engine lifecycle, UI, targeting. Registers callbacks for engine snapshot access and order delivery. |
+| **GameEngine** | Deterministic simulation. Fires checkpoint and waiting-for-orders events. Knows nothing about networking. |
+| **App.tsx** | Passes message polling callback and initial message ID into `GameSyncProvider`. |
 
-## Unified poll loop (500ms)
+## Unified poll loop
 
-- **Lobby messages**: every **5th** tick (~2.5s), `GET /messages` (unless in flight), then `onPollMessages` in App. `GAME_PHASE_CHANGED` in that batch sets an internal full-state refetch flag.
-- **Full state** (`GET /lobby state`): on `requestResync`, visibility regain, `externalGameId` change; phase-based cadence (e.g. character/story every tick if not in flight; mission_select ~5s; battle transitional ~1s until engine registers).
-- **Battle (minimal)**: only when phase is `battle`, `BattleCallbacks` registered, engine is **waiting for another player’s orders** (not local turn). Host and non-host use `getGameMinimalState` for orders; non-host also runs synchash / tick checks.
+- **Lobby messages**: periodically fetches messages (unless in flight), then processes them in App. Game phase changes trigger a full-state refetch.
+- **Full state**: on resync requests, visibility regain, game ID changes; phase-based cadence varies (e.g. character/story phases poll frequently; battle transitions poll until engine registers).
+- **Battle (minimal)**: only when phase is `battle`, callbacks are registered, and the engine is waiting for another player's orders. Host and non-host use minimal state for orders; non-host also runs sync verification.
 
 ## Key Rule: Host Is Canonical
 
-The host's `GameEngine` is the single source of truth. The host **never** enters `waiting_for_host` for synchash mismatch the same way as clients; minimal polling is for **pulling other players’ orders**.
+The host's `GameEngine` is the single source of truth. Minimal polling is for pulling other players' orders, not for correcting state.
 
 ## Data Flow: Host
 
-```
-Engine running (not paused)
-    │
-    ▼
-Player unit can act ──► onCheckpoint fires
-    │                       │
-    │                       ▼
-    │                 GameSyncContext.saveCheckpoint()
-    │                 ► POST /snapshots (full state + synchash)
-    │
-    ▼
-pauseForOrders(unit)
-    │
-    ├── unit.ownerId === localPlayerId (host's turn)
-    │       └── submit order + saveCheckpoint (local engine) …
-    │
-    └── unit.ownerId !== localPlayerId (another player's turn)
-            └── Unified poll: GET /minimal (checkpoint) when waiting
-                ► orders → onOrdersReceived → queueOrder + resumeAfterOrders
-```
+1. Engine runs → player unit can act → checkpoint event fires → `saveCheckpoint()` POSTs full state + synchash
+2. `pauseForOrders(unit)`:
+   - **Host's turn**: submit order + save checkpoint locally
+   - **Other player's turn**: poll minimal state for orders → deliver to engine → resume
 
 ## Data Flow: Non-Host Client
 
-Same as host for local turn. When waiting on another player, unified poll uses **minimal state**: tick/hash checks, `waiting_for_host` when server is behind, full resync when behind or synchash mismatch.
+Same as host for local turn. When waiting on another player, minimal state polling includes tick/hash checks, with full resync on mismatch or falling behind.
 
 ## Key Files
 
 | File | Role |
 |------|------|
 | `app/js/contexts/GameSyncContext.tsx` | Unified poll loop, battle callbacks, checkpoints/orders |
-| `app/js/contexts/SyncContextControllers/GameSyncContextController.tsx` | Base sync controller logic |
-| `app/js/contexts/SyncContextControllers/HostGameSyncContextController.tsx` | Host-specific sync controller |
-| `app/js/contexts/SyncContextControllers/ClientGameSyncContextController.tsx` | Client-specific sync controller |
-| `app/js/games/minion_battles/phases/BattlePhase.tsx` | Registers `BattleCallbacks` |
-| `app/js/games/minion_battles/engine/GameEngine.ts` | Simulation, `onCheckpoint` / `onWaitingForOrders` |
-| `app/js/LobbyClient.ts` | HTTP API (`getLobbyState`, `getMessages`, `getGameMinimalState`, …) |
+| `app/js/contexts/SyncContextControllers/` | Base, host, and client sync controller logic |
+| `app/js/games/minion_battles/phases/BattlePhase.tsx` | Registers battle callbacks |
+| `app/js/games/minion_battles/engine/GameEngine.ts` | Simulation, checkpoint and waiting-for-orders events |
+| `app/js/LobbyClient.ts` | HTTP API client |
 | `app/js/utils/synchash.ts` | Client synchash |
 | `backend/GameCheckpointFiles.php` | Server-side checkpoint storage and synchash |
-| `backend/Http/Handlers/SaveGameStateSnapshotHandler.php` | Saves checkpoint snapshots with synchash |
-| `backend/Http/Handlers/SaveGameOrdersHandler.php` | Saves orders; preserves synchash on existing checkpoints |
+| `backend/Http/Handlers/SaveGameStateSnapshotHandler.php` | Saves checkpoint snapshots |
+| `backend/Http/Handlers/SaveGameOrdersHandler.php` | Saves orders; preserves synchash |
 
-## GameSyncContext API
+## API and Types
 
-```typescript
-saveCheckpoint(gameTick, state, orders)   // Host-only (guarded internally)
-submitOrder(checkpointGameTick, atTick, order)
-registerBattleCallbacks(callbacks: BattleCallbacks | null)
-requestResync()   // UI / internal: next poll tick may GET full lobby state
-```
-
-`BattleCallbacks`:
-
-- `getEngineSnapshot()` → `{ gameTick, state, waitingForOrders } | null`
-- `onOrdersReceived(orders)` — BattlePhase applies orders and resumes the engine
+See `GameSyncContext.tsx` for the full context API and the `BattleCallbacks` type.
 
 ## Checkpoint Tick Alignment
 
-Orders and polling use aligned checkpoint ticks: `Math.floor(tick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL` where `CHECKPOINT_INTERVAL = 10`. Host checkpoint saves use the actual `gameTick` (not aligned).
+Orders and polling use aligned checkpoint ticks. See `GameSyncContext.tsx` for the alignment formula and checkpoint interval constant.
 
 ## Common Pitfalls
 
