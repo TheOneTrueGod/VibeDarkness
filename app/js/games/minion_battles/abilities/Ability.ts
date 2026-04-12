@@ -130,7 +130,19 @@ export interface AbilityStatic {
         targets: ResolvedTarget[],
         prevTime: number,
         currentTime: number,
-        active?: import('../engine/types').ActiveAbility,
+        active?: ActiveAbility,
+    ): void;
+
+    /**
+     * Optional. Called exactly once when an active ability entry is created (same tick as the order
+     * that started the cast). Use for one-time setup (snapshots, resolved positions) and store data on
+     * `active.castPayload` instead of relying on the first `doCardEffect` tick or phase boundaries.
+     */
+    beginActiveCast?(
+        engine: unknown,
+        caster: Unit,
+        targets: ResolvedTarget[],
+        active: ActiveAbility,
     ): void;
 
     /**

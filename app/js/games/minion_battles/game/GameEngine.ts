@@ -8,6 +8,7 @@
 
 import { EventBus } from './EventBus';
 import type {
+    ActiveAbility,
     WaitingForOrders,
     SerializedGameState,
     BattleOrder,
@@ -593,11 +594,13 @@ export class GameEngine implements EngineContext {
             unit.clearAbilityNote();
         }
 
-        unit.activeAbilities.push({
+        const active: ActiveAbility = {
             abilityId: ability.id,
             startTime: this.gameTime,
             targets: targets.map((t) => ({ ...t })),
-        });
+        };
+        ability.beginActiveCast?.(this, unit, active.targets, active);
+        unit.activeAbilities.push(active);
 
         this.state.cardManager.trackAbilityUse(unit.id, ability.id);
 

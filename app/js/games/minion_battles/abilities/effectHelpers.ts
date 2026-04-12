@@ -118,6 +118,7 @@ export function drawCardForPlayer(
 interface EngineWithGetUnit {
     getUnit?(id: string): Unit | undefined;
     eventBus?: { emit: (event: string, data: unknown) => void };
+    cancelActiveAbility?(unitId: string, abilityId: string): void;
 }
 
 /**
@@ -152,6 +153,7 @@ export function applyChargingBlockKnockback(
         },
         eng.eventBus,
     );
+    eng.cancelActiveAbility?.(attackInfo.sourceUnitId, abilityId);
     attacker.clearAbilityNote();
 }
 

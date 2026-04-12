@@ -126,4 +126,9 @@ export interface ActiveAbility {
     targets: ResolvedTarget[];
     /** Set by one-shot abilities when their effect has fired (prevents duplicate triggers). */
     fired?: boolean;
+    /**
+     * Ability-specific snapshot set once in `beginActiveCast` (e.g. charge lunge vectors).
+     * Prefer this over inferring setup from `doCardEffect` phase boundaries. Serialized with checkpoints.
+     */
+    castPayload?: unknown;
 }

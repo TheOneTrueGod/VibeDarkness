@@ -4,7 +4,7 @@ import type { AbilityStatic, IAbilityPreviewGraphics, AttackBlockedInfo } from '
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import type { Unit } from '../../game/units/Unit';
 import type { TargetDef } from '../targeting';
-import type { ResolvedTarget } from '../../game/types';
+import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import { asCardDefId, type CardDef } from '../../card_defs/types';
 import { LungeMovement } from '../behaviors/LungeMovement';
 import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';
@@ -104,14 +104,26 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
         return { minRange: 0, maxRange: this.config.baseMaxRange + caster.radius };
     }
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+    beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
+        const eng = engine as AbilityEngineContext;
+        const note = this.buildChargeNoteFromTargets(eng, caster, targets);
+        if (note) {
+            active.castPayload = note;
+            this.setAbilityNote(caster, note);
+        }
+    }
+
+    doCardEffect(
+        engine: unknown,
+        caster: Unit,
+        _targets: ResolvedTarget[],
+        prevTime: number,
+        currentTime: number,
+        active?: ActiveAbility,
+    ): void {
         const eng = engine as AbilityEngineContext;
 
-        if (this.didEnterPhase(AbilityPhase.Windup, prevTime, currentTime)) {
-            this.snapshotTarget(eng, caster, targets);
-        }
-
-        const note = this.getAbilityNote(caster);
+        const note = this.getChargeNote(caster, active);
         if (!note) return;
 
         if (this.getPhaseAtTime(currentTime) === AbilityPhase.Windup) return;
@@ -120,6 +132,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
         this.damageEnemiesInPath(eng, caster, note, segment);
 
         if (currentTime >= this.prefireTime) {
+            if (active) active.castPayload = undefined;
             this.clearAbilityNote(caster);
         }
     }
@@ -127,13 +140,13 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
-        activeAbility: { startTime: number; targets: ResolvedTarget[] },
+        activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
         const elapsed = gameTime - activeAbility.startTime;
         if (elapsed < 0 || elapsed > this.config.windupTime) return;
 
-        const note = this.getAbilityNote(caster);
+        const note = this.getChargeNote(caster, activeAbility);
         if (!note) return;
 
         const { dirX: ux, dirY: uy, dist } = getDirectionFromTo(
@@ -158,21 +171,35 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
         applyChargingBlockKnockback(engine, defender, attackInfo, this.config.knockbackOnBlock, this.config.id);
     }
 
-    private snapshotTarget(eng: AbilityEngineContext, caster: Unit, targets: ResolvedTarget[]): void {
+    /** Prefer `active.castPayload`; fall back to unit ability note (older checkpoints). */
+    private getChargeNote(caster: Unit, active?: ActiveAbility): ChargeNote | null {
+        const payload = active?.castPayload;
+        if (payload && typeof payload === 'object' && 'lungeStartX' in payload) {
+            return payload as ChargeNote;
+        }
+        return this.getAbilityNote(caster);
+    }
+
+    private buildChargeNoteFromTargets(
+        eng: AbilityEngineContext,
+        caster: Unit,
+        targets: ResolvedTarget[],
+    ): ChargeNote | null {
         const targetDef = targets[0];
         if (targetDef?.type === 'unit' && targetDef.unitId) {
             const targetUnit = eng.getUnit(targetDef.unitId);
             if (targetUnit?.isAlive()) {
-                this.setAbilityNote(caster, {
+                return {
                     targetId: targetDef.unitId,
                     targetX: targetUnit.x,
                     targetY: targetUnit.y,
                     lungeStartX: caster.x,
                     lungeStartY: caster.y,
                     hitTargetIds: [],
-                });
+                };
             }
         }
+        return null;
     }
 
     private damageEnemiesInPath(

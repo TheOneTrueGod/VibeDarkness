@@ -9,7 +9,7 @@ import {
 import { AbilityPhase, type AbilityTiming } from './abilityTimings';
 import type { Unit } from '../game/units/Unit';
 import type { TargetDef } from './targeting';
-import type { ResolvedTarget } from '../game/types';
+import type { ActiveAbility, ResolvedTarget } from '../game/types';
 
 export abstract class AbilityBase<TNote = never> implements AbilityStatic {
     abstract readonly id: string;
@@ -25,6 +25,7 @@ export abstract class AbilityBase<TNote = never> implements AbilityStatic {
         targets: ResolvedTarget[],
         prevTime: number,
         currentTime: number,
+        active?: ActiveAbility,
     ): void;
 
     abstract getTooltipText(gameState?: unknown): string[];

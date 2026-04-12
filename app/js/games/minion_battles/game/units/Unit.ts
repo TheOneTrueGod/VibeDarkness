@@ -612,7 +612,14 @@ export class Unit extends GameObject {
                 pathfindingTick: this.movement.pathfindingTick,
             } : null,
             abilities: this.abilities,
-            activeAbilities: this.activeAbilities.map((a) => ({ ...a, targets: a.targets.map((t) => ({ ...t })) })),
+            activeAbilities: this.activeAbilities.map((a) => ({
+                ...a,
+                targets: a.targets.map((t) => ({ ...t })),
+                castPayload:
+                    a.castPayload !== undefined
+                        ? JSON.parse(JSON.stringify(a.castPayload)) as unknown
+                        : undefined,
+            })),
             abilityNote: this.abilityNote,
             radius: this.radius,
             aiSettings: this.aiSettings,
