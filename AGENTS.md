@@ -68,6 +68,11 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 - Use classes and inheritance for defining game objects
 - Avoid typecasting when possible.  Prefer strictly defining return types or variable types.
 - Avoid inline type imports (e.g. `import('./path').SomeType` in return types or annotations). Use a top-level `import type { SomeType } from '...'` and reference `SomeType` instead.
+- Prefer a **polymorphic** style for behaviour that varies by type or id: dispatch through shared interfaces, registries (id → handler), or small strategy objects—instead of scattering `if (x.id === '…')` / `switch` branches that must grow with every new case (see also the Open/Closed Principle).
+
+## Communication
+
+- When **proposing a decision** to the user (options, tradeoffs, or a recommendation that needs their confirmation), wrap that passage in **yellow** using inline HTML, e.g. `<span style="color: #facc15">…</span>` (adjust the hex slightly if contrast against the chat background is poor).
 
 ## File Purposes
 
