@@ -277,16 +277,16 @@ then do behavioral refactoring in later phases.
 > _Subagent calls: 2 steps._
 
 ### Step 9.1 — Create `GameState` data aggregate
-- [ ] Create `game/GameState.ts` with manager ownership and collections
-- [ ] `GameEngine` delegates data ownership to `GameState`
-- [ ] Serialization (`toJSON`/`fromJSON`) stays coordinated by `GameEngine`
+- [x] Create `game/GameState.ts` with manager ownership and collections
+- [x] `GameEngine` delegates data ownership to `GameState`
+- [x] Serialization (`toJSON`/`fromJSON`) stays coordinated by `GameEngine`
   but reads from `GameState`
-- [ ] Run tests — must pass
+- [x] Run tests — must pass
 
 ### Step 9.2 — Clean separation of "what" vs "when"
-- [ ] Move remaining data fields from `GameEngine` to `GameState`
-- [ ] Ensure `GameEngine` only has orchestration (tick, scheduling, step order)
-- [ ] Run tests — must pass
+- [x] Move remaining data fields from `GameEngine` to `GameState`
+- [x] Ensure `GameEngine` only has orchestration (tick, scheduling, step order)
+- [x] Run tests — must pass
 
 ### 🧪 CHECKPOINT G — Manual testing
 > Same as Checkpoint F. Full game flow + multiplayer sync.

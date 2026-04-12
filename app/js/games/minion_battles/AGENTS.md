@@ -14,7 +14,7 @@
 
 | Directory | Contents |
 |-----------|----------|
-| `game/` | `GameEngine`, `GameRenderer`, `Camera`, `EventBus`, `LightGrid`, type definitions (`types.ts`, `effectDef.ts`), `GameObject`, and sub-folders |
+| `game/` | `GameEngine`, `GameState`, `GameRenderer`, `Camera`, `EventBus`, `LightGrid`, type definitions (`types.ts`, `effectDef.ts`), `GameObject`, and sub-folders |
 | `game/managers/` | `UnitManager`, `CardManager`, `EffectManager`, `ProjectileManager`, `LevelEventManager`, `SpecialTileManager` |
 | `game/deathEffects/` | `DeathEffect`, `ParticleExplosion` |
 | `game/units/` | `Unit`, unit factory index, player unit types (`WarriorUnit`, `RangerUnit`, etc.), `GenericEnemy` |
@@ -249,17 +249,17 @@ BattleSession                          BattlePhase (React)
 There are three distinct state domains with different lifecycles:
 
 - **Lobby state** (`MinionBattlesState` in `state.ts`): phase, votes, character selections, equipment. **Server-authoritative.** Lives in React state, synced via polling. Mutations go through `LobbyClient` API calls → server → next poll.
-- **Battle state** (`SerializedGameState` in `game/types.ts` / `GameEngine` at runtime): units, terrain, cards, tick, orders. **Host-authoritative.** Lives in `GameEngine` (owned by `BattleSession`). Persisted as checkpoints. Mutations go through tick loop and order application only.
+- **Battle state** (`SerializedGameState` in `game/types.ts`; runtime data on `GameEngine.state` / `GameState`): units, terrain, cards, tick, orders. **Host-authoritative.** Owned by `BattleSession` via `GameEngine`. Persisted as checkpoints. Mutations go through tick loop and order application only.
 - **Interaction state** (targeting): `selectedAbility`, `selectedCardIndex`, `currentTargets`, `mouseWorld`, `pendingMovePath`, `waitingForOrders`. Lives in `BattlePhase` as React state and refs. This is neither domain state nor purely view state — it bridges UI intent and command submission. `BattlePhase` maintains a `targetingStateRef` that the rAF render loop reads without triggering React re-renders. Targeting resolution logic lives in `abilities/targeting.ts` (`resolveClick`, `validateAndResolveTarget`). Preview rendering is driven by `AbilityStatic.renderTargetingPreview` functions called from `GameRenderer`. It is acceptable for this state to be ephemeral — it is never checkpointed or synced.
 
 Do not conflate these — they have different sources of truth, different persistence mechanisms, and different mutation paths.
 
-### GameEngine (single source of truth for battle state)
+### GameEngine + GameState (runtime battle state)
 
-**`GameEngine`** is the single source of truth for all battle state at runtime. It owns the tick loop, managers, order application, and the full object graph. There is no separate `GameState` class.
+**`GameEngine`** orchestrates the simulation: tick loop, scheduling, order application, and callbacks. **`GameState`** (`game/GameState.ts`) owns the mutable battle data: `EventBus`, timing scalars, terrain handle, `pendingOrders`, and all **managers** (units, projectiles, effects, cards, special tiles, level events). `GameEngine` exposes the same public API as before via getters/setters that delegate to `engine.state`.
 
-- **Runtime state** — `GameEngine` holds scalar timing fields (`gameTime`, `gameTick`, `roundNumber`), the random seed, pause/waiting state, and delegates collection storage to managers (`UnitManager`, `ProjectileManager`, `EffectManager`, `CardManager`, `SpecialTileManager`, `LevelEventManager`). Managers are accessed through the `EngineContext` interface.
-- **Serialized form** — `SerializedGameState` (`game/types.ts`) is the checkpoint/wire format. `GameEngine.toJSON()` assembles it by reading scalars and calling each manager's `toJSON()`. `GameEngine.fromJSON()` is the only place that deserializes a snapshot into the live object graph.
+- **Runtime state** — Lives on `GameState`; `GameEngine` forwards `EngineContext` (timing, terrain, collections) to managers.
+- **Serialized form** — `SerializedGameState` (`game/types.ts`) is the checkpoint/wire format. `GameEngine.toJSON()` / `fromJSON()` coordinate deserialization and call each manager's `toJSON` / `restoreFromJSON` on `engine.state`. `GameEngine.fromJSON()` remains the only place that deserializes a snapshot into the live object graph.
 - **`EngineContext`** — The interface managers use to reference the engine without depending on the full class. It defines the contract (timing fields, `EventBus`, terrain, collection accessors, add/get helpers). New manager code should depend on `EngineContext`, not `GameEngine` directly.
 
 ### EventBus

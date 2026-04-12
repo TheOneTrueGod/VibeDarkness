@@ -33,14 +33,8 @@ import { getLightGrid, type LightSource } from './LightGrid';
 import { getDeathEffectDef } from './units/unit_defs/unitDef';
 import type { CardDefId } from '../card_defs';
 import type { EngineContext } from './EngineContext';
+import { GameState } from './GameState';
 import { computeSynchash } from '../../../utils/synchash';
-
-import { UnitManager } from './managers/UnitManager';
-import { ProjectileManager } from './managers/ProjectileManager';
-import { EffectManager } from './managers/EffectManager';
-import { CardManager } from './managers/CardManager';
-import { SpecialTileManager } from './managers/SpecialTileManager';
-import { LevelEventManager } from './managers/LevelEventManager';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -67,110 +61,170 @@ const FULL_DARKNESS_THRESHOLD = -20;
 const HIGH_DARKNESS_THRESHOLD = -15;
 
 export class GameEngine implements EngineContext {
-    // -- Core state --
-    readonly eventBus: EventBus = new EventBus();
-    /** Deterministic RNG seed (host-generated before initial sync). */
-    randomSeed: number = 0;
-    gameTime: number = 0;
-    gameTick: number = 0;
-    roundNumber: number = 1;
-    snapshotIndex: number = 0;
-    isPaused: boolean = true;
-    waitingForOrders: WaitingForOrders | null = null;
-    /** Hash of serialized state at current tick; from server on load, recomputed after each sim tick while unpaused. */
-    synchash: string | null = null;
+    /** Simulation data: managers, terrain, queues, timing scalars. */
+    readonly state = new GameState(this);
 
-    // -- Managers --
-    private unitManager: UnitManager;
-    private projectileManager: ProjectileManager;
-    private effectManager: EffectManager;
-    private cardManager: CardManager;
-    private specialTileManager: SpecialTileManager;
-    private levelEventManager: LevelEventManager;
+    // -- Loop / orchestration (not stored on GameState) --
+    private accumulator = 0;
+    private lastTimestamp = 0;
+    private animFrameId = 0;
+    private running = false;
+    private synchashUpdateSeq = 0;
 
-    // -- Terrain --
-    terrainManager: TerrainManager | null = null;
-
-    /** Orders scheduled to be applied at specific game ticks. */
-    pendingOrders: OrderAtTick[] = [];
-
-    // -- Loop state --
-    private accumulator: number = 0;
-    private lastTimestamp: number = 0;
-    private animFrameId: number = 0;
-    private running: boolean = false;
-    private synchashUpdateSeq: number = 0;
-
-    // -- Callbacks --
+    // -- Callbacks (engine wiring, not serialized) --
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
     private onRoundEnd: ((roundNumber: number) => void) | null = null;
     private onStateChanged: EngineStateCallback | null = null;
     private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
 
-    /** The local player's ID. */
-    localPlayerId: string = '';
+    get eventBus(): EventBus {
+        return this.state.eventBus;
+    }
 
-    /** AI controller ID for enemy units. */
-    aiControllerId: string | null = null;
-    /** Mission light config. */
-    lightLevelEnabled: boolean = true;
-    globalLightLevel: number = 0;
+    get randomSeed(): number {
+        return this.state.randomSeed;
+    }
+    set randomSeed(v: number) {
+        this.state.randomSeed = v;
+    }
 
-    constructor() {
-        this.unitManager = new UnitManager(this);
-        this.projectileManager = new ProjectileManager(this);
-        this.effectManager = new EffectManager(this);
-        this.cardManager = new CardManager(this);
-        this.specialTileManager = new SpecialTileManager(this);
-        this.levelEventManager = new LevelEventManager(this);
+    get gameTime(): number {
+        return this.state.gameTime;
+    }
+    set gameTime(v: number) {
+        this.state.gameTime = v;
+    }
+
+    get gameTick(): number {
+        return this.state.gameTick;
+    }
+    set gameTick(v: number) {
+        this.state.gameTick = v;
+    }
+
+    get roundNumber(): number {
+        return this.state.roundNumber;
+    }
+    set roundNumber(v: number) {
+        this.state.roundNumber = v;
+    }
+
+    get snapshotIndex(): number {
+        return this.state.snapshotIndex;
+    }
+    set snapshotIndex(v: number) {
+        this.state.snapshotIndex = v;
+    }
+
+    get isPaused(): boolean {
+        return this.state.isPaused;
+    }
+    set isPaused(v: boolean) {
+        this.state.isPaused = v;
+    }
+
+    get waitingForOrders(): WaitingForOrders | null {
+        return this.state.waitingForOrders;
+    }
+    set waitingForOrders(v: WaitingForOrders | null) {
+        this.state.waitingForOrders = v;
+    }
+
+    get synchash(): string | null {
+        return this.state.synchash;
+    }
+    set synchash(v: string | null) {
+        this.state.synchash = v;
+    }
+
+    get terrainManager(): TerrainManager | null {
+        return this.state.terrainManager;
+    }
+    set terrainManager(v: TerrainManager | null) {
+        this.state.terrainManager = v;
+    }
+
+    get pendingOrders(): OrderAtTick[] {
+        return this.state.pendingOrders;
+    }
+    set pendingOrders(v: OrderAtTick[]) {
+        this.state.pendingOrders = v;
+    }
+
+    get localPlayerId(): string {
+        return this.state.localPlayerId;
+    }
+    set localPlayerId(v: string) {
+        this.state.localPlayerId = v;
+    }
+
+    get aiControllerId(): string | null {
+        return this.state.aiControllerId;
+    }
+    set aiControllerId(v: string | null) {
+        this.state.aiControllerId = v;
+    }
+
+    get lightLevelEnabled(): boolean {
+        return this.state.lightLevelEnabled;
+    }
+    set lightLevelEnabled(v: boolean) {
+        this.state.lightLevelEnabled = v;
+    }
+
+    get globalLightLevel(): number {
+        return this.state.globalLightLevel;
+    }
+    set globalLightLevel(v: number) {
+        this.state.globalLightLevel = v;
     }
 
     // ========================================================================
     // Facade Getters / Methods
     // ========================================================================
 
-    get units(): Unit[] { return this.unitManager.units; }
-    get projectiles(): Projectile[] { return this.projectileManager.projectiles; }
-    get effects(): Effect[] { return this.effectManager.effects; }
-    get specialTiles(): SpecialTile[] { return this.specialTileManager.specialTiles; }
-    get cards(): Record<string, import('./managers/CardManager').CardInstance[]> { return this.cardManager.cards; }
-    set cards(value: Record<string, import('./managers/CardManager').CardInstance[]>) { this.cardManager.cards = value; }
+    get units(): Unit[] { return this.state.unitManager.units; }
+    get projectiles(): Projectile[] { return this.state.projectileManager.projectiles; }
+    get effects(): Effect[] { return this.state.effectManager.effects; }
+    get specialTiles(): SpecialTile[] { return this.state.specialTileManager.specialTiles; }
+    get cards(): Record<string, import('./managers/CardManager').CardInstance[]> { return this.state.cardManager.cards; }
+    set cards(value: Record<string, import('./managers/CardManager').CardInstance[]>) { this.state.cardManager.cards = value; }
 
     get playerResearchTreesByPlayer(): Record<string, Record<string, string[]>> {
-        return this.cardManager.playerResearchTreesByPlayer;
+        return this.state.cardManager.playerResearchTreesByPlayer;
     }
     set playerResearchTreesByPlayer(value: Record<string, Record<string, string[]>>) {
-        this.cardManager.playerResearchTreesByPlayer = value;
+        this.state.cardManager.playerResearchTreesByPlayer = value;
     }
 
-    addUnit(unit: Unit): void { this.unitManager.addUnit(unit); }
-    getUnit(id: string): Unit | undefined { return this.unitManager.getUnit(id); }
-    getUnits(): Unit[] { return this.unitManager.getUnits(); }
-    getLocalPlayerUnit(): Unit | undefined { return this.unitManager.getLocalPlayerUnit(this.localPlayerId); }
-    getAllies(caster: Unit): Unit[] { return this.unitManager.getAllies(caster); }
+    addUnit(unit: Unit): void { this.state.unitManager.addUnit(unit); }
+    getUnit(id: string): Unit | undefined { return this.state.unitManager.getUnit(id); }
+    getUnits(): Unit[] { return this.state.unitManager.getUnits(); }
+    getLocalPlayerUnit(): Unit | undefined { return this.state.unitManager.getLocalPlayerUnit(this.localPlayerId); }
+    getAllies(caster: Unit): Unit[] { return this.state.unitManager.getAllies(caster); }
 
-    addProjectile(projectile: Projectile): void { this.projectileManager.addProjectile(projectile); }
+    addProjectile(projectile: Projectile): void { this.state.projectileManager.addProjectile(projectile); }
 
-    addEffect(effect: Effect): void { this.effectManager.addEffect(effect); }
+    addEffect(effect: Effect): void { this.state.effectManager.addEffect(effect); }
 
-    addSpecialTile(tile: SpecialTile): void { this.specialTileManager.addSpecialTile(tile); }
-    damageSpecialTile(tileId: string, amount: number): boolean { return this.specialTileManager.damageSpecialTile(tileId, amount); }
-    getCrystalProtectionMap(): Map<string, number> { return this.specialTileManager.getCrystalProtectionMap(); }
-    getCrystalProtectedSet(): Set<string> { return this.specialTileManager.getCrystalProtectedSet(); }
-    getCrystalProtectionCount(col: number, row: number): number { return this.specialTileManager.getCrystalProtectionCount(col, row); }
-    getDarkCrystalFilterSet(): Set<string> { return this.specialTileManager.getDarkCrystalFilterSet(); }
+    addSpecialTile(tile: SpecialTile): void { this.state.specialTileManager.addSpecialTile(tile); }
+    damageSpecialTile(tileId: string, amount: number): boolean { return this.state.specialTileManager.damageSpecialTile(tileId, amount); }
+    getCrystalProtectionMap(): Map<string, number> { return this.state.specialTileManager.getCrystalProtectionMap(); }
+    getCrystalProtectedSet(): Set<string> { return this.state.specialTileManager.getCrystalProtectedSet(); }
+    getCrystalProtectionCount(col: number, row: number): number { return this.state.specialTileManager.getCrystalProtectionCount(col, row); }
+    getDarkCrystalFilterSet(): Set<string> { return this.state.specialTileManager.getDarkCrystalFilterSet(); }
 
-    drawCardsForPlayer(playerId: string, count: number): number { return this.cardManager.drawCardsForPlayer(playerId, count); }
-    fillHandInnateFirst(playerId: string, maxHandSize: number): void { this.cardManager.fillHandInnateFirst(playerId, maxHandSize); }
-    transferCardToAllyDeck(caster: Unit, cardDefId: CardDefId, abilityId: string): void { this.cardManager.transferCardToAllyDeck(caster, cardDefId, abilityId); }
-    setPlayerResearchTreesByPlayer(map: Record<string, Record<string, string[]>>): void { this.cardManager.setPlayerResearchTreesByPlayer(map); }
-    getPlayerResearchNodes(playerId: string, treeId: string): string[] { return this.cardManager.getPlayerResearchNodes(playerId, treeId); }
+    drawCardsForPlayer(playerId: string, count: number): number { return this.state.cardManager.drawCardsForPlayer(playerId, count); }
+    fillHandInnateFirst(playerId: string, maxHandSize: number): void { this.state.cardManager.fillHandInnateFirst(playerId, maxHandSize); }
+    transferCardToAllyDeck(caster: Unit, cardDefId: CardDefId, abilityId: string): void { this.state.cardManager.transferCardToAllyDeck(caster, cardDefId, abilityId); }
+    setPlayerResearchTreesByPlayer(map: Record<string, Record<string, string[]>>): void { this.state.cardManager.setPlayerResearchTreesByPlayer(map); }
+    getPlayerResearchNodes(playerId: string, treeId: string): string[] { return this.state.cardManager.getPlayerResearchNodes(playerId, treeId); }
 
-    registerLevelEvents(events: LevelEvent[]): void { this.levelEventManager.registerLevelEvents(events); }
-    setLevelEvents(events: LevelEvent[]): void { this.levelEventManager.setLevelEvents(events); }
-    setOnEmitMessage(cb: (text: string, npcId?: string) => void): void { this.levelEventManager.setOnEmitMessage(cb); }
-    setOnVictory(cb: (missionResult: string) => void): void { this.levelEventManager.setOnVictory(cb); }
-    setOnDefeat(cb: () => void): void { this.levelEventManager.setOnDefeat(cb); }
+    registerLevelEvents(events: LevelEvent[]): void { this.state.levelEventManager.registerLevelEvents(events); }
+    setLevelEvents(events: LevelEvent[]): void { this.state.levelEventManager.setLevelEvents(events); }
+    setOnEmitMessage(cb: (text: string, npcId?: string) => void): void { this.state.levelEventManager.setOnEmitMessage(cb); }
+    setOnVictory(cb: (missionResult: string) => void): void { this.state.levelEventManager.setOnVictory(cb); }
+    setOnDefeat(cb: () => void): void { this.state.levelEventManager.setOnDefeat(cb); }
 
     // ========================================================================
     // World
@@ -192,8 +246,8 @@ export class GameEngine implements EngineContext {
 
     getAllLightSources(): LightSource[] {
         return [
-            ...this.specialTileManager.buildLightSourcesFromSpecialTiles(),
-            ...this.effectManager.buildLightSourcesFromEffects(),
+            ...this.state.specialTileManager.buildLightSourcesFromSpecialTiles(),
+            ...this.state.effectManager.buildLightSourcesFromEffects(),
         ];
     }
 
@@ -257,7 +311,7 @@ export class GameEngine implements EngineContext {
         this.localPlayerId = config.localPlayerId;
         this.terrainManager = config.terrainManager ?? null;
         this.aiControllerId = config.aiControllerId ?? null;
-        this.levelEventManager.resetTerminalState();
+        this.state.levelEventManager.resetTerminalState();
         resetGameObjectIdCounter(1);
         if (config.isHost) {
             this.randomSeed = this.generateHostSeed();
@@ -335,7 +389,7 @@ export class GameEngine implements EngineContext {
         const frameTime = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
         this.lastTimestamp = timestamp;
 
-        if (!this.levelEventManager.isTerminal && !this.isPaused) {
+        if (!this.state.levelEventManager.isTerminal && !this.isPaused) {
             this.accumulator += frameTime;
         }
 
@@ -354,7 +408,7 @@ export class GameEngine implements EngineContext {
     }
 
     private fixedUpdate(dt: number): void {
-        if (this.levelEventManager.isTerminal) return;
+        if (this.state.levelEventManager.isTerminal) return;
 
         this.gameTime += dt;
         this.gameTick++;
@@ -366,8 +420,8 @@ export class GameEngine implements EngineContext {
             this.applyOrderLogic(order);
         }
 
-        this.specialTileManager.processSpecialTileLightDecays();
-        this.effectManager.processTorchEffectDecays();
+        this.state.specialTileManager.processSpecialTileLightDecays();
+        this.state.effectManager.processTorchEffectDecays();
 
         // Check for round end
         const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
@@ -377,19 +431,19 @@ export class GameEngine implements EngineContext {
             this.roundNumber++;
         }
 
-        this.levelEventManager.processLevelEvents();
+        this.state.levelEventManager.processLevelEvents();
         this.processActiveAbilities(dt);
         this.processUnitTicks(dt);
-        this.unitManager.processCrystalAura();
+        this.state.unitManager.processCrystalAura();
         this.processCorrupting(dt);
         this.processPlayerDarknessCorruption(dt);
-        this.projectileManager.update(dt);
-        this.effectManager.update(dt);
-        this.cardManager.processDiscardSeconds();
-        this.unitManager.cleanupInactive();
-        this.projectileManager.cleanupInactive();
-        this.effectManager.cleanupInactive();
-        this.levelEventManager.runDefeatCheck();
+        this.state.projectileManager.update(dt);
+        this.state.effectManager.update(dt);
+        this.state.cardManager.processDiscardSeconds();
+        this.state.unitManager.cleanupInactive();
+        this.state.projectileManager.cleanupInactive();
+        this.state.effectManager.cleanupInactive();
+        this.state.levelEventManager.runDefeatCheck();
         this.scheduleSynchashUpdate();
     }
 
@@ -417,14 +471,14 @@ export class GameEngine implements EngineContext {
             unit.update(dt, this);
 
             if (this.shouldPauseForOrders(unit)) {
-                this.levelEventManager.runVictoryChecks();
+                this.state.levelEventManager.runVictoryChecks();
                 this.pauseForOrders(unit);
                 this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
                 return;
             }
 
             if (!unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
-                this.levelEventManager.runVictoryChecks();
+                this.state.levelEventManager.runVictoryChecks();
                 const tree = getUnitAITree(unit.unitAITreeId);
                 if (tree) {
                     runUnitAI(unit, tree, this.buildAIContext());
@@ -545,14 +599,14 @@ export class GameEngine implements EngineContext {
             targets: targets.map((t) => ({ ...t })),
         });
 
-        this.cardManager.trackAbilityUse(unit.id, ability.id);
+        this.state.cardManager.trackAbilityUse(unit.id, ability.id);
 
         this.eventBus.emit('ability_used', {
             unitId: unit.id,
             abilityId: ability.id,
         });
 
-        this.cardManager.onCardUsed(unit, ability);
+        this.state.cardManager.onCardUsed(unit, ability);
     }
 
     // ========================================================================
@@ -636,7 +690,7 @@ export class GameEngine implements EngineContext {
             emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId }),
             generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
             getAbilityUsesThisRound: (unitId, abilityId) =>
-                this.cardManager.getAbilityUsesThisRound(unitId, abilityId),
+                this.state.cardManager.getAbilityUsesThisRound(unitId, abilityId),
             WORLD_WIDTH: this.getWorldWidth(),
             WORLD_HEIGHT: this.getWorldHeight(),
             hasLineOfSight: (fromX, fromY, toX, toY) =>
@@ -773,9 +827,9 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     private handleRoundEnd(_roundNumber: number): void {
-        this.cardManager.clearAbilityUses();
-        this.effectManager.handleRoundEndTorchDecay(this.roundNumber);
-        this.cardManager.handleRoundEndCards();
+        this.state.cardManager.clearAbilityUses();
+        this.state.effectManager.handleRoundEndTorchDecay(this.roundNumber);
+        this.state.cardManager.handleRoundEndCards();
     }
 
     // ========================================================================
@@ -792,21 +846,21 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     toJSON(): SerializedGameState {
-        const levelEventData = this.levelEventManager.toJSON();
-        const cardData = this.cardManager.toJSON();
+        const levelEventData = this.state.levelEventManager.toJSON();
+        const cardData = this.state.cardManager.toJSON();
         return {
             randomSeed: this.randomSeed,
             gameTime: this.gameTime,
             gameTick: this.gameTick,
             roundNumber: this.roundNumber,
             snapshotIndex: this.snapshotIndex,
-            units: this.unitManager.toJSON(),
-            projectiles: this.projectileManager.toJSON(),
-            effects: this.effectManager.toJSON(),
+            units: this.state.unitManager.toJSON(),
+            projectiles: this.state.projectileManager.toJSON(),
+            effects: this.state.effectManager.toJSON(),
             cards: cardData.cards as Record<string, import('./types').SerializedCardInstance[]>,
             waitingForOrders: this.waitingForOrders,
             orders: this.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
-            specialTiles: this.specialTileManager.toJSON() as unknown as import('./types').SerializedSpecialTile[],
+            specialTiles: this.state.specialTileManager.toJSON() as unknown as import('./types').SerializedSpecialTile[],
             aiControllerId: this.aiControllerId,
             firedEventIndices: levelEventData.firedEventIndices,
             victoryCheckFirstEmitDone: levelEventData.victoryCheckFirstEmitDone,
@@ -827,7 +881,7 @@ export class GameEngine implements EngineContext {
         engine.waitingForOrders = data.waitingForOrders;
         engine.aiControllerId = data.aiControllerId ?? null;
 
-        engine.levelEventManager.restoreFromJSON({
+        engine.state.levelEventManager.restoreFromJSON({
             firedEventIndices: data.firedEventIndices,
             victoryCheckFirstEmitDone: data.victoryCheckFirstEmitDone,
             continuousSpawnLastSpawnedAt: data.continuousSpawnLastSpawnedAt,
@@ -849,19 +903,19 @@ export class GameEngine implements EngineContext {
         }
 
         // Restore units (direct push, bypasses addUnit jitter since state is serialized)
-        engine.unitManager.restoreFromJSON(data.units, engine.eventBus);
+        engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus);
 
         // Restore projectiles
-        engine.projectileManager.restoreFromJSON(data.projectiles);
+        engine.state.projectileManager.restoreFromJSON(data.projectiles);
 
         // Restore effects
-        engine.effectManager.restoreFromJSON(data.effects);
+        engine.state.effectManager.restoreFromJSON(data.effects);
 
         // Restore special tiles
-        engine.specialTileManager.restoreFromJSON(data.specialTiles ?? []);
+        engine.state.specialTileManager.restoreFromJSON(data.specialTiles ?? []);
 
         // Restore cards + research trees
-        engine.cardManager.restoreFromJSON(data.cards, data.playerResearchTreesByPlayer);
+        engine.state.cardManager.restoreFromJSON(data.cards, data.playerResearchTreesByPlayer);
 
         // Advance global game-object ID counter
         advanceGameObjectIdCounterFromSnapshot(data);
@@ -893,10 +947,10 @@ export class GameEngine implements EngineContext {
             unit.detachAllResources(this.eventBus);
         }
         this.eventBus.clear();
-        this.unitManager.units = [];
-        this.projectileManager.projectiles = [];
-        this.effectManager.effects = [];
-        this.specialTileManager.specialTiles = [];
+        this.state.unitManager.units = [];
+        this.state.projectileManager.projectiles = [];
+        this.state.effectManager.effects = [];
+        this.state.specialTileManager.specialTiles = [];
     }
 }
 

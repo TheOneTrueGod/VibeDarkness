@@ -7,7 +7,7 @@ description: Architecture of the GameEngine manager-of-managers pattern, tick lo
 
 ## Overview
 
-`GameEngine` (`app/js/games/minion_battles/game/GameEngine.ts`) is a thin orchestrator that delegates data ownership to specialized manager classes. External code continues to use `engine.units`, `engine.addUnit(u)`, etc. through **facade getters and methods**.
+`GameEngine` (`GameEngine.ts`) orchestrates the tick loop and domain rules. Mutable simulation data (managers, timing scalars, `EventBus`, terrain pointer, `pendingOrders`) lives on **`GameState`** (`GameState.ts`), created as `engine.state`. External code still uses `engine.units`, `engine.addUnit(u)`, etc. through **facade getters and methods** on `GameEngine`.
 
 ## Manager Ownership
 
@@ -26,18 +26,11 @@ See each manager's file for its public API and `toJSON`/`restoreFromJSON` method
 
 `game/EngineContext.ts` defines the minimal interface that managers use to access the engine. GameEngine implements it and passes `this` to each manager's constructor. Managers store a `ctx: EngineContext` reference and access cross-cutting state through it.
 
-## What Stays in GameEngine
+## What lives on `GameState` vs `GameEngine`
 
-- **Game loop**: `start()`, `stop()`, `loop()`, `fixedUpdate()` orchestration
-- **Timing**: `gameTime`, `gameTick`, `roundNumber`, `snapshotIndex`
-- **RNG**: `randomSeed`, `generateRandomNumber()`, `generateRandomInteger()`
-- **EventBus**: creation and ownership
-- **Turn/pause**: `pauseForOrders()`, `applyOrder()`, `queueOrder()`, `resumeAfterOrders()`
-- **Ability execution**: `executeAbility()`, `processActiveAbilities()`, `cancelActiveAbility()`, `interruptUnitAndRefundAbilities()`
-- **AI context**: `buildAIContext()`
-- **Cross-cutting tick logic**: `processCorrupting()`, `processPlayerDarknessCorruption()`, light aggregation
-- **Facade getters/methods**: backward-compatible public API
-- **Serialization orchestration**: `toJSON()` assembles from managers, `fromJSON()` distributes to managers
+**`GameState`** holds: `eventBus`, timing scalars (`gameTime`, `gameTick`, `roundNumber`, `snapshotIndex`, `randomSeed`, pause/waiting, `synchash`), `terrainManager`, `pendingOrders`, `localPlayerId`, `aiControllerId`, light config, and all **manager instances**.
+
+**`GameEngine`** holds: **loop state** (`accumulator`, `lastTimestamp`, `animFrameId`, `running`, `synchashUpdateSeq`), **callbacks** (`onWaitingForOrders`, `onCheckpoint`, etc.), and implements the tick loop, RNG methods, turn/order logic, ability execution, AI context, cross-cutting tick helpers, facade API, and `toJSON` / `fromJSON` orchestration.
 
 ## fixedUpdate Flow
 
