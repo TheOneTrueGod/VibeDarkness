@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AccountState } from '../types';
 import { LobbyClient } from '../LobbyClient';
 import CharacterEditor from '../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
+import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../games/minion_battles/character_defs/campaignCharacterTypes';
 import { getPortrait } from '../games/minion_battles/character_defs/portraits';
@@ -133,6 +134,7 @@ function ItemCard({
 
 export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: LobbyClient }) {
     const { user } = useUser();
+    const api = useMemo(() => new MinionBattlesApi(lobbyClient, '', '', ''), [lobbyClient]);
     const [accounts, setAccounts] = useState<AccountState[]>([]);
     const [accountsLoading, setAccountsLoading] = useState(false);
 
@@ -444,7 +446,7 @@ export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: Lo
                             <CharacterEditor
                                 key={selectedCharacter.id}
                                 character={selectedCharacter}
-                                lobbyClient={lobbyClient}
+                                api={api}
                                 onSaved={handleSaved}
                                 onClose={() => {}}
                                 editMode

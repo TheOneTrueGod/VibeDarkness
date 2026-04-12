@@ -14,6 +14,7 @@ import type { PlayerState, AccountState, LobbyState, GameSidebarInfo } from '../
 import { LobbyClient } from '../LobbyClient';
 import { getGameById } from '../games/list';
 import { useGameSyncOptional } from '../contexts/GameSyncContext';
+import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -36,6 +37,8 @@ export interface GameComponentProps {
     lobbyId: string;
     gameId: string;
     playerId: string;
+    /** When set (Minion Battles), the game should prefer this over constructing its own facade. */
+    minionBattlesApi?: MinionBattlesApi;
     isHost: boolean;
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
@@ -132,6 +135,11 @@ export default function GameScreen({
     const effectivePlayers = gameSync?.gameState?.players
         ? Object.fromEntries(Object.entries(gameSync.gameState.players).map(([k, p]) => [k, p as PlayerState]))
         : players;
+
+    const minionBattlesApi = useMemo((): MinionBattlesApi | undefined => {
+        if (effectiveLobbyGameType !== 'minion_battles') return undefined;
+        return new MinionBattlesApi(lobbyClient, lobby.id, effectiveLobbyGameId ?? '', player.id);
+    }, [effectiveLobbyGameType, lobbyClient, lobby.id, effectiveLobbyGameId, player.id]);
 
     const isLoading = gameSync?.syncStatus === 'loading';
     const isResyncing = gameSync?.syncStatus === 'resyncing';
@@ -383,6 +391,7 @@ export default function GameScreen({
                                         lobbyClient={lobbyClient}
                                         lobbyId={lobby.id}
                                         gameId={effectiveLobbyGameId ?? ''}
+                                        minionBattlesApi={minionBattlesApi}
                                         playerId={player.id}
                                         isHost={isHost}
                                         players={effectivePlayers}

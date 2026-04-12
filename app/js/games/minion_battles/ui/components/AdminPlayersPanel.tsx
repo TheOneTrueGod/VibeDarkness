@@ -4,7 +4,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PlayerState, AccountState } from '../../../../types';
-import { LobbyClient } from '../../../../LobbyClient';
+import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import CharacterEditor from './CharacterEditor/CharacterEditor';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../../character_defs/campaignCharacterTypes';
@@ -13,7 +13,7 @@ import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../../character_de
 import { useUser } from '../../../../contexts/UserContext';
 
 interface AdminPlayersPanelProps {
-    lobbyClient: LobbyClient;
+    api: MinionBattlesApi;
     players: Record<string, PlayerState>;
 }
 
@@ -142,7 +142,7 @@ function ItemCard({
     );
 }
 
-export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayersPanelProps) {
+export default function AdminPlayersPanel({ api, players }: AdminPlayersPanelProps) {
     const { user } = useUser();
     const playerList = useMemo(() => sortPlayers(players), [players]);
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -158,7 +158,7 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
         async (playerId: string) => {
             setLoading(true);
             try {
-                const res = await lobbyClient.getAdminAccountDetails(playerId);
+                const res = await api.getAdminAccountDetails(playerId);
                 setDetails({
                     account: res.account as AccountState,
                     characters: (res.characters as CampaignCharacterData[]).map((data) => fromCampaignCharacterData(data)),
@@ -170,7 +170,7 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
                 setLoading(false);
             }
         },
-        [lobbyClient],
+        [api],
     );
 
     useEffect(() => {
@@ -218,24 +218,24 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
     const handleGrantItem = useCallback(async () => {
         if (!selectedPlayerId || !grantItemId) return;
         try {
-            await lobbyClient.grantAccountItem(selectedPlayerId, grantItemId);
+            await api.grantAccountItem(selectedPlayerId, grantItemId);
             await refreshCurrentPlayer();
         } catch (error) {
             console.error('Failed to grant item:', error);
         }
-    }, [grantItemId, lobbyClient, refreshCurrentPlayer, selectedPlayerId]);
+    }, [grantItemId, api, refreshCurrentPlayer, selectedPlayerId]);
 
     const handleRemoveItem = useCallback(
         async (itemId: string) => {
             if (!selectedPlayerId) return;
             try {
-                await lobbyClient.removeAccountItem(selectedPlayerId, itemId);
+                await api.removeAccountItem(selectedPlayerId, itemId);
                 await refreshCurrentPlayer();
             } catch (error) {
                 console.error('Failed to remove item:', error);
             }
         },
-        [lobbyClient, refreshCurrentPlayer, selectedPlayerId],
+        [api, refreshCurrentPlayer, selectedPlayerId],
     );
 
     const handleSaved = useCallback(() => {
@@ -348,7 +348,7 @@ export default function AdminPlayersPanel({ lobbyClient, players }: AdminPlayers
                             <CharacterEditor
                                 key={selectedCharacter.id}
                                 character={selectedCharacter}
-                                lobbyClient={lobbyClient}
+                                api={api}
                                 onSaved={handleSaved}
                                 onClose={() => {}}
                                 editMode

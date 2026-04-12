@@ -8,7 +8,8 @@
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { PlayerState, GameSidebarInfo } from '../../types';
-import { LobbyClient } from '../../LobbyClient';
+import type { LobbyClient } from '../../LobbyClient';
+import type { GameComponentProps } from '../../components/GameScreen';
 import { useLocalOverrides } from '../../hooks/useLocalOverrides';
 import { useToast } from '../../contexts/ToastContext';
 import type { GamePhase } from './state';
@@ -22,6 +23,7 @@ import { SPECTATOR_ID } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
 import VictoryModal from './ui/components/VictoryModal';
+import { MinionBattlesApi } from './api/minionBattlesApi';
 
 /** Determine the winning mission from votes (most votes, or first alphabetically on tie). */
 function getSelectedMission(votes: Record<string, string>): string {
@@ -40,7 +42,7 @@ function getSelectedMission(votes: Record<string, string>): string {
     return best;
 }
 
-interface MinionBattlesGameProps {
+interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattlesApi'> {
     lobbyClient: LobbyClient;
     lobbyId: string;
     gameId: string;
@@ -68,6 +70,7 @@ interface MinionBattlesGameProps {
 }
 
 export default function MinionBattlesGame({
+    minionBattlesApi: minionBattlesApiProp,
     lobbyClient,
     lobbyId,
     gameId,
@@ -84,6 +87,12 @@ export default function MinionBattlesGame({
     onBattleStartStatusChange,
 }: MinionBattlesGameProps) {
     const { showToast } = useToast();
+    const api = useMemo(
+        () =>
+            minionBattlesApiProp ??
+            new MinionBattlesApi(lobbyClient, lobbyId, gameId, playerId),
+        [minionBattlesApiProp, lobbyClient, lobbyId, gameId, playerId],
+    );
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
     const [victoryModalOpen, setVictoryModalOpen] = useState(false);
     const raw = gameData ?? {};
@@ -280,9 +289,7 @@ export default function MinionBattlesGame({
         <div className={`w-full h-full ${gamePhase === 'battle' ? 'overflow-hidden' : 'overflow-auto'}`}>
             {gamePhase === 'mission_select' && (
                 <MissionSelectPhase
-                    lobbyClient={lobbyClient}
-                    lobbyId={lobbyId}
-                    gameId={gameId}
+                    api={api}
                     playerId={playerId}
                     isHost={isHost}
                     players={players}
@@ -294,9 +301,7 @@ export default function MinionBattlesGame({
             )}
             {gamePhase === 'character_select' && (
                 <CharacterSelectPhase
-                    lobbyClient={lobbyClient}
-                    lobbyId={lobbyId}
-                    gameId={gameId}
+                    api={api}
                     playerId={playerId}
                     isHost={isHost}
                     isAdmin={isAdmin}
@@ -314,9 +319,7 @@ export default function MinionBattlesGame({
             )}
             {gamePhase === 'post_mission_story' && postMissionStory && (
                 <PostMissionStoryPhase
-                    lobbyClient={lobbyClient}
-                    lobbyId={lobbyId}
-                    gameId={gameId}
+                    api={api}
                     playerId={playerId}
                     missionId={selectedMissionId}
                     players={players}
@@ -358,9 +361,7 @@ export default function MinionBattlesGame({
             )}
             {gamePhase === 'pre_mission_story' && preMissionStory && (
                 <PreMissionStoryPhase
-                    lobbyClient={lobbyClient}
-                    lobbyId={lobbyId}
-                    gameId={gameId}
+                    api={api}
                     playerId={playerId}
                     isHost={isHost}
                     missionId={selectedMissionId}
@@ -385,9 +386,7 @@ export default function MinionBattlesGame({
             {gamePhase === 'battle' && (
                 <BattlePhase
                     key={`battle-${(battleInitState as Record<string, unknown>)?.synchash ?? (battleInitState as Record<string, unknown>)?.gameTick ?? (battleInitState as Record<string, unknown>)?.game_tick ?? 'init'}`}
-                    lobbyClient={lobbyClient}
-                    lobbyId={lobbyId}
-                    gameId={gameId}
+                    api={api}
                     playerId={playerId}
                     isHost={isHost}
                     players={players}
@@ -400,16 +399,16 @@ export default function MinionBattlesGame({
                         const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
                         if (postMissionStory) {
                             if (isHost) {
-                                lobbyClient
-                                    .updateGameState(lobbyId, gameId, playerId, {
+                                api
+                                    .updateGameState({
                                         gamePhase: 'post_mission_story',
                                     })
                                     .then((newState) => {
                                         handlePhaseChange('post_mission_story', newState as Record<string, unknown>);
                                     })
                                     .catch(() => {});
-                                lobbyClient
-                                    .sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
+                                api
+                                    .sendMessage(MessageType.GAME_PHASE_CHANGED, {
                                         gamePhase: 'post_mission_story',
                                     })
                                     .catch(() => {});

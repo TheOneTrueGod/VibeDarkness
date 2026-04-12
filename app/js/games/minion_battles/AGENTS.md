@@ -8,7 +8,7 @@
 
 - Frontend for this game: `app/js/games/minion_battles/*`
 - Backend (PHP API, checkpoints, etc.): `backend/*`
-- API clients live in `app/js/LobbyClient.ts` (project-wide). There is no `api/` directory under `minion_battles` yet.
+- HTTP helpers for this game live in `app/js/games/minion_battles/api/` (`MinionBattlesApi`, `types.ts`), wrapping the project-wide `app/js/LobbyClient.ts`.
 
 ### Directory layout
 
@@ -26,6 +26,7 @@
 | `game/specialTiles/` | `SpecialTile` runtime objects |
 | `ui/components/` | React UI components (`BattleCanvas`, `CardHand`, `BattleTimeline`, `CharacterEditor/`, etc.) |
 | `ui/pages/` | Phase-level React components (`BattlePhase`, `CharacterSelectPhase`, `MissionSelectPhase`, etc.) |
+| `api/` | `MinionBattlesApi` (HTTP facade), `types.ts` (DTOs for lobby game JSON, characters, admin) |
 | `terrain/` | `TerrainManager`, `TerrainGrid`, `Pathfinder`, terrain tile types |
 | `abilities/` | `Ability` class, `targeting.ts`, `behaviors/`, `templates/`, preview helpers |
 | `card_defs/` | Per-card ability definition folders |

@@ -227,12 +227,12 @@ then do behavioral refactoring in later phases.
 ## Phase 7 — Create `api/` directory (new code)
 > _Subagent call: 1 step. Extract minion-battles-specific API calls._
 
-- [ ] Create `api/` directory under `minion_battles/`
-- [ ] Extract minion-battles-specific methods from `LobbyClient.ts` into
+- [x] Create `api/` directory under `minion_battles/`
+- [x] Extract minion-battles-specific methods from `LobbyClient.ts` into
   `api/minionBattlesApi.ts` (or similar)
-- [ ] Define DTO types for game state payloads in `api/types.ts`
-- [ ] Update callers (Game.tsx, phases) to use the new API module
-- [ ] Run tests — must pass
+- [x] Define DTO types for game state payloads in `api/types.ts`
+- [x] Update callers (Game.tsx, phases) to use the new API module
+- [x] Run tests — must pass
 
 ### 🧪 CHECKPOINT E — Manual testing
 > Verify all API calls work: create lobby, join, start game, checkpoint save/load.

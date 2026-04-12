@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { PlayerState, GameSidebarInfo, GameStatePayload } from '../../../../types';
-import type { LobbyClient } from '../../../../LobbyClient';
+import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { GameEngine, CHECKPOINT_INTERVAL } from '../../game/GameEngine';
 import type { CardInstance } from '../../game/GameEngine';
 import { GameRenderer } from '../../game/GameRenderer';
@@ -35,8 +35,7 @@ import { computeSynchash } from '../../../../utils/synchash';
 
 /** Parameters for {@link loadGameState}; kept in a ref so mount and full-resync use latest values. */
 interface LoadGameStateParams {
-    lobbyClient: LobbyClient;
-    lobbyId: string;
+    api: MinionBattlesApi;
     playerId: string;
     isHost: boolean;
     players: Record<string, PlayerState>;
@@ -70,7 +69,7 @@ function loadGameState(
     ctx: LoadGameStateParams,
     init: Record<string, unknown> | null | undefined,
 ): () => void {
-    ctx.lobbyClient.setCurrentPlayerId(ctx.playerId);
+    ctx.api.setCurrentPlayerId();
 
     const prevEngine = ctx.engineRef.current;
     let renderer = ctx.rendererRef.current;
@@ -186,13 +185,13 @@ function loadGameState(
             if (res.chatEntry) ctx.onEmittedChatMessage?.(res.chatEntry as MessageEntry);
         };
         if (npcId) {
-            ctx.lobbyClient
-                .sendMessage(ctx.lobbyId, ctx.playerId, MessageType.NPC_CHAT, { npcId, message: text })
+            ctx.api
+                .sendMessage(MessageType.NPC_CHAT, { npcId, message: text })
                 .then(onSent)
                 .catch(() => { });
         } else {
-            ctx.lobbyClient
-                .sendMessage(ctx.lobbyId, ctx.playerId, MessageType.CHAT, { message: text })
+            ctx.api
+                .sendMessage(MessageType.CHAT, { message: text })
                 .then(onSent)
                 .catch(() => { });
         }
@@ -262,9 +261,7 @@ declare global {
 }
 
 interface BattlePhaseProps {
-    lobbyClient: LobbyClient;
-    lobbyId: string;
-    gameId: string;
+    api: MinionBattlesApi;
     playerId: string;
     isHost: boolean;
     players: Record<string, PlayerState>;
@@ -282,9 +279,7 @@ interface BattlePhaseProps {
 }
 
 export default function BattlePhase({
-    lobbyClient,
-    lobbyId,
-    gameId,
+    api,
     playerId,
     isHost,
     players,
@@ -578,8 +573,7 @@ export default function BattlePhase({
     updateCardStateRef.current = updateCardState;
 
     loadGameStateParamsRef.current = {
-        lobbyClient,
-        lobbyId,
+        api,
         playerId,
         isHost,
         players,
@@ -791,7 +785,7 @@ export default function BattlePhase({
         const ordersFormatted = engine.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
         void gameSync?.saveCheckpoint(engine.gameTick, engine.toJSON() as unknown as Record<string, unknown>, ordersFormatted);
 
-        lobbyClient.sendMessage(lobbyId, playerId, 'battle_orders_ready', {
+        api.sendMessage('battle_orders_ready', {
             snapshotIndex: engine.snapshotIndex,
         }).catch(() => { });
     }
