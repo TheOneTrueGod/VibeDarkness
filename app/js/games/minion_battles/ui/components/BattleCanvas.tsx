@@ -115,7 +115,9 @@ export default function BattleCanvas({
         if (!renderer.isInitialized()) {
             void renderer
                 .init(canvas, width, height)
-                .then(() => {
+                .then(async () => {
+                    if (cancelled) return;
+                    await renderer.waitUntilBattleAssetGateForCanvas();
                     if (cancelled) return;
                     camera.setViewportSize(width, height);
                     startRenderLoop();
@@ -124,9 +126,13 @@ export default function BattleCanvas({
                     console.error('[BattleCanvas] Pixi init failed', err);
                 });
         } else {
-            renderer.resize(width, height);
-            camera.setViewportSize(width, height);
-            startRenderLoop();
+            void (async () => {
+                renderer.resize(width, height);
+                await renderer.waitUntilBattleAssetGateForCanvas();
+                if (cancelled) return;
+                camera.setViewportSize(width, height);
+                startRenderLoop();
+            })();
         }
 
         return () => {

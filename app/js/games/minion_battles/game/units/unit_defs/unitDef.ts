@@ -260,3 +260,35 @@ export function updateUnitHpBar(visual: Container, unit: Unit): void {
     hpFill.rect(-unit.radius, -unit.radius - 10, barWidth, 6);
     hpFill.fill(barColor);
 }
+
+/**
+ * Ensures a character sprite exists and uses `texture`, sized for the unit's radius.
+ * Call when assets finish loading after the unit visual was created with a fallback label.
+ */
+export function ensureUnitCharacterSprite(visual: Container, unit: Unit, texture: Texture): void {
+    const spriteSize = unit.radius * 2 * CHARACTER_SPRITE_SCALE;
+    let charSprite = visual.children.find((c) => c.label === 'characterSprite') as Sprite | undefined;
+    if (!charSprite) {
+        charSprite = new Sprite(texture);
+        charSprite.anchor.set(0.5, 0.5);
+        charSprite.label = 'characterSprite';
+        const bodyIdx = visual.children.findIndex((c) => c.label === 'body');
+        const insertAt = bodyIdx >= 0 ? bodyIdx + 1 : visual.children.length;
+        visual.addChildAt(charSprite, insertAt);
+    } else {
+        charSprite.texture = texture;
+    }
+    charSprite.width = spriteSize;
+    charSprite.height = spriteSize;
+}
+
+/** If a texture is now available for this unit's character sprite key, attach/update the sprite and hide the letter label. */
+export function syncUnitCharacterSpriteIfNeeded(visual: Container, unit: Unit, context: IUnitRenderContext): void {
+    const key = getCharacterSpriteKey(unit.characterId);
+    if (!key) return;
+    const texture = context.getCharacterTexture(key);
+    if (!texture) return;
+    ensureUnitCharacterSprite(visual, unit, texture);
+    const label = visual.children.find((c) => c.label === 'label');
+    if (label) label.visible = false;
+}

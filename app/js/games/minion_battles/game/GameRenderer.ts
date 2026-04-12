@@ -7,6 +7,7 @@
  */
 
 import { Application, Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START } from '../../../gameConstants';
 import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
 import type { Unit } from './units/Unit';
@@ -18,7 +19,13 @@ import type { TeamId } from './teams';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainRenderer } from '../terrain/TerrainRenderer';
-import { renderUnit, updateUnitHpBar, getBodyColor, type IUnitRenderContext } from './units/unit_defs/unitDef';
+import {
+    renderUnit,
+    updateUnitHpBar,
+    getBodyColor,
+    syncUnitCharacterSpriteIfNeeded,
+    type IUnitRenderContext,
+} from './units/unit_defs/unitDef';
 import { getBuffVisualRenderer } from '../buffs/buffVisuals';
 import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from './effectDef';
 import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from './effectImages';
@@ -55,7 +62,7 @@ const Z_INDEX = {
 const SLIME_SVG_URL = new URL('../assets/characters/slime.svg', import.meta.url).href;
 /** Melee enemy character sprite (swordwoman). */
 const SWORDWOMAN_SVG_URL = new URL('../assets/characters/swordwoman.svg', import.meta.url).href;
-/** Dark Wolf character sprite (wolf head). */
+/** Wolf (dark_wolf) character sprite (wolf head). */
 const WOLF_HEAD_SVG_URL = new URL('../assets/characters/dark_animals/wolf-head.svg', import.meta.url).href;
 /** Alpha Wolf boss character sprite (wolf howl). */
 const WOLF_HOWL_SVG_URL = new URL('../assets/characters/dark_animals/wolf-howl.svg', import.meta.url).href;
@@ -97,6 +104,9 @@ export class GameRenderer {
     private slimeTexture: Texture | null = null;
     /** Cached texture for melee enemy (swordwoman) character sprite. */
     private swordwomanTexture: Texture | null = null;
+    /** After deferred asset load, re-apply textures to unit visuals that were created with letter fallbacks. */
+    private pendingUnitCharacterSpriteSync: boolean = false;
+
     /** Cached texture for dark_wolf (wolf head) character sprite. */
     private wolfHeadTexture: Texture | null = null;
     /** Cached texture for alpha_wolf (wolf howl) character sprite. */
@@ -140,6 +150,15 @@ export class GameRenderer {
     /** True after `init` completes successfully (Pixi app is bound to a canvas). */
     isInitialized(): boolean {
         return this.initialized;
+    }
+
+    /**
+     * When {@link WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START} is true, waits for any in-flight `init`
+     * (including battle asset loading) before the battle canvas starts rendering. No-op when the flag is false.
+     */
+    async waitUntilBattleAssetGateForCanvas(): Promise<void> {
+        if (!WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START) return;
+        if (this.initInFlight) await this.initInFlight;
     }
 
     /**
@@ -198,56 +217,64 @@ export class GameRenderer {
         this.gameContainer.addChild(this.abilityPreviewGraphics);
         this.targetingPreviewGraphics.zIndex = Z_INDEX.targetingPreview;
         this.gameContainer.addChild(this.targetingPreviewGraphics);
+
+        if (WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START) {
+            await this.loadBattleAssets();
+        } else {
+            void this.loadBattleAssets();
+        }
+
         this.initialized = true;
-
-        try {
-            this.slimeTexture = (await Assets.load(SLIME_SVG_URL)) as Texture;
-        } catch {
-            // Non-fatal: ranged enemies will show the default circle + initial
-        }
-        try {
-            this.swordwomanTexture = (await Assets.load(SWORDWOMAN_SVG_URL)) as Texture;
-        } catch {
-            // Non-fatal: melee enemies will show the default circle + initial
-        }
-        try {
-            this.wolfHeadTexture = (await Assets.load(WOLF_HEAD_SVG_URL)) as Texture;
-        } catch {
-            // Non-fatal: dark_wolf will show the default circle + initial
-        }
-        try {
-            this.wolfHowlTexture = (await Assets.load(WOLF_HOWL_SVG_URL)) as Texture;
-        } catch {
-            // Non-fatal: alpha_wolf will show the default circle + initial
-        }
-        try {
-            this.boarTexture = (await Assets.load(BOAR_SVG_URL)) as Texture;
-        } catch {
-            // Non-fatal: boar will show the default circle + initial
-        }
-        const campfireDef = getSpecialTileDef('Campfire');
-        if (campfireDef?.image) {
-            try {
-                this.campfireTexture = (await Assets.load(campfireDef.image)) as Texture;
-            } catch {
-                // Non-fatal: Campfire will not render
-            }
-        }
-
-        // Preload effect textures (non-fatal on failure)
-        for (const [key, src] of Object.entries(EFFECT_IMAGE_SOURCES) as [EffectImageKey, string][]) {
-            try {
-                this.effectTextures[key] = (await Assets.load(src)) as Texture;
-            } catch {
-                // Non-fatal: particles for this key will not render
-            }
-        }
 
         // Build terrain sprite if it was queued before init completed
         if (this.pendingTerrainGrid) {
             this.buildTerrainSprite(this.pendingTerrainGrid);
             this.pendingTerrainGrid = null;
         }
+    }
+
+    /** Loads character SVGs, campfire, and effect textures. Logs failures (non-fatal). */
+    private async loadBattleAssets(): Promise<void> {
+        const load = async (label: string, url: string, assign: (t: Texture) => void): Promise<void> => {
+            try {
+                assign((await Assets.load(url)) as Texture);
+            } catch (err) {
+                console.warn('[GameRenderer] Failed to load battle asset:', label, err);
+            }
+        };
+
+        await load('enemy_ranged (slime SVG)', SLIME_SVG_URL, (t) => {
+            this.slimeTexture = t;
+        });
+        await load('enemy_melee (swordwoman SVG)', SWORDWOMAN_SVG_URL, (t) => {
+            this.swordwomanTexture = t;
+        });
+        await load('dark_wolf (wolf-head SVG)', WOLF_HEAD_SVG_URL, (t) => {
+            this.wolfHeadTexture = t;
+        });
+        await load('alpha_wolf (wolf-howl SVG)', WOLF_HOWL_SVG_URL, (t) => {
+            this.wolfHowlTexture = t;
+        });
+        await load('boar SVG', BOAR_SVG_URL, (t) => {
+            this.boarTexture = t;
+        });
+
+        const campfireDef = getSpecialTileDef('Campfire');
+        if (campfireDef?.image) {
+            await load('Campfire tile', campfireDef.image, (t) => {
+                this.campfireTexture = t;
+            });
+        }
+
+        for (const [key, src] of Object.entries(EFFECT_IMAGE_SOURCES) as [EffectImageKey, string][]) {
+            try {
+                this.effectTextures[key] = (await Assets.load(src)) as Texture;
+            } catch (err) {
+                console.warn('[GameRenderer] Failed to load effect texture:', key, src, err);
+            }
+        }
+
+        this.pendingUnitCharacterSpriteSync = true;
     }
 
     /**
@@ -491,6 +518,11 @@ export class GameRenderer {
         this.gameContainer.x = -camera.x + camera.viewportWidth / 2;
         this.gameContainer.y = -camera.y + camera.viewportHeight / 2;
 
+        if (this.pendingUnitCharacterSpriteSync) {
+            this.syncAllUnitCharacterSprites(engine);
+            this.pendingUnitCharacterSpriteSync = false;
+        }
+
         if (this.lightLevelEnabled && engine.terrainManager && debugSettingsSnapshot.darkOverlayEnabled) {
             this.updateDarknessOverlay(engine);
         } else {
@@ -642,6 +674,15 @@ export class GameRenderer {
     // ========================================================================
     // Units
     // ========================================================================
+
+    private syncAllUnitCharacterSprites(engine: GameEngine): void {
+        const context = this.getUnitRenderContext();
+        for (const unit of engine.units) {
+            const visual = this.unitVisuals.get(unit.id);
+            if (!visual) continue;
+            syncUnitCharacterSpriteIfNeeded(visual, unit, context);
+        }
+    }
 
     private getUnitRenderContext(): IUnitRenderContext {
         return {

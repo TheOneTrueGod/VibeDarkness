@@ -66,10 +66,10 @@ const wolvesNorthPath = [
 ];
 
 const ENEMIES = [
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesOutsideCave[0]! },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesOutsideCave[3]! },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesNorthPath[0]! },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: wolvesNorthPath[1]! },
+    { ...ENEMY_DARK_WOLF, position: wolvesOutsideCave[0]! },
+    { ...ENEMY_DARK_WOLF, position: wolvesOutsideCave[3]! },
+    { ...ENEMY_DARK_WOLF, position: wolvesNorthPath[0]! },
+    { ...ENEMY_DARK_WOLF, position: wolvesNorthPath[1]! },
     {
         ...ENEMY_RANGED,
         name: 'Slime',

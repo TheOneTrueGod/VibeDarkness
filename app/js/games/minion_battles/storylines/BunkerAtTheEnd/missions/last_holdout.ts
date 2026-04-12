@@ -106,9 +106,9 @@ function createTerrain(): TerrainGrid {
 /** Initial enemies: Alpha Wolf boss + 3 wolves + 1 slime on the right side in the darkness box. */
 const ENEMIES = [
     { ...ENEMY_ALPHA_WOLF, name: 'Alpha Wolf', position: { x: 1000, y: 360 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 960, y: 280 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1040, y: 400 } },
-    { ...ENEMY_DARK_WOLF, name: 'Dark Wolf', position: { x: 1000, y: 480 } },
+    { ...ENEMY_DARK_WOLF, position: { x: 960, y: 280 } },
+    { ...ENEMY_DARK_WOLF, position: { x: 1040, y: 400 } },
+    { ...ENEMY_DARK_WOLF, position: { x: 1000, y: 480 } },
     { ...ENEMY_RANGED, position: { x: 1080, y: 320 } },
 ];
 
