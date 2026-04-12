@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from 'react';
-import { CARDS_PER_ROUND } from '../game/GameEngine';
+import { CARDS_PER_ROUND } from '../../game/GameEngine';
 
 interface RoundProgressBarProps {
     /** Current round number (1-based). */

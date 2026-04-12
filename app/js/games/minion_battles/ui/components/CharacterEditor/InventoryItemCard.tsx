@@ -1,5 +1,5 @@
 import React from 'react';
-import { getItemDef, ITEM_ICON_URLS } from '../../character_defs/items';
+import { getItemDef, ITEM_ICON_URLS } from '../../../character_defs/items';
 
 interface InventoryItemCardProps {
     itemId: string;

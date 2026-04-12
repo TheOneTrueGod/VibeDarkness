@@ -4,10 +4,10 @@
  * the BattlePhase loads from it instead of starting a fresh game.
  */
 import { describe, it, expect } from 'vitest';
-import { GameEngine } from '../game/GameEngine';
-import type { SerializedGameState } from '../game/types';
-import { resetGameObjectIdCounter } from '../game/GameObject';
-import { DARK_AWAKENING } from '../storylines/WorldOfDarkness/missions/dark_awakening';
+import { GameEngine } from '../../game/GameEngine';
+import type { SerializedGameState } from '../../game/types';
+import { resetGameObjectIdCounter } from '../../game/GameObject';
+import { DARK_AWAKENING } from '../../storylines/WorldOfDarkness/missions/dark_awakening';
 
 /** Minimal snapshot shape returned by backend getGameStateData from checkpoint files. */
 function makeCheckpointSnapshot(overrides: Partial<Record<string, unknown>> = {}) {

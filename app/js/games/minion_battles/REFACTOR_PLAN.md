@@ -35,7 +35,7 @@ then do behavioral refactoring in later phases.
 ## Phase 0 — Preparation
 > _Subagent call: 1 step. No testing checkpoint needed._
 
-- [ ] **0.1** Create the target directory scaffolding (empty dirs):
+- [x] **0.1** Create the target directory scaffolding (empty dirs):
   ```
   game/
   game/managers/
@@ -65,7 +65,7 @@ then do behavioral refactoring in later phases.
 ### Step 1.1 — Move engine core files to `game/`
 > _Subagent call 1 of 3_
 
-- [ ] `git mv` the following files from `engine/` to `game/`:
+- [x] `git mv` the following files from `engine/` to `game/`:
   - `GameEngine.ts`
   - `Camera.ts`
   - `EventBus.ts`
@@ -77,34 +77,34 @@ then do behavioral refactoring in later phases.
   - `AbilityNote.ts`
   - `effectDef.ts`
   - `effectImages.ts`
-- [ ] Update all imports across the codebase that referenced `engine/` for these files
-- [ ] Run tests — must pass
+- [x] Update all imports across the codebase that referenced `engine/` for these files
+- [x] Run tests — must pass
 
 ### Step 1.2 — Move engine subdirectories to `game/`
 > _Subagent call 2 of 3_
 
-- [ ] `git mv engine/managers/* game/managers/`
+- [x] `git mv engine/managers/* game/managers/`
   - `UnitManager.ts`, `CardManager.ts`, `EffectManager.ts`,
     `ProjectileManager.ts`, `LevelEventManager.ts`, `SpecialTileManager.ts`
-- [ ] `git mv engine/deathEffects/* game/deathEffects/`
+- [x] `git mv engine/deathEffects/* game/deathEffects/`
   - `DeathEffect.ts`, `ParticleExplosion.ts`
-- [ ] Update all imports referencing `engine/managers/` → `game/managers/`
-- [ ] Update all imports referencing `engine/deathEffects/` → `game/deathEffects/`
-- [ ] Run tests — must pass
+- [x] Update all imports referencing `engine/managers/` → `game/managers/`
+- [x] Update all imports referencing `engine/deathEffects/` → `game/deathEffects/`
+- [x] Run tests — must pass
 
 ### Step 1.3 — Move GameRenderer, unitDef, test files, and clean up
 > _Subagent call 3 of 3_
 
-- [ ] `git mv engine/GameRenderer.ts game/GameRenderer.ts`
-- [ ] `git mv engine/unitDef.ts game/units/unit_defs/unitDef.ts`
-- [ ] `git mv` test files:
+- [x] `git mv engine/GameRenderer.ts game/GameRenderer.ts`
+- [x] `git mv engine/unitDef.ts game/units/unit_defs/unitDef.ts`
+- [x] `git mv` test files:
   - `engine/GameEngine.test.ts` → `game/GameEngine.test.ts`
   - `engine/Camera.test.ts` → `game/Camera.test.ts`
   - `engine/twoPlayerOrders.test.ts` → `game/twoPlayerOrders.test.ts`
-- [ ] `git mv engine/SKILL.md game/SKILL.md` (if it exists)
-- [ ] Update all imports for the moved files
-- [ ] Delete empty `engine/` directory
-- [ ] Run tests — must pass
+- [x] `git mv engine/SKILL.md game/SKILL.md` (if it exists)
+- [x] Update all imports for the moved files
+- [x] Delete empty `engine/` directory
+- [x] Run tests — must pass
 
 ### 🧪 CHECKPOINT A — Manual testing
 > After Phase 1: start dev server (`npm run dev` + `php -S localhost:8000 index.php`),
@@ -119,43 +119,43 @@ then do behavioral refactoring in later phases.
 ### Step 2.1 — Move `GameObject.ts` and `Unit.ts` + unit factories
 > _Subagent call 1 of 3_
 
-- [ ] `git mv objects/GameObject.ts game/GameObject.ts`
-- [ ] `git mv objects/Unit.ts game/units/Unit.ts`
-- [ ] `git mv objects/units/index.ts game/units/index.ts`
-- [ ] `git mv objects/units/WarriorUnit.ts game/units/WarriorUnit.ts`
-- [ ] `git mv objects/units/RangerUnit.ts game/units/RangerUnit.ts`
-- [ ] `git mv objects/units/MageUnit.ts game/units/MageUnit.ts`
-- [ ] `git mv objects/units/HealerUnit.ts game/units/HealerUnit.ts`
-- [ ] `git mv objects/units/GenericEnemy.ts game/units/GenericEnemy.ts`
-- [ ] `git mv objects/units/dark_animals/DarkWolf.ts game/units/dark_animals/DarkWolf.ts`
-- [ ] Update all imports
-- [ ] Run tests — must pass
+- [x] `git mv objects/GameObject.ts game/GameObject.ts`
+- [x] `git mv objects/Unit.ts game/units/Unit.ts`
+- [x] `git mv objects/units/index.ts game/units/index.ts`
+- [x] `git mv objects/units/WarriorUnit.ts game/units/WarriorUnit.ts`
+- [x] `git mv objects/units/RangerUnit.ts game/units/RangerUnit.ts`
+- [x] `git mv objects/units/MageUnit.ts game/units/MageUnit.ts`
+- [x] `git mv objects/units/HealerUnit.ts game/units/HealerUnit.ts`
+- [x] `git mv objects/units/GenericEnemy.ts game/units/GenericEnemy.ts`
+- [x] `git mv objects/units/dark_animals/DarkWolf.ts game/units/dark_animals/DarkWolf.ts`
+- [x] Update all imports
+- [x] Run tests — must pass
 
 ### Step 2.2 — Move unitAI tree
 > _Subagent call 2 of 3_
 
-- [ ] `git mv` all files from `objects/units/unitAI/` → `game/units/unitAI/`
+- [x] `git mv` all files from `objects/units/unitAI/` → `game/units/unitAI/`
   - Root: `types.ts`, `contextTypes.ts`, `contextBase.ts`, `index.ts`, `runner.ts`, `utils.ts`, `SKILL.md`
   - `default/`: `context.ts`, `index.ts`, `default_idle.ts`, `default_attack.ts`, `default_wander.ts`, `default_findLight.ts`, `default_siegeDefendPoint.ts`
   - `alphaWolfBoss/`: `context.ts`, `index.ts`, `alphaWolfBoss_idle.ts`, `alphaWolfBoss_attack.ts`
   - `aggroWander/`: `context.ts`, `index.ts`, `aggroWander_wander.ts`, `aggroWander_attack.ts`
   - Test: `DefaultAITree.test.ts`
-- [ ] Update all imports
-- [ ] Run tests — must pass
+- [x] Update all imports
+- [x] Run tests — must pass
 
 ### Step 2.3 — Move Effect, Projectile, SpecialTile, clean up
 > _Subagent call 3 of 3_
 
-- [ ] `git mv objects/Effect.ts game/effects/Effect.ts`
-- [ ] `git mv objects/Projectile.ts game/projectiles/Projectile.ts`
-- [ ] `git mv objects/SpecialTile.ts game/specialTiles/SpecialTile.ts`
-- [ ] `git mv` test files:
+- [x] `git mv objects/Effect.ts game/effects/Effect.ts`
+- [x] `git mv objects/Projectile.ts game/projectiles/Projectile.ts`
+- [x] `git mv objects/SpecialTile.ts game/specialTiles/SpecialTile.ts`
+- [x] `git mv` test files:
   - `objects/Unit.test.ts` → `game/units/Unit.test.ts`
   - `objects/Effect.test.ts` → `game/effects/Effect.test.ts`
   - `objects/Projectile.test.ts` → `game/projectiles/Projectile.test.ts`
-- [ ] Update all imports
-- [ ] Delete empty `objects/` directory tree
-- [ ] Run tests — must pass
+- [x] Update all imports
+- [x] Delete empty `objects/` directory tree
+- [x] Run tests — must pass
 
 ### 🧪 CHECKPOINT B — Manual testing
 > Same as Checkpoint A: full game flow (lobby → character select → mission → battle).
@@ -166,41 +166,41 @@ then do behavioral refactoring in later phases.
 ## Phase 3 — Move `constants/unitConstants.ts` → `game/units/unit_defs/`
 > _Subagent call: 1 step. Small move with few importers._
 
-- [ ] `git mv constants/unitConstants.ts game/units/unit_defs/unitConstants.ts`
-- [ ] Update all imports (primarily `engine/GameRenderer.ts`, `objects/Unit.ts`, a few card_defs)
-- [ ] Keep `constants/enemyConstants.ts` and `constants/npcs.ts` where they are (not part of target move)
-- [ ] Run tests — must pass
+- [x] `git mv constants/unitConstants.ts game/units/unit_defs/unitConstants.ts`
+- [x] Update all imports (primarily `engine/GameRenderer.ts`, `objects/Unit.ts`, a few card_defs)
+- [x] Keep `constants/enemyConstants.ts` and `constants/npcs.ts` where they are (not part of target move)
+- [x] Run tests — must pass
 
 ---
 
 ## Phase 4 — Move `components/` → `ui/components/`
 > _Subagent call: 1 step. ~15 files, only ~8 import sites._
 
-- [ ] `git mv` all files from `components/` → `ui/components/`:
+- [x] `git mv` all files from `components/` → `ui/components/`:
   - `BattleCanvas.tsx`, `BattleTimeline.tsx`, `CardHand.tsx`, `CardComponent.tsx`,
     `CardTooltip.tsx`, `CardDescription.tsx`, `TimelinePhaseSegment.tsx`,
     `RoundProgressBar.tsx`, `TurnIndicator.tsx`, `VictoryModal.tsx`,
     `ResearchTreePanel.tsx`, `AdminPlayersPanel.tsx`, `VNTextBox.tsx`,
     `StoryTextEffect.tsx`, `CharacterPortrait.tsx`
-- [ ] `git mv components/CharacterEditor/* ui/components/CharacterEditor/`
+- [x] `git mv components/CharacterEditor/* ui/components/CharacterEditor/`
   - `CharacterEditor.tsx`, `CharacterCreator.tsx`, `InventoryPanel.tsx`,
     `InventoryGrid.tsx`, `InventoryItemCard.tsx`
-- [ ] Update all imports (mostly in `phases/` and `Game.tsx`)
-- [ ] Delete empty `components/` directory
-- [ ] Run tests — must pass
+- [x] Update all imports (mostly in `phases/` and `Game.tsx`)
+- [x] Delete empty `components/` directory
+- [x] Run tests — must pass
 
 ---
 
 ## Phase 5 — Move `phases/` → `ui/pages/`
 > _Subagent call: 1 step. ~6 files, only Game.tsx imports them._
 
-- [ ] `git mv` all files from `phases/` → `ui/pages/`:
+- [x] `git mv` all files from `phases/` → `ui/pages/`:
   - `BattlePhase.tsx`, `MissionSelectPhase.tsx`, `CharacterSelectPhase.tsx`,
     `PreMissionStoryPhase.tsx`, `PostMissionStoryPhase.tsx`
   - Test: `snapshotLoad.test.ts`
-- [ ] Update imports in `Game.tsx` (the only importer of phase files)
-- [ ] Delete empty `phases/` directory
-- [ ] Run tests — must pass
+- [x] Update imports in `Game.tsx` (the only importer of phase files)
+- [x] Delete empty `phases/` directory
+- [x] Run tests — must pass
 
 ### 🧪 CHECKPOINT C — Manual testing
 > Full game flow again. All UI components and phase screens should render correctly.
@@ -211,13 +211,13 @@ then do behavioral refactoring in later phases.
 ## Phase 6 — Update documentation and skills
 > _Subagent call: 1 step. No code changes, just docs._
 
-- [ ] Update `AGENTS.md` — change "Current layout" table to reflect the new paths
-- [ ] Update `AGENTS.md` — remove "Target layout (migration not yet started)" table
+- [x] Update `AGENTS.md` — change "Current layout" table to reflect the new paths
+- [x] Update `AGENTS.md` — remove "Target layout (migration not yet started)" table
   (or mark as "Complete" and keep for reference)
-- [ ] Update any `.cursor/skills/` files that reference old paths
+- [x] Update any `.cursor/skills/` files that reference old paths
   (e.g. `working-on-minion-battles/SKILL.md`, `game-engine/SKILL.md`)
-- [ ] Update root-level `AGENTS.md` file paths table
-- [ ] Run tests — must pass (no code changes, but verify nothing broke)
+- [x] Update root-level `AGENTS.md` file paths table
+- [x] Run tests — must pass (no code changes, but verify nothing broke)
 
 ### 🧪 CHECKPOINT D — Verify documentation
 > Spot-check that skill files and agent guides reference correct paths.

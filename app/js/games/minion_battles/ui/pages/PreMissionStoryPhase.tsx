@@ -3,10 +3,10 @@
  * Each player advances at their own pace (local phrase index). Only choice results are sent to the server.
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import type { PlayerState } from '../../../types';
-import { LobbyClient } from '../../../LobbyClient';
-import { MessageType } from '../../../MessageTypes';
-import { getNpc } from '../constants/npcs';
+import type { PlayerState } from '../../../../types';
+import { LobbyClient } from '../../../../LobbyClient';
+import { MessageType } from '../../../../MessageTypes';
+import { getNpc } from '../../constants/npcs';
 import type {
     PreMissionStoryDef,
     DialoguePhrase,
@@ -15,13 +15,13 @@ import type {
     GroupVotePhrase,
     PreMissionPhrase,
     StoryChoiceActionGrantResources,
-} from '../storylines/storyTypes';
-import { SPECTATOR_ID } from '../state';
-import { getItemDef } from '../character_defs/items';
+} from '../../storylines/storyTypes';
+import { SPECTATOR_ID } from '../../state';
+import { getItemDef } from '../../character_defs/items';
 import VNTextBox from '../components/VNTextBox';
 import CharacterPortrait from '../components/CharacterPortrait';
 import StoryTextEffect from '../components/StoryTextEffect';
-import ResourcePill, { campaignResourceGains } from '../../../components/ResourcePill';
+import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 
 interface PreMissionStoryPhaseProps {
     lobbyClient: LobbyClient;

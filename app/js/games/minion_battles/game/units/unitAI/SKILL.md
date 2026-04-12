@@ -26,7 +26,7 @@ Each AI-controlled unit runs its own **UnitAITree**. There is no global "AIContr
 ## Folder structure
 
 ```
-objects/units/unitAI/
+game/units/unitAI/
 ├── types.ts          # AIContext, UnitAITree, AINode, AIEdgeCondition
 ├── contextBase.ts    # UnitAIContextBase (shared fields)
 ├── contextTypes.ts   # AITreeContextMap, UnitAIContext union, initTreeContext

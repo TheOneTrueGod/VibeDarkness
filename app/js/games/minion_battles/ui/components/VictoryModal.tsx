@@ -2,9 +2,9 @@
  * Victory modal - shows mission victory with optional rewards.
  */
 import React from 'react';
-import { getItemDef, ITEM_ICON_URLS } from '../character_defs/items';
-import type { CampaignResourceKey } from '../../../types';
-import ResourcePill, { campaignResourceGains } from '../../../components/ResourcePill';
+import { getItemDef, ITEM_ICON_URLS } from '../../character_defs/items';
+import type { CampaignResourceKey } from '../../../../types';
+import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 
 interface VictoryModalProps {
     missionRewards: {

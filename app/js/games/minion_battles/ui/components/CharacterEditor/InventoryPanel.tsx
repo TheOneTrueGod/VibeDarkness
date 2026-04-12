@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { getItemDef } from '../../character_defs/items';
+import { getItemDef } from '../../../character_defs/items';
 import InventoryGrid from './InventoryGrid';
 
 interface InventoryPanelProps {

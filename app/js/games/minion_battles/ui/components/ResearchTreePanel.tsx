@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { AccountState, CampaignResources } from '../../../types';
-import type { CampaignCharacter } from '../character_defs/CampaignCharacter';
-import type { ResearchTreeDef } from '../../../researchTrees/types';
+import type { AccountState, CampaignResources } from '../../../../types';
+import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
+import type { ResearchTreeDef } from '../../../../researchTrees/types';
 import {
     canResearchNode,
     computeEffectiveResourcesForTree,
-} from '../../../researchTrees/evaluator';
-import ResourcePill, { campaignResourceGains, RESOURCE_ORDER } from '../../../components/ResourcePill';
+} from '../../../../researchTrees/evaluator';
+import ResourcePill, { campaignResourceGains, RESOURCE_ORDER } from '../../../../components/ResourcePill';
 
 interface ResearchTreePanelProps {
     availableTrees: ResearchTreeDef[];

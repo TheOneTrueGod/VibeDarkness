@@ -43,8 +43,8 @@ Same as host for local turn. When waiting on another player, minimal state polli
 |------|------|
 | `app/js/contexts/GameSyncContext.tsx` | Unified poll loop, battle callbacks, checkpoints/orders |
 | `app/js/contexts/SyncContextControllers/` | Base, host, and client sync controller logic |
-| `app/js/games/minion_battles/phases/BattlePhase.tsx` | Registers battle callbacks |
-| `app/js/games/minion_battles/engine/GameEngine.ts` | Simulation, checkpoint and waiting-for-orders events |
+| `app/js/games/minion_battles/ui/pages/BattlePhase.tsx` | Registers battle callbacks |
+| `app/js/games/minion_battles/game/GameEngine.ts` | Simulation, checkpoint and waiting-for-orders events |
 | `app/js/LobbyClient.ts` | HTTP API client |
 | `app/js/utils/synchash.ts` | Client synchash |
 | `backend/GameCheckpointFiles.php` | Server-side checkpoint storage and synchash |

@@ -5,11 +5,11 @@ description: When adding or changing enemy unit AI in Minion Battles. Use when w
 
 # Working on Unit AI
 
-**See `app/js/games/minion_battles/objects/units/unitAI/SKILL.md` for the full guide.**
+**See `app/js/games/minion_battles/game/units/unitAI/SKILL.md` for the full guide.**
 
 ## Where it lives
 
-- **`app/js/games/minion_battles/objects/units/unitAI/`** – UnitAITree system. Each unit runs its own tree; no global AIController.
+- **`app/js/games/minion_battles/game/units/unitAI/`** – UnitAITree system. Each unit runs its own tree; no global AIController.
 
 ## Quick reference
 

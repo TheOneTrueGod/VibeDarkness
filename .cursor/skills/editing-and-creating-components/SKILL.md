@@ -8,7 +8,7 @@ description: Guidelines for editing and creating React components in this projec
 ## When to use this skill
 
 Use this skill whenever you:
-- Add or change React components under `app/js/components/` or `app/js/games/**/components/`.
+- Add or change React components under `app/js/components/` or `app/js/games/**/ui/components/`.
 - Introduce new interactive UI (buttons, panels, tooltips, overlays) in the lobby or game UIs.
 - Tweak layout or styling of existing components.
 

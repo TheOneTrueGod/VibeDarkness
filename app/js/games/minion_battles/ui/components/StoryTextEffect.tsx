@@ -2,7 +2,7 @@
  * Reusable story text effects (e.g. title_bounce: large, centered, purple, per-character bounce).
  */
 import React from 'react';
-import type { StoryTextEffect as StoryTextEffectType } from '../storylines/storyTypes';
+import type { StoryTextEffect as StoryTextEffectType } from '../../storylines/storyTypes';
 
 interface StoryTextEffectProps {
     effect: StoryTextEffectType;

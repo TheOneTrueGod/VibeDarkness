@@ -4,20 +4,20 @@
  * When the player completes (makes their choice), onComplete is called with rewards.
  */
 import React, { useState, useCallback, useEffect } from 'react';
-import type { PlayerState } from '../../../types';
-import { LobbyClient } from '../../../LobbyClient';
-import { MessageType } from '../../../MessageTypes';
-import { getNpc } from '../constants/npcs';
+import type { PlayerState } from '../../../../types';
+import { LobbyClient } from '../../../../LobbyClient';
+import { MessageType } from '../../../../MessageTypes';
+import { getNpc } from '../../constants/npcs';
 import type {
     PostMissionStoryDef,
     DialoguePhrase,
     ChoicePhrase,
     PostMissionPhrase,
     StoryChoiceActionGrantResources,
-} from '../storylines/storyTypes';
-import { getItemDef } from '../character_defs/items';
-import { SPECTATOR_ID } from '../state';
-import ResourcePill, { campaignResourceGains } from '../../../components/ResourcePill';
+} from '../../storylines/storyTypes';
+import { getItemDef } from '../../character_defs/items';
+import { SPECTATOR_ID } from '../../state';
+import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 import VNTextBox from '../components/VNTextBox';
 import CharacterPortrait from '../components/CharacterPortrait';
 import StoryTextEffect from '../components/StoryTextEffect';

@@ -5,4 +5,4 @@ description: Architecture of the GameEngine manager-of-managers pattern, tick lo
 
 # Game Engine
 
-**See `app/js/games/minion_battles/engine/SKILL.md` for the full guide.**
+**See `app/js/games/minion_battles/game/SKILL.md` for the full guide.**

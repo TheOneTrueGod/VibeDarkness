@@ -6,32 +6,32 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import type { PlayerState, GameSidebarInfo, GameStatePayload } from '../../../types';
-import type { LobbyClient } from '../../../LobbyClient';
-import { GameEngine, CHECKPOINT_INTERVAL } from '../game/GameEngine';
-import type { CardInstance } from '../game/GameEngine';
-import { GameRenderer } from '../game/GameRenderer';
-import type { OrderAtTick, SerializedGameState } from '../game/types';
-import { Camera } from '../game/Camera';
-import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../game/types';
-import { resolveClick, validateAndResolveTarget } from '../abilities/targeting';
-import type { AbilityStatic } from '../abilities/Ability';
-import { getAbilityTargets } from '../abilities/Ability';
-import { getAbility } from '../abilities/AbilityRegistry';
-import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
-import { SPECTATOR_ID } from '../state';
-import { TerrainManager } from '../terrain/TerrainManager';
-import { TERRAIN_PROPERTIES } from '../terrain/TerrainType';
+import type { PlayerState, GameSidebarInfo, GameStatePayload } from '../../../../types';
+import type { LobbyClient } from '../../../../LobbyClient';
+import { GameEngine, CHECKPOINT_INTERVAL } from '../../game/GameEngine';
+import type { CardInstance } from '../../game/GameEngine';
+import { GameRenderer } from '../../game/GameRenderer';
+import type { OrderAtTick, SerializedGameState } from '../../game/types';
+import { Camera } from '../../game/Camera';
+import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../../game/types';
+import { resolveClick, validateAndResolveTarget } from '../../abilities/targeting';
+import type { AbilityStatic } from '../../abilities/Ability';
+import { getAbilityTargets } from '../../abilities/Ability';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
+import { SPECTATOR_ID } from '../../state';
+import { TerrainManager } from '../../terrain/TerrainManager';
+import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import RoundProgressBar from '../components/RoundProgressBar';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
-import { MessageType } from '../../../MessageTypes';
-import type { MessageEntry } from '../../../components/Chat';
-import { useGameSyncOptional } from '../../../contexts/GameSyncContext';
-import type { BattleCallbacks } from '../../../contexts/GameSyncContext';
-import { computeSynchash } from '../../../utils/synchash';
+import { MessageType } from '../../../../MessageTypes';
+import type { MessageEntry } from '../../../../components/Chat';
+import { useGameSyncOptional } from '../../../../contexts/GameSyncContext';
+import type { BattleCallbacks } from '../../../../contexts/GameSyncContext';
+import { computeSynchash } from '../../../../utils/synchash';
 
 /** Parameters for {@link loadGameState}; kept in a ref so mount and full-resync use latest values. */
 interface LoadGameStateParams {

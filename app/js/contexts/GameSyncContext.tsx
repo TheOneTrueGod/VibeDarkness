@@ -18,7 +18,7 @@ import { computeSynchash } from '../utils/synchash';
 import { HostGameSyncContextController } from './SyncContextControllers/HostGameSyncContextController';
 import { ClientGameSyncContextController } from './SyncContextControllers/ClientGameSyncContextController';
 import { LobbyClient } from '../LobbyClient';
-import { SerializedGameState } from '../games/minion_battles/engine/types';
+import { SerializedGameState } from '../games/minion_battles/game/types';
 
 /** Must match GameEngine.CHECKPOINT_INTERVAL */
 const CHECKPOINT_INTERVAL = 10;

@@ -33,7 +33,7 @@ Characters are **player-created** and **reusable across games**. They are not st
   - `getDisallowReason(...)` — returns a reason string or null if allowed.
 - **Missions**: `MissionBattleConfig` can define `allowedTraits` (allowlist) and `disallowedTraits` (denylist). See `storylines/types.ts` for the full config.
 - **Character select**: Shows a "Create Character" card and the player's characters sorted by usability. Characters that cannot be used show a diagonal reason label.
-- **CharacterCreator**: Popover with portrait carousel and Create button. See `components/CharacterEditor/CharacterCreator.tsx`.
+- **CharacterCreator**: Popover with portrait carousel and Create button. See `ui/components/CharacterEditor/CharacterCreator.tsx`.
 
 ## Battle phase
 
@@ -49,7 +49,7 @@ When building player units, the battle phase resolves character portrait/archety
 | Game state / messages | `backend/Http/Handlers/PostMessageHandler.php`, `backend/LobbyManager.php` |
 | Frontend types | `app/js/games/minion_battles/character_defs/campaignCharacterTypes.ts`, `portraits.ts` |
 | Frontend class | `app/js/games/minion_battles/character_defs/CampaignCharacter.ts` |
-| UI | `app/js/games/minion_battles/phases/CharacterSelectPhase.tsx`, `components/CharacterEditor/` |
+| UI | `app/js/games/minion_battles/ui/pages/CharacterSelectPhase.tsx`, `ui/components/CharacterEditor/` |
 | Mission config | `app/js/games/minion_battles/storylines/types.ts` |
-| Battle | `app/js/games/minion_battles/phases/BattlePhase.tsx` |
+| Battle | `app/js/games/minion_battles/ui/pages/BattlePhase.tsx` |
 | Client API | `app/js/LobbyClient.ts` |

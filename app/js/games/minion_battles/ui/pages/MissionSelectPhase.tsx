@@ -2,9 +2,9 @@
  * Mission Select Phase - React component for mission voting
  */
 import React, { useCallback } from 'react';
-import type { PlayerState } from '../../../types';
-import { LobbyClient } from '../../../LobbyClient';
-import { MessageType } from '../../../MessageTypes';
+import type { PlayerState } from '../../../../types';
+import { LobbyClient } from '../../../../LobbyClient';
+import { MessageType } from '../../../../MessageTypes';
 
 export interface Mission {
     id: string;

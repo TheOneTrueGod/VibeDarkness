@@ -4,7 +4,7 @@
  * Bottom 2/3: tabs (Equipment). Doll with core/weapon/utility slots; inventory grid; drag to equip.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { getPortraitIds, getPortrait } from '../../character_defs/portraits';
+import { getPortraitIds, getPortrait } from '../../../character_defs/portraits';
 import {
     getItemDef,
     getEquippedForSlot,
@@ -13,23 +13,23 @@ import {
     ALL_PLAYER_ITEMS,
     ITEM_ICON_URLS,
     type EquipmentSlotType,
-} from '../../character_defs/items';
-import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
-import type { LobbyClient } from '../../../../LobbyClient';
+} from '../../../character_defs/items';
+import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
+import type { LobbyClient } from '../../../../../LobbyClient';
 import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
 import { ResearchTreeList, ResearchTreeContent } from '../ResearchTreePanel';
-import type { AccountState, CampaignState } from '../../../../types';
-import { getCoreFromEquipment } from '../../character_defs/items';
-import { RESEARCH_TREES } from '../../../../researchTrees/list';
+import type { AccountState, CampaignState } from '../../../../../types';
+import { getCoreFromEquipment } from '../../../character_defs/items';
+import { RESEARCH_TREES } from '../../../../../researchTrees/list';
 import {
     canResearchNode,
     applyResearchEffects,
     sortNodesDeterministic,
     prereqClosure,
     treeHasAnyResearch,
-} from '../../../../researchTrees/evaluator';
-import ResourcePill from '../../../../components/ResourcePill';
+} from '../../../../../researchTrees/evaluator';
+import ResourcePill from '../../../../../components/ResourcePill';
 
 interface CharacterEditorProps {
     character: CampaignCharacter;

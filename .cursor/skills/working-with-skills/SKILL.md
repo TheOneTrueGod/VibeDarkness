@@ -26,7 +26,7 @@ Place skills close to the code they describe:
 
 When code is primarily in one area but referenced elsewhere, co-locate the skill with the primary area.
 
-**Example:** A skill about GameObjects that live under `app/js/games/minion_battles/objects/` should be placed in (or near) that folder, even if the backend has a few references to them.
+**Example:** A skill about GameObjects that live under `app/js/games/minion_battles/game/` should be placed in (or near) that folder, even if the backend has a few references to them.
 
 ## Code Examples in Skills
 

@@ -1,15 +1,15 @@
 import React, { useMemo } from 'react';
-import type { PlayerState } from '../../../types';
-import type { GameEngine } from '../game/GameEngine';
-import { getAbility } from '../abilities/AbilityRegistry';
-import type { AbilityStatic } from '../abilities/Ability';
-import type { Unit } from '../game/units/Unit';
+import type { PlayerState } from '../../../../types';
+import type { GameEngine } from '../../game/GameEngine';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import type { AbilityStatic } from '../../abilities/Ability';
+import type { Unit } from '../../game/units/Unit';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
-import slimeIcon from '../assets/characters/slime.svg';
-import swordwomanIcon from '../assets/characters/swordwoman.svg';
-import wolfHeadIcon from '../assets/characters/dark_animals/wolf-head.svg';
-import wolfHowlIcon from '../assets/characters/dark_animals/wolf-howl.svg';
-import boarIcon from '../assets/characters/dark_animals/boar.svg';
+import slimeIcon from '../../assets/characters/slime.svg';
+import swordwomanIcon from '../../assets/characters/swordwoman.svg';
+import wolfHeadIcon from '../../assets/characters/dark_animals/wolf-head.svg';
+import wolfHowlIcon from '../../assets/characters/dark_animals/wolf-howl.svg';
+import boarIcon from '../../assets/characters/dark_animals/boar.svg';
 
 /** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
 const ENEMY_CHARACTER_ICONS: Record<string, string> = {

@@ -3,9 +3,9 @@
  * Portrait carousel (selected centre, prev/next faded behind), Create button.
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import { getPortraitIds, getPortrait } from '../../character_defs/portraits';
-import { getRandomCharacterName } from '../../character_defs/characterNames';
-import { getDefaultEquipmentForCampaign } from '../../character_defs/items';
+import { getPortraitIds, getPortrait } from '../../../character_defs/portraits';
+import { getRandomCharacterName } from '../../../character_defs/characterNames';
+import { getDefaultEquipmentForCampaign } from '../../../character_defs/items';
 
 const CARD_SIZE = 200;
 

@@ -7,24 +7,24 @@ description: Architecture of the GameEngine manager-of-managers pattern, tick lo
 
 ## Overview
 
-`GameEngine` (`app/js/games/minion_battles/engine/GameEngine.ts`) is a thin orchestrator that delegates data ownership to specialized manager classes. External code continues to use `engine.units`, `engine.addUnit(u)`, etc. through **facade getters and methods**.
+`GameEngine` (`app/js/games/minion_battles/game/GameEngine.ts`) is a thin orchestrator that delegates data ownership to specialized manager classes. External code continues to use `engine.units`, `engine.addUnit(u)`, etc. through **facade getters and methods**.
 
 ## Manager Ownership
 
 | Manager | File | Owns |
 |---------|------|------|
-| **UnitManager** | `engine/managers/UnitManager.ts` | All units and unit-related queries |
-| **ProjectileManager** | `engine/managers/ProjectileManager.ts` | All projectiles, movement, and collision |
-| **EffectManager** | `engine/managers/EffectManager.ts` | All effects, torch decays, and light sources from effects |
-| **CardManager** | `engine/managers/CardManager.ts` | Cards, research trees, and ability-use tracking |
-| **SpecialTileManager** | `engine/managers/SpecialTileManager.ts` | Special tiles, crystal protection, and light sources from tiles |
-| **LevelEventManager** | `engine/managers/LevelEventManager.ts` | Level events, spawn waves, victory/defeat conditions |
+| **UnitManager** | `game/managers/UnitManager.ts` | All units and unit-related queries |
+| **ProjectileManager** | `game/managers/ProjectileManager.ts` | All projectiles, movement, and collision |
+| **EffectManager** | `game/managers/EffectManager.ts` | All effects, torch decays, and light sources from effects |
+| **CardManager** | `game/managers/CardManager.ts` | Cards, research trees, and ability-use tracking |
+| **SpecialTileManager** | `game/managers/SpecialTileManager.ts` | Special tiles, crystal protection, and light sources from tiles |
+| **LevelEventManager** | `game/managers/LevelEventManager.ts` | Level events, spawn waves, victory/defeat conditions |
 
 See each manager's file for its public API and `toJSON`/`restoreFromJSON` methods.
 
 ## EngineContext Interface
 
-`engine/EngineContext.ts` defines the minimal interface that managers use to access the engine. GameEngine implements it and passes `this` to each manager's constructor. Managers store a `ctx: EngineContext` reference and access cross-cutting state through it.
+`game/EngineContext.ts` defines the minimal interface that managers use to access the engine. GameEngine implements it and passes `this` to each manager's constructor. Managers store a `ctx: EngineContext` reference and access cross-cutting state through it.
 
 ## What Stays in GameEngine
 

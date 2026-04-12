@@ -3,7 +3,6 @@
 ## General note
 
 - This is a legacy project, so not everything will follow the conventions listed here. These are not instructions on where to find files. They are instructions on where to put them.
-- This document describes a **target architecture**; it may not match the codebase today.
 
 ## Folder structure
 
@@ -11,39 +10,32 @@
 - Backend (PHP API, checkpoints, etc.): `backend/*`
 - API clients live in `app/js/LobbyClient.ts` (project-wide). There is no `api/` directory under `minion_battles` yet.
 
-### Current layout (where to find things today)
+### Directory layout
 
 | Directory | Contents |
 |-----------|----------|
-| `engine/` | `GameEngine`, `GameRenderer`, `Camera`, `EventBus`, `LightGrid`, type definitions (`types.ts`, `unitDef.ts`, `effectDef.ts`), and `managers/` sub-folder |
-| `engine/managers/` | `UnitManager`, `CardManager`, `EffectManager`, `ProjectileManager`, `LevelEventManager`, `SpecialTileManager` |
-| `objects/` | Runtime `GameObject` classes — `units/` (including `unitAI/` sub-tree and `dark_animals/`) |
+| `game/` | `GameEngine`, `GameRenderer`, `Camera`, `EventBus`, `LightGrid`, type definitions (`types.ts`, `effectDef.ts`), `GameObject`, and sub-folders |
+| `game/managers/` | `UnitManager`, `CardManager`, `EffectManager`, `ProjectileManager`, `LevelEventManager`, `SpecialTileManager` |
+| `game/deathEffects/` | `DeathEffect`, `ParticleExplosion` |
+| `game/units/` | `Unit`, unit factory index, player unit types (`WarriorUnit`, `RangerUnit`, etc.), `GenericEnemy` |
+| `game/units/unit_defs/` | `unitDef.ts`, `unitConstants.ts` |
+| `game/units/dark_animals/` | `DarkWolf` |
+| `game/units/unitAI/` | AI trees, nodes, runner, utils (with `default/`, `alphaWolfBoss/`, `aggroWander/` sub-folders) |
+| `game/effects/` | `Effect` runtime objects |
+| `game/projectiles/` | `Projectile` runtime objects |
+| `game/specialTiles/` | `SpecialTile` runtime objects |
+| `ui/components/` | React UI components (`BattleCanvas`, `CardHand`, `BattleTimeline`, `CharacterEditor/`, etc.) |
+| `ui/pages/` | Phase-level React components (`BattlePhase`, `CharacterSelectPhase`, `MissionSelectPhase`, etc.) |
 | `terrain/` | `TerrainManager`, `TerrainGrid`, `Pathfinder`, terrain tile types |
 | `abilities/` | `Ability` class, `targeting.ts`, `behaviors/`, `templates/`, preview helpers |
-| `card_defs/` | Per-card ability definition folders (e.g. `0102_Punch/`, `0203_Pistol/`) |
-| `character_defs/` | Character definitions and `items/` (weapons, hands, utility, core) |
-| `constants/` | Shared constants (`unitConstants.ts`, etc.) |
+| `card_defs/` | Per-card ability definition folders |
+| `character_defs/` | Character definitions and `items/` |
+| `constants/` | Shared constants (`enemyConstants.ts`, `npcs.ts`) |
 | `buffs/` | Buff definitions and runtime buff logic |
-| `components/` | React UI components (e.g. `BattleCanvas`, `CharacterEditor/`) |
-| `phases/` | Phase-level React components (`BattlePhase`, `CharacterSelectPhase`, etc.) |
 | `storylines/` | Campaign storylines and `missions/` per storyline |
 | `resources/` | Resource system classes (`Mana`, `Rage`, etc.) |
 | `hitboxes/` | Hitbox shape classes for ability collision |
 | `utils/` | Shared utility functions |
-
-### Target layout (migration not yet started)
-
-The target architecture reorganizes into these top-level directories. Until the migration happens, use the **current** paths above when looking for code.
-
-| Current | Target | Notes |
-|---------|--------|-------|
-| `engine/` | `game/` | Engine, managers, and simulation core merge under `game/` |
-| `objects/` | `game/` (merge with engine) | Runtime GameObjects move alongside their managers |
-| `components/` | `ui/components/` | Reusable UI components |
-| `phases/` | `ui/pages/` | Full-screen / phase-level surfaces |
-| *(none)* | `api/` | HTTP calls and DTOs; currently in project-wide `LobbyClient.ts` |
-
-When the `api/` directory is created, it will hold HTTP calls and **DTOs** (raw JSON shapes). Parsing into domain **GameObjects** belongs in **`game/`** (or a dedicated **`sync/`** module), not in React components.
 
 ## Architecture for the game state
 
@@ -94,14 +86,14 @@ App.tsx → Game.tsx  (phase routing, lobby-level React state)
  │  Passes initialGameState blob to the active phase component.
  │
  ▼
-BattlePhase  (phases/BattlePhase.tsx)
+BattlePhase  (ui/pages/BattlePhase.tsx)
  │  Owns the GameEngine (via refs). Creates engine on mount
  │  or on full resync via loadGameState().
  │  Registers BattleCallbacks with GameSyncContext.
  │  Bridges React UI ↔ engine: targeting state, order submission.
  │
  ▼
-GameEngine.fromJSON()  (engine/GameEngine.ts)
+GameEngine.fromJSON()  (game/GameEngine.ts)
  │  Deserializes SerializedGameState into the live object graph.
  │  Delegates to manager restoreFromJSON() and per-object fromJSON().
  │  This is the ONLY place where raw JSON becomes GameObjects.
@@ -113,7 +105,7 @@ GameEngine tick loop  (fixedUpdate @ 60 Hz)
  │  Managers own slices; engine orchestrates step order.
  │
  ▼
-BattleCanvas  (components/BattleCanvas.tsx)
+BattleCanvas  (ui/components/BattleCanvas.tsx)
    requestAnimationFrame loop calls GameRenderer.render(engine, camera, targetingState).
    Reads live engine state (units, effects, terrain, tiles).
    Mutates only Camera (pan, zoom, follow) — never domain objects.
@@ -182,7 +174,7 @@ The following direct mutations exist outside the three entry points above and ar
 
 ### Commands (BattleOrder / OrderAtTick)
 
-Player and AI inputs are represented as **`BattleOrder`** records (`unitId`, `abilityId`, `targets: ResolvedTarget[]`, optional `movePath`), defined in `engine/types.ts`. Orders are scheduled for a specific game tick via **`OrderAtTick`** (`{ gameTick: number; order: BattleOrder }`).
+Player and AI inputs are represented as **`BattleOrder`** records (`unitId`, `abilityId`, `targets: ResolvedTarget[]`, optional `movePath`), defined in `game/types.ts`. Orders are scheduled for a specific game tick via **`OrderAtTick`** (`{ gameTick: number; order: BattleOrder }`).
 
 - `GameEngine.applyOrder(order)` — queues at the current or next tick depending on pause state.
 - `GameEngine.queueOrder(atTick, order)` — queues for a specific future tick; applies immediately if `atTick === gameTick`.
@@ -191,8 +183,7 @@ Player and AI inputs are represented as **`BattleOrder`** records (`unitId`, `ab
 ### React
 
 - Use React for UI elements.
-- **Currently:** React components live in `components/` and phase-level surfaces in `phases/` at the `minion_battles` root.
-- **Target:** move to `ui/components/` (reusable UI) and `ui/pages/` (full-screen / phase-level surfaces).
+- React components live in `ui/components/` (reusable UI) and `ui/pages/` (full-screen / phase-level surfaces).
 - Do not put game logic in React. React should call into the domain (commands, facades, or engine APIs) to change state.
 
 ### Battle canvas (Pixi / WebGL)
@@ -209,11 +200,11 @@ Today `BattlePhase` is a monolithic React component (~800 lines) that mixes engi
 
 | Component | Owns | Reads | May mutate |
 |-----------|------|-------|------------|
-| **`BattleSession`** (class, `engine/BattleSession.ts`) | `GameEngine`, `Camera`, `GameRenderer`; engine lifecycle (`loadFromSnapshot`, `loadFreshMission`, `destroy`); order submission (`submitOrder`, `skipTurn`); sync bridge API (`getSnapshot`, `applyRemoteOrders`, `fullResync`). | Mission defs for initialization. | Engine state (via defined entry points only). |
-| **`BattlePhase`** (React, `phases/BattlePhase.tsx`) | Targeting / interaction state (`selectedCard`, `currentTargets`, `mouseWorld`, `pendingMovePath`). Creates `BattleSession` on mount, destroys on unmount. Subscribes to session events for React state. Registers session with `GameSyncContext` via `BattleCallbacks`. | Session (for engine/camera/renderer refs to pass to children). | React state only. Calls `session.submitOrder()` — never mutates engine directly. |
+| **`BattleSession`** (class, `game/BattleSession.ts`) | `GameEngine`, `Camera`, `GameRenderer`; engine lifecycle (`loadFromSnapshot`, `loadFreshMission`, `destroy`); order submission (`submitOrder`, `skipTurn`); sync bridge API (`getSnapshot`, `applyRemoteOrders`, `fullResync`). | Mission defs for initialization. | Engine state (via defined entry points only). |
+| **`BattlePhase`** (React, `ui/pages/BattlePhase.tsx`) | Targeting / interaction state (`selectedCard`, `currentTargets`, `mouseWorld`, `pendingMovePath`). Creates `BattleSession` on mount, destroys on unmount. Subscribes to session events for React state. Registers session with `GameSyncContext` via `BattleCallbacks`. | Session (for engine/camera/renderer refs to pass to children). | React state only. Calls `session.submitOrder()` — never mutates engine directly. |
 | **`GameSyncContext`** (React context, `app/js/contexts/GameSyncContext.tsx`) | Unified poll loop, network I/O timing, checkpoint saves, order submission to server. | Engine state via `BattleCallbacks` (delegates to session methods). | Network requests only; never touches engine or GameObjects. |
-| **`BattleCanvas`** (React, `components/BattleCanvas.tsx`) | `requestAnimationFrame` render loop. | Engine, `Camera`, `GameRenderer`, targeting state — all read-only except `Camera`. | `Camera` (pan, zoom, follow) — view state only, never domain objects. |
-| **`GameRenderer`** (class, `engine/GameRenderer.ts`) | Drawing logic, sprite management. | Engine state (units, effects, terrain, tiles, light grid). | Canvas pixels only. |
+| **`BattleCanvas`** (React, `ui/components/BattleCanvas.tsx`) | `requestAnimationFrame` render loop. | Engine, `Camera`, `GameRenderer`, targeting state — all read-only except `Camera`. | `Camera` (pan, zoom, follow) — view state only, never domain objects. |
+| **`GameRenderer`** (class, `game/GameRenderer.ts`) | Drawing logic, sprite management. | Engine state (units, effects, terrain, tiles, light grid). | Canvas pixels only. |
 | **`Game.tsx`** (React, root component) | Phase routing, lobby-level state (phase, votes, selections, equipment). | `gameData` from `GameSyncContext`. | Lobby-level React state. Passes `initialGameState` blob to phase components. |
 
 #### Data flow with BattleSession
@@ -257,7 +248,7 @@ BattleSession                          BattlePhase (React)
 There are three distinct state domains with different lifecycles:
 
 - **Lobby state** (`MinionBattlesState` in `state.ts`): phase, votes, character selections, equipment. **Server-authoritative.** Lives in React state, synced via polling. Mutations go through `LobbyClient` API calls → server → next poll.
-- **Battle state** (`SerializedGameState` in `engine/types.ts` / `GameEngine` at runtime): units, terrain, cards, tick, orders. **Host-authoritative.** Lives in `GameEngine` (owned by `BattleSession`). Persisted as checkpoints. Mutations go through tick loop and order application only.
+- **Battle state** (`SerializedGameState` in `game/types.ts` / `GameEngine` at runtime): units, terrain, cards, tick, orders. **Host-authoritative.** Lives in `GameEngine` (owned by `BattleSession`). Persisted as checkpoints. Mutations go through tick loop and order application only.
 - **Interaction state** (targeting): `selectedAbility`, `selectedCardIndex`, `currentTargets`, `mouseWorld`, `pendingMovePath`, `waitingForOrders`. Lives in `BattlePhase` as React state and refs. This is neither domain state nor purely view state — it bridges UI intent and command submission. `BattlePhase` maintains a `targetingStateRef` that the rAF render loop reads without triggering React re-renders. Targeting resolution logic lives in `abilities/targeting.ts` (`resolveClick`, `validateAndResolveTarget`). Preview rendering is driven by `AbilityStatic.renderTargetingPreview` functions called from `GameRenderer`. It is acceptable for this state to be ephemeral — it is never checkpointed or synced.
 
 Do not conflate these — they have different sources of truth, different persistence mechanisms, and different mutation paths.
@@ -267,12 +258,12 @@ Do not conflate these — they have different sources of truth, different persis
 **`GameEngine`** is the single source of truth for all battle state at runtime. It owns the tick loop, managers, order application, and the full object graph. There is no separate `GameState` class.
 
 - **Runtime state** — `GameEngine` holds scalar timing fields (`gameTime`, `gameTick`, `roundNumber`), the random seed, pause/waiting state, and delegates collection storage to managers (`UnitManager`, `ProjectileManager`, `EffectManager`, `CardManager`, `SpecialTileManager`, `LevelEventManager`). Managers are accessed through the `EngineContext` interface.
-- **Serialized form** — `SerializedGameState` (`engine/types.ts`) is the checkpoint/wire format. `GameEngine.toJSON()` assembles it by reading scalars and calling each manager's `toJSON()`. `GameEngine.fromJSON()` is the only place that deserializes a snapshot into the live object graph.
+- **Serialized form** — `SerializedGameState` (`game/types.ts`) is the checkpoint/wire format. `GameEngine.toJSON()` assembles it by reading scalars and calling each manager's `toJSON()`. `GameEngine.fromJSON()` is the only place that deserializes a snapshot into the live object graph.
 - **`EngineContext`** — The interface managers use to reference the engine without depending on the full class. It defines the contract (timing fields, `EventBus`, terrain, collection accessors, add/get helpers). New manager code should depend on `EngineContext`, not `GameEngine` directly.
 
 ### EventBus
 
-`GameEngine` owns a typed **`EventBus`** instance (`engine/EventBus.ts`). The bus provides `on`, `off`, `emit`, and `clear` methods, all typed via `GameEventType` and `GameEventDataMap`.
+`GameEngine` owns a typed **`EventBus`** instance (`game/EventBus.ts`). The bus provides `on`, `off`, `emit`, and `clear` methods, all typed via `GameEventType` and `GameEventDataMap`.
 
 **Current events:**
 
@@ -292,7 +283,7 @@ The bus is passed into managers and `Unit.fromJSON` during deserialization. List
 
 ### Camera and view state
 
-`Camera` (`engine/Camera.ts`) is **ephemeral view state** — it is not part of `SerializedGameState` and is never checkpointed. `BattlePhase` creates `new Camera(...)` in `loadGameState` and stores it on a ref. The canvas layer (`BattleCanvas`) mutates it freely (pan, zoom, follow via `centerOn` / `setFocusTarget` / `panBy`), and `GameRenderer.render` reads it to position the Pixi `gameContainer`. `BattlePhase` uses `camera.screenToWorld` for input resolution.
+`Camera` (`game/Camera.ts`) is **ephemeral view state** — it is not part of `SerializedGameState` and is never checkpointed. `BattlePhase` creates `new Camera(...)` in `loadGameState` and stores it on a ref. The canvas layer (`BattleCanvas`) mutates it freely (pan, zoom, follow via `centerOn` / `setFocusTarget` / `panBy`), and `GameRenderer.render` reads it to position the Pixi `gameContainer`. `BattlePhase` uses `camera.screenToWorld` for input resolution.
 
 It is acceptable for the canvas layer to mutate `Camera` on every frame — this is not domain state and does not need to go through engine mutation boundaries.
 
@@ -318,8 +309,7 @@ Rules for what belongs in snapshots:
 
 #### Layout on disk
 
-- **Currently:** Engine and simulation core live in `engine/` (including `GameEngine`, managers under `engine/managers/`). Runtime GameObjects live in `objects/` (e.g. units under `objects/units/`). Unit definitions are in `constants/unitConstants.ts` and `engine/unitDef.ts`.
-- **Target:** merge into `game/` (including **GameEngine** and managers), with each GameObject family in its own sub-folder (e.g. `game/units/`).
+Engine, simulation core, managers, and runtime GameObjects live under `game/` (including `GameEngine`, managers under `game/managers/`, units under `game/units/`). Unit definitions are in `game/units/unit_defs/unitConstants.ts` and `game/units/unit_defs/unitDef.ts`.
 
 ### Missions and level flow
 
@@ -331,5 +321,4 @@ Rules for what belongs in snapshots:
 - A GameObject holds **instance** state (position, AI state, current health/resources, etc.). Many **kinds** of the same object type can exist.
 - Example: a **GameUnit** has runtime fields and a **unit type** that references a **unit_def** (image, max health, move speed, abilities, etc.). A GameUnit may override some def values; the def is the static baseline.
 - **Definitions (`*_defs`)** are **immutable at runtime** after load: no mutating def objects during ticks. Overrides and dynamic values live on the **instance**.
-- **Currently:** unit definitions live in `constants/unitConstants.ts` and `engine/unitDef.ts`; runtime unit classes are in `objects/units/`.
-- **Target:** store definitions next to their GameObjects in a `*_defs` folder, e.g. `game/units/unit_defs/`.
+- Unit definitions live in `game/units/unit_defs/` (e.g. `unitConstants.ts`, `unitDef.ts`); runtime unit classes are in `game/units/`.

@@ -6,9 +6,9 @@
  */
 
 import React, { useRef, useEffect, useCallback } from 'react';
-import { GameRenderer } from '../game/GameRenderer';
-import type { GameEngine } from '../game/GameEngine';
-import type { Camera } from '../game/Camera';
+import { GameRenderer } from '../../game/GameRenderer';
+import type { GameEngine } from '../../game/GameEngine';
+import type { Camera } from '../../game/Camera';
 
 interface BattleCanvasProps {
     engine: GameEngine;

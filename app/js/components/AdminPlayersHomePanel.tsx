@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AccountState } from '../types';
 import { LobbyClient } from '../LobbyClient';
-import CharacterEditor from '../games/minion_battles/components/CharacterEditor/CharacterEditor';
+import CharacterEditor from '../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../games/minion_battles/character_defs/campaignCharacterTypes';
 import { getPortrait } from '../games/minion_battles/character_defs/portraits';

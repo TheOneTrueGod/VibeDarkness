@@ -12,16 +12,16 @@ import { LobbyClient } from '../../LobbyClient';
 import { useLocalOverrides } from '../../hooks/useLocalOverrides';
 import { useToast } from '../../contexts/ToastContext';
 import type { GamePhase } from './state';
-import MissionSelectPhase from './phases/MissionSelectPhase';
-import CharacterSelectPhase from './phases/CharacterSelectPhase';
-import PreMissionStoryPhase from './phases/PreMissionStoryPhase';
-import PostMissionStoryPhase from './phases/PostMissionStoryPhase';
-import BattlePhase from './phases/BattlePhase';
+import MissionSelectPhase from './ui/pages/MissionSelectPhase';
+import CharacterSelectPhase from './ui/pages/CharacterSelectPhase';
+import PreMissionStoryPhase from './ui/pages/PreMissionStoryPhase';
+import PostMissionStoryPhase from './ui/pages/PostMissionStoryPhase';
+import BattlePhase from './ui/pages/BattlePhase';
 import { MISSION_MAP } from './storylines';
 import { SPECTATOR_ID } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
-import VictoryModal from './components/VictoryModal';
+import VictoryModal from './ui/components/VictoryModal';
 
 /** Determine the winning mission from votes (most votes, or first alphabetically on tie). */
 function getSelectedMission(votes: Record<string, string>): string {

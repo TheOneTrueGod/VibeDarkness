@@ -20,9 +20,9 @@ When working on Minion Battles (the game):
 
 ## Teams
 
-Each unit has a **team** via `unit.teamId` (`TeamId` in `engine/teams.ts`). Use teams (not `ownerId`) when you need “same side” or “ally” logic.
+Each unit has a **team** via `unit.teamId` (`TeamId` in `game/teams.ts`). Use teams (not `ownerId`) when you need “same side” or “ally” logic.
 
-See `engine/teams.ts` for team definitions (`TeamId`), alliance rules (`ALLIANCE_MAP`), and helpers (`areAllies`, `areEnemies`).
+See `game/teams.ts` for team definitions (`TeamId`), alliance rules (`ALLIANCE_MAP`), and helpers (`areAllies`, `areEnemies`).
 
 - **Defaults**: Enemy units use the enemy team; player units use the player team. Missions or spawn logic can override the team for NPCs that fight with the player.
 - **Getting allies**: Use `engine.getAllies(caster)` to get all units allied with the caster (alive, excluding the caster). This filters by team alliance, not by `ownerId`.

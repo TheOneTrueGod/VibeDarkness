@@ -101,7 +101,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 | `app/js/games/base.ts` | Base game class |
 | `app/js/games/minion_battles/Game.tsx` | Minion Battles React component |
 | `app/js/games/minion_battles/state.ts` | Minion Battles state types |
-| `app/js/games/minion_battles/phases/CharacterSelectPhase.tsx` | Character selection phase |
+| `app/js/games/minion_battles/ui/pages/CharacterSelectPhase.tsx` | Character selection phase |
 
 ## Common Tasks
 

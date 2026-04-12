@@ -6,9 +6,9 @@
  */
 
 import React, { useCallback } from 'react';
-import type { AbilityStatic } from '../abilities/Ability';
-import type { CardInstance } from '../game/GameEngine';
-import { getCardDef } from '../card_defs';
+import type { AbilityStatic } from '../../abilities/Ability';
+import type { CardInstance } from '../../game/GameEngine';
+import { getCardDef } from '../../card_defs';
 import CardTooltip from './CardTooltip';
 
 interface CardComponentProps {

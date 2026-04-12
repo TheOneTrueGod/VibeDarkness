@@ -3,14 +3,14 @@
  * Lets admins browse lobby players, inspect their characters, and grant/equip items.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { PlayerState, AccountState } from '../../../types';
-import { LobbyClient } from '../../../LobbyClient';
+import type { PlayerState, AccountState } from '../../../../types';
+import { LobbyClient } from '../../../../LobbyClient';
 import CharacterEditor from './CharacterEditor/CharacterEditor';
-import { fromCampaignCharacterData, type CampaignCharacter } from '../character_defs/CampaignCharacter';
-import type { CampaignCharacterData } from '../character_defs/campaignCharacterTypes';
-import { getPortrait } from '../character_defs/portraits';
-import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../character_defs/items';
-import { useUser } from '../../../contexts/UserContext';
+import { fromCampaignCharacterData, type CampaignCharacter } from '../../character_defs/CampaignCharacter';
+import type { CampaignCharacterData } from '../../character_defs/campaignCharacterTypes';
+import { getPortrait } from '../../character_defs/portraits';
+import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../../character_defs/items';
+import { useUser } from '../../../../contexts/UserContext';
 
 interface AdminPlayersPanelProps {
     lobbyClient: LobbyClient;
