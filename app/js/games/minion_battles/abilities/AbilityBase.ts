@@ -6,7 +6,12 @@ import {
     type ResourceCost,
     type AbilityAISettings,
 } from './Ability';
-import { AbilityPhase, type AbilityTiming } from './abilityTimings';
+import {
+    AbilityPhase,
+    type AbilityTimingEntry,
+    type AbilityTimingInterval,
+    normalizeAbilityTimingsToIntervals,
+} from './abilityTimings';
 import type { Unit } from '../game/units/Unit';
 import type { TargetDef } from './targeting';
 import type { ActiveAbility, ResolvedTarget } from '../game/types';
@@ -16,7 +21,6 @@ export abstract class AbilityBase<TNote = never> implements AbilityStatic {
     abstract readonly name: string;
     abstract readonly image: string;
     abstract readonly prefireTime: number;
-    abstract readonly cooldownTime: number;
     abstract readonly targets: TargetDef[];
 
     abstract doCardEffect(
@@ -33,7 +37,7 @@ export abstract class AbilityBase<TNote = never> implements AbilityStatic {
     readonly resourceCost: ResourceCost | null = null;
     readonly rechargeTurns: number = 0;
     readonly aiSettings?: AbilityAISettings;
-    readonly abilityTimings?: AbilityTiming[];
+    abstract readonly abilityTimings: AbilityTimingEntry[];
 
     // -- Typed note management ------------------------------------------------
 
@@ -53,15 +57,28 @@ export abstract class AbilityBase<TNote = never> implements AbilityStatic {
 
     // -- Phase utilities ------------------------------------------------------
 
-    /** Which phase is active at the given elapsed time? Returns null if past all phases. */
+    /** Resolved half-open intervals (legacy rows expanded in declaration order). */
+    protected getAbilityTimingIntervals(): AbilityTimingInterval[] {
+        return normalizeAbilityTimingsToIntervals(this.abilityTimings);
+    }
+
+    /**
+     * Which phase wins at the given elapsed time when intervals overlap?
+     * Uses the earliest-declared covering interval (same rule as battle timeline merge).
+     */
     getPhaseAtTime(elapsed: number): AbilityPhase | null {
-        if (!this.abilityTimings) return null;
-        let t = 0;
-        for (const timing of this.abilityTimings) {
-            if (elapsed < t + timing.duration) return timing.abilityPhase;
-            t += timing.duration;
+        const intervals = this.getAbilityTimingIntervals();
+        if (intervals.length === 0) return null;
+        let bestIdx = Number.POSITIVE_INFINITY;
+        let bestPhase: AbilityPhase | null = null;
+        for (let i = 0; i < intervals.length; i++) {
+            const it = intervals[i];
+            if (it.start <= elapsed && elapsed < it.end && i < bestIdx) {
+                bestIdx = i;
+                bestPhase = it.abilityPhase;
+            }
         }
-        return null;
+        return bestPhase;
     }
 
     /**
@@ -78,38 +95,34 @@ export abstract class AbilityBase<TNote = never> implements AbilityStatic {
         return prevTime < start && currentTime >= start;
     }
 
-    /** Absolute start time of a phase (sum of preceding durations). */
+    /** Start time of the first declared interval with this phase. */
     getPhaseStartTime(phase: AbilityPhase): number {
-        if (!this.abilityTimings) return 0;
-        let t = 0;
-        for (const timing of this.abilityTimings) {
-            if (timing.abilityPhase === phase) return t;
-            t += timing.duration;
+        const intervals = this.getAbilityTimingIntervals();
+        for (const it of intervals) {
+            if (it.abilityPhase === phase) return it.start;
         }
-        return t;
+        return 0;
     }
 
-    /** Absolute end time of a phase (start + its duration). */
+    /** End time of the first declared interval with this phase. */
     getPhaseEndTime(phase: AbilityPhase): number {
-        if (!this.abilityTimings) return 0;
-        let t = 0;
-        for (const timing of this.abilityTimings) {
-            if (timing.abilityPhase === phase) return t + timing.duration;
-            t += timing.duration;
+        const intervals = this.getAbilityTimingIntervals();
+        for (const it of intervals) {
+            if (it.abilityPhase === phase) return it.end;
         }
-        return t;
+        return 0;
     }
 
-    /** Progress through a specific phase (0..1), clamped. */
+    /** Progress through the first declared interval of this phase (0..1), clamped. */
     getPhaseProgress(phase: AbilityPhase, elapsed: number): number {
-        if (!this.abilityTimings) return 0;
-        let t = 0;
-        for (const timing of this.abilityTimings) {
-            if (timing.abilityPhase === phase) {
-                const phaseElapsed = elapsed - t;
-                return Math.max(0, Math.min(1, phaseElapsed / timing.duration));
+        const intervals = this.getAbilityTimingIntervals();
+        for (const it of intervals) {
+            if (it.abilityPhase === phase) {
+                const len = it.end - it.start;
+                if (len <= 0) return 0;
+                const phaseElapsed = elapsed - it.start;
+                return Math.max(0, Math.min(1, phaseElapsed / len));
             }
-            t += timing.duration;
         }
         return 0;
     }

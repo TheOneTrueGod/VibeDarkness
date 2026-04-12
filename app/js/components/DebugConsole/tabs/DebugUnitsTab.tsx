@@ -21,7 +21,8 @@ type DebugUnit = Record<string, unknown> & {
     ownerId?: unknown;
     hp?: unknown;
     maxHp?: unknown;
-    cooldownRemaining?: unknown;
+    waitMinEndTime?: unknown;
+    waitMaxEndTime?: unknown;
     corruptionProgress?: unknown;
     radius?: unknown;
     aiContext?: {
@@ -51,7 +52,8 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
 
     // Lazy-load ability registry for ability names and metadata.
     const [getAbilityFn, setGetAbilityFn] = useState<
-        ((id: string) => { name: string; cooldownTime: number; prefireTime: number } | undefined) | null
+        | ((id: string) => { name: string; prefireTime: number; totalDuration: number } | undefined)
+        | null
     >(null);
 
     // Poll live engine state when in battle so Units tab stays up to date
@@ -111,11 +113,22 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
 
     useEffect(() => {
         if (!isActive || !inBattle || getAbilityFn) return;
-        void import('../../../games/minion_battles/abilities/AbilityRegistry')
-            .then((mod) => {
-                setGetAbilityFn(
-                    () => (mod as { getAbility: (id: string) => { name: string; cooldownTime: number; prefireTime: number } | undefined }).getAbility,
-                );
+        void Promise.all([
+            import('../../../games/minion_battles/abilities/AbilityRegistry'),
+            import('../../../games/minion_battles/abilities/abilityTimings'),
+        ])
+            .then(([regMod, timingsMod]) => {
+                const getAbility = (regMod as { getAbility: (id: string) => import('../../../games/minion_battles/abilities/Ability').AbilityStatic | undefined }).getAbility;
+                const { getTotalAbilityDuration } = timingsMod as typeof import('../../../games/minion_battles/abilities/abilityTimings');
+                setGetAbilityFn(() => (id: string) => {
+                    const a = getAbility(id);
+                    if (!a) return undefined;
+                    return {
+                        name: a.name,
+                        prefireTime: a.prefireTime,
+                        totalDuration: getTotalAbilityDuration(a),
+                    };
+                });
             })
             .catch(() => setGetAbilityFn(null));
     }, [inBattle, getAbilityFn, isActive]);
@@ -264,9 +277,12 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
                                 {typeof selectedUnit.hp === 'number' ? selectedUnit.hp : '-'} / {typeof selectedUnit.maxHp === 'number' ? selectedUnit.maxHp : '-'}
                             </span>
 
-                            <span className="text-muted">cooldown</span>
+                            <span className="text-muted">waitLockout</span>
                             <span className="text-white">
-                                {typeof selectedUnit.cooldownRemaining === 'number' ? selectedUnit.cooldownRemaining : '-'}
+                                {typeof selectedUnit.waitMinEndTime === 'number' &&
+                                typeof selectedUnit.waitMaxEndTime === 'number'
+                                    ? 'yes'
+                                    : 'no'}
                             </span>
 
                             <span className="text-muted">corruption</span>
@@ -340,8 +356,8 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
                                                                     <span className="text-white">{active ? 'active' : 'ready'}</span>
                                                                     {def && (
                                                                         <>
-                                                                            <span className="text-muted">cooldownTime</span>
-                                                                            <span className="text-white">{def.cooldownTime}s</span>
+                                                                            <span className="text-muted">totalDuration</span>
+                                                                            <span className="text-white">{def.totalDuration}s</span>
                                                                             <span className="text-muted">prefireTime</span>
                                                                             <span className="text-white">{def.prefireTime}s</span>
                                                                         </>

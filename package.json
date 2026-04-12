@@ -10,6 +10,7 @@
     "deploy": "node scripts/deploy.js",
     "preview": "vite preview",
     "php": "nodemon --watch backend --watch index.php --ext php --exec \"php -S localhost:8000 index.php\"",
+    "lint": "eslint .",
     "test": "npx vitest run",
     "test:watch": "npx vitest"
   },
@@ -21,13 +22,18 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@vitejs/plugin-react": "^4.3.4",
     "archiver": "^7.0.0",
     "autoprefixer": "^10.4.21",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
     "nodemon": "^3.1.11",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.6.0",
+    "typescript-eslint": "^8.58.1",
     "vite": "^6.2.0",
     "vitest": "^2.1.0"
   }

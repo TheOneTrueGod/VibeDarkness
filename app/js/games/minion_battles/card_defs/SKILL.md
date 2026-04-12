@@ -53,7 +53,22 @@ Both are exported from the same file. Export the ability for `AbilityRegistry` a
 2. **`renderTargetingPreview(gr, caster, currentTargets, mouseWorld, units)`**
    - Draws a hint in the targeting overlay for where the skill will affect.
 
-Implement the rest of `AbilityStatic` (`getDescription`, `getAbilityStates`, `targets`, `prefireTime`, `cooldownTime`, `resourceCost`, `rechargeTurns`, `image`, `aiSettings`) as needed. See existing abilities under `card_defs/` for reference.
+Implement the rest of `AbilityStatic` (`getDescription`, `getAbilityStates`, `targets`, `prefireTime`, **`abilityTimings`**, `resourceCost`, `rechargeTurns`, `image`, `aiSettings`) as needed. See existing abilities under `card_defs/` for reference.
+
+### `abilityTimings` (half-open intervals)
+
+**Required** on every ability. Use **`AbilityTimingInterval`** rows (see `abilities/abilityTimings.ts`):
+
+| Field | Role |
+|--------|------|
+| `id` | Stable string for simulation (`windup`, `lunge`, `hit`, …) — use `activeTimingIds` / `enteredTimingIds` in `doCardEffect` when migrating. |
+| `start`, `end` | Seconds from cast start; **half-open** `[start, end)` (`end` exclusive). |
+| `abilityPhase` | `AbilityPhase` for ring UI and timeline colour. |
+| `timelineLabel` / `timelineDescription` | Optional; battle timeline tooltips default from phase if omitted. |
+
+**Order matters** when intervals overlap: the battle timeline’s single merged band uses **first-listed wins** for overlapping time. Total active duration for the engine is **`max(end)`** across intervals (see `getTotalAbilityDuration`).
+
+Legacy `{ duration, abilityPhase }` remains in the type union for adapters/tests; new card defs should use interval rows only.
 
 ### Blocking and `onAttackBlocked`
 
@@ -99,7 +114,7 @@ While knockback is active, the unit cannot move or act. If it hits a wall, it bo
 - [ ] Folder `card_defs/####_ABILITY_NAME` and file `####_ABILITY_NAME.ts` created.
 - [ ] Ability ID uses group (2 digits) + index (2 digits); group from `AbilityGroupId`.
 - [ ] Same file exports both the ability and the `CardDef` with matching `id` / `abilityId`.
-- [ ] `doCardEffect` implements per-tick behavior; `renderTargetingPreview` draws targeting hint.
+- [ ] Non-empty `abilityTimings` (interval form); `doCardEffect` implements per-tick behavior; `renderTargetingPreview` draws targeting hint.
 - [ ] Ability registered in `AbilityRegistry.ts`; card def registered in `card_defs/index.ts`.
 - [ ] Character's card list includes the new card id if the character should have the card.
 - [ ] If the ability inflicts knockback: use `targetUnit.applyKnockback` with serializable params.

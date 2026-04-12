@@ -5,4 +5,5 @@ description: Guides creating new abilities and card definitions in Minion Battle
 
 # Creating an Ability
 
-**See `app/js/games/minion_battles/card_defs/SKILL.md` for the full guide.**
+**See `app/js/games/minion_battles/card_defs/SKILL.md` for the full guide** (including **`abilityTimings` half-open intervals** and stable `id` conventions).
+

@@ -28,13 +28,22 @@ export const PistolAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Pistol',
     image: PISTOL_IMAGE,
-    cooldownTime: COOLDOWN_TIME,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: PREFIRE_FIRST_SHOT,
     abilityTimings: [
-        { duration: PREFIRE_FIRST_SHOT, abilityPhase: AbilityPhase.Windup },
-        { duration: COOLDOWN_TIME, abilityPhase: AbilityPhase.Cooldown },
+        {
+            id: 'aim',
+            start: 0,
+            end: PREFIRE_FIRST_SHOT,
+            abilityPhase: AbilityPhase.Windup,
+        },
+        {
+            id: 'cooldown',
+            start: PREFIRE_FIRST_SHOT,
+            end: PREFIRE_FIRST_SHOT + COOLDOWN_TIME,
+            abilityPhase: AbilityPhase.Cooldown,
+        },
     ],
     targets: [
         { type: 'pixel', label: 'First shot' },

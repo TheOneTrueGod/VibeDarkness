@@ -10,7 +10,7 @@ import type { TargetDef } from './targeting';
 import type { ResolvedTarget } from '../game/types';
 import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
-import type { AbilityTiming } from './abilityTimings';
+import type { AbilityTimingEntry } from './abilityTimings';
 import type { CardDefId } from '../card_defs/types';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
@@ -76,8 +76,6 @@ export interface AbilityStatic {
     readonly name: string;
     /** Image URL or SVG string for the card. */
     readonly image: string;
-    /** Time in seconds for the ability's cooldown. */
-    readonly cooldownTime: number;
     /** Resource cost to use the ability. Null means free. */
     readonly resourceCost: ResourceCost | null;
     /** Rounds the card spends in exile before returning to deck. */
@@ -94,17 +92,22 @@ export interface AbilityStatic {
     /** AI settings controlling when this ability is used (range check). */
     readonly aiSettings?: AbilityAISettings;
     /**
-     * Time in seconds before the ability's main effect fires.
-     * The engine calls doCardEffect every tick while the ability is active.
-     * Use 0 for instant abilities.
+     * Time in seconds before the ability's main effect typically fires (windup / telegraph end).
+     * The engine calls `doCardEffect` every tick until the cast ends; use this (or interval ids from
+     * `abilityTimings`) inside `doCardEffect` for threshold checks. `AbilityBase` also uses it for the
+     * default movement penalty until `prefireTime` elapses unless `getAbilityStates` is overridden.
+     * Use `0` when the main effect is immediate.
+     *
+     * Cast **duration** and removal of the active ability entry come from `abilityTimings`
+     * (`getTotalAbilityDuration` = `max(end)`), not from `prefireTime` alone.
      */
     readonly prefireTime: number;
 
     /**
-     * Optional. Segments for the circular progress indicator (windup / active / cooldown etc.).
-     * If present, the ring is drawn in segments by phase; otherwise a single color is used.
+     * Half-open timing intervals for UI (timeline, segmented cooldown ring) and duration (`max(end)`).
+     * Required on every ability; use `abilities/abilityTimings.ts` helpers.
      */
-    readonly abilityTimings?: AbilityTiming[];
+    readonly abilityTimings: AbilityTimingEntry[];
 
     /**
      * Get tooltip lines for the card UI. Use {value} in a line for dynamic parts
@@ -115,14 +118,15 @@ export interface AbilityStatic {
     /**
      * Execute the ability's effect over time using threshold checks.
      *
-     * Called every tick while the ability is active. `prevTime` and `currentTime`
-     * are seconds elapsed since the ability started. The ability should check
-     * thresholds (e.g. `prevTime < 0.3 && currentTime >= 0.3`) to fire one-shot
-     * effects, and guard with `currentTime < prefireTime` (or similar) for
-     * per-tick effects. The ability is removed once `currentTime >= prefireTime`
-     * and getAbilityStates returns empty.
+     * Called every tick while the ability is active. `prevTime` and `currentTime` are seconds elapsed
+     * since the cast started. Fire one-shots with edge checks (e.g. `prevTime < 0.3 && currentTime >= 0.3`).
+     * For repeating logic during a phase, gate on elapsed time or on `abilityTimings` (e.g. via helpers
+     * in `abilityTimings.ts`), not only on `prefireTime`.
      *
-     * On the first tick, prevTime is 0.
+     * The engine removes the active ability when `currentTime >= getTotalAbilityDuration(this)` (derived
+     * from non-empty `abilityTimings`). That is independent of what `getAbilityStates` returns.
+     *
+     * On the first tick, `prevTime` is 0.
      */
     doCardEffect(
         engine: unknown,
@@ -146,10 +150,10 @@ export interface AbilityStatic {
     ): void;
 
     /**
-     * Return a list of active ability states at the given elapsed time.
-     * Used by the engine to apply effects like movement penalties.
-     * The active ability stays alive until both prefireTime is reached
-     * and this returns an empty array.
+     * Return active ability states at the given elapsed time (e.g. movement penalties, blocking).
+     * Used by the engine alongside other unit logic; it does **not** control when the cast ends.
+     * The active ability entry is removed when elapsed time reaches `getTotalAbilityDuration` from
+     * `abilityTimings`, regardless of whether this method returns an empty list earlier or later.
      */
     getAbilityStates(currentTime: number): AbilityStateEntry[];
 

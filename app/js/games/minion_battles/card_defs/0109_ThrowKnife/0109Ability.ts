@@ -31,13 +31,12 @@ export const ThrowKnife: AbilityStatic = {
     id: 'throw_knife',
     name: 'Throw Knife',
     image: THROW_KNIFE_IMAGE,
-    cooldownTime: 2,
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: 0.3,
     abilityTimings: [
-        { duration: 0.3, abilityPhase: AbilityPhase.Windup },
-        { duration: 2, abilityPhase: AbilityPhase.Cooldown },
+        { id: 'windup', start: 0, end: 0.3, abilityPhase: AbilityPhase.Windup },
+        { id: 'cooldown', start: 0.3, end: 2.3, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     getTargets(): TargetDef[] {

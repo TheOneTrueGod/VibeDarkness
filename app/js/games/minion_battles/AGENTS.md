@@ -28,7 +28,7 @@
 | `ui/pages/` | Phase-level React components (`BattlePhase`, `CharacterSelectPhase`, `MissionSelectPhase`, etc.) |
 | `api/` | `MinionBattlesApi` (HTTP facade), `types.ts` (DTOs for lobby game JSON, characters, admin) |
 | `terrain/` | `TerrainManager`, `TerrainGrid`, `Pathfinder`, terrain tile types |
-| `abilities/` | `Ability` class, `targeting.ts`, `behaviors/`, `templates/`, preview helpers |
+| `abilities/` | `Ability` class, `abilityTimings.ts` (intervals + timeline merge helpers), `targeting.ts`, `behaviors/`, `templates/`, preview helpers |
 | `card_defs/` | Per-card ability definition folders |
 | `character_defs/` | Character definitions and `items/` |
 | `constants/` | Shared constants (`enemyConstants.ts`, `npcs.ts`) |

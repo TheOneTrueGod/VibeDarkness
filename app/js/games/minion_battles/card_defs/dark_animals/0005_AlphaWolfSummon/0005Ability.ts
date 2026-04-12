@@ -55,14 +55,23 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Summon',
     image: SUMMON_IMAGE,
-    cooldownTime: 3,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
-        { duration: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
-        { duration: 0.1, abilityPhase: AbilityPhase.Active },
-        { duration: 3, abilityPhase: AbilityPhase.Cooldown },
+        { id: 'howl', start: 0, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
+        {
+            id: 'summon',
+            start: PREFIRE_TIME,
+            end: PREFIRE_TIME + 0.1,
+            abilityPhase: AbilityPhase.Active,
+        },
+        {
+            id: 'cooldown',
+            start: PREFIRE_TIME + 0.1,
+            end: PREFIRE_TIME + 3.1,
+            abilityPhase: AbilityPhase.Cooldown,
+        },
     ],
     targets: [] as TargetDef[],
     aiSettings: {

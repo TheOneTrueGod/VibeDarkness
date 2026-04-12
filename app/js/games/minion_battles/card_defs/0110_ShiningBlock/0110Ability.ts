@@ -117,12 +117,16 @@ export const ShiningBlockAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Shining Block',
     image: SHINING_BLOCK_IMAGE,
-    cooldownTime: COOLDOWN_TIME,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DURATION,
     abilityTimings: [
-        { duration: DURATION, abilityPhase: AbilityPhase.Juggernaut },
+        {
+            id: 'block',
+            start: 0,
+            end: DURATION,
+            abilityPhase: AbilityPhase.Juggernaut,
+        },
     ],
     targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
     aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },

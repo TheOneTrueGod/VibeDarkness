@@ -1,5 +1,5 @@
 import { AbilityBase } from '../AbilityBase';
-import { AbilityPhase, type AbilityTiming } from '../abilityTimings';
+import { AbilityPhase, type AbilityTimingInterval, activeTimingIds } from '../abilityTimings';
 import type { AbilityStatic, IAbilityPreviewGraphics, AttackBlockedInfo } from '../Ability';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import type { Unit } from '../../game/units/Unit';
@@ -48,17 +48,18 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
     readonly id: string;
     readonly name: string;
     readonly image: string;
-    readonly cooldownTime: number;
     readonly resourceCost = null;
     readonly rechargeTurns = 0;
     readonly prefireTime: number;
-    readonly abilityTimings: AbilityTiming[];
+    readonly abilityTimings: AbilityTimingInterval[];
     readonly targets: TargetDef[];
     readonly aiSettings: { minRange: number; maxRange: number };
     readonly renderTargetingPreview: AbilityStatic['renderTargetingPreview'];
 
     private readonly config: ChargeAttackConfig;
     private readonly lunge: LungeMovement;
+    /** End of windup interval (exclusive); same as lunge phase start. */
+    private readonly windupEnd: number;
 
     constructor(config: ChargeAttackConfig) {
         super();
@@ -66,19 +67,22 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
         this.id = config.id;
         this.name = config.name;
         this.image = config.image;
-        this.cooldownTime = config.cooldownDuration;
-        this.prefireTime = config.windupTime + config.lungeDuration;
+        const w = config.windupTime;
+        const l = config.lungeDuration;
+        const cd = config.cooldownDuration;
+        this.windupEnd = w;
+        this.prefireTime = w + l;
         this.abilityTimings = [
-            { duration: config.windupTime, abilityPhase: AbilityPhase.Windup },
-            { duration: config.lungeDuration, abilityPhase: AbilityPhase.Active },
-            { duration: config.cooldownDuration, abilityPhase: AbilityPhase.Cooldown },
+            { id: 'windup', start: 0, end: w, abilityPhase: AbilityPhase.Windup },
+            { id: 'lunge', start: w, end: w + l, abilityPhase: AbilityPhase.Active },
+            { id: 'cooldown', start: w + l, end: w + l + cd, abilityPhase: AbilityPhase.Cooldown },
         ];
         this.targets = [{ type: 'unit', label: 'Target enemy' }] as TargetDef[];
         this.aiSettings = { minRange: 0, maxRange: config.aiMaxRange };
         this.lunge = new LungeMovement({
             maxRange: config.baseMaxRange,
-            lungeDuration: config.lungeDuration,
-            windupTime: config.windupTime,
+            lungeDuration: l,
+            windupTime: w,
         });
         this.renderTargetingPreview = createUnitTargetPreview({
             getMinRange: () => 0,
@@ -126,7 +130,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
         const note = this.getChargeNote(caster, active);
         if (!note) return;
 
-        if (this.getPhaseAtTime(currentTime) === AbilityPhase.Windup) return;
+        if (activeTimingIds(currentTime, this.abilityTimings).has('windup')) return;
 
         const segment = this.lunge.advance(caster, note, prevTime, currentTime, eng);
         this.damageEnemiesInPath(eng, caster, note, segment);
@@ -144,7 +148,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
         gameTime: number,
     ): void {
         const elapsed = gameTime - activeAbility.startTime;
-        if (elapsed < 0 || elapsed > this.config.windupTime) return;
+        if (elapsed < 0 || elapsed >= this.windupEnd) return;
 
         const note = this.getChargeNote(caster, activeAbility);
         if (!note) return;

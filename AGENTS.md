@@ -134,7 +134,13 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 
 ## Project Skills
 
-Skills are located in the `.cursor/skills` directory
+Skills are located in the `.cursor/skills` directory.
+
+### Backwards compatibility
+
+- **Do** preserve backwards compatibility for **out-of-battle** persisted or shared data—e.g. **Players**, **Campaigns**, and similar structures that survive across sessions or are shared outside a single battle.
+- **Do not** require backwards compatibility for **in-battle** data—e.g. **snapshots**, **battle characters**, or **individual level** payload shapes (these can change freely when the battle format changes).
+- For any other data structure not clearly in the lists above, **assume** backwards compatibility is required unless you learn otherwise. If you still need a policy for future changes, **prompt the user for a decision** and wrap that prompt in **yellow** as described under [Communication](#communication).
 
 ## Testing Locally
 

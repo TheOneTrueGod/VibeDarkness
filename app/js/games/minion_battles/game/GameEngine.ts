@@ -555,7 +555,6 @@ export class GameEngine implements EngineContext {
         }
 
         if (order.abilityId === 'wait') {
-            unit.startCooldown(3);
             unit.waitMinEndTime = this.gameTime + 1;
             unit.waitMaxEndTime = this.gameTime + 3;
             return;
@@ -585,8 +584,6 @@ export class GameEngine implements EngineContext {
 
     private executeAbility(unit: Unit, ability: AbilityStatic, targets: ResolvedTarget[]): void {
         if (!spendAbilityCost(unit, ability)) return;
-
-        unit.startCooldown(ability.cooldownTime);
 
         const existing = unit.activeAbilities.findIndex((a) => a.abilityId === ability.id);
         if (existing >= 0) {
@@ -661,8 +658,6 @@ export class GameEngine implements EngineContext {
             if (ability) refundAbilityCost(unit, ability);
             unit.activeAbilities.splice(0, 1);
         }
-        unit.cooldownRemaining = 0;
-        unit.cooldownTotal = 0;
         unit.clearAbilityNote();
     }
 

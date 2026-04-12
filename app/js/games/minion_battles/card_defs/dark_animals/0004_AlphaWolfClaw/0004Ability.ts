@@ -102,14 +102,23 @@ export const AlphaWolfClawAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Claw',
     image: CLAW_IMAGE,
-    cooldownTime: 1.5,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
-        { duration: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
-        { duration: 0.1, abilityPhase: AbilityPhase.Active },
-        { duration: 1.5, abilityPhase: AbilityPhase.Cooldown },
+        { id: 'windup', start: 0, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
+        {
+            id: 'hit',
+            start: PREFIRE_TIME,
+            end: PREFIRE_TIME + 0.1,
+            abilityPhase: AbilityPhase.Active,
+        },
+        {
+            id: 'cooldown',
+            start: PREFIRE_TIME + 0.1,
+            end: PREFIRE_TIME + 1.6,
+            abilityPhase: AbilityPhase.Cooldown,
+        },
     ],
     targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
     aiSettings: {

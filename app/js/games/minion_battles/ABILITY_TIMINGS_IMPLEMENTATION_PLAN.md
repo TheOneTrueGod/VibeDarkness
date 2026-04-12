@@ -76,11 +76,11 @@ These can be assigned to **different sub-agents** after **Track A** (foundation)
 
 **Deliverables:**
 
-- [ ] Add `AbilityTimingInterval` type and validators (`validateAbilityTimings`, assert `start < end`, optional warn on negative).
-- [ ] Implement `getTotalAbilityDurationFromIntervals(timings)` → `max(end)`.
-- [ ] Implement `activeTimingIds`, `enteredTimingIds`, `exitedTimingIds` (half-open).
-- [ ] **Migration adapter:** `normalizeLegacyAbilityTimings(legacy: AbilityTiming[])` — convert old `{ duration, abilityPhase }[]` **sequential** list into half-open intervals `[cursor, cursor+duration)` preserving order (document that legacy = no overlap).
-- [ ] Deprecation path: keep existing `AbilityTiming` export during migration; re-export or alias to new name when ready.
+- [x] Add `AbilityTimingInterval` type and validators (`validateAbilityTimings`, assert `start < end`, optional warn on negative).
+- [x] Implement `getTotalAbilityDurationFromIntervals(timings)` → `max(end)`.
+- [x] Implement `activeTimingIds`, `enteredTimingIds`, `exitedTimingIds` (half-open).
+- [x] **Migration adapter:** `normalizeLegacyAbilityTimings(legacy: AbilityTiming[])` — convert old `{ duration, abilityPhase }[]` **sequential** list into half-open intervals `[cursor, cursor+duration)` preserving order (document that legacy = no overlap).
+- [x] Deprecation path: keep existing `AbilityTiming` export during migration; re-export or alias to new name when ready.
 
 **Tests (Vitest):** boundary cases (`elapsed === end` inactive), overlapping ids, legacy normalization sums to same total duration as old `reduce(duration)`.
 
@@ -92,10 +92,10 @@ These can be assigned to **different sub-agents** after **Track A** (foundation)
 
 **Deliverables:**
 
-- [ ] Update `getTotalAbilityDuration` in `abilityTimings.ts` to:
+- [x] Update `getTotalAbilityDuration` in `abilityTimings.ts` to:
   - Prefer **new** interval list when present (`abilityTimingsV2` or unified field — see naming note below).
   - Else run **legacy** path: sequential durations **or** `prefireTime + cooldownTime`.
-- [ ] `GameEngine.processActiveAbilities`: already uses `getTotalAbilityDuration`; verify it matches `max(end)` once intervals are wired.
+- [x] `GameEngine.processActiveAbilities`: already uses `getTotalAbilityDuration`; verify it matches `max(end)` once intervals are wired.
 
 **Naming note:** Either extend `AbilityStatic` with `abilityTimingIntervals?: AbilityTimingInterval[]` alongside legacy, or replace `abilityTimings` in one type rename PR. Prefer **one field** `abilityTimings` with a discriminated union or version flag to avoid dual maintenance — **Track A owner** should pick the smallest-change strategy documented here.
 
@@ -109,13 +109,13 @@ These can be assigned to **different sub-agents** after **Track A** (foundation)
 
 **Deliverables:**
 
-- [ ] Remove hardcoded `getAbilityTimelineDef` / `buildDefaultTimeline` heuristics based on `prefireTime` / fixed `0.5` active where possible.
-- [ ] Implement `buildPrimaryTimelineSegments(ability, windowSeconds, elapsed)` using:
+- [x] Remove hardcoded `getAbilityTimelineDef` / `buildDefaultTimeline` heuristics based on `prefireTime` / fixed `0.5` active where possible.
+- [x] Implement `buildPrimaryTimelineSegments(ability, windowSeconds, elapsed)` using:
   - normalized intervals from ability def,
   - merge rule §2 (first declaration order wins),
   - clamp to `[0, windowSeconds]` “from now” like current `computeRemainingPhases`.
-- [ ] Remove inline `throw_rock` exception; replace with **default** path + optional **`AbilityStatic.getBattleTimelineSpec?`** or registry if an ability needs custom labels only (polymorphism, not `if (id === …)` in the component).
-- [ ] Enemy row: align “action window” segment with a **convention** (e.g. first `abilityPhase === Active` interval, or explicit `id === 'hit'`) — document in code.
+- [x] Remove inline `throw_rock` exception; replace with **default** path + optional **`AbilityStatic.getBattleTimelineSpec?`** or registry if an ability needs custom labels only (polymorphism, not `if (id === …)` in the component).
+- [x] Enemy row: align “action window” segment with a **convention** (e.g. first `abilityPhase === Active` interval, or explicit `id === 'hit'`) — document in code.
 
 **Tests:** shallow React test or snapshot for merge: two overlapping intervals, first wins for the overlap region.
 
@@ -127,9 +127,9 @@ These can be assigned to **different sub-agents** after **Track A** (foundation)
 
 **Deliverables:**
 
-- [ ] Replace `ChargeAttackConfig` windup/lunge/cooldown **numbers** as the source of truth with **one** exported const block that builds `abilityTimings` intervals (ids e.g. `windup`, `lunge`, `cooldown`).
-- [ ] Derive `prefireTime` / movement (`LungeMovement`) inputs from intervals **by id** (e.g. end of `lunge` for “main phase” end) or keep thin computed getters.
-- [ ] Update `doCardEffect` / `renderActivePreview` to use `activeTimingIds` / ids instead of `config.windupTime` literals where possible.
+- [x] Replace `ChargeAttackConfig` windup/lunge/cooldown **numbers** as the source of truth with **one** exported const block that builds `abilityTimings` intervals (ids e.g. `windup`, `lunge`, `cooldown`).
+- [x] Derive `prefireTime` / movement (`LungeMovement`) inputs from intervals **by id** (e.g. end of `lunge` for “main phase” end) or keep thin computed getters.
+- [x] Update `doCardEffect` / `renderActivePreview` to use `activeTimingIds` / ids instead of `config.windupTime` literals where possible.
 
 **Parallel with:** Track E (different files).
 
@@ -139,11 +139,11 @@ These can be assigned to **different sub-agents** after **Track A** (foundation)
 
 Split by **directory or file batches** so sub-agents do not conflict:
 
-- [ ] Batch 1: `card_defs/01xx_*` player abilities
-- [ ] Batch 2: `card_defs/02xx_*` guns
-- [ ] Batch 3: `card_defs/05xx_*` / claws
-- [ ] Batch 4: `card_defs/dark_animals/*` (non–ChargeAttack)
-- [ ] Batch 5: `0001` / `0002` enemies
+- [x] Batch 1: `card_defs/01xx_*` player abilities
+- [x] Batch 2: `card_defs/02xx_*` guns
+- [x] Batch 3: `card_defs/05xx_*` / claws
+- [x] Batch 4: `card_defs/dark_animals/*` (non–ChargeAttack)
+- [x] Batch 5: `0001` / `0002` enemies
 
 **Per file:** Convert sequential `abilityTimings` to explicit intervals **or** rely on `normalizeLegacyAbilityTimings` until hand-edited.
 
@@ -155,8 +155,8 @@ Split by **directory or file batches** so sub-agents do not conflict:
 
 **Deliverables:**
 
-- [ ] Replace or supplement `getPhaseAtTime` / `didEnterPhase(AbilityPhase, …)` with **id-based** helpers, or shim `AbilityPhase` by mapping phase → id (temporary).
-- [ ] Circular progress / any UI using `ABILITY_PHASE_COLORS`: ensure phases still resolve when overlaps exist (primary: same “first wins” or “highest priority phase” — align with timeline or document difference).
+- [x] Replace or supplement `getPhaseAtTime` / `didEnterPhase(AbilityPhase, …)` with **id-based** helpers, or shim `AbilityPhase` by mapping phase → id (temporary).
+- [x] Circular progress / any UI using `ABILITY_PHASE_COLORS`: ensure phases still resolve when overlaps exist (primary: same “first wins” or “highest priority phase” — align with timeline or document difference).
 
 **Parallel with:** Track E for files that don’t touch AbilityBase.
 
@@ -167,8 +167,8 @@ Split by **directory or file batches** so sub-agents do not conflict:
 **Deliverables:**
 
 - [ ] Remove legacy sequential `AbilityTiming` if fully migrated.
-- [ ] Update `app/js/games/minion_battles/Agents.md` / `.cursor` skill for “creating an ability” with interval table + id conventions.
-- [ ] Optional: `getAllAbilities()` assertion test — every registered ability has non-empty `abilityTimings` (interval form).
+- [x] Update `app/js/games/minion_battles/Agents.md` / `.cursor` skill for “creating an ability” with interval table + id conventions.
+- [x] Optional: `getAllAbilities()` assertion test — every registered ability has non-empty `abilityTimings` (interval form).
 
 ---
 
@@ -206,7 +206,7 @@ Handoff: [what the next PR expects]
 
 ## 8. Done definition (project)
 
-- [ ] No `if (ability.id === 'throw_rock')` in `BattleTimeline.tsx`
-- [ ] `getTotalAbilityDuration` uses `max(end)` for interval-based defs
-- [ ] Timeline shows a **single** primary band; overlapping intervals use **first-listed** win
-- [ ] `ChargeAttack` (and eventually all abilities) define timings once; simulation keys off ids where migrated
+- [x] No `if (ability.id === 'throw_rock')` in `BattleTimeline.tsx`
+- [x] `getTotalAbilityDuration` uses `max(end)` for interval-based defs
+- [x] Timeline shows a **single** primary band; overlapping intervals use **first-listed** win
+- [x] `ChargeAttack` (and eventually all abilities) define timings once; simulation keys off ids where migrated

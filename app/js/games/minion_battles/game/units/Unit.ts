@@ -1,7 +1,7 @@
 /**
  * Unit - Base class for all units in the battle.
  *
- * Holds HP, team, owner, speed, resources, cooldown, and movement.
+ * Holds HP, team, owner, speed, resources, active abilities, wait lockout, and movement.
  * Supports waypoint-based pathfinding movement with terrain speed modifiers.
  * Subclasses define per-character defaults.
  */
@@ -88,12 +88,6 @@ export class Unit extends GameObject {
     /** Attached resource instances (Rage, Mana, etc.). */
     resources: Resource[] = [];
 
-    /** Time remaining before the unit can act again (seconds). */
-    cooldownRemaining: number = 0;
-
-    /** Total duration of the current cooldown (for progress display). */
-    cooldownTotal: number = 0;
-
     /** Movement state: grid path, optional target unit, and pathfinding tick. */
     movement: UnitMovement | null = null;
 
@@ -130,7 +124,7 @@ export class Unit extends GameObject {
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;
 
-    /** When using the "wait" action: earliest and latest gameTime (seconds) when the cooldown can end. */
+    /** When using the "wait" action: earliest and latest gameTime (seconds) when the wait can end. */
     waitMinEndTime: number | null = null;
     waitMaxEndTime: number | null = null;
 
@@ -356,11 +350,6 @@ export class Unit extends GameObject {
         // Expire buffs
         this.buffs = this.buffs.filter((b) => !b.isExpired(gameTime, roundNumber));
 
-        // Decrement cooldown
-        if (this.cooldownRemaining > 0) {
-            this.cooldownRemaining = Math.max(0, this.cooldownRemaining - dt);
-        }
-
         // Wait action: enforce minimum and maximum wait duration, and allow early end when movement finishes.
         if (this.waitMinEndTime !== null && this.waitMaxEndTime !== null) {
             const reachedMovementTarget = !this.movement;
@@ -368,7 +357,6 @@ export class Unit extends GameObject {
             const afterMax = gameTime >= this.waitMaxEndTime;
 
             if (afterMax || (afterMin && reachedMovementTarget)) {
-                this.cooldownRemaining = 0;
                 this.waitMinEndTime = null;
                 this.waitMaxEndTime = null;
             }
@@ -542,13 +530,19 @@ export class Unit extends GameObject {
         return false;
     }
 
-    /** Whether the unit's cooldown has finished and it can act. */
+    /** True while a wait order is active (see `GameEngine` wait handling). */
+    isInWaitLockout(): boolean {
+        return this.waitMinEndTime !== null && this.waitMaxEndTime !== null;
+    }
+
+    /** Whether the unit can take a new order (move / card / wait). */
     canAct(): boolean {
         return (
-            this.cooldownRemaining <= 0 &&
             this.isAlive() &&
             !this.isInKnockback() &&
-            !this.hasBuff('stunned')
+            !this.hasBuff('stunned') &&
+            this.activeAbilities.length === 0 &&
+            !this.isInWaitLockout()
         );
     }
 
@@ -572,12 +566,6 @@ export class Unit extends GameObject {
         }
         this.activeAbilities = [];
         this.clearAbilityNote();
-    }
-
-    /** Set cooldown after using an ability. */
-    startCooldown(duration: number): void {
-        this.cooldownRemaining = duration;
-        this.cooldownTotal = duration;
     }
 
     /** Set the ability note (overwrites any existing). Used by abilities during execution. */
@@ -604,8 +592,6 @@ export class Unit extends GameObject {
             ownerId: this.ownerId,
             characterId: this.characterId,
             name: this.name,
-            cooldownRemaining: this.cooldownRemaining,
-            cooldownTotal: this.cooldownTotal,
             movement: this.movement ? {
                 path: this.movement.path.map((p) => ({ ...p })),
                 targetUnitId: this.movement.targetUnitId,
@@ -659,8 +645,6 @@ export class Unit extends GameObject {
             abilities: data.abilities as string[],
         });
         unit.active = data.active as boolean;
-        unit.cooldownRemaining = data.cooldownRemaining as number;
-        unit.cooldownTotal = (data.cooldownTotal as number) ?? 0;
 
         // Restore movement
         const movementData = data.movement as {

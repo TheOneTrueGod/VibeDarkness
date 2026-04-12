@@ -10,6 +10,14 @@ import swordwomanIcon from '../../assets/characters/swordwoman.svg';
 import wolfHeadIcon from '../../assets/characters/dark_animals/wolf-head.svg';
 import wolfHowlIcon from '../../assets/characters/dark_animals/wolf-howl.svg';
 import boarIcon from '../../assets/characters/dark_animals/boar.svg';
+import {
+    buildPrimaryTimelineSegments,
+    computeVisiblePrimarySegments,
+    getEnemyActionWindowFromIntervals,
+    normalizeAbilityTimingsToIntervals,
+    type AbilityTimingInterval,
+    type BattleTimelinePhaseId,
+} from '../../abilities/abilityTimings';
 
 /** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
 const ENEMY_CHARACTER_ICONS: Record<string, string> = {
@@ -50,20 +58,16 @@ function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
     );
 }
 
-type PhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown';
-
-interface AbilityPhaseDef {
-    phase: PhaseId;
-    duration: number;
-    description: string;
+function intervalsForAbility(ability: AbilityStatic): AbilityTimingInterval[] {
+    return normalizeAbilityTimingsToIntervals(ability.abilityTimings);
 }
 
-interface AbilityTimelineDef {
-    phases: AbilityPhaseDef[];
-    /** When the "important" action starts relative to ability start. */
+function enemyActionWindowForAbility(ability: AbilityStatic): {
     actionStart: number;
-    /** Duration of the important action window. */
-    actionDuration: number;
+    actionEnd: number;
+} {
+    const intervals = intervalsForAbility(ability);
+    return getEnemyActionWindowFromIntervals(intervals) ?? { actionStart: 0, actionEnd: 0 };
 }
 
 interface BattleTimelineProps {
@@ -74,113 +78,6 @@ interface BattleTimelineProps {
     windowSeconds?: number;
     /** When the local player has a card selected (previewing), show how it would look on the timeline if they used it now. */
     previewAbility?: AbilityStatic | null;
-}
-
-function buildDefaultTimeline(ability: AbilityStatic): AbilityTimelineDef {
-    // Heuristic: use prefire as startup, a short active window, rest as cooldown.
-    const startup = Math.max(0, ability.prefireTime);
-    const active = 0.5;
-    const remaining = Math.max(0, ability.cooldownTime - startup - active);
-    const cooldown = remaining;
-
-    const phases: AbilityPhaseDef[] = [];
-    if (startup > 0) {
-        phases.push({
-            phase: 'startup',
-            duration: startup,
-            description: 'Preparing the ability.',
-        });
-    }
-    phases.push({
-        phase: 'active',
-        duration: active,
-        description: 'The ability is hitting or taking effect.',
-    });
-    if (cooldown > 0) {
-        phases.push({
-            phase: 'cooldown',
-            duration: cooldown,
-            description: 'Recovering before the next action.',
-        });
-    }
-
-    return {
-        phases,
-        actionStart: startup,
-        actionDuration: active,
-    };
-}
-
-function getAbilityTimelineDef(ability: AbilityStatic): AbilityTimelineDef {
-    // Example of hand-tuned timing for specific abilities.
-    if (ability.id === 'throw_rock') {
-        const startup = 0.3;
-        const active = 0.7;
-        const cooldown = Math.max(0, ability.cooldownTime - startup - active);
-        const phases: AbilityPhaseDef[] = [
-            {
-                phase: 'startup',
-                duration: startup,
-                description: 'Winding up to throw the rock.',
-            },
-            {
-                phase: 'active',
-                duration: active,
-                description: 'Rock is in flight and can hit enemies.',
-            },
-        ];
-        if (cooldown > 0) {
-            phases.push({
-                phase: 'cooldown',
-                duration: cooldown,
-                description: 'Recovering after the throw.',
-            });
-        }
-        return {
-            phases,
-            actionStart: startup,
-            actionDuration: active,
-        };
-    }
-
-    return buildDefaultTimeline(ability);
-}
-
-function computeRemainingPhases(
-    timeline: AbilityTimelineDef,
-    elapsed: number,
-    windowSeconds: number,
-): AbilityPhaseDef[] & { _meta?: { segments: { phase: PhaseId; start: number; duration: number }[] } } {
-    const segments: { phase: PhaseId; start: number; duration: number }[] = [];
-    let cursor = 0;
-    for (const phase of timeline.phases) {
-        const phaseStart = cursor;
-        const phaseEnd = cursor + phase.duration;
-        cursor = phaseEnd;
-
-        if (phaseEnd <= elapsed) continue;
-
-        const visibleStart = Math.max(phaseStart, elapsed);
-        const visibleDuration = phaseEnd - visibleStart;
-        const offsetFromNow = visibleStart - elapsed;
-
-        if (offsetFromNow >= windowSeconds) continue;
-
-        const clampedDuration = Math.min(visibleDuration, windowSeconds - offsetFromNow);
-        if (clampedDuration <= 0) continue;
-
-        segments.push({
-            phase: phase.phase,
-            start: offsetFromNow,
-            duration: clampedDuration,
-        });
-    }
-
-    const phasesCopy = timeline.phases.slice() as AbilityPhaseDef[] & {
-        _meta?: { segments: { phase: PhaseId; start: number; duration: number }[] };
-    };
-    phasesCopy._meta = { segments };
-    return phasesCopy;
 }
 
 function renderEnemyRow(
@@ -201,10 +98,9 @@ function renderEnemyRow(
         for (const active of unit.activeAbilities) {
             const ability = getAbility(active.abilityId);
             if (!ability) continue;
-            const timeline = getAbilityTimelineDef(ability);
+            const { actionStart, actionEnd } = enemyActionWindowForAbility(ability);
+            if (actionEnd <= actionStart) continue;
             const elapsed = now - active.startTime;
-            const actionStart = timeline.actionStart;
-            const actionEnd = actionStart + timeline.actionDuration;
             const startFromNow = actionStart - elapsed;
             const endFromNow = actionEnd - elapsed;
 
@@ -316,35 +212,27 @@ function renderPlayerRow(
     const isLocalPlayer = playerId === localPlayerId;
     const showPreview = !!(isLocalPlayer && previewAbility);
 
-    let segments:
-        | {
-              phase: PhaseId;
-              start: number;
-              duration: number;
-          }[] = [];
-    let abilityTimeline: AbilityTimelineDef | null = null;
+    let segments: {
+        phaseId: BattleTimelinePhaseId;
+        start: number;
+        duration: number;
+        label: string;
+        description: string;
+    }[] = [];
     let elapsed = 0;
     let isPreview = false;
 
     if (showPreview && previewAbility) {
-        abilityTimeline = getAbilityTimelineDef(previewAbility);
+        const intervals = intervalsForAbility(previewAbility);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
         elapsed = 0;
-        const timelineWithMeta = computeRemainingPhases(
-            abilityTimeline,
-            0,
-            windowSeconds,
-        );
-        segments = timelineWithMeta._meta?.segments ?? [];
         isPreview = true;
     } else if (active && ability) {
-        abilityTimeline = getAbilityTimelineDef(ability);
+        const intervals = intervalsForAbility(ability);
+        const merged = buildPrimaryTimelineSegments(intervals);
         elapsed = now - active.startTime;
-        const timelineWithMeta = computeRemainingPhases(
-            abilityTimeline,
-            elapsed,
-            windowSeconds,
-        );
-        segments = timelineWithMeta._meta?.segments ?? [];
+        segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
     }
 
     const displayAbility = ability ?? (showPreview ? previewAbility : null);
@@ -389,45 +277,18 @@ function renderPlayerRow(
             </div>
             <div className="relative h-10 bg-dark-800/80 rounded-md overflow-hidden">
                 <TimelineTimeRuler windowSeconds={windowSeconds} />
-                {hasTimeline && displayAbility && abilityTimeline && (
+                {hasTimeline && displayAbility && (
                     <div className={`absolute inset-0 ${isPreview ? 'opacity-70' : ''}`}>
-                        {segments.map((seg, idx) => {
-                            const leftPercent =
-                                (seg.start / windowSeconds) * 100;
-                            const widthPercent =
-                                (seg.duration / windowSeconds) * 100;
-                            const phaseDef = abilityTimeline!.phases.find(
-                                (p) => p.phase === seg.phase,
-                            );
-                            const label =
-                                seg.phase === 'startup'
-                                    ? 'Startup'
-                                    : seg.phase === 'active'
-                                      ? 'Active'
-                                      : seg.phase === 'iFrame'
-                                          ? 'iFrame'
-                                          : 'Cooldown';
-                            const description =
-                                phaseDef?.description ??
-                                (seg.phase === 'startup'
-                                    ? 'Preparing the ability.'
-                                    : seg.phase === 'active'
-                                      ? 'The ability is active.'
-                                      : seg.phase === 'iFrame'
-                                          ? 'Invincibility frames.'
-                                          : 'Recovering after the action.');
-
-                            return (
-                                <TimelinePhaseSegment
-                                    key={idx}
-                                    phase={seg.phase}
-                                    leftPercent={leftPercent}
-                                    widthPercent={widthPercent}
-                                    label={label}
-                                    description={description}
-                                />
-                            );
-                        })}
+                        {segments.map((seg, idx) => (
+                            <TimelinePhaseSegment
+                                key={idx}
+                                phase={seg.phaseId}
+                                leftPercent={(seg.start / windowSeconds) * 100}
+                                widthPercent={(seg.duration / windowSeconds) * 100}
+                                label={seg.label}
+                                description={seg.description}
+                            />
+                        ))}
 
                         <div
                             className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-md bg-dark-900 flex items-center justify-center text-[10px] text-gray-100"
@@ -478,4 +339,3 @@ export default function BattleTimeline({
         </div>
     );
 }
-

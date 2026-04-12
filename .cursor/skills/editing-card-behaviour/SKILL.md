@@ -47,7 +47,7 @@ Abilities should read like a **list of behaviours**. Prefer utility functions in
 ### 7. Card definitions vs abilities
 
 - **Card definitions** (`CardDef` in `card_defs/types.ts`): Define `id`, `name`, `abilityId`, `durability`, and `discardDuration`. See `card_defs/types.ts` for the full type.
-- **Abilities** (`AbilityStatic` in `abilities/Ability.ts`): Define runtime behaviour — cooldown, prefire, resource cost, targets, `doCardEffect`, and `getAbilityStates`. See existing abilities under `card_defs/` for reference implementations.
+- **Abilities** (`AbilityStatic` in `abilities/Ability.ts`): Define runtime behaviour — `prefireTime`, required `abilityTimings` (total cast length and UI phases), resource cost, targets, `doCardEffect`, and `getAbilityStates`. While a unit has an active cast, it generally cannot take another action until that entry ends (driven by `abilityTimings`, not a separate per-ability cooldown stat). See existing abilities under `card_defs/` for reference implementations.
 
 ### 8. Editing guidelines
 
@@ -55,7 +55,7 @@ When **editing card behaviour**, follow this checklist:
 
 1. **Changing durability**: Confirm how many uses you want before discard. Durability resets when the card returns to deck.
 2. **Changing discard timing**: Use `unit: 'rounds'` for round-tied pacing, `unit: 'seconds'` for real-time cooldown-like behaviour. Ensure the card can still be meaningfully drawn given hand size and draw rate.
-3. **Changing ability cooldown or prefire**: Distinguish between card cycle (durability + discardDuration) and ability cooldown (`cooldownTime`/`prefireTime`). Avoid making both so long that the card effectively never appears.
+3. **Changing cast timing or prefire**: Distinguish **card cycle** (durability + `discardDuration`) from **cast timeline** (`abilityTimings` + `prefireTime` used in behaviour / default movement lock). Keep `abilityTimings` consistent with what `doCardEffect` does so the unit is not stuck “casting” longer or shorter than the real effects. Avoid stacking very long discard timers with very long casts so the card still shows up in play.
 4. **Changing resource cost**: Make sure the owning unit actually has the required resource.
 5. **Debugging draw/discard issues**: Inspect `CardInstance`, `onCardUsed`, `moveToDiscard`, `processDiscardSeconds`, and `handleRoundEnd` in the engine. Confirm the card's `abilityId` matches and the `CardDef` is correctly registered.
 

@@ -23,8 +23,8 @@ describe('Unit', () => {
             aiSettings: { minRange: 50, maxRange: 200 },
         });
         unit.active = true;
-        unit.cooldownRemaining = 0.5;
-        unit.cooldownTotal = 1;
+        unit.waitMinEndTime = 10;
+        unit.waitMaxEndTime = 20;
         unit.radius = 25;
         unit.setMovement([{ col: 2, row: 3 }, { col: 3, row: 3 }], undefined, 42);
 
@@ -42,8 +42,8 @@ describe('Unit', () => {
         expect(restored.ownerId).toBe(unit.ownerId);
         expect(restored.characterId).toBe(unit.characterId);
         expect(restored.name).toBe(unit.name);
-        expect(restored.cooldownRemaining).toBe(unit.cooldownRemaining);
-        expect(restored.cooldownTotal).toBe(unit.cooldownTotal);
+        expect(restored.waitMinEndTime).toBe(unit.waitMinEndTime);
+        expect(restored.waitMaxEndTime).toBe(unit.waitMaxEndTime);
         expect(restored.radius).toBe(unit.radius);
         expect(restored.abilities).toEqual(unit.abilities);
         expect(restored.aiSettings).toEqual(unit.aiSettings);
