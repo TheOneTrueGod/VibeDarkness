@@ -6,7 +6,7 @@
  */
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../../types';
-import { LobbyClient } from '../../../../LobbyClient';
+import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
 import type { PreMissionStoryDef } from '../../storylines/storyTypes';
 import type { IBaseMissionDef } from '../../storylines/BaseMissionDef';
@@ -21,9 +21,7 @@ import AdminPlayersPanel from '../components/AdminPlayersPanel';
 import { useUser } from '../../../../contexts/UserContext';
 
 interface CharacterSelectPhaseProps {
-    lobbyClient: LobbyClient;
-    lobbyId: string;
-    gameId: string;
+    api: MinionBattlesApi;
     playerId: string;
     isHost: boolean;
     isAdmin: boolean;
@@ -45,9 +43,7 @@ interface CharacterSelectPhaseProps {
 }
 
 export default function CharacterSelectPhase({
-    lobbyClient,
-    lobbyId,
-    gameId,
+    api,
     playerId,
     isHost,
     isAdmin,
@@ -73,7 +69,7 @@ export default function CharacterSelectPhase({
     const [editorOpen, setEditorOpen] = useState(false);
     const [editorForceEditable, setEditorForceEditable] = useState(false);
     const [activeTab, setActiveTab] = useState<'characters' | 'players'>('characters');
-    const [campaign, setCampaign] = useState<import('../../../types').CampaignState | null>(null);
+    const [campaign, setCampaign] = useState<import('../../../../types').CampaignState | null>(null);
     const [setReadyLoading, setSetReadyLoading] = useState(false);
     /** Optimistic: true after API succeeds, before next poll confirms. Keeps button disabled. */
     const [optimisticAmReady, setOptimisticAmReady] = useState(false);
@@ -94,7 +90,7 @@ export default function CharacterSelectPhase({
             return;
         }
         let cancelled = false;
-        lobbyClient
+        api
             .getCampaign(campaignId)
             .then((c) => {
                 if (!cancelled) setCampaign(c);
@@ -105,11 +101,11 @@ export default function CharacterSelectPhase({
         return () => {
             cancelled = true;
         };
-    }, [campaignId, editorOpen, lobbyClient]);
+    }, [campaignId, editorOpen, api]);
 
     useEffect(() => {
         let cancelled = false;
-        lobbyClient
+        api
             .getMyCharacters()
             .then((list) => {
                 if (cancelled) return;
@@ -125,7 +121,7 @@ export default function CharacterSelectPhase({
         return () => {
             cancelled = true;
         };
-    }, [lobbyClient]);
+    }, [api]);
 
     const mySelection = characterSelections[playerId] ?? null;
     const allPlayerIds = Object.keys(players);
@@ -186,7 +182,7 @@ export default function CharacterSelectPhase({
             setLocalOverride?.(overridePath, characterId);
 
             try {
-                await lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHARACTER_SELECT, {
+                await api.sendMessage(MessageType.CHARACTER_SELECT, {
                     characterId,
                     portraitId,
                 });
@@ -195,7 +191,7 @@ export default function CharacterSelectPhase({
                 console.error('Failed to select character:', error);
             }
         },
-        [lobbyClient, lobbyId, playerId, setLocalOverride, removeLocalOverride],
+        [api, playerId, setLocalOverride, removeLocalOverride],
     );
 
     const handleCreateCharacter = useCallback(
@@ -211,23 +207,23 @@ export default function CharacterSelectPhase({
     const handleSetReady = useCallback(async () => {
         setSetReadyLoading(true);
         try {
-            await lobbyClient.sendMessage(lobbyId, playerId, MessageType.CHARACTER_SELECT_READY, {});
+            await api.sendMessage(MessageType.CHARACTER_SELECT_READY, {});
             setOptimisticAmReady(true);
         } catch (error) {
             console.error('Failed to set ready:', error);
         } finally {
             setSetReadyLoading(false);
         }
-    }, [lobbyClient, lobbyId, playerId]);
+    }, [api]);
 
     const handleContinueToStory = useCallback(async () => {
         try {
-            const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
+            const newGameState = await api.updateGameState({
                 gamePhase: 'pre_mission_story',
                 storyReadyPlayerIds: [],
                 characterSelectReadyPlayerIds: [],
             });
-            await lobbyClient.sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
+            await api.sendMessage(MessageType.GAME_PHASE_CHANGED, {
                 gamePhase: 'pre_mission_story',
             });
             if (onPhaseChange) {
@@ -242,15 +238,15 @@ export default function CharacterSelectPhase({
         } catch (error) {
             console.error('Failed to continue to story:', error);
         }
-    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
+    }, [api, onPhaseChange, characterSelections]);
 
     const handleStartGame = useCallback(async () => {
         try {
-            const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
+            const newGameState = await api.updateGameState({
                 gamePhase: 'battle',
                 characterSelectReadyPlayerIds: [],
             });
-            await lobbyClient.sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
+            await api.sendMessage(MessageType.GAME_PHASE_CHANGED, {
                 gamePhase: 'battle',
             });
             if (onPhaseChange) {
@@ -265,7 +261,7 @@ export default function CharacterSelectPhase({
         } catch (error) {
             console.error('Failed to start game:', error);
         }
-    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, characterSelections]);
+    }, [api, onPhaseChange, characterSelections]);
 
     const hasTriggeredAdvanceRef = useRef(false);
     useEffect(() => {
@@ -291,7 +287,7 @@ export default function CharacterSelectPhase({
             missionId: string;
             name?: string;
         }) => {
-            const { character, characters } = await lobbyClient.createCharacter(payload);
+            const { character, characters } = await api.createCharacter(payload);
             if (characters && characters.length > 0) {
                 const mapped = (characters as CampaignCharacterData[]).map((d) =>
                     fromCampaignCharacterData(d),
@@ -300,7 +296,7 @@ export default function CharacterSelectPhase({
             }
             return { id: character.id, portraitId: character.portraitId };
         },
-        [lobbyClient],
+        [api],
     );
 
     const handleDeleteCharacter = useCallback(
@@ -309,7 +305,7 @@ export default function CharacterSelectPhase({
                 return;
             }
             try {
-                const characters = await lobbyClient.deleteCharacter(characterId);
+                const characters = await api.deleteCharacter(characterId);
                 const mapped = (characters as CampaignCharacterData[]).map((d) =>
                     fromCampaignCharacterData(d),
                 );
@@ -318,7 +314,7 @@ export default function CharacterSelectPhase({
                 console.error('Failed to delete character:', error);
             }
         },
-        [lobbyClient],
+        [api],
     );
 
     const characterToEdit = useMemo(
@@ -327,11 +323,11 @@ export default function CharacterSelectPhase({
     );
 
     const handleEditorSaved = useCallback(() => {
-        lobbyClient.getMyCharacters().then((list) => {
+        api.getMyCharacters().then((list) => {
             const chars = (list as CampaignCharacterData[]).map((d) => fromCampaignCharacterData(d));
             setMyCharacters(chars);
         }).catch(() => {});
-    }, [lobbyClient]);
+    }, [api]);
 
     return (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
@@ -372,13 +368,13 @@ export default function CharacterSelectPhase({
 
             {activeTab === 'players' && isAdmin ? (
                 <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
-                    <AdminPlayersPanel lobbyClient={lobbyClient} players={players} />
+                    <AdminPlayersPanel api={api} players={players} />
                 </div>
             ) : editorOpen && characterToEdit ? (
                 <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
                     <CharacterEditor
                         character={characterToEdit}
-                        lobbyClient={lobbyClient}
+                        api={api}
                         onSaved={handleEditorSaved}
                         onClose={() => {
                             setEditorOpen(false);

@@ -4,7 +4,7 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../../types';
-import { LobbyClient } from '../../../../LobbyClient';
+import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
 import { getNpc } from '../../constants/npcs';
 import type {
@@ -24,9 +24,7 @@ import StoryTextEffect from '../components/StoryTextEffect';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 
 interface PreMissionStoryPhaseProps {
-    lobbyClient: LobbyClient;
-    lobbyId: string;
-    gameId: string;
+    api: MinionBattlesApi;
     playerId: string;
     isHost: boolean;
     /** Mission ID for this story; used for deterministic equipment grants. */
@@ -67,9 +65,7 @@ function isGrantResources(action: { type: string } | undefined): action is Story
 }
 
 export default function PreMissionStoryPhase({
-    lobbyClient,
-    lobbyId,
-    gameId,
+    api,
     playerId,
     isHost,
     missionId,
@@ -95,8 +91,8 @@ export default function PreMissionStoryPhase({
     // When this player reaches the end, notify the server so the host can gate "Start Game".
     useEffect(() => {
         if (!isEnd) return;
-        lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_READY, {}).catch(() => {});
-    }, [isEnd, lobbyClient, lobbyId, playerId]);
+        api.sendMessage(MessageType.STORY_READY, {}).catch(() => {});
+    }, [isEnd, api]);
 
     useEffect(() => {
         if (currentPhrase && isDialogue(currentPhrase) && currentPhrase.backgroundImage) {
@@ -131,28 +127,26 @@ export default function PreMissionStoryPhase({
         }
         lastGrantIndexRef.current = phraseIndex;
         const { itemId, seedSuffix } = currentPhrase;
-        void lobbyClient
-            .sendMessage(lobbyId, playerId, MessageType.STORY_GRANT_EQUIPMENT_RANDOM, {
+        void api
+            .sendMessage(MessageType.STORY_GRANT_EQUIPMENT_RANDOM, {
                 missionId,
                 phraseIndex,
                 itemId,
                 ...(seedSuffix ? { seedSuffix } : {}),
             })
-            .catch(() => {
-                // Swallow errors; the story can still progress, but the grant may fail.
-            })
+            .catch(() => {})
             .finally(() => {
                 advancePhrase();
             });
-    }, [advancePhrase, currentPhrase, isHost, lobbyClient, lobbyId, missionId, phraseIndex, playerId]);
+    }, [advancePhrase, currentPhrase, isHost, api, missionId, phraseIndex]);
 
     const handleStartGame = useCallback(async () => {
         onBattleStartStatusChange?.(true);
         try {
-            const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
+            const newGameState = await api.updateGameState({
                 gamePhase: 'battle',
             });
-            await lobbyClient.sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
+            await api.sendMessage(MessageType.GAME_PHASE_CHANGED, {
                 gamePhase: 'battle',
             });
             onPhaseChange?.('battle', newGameState as Record<string, unknown>);
@@ -160,7 +154,7 @@ export default function PreMissionStoryPhase({
             onBattleStartStatusChange?.(false);
             console.error('Failed to start game:', error);
         }
-    }, [lobbyClient, lobbyId, gameId, playerId, onPhaseChange, onBattleStartStatusChange]);
+    }, [api, onPhaseChange, onBattleStartStatusChange]);
 
     const handleChoice = useCallback(
         async (choiceId: string, optionId: string, option?: { action?: { type: string; itemId?: string } }) => {
@@ -181,7 +175,7 @@ export default function PreMissionStoryPhase({
                         }
                     }
                 }
-                await lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_CHOICE, {
+                await api.sendMessage(MessageType.STORY_CHOICE, {
                     choiceId,
                     optionId,
                     ...(itemId !== undefined && { itemId, replaceItemIds }),
@@ -191,13 +185,13 @@ export default function PreMissionStoryPhase({
             }
             advancePhrase();
         },
-        [lobbyClient, lobbyId, playerId, playerEquipmentByPlayer, advancePhrase]
+        [api, playerId, playerEquipmentByPlayer, advancePhrase]
     );
 
     const handleGroupVote = useCallback(
         async (voteId: string, optionId: string) => {
             try {
-                await lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_GROUP_VOTE, {
+                await api.sendMessage(MessageType.STORY_GROUP_VOTE, {
                     voteId,
                     phraseIndex,
                     optionId,
@@ -206,7 +200,7 @@ export default function PreMissionStoryPhase({
                 console.error('Failed to send group vote:', error);
             }
         },
-        [lobbyClient, lobbyId, playerId, phraseIndex]
+        [api, phraseIndex]
     );
 
     const handleGroupVoteNext = useCallback(async () => {
@@ -214,7 +208,7 @@ export default function PreMissionStoryPhase({
         setIsApplyingGroupVote(true);
         try {
             if (isHost && currentPhrase.effect) {
-                await lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_GROUP_VOTE_APPLY, {
+                await api.sendMessage(MessageType.STORY_GROUP_VOTE_APPLY, {
                     voteId: currentPhrase.voteId,
                     phraseIndex,
                     effect: currentPhrase.effect,
@@ -226,7 +220,7 @@ export default function PreMissionStoryPhase({
         } finally {
             setIsApplyingGroupVote(false);
         }
-    }, [currentPhrase, isHost, lobbyClient, lobbyId, playerId, phraseIndex, advancePhrase]);
+    }, [currentPhrase, isHost, api, phraseIndex, advancePhrase]);
 
     const allPlayerIds = Object.keys(players);
     /** Playing players (non-spectators); used for single-player shortcut. */

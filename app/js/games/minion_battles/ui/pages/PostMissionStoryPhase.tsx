@@ -5,7 +5,7 @@
  */
 import React, { useState, useCallback, useEffect } from 'react';
 import type { PlayerState } from '../../../../types';
-import { LobbyClient } from '../../../../LobbyClient';
+import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
 import { getNpc } from '../../constants/npcs';
 import type {
@@ -40,9 +40,7 @@ export interface MissionRewards {
 }
 
 interface PostMissionStoryPhaseProps {
-    lobbyClient: LobbyClient;
-    lobbyId: string;
-    gameId: string;
+    api: MinionBattlesApi;
     playerId: string;
     missionId: string;
     players: Record<string, PlayerState>;
@@ -55,9 +53,7 @@ interface PostMissionStoryPhaseProps {
 }
 
 export default function PostMissionStoryPhase({
-    lobbyClient,
-    lobbyId,
-    gameId,
+    api,
     playerId,
     missionId,
     players,
@@ -106,7 +102,7 @@ export default function PostMissionStoryPhase({
                         }
                     }
                 }
-                await lobbyClient.sendMessage(lobbyId, playerId, MessageType.STORY_CHOICE, {
+                await api.sendMessage(MessageType.STORY_CHOICE, {
                     choiceId,
                     optionId,
                     ...(itemId !== undefined && { itemId, replaceItemIds }),
@@ -133,7 +129,7 @@ export default function PostMissionStoryPhase({
                 itemFromFirstChoice,
             });
         },
-        [lobbyClient, lobbyId, playerId, playerEquipmentByPlayer, onComplete]
+        [api, playerId, playerEquipmentByPlayer, onComplete]
     );
 
     if (isEnd) {

@@ -3,7 +3,7 @@
  */
 import React, { useCallback } from 'react';
 import type { PlayerState } from '../../../../types';
-import { LobbyClient } from '../../../../LobbyClient';
+import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
 
 export interface Mission {
@@ -71,9 +71,7 @@ function generateLastHoldoutSVG(): string {
 }
 
 interface MissionSelectPhaseProps {
-    lobbyClient: LobbyClient;
-    lobbyId: string;
-    gameId: string;
+    api: MinionBattlesApi;
     playerId: string;
     isHost: boolean;
     players: Record<string, PlayerState>;
@@ -86,9 +84,7 @@ interface MissionSelectPhaseProps {
 }
 
 export default function MissionSelectPhase({
-    lobbyClient,
-    lobbyId,
-    gameId,
+    api,
     playerId,
     isHost,
     players,
@@ -111,16 +107,15 @@ export default function MissionSelectPhase({
             setLocalOverride?.(overridePath, missionId);
 
             try {
-                await lobbyClient.sendMessage(lobbyId, playerId, MessageType.MISSION_VOTE, {
+                await api.sendMessage(MessageType.MISSION_VOTE, {
                     missionId,
                 });
             } catch (error) {
-                // Revert the optimistic update on failure
                 removeLocalOverride?.(overridePath);
                 console.error('Failed to vote for mission:', error);
             }
         },
-        [lobbyClient, lobbyId, playerId, setLocalOverride, removeLocalOverride]
+        [api, playerId, setLocalOverride, removeLocalOverride]
     );
 
     // Host auto-transitions when all vote the same
@@ -129,10 +124,10 @@ export default function MissionSelectPhase({
 
         (async () => {
             try {
-                const newGameState = await lobbyClient.updateGameState(lobbyId, gameId, playerId, {
+                const newGameState = await api.updateGameState({
                     gamePhase: 'character_select',
                 });
-                await lobbyClient.sendMessage(lobbyId, playerId, MessageType.GAME_PHASE_CHANGED, {
+                await api.sendMessage(MessageType.GAME_PHASE_CHANGED, {
                     gamePhase: 'character_select',
                 });
                 if (onPhaseChange) {
@@ -142,7 +137,7 @@ export default function MissionSelectPhase({
                 console.error('Failed to update game phase:', error);
             }
         })();
-    }, [isHost, allVoted, allSame, lobbyClient, lobbyId, gameId, playerId, onPhaseChange]);
+    }, [isHost, allVoted, allSame, api, onPhaseChange]);
 
     const renderMissionCard = (mission: Mission) => {
         const votes = Object.entries(missionVotes)

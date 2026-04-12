@@ -15,7 +15,7 @@ import {
     type EquipmentSlotType,
 } from '../../../character_defs/items';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
-import type { LobbyClient } from '../../../../../LobbyClient';
+import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
 import { ResearchTreeList, ResearchTreeContent } from '../ResearchTreePanel';
@@ -33,7 +33,7 @@ import ResourcePill from '../../../../../components/ResourcePill';
 
 interface CharacterEditorProps {
     character: CampaignCharacter;
-    lobbyClient: LobbyClient;
+    api: MinionBattlesApi;
     onSaved?: (updated: { equipment: string[]; name: string; portraitId: string }) => void;
     onClose?: () => void;
     /** Whether equipment editing is enabled. Defaults to false. */
@@ -73,7 +73,7 @@ function getSlotDescriptors(equipment: string[]): SlotDescriptor[] {
 
 export default function CharacterEditor({
     character,
-    lobbyClient,
+    api,
     onSaved,
     onClose,
     editMode = false,
@@ -164,7 +164,7 @@ export default function CharacterEditor({
             return;
         }
         let cancelled = false;
-        lobbyClient
+        api
             .getCampaign(cid)
             .then((c) => {
                 if (!cancelled) setLocalCampaign(c);
@@ -175,13 +175,13 @@ export default function CharacterEditor({
         return () => {
             cancelled = true;
         };
-    }, [account?.campaignIds, activeTab, campaign, character.campaignId, lobbyClient]);
+    }, [account?.campaignIds, activeTab, campaign, character.campaignId, api]);
 
     const saveEquipment = useCallback(
         async (newEquipment: string[]) => {
             setSaving(true);
             try {
-                const updated = await lobbyClient.updateCharacter(character.id, { equipment: newEquipment });
+                const updated = await api.updateCharacter(character.id, { equipment: newEquipment });
                 setEquipment(updated.equipment ?? newEquipment);
                 onSaved?.({ equipment: updated.equipment ?? newEquipment, name, portraitId: selectedPortraitId });
             } catch (e) {
@@ -190,14 +190,14 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [character.id, lobbyClient, name, onSaved, selectedPortraitId]
+        [character.id, api, name, onSaved, selectedPortraitId]
     );
 
     const savePortrait = useCallback(
         async (portraitId: string) => {
             setSaving(true);
             try {
-                await lobbyClient.updateCharacter(character.id, { portraitId });
+                await api.updateCharacter(character.id, { portraitId });
                 onSaved?.({ equipment, name, portraitId });
             } catch (e) {
                 console.error('Failed to save portrait:', e);
@@ -205,7 +205,7 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [character.id, equipment, lobbyClient, name, onSaved]
+        [character.id, equipment, api, name, onSaved]
     );
 
     const goPrevPortrait = useCallback(() => {
@@ -242,14 +242,14 @@ export default function CharacterEditor({
         if (!Number.isFinite(delta) || delta === 0) return;
         setSaving(true);
         try {
-            const updated = await lobbyClient.grantCampaignResource(cid, grantResourceKey, Math.trunc(delta));
+            const updated = await api.grantCampaignResource(cid, grantResourceKey, Math.trunc(delta));
             setLocalCampaign(updated);
         } catch (e) {
             console.error('Failed to grant campaign resource:', e);
         } finally {
             setSaving(false);
         }
-    }, [grantResourceAmount, grantResourceKey, lobbyClient, permissionAccount?.role, resolvedCampaign?.id]);
+    }, [grantResourceAmount, grantResourceKey, api, permissionAccount?.role, resolvedCampaign?.id]);
 
     const handleResetResearch = useCallback(
         async (treeIds: string[]) => {
@@ -285,7 +285,7 @@ export default function CharacterEditor({
                     }
                 }
 
-                const updatedChar = await lobbyClient.updateCharacter(character.id, {
+                const updatedChar = await api.updateCharacter(character.id, {
                     equipment: nextEquipment,
                     researchTrees: nextResearchTrees,
                 });
@@ -299,7 +299,7 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [character.id, equipment, lobbyClient, name, permissionAccount?.role, researchTrees, selectedPortraitId, onSaved]
+        [character.id, equipment, api, name, permissionAccount?.role, researchTrees, selectedPortraitId, onSaved]
     );
 
     const handleResearchNode = useCallback(
@@ -325,11 +325,10 @@ export default function CharacterEditor({
             setSaving(true);
             try {
                 for (const nid of toDo) {
-                    const updated = await lobbyClient.researchCharacterNode(character.id, { treeId, nodeId: nid });
+                    const updated = await api.researchCharacterNode(character.id, { treeId, nodeId: nid });
                     setResearchTrees(updated.researchTrees ?? {});
                 }
-                // Apply effects deterministically and persist equipment if it changed.
-                const latestTrees = (await lobbyClient.getCharacter(character.id)).researchTrees ?? {};
+                const latestTrees = (await api.getCharacter(character.id)).researchTrees ?? {};
                 const ctx2 = {
                     account: ctx.account,
                     character: { ...character, equipment, researchTrees: latestTrees } as CampaignCharacter,
@@ -338,7 +337,7 @@ export default function CharacterEditor({
                 const applied = applyResearchEffects(tree, ctx2);
                 const newEquipment = applied.equipment;
                 if (JSON.stringify(newEquipment) !== JSON.stringify(equipment)) {
-                    const updatedChar = await lobbyClient.updateCharacter(character.id, { equipment: newEquipment });
+                    const updatedChar = await api.updateCharacter(character.id, { equipment: newEquipment });
                     setEquipment(updatedChar.equipment ?? newEquipment);
                     onSaved?.({ equipment: updatedChar.equipment ?? newEquipment, name, portraitId: selectedPortraitId });
                 }
@@ -348,7 +347,7 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [account, character, equipment, lobbyClient, researchTrees, resolvedCampaign?.resources, selectedPortraitId, name, onSaved],
+        [account, character, equipment, api, researchTrees, resolvedCampaign?.resources, selectedPortraitId, name, onSaved],
     );
 
     const handleEquipToSlot = useCallback(
