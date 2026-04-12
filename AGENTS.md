@@ -67,6 +67,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 - Toast notifications via `useToast()` context hook
 - Use classes and inheritance for defining game objects
 - Avoid typecasting when possible.  Prefer strictly defining return types or variable types.
+- Avoid inline type imports (e.g. `import('./path').SomeType` in return types or annotations). Use a top-level `import type { SomeType } from '...'` and reference `SomeType` instead.
 
 ## File Purposes
 

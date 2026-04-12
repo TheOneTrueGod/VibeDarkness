@@ -28,7 +28,7 @@ import type { LevelEvent } from '../storylines/types';
 import type { SpecialTile } from './specialTiles/SpecialTile';
 import { isTileDefendPoint } from './specialTiles/SpecialTile';
 import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from './units/unitAI';
-import type { AIContext } from './units/unitAI';
+import type { AIContext, AILightSource } from './units/unitAI';
 import { getLightGrid, type LightSource } from './LightGrid';
 import { getDeathEffectDef } from './units/unit_defs/unitDef';
 import type { CardDefId } from '../card_defs';
@@ -252,8 +252,8 @@ export class GameEngine implements EngineContext {
     }
 
     /** Light sources with id for AI (FindLight state). */
-    private getLightSourcesForAI(): import('../objects/units/unitAI').AILightSource[] {
-        const out: import('../objects/units/unitAI').AILightSource[] = [];
+    private getLightSourcesForAI(): AILightSource[] {
+        const out: AILightSource[] = [];
         for (const tile of this.specialTiles) {
             if (tile.hp <= 0) continue;
             const light = tile.emitsLight;
