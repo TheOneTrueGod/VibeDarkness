@@ -243,7 +243,7 @@ then do behavioral refactoring in later phases.
 > _Subagent calls: 2-3 steps. This is the biggest behavioral refactor._
 
 ### Step 8.1 — Create `BattleSession` class skeleton
-- [ ] Create `game/BattleSession.ts` with:
+- [x] Create `game/BattleSession.ts` with:
   - Constructor taking mission def + player ID
   - `loadFromSnapshot(state)`, `loadFreshMission(mission)`
   - `getEngine()`, `getCamera()`, `getRenderer()`
@@ -251,21 +251,21 @@ then do behavioral refactoring in later phases.
   - `getSnapshot()`, `applyRemoteOrders()`, `fullResync()`
   - `destroy()`
   - Typed event emitter for UI events (waitingForOrders, roundChanged, etc.)
-- [ ] Run tests — must pass (class exists but not yet wired)
+- [x] Run tests — must pass (class exists but not yet wired)
 
 ### Step 8.2 — Migrate engine lifecycle from BattlePhase into BattleSession
-- [ ] Move engine creation/destruction from BattlePhase into BattleSession
-- [ ] Move `loadGameState` logic into session methods
-- [ ] BattlePhase creates BattleSession on mount, destroys on unmount
-- [ ] BattlePhase subscribes to session events for React state
-- [ ] Run tests — must pass
+- [x] Move engine creation/destruction from BattlePhase into BattleSession
+- [x] Move `loadGameState` logic into session methods
+- [x] BattlePhase creates BattleSession on mount, destroys on unmount
+- [x] BattlePhase subscribes to session events for React state
+- [x] Run tests — must pass
 
 ### Step 8.3 — Migrate sync bridge to BattleSession
-- [ ] Move BattleCallbacks registration to use session methods
-- [ ] Move order submission through session
-- [ ] Move checkpoint handling through session
-- [ ] Clean up removed refs from BattlePhase
-- [ ] Run tests — must pass
+- [x] Move BattleCallbacks registration to use session methods
+- [x] Move order submission through session
+- [x] Move checkpoint handling through session
+- [x] Clean up removed refs from BattlePhase
+- [x] Run tests — must pass
 
 ### 🧪 CHECKPOINT F — Manual testing
 > Full multiplayer flow: host starts battle, non-host joins, orders sync,

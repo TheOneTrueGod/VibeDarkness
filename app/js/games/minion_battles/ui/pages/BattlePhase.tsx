@@ -1,237 +1,31 @@
 /**
  * BattlePhase - Main battle phase component.
  *
- * Orchestrates the GameEngine, PixiJS canvas, card hand, round tracking,
- * targeting flow, order submission, and server sync.
+ * Orchestrates BattleSession (engine / camera / renderer), PixiJS canvas, card hand,
+ * round tracking, targeting flow, order submission, and server sync.
  */
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import type { PlayerState, GameSidebarInfo, GameStatePayload } from '../../../../types';
+import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
-import { GameEngine, CHECKPOINT_INTERVAL } from '../../game/GameEngine';
-import type { CardInstance } from '../../game/GameEngine';
-import { GameRenderer } from '../../game/GameRenderer';
-import type { OrderAtTick, SerializedGameState } from '../../game/types';
-import { Camera } from '../../game/Camera';
+import type { CardInstance, GameEngine } from '../../game/GameEngine';
+import type { SerializedGameState } from '../../game/types';
 import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../../game/types';
+import { BattleSession } from '../../game/BattleSession';
 import { resolveClick, validateAndResolveTarget } from '../../abilities/targeting';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
-import { SPECTATOR_ID } from '../../state';
-import { TerrainManager } from '../../terrain/TerrainManager';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import RoundProgressBar from '../components/RoundProgressBar';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
-import { MessageType } from '../../../../MessageTypes';
 import type { MessageEntry } from '../../../../components/Chat';
 import { useGameSyncOptional } from '../../../../contexts/GameSyncContext';
 import type { BattleCallbacks } from '../../../../contexts/GameSyncContext';
 import { computeSynchash } from '../../../../utils/synchash';
-
-/** Parameters for {@link loadGameState}; kept in a ref so mount and full-resync use latest values. */
-interface LoadGameStateParams {
-    api: MinionBattlesApi;
-    playerId: string;
-    isHost: boolean;
-    players: Record<string, PlayerState>;
-    characterSelections: Record<string, string>;
-    missionId: string;
-    rendererRef: React.MutableRefObject<GameRenderer | null>;
-    engineRef: React.MutableRefObject<GameEngine | null>;
-    cameraRef: React.MutableRefObject<Camera | null>;
-    gameSyncRef: React.MutableRefObject<ReturnType<typeof useGameSyncOptional> | null>;
-    setRoundNumber: React.Dispatch<React.SetStateAction<number>>;
-    setRoundProgress: React.Dispatch<React.SetStateAction<number>>;
-    setWaitingForOrders: React.Dispatch<React.SetStateAction<WaitingForOrders | null>>;
-    setIsPaused: React.Dispatch<React.SetStateAction<boolean>>;
-    handleWaitingForOrdersState: (
-        engine: GameEngine,
-        info: WaitingForOrders,
-        source: 'engine_callback' | 'post_full_state_sync',
-    ) => void;
-    updateCardStateRef: React.MutableRefObject<((engine: GameEngine) => void) | null>;
-    onVictory?: (missionResult: string) => void;
-    onDefeat?: () => void;
-    onEmittedChatMessage?: (entry: MessageEntry) => void;
-}
-
-/**
- * Builds terrain, camera, and engine from `init` (or fresh mission state),
- * wires callbacks, and starts the simulation. Reuses `GameRenderer` across loads; destroys the previous engine only.
- * @returns Cleanup that destroys the current engine and renderer (see refs at unmount).
- */
-function loadGameState(
-    ctx: LoadGameStateParams,
-    init: Record<string, unknown> | null | undefined,
-): () => void {
-    ctx.api.setCurrentPlayerId();
-
-    const prevEngine = ctx.engineRef.current;
-    let renderer = ctx.rendererRef.current;
-    if (!renderer) {
-        renderer = new GameRenderer();
-        ctx.rendererRef.current = renderer;
-    }
-    if (prevEngine) {
-        renderer.unbindFromEngine(prevEngine);
-    }
-    prevEngine?.destroy();
-    ctx.engineRef.current = null;
-    ctx.cameraRef.current = null;
-
-    const mission = MISSION_MAP[ctx.missionId] ?? DARK_AWAKENING;
-    const terrainGrid = mission.createTerrain();
-    const terrainManager = new TerrainManager(terrainGrid);
-    const worldWidth = terrainGrid.worldWidth;
-    const worldHeight = terrainGrid.worldHeight;
-
-    const camera = new Camera(800, 600, worldWidth, worldHeight);
-    ctx.cameraRef.current = camera;
-    renderer.setTerrain(terrainGrid);
-    renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-
-    const initRecord = init as Record<string, unknown> | null | undefined;
-    const hasSnapshot =
-        initRecord &&
-        Array.isArray(initRecord.units) &&
-        (initRecord.units as unknown[]).length > 0 &&
-        typeof (initRecord.gameTick ?? initRecord.game_tick) === 'number';
-
-    let engine: GameEngine;
-    if (hasSnapshot && initRecord) {
-        engine = GameEngine.fromJSON(initRecord as unknown as SerializedGameState, ctx.playerId, terrainManager);
-        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        if (mission.levelEvents && mission.levelEvents.length > 0) {
-            engine.setLevelEvents(mission.levelEvents);
-        }
-        ctx.setRoundNumber(engine.roundNumber);
-        ctx.setRoundProgress(engine.roundProgress);
-        ctx.setWaitingForOrders(engine.waitingForOrders);
-        if (engine.waitingForOrders) {
-            ctx.setIsPaused(true);
-        }
-    } else {
-        engine = new GameEngine();
-        engine.prepareForNewGame({
-            localPlayerId: ctx.playerId,
-            terrainManager,
-            isHost: ctx.isHost,
-            aiControllerId: mission.aiController,
-        });
-        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        const selections =
-            Object.keys(ctx.characterSelections).length > 0
-                ? ctx.characterSelections
-                : ((initRecord?.characterSelections ?? initRecord?.character_selections) as Record<string, string>) ?? {};
-        const portraitIds = (initRecord?.characterPortraitIds ?? initRecord?.character_portrait_ids) as
-            | Record<string, string>
-            | undefined;
-        const playerUnits = Object.entries(selections)
-            .filter(([, charId]) => charId !== SPECTATOR_ID)
-            .map(([pid]) => ({
-                playerId: pid,
-                name: ctx.players[pid]?.name ?? 'Unknown',
-                portraitId: portraitIds?.[pid],
-            }));
-        const equippedItemsByPlayer = (initRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
-        const playerResearchTreesByPlayer =
-            (initRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
-        mission.initializeGameState(engine, {
-            playerUnits,
-            characterSelections: selections,
-            localPlayerId: ctx.playerId,
-            eventBus: engine.eventBus,
-            terrainManager,
-            equippedItemsByPlayer,
-            playerResearchTreesByPlayer,
-        });
-        engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
-        engine.synchash = typeof initRecord?.synchash === 'string' ? initRecord.synchash : null;
-    }
-
-    ctx.engineRef.current = engine;
-
-    engine.setOnWaitingForOrders((info) => {
-        ctx.handleWaitingForOrdersState(engine, info, 'engine_callback');
-    });
-
-    engine.setOnCheckpoint((gameTick, state, orders) => {
-        const stateForHash = state as unknown as Record<string, unknown>;
-        const ordersFormatted = (orders as OrderAtTick[]).map((o) => ({
-            gameTick: o.gameTick,
-            order: o.order as unknown as Record<string, unknown>,
-        }));
-        void ctx.gameSyncRef.current?.saveCheckpoint(gameTick, stateForHash, ordersFormatted);
-    });
-
-    engine.setOnRoundEnd((rn) => {
-        ctx.setRoundNumber(rn + 1);
-        ctx.updateCardStateRef.current?.(engine);
-    });
-
-    engine.setOnStateChanged(() => {
-        ctx.setRoundProgress(engine.roundProgress);
-        ctx.setRoundNumber(engine.roundNumber);
-    });
-
-    engine.setOnEmitMessage((text, npcId) => {
-        if (!ctx.isHost) return;
-        const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {
-            if (res.chatEntry) ctx.onEmittedChatMessage?.(res.chatEntry as MessageEntry);
-        };
-        if (npcId) {
-            ctx.api
-                .sendMessage(MessageType.NPC_CHAT, { npcId, message: text })
-                .then(onSent)
-                .catch(() => { });
-        } else {
-            ctx.api
-                .sendMessage(MessageType.CHAT, { message: text })
-                .then(onSent)
-                .catch(() => { });
-        }
-    });
-
-    if (ctx.onVictory) {
-        engine.setOnVictory(ctx.onVictory);
-    }
-    if (ctx.onDefeat) {
-        engine.setOnDefeat(ctx.onDefeat);
-    }
-
-    const myUnit = engine.getLocalPlayerUnit();
-    if (myUnit) {
-        camera.snapTo(myUnit.x, myUnit.y, myUnit.radius);
-    }
-
-    ctx.updateCardStateRef.current?.(engine);
-
-    if (!engine.waitingForOrders) {
-        engine.isPaused = false;
-    }
-
-    engine.start();
-
-    if (engine.synchash == null) {
-        void computeSynchash(engine.toJSON() as unknown as Record<string, unknown>).then((h) => {
-            if (ctx.engineRef.current !== engine) return;
-            engine.synchash = h;
-        });
-    }
-
-    return () => {
-        ctx.engineRef.current?.destroy();
-        ctx.engineRef.current = null;
-        ctx.rendererRef.current?.destroy();
-        ctx.rendererRef.current = null;
-        ctx.cameraRef.current = null;
-    };
-}
 
 declare global {
     interface Window {
@@ -294,14 +88,8 @@ export default function BattlePhase({
     const gameSync = useGameSyncOptional();
     const canSubmitOrders = gameSync?.canSubmitOrders ?? true;
 
-    // Keep a ref so engine callbacks (inside the mount effect) always access latest context
-    const gameSyncRef = useRef(gameSync);
-    gameSyncRef.current = gameSync;
+    const sessionRef = useRef<BattleSession | null>(null);
 
-    // Refs for objects that persist across renders
-    const engineRef = useRef<GameEngine | null>(null);
-    const rendererRef = useRef<GameRenderer | null>(null);
-    const cameraRef = useRef<Camera | null>(null);
     // UI state
     const [roundNumber, setRoundNumber] = useState(1);
     const [roundProgress, setRoundProgress] = useState(0);
@@ -323,7 +111,6 @@ export default function BattlePhase({
     const [, forceRender] = useState(0);
     const prevSyncStatusRef = useRef<string | null>(null);
 
-    // Is it my turn?
     const isMyTurn = waitingForOrders?.ownerId === playerId;
 
     // ========================================================================
@@ -331,43 +118,37 @@ export default function BattlePhase({
     // ========================================================================
     useEffect(() => {
         window.__minionBattlesDebugSetUnitHover = (unitId: string | null) => {
-            // Highlight in Pixi world.
-            rendererRef.current?.setDebugUnitOutline(unitId);
+            sessionRef.current?.getRenderer()?.setDebugUnitOutline(unitId);
 
             if (!unitId) {
-                // Allow camera auto-follow to resume.
                 window.__minionBattlesDebugAutoFollowPausedUntil = Date.now();
                 return;
             }
 
-            // Attempt to snap camera to the unit.
-            const engine = engineRef.current;
-            const camera = cameraRef.current;
+            const engine = sessionRef.current?.getEngine();
+            const camera = sessionRef.current?.getCamera();
             if (!engine || !camera) return;
             const unit = engine.getUnit(unitId);
             if (!unit) return;
 
             camera.snapTo(unit.x, unit.y, unit.radius);
-            // Pause auto-follow centering briefly so the snap doesn't immediately get lerped back.
             window.__minionBattlesDebugAutoFollowPausedUntil = Date.now() + 2500;
         };
 
         return () => {
-            if (rendererRef.current) rendererRef.current.setDebugUnitOutline(null);
+            sessionRef.current?.getRenderer()?.setDebugUnitOutline(null);
             window.__minionBattlesDebugSetUnitHover = undefined;
             window.__minionBattlesDebugAutoFollowPausedUntil = undefined;
             window.__minionBattlesDebugGameTick = undefined;
             window.__minionBattlesDebugGameState = undefined;
         };
-        // Intentionally exclude refs from deps: we always want to use latest .current values.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Expose live game tick, engine state, and synchash for DebugConsole tabs
     useEffect(() => {
         let hashSeq = 0;
         const id = window.setInterval(() => {
-            const engine = engineRef.current;
+            const engine = sessionRef.current?.getEngine();
             if (engine) {
                 if (typeof engine.gameTick === 'number') {
                     window.__minionBattlesDebugGameTick = engine.gameTick;
@@ -390,14 +171,9 @@ export default function BattlePhase({
         };
     }, []);
 
-    // Get the player's unit from the engine
     const playerUnit = useMemo(() => {
-        return engineRef.current?.getLocalPlayerUnit() ?? null;
-    }, [waitingForOrders, roundNumber]); // re-evaluate when state changes
-
-    // ========================================================================
-    // Sidebar info (turn indicator + player health)
-    // ========================================================================
+        return sessionRef.current?.getEngine()?.getLocalPlayerUnit() ?? null;
+    }, [waitingForOrders, roundNumber]);
 
     const onSidebarInfoChangeRef = useRef(onSidebarInfoChange);
     onSidebarInfoChangeRef.current = onSidebarInfoChange;
@@ -406,7 +182,7 @@ export default function BattlePhase({
 
     useEffect(() => {
         const update = () => {
-            const engine = engineRef.current;
+            const engine = sessionRef.current?.getEngine();
             if (!engine || !onSidebarInfoChangeRef.current) return;
             const currentPlayers = playersRef.current;
 
@@ -435,28 +211,25 @@ export default function BattlePhase({
         return () => clearInterval(interval);
     }, [isMyTurn, roundNumber]);
 
-    // Clear sidebar info on unmount
     useEffect(() => {
         return () => {
             onSidebarInfoChangeRef.current?.(null);
         };
     }, []);
 
-    // ========================================================================
-    // Initialize engine
-    // ========================================================================
-
     const updateCardStateRef = useRef<((engine: GameEngine) => void) | null>(null);
-    const loadGameStateParamsRef = useRef<LoadGameStateParams | null>(null);
+
+    function updateCardState(engine: GameEngine) {
+        const cards = engine.cards[playerId] ?? [];
+        setMyCards([...cards]);
+    }
+    updateCardStateRef.current = updateCardState;
 
     const handleWaitingForOrdersState = useCallback(
         (engine: GameEngine, info: WaitingForOrders, _source: 'engine_callback' | 'post_full_state_sync') => {
             setWaitingForOrders(info);
             setIsPaused(true);
 
-            // Preserve the unit's existing movement path so it carries over
-            // into the next order (unit keeps walking between turns).
-            // Do not reuse path after forced movement (knockback, abilities).
             const unit = engine.getUnit(info.unitId);
             const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
             pendingMovePathRef.current = existingPath && existingPath.length > 0
@@ -468,76 +241,95 @@ export default function BattlePhase({
         [],
     );
 
-    /** Battle sync polls via GameSyncContext; we only register engine snapshot + order delivery. */
+    useEffect(() => {
+        sessionRef.current?.updateLobbyContext(players, characterSelections);
+    }, [players, characterSelections]);
+
+    // ========================================================================
+    // BattleSession lifecycle (mount load + UI subscription)
+    // ========================================================================
+    useEffect(() => {
+        const session = new BattleSession({
+            api,
+            missionId,
+            playerId,
+            isHost,
+            onVictory,
+            onDefeat,
+            onEmittedChatMessage,
+        });
+        sessionRef.current = session;
+
+        const unsub = session.subscribe((ev) => {
+            if (ev.type === 'waiting_for_orders') {
+                handleWaitingForOrdersState(ev.engine, ev.info, ev.source);
+            }
+            if (ev.type === 'pause_state') {
+                setWaitingForOrders(ev.waitingForOrders);
+                setIsPaused(ev.paused);
+            }
+            if (ev.type === 'round_number') {
+                setRoundNumber(ev.roundNumber);
+            }
+            if (ev.type === 'round_progress') {
+                setRoundProgress(ev.progress);
+            }
+            if (ev.type === 'card_state') {
+                updateCardState(ev.engine);
+            }
+        });
+
+        session.updateLobbyContext(players, characterSelections);
+        session.load(players, characterSelections, initialGameState ?? undefined);
+
+        return () => {
+            unsub();
+            session.destroy();
+            sessionRef.current = null;
+        };
+        // Intentionally mount once: same pattern as previous loadGameState([]).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        sessionRef.current?.setSyncBridge(
+            gameSync
+                ? {
+                      saveCheckpoint: gameSync.saveCheckpoint,
+                      submitOrder: gameSync.submitOrder,
+                  }
+                : null,
+        );
+    }, [gameSync?.saveCheckpoint, gameSync?.submitOrder]);
+
     useEffect(() => {
         if (!gameSync) return;
 
         const callbacks: BattleCallbacks = {
             onFullResync: (gameState: SerializedGameState) => {
-                const params = loadGameStateParamsRef.current;
-                if (!params) return;
-                loadGameState(params, gameState as unknown as Record<string, unknown>);
+                sessionRef.current?.loadFromSnapshot(gameState);
             },
-            getEngineSnapshot: () => {
-                const eng = engineRef.current;
-                if (!eng) return null;
-                const w = eng.waitingForOrders;
-                return {
-                    gameTick: eng.gameTick,
-                    state: eng.toJSON() as unknown as Record<string, unknown>,
-                    waitingForOrders: w
-                        ? { unitId: w.unitId, ownerId: w.ownerId }
-                        : null,
-                    synchash: eng.synchash,
-                };
-            },
+            getEngineSnapshot: () => sessionRef.current?.getSnapshot() ?? null,
             onOrdersReceived: (orders) => {
-                const eng = engineRef.current;
-                if (!eng) return;
-                for (const { gameTick: atTick, order } of orders) {
-                    eng.queueOrder(atTick, order as unknown as BattleOrder);
-                }
-                eng.resumeAfterOrders();
-                setWaitingForOrders(null);
-                setIsPaused(false);
-                updateCardStateRef.current?.(eng);
+                sessionRef.current?.applyRemoteOrders(orders);
             },
         };
         gameSync.registerBattleCallbacks(callbacks);
         return () => {
             gameSync.registerBattleCallbacks(null);
         };
-        // registerBattleCallbacks is stable; avoid depending on full gameSync object (new ref each render).
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameSync?.registerBattleCallbacks]);
 
     useEffect(() => {
         const skipHandler = () => {
-            const engine = engineRef.current;
-            if (!engine?.waitingForOrders || !isHost) return;
-            engine.applyOrder({
-                unitId: engine.waitingForOrders.unitId,
-                abilityId: 'wait',
-                targets: [],
-            });
-            engine.resumeAfterOrders();
-            setWaitingForOrders(null);
-            setIsPaused(false);
-            updateCardStateRef.current?.(engine);
-            const ordersFormatted = engine.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
-            void gameSync?.saveCheckpoint(engine.gameTick, engine.toJSON() as unknown as Record<string, unknown>, ordersFormatted);
+            sessionRef.current?.skipTurn();
         };
         gameSync?.registerSkipTurnHandler?.(isHost ? skipHandler : null);
         return () => {
             gameSync?.registerSkipTurnHandler?.(null);
         };
-    }, [gameSync?.registerSkipTurnHandler, gameSync?.saveCheckpoint, isHost]);
-
-    useEffect(() => {
-        const params = loadGameStateParamsRef.current;
-        if (!params) return;
-        return loadGameState(params, initialGameState ?? undefined);
-    }, []); // Run once on mount
+    }, [gameSync?.registerSkipTurnHandler, isHost]);
 
     useEffect(() => {
         const currentSyncStatus = gameSync?.syncStatus ?? null;
@@ -547,7 +339,7 @@ export default function BattlePhase({
         if (currentSyncStatus !== 'synced') return;
         if (prevSyncStatus !== 'resyncing' && prevSyncStatus !== 'loading') return;
 
-        const engine = engineRef.current;
+        const engine = sessionRef.current?.getEngine();
         if (!engine || !engine.waitingForOrders) return;
         const waiting = engine.waitingForOrders;
         const unit = engine.getUnit(waiting.unitId);
@@ -559,47 +351,10 @@ export default function BattlePhase({
             gameTick: engine.gameTick,
             waitingForOrders: waiting,
         });
-        handleWaitingForOrdersState(engine, waiting, 'post_full_state_sync');
-    }, [gameSync?.syncStatus, gameSync?.gameState, handleWaitingForOrdersState]);
-
-    // ========================================================================
-    // Card state helper
-    // ========================================================================
-
-    function updateCardState(engine: GameEngine) {
-        const cards = engine.cards[playerId] ?? [];
-        setMyCards([...cards]);
-    }
-    updateCardStateRef.current = updateCardState;
-
-    loadGameStateParamsRef.current = {
-        api,
-        playerId,
-        isHost,
-        players,
-        characterSelections,
-        missionId,
-        rendererRef,
-        engineRef,
-        cameraRef,
-        gameSyncRef,
-        setRoundNumber,
-        setRoundProgress,
-        setWaitingForOrders,
-        setIsPaused,
-        handleWaitingForOrdersState,
-        updateCardStateRef,
-        onVictory,
-        onDefeat,
-        onEmittedChatMessage,
-    };
-
-    // ========================================================================
-    // Card selection and targeting
-    // ========================================================================
+        sessionRef.current?.replayWaitingForOrdersAfterSync();
+    }, [gameSync?.syncStatus, gameSync?.gameState]);
 
     const handleSelectCard = useCallback((handIndex: number, ability: AbilityStatic) => {
-        // Clicking an already-selected card should deselect it and clear targeting.
         if (selectedCardIndex === handIndex) {
             setSelectedCardIndex(null);
             setSelectedAbility(null);
@@ -613,30 +368,26 @@ export default function BattlePhase({
     }, [selectedCardIndex]);
 
     const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
-        const engine = engineRef.current;
-        const camera = cameraRef.current;
+        const engine = sessionRef.current?.getEngine();
+        const camera = sessionRef.current?.getCamera();
         if (!engine || !camera || !selectedAbility || !isMyTurn) return;
 
-        // Resolve the click
         const clickResult = resolveClick(screenX, screenY, camera, engine.units);
 
-        // Get the next required target
         const targetIndex = currentTargets.length;
         const caster = waitingForOrders ? engine.getUnit(waitingForOrders.unitId) : undefined;
         const resolvedTargets = getAbilityTargets(selectedAbility, caster, engine);
         const targetDef = resolvedTargets[targetIndex];
         if (!targetDef) return;
 
-        // Validate and resolve
         const resolved = validateAndResolveTarget(targetDef, clickResult);
         if (!resolved) return;
 
         const newTargets = [...currentTargets, resolved];
         setCurrentTargets(newTargets);
 
-        // Check if all targets are now fulfilled
         if (newTargets.length >= resolvedTargets.length) {
-            submitOrder(engine, selectedAbility.id, newTargets);
+            submitOrder(selectedAbility.id, newTargets);
             setSelectedCardIndex(null);
             setSelectedAbility(null);
             setCurrentTargets([]);
@@ -644,8 +395,8 @@ export default function BattlePhase({
     }, [selectedAbility, currentTargets, isMyTurn, waitingForOrders]);
 
     const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
-        const engine = engineRef.current;
-        const camera = cameraRef.current;
+        const engine = sessionRef.current?.getEngine();
+        const camera = sessionRef.current?.getCamera();
         if (camera) {
             const worldPos = camera.screenToWorld(screenX, screenY);
             mouseWorldRef.current = worldPos;
@@ -672,20 +423,15 @@ export default function BattlePhase({
         forceRender((n) => n + 1);
     }, []);
 
-    /** Submit a "wait" order: do nothing for 1s, but allow movement. */
     const handleWait = useCallback(() => {
-        const engine = engineRef.current;
+        const engine = sessionRef.current?.getEngine();
         if (!engine || !isMyTurn || !waitingForOrders) return;
 
-        submitOrder(engine, 'wait', []);
+        submitOrder('wait', []);
         setSelectedCardIndex(null);
         setSelectedAbility(null);
         setCurrentTargets([]);
     }, [isMyTurn, waitingForOrders]);
-
-    // ========================================================================
-    // Keyboard shortcuts
-    // ========================================================================
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -694,7 +440,6 @@ export default function BattlePhase({
                 handleWait();
                 return;
             }
-            // Card selection hotkeys: 1 = leftmost, 2 = second, etc.
             const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key, 10) : 0;
             if (digit > 0) {
                 const handCards = myCards.filter((c) => c.location === 'hand');
@@ -714,23 +459,18 @@ export default function BattlePhase({
     }, [handleWait, handleSelectCard, myCards]);
 
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number) => {
-        const engine = engineRef.current;
-        const camera = cameraRef.current;
+        const engine = sessionRef.current?.getEngine();
+        const camera = sessionRef.current?.getCamera();
         if (!engine || !camera || !isMyTurn || !waitingForOrders) return;
         if (!engine.terrainManager) return;
 
         const grid = engine.terrainManager.grid;
-
-        // Convert screen coords to world coords
         const worldPos = camera.screenToWorld(screenX, screenY);
-
-        // Clamp to world bounds (from terrain: cols × cellSize, rows × cellSize)
         const worldWidth = engine.getWorldWidth();
         const worldHeight = engine.getWorldHeight();
         const clampedX = Math.max(0, Math.min(worldPos.x, worldWidth));
         const clampedY = Math.max(0, Math.min(worldPos.y, worldHeight));
 
-        // Compute grid path from unit to click destination
         const unit = engine.getUnit(waitingForOrders.unitId);
         if (!unit) return;
 
@@ -743,20 +483,13 @@ export default function BattlePhase({
 
         if (gridPath) {
             pendingMovePathRef.current = gridPath;
-            // Set movement on the unit immediately for visual feedback
             unit.setMovement(gridPath, undefined, engine.gameTick);
         }
     }, [isMyTurn, waitingForOrders]);
 
-    // ========================================================================
-    // Order submission
-    // ========================================================================
-
-    function submitOrder(engine: GameEngine, abilityId: string, targets: ResolvedTarget[]) {
+    function submitOrder(abilityId: string, targets: ResolvedTarget[]) {
         if (!waitingForOrders || !canSubmitOrders) return;
 
-        // Read move path from ref to avoid stale closures when
-        // right-click (move) and left-click (ability) happen in quick succession
         const movePath = pendingMovePathRef.current;
 
         const order: BattleOrder = {
@@ -766,37 +499,17 @@ export default function BattlePhase({
             movePath: movePath ?? undefined,
         };
 
-        // Apply locally and resume (order is queued for gameTick + 1)
-        engine.applyOrder(order);
         targetingStateRef.current.selectedAbility = null;
         targetingStateRef.current.currentTargets = [];
         targetingStateRef.current.waitingForOrders = null;
-        setWaitingForOrders(null);
-        setIsPaused(false);
         pendingMovePathRef.current = null;
-        updateCardState(engine);
 
-        // Persist order and checkpoint via GameSyncContext
-        const atTick = engine.gameTick + 1;
-        const checkpointGameTick = Math.floor(atTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-        const orderRecord: Record<string, unknown> = JSON.parse(JSON.stringify(order));
-        gameSync?.submitOrder(checkpointGameTick, atTick, orderRecord);
-
-        const ordersFormatted = engine.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: o.order as unknown as Record<string, unknown> }));
-        void gameSync?.saveCheckpoint(engine.gameTick, engine.toJSON() as unknown as Record<string, unknown>, ordersFormatted);
-
-        api.sendMessage('battle_orders_ready', {
-            snapshotIndex: engine.snapshotIndex,
-        }).catch(() => { });
+        sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders });
     }
 
-    // ========================================================================
-    // Render
-    // ========================================================================
-
-    const engine = engineRef.current;
-    const renderer = rendererRef.current;
-    const camera = cameraRef.current;
+    const engine = sessionRef.current?.getEngine() ?? null;
+    const renderer = sessionRef.current?.getRenderer() ?? null;
+    const camera = sessionRef.current?.getCamera() ?? null;
 
     if (!engine || !renderer || !camera) {
         return (
@@ -808,14 +521,12 @@ export default function BattlePhase({
 
     return (
         <div className="w-full h-full flex flex-col relative">
-            {/* Round progress bar */}
             <RoundProgressBar
                 roundNumber={roundNumber}
                 progress={roundProgress}
                 isPaused={isPaused}
             />
 
-            {/* Game canvas */}
             <BattleCanvas
                 engine={engine}
                 camera={camera}
@@ -826,7 +537,6 @@ export default function BattlePhase({
                 onCanvasMouseMove={handleCanvasMouseMove}
             />
 
-            {/* Turn indicator: Your Turn / Ally's Turn / playing (collapsed) */}
             <TurnIndicator
                 state={
                     !waitingForOrders ? 'playing' : isMyTurn ? 'your_turn' : 'ally_turn'
@@ -834,7 +544,6 @@ export default function BattlePhase({
                 allyName={waitingForOrders && !isMyTurn ? players[waitingForOrders.ownerId]?.name ?? 'Player' : undefined}
             />
 
-            {/* Upcoming actions timeline (enemies + players) */}
             <BattleTimeline
                 engine={engine}
                 players={players}
@@ -842,7 +551,6 @@ export default function BattlePhase({
                 previewAbility={isMyTurn ? selectedAbility : null}
             />
 
-            {/* Card hand */}
             <CardHand
                 cards={myCards}
                 playerUnit={playerUnit}
