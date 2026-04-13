@@ -14,13 +14,14 @@ import type { Unit } from '../../game/units/Unit';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { drawCardForPlayer, getNearestAlly, createCrystalLightEffect } from '../../abilities/effectHelpers';
+import { createCrystalLightEffect } from '../../abilities/effectHelpers';
 import { getDirectionFromTo } from '../../abilities/targetHelpers';
 import { pointInCone } from '../../abilities/targetHelpers';
 import { Effect } from '../../game/effects/Effect';
 import { StunnedBuff } from '../../buffs/StunnedBuff';
 import { areEnemies } from '../../game/teams';
 import type { EventBus } from '../../game/EventBus';
+import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}10` as '0110';
 const DURATION = 1;
@@ -53,6 +54,7 @@ interface GameEngineLike {
     eventBus: EventBus;
     gameTime: number;
     roundNumber: number;
+    generateRandomInteger(min: number, max: number): number;
 }
 
 const SHINING_BLOCK_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -134,7 +136,7 @@ export const ShiningBlockAbility: AbilityStatic = {
         return [
             'Raise your crystal shield blocking all attacks from the front',
             'On Block: Deals {5} damage and stuns up to {3} enemies for {2} seconds',
-            'Your nearest ally draws a card when used',
+            'On successful block, nearby allies gain {1} light charge',
         ];
     },
 
@@ -160,10 +162,7 @@ export const ShiningBlockAbility: AbilityStatic = {
 
     doCardEffect(engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (prevTime >= 0.05 || currentTime < 0.05) return;
-        const eng = engine as GameEngineLike;
         caster.setAbilityNote({ abilityId: CARD_ID, abilityNote: { retaliationCount: 0 } });
-        const nearestAlly = getNearestAlly(eng.units, caster);
-        drawCardForPlayer(engine, nearestAlly?.ownerId, 1);
     },
 
     renderActivePreview(
@@ -207,6 +206,17 @@ export const ShiningBlockAbility: AbilityStatic = {
         if (note.abilityNote.retaliationCount >= MAX_RETALIATION_PER_USE) return;
         const eng = engine as GameEngineLike;
         executeShiningBlockRetaliation(eng, defender, attackInfo);
+        for (const unit of eng.units) {
+            if (!unit.isAlive()) continue;
+            if (unit.id === defender.id) continue;
+            if (!areEnemies(unit.teamId, defender.teamId) && Math.hypot(unit.x - defender.x, unit.y - defender.y) <= 180) {
+                grantRecoveryChargeToRandomAbility(
+                    unit,
+                    'lightCharge',
+                    (min, max) => eng.generateRandomInteger(min, max),
+                );
+            }
+        }
         defender.setAbilityNote({
             abilityId: CARD_ID,
             abilityNote: { retaliationCount: note.abilityNote.retaliationCount + 1 },

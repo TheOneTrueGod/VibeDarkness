@@ -66,6 +66,7 @@ const UNIT_DEFS: Record<
         /** Size category; radius derived from UNIT_SIZE_MAP. Overrides radius if both set. */
         size?: UnitSize;
         radius?: number;
+        stamina?: number;
         perceptionRange?: number;
         deathEffect?: UnitDeathEffectDef;
         /** Short flavor text for battle UI (e.g. timeline hover). */
@@ -78,6 +79,7 @@ const UNIT_DEFS: Record<
         hp: 50,
         speed: 90,
         size: 'Large',
+        stamina: 1,
         uiDescription: 'Frontline fighter who closes distance and soaks hits.',
     },
     mage: {
@@ -85,6 +87,7 @@ const UNIT_DEFS: Record<
         hp: 50,
         speed: 90,
         size: 'Small',
+        stamina: 1,
         uiDescription: 'Arcane caster focused on burst and control.',
     },
     ranger: {
@@ -92,6 +95,7 @@ const UNIT_DEFS: Record<
         hp: 50,
         speed: 90,
         size: 'Medium',
+        stamina: 1,
         uiDescription: 'Keeps range and chips away from a safe distance.',
     },
     healer: {
@@ -99,6 +103,7 @@ const UNIT_DEFS: Record<
         hp: 50,
         speed: 90,
         size: 'Medium',
+        stamina: 1,
         uiDescription: 'Supports the party with recovery and buffs.',
     },
     rogue: {
@@ -106,6 +111,7 @@ const UNIT_DEFS: Record<
         hp: 50,
         speed: 90,
         size: 'Small',
+        stamina: 1,
         uiDescription: 'Fast skirmisher looking for openings.',
     },
     necromancer: {
@@ -113,6 +119,7 @@ const UNIT_DEFS: Record<
         hp: 50,
         speed: 90,
         size: 'Medium',
+        stamina: 1,
         uiDescription: 'Dark summoner who trades vitality for power.',
     },
     // Enemies
@@ -122,6 +129,7 @@ const UNIT_DEFS: Record<
         hp: 12,
         speed: 80,
         size: 'Small',
+        stamina: 1,
         perceptionRange: 250,
         uiDescription: 'Basic melee grunt that rushes into combat.',
     },
@@ -131,6 +139,7 @@ const UNIT_DEFS: Record<
         hp: 30,
         speed: 60,
         size: 'Medium',
+        stamina: 1,
         perceptionRange: 400,
         uiDescription: 'Stays back and harasses with ranged attacks.',
     },
@@ -140,6 +149,7 @@ const UNIT_DEFS: Record<
         hp: 12,
         speed: 120,
         size: 'Extra Small',
+        stamina: 1,
         perceptionRange: 300,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 8 },
         uiDescription: 'Fast predator that lunges in for a quick bite.',
@@ -150,6 +160,7 @@ const UNIT_DEFS: Record<
         hp: 140,
         speed: 135,
         size: 'Extra Large',
+        stamina: 1,
         perceptionRange: 350,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 12 },
         uiDescription: 'Pack leader with heavy claws and howling support.',
@@ -160,6 +171,7 @@ const UNIT_DEFS: Record<
         hp: 24,
         speed: 100,
         size: 'Large',
+        stamina: 1,
         perceptionRange: 280,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 10 },
         uiDescription: 'Tough charger that bowls through the front line.',
@@ -285,6 +297,12 @@ export function getUnitUiDescription(characterId: string): string {
 export function getDefaultSpeed(characterId: string): number {
     const def = UNIT_DEFS[characterId as UnitDefId];
     return def?.speed ?? 100;
+}
+
+/** Default stamina for a character ID. */
+export function getDefaultStamina(characterId: string): number {
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.stamina ?? 1;
 }
 
 /**

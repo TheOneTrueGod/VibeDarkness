@@ -15,7 +15,7 @@ import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { Effect } from '../../game/effects/Effect';
-import { asCardDefId, type CardDef, type CardDefId } from '../types';
+import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromTo } from '../../abilities/targetHelpers';
@@ -31,7 +31,6 @@ const TORCH_PROJECTILE_SPEED = 400;
 interface GameEngineLike {
     addEffect(effect: Effect): void;
     roundNumber: number;
-    transferCardToAllyDeck(caster: Unit, cardDefId: CardDefId, abilityId: string): void;
 }
 
 function getMaxRange(caster: Unit): number {
@@ -79,7 +78,6 @@ export const ThrowTorchAbility: AbilityStatic = {
         return [
             `Place a torch on the ground that emits light`,
             `Lasts ${TORCH_ROUNDS} rounds`,
-            `Transfer: Another ally gains this card in their draw pile`
         ];
     },
 
@@ -119,7 +117,6 @@ export const ThrowTorchAbility: AbilityStatic = {
         });
         eng.addEffect(torchProjectile);
 
-        eng.transferCardToAllyDeck(caster, asCardDefId(CARD_ID), CARD_ID);
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {

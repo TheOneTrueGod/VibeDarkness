@@ -6,18 +6,15 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import type { CardInstance } from '../../game/GameEngine';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { canAffordAbility } from '../../abilities/Ability';
 import type { AbilityStatic } from '../../abilities/Ability';
-import type { Unit } from '../../game/units/Unit';
-import { getCardDef } from '../../card_defs';
+import type { Unit, UnitAbilityRuntimeState } from '../../game/units/Unit';
 import CardComponent from './CardComponent';
 import CardTooltip from './CardTooltip';
 
 interface CardHandProps {
-    /** Cards in the player's hand. */
-    cards: CardInstance[];
+    abilityIds: string[];
     /** The player's unit (for resource checks). */
     playerUnit: Unit | null;
     /** Whether it's this player's turn to act. */
@@ -30,55 +27,40 @@ interface CardHandProps {
     onWait?: () => void;
     /** Current game state for dynamic descriptions. */
     gameState?: unknown;
-    /** Current game time (seconds) for discard timing. */
-    gameTime?: number;
 }
 
 export default function CardHand({
-    cards,
+    abilityIds,
     playerUnit,
     isMyTurn,
     selectedCardIndex,
     onSelectCard,
     onWait,
     gameState,
-    gameTime,
 }: CardHandProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(false);
-    const [hoveredPile, setHoveredPile] = useState<'deck' | 'discard' | null>(null);
     const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
-
-    const deckCards = useMemo(
-        () => cards.filter((c) => c.location === 'deck'),
-        [cards],
-    );
-
-    const discardCards = useMemo(
-        () => cards.filter((c) => c.location === 'discard'),
-        [cards],
-    );
-
-    const deckCount = deckCards.length;
-    const discardCount = discardCards.length;
-
-    const formatCount = useCallback((value: number) => {
-        const clamped = Math.min(99, Math.max(0, value));
-        return clamped.toString().padStart(2, '0');
-    }, []);
 
     // Detect mobile via touch support
     useEffect(() => {
         setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0);
     }, []);
 
-    const handCards = useMemo(
-        () => cards.filter((c) => c.location === 'hand'),
-        [cards],
-    );
+    const handCards = useMemo(() => {
+        return abilityIds
+            .map((abilityId) => {
+                const ability = getAbility(abilityId);
+                if (!ability || !playerUnit) return null;
+                const runtime = playerUnit.abilityRuntime[abilityId] as UnitAbilityRuntimeState | undefined;
+                if (!runtime) return null;
+                return { abilityId, ability, runtime };
+            })
+            .filter((entry): entry is { abilityId: string; ability: AbilityStatic; runtime: UnitAbilityRuntimeState } => Boolean(entry));
+    }, [abilityIds, playerUnit]);
 
     useEffect(() => {
-        if (hoveredCardId && !handCards.some((card) => card.instanceId === hoveredCardId)) {
+        if (hoveredCardId && !handCards.some((card) => card.abilityId === hoveredCardId)) {
             setHoveredCardId(null);
         }
     }, [handCards, hoveredCardId]);
@@ -87,9 +69,7 @@ export default function CardHand({
         (handIndex: number) => {
             const card = handCards[handIndex];
             if (!card) return;
-            const ability = getAbility(card.abilityId);
-            if (!ability) return;
-            onSelectCard(handIndex, ability);
+            onSelectCard(handIndex, card.ability);
             setMobileDescIndex(null);
         },
         [handCards, onSelectCard],
@@ -111,115 +91,29 @@ export default function CardHand({
         if (mobileDescIndex === null) return null;
         const card = handCards[mobileDescIndex];
         if (!card) return null;
-        return getAbility(card.abilityId) ?? null;
+        return card.ability;
     }, [mobileDescIndex, handCards]);
-
-    const getDiscardLabel = useCallback(
-        (card: CardInstance): string => {
-            const def = getCardDef(card.cardDefId);
-            const ability = getAbility(card.abilityId);
-            const name = def?.name ?? ability?.name ?? String(card.cardDefId);
-
-            const dd = def?.discardDuration;
-            if (!dd) {
-                return name;
-            }
-            if (dd.unit === 'never') {
-                return name;
-            }
-            if (dd.unit === 'rounds') {
-                const remainingRounds = card.discardRoundsRemaining ?? dd.duration;
-                return `${name} (${remainingRounds}r)`;
-            }
-
-            // Seconds-based: show remaining in-game seconds until re-added to deck (e.g. "0.4s")
-            const addedAt = card.discardAddedAtTime;
-            if (typeof gameTime === 'number' && typeof addedAt === 'number') {
-                const elapsed = Math.max(0, gameTime - addedAt);
-                const remaining = Math.max(0, dd.duration - elapsed);
-                const secStr = remaining % 1 === 0 ? `${remaining}s` : `${remaining.toFixed(1)}s`;
-                return `${name} (${secStr})`;
-            }
-
-            return `${name} (${dd.duration}s)`;
-        },
-        [gameTime],
-    );
 
     return (
         <div className="relative bg-dark-900/80 border-t border-dark-700 px-4 py-2">
-            {/* Fixed-height row for deck, discard, Wait, and hand */}
+            {playerUnit && playerUnit.resources.length > 0 && (
+                <div className="flex items-center justify-center gap-2 mb-2">
+                    {playerUnit.resources.map((resource) => (
+                        <div
+                            key={resource.id}
+                            className="px-2 py-0.5 rounded border text-xs"
+                            style={{ borderColor: resource.color, color: resource.color }}
+                        >
+                            {resource.name}: {Math.round(resource.current)}
+                        </div>
+                    ))}
+                </div>
+            )}
+            {/* Fixed-height row for wait button and ability cards */}
             <div className="flex items-center gap-4 h-[152px]">
-                {/* Deck / discard indicators + cooldown + Wait + hand */}
+                {/* Wait + abilities */}
                 {playerUnit && (
                     <>
-                        <div className="flex flex-col gap-2 mr-2 flex-shrink-0">
-                            <div
-                                className="relative flex items-center justify-between gap-3 px-2.5 py-1.5 bg-black border border-white text-white text-xs leading-none"
-                                onMouseEnter={() => setHoveredPile('deck')}
-                                onMouseLeave={() => setHoveredPile((prev) => (prev === 'deck' ? null : prev))}
-                            >
-                                <span className="text-sm">⮞</span>
-                                <span className="font-mono tracking-[0.25em] tabular-nums text-sm">
-                                    {formatCount(deckCount)}
-                                </span>
-                                {hoveredPile === 'deck' && (
-                                    <div className="absolute left-full ml-3 top-1/2 -translate-y-full z-20 w-64 rounded-md border border-dark-600 bg-black px-3 py-2 text-xs shadow-lg">
-                                        <div className="font-semibold text-sm mb-1">Deck</div>
-                                        <p className="text-[11px] text-gray-200">
-                                            When you draw a card, you get a random card from the deck.
-                                        </p>
-                                        <div className="mt-2">
-                                            <div className="font-semibold text-[11px] mb-1">Cards in deck</div>
-                                            {deckCards.length === 0 ? (
-                                                <p className="text-[11px] text-gray-400">No cards in deck.</p>
-                                            ) : (
-                                                <ul className="space-y-0.5 text-[11px] text-gray-100">
-                                                    {deckCards.map((card, idx) => {
-                                                        const def = getCardDef(card.cardDefId);
-                                                        const ability = getAbility(card.abilityId);
-                                                        const name = def?.name ?? ability?.name ?? String(card.cardDefId);
-                                                        return (
-                                                            <li key={`${card.cardDefId}_${idx}`}>• {name}</li>
-                                                        );
-                                                    })}
-                                                </ul>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <div
-                                className="relative flex items-center justify-between gap-3 px-2.5 py-1.5 bg-black border border-white text-white text-xs leading-none"
-                                onMouseEnter={() => setHoveredPile('discard')}
-                                onMouseLeave={() => setHoveredPile((prev) => (prev === 'discard' ? null : prev))}
-                            >
-                                <span className="text-sm">↻</span>
-                                <span className="font-mono tracking-[0.25em] tabular-nums text-sm">
-                                    {formatCount(discardCount)}
-                                </span>
-                                {hoveredPile === 'discard' && (
-                                    <div className="absolute left-full ml-3 top-1/2 -translate-y-full z-20 w-72 rounded-md border border-dark-600 bg-black px-3 py-2 text-xs shadow-lg">
-                                        <div className="font-semibold text-sm mb-1">Discard</div>
-                                        <p className="text-[11px] text-gray-200">
-                                            Cards move from the discard pile back into the deck when they finish recovering.
-                                        </p>
-                                        <div className="mt-2">
-                                            <div className="font-semibold text-[11px] mb-1">Cards in discard</div>
-                                            {discardCards.length === 0 ? (
-                                                <p className="text-[11px] text-gray-400">No cards in discard.</p>
-                                            ) : (
-                                                <ul className="space-y-0.5 text-[11px] text-gray-100">
-                                                    {discardCards.map((card, idx) => (
-                                                        <li key={`${card.cardDefId}_${idx}`}>• {getDiscardLabel(card)}</li>
-                                                    ))}
-                                                </ul>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
                         <button
                             onClick={onWait}
                             disabled={!isMyTurn}
@@ -257,21 +151,19 @@ export default function CardHand({
                     onPointerLeave={() => setHoveredCardId(null)}
                 >
                     {handCards.map((card, index) => {
-                        const ability = getAbility(card.abilityId);
-                        if (!ability) return null;
-
-                        const canAfford = playerUnit ? canAffordAbility(playerUnit, ability) : false;
-                        const isDisabled = !isMyTurn || !canAfford;
-                        const isHovered = hoveredCardId === card.instanceId;
+                        const canAfford = playerUnit ? canAffordAbility(playerUnit, card.ability) : false;
+                        const canUse = card.runtime.currentUses > 0;
+                        const isDisabled = !isMyTurn || !canAfford || !canUse;
+                        const isHovered = hoveredCardId === card.abilityId;
                         const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
                         const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
                         const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
 
                         return (
                             <CardComponent
-                                key={card.instanceId}
-                                ability={ability}
-                                card={card}
+                                key={card.abilityId}
+                                ability={card.ability}
+                                runtime={card.runtime}
                                 isSelected={selectedCardIndex === index}
                                 isActive={isActive}
                                 isDisabled={isDisabled}
@@ -279,9 +171,9 @@ export default function CardHand({
                                 isHovered={isHovered}
                                 onHoverChange={(hovered) => {
                                     if (hovered) {
-                                        setHoveredCardId(card.instanceId);
+                                        setHoveredCardId(card.abilityId);
                                     } else {
-                                        setHoveredCardId((prev) => (prev === card.instanceId ? null : prev));
+                                        setHoveredCardId((prev) => (prev === card.abilityId ? null : prev));
                                     }
                                 }}
                                 isMobile={isMobile}

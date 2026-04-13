@@ -1,7 +1,7 @@
 /**
  * Laser Shield - Warrior skill. Hold a cyan energy shield for 3s in a direction.
  * Movement speed penalty 0.1, blocks attacks from within a 120° arc.
- * Single use. Owner draws a card when the ability blocks (max once per use).
+ * Single use directional block.
  * Same behaviour as Raise Shield, but longer duration and laser color theme.
  */
 
@@ -15,15 +15,14 @@ import type { Unit } from '../../game/units/Unit';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { drawCardForPlayer, getNearestAlly } from '../../abilities/effectHelpers';
 import { getDirectionFromTo } from '../../abilities/targetHelpers';
+import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
+import { areEnemies } from '../../game/teams';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}06`;
 const DURATION = 3;
 const COOLDOWN_TIME = 1;
 const MOVEMENT_PENALTY = 0.1;
-/** Max number of cards the owner can draw from blocking per card use. */
-const MAX_DRAW_PER_USE = 1;
 const SHIELD_ARC_DEG = 120;
 const SHIELD_ARC_RAD = (SHIELD_ARC_DEG * Math.PI) / 180;
 const SHIELD_HALF_ARC_RAD = SHIELD_ARC_RAD / 2;
@@ -34,12 +33,11 @@ const SHIELD_FILL_ALPHA = 0.85;
 const SHIELD_STROKE_ALPHA = 1.0;
 const MAX_RANGE = 300;
 const MIN_RANGE = 10;
+const ALLY_CHARGE_RADIUS = 180;
 
-interface GameEngineLike {
-    getUnit(id: string): Unit | undefined;
+interface LaserShieldEngineLike {
     units: Unit[];
-    drawCardsForPlayer(playerId: string, count: number): number;
-    cards: Record<string, { location: string }[]>;
+    generateRandomInteger(min: number, max: number): number;
 }
 
 const LASER_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -82,8 +80,7 @@ export const LaserShieldAbility: AbilityStatic = {
     getTooltipText(_gameState?: unknown): string[] {
         return [
             'Raise a laser shield blocking all attacks from the front',
-            'If you block an attack, draw a card',
-            'Your nearest ally draws a card when used',
+            'Blocks attacks from the front arc',
             'Lasts for 3 seconds with only 1 second cooldown',
         ];
     },
@@ -108,12 +105,9 @@ export const LaserShieldAbility: AbilityStatic = {
         };
     },
 
-    doCardEffect(engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+    doCardEffect(_engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (prevTime >= 0.05 || currentTime < 0.05) return;
-        const eng = engine as GameEngineLike;
-        caster.setAbilityNote({ abilityId: '0106', abilityNote: { drewFromBlockCount: 0 } });
-        const nearestAlly = getNearestAlly(eng.units, caster);
-        drawCardForPlayer(engine, nearestAlly?.ownerId, 1);
+        caster.setAbilityNote({ abilityId: '0106', abilityNote: { blockCount: 0 } });
     },
 
     renderActivePreview(
@@ -151,12 +145,39 @@ export const LaserShieldAbility: AbilityStatic = {
         if (!defender.ownerId) return;
         const note = defender.abilityNote;
         if (!isAbilityNote(note, '0106')) return;
-        if (note.abilityNote.drewFromBlockCount >= MAX_DRAW_PER_USE) return;
-        const eng = engine as GameEngineLike;
-        eng.drawCardsForPlayer(defender.ownerId, 1);
+        const nextCount = (note.abilityNote.blockCount ?? 0) + 1;
+        const wasRewarded = Boolean(note.abilityNote.rewardedTwiceBlock);
+        if (nextCount >= 2 && !wasRewarded) {
+            const eng = engine as LaserShieldEngineLike;
+            grantRecoveryChargeToRandomAbility(
+                defender,
+                'staminaCharge',
+                (min, max) => eng.generateRandomInteger(min, max),
+                { excludeAbilityId: CARD_ID },
+            );
+            for (const ally of eng.units) {
+                if (!ally.isAlive() || ally.id === defender.id) continue;
+                if (areEnemies(ally.teamId, defender.teamId)) continue;
+                const dist = Math.hypot(ally.x - defender.x, ally.y - defender.y);
+                if (dist > ALLY_CHARGE_RADIUS) continue;
+                grantRecoveryChargeToRandomAbility(
+                    ally,
+                    'staminaCharge',
+                    (min, max) => eng.generateRandomInteger(min, max),
+                );
+                grantRecoveryChargeToRandomAbility(
+                    ally,
+                    'staminaCharge',
+                    (min, max) => eng.generateRandomInteger(min, max),
+                );
+            }
+        }
         defender.setAbilityNote({
             abilityId: '0106',
-            abilityNote: { drewFromBlockCount: note.abilityNote.drewFromBlockCount + 1 },
+            abilityNote: {
+                blockCount: nextCount,
+                rewardedTwiceBlock: wasRewarded || nextCount >= 2,
+            },
         });
     },
 };

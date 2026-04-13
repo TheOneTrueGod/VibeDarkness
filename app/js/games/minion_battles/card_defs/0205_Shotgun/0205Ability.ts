@@ -30,6 +30,7 @@ export const ShotgunAbility: AbilityStatic = {
     name: 'Shotgun',
     image: SHOTGUN_IMAGE,
     resourceCost: null,
+    resourceCosts: [{ resourceId: 'ammo', amount: 15, allowPartialIfPositive: true }],
     rechargeTurns: 0,
     prefireTime: SHOT_TIME,
     abilityTimings: [

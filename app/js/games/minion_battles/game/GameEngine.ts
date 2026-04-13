@@ -36,6 +36,7 @@ import type { CardDefId } from '../card_defs';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
 import { computeSynchash } from '../../../utils/synchash';
+import { addRecoveryChargeToUnitAbilities, canUseAbilityNow, consumeAbilityUse, ensureAbilityRuntimeState } from '../abilities/abilityUses';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -77,6 +78,8 @@ export class GameEngine implements EngineContext {
     private onRoundEnd: ((roundNumber: number) => void) | null = null;
     private onStateChanged: EngineStateCallback | null = null;
     private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
+    private appliedRoundStartRecovery = false;
+    private appliedMidRoundRecovery = false;
 
     get eventBus(): EventBus {
         return this.state.eventBus;
@@ -317,6 +320,8 @@ export class GameEngine implements EngineContext {
         if (config.isHost) {
             this.randomSeed = this.generateHostSeed();
         }
+        this.appliedRoundStartRecovery = false;
+        this.appliedMidRoundRecovery = false;
     }
 
     setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
@@ -414,6 +419,9 @@ export class GameEngine implements EngineContext {
         this.gameTime += dt;
         this.gameTick++;
 
+        const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
+        this.processStaminaPulse(roundTime);
+
         // Apply scheduled orders
         const toApply = this.pendingOrders.filter((o) => o.gameTick === this.gameTick);
         this.pendingOrders = this.pendingOrders.filter((o) => o.gameTick !== this.gameTick);
@@ -425,11 +433,12 @@ export class GameEngine implements EngineContext {
         this.state.effectManager.processTorchEffectDecays();
 
         // Check for round end
-        const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
         if (roundTime >= ROUND_DURATION) {
             this.eventBus.emit('round_end', { roundNumber: this.roundNumber });
             this.onRoundEnd?.(this.roundNumber);
             this.roundNumber++;
+            this.appliedRoundStartRecovery = false;
+            this.appliedMidRoundRecovery = false;
         }
 
         this.state.levelEventManager.processLevelEvents();
@@ -440,7 +449,6 @@ export class GameEngine implements EngineContext {
         this.processPlayerDarknessCorruption(dt);
         this.state.projectileManager.update(dt);
         this.state.effectManager.update(dt);
-        this.state.cardManager.processDiscardSeconds();
         this.state.unitManager.cleanupInactive();
         this.state.projectileManager.cleanupInactive();
         this.state.effectManager.cleanupInactive();
@@ -583,7 +591,10 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     private executeAbility(unit: Unit, ability: AbilityStatic, targets: ResolvedTarget[]): void {
+        ensureAbilityRuntimeState(unit, ability.id);
+        if (!canUseAbilityNow(unit, ability)) return;
         if (!spendAbilityCost(unit, ability)) return;
+        if (!consumeAbilityUse(unit, ability.id)) return;
 
         const existing = unit.activeAbilities.findIndex((a) => a.abilityId === ability.id);
         if (existing >= 0) {
@@ -606,7 +617,6 @@ export class GameEngine implements EngineContext {
             abilityId: ability.id,
         });
 
-        this.state.cardManager.onCardUsed(unit, ability);
     }
 
     // ========================================================================
@@ -826,7 +836,26 @@ export class GameEngine implements EngineContext {
     private handleRoundEnd(_roundNumber: number): void {
         this.state.cardManager.clearAbilityUses();
         this.state.effectManager.handleRoundEndTorchDecay(this.roundNumber);
-        this.state.cardManager.handleRoundEndCards();
+    }
+
+    /** Apply the two per-round stamina pulses (start and midpoint). */
+    private processStaminaPulse(roundTime: number): void {
+        if (!this.appliedRoundStartRecovery) {
+            this.applyStaminaPulse();
+            this.appliedRoundStartRecovery = true;
+        }
+        if (!this.appliedMidRoundRecovery && roundTime >= ROUND_DURATION / 2) {
+            this.applyStaminaPulse();
+            this.appliedMidRoundRecovery = true;
+        }
+    }
+
+    /** Stamina Pulse: each unit grants staminaCharge to all of its abilities. */
+    private applyStaminaPulse(): void {
+        for (const unit of this.units) {
+            if (!unit.isAlive()) continue;
+            addRecoveryChargeToUnitAbilities(unit, 'staminaCharge', Math.max(0, unit.stamina));
+        }
     }
 
     // ========================================================================
@@ -933,6 +962,10 @@ export class GameEngine implements EngineContext {
                 }
             }
         }
+
+        const roundTime = engine.gameTime - (engine.roundNumber - 1) * ROUND_DURATION;
+        engine.appliedRoundStartRecovery = roundTime > 0;
+        engine.appliedMidRoundRecovery = roundTime >= ROUND_DURATION / 2;
 
         return engine;
     }

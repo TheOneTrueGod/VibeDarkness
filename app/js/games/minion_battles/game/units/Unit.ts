@@ -76,6 +76,12 @@ export interface ApplyKnockbackParams {
     knockbackSource: KnockbackSource;
 }
 
+export interface UnitAbilityRuntimeState {
+    currentUses: number;
+    maxUses: number;
+    recoveryChargesByType: Record<string, number>;
+}
+
 export class Unit extends GameObject {
     hp: number;
     maxHp: number;
@@ -87,6 +93,10 @@ export class Unit extends GameObject {
 
     /** Attached resource instances (Rage, Mana, etc.). */
     resources: Resource[] = [];
+    /** Ability runtime state (uses and recharge charges) keyed by ability id. */
+    abilityRuntime: Record<string, UnitAbilityRuntimeState> = {};
+    /** Stamina stat; granted as stamina charges to all abilities on cadence triggers. */
+    stamina: number = 1;
 
     /** Movement state: grid path, optional target unit, and pathfinding tick. */
     movement: UnitMovement | null = null;
@@ -161,6 +171,8 @@ export class Unit extends GameObject {
         radius?: number;
         /** Max Poise HP. Default 0 (no poise). */
         maxPoiseHp?: number;
+        /** Stamina stat. */
+        stamina?: number;
     }) {
         super(config.id ?? generateGameObjectId('unit'), config.x, config.y);
         this.hp = config.hp;
@@ -176,6 +188,7 @@ export class Unit extends GameObject {
         this.radius = config.radius ?? DEFAULT_UNIT_RADIUS;
         this.maxPoiseHp = config.maxPoiseHp ?? 0;
         this.poiseHp = this.maxPoiseHp;
+        this.stamina = config.stamina ?? 1;
     }
 
     /** Attach a resource and subscribe its event listeners. */
@@ -630,6 +643,17 @@ export class Unit extends GameObject {
                 knockbackElapsed: this.knockback.knockbackElapsed,
             } : null,
             resources: this.resources.map((r) => r.toJSON()),
+            abilityRuntime: Object.fromEntries(
+                Object.entries(this.abilityRuntime).map(([abilityId, runtime]) => [
+                    abilityId,
+                    {
+                        currentUses: runtime.currentUses,
+                        maxUses: runtime.maxUses,
+                        recoveryChargesByType: { ...runtime.recoveryChargesByType },
+                    },
+                ]),
+            ),
+            stamina: this.stamina,
             buffs: this.buffs.map((b) => b.toJSON()),
         };
     }
@@ -647,6 +671,7 @@ export class Unit extends GameObject {
             characterId: data.characterId as string,
             name: data.name as string,
             abilities: data.abilities as string[],
+            stamina: (data.stamina as number | undefined) ?? 1,
         });
         unit.active = data.active as boolean;
 
@@ -694,6 +719,17 @@ export class Unit extends GameObject {
 
         const buffsData = (data.buffs as BuffSerialized[] | undefined) ?? [];
         unit.buffs = buffsData.map((b) => buffFromJSON(b));
+        const runtimeData = (data.abilityRuntime as Record<string, UnitAbilityRuntimeState> | undefined) ?? {};
+        unit.abilityRuntime = Object.fromEntries(
+            Object.entries(runtimeData).map(([abilityId, runtime]) => [
+                abilityId,
+                {
+                    currentUses: runtime.currentUses,
+                    maxUses: runtime.maxUses,
+                    recoveryChargesByType: { ...(runtime.recoveryChargesByType ?? {}) },
+                },
+            ]),
+        );
 
         // Resources are reattached by the unit subclass factory
         return unit;

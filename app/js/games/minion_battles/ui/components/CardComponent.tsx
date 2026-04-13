@@ -6,15 +6,14 @@
  */
 
 import React, { useCallback } from 'react';
-import type { AbilityStatic } from '../../abilities/Ability';
-import type { CardInstance } from '../../game/GameEngine';
-import { getCardDef } from '../../card_defs';
+import { getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Ability';
+import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
+import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import CardTooltip from './CardTooltip';
 
 interface CardComponentProps {
     ability: AbilityStatic;
-    /** Card instance for durability display. */
-    card: CardInstance;
+    runtime: UnitAbilityRuntimeState;
     isSelected: boolean;
     /** Whether this card is currently being used (ability executing). */
     isActive?: boolean;
@@ -34,7 +33,7 @@ interface CardComponentProps {
 
 export default function CardComponent({
     ability,
-    card,
+    runtime,
     isSelected,
     isActive = false,
     isDisabled,
@@ -59,9 +58,13 @@ export default function CardComponent({
     }, [isDisabled, isMobile, showMobileDescription, onSelect, onMobileDescriptionToggle]);
 
     const tooltipLines = ability.getTooltipText(gameState);
-    const def = getCardDef(card.cardDefId);
-    const maxDurability = Math.max(1, def?.durability ?? 1);
-    const usesLeft = Math.max(0, Math.min(card.durability, maxDurability));
+    const usesLeft = Math.max(0, runtime.currentUses);
+    const maxUses = Math.max(1, runtime.maxUses);
+    const costs = getAbilityResourceCosts(ability);
+    const recoveryRule = getAbilityUseConfig(ability.id).recoveries[0];
+    const recoveryCurrent = recoveryRule ? (runtime.recoveryChargesByType[recoveryRule.chargeType] ?? 0) : 0;
+    const recoveryNeeded = recoveryRule ? recoveryRule.chargesPerRecovery : 0;
+    const showRecovery = Boolean(recoveryRule) && usesLeft < maxUses;
 
     return (
         <div
@@ -81,7 +84,7 @@ export default function CardComponent({
         >
             <div
                 className={`
-                    relative w-[104px] h-[136px] rounded-lg border-2 transition-all duration-150
+                    relative w-[124px] h-[158px] rounded-lg border-2 transition-all duration-150
                     flex flex-col items-center justify-between p-2 overflow-hidden pointer-events-none
                     ${isSelected
                         ? 'border-yellow-400 bg-dark-700 -translate-y-2 shadow-lg shadow-yellow-400/20'
@@ -97,7 +100,7 @@ export default function CardComponent({
             >
                 {/* Card image */}
                 <div
-                    className="w-full h-16 flex items-center justify-center mb-1"
+                    className="w-full h-14 flex items-center justify-center mb-1"
                     dangerouslySetInnerHTML={{ __html: ability.image }}
                 />
 
@@ -106,38 +109,32 @@ export default function CardComponent({
                     {ability.name}
                 </span>
 
-                {/* Uses number (circle) + segmented bar */}
-                <div className="w-full flex items-center gap-1">
-                    {/* Black circle + number (left of bar) */}
-                    <div className="relative flex shrink-0 items-center justify-center w-5 h-5">
-                        <div
-                            className="absolute inset-0 rounded-full bg-black border border-gray-600 z-0"
-                            aria-hidden
-                        />
-                        <span
-                            className="relative z-20 text-[11px] font-mono font-semibold text-white tabular-nums"
-                            aria-label={`${usesLeft} uses left`}
-                        >
-                            {usesLeft}
-                        </span>
-                    </div>
-                    {/* Segmented bar: one segment per use, filled = remaining */}
-                    <div className="flex-1 min-w-0 flex gap-0.5 h-2 relative z-10">
-                        {Array.from({ length: maxDurability }, (_, i) => (
+                {costs.length > 0 && (
+                    <div className="w-full flex flex-wrap items-center justify-center gap-1 mt-1">
+                        {costs.map((cost) => (
                             <div
-                                key={i}
-                                className="flex-1 min-w-0 rounded-[2px] border border-gray-600 overflow-hidden bg-dark-800"
-                                title={`Uses: ${usesLeft}/${maxDurability}`}
+                                key={`${cost.resourceId}-${cost.amount}`}
+                                className="px-1.5 py-0.5 rounded border border-dark-500 text-[10px] text-gray-200 bg-dark-800"
                             >
-                                <div
-                                    className={`h-full transition-all rounded-[1px] ${
-                                        i < usesLeft ? 'bg-gray-500' : 'bg-transparent'
-                                    }`}
-                                    style={{ width: '100%' }}
-                                />
+                                {cost.resourceId} -{cost.amount}
                             </div>
                         ))}
                     </div>
+                )}
+
+                <div className="w-full mt-1 flex items-center gap-1 min-h-[22px]">
+                    <div className="px-2.5 py-1 rounded border border-gray-500 bg-gray-700 text-[11px] text-gray-100 tabular-nums leading-none">
+                        {usesLeft}/{maxUses}
+                    </div>
+                    {showRecovery && (
+                        <div className="flex-1 flex items-center gap-0.5 h-full">
+                            {Array.from({ length: Math.max(1, recoveryNeeded) }, (_, i) => (
+                                <div key={i} className="flex-1 max-w-[40px] h-2 rounded-[2px] border border-gray-600 bg-gray-800">
+                                    <div className={`h-full rounded-[1px] ${i < recoveryCurrent ? 'bg-gray-300' : 'bg-transparent'}`} />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 

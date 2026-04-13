@@ -6,23 +6,32 @@
  * and define their own missionId, name, enemies, and createTerrain.
  */
 
-import type { GameEngine, CardInstance } from '../game/GameEngine';
+import type { GameEngine } from '../game/GameEngine';
 import type { UnitSpawnConfig } from '../game/types';
 import type { EnemySpawnDef, MissionBattleConfig, LevelEvent, PlayerSpawnPoint } from './types';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
+import type { Unit } from '../game/units/Unit';
 import { resetGameObjectIdCounter } from '../game/GameObject';
 import type { CharacterId } from '../game/units/index';
 import { createPlayerUnit, createUnitFromSpawnConfig } from '../game/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
-import { createCardInstance, MAX_HAND_SIZE } from '../game/GameEngine';
-import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
 import { getDefaultHp, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
+import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
+import { Ammo } from '../resources/Ammo';
 
 const PLAYER_APPEARANCE_CHARACTER_IDS: readonly CharacterId[] = ['warrior', 'mage', 'ranger', 'healer'];
+const AMMO_ABILITIES = new Set(['0105', '0203', '0204', '0205']);
+
+function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
+    const needsAmmo = unit.abilities.some((abilityId) => AMMO_ABILITIES.has(abilityId));
+    if (!needsAmmo) return;
+    if (unit.getResource('ammo')) return;
+    unit.attachResource(new Ammo(), engine.eventBus);
+}
 
 function getAppearanceCharacterId(portraitId: string | undefined): CharacterId {
     if (portraitId && PLAYER_APPEARANCE_CHARACTER_IDS.includes(portraitId as CharacterId)) {
@@ -157,28 +166,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 },
                 params.eventBus,
             );
+            initializeAbilityRuntimeForUnit(unit);
+            attachAmmoIfNeeded(engine, unit);
             engine.addUnit(unit);
-
-            // Set up cards for this player from equipment only (all cards in hand).
-            const deck: CardInstance[] = [];
-            for (const itemId of equippedIds) {
-                const itemDef = getItemDef(itemId);
-                if (!itemDef) continue;
-                for (const entry of itemDef.cardsToAdd) {
-                    for (let c = 0; c < entry.count; c++) {
-                        deck.push(
-                            createCardInstance(
-                                asCardDefId(entry.cardId),
-                                entry.cardId,
-                                'deck'
-                            )
-                        );
-                    }
-                }
-            }
-
-            engine.cards[pu.playerId] = deck;
-            engine.fillHandInnateFirst(pu.playerId, MAX_HAND_SIZE);
         }
 
         // Register level events (if any)
@@ -203,6 +193,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 },
                 params.eventBus,
             );
+            initializeAbilityRuntimeForUnit(unit);
+            attachAmmoIfNeeded(engine, unit);
             engine.addUnit(unit);
         }
 

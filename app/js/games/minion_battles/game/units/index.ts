@@ -10,7 +10,7 @@ import type { TeamId } from '../teams';
 import type { EventBus } from '../EventBus';
 import { Rage } from '../../resources/Rage';
 import { Mana } from '../../resources/Mana';
-import { getDefaultHp, getDefaultSpeed, getDefaultRadius, resolveEnemySpawnStats } from './unit_defs/unitDef';
+import { getDefaultHp, getDefaultSpeed, getDefaultRadius, getDefaultStamina, resolveEnemySpawnStats } from './unit_defs/unitDef';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 
 /** Character IDs that have a dedicated unit factory. Used for createUnitByCharacterId only. */
@@ -51,6 +51,7 @@ export function createUnitByCharacterId(
     const hp = config.hp ?? getDefaultHp(characterId);
     const maxHp = config.maxHp ?? hp;
     const speed = config.speed ?? getDefaultSpeed(characterId);
+    const stamina = getDefaultStamina(characterId);
     const radius = getDefaultRadius(characterId, DEFAULT_UNIT_RADIUS);
 
     const unit = new Unit({
@@ -60,6 +61,7 @@ export function createUnitByCharacterId(
         speed,
         characterId,
         radius,
+        stamina,
     });
 
     switch (characterId) {
@@ -107,6 +109,7 @@ export function createUnitFromSpawnConfig(
         aiSettings?: import('./Unit').AISettings | null;
         radius?: number;
         unitAITreeId?: string;
+        stamina?: number;
     },
     _eventBus: EventBus,
 ): Unit {
@@ -125,6 +128,7 @@ export function createUnitFromSpawnConfig(
         characterId: config.characterId,
         radius: config.radius ?? getDefaultRadius(config.characterId, DEFAULT_UNIT_RADIUS),
         unitAITreeId: config.unitAITreeId,
+        stamina: config.stamina ?? getDefaultStamina(config.characterId),
     });
 
     if (config.aiSettings) {

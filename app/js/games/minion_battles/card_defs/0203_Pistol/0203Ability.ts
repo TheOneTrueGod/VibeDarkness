@@ -29,6 +29,7 @@ export const PistolAbility: AbilityStatic = {
     name: 'Pistol',
     image: PISTOL_IMAGE,
     resourceCost: null,
+    resourceCosts: [{ resourceId: 'ammo', amount: 10, allowPartialIfPositive: true }],
     rechargeTurns: 0,
     prefireTime: PREFIRE_FIRST_SHOT,
     abilityTimings: [

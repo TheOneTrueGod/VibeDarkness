@@ -8,7 +8,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
-import type { CardInstance, GameEngine } from '../../game/GameEngine';
+import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
 import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../../game/types';
 import { BattleSession } from '../../game/BattleSession';
@@ -98,7 +98,7 @@ export default function BattlePhase({
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
-    const [myCards, setMyCards] = useState<CardInstance[]>([]);
+    const [myAbilityIds, setMyAbilityIds] = useState<string[]>([]);
     const mouseWorldRef = useRef({ x: 0, y: 0 });
     const targetingStateRef = useRef<{
         selectedAbility: AbilityStatic | null;
@@ -218,8 +218,8 @@ export default function BattlePhase({
     const updateCardStateRef = useRef<((engine: GameEngine) => void) | null>(null);
 
     function updateCardState(engine: GameEngine) {
-        const cards = engine.cards[playerId] ?? [];
-        setMyCards([...cards]);
+        const unit = engine.getLocalPlayerUnit();
+        setMyAbilityIds([...(unit?.abilities ?? [])]);
     }
     updateCardStateRef.current = updateCardState;
 
@@ -459,11 +459,10 @@ export default function BattlePhase({
             }
             const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key, 10) : 0;
             if (digit > 0) {
-                const handCards = myCards.filter((c) => c.location === 'hand');
                 const index = digit - 1;
-                if (index < handCards.length) {
-                    const card = handCards[index];
-                    const ability = card ? getAbility(card.abilityId) : null;
+                if (index < myAbilityIds.length) {
+                    const abilityId = myAbilityIds[index];
+                    const ability = abilityId ? getAbility(abilityId) : null;
                     if (ability) {
                         e.preventDefault();
                         handleSelectCard(index, ability);
@@ -473,7 +472,7 @@ export default function BattlePhase({
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleWait, handleSelectCard, myCards]);
+    }, [handleWait, handleSelectCard, myAbilityIds]);
 
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number) => {
         const engine = sessionRef.current?.getEngine();
@@ -566,14 +565,13 @@ export default function BattlePhase({
 
             <div className="shrink-0 min-w-0">
                 <CardHand
-                    cards={myCards}
+                    abilityIds={myAbilityIds}
                     playerUnit={playerUnit}
                     isMyTurn={isMyTurn}
                     selectedCardIndex={selectedCardIndex}
                     onSelectCard={handleSelectCard}
                     onWait={handleWait}
                     gameState={engine}
-                    gameTime={engine.gameTime}
                 />
             </div>
         </div>

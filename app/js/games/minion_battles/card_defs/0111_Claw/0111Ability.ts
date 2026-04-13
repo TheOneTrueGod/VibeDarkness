@@ -13,7 +13,7 @@ import type { Unit } from '../../game/units/Unit';
 import { Effect } from '../../game/effects/Effect';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { drawCardForPlayer, applyForcedDisplacementToward } from '../../abilities/effectHelpers';
+import { applyForcedDisplacementToward } from '../../abilities/effectHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { getBodyColor, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
 import { areEnemies } from '../../game/teams';
@@ -21,6 +21,7 @@ import { isAbilityNote } from '../../game/AbilityNote';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import type { EventBus } from '../../game/EventBus';
 import type { Effect as EffectType } from '../../game/effects/Effect';
+import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11`;
 const CLAW_DURATION = 0.4;
@@ -39,6 +40,7 @@ interface GameEngineLike {
     gameTime: number;
     eventBus: EventBus;
     interruptUnitAndRefundAbilities(unit: Unit): void;
+    generateRandomInteger(min: number, max: number): number;
 }
 
 const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -74,7 +76,6 @@ export const ClawAbility: AbilityStatic = {
         return [
             'Dash toward a point with iframes',
             `Deal {${DAMAGE}} damage and knock back enemies you touch`,
-            'Draw a card',
         ];
     },
 
@@ -89,8 +90,13 @@ export const ClawAbility: AbilityStatic = {
         const eng = engine as GameEngineLike;
 
         if (prevTime < 0.05 && currentTime >= 0.05) {
-            drawCardForPlayer(engine, caster.ownerId, 1);
             caster.setAbilityNote({ abilityId: CARD_ID, abilityNote: { hitTargetIds: [] } });
+            grantRecoveryChargeToRandomAbility(
+                caster,
+                'staminaCharge',
+                (min, max) => eng.generateRandomInteger(min, max),
+                { excludeAbilityId: CARD_ID },
+            );
         }
 
         if (currentTime >= CLAW_DURATION) {

@@ -32,6 +32,7 @@ export const SMGAbility: AbilityStatic = {
     name: 'SMG',
     image: SMG_IMAGE,
     resourceCost: null,
+    resourceCosts: [{ resourceId: 'ammo', amount: 20, allowPartialIfPositive: true }],
     rechargeTurns: 0,
     prefireTime: LAST_SHOT_TIME,
     abilityTimings: [

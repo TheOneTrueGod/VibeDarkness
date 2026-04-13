@@ -27,6 +27,8 @@ export interface IAbilityPreviewGraphics {
 export interface ResourceCost {
     resourceId: string;
     amount: number;
+    /** If true, can be used while resource > 0, then pays full amount (may go negative). */
+    allowPartialIfPositive?: boolean;
 }
 
 /** Possible ability states returned by getAbilityStates. */
@@ -78,6 +80,8 @@ export interface AbilityStatic {
     readonly image: string;
     /** Resource cost to use the ability. Null means free. */
     readonly resourceCost: ResourceCost | null;
+    /** Optional multi-resource costs. If set, this takes precedence over resourceCost. */
+    readonly resourceCosts?: ResourceCost[];
     /** Rounds the card spends in exile before returning to deck. */
     readonly rechargeTurns: number;
     /** Ordered list of targets the player must select. */
@@ -268,32 +272,54 @@ export interface AttackBlockedInfo {
  * Check whether a unit can afford the resource cost for an ability.
  */
 export function canAffordAbility(unit: Unit, ability: AbilityStatic): boolean {
-    if (!ability.resourceCost) return true;
-    const resource = unit.getResource(ability.resourceCost.resourceId);
-    if (!resource) return false;
-    return resource.canAfford(ability.resourceCost.amount);
+    for (const cost of getAbilityResourceCosts(ability)) {
+        const resource = unit.getResource(cost.resourceId);
+        if (!resource) return false;
+        if (cost.allowPartialIfPositive) {
+            if (resource.current <= 0) return false;
+            continue;
+        }
+        if (!resource.canAfford(cost.amount)) return false;
+    }
+    return true;
 }
 
 /**
  * Spend the resource cost for an ability. Returns false if cannot afford.
  */
 export function spendAbilityCost(unit: Unit, ability: AbilityStatic): boolean {
-    if (!ability.resourceCost) return true;
-    const resource = unit.getResource(ability.resourceCost.resourceId);
-    if (!resource) return false;
-    return resource.spend(ability.resourceCost.amount);
+    const costs = getAbilityResourceCosts(ability);
+    if (costs.length === 0) return true;
+    if (!canAffordAbility(unit, ability)) return false;
+    for (const cost of costs) {
+        const resource = unit.getResource(cost.resourceId);
+        if (!resource) return false;
+        if (cost.allowPartialIfPositive) {
+            resource.current -= cost.amount;
+            continue;
+        }
+        if (!resource.spend(cost.amount)) return false;
+    }
+    return true;
 }
 
 /**
  * Refund the resource cost for an ability (e.g. when the ability is interrupted).
  */
 export function refundAbilityCost(unit: Unit, ability: AbilityStatic): void {
-    if (!ability.resourceCost) return;
-    const resource = unit.getResource(ability.resourceCost.resourceId);
-    if (resource) resource.add(ability.resourceCost.amount);
+    for (const cost of getAbilityResourceCosts(ability)) {
+        const resource = unit.getResource(cost.resourceId);
+        if (resource) resource.add(cost.amount);
+    }
 }
 
 /** Resolve runtime targets for an ability (dynamic if provided, otherwise static). */
 export function getAbilityTargets(ability: AbilityStatic, caster?: Unit, gameState?: unknown): TargetDef[] {
     return ability.getTargets ? ability.getTargets(caster, gameState) : ability.targets;
+}
+
+export function getAbilityResourceCosts(ability: AbilityStatic): ResourceCost[] {
+    if (ability.resourceCosts && ability.resourceCosts.length > 0) return ability.resourceCosts;
+    if (ability.resourceCost) return [ability.resourceCost];
+    return [];
 }

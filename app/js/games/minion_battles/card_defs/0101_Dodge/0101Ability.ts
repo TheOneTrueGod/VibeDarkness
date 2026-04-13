@@ -13,9 +13,10 @@ import type { Unit } from '../../game/units/Unit';
 import { Effect } from '../../game/effects/Effect';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { drawCardForPlayer, applyForcedDisplacementToward } from '../../abilities/effectHelpers';
+import { applyForcedDisplacementToward } from '../../abilities/effectHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { getBodyColor, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
+import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const DODGE_DURATION = 0.4;
@@ -25,6 +26,13 @@ const COLLISION_STEP = 4;
 
 /** Duration of each afterimage in seconds (6 frames at 60 fps). */
 const AFTERIMAGE_DURATION = 6 / 60;
+const FIRST_STAMINA_GRANT_TIME = 0.05;
+const SECOND_STAMINA_GRANT_TIME = 0.25;
+
+interface DodgeEngineLike {
+    addEffect(e: Effect): void;
+    generateRandomInteger(min: number, max: number): number;
+}
 
 const DODGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <ellipse cx="32" cy="32" rx="24" ry="28" fill="none" stroke="#8B4513" stroke-width="3"/>
@@ -54,7 +62,6 @@ export const DodgeAbility: AbilityStatic = {
     getTooltipText(_gameState?: unknown): string[] {
         return [
             'Avoid attacks while dodging towards a point',
-            'Draw a card',
         ];
     },
 
@@ -66,10 +73,23 @@ export const DodgeAbility: AbilityStatic = {
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime < 0.05 && currentTime >= 0.05) {
-            drawCardForPlayer(engine, caster.ownerId, 1);
+        const eng = engine as DodgeEngineLike;
+        if (prevTime < FIRST_STAMINA_GRANT_TIME && currentTime >= FIRST_STAMINA_GRANT_TIME) {
+            grantRecoveryChargeToRandomAbility(
+                caster,
+                'staminaCharge',
+                (min, max) => eng.generateRandomInteger(min, max),
+                { excludeAbilityId: CARD_ID },
+            );
         }
-
+        if (prevTime < SECOND_STAMINA_GRANT_TIME && currentTime >= SECOND_STAMINA_GRANT_TIME) {
+            grantRecoveryChargeToRandomAbility(
+                caster,
+                'staminaCharge',
+                (min, max) => eng.generateRandomInteger(min, max),
+                { excludeAbilityId: CARD_ID },
+            );
+        }
         if (currentTime >= DODGE_DURATION) return;
 
         const pos = getPixelTargetPosition(targets, 0);
@@ -89,7 +109,6 @@ export const DodgeAbility: AbilityStatic = {
         const isMoving = moveDistance > 0;
 
         for (let i = prevTwoTickPeriods + 1; i <= twoTickPeriods; i++) {
-            const eng = engine as { addEffect(e: Effect): void };
             const effectData: Record<string, unknown> = {
                 bodyColor: getBodyColor(caster.characterId),
                 radius: caster.radius,

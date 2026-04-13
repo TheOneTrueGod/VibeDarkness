@@ -107,6 +107,7 @@ export const LaserSwordAbility: AbilityStatic = {
     name: 'Laser Sword',
     image: LASER_SWORD_IMAGE,
     resourceCost: null,
+    resourceCosts: [{ resourceId: 'ammo', amount: 8, allowPartialIfPositive: true }],
     rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [

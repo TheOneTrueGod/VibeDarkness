@@ -35,6 +35,7 @@ export abstract class AbilityBase<TNote = never> implements AbilityStatic {
     abstract getTooltipText(gameState?: unknown): string[];
 
     readonly resourceCost: ResourceCost | null = null;
+    readonly resourceCosts?: ResourceCost[];
     readonly rechargeTurns: number = 0;
     readonly aiSettings?: AbilityAISettings;
     abstract readonly abilityTimings: AbilityTimingEntry[];
