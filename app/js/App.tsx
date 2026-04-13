@@ -303,7 +303,6 @@ function AppInner() {
                 }
             }
             // GAME_PHASE_CHANGED: GameSyncContext refetches full state when it sees this in its poll loop.
-            // MISSION_VOTE handled by game components via polling
         },
         [showToast, isDuplicateChatEntry, triggerPlayerFlash]
     );
@@ -472,7 +471,7 @@ function AppInner() {
                 if (gameId) {
                     await lobbyClient.updateGameState(lobby.id, gameId, player.id, {
                         gamePhase: 'character_select',
-                        missionVotes: { [player.id]: missionId },
+                        selectedMissionId: missionId,
                     });
                 }
 

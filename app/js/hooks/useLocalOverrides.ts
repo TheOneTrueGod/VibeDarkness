@@ -6,7 +6,7 @@
  * hook lets you set "local overrides" that are merged into the server state
  * immediately, giving instant visual feedback.
  *
- * Overrides are keyed by dot-separated paths (e.g. "missionVotes.player123")
+ * Overrides are keyed by dot-separated paths (e.g. "characterSelections.player123")
  * and are automatically cleared once the server state catches up (i.e. the
  * server value matches the override value).
  *
@@ -14,19 +14,19 @@
  *   const overrides = useLocalOverrides();
  *
  *   // On user interaction - set override for instant feedback
- *   overrides.set('missionVotes.player1', 'dark_awakening');
+ *   overrides.set('characterSelections.player1', 'warrior');
  *
  *   // Build effective state for rendering
  *   const effective = useMemo(
- *     () => overrides.applyTo({ missionVotes, characterSelections }),
- *     [missionVotes, characterSelections, overrides.applyTo]
+ *     () => overrides.applyTo({ characterSelections }),
+ *     [characterSelections, overrides.applyTo]
  *   );
  *
  *   // When server data arrives, reconcile to prune stale overrides
  *   overrides.reconcile(serverData);
  *
  *   // On error, revert a specific override
- *   overrides.remove('missionVotes.player1');
+ *   overrides.remove('characterSelections.player1');
  *
  *   // On phase change or reset, clear everything
  *   overrides.clear();
@@ -69,7 +69,7 @@ function setByPath(obj: Record<string, unknown>, path: string, value: unknown): 
 export interface UseLocalOverridesReturn {
     /**
      * Set a local override. The `path` is a dot-separated key into the game
-     * state object (e.g. "missionVotes.player123"). Call this immediately when
+     * state object (e.g. "characterSelections.player123"). Call this immediately when
      * the user performs an action, *before* awaiting the server request.
      */
     set: (path: string, value: unknown) => void;

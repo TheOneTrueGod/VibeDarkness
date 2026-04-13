@@ -22,6 +22,8 @@ All lobby game-state and message polling is centralized in `GameSyncContext` (`a
 - **Full state**: on resync requests, visibility regain, game ID changes; phase-based cadence varies (e.g. character/story phases poll frequently; battle transitions poll until engine registers).
 - **Battle (minimal)**: only when phase is `battle`, callbacks are registered, and the engine is waiting for another player's orders. Host and non-host use minimal state for orders; non-host also runs sync verification.
 
+Minion Battles no longer has an in-game `mission_select` phase. Mission identity is set up before the game session starts via `selectedMissionId`.
+
 ## Key Rule: Host Is Canonical
 
 The host's `GameEngine` is the single source of truth. Minimal polling is for pulling other players' orders, not for correcting state.

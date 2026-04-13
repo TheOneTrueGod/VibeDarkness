@@ -25,7 +25,7 @@
 | `game/projectiles/` | `Projectile` runtime objects |
 | `game/specialTiles/` | `SpecialTile` runtime objects |
 | `ui/components/` | React UI components (`BattleCanvas`, `CardHand`, `BattleTimeline`, `CharacterEditor/`, etc.) |
-| `ui/pages/` | Phase-level React components (`BattlePhase`, `CharacterSelectPhase`, `MissionSelectPhase`, etc.) |
+| `ui/pages/` | Phase-level React components (`BattlePhase`, `CharacterSelectPhase`, `PreMissionStoryPhase`, etc.) |
 | `api/` | `MinionBattlesApi` (HTTP facade), `types.ts` (DTOs for lobby game JSON, characters, admin) |
 | `terrain/` | `TerrainManager`, `TerrainGrid`, `Pathfinder`, terrain tile types |
 | `abilities/` | `Ability` class, `abilityTimings.ts` (intervals + timeline merge helpers), `targeting.ts`, `behaviors/`, `templates/`, preview helpers |
@@ -83,7 +83,7 @@ GameSyncContext  (app/js/contexts/GameSyncContext.tsx)
  │
  ▼
 App.tsx → Game.tsx  (phase routing, lobby-level React state)
- │  Syncs phase, votes, selections, equipment into React state.
+ │  Syncs phase, selected mission id, selections, equipment into React state.
  │  Passes initialGameState blob to the active phase component.
  │
  ▼
@@ -206,7 +206,7 @@ Today `BattlePhase` is a monolithic React component (~800 lines) that mixes engi
 | **`GameSyncContext`** (React context, `app/js/contexts/GameSyncContext.tsx`) | Unified poll loop, network I/O timing, checkpoint saves, order submission to server. | Engine state via `BattleCallbacks` (delegates to session methods). | Network requests only; never touches engine or GameObjects. |
 | **`BattleCanvas`** (React, `ui/components/BattleCanvas.tsx`) | `requestAnimationFrame` render loop. | Engine, `Camera`, `GameRenderer`, targeting state — all read-only except `Camera`. | `Camera` (pan, zoom, follow) — view state only, never domain objects. |
 | **`GameRenderer`** (class, `game/GameRenderer.ts`) | Drawing logic, sprite management. | Engine state (units, effects, terrain, tiles, light grid). | Canvas pixels only. |
-| **`Game.tsx`** (React, root component) | Phase routing, lobby-level state (phase, votes, selections, equipment). | `gameData` from `GameSyncContext`. | Lobby-level React state. Passes `initialGameState` blob to phase components. |
+| **`Game.tsx`** (React, root component) | Phase routing, lobby-level state (phase, selected mission id, selections, equipment). | `gameData` from `GameSyncContext`. | Lobby-level React state. Passes `initialGameState` blob to phase components. |
 
 #### Data flow with BattleSession
 
@@ -248,7 +248,7 @@ BattleSession                          BattlePhase (React)
 
 There are three distinct state domains with different lifecycles:
 
-- **Lobby state** (`MinionBattlesState` in `state.ts`): phase, votes, character selections, equipment. **Server-authoritative.** Lives in React state, synced via polling. Mutations go through `LobbyClient` API calls → server → next poll.
+- **Lobby state** (`MinionBattlesState` in `state.ts`): phase, selected mission id, character selections, equipment. **Server-authoritative.** Lives in React state, synced via polling. Mutations go through `LobbyClient` API calls → server → next poll.
 - **Battle state** (`SerializedGameState` in `game/types.ts`; runtime data on `GameEngine.state` / `GameState`): units, terrain, cards, tick, orders. **Host-authoritative.** Owned by `BattleSession` via `GameEngine`. Persisted as checkpoints. Mutations go through tick loop and order application only.
 - **Interaction state** (targeting): `selectedAbility`, `selectedCardIndex`, `currentTargets`, `mouseWorld`, `pendingMovePath`, `waitingForOrders`. Lives in `BattlePhase` as React state and refs. This is neither domain state nor purely view state — it bridges UI intent and command submission. `BattlePhase` maintains a `targetingStateRef` that the rAF render loop reads without triggering React re-renders. Targeting resolution logic lives in `abilities/targeting.ts` (`resolveClick`, `validateAndResolveTarget`). Preview rendering is driven by `AbilityStatic.renderTargetingPreview` functions called from `GameRenderer`. It is acceptable for this state to be ephemeral — it is never checkpointed or synced.
 

@@ -193,7 +193,7 @@ export type AIControllerId = 'legacy' | 'defensePoints' | 'stateBased' | 'alphaW
 
 /** Full battle configuration for a mission. */
 export interface MissionBattleConfig {
-    /** Mission ID (matches the id from MissionSelectPhase). */
+    /** Mission ID (matches selectedMissionId in game state). */
     missionId: string;
     /** Campaign ID this mission belongs to (for character allowlist: same campaign). */
     campaignId?: string;

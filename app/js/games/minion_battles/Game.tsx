@@ -2,8 +2,8 @@
  * Minion Battles - React game component
  * Manages game phases and state, receives props from the lobby.
  *
- * Uses the local-override system so that player interactions (votes,
- * character selections, etc.) appear instantly in the UI without waiting
+ * Uses the local-override system so that player interactions (character selections, etc.)
+ * appear instantly in the UI without waiting
  * for the server round-trip.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -12,7 +12,6 @@ import type { LobbyClient } from '../../LobbyClient';
 import type { GameComponentProps } from '../../components/GameScreen';
 import { useLocalOverrides } from '../../hooks/useLocalOverrides';
 import type { GamePhase } from './state';
-import MissionSelectPhase from './ui/pages/MissionSelectPhase';
 import CharacterSelectPhase from './ui/pages/CharacterSelectPhase';
 import PreMissionStoryPhase from './ui/pages/PreMissionStoryPhase';
 import PostMissionStoryPhase from './ui/pages/PostMissionStoryPhase';
@@ -24,21 +23,9 @@ import type { CampaignResourceKey } from '../../types';
 import VictoryModal from './ui/components/VictoryModal';
 import { MinionBattlesApi } from './api/minionBattlesApi';
 
-/** Determine the winning mission from votes (most votes, or first alphabetically on tie). */
-function getSelectedMission(votes: Record<string, string>): string {
-    const counts: Record<string, number> = {};
-    for (const missionId of Object.values(votes)) {
-        counts[missionId] = (counts[missionId] ?? 0) + 1;
-    }
-    let best = 'dark_awakening';
-    let bestCount = 0;
-    for (const [missionId, count] of Object.entries(counts)) {
-        if (count > bestCount || (count === bestCount && missionId < best)) {
-            best = missionId;
-            bestCount = count;
-        }
-    }
-    return best;
+function getSelectedMissionId(data: Record<string, unknown>): string | null {
+    const missionId = data.selectedMissionId ?? data.selected_mission_id;
+    return typeof missionId === 'string' && missionId.trim() !== '' ? missionId : null;
 }
 
 interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattlesApi'> {
@@ -66,7 +53,6 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
     onEmittedChatMessage?: (entry: import('../../components/Chat').MessageEntry) => void;
     /** Called when the game is about to switch from pre-battle story into battle. */
     onBattleStartStatusChange?: (starting: boolean) => void;
-    currentCampaignId?: string | null;
 }
 
 export default function MinionBattlesGame({
@@ -85,7 +71,6 @@ export default function MinionBattlesGame({
     onTryAgain,
     onEmittedChatMessage,
     onBattleStartStatusChange,
-    currentCampaignId,
 }: MinionBattlesGameProps) {
     const api = useMemo(
         () =>
@@ -105,15 +90,13 @@ export default function MinionBattlesGame({
         const hasBattleData =
             (Array.isArray(raw.units) && raw.units.length > 0) ||
             typeof (raw.gameTick ?? raw.game_tick) === 'number';
-        return hasBattleData ? 'battle' : 'mission_select';
+        return hasBattleData ? 'battle' : 'character_select';
     };
 
     // ---- Server-authoritative state (updated by polling) ------------------
     const [gamePhase, setGamePhase] = useState<GamePhase>(inferredPhase);
-    const [missionVotes, setMissionVotes] = useState<Record<string, string>>(
-        (raw.missionVotes as Record<string, string>) ??
-            (raw.mission_votes as Record<string, string>) ??
-            {}
+    const [selectedMissionId, setSelectedMissionId] = useState<string | null>(() =>
+        getSelectedMissionId(raw)
     );
     const [characterSelections, setCharacterSelections] = useState<Record<string, string>>(
         (raw.characterSelections as Record<string, string>) ??
@@ -152,14 +135,12 @@ export default function MinionBattlesGame({
     const effective = useMemo(
         () =>
             applyLocalOverrides({
-                missionVotes,
                 characterSelections,
             }),
-        [missionVotes, characterSelections, applyLocalOverrides],
+        [characterSelections, applyLocalOverrides],
     );
 
-    const selectedMissionId = getSelectedMission(effective.missionVotes as Record<string, string>);
-    const missionDef = MISSION_MAP[selectedMissionId];
+    const missionDef = selectedMissionId ? MISSION_MAP[selectedMissionId] : undefined;
     const preMissionStory = missionDef?.preMissionStory ?? null;
     const postMissionStory = missionDef?.postMissionStory ?? null;
 
@@ -248,7 +229,7 @@ export default function MinionBattlesGame({
                 typeof (gd.gameTick ?? gd.game_tick) === 'number';
             if (hasBattleData) newPhase = 'battle';
         }
-        const newVotes = (gd.missionVotes ?? gd.mission_votes) as Record<string, string> | undefined;
+        const newMissionId = getSelectedMissionId(gd as Record<string, unknown>);
         const newCharSel = (gd.characterSelections ?? gd.character_selections) as Record<string, string> | undefined;
         const newStoryReady = (gd.storyReadyPlayerIds as string[] | undefined) ?? [];
         const newReady =
@@ -256,13 +237,12 @@ export default function MinionBattlesGame({
             (gd.character_select_ready_player_ids as string[] | undefined) ??
             [];
         if (newPhase) setGamePhase(newPhase);
-        if (newVotes) setMissionVotes(newVotes);
+        setSelectedMissionId(newMissionId);
         if (newCharSel) setCharacterSelections(newCharSel);
         setStoryReadyPlayerIds(newStoryReady);
         setCharacterSelectReadyPlayerIds(newReady);
 
         reconcileLocalOverrides({
-            missionVotes: newVotes ?? {},
             characterSelections: newCharSel ?? {},
         });
     }, [gameData, reconcileLocalOverrides]);
@@ -282,10 +262,7 @@ export default function MinionBattlesGame({
             }
             if (newGameState) {
                 setLastGameStateFromServer(newGameState);
-                const nv = (newGameState.missionVotes ?? newGameState.mission_votes) as
-                    | Record<string, string>
-                    | undefined;
-                if (nv) setMissionVotes(nv);
+                setSelectedMissionId(getSelectedMissionId(newGameState));
                 const nc = (newGameState.characterSelections ?? newGameState.character_selections) as
                     | Record<string, string>
                     | undefined;
@@ -304,20 +281,13 @@ export default function MinionBattlesGame({
 
     return (
         <div className={`w-full h-full ${gamePhase === 'battle' ? 'overflow-hidden' : 'overflow-auto'}`}>
-            {gamePhase === 'mission_select' && (
-                <MissionSelectPhase
-                    api={api}
-                    playerId={playerId}
-                    isHost={isHost}
-                    players={players}
-                    missionVotes={effective.missionVotes as Record<string, string>}
-                    setLocalOverride={setLocalOverride}
-                    removeLocalOverride={removeLocalOverride}
-                    onPhaseChange={handlePhaseChange}
-                    currentCampaignId={currentCampaignId ?? null}
-                />
+            {!selectedMissionId && (
+                <div className="text-center p-5">
+                    <h2 className="text-2xl font-bold">Minion Battles</h2>
+                    <p className="text-danger mt-2">selectedMissionId is missing from game state</p>
+                </div>
             )}
-            {gamePhase === 'character_select' && (
+            {selectedMissionId && gamePhase === 'character_select' && (
                 <CharacterSelectPhase
                     api={api}
                     playerId={playerId}
@@ -326,7 +296,7 @@ export default function MinionBattlesGame({
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     characterSelectReadyPlayerIds={characterSelectReadyPlayerIds}
-                    missionId={selectedMissionId}
+                    missionId={selectedMissionId ?? ''}
                     campaignId={missionDef?.campaignId}
                     missionDef={missionDef ?? null}
                     preMissionStory={preMissionStory}
@@ -335,11 +305,11 @@ export default function MinionBattlesGame({
                     onPhaseChange={handlePhaseChange}
                 />
             )}
-            {gamePhase === 'post_mission_story' && postMissionStory && (
+            {selectedMissionId && gamePhase === 'post_mission_story' && postMissionStory && (
                 <PostMissionStoryPhase
                     api={api}
                     playerId={playerId}
-                    missionId={selectedMissionId}
+                    missionId={selectedMissionId ?? ''}
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     postMissionStory={postMissionStory}
@@ -349,7 +319,8 @@ export default function MinionBattlesGame({
                             | undefined
                     }
                     onComplete={(rewards) => {
-                        const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
+                        if (!selectedMissionId) return;
+                        const missionId = selectedMissionId;
                         const missionDef = MISSION_MAP[missionId];
                         const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
                         const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
@@ -377,12 +348,12 @@ export default function MinionBattlesGame({
                     }}
                 />
             )}
-            {gamePhase === 'pre_mission_story' && preMissionStory && (
+            {selectedMissionId && gamePhase === 'pre_mission_story' && preMissionStory && (
                 <PreMissionStoryPhase
                     api={api}
                     playerId={playerId}
                     isHost={isHost}
-                    missionId={selectedMissionId}
+                    missionId={selectedMissionId ?? ''}
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     preMissionStory={preMissionStory}
@@ -401,7 +372,7 @@ export default function MinionBattlesGame({
                     onBattleStartStatusChange={onBattleStartStatusChange}
                 />
             )}
-            {gamePhase === 'battle' && (
+            {selectedMissionId && gamePhase === 'battle' && (
                 <BattlePhase
                     key={`battle-${(battleInitState as Record<string, unknown>)?.synchash ?? (battleInitState as Record<string, unknown>)?.gameTick ?? (battleInitState as Record<string, unknown>)?.game_tick ?? 'init'}`}
                     api={api}
@@ -409,12 +380,13 @@ export default function MinionBattlesGame({
                     isHost={isHost}
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
-                    missionId={getSelectedMission(effective.missionVotes as Record<string, string>)}
+                    missionId={selectedMissionId ?? ''}
                     initialGameState={battleInitState}
                     onSidebarInfoChange={onSidebarInfoChange}
                     onEmittedChatMessage={onEmittedChatMessage}
                     onVictory={(missionResult) => {
-                        const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
+                        if (!selectedMissionId) return;
+                        const missionId = selectedMissionId;
                         if (postMissionStory) {
                             if (isHost) {
                                 api
@@ -481,7 +453,8 @@ export default function MinionBattlesGame({
                                 className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded transition-colors"
                                 onClick={() => {
                                     setDefeatModalOpen(false);
-                                    const missionId = getSelectedMission(effective.missionVotes as Record<string, string>);
+                                    if (!selectedMissionId) return;
+                                    const missionId = selectedMissionId;
                                     void onTryAgain?.(missionId);
                                 }}
                             >
@@ -501,8 +474,7 @@ export default function MinionBattlesGame({
                     }}
                 />
             )}
-            {gamePhase !== 'mission_select' &&
-                gamePhase !== 'character_select' &&
+            {gamePhase !== 'character_select' &&
                 gamePhase !== 'pre_mission_story' &&
                 gamePhase !== 'battle' &&
                 gamePhase !== 'post_mission_story' && (

@@ -581,7 +581,7 @@ export function GameSyncProvider({
           return;
         }
 
-        if (phase === 'mission_select' || phase == null) {
+        if (phase == null) {
           if (t % 10 === 0 && !syncContextControllerRef.current.isFullStateInFlight) {
             await doFullStateFetch();
           }

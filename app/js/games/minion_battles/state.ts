@@ -20,7 +20,6 @@ export function isControlEnemy(characterId: string | undefined | null): boolean 
  */
 export type GamePhase =
     | 'start'
-    | 'mission_select'
     | 'character_select'
     | 'pre_mission_story'
     | 'battle'
@@ -34,8 +33,8 @@ export interface MinionBattlesState {
     hands: Record<string, string[]>;
     gamePhase?: GamePhase;
     game_phase?: GamePhase;
-    missionVotes?: Record<string, string>;
-    mission_votes?: Record<string, string>;
+    selectedMissionId?: string;
+    selected_mission_id?: string;
     /** Map of playerId -> characterId for character selections */
     characterSelections?: Record<string, string>;
     character_selections?: Record<string, string>;

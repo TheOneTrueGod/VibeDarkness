@@ -60,7 +60,7 @@ export interface GameComponentProps {
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     /** Called when the game is about to enter battle so the lobby UI can switch immediately. */
     onBattleStartStatusChange?: (starting: boolean) => void;
-    /** Active campaign context used by mission-select UX (e.g. reset storyline progress). */
+    /** Active campaign context used by campaign mission UX. */
     currentCampaignId?: string | null;
 }
 

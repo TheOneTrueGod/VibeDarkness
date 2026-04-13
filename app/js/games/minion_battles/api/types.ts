@@ -36,8 +36,8 @@ export interface SendMessageResult {
 export interface MinionBattlesGameStatePayload {
     gamePhase?: GamePhase;
     game_phase?: GamePhase;
-    missionVotes?: Record<string, string>;
-    mission_votes?: Record<string, string>;
+    selectedMissionId?: string;
+    selected_mission_id?: string;
     characterSelections?: Record<string, string>;
     character_selections?: Record<string, string>;
     storyReadyPlayerIds?: string[];

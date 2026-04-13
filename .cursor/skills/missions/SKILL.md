@@ -12,6 +12,12 @@ Use this skill when:
 - Configuring mission objectives, spawns, terrain, or story segments
 - Adding storyline edges and mission flow
 
+## Mission startup flow
+
+- Mission selection happens on the campaign/lobby side before entering Minion Battles.
+- In-game Minion Battles state must include `selectedMissionId`.
+- Minion Battles starts at `character_select` (there is no in-game mission voting screen).
+
 ## Mission filename convention
 
 **The first three characters of a campaign mission's filename should be the mission number** (zero-padded). Examples:
