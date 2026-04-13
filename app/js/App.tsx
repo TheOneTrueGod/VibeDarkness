@@ -720,6 +720,7 @@ function AppInner() {
                         lobbyGameType={lobbyGameType}
                         lobbyGameId={lobbyGameId}
                         lobbyGameData={lobbyGameData}
+                        currentCampaignId={currentCampaignId}
                         onSendChat={handleSendChat}
                         onCanvasClick={handleCanvasClick}
                         onLeave={handleLeaveLobby}

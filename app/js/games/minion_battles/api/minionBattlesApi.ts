@@ -5,6 +5,7 @@
  * thread lobbyId / gameId / playerId through every call.
  */
 import type { LobbyClient } from '../../../LobbyClient';
+import type { MissionResult } from '../../../types';
 import type {
     AdminAccountDetails,
     CampaignCharacterPayload,
@@ -95,6 +96,21 @@ export class MinionBattlesApi {
         delta: number,
     ): Promise<CampaignState> {
         return this.lobbyClient.grantCampaignResource(campaignId, resourceKey, delta);
+    }
+
+    /**
+     * Remove mission results for a single storyline from a campaign.
+     * Other mission results are preserved.
+     */
+    async resetCampaignStorylineMissionResults(campaignId: string, missionIds: string[]): Promise<CampaignState> {
+        const campaign = await this.lobbyClient.getCampaign(campaignId);
+        const missionIdSet = new Set(missionIds);
+        const filteredResults = (campaign.missionResults ?? []).filter(
+            (result: MissionResult) => !missionIdSet.has(result.missionId),
+        );
+        return this.lobbyClient.updateCampaign(campaignId, {
+            missionResults: filteredResults,
+        });
     }
 
     // -- Admin --------------------------------------------------------------

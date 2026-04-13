@@ -60,6 +60,8 @@ export interface GameComponentProps {
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     /** Called when the game is about to enter battle so the lobby UI can switch immediately. */
     onBattleStartStatusChange?: (starting: boolean) => void;
+    /** Active campaign context used by mission-select UX (e.g. reset storyline progress). */
+    currentCampaignId?: string | null;
 }
 
 interface GameScreenProps {
@@ -76,6 +78,7 @@ interface GameScreenProps {
     lobbyGameType: string | null;
     lobbyGameId: string | null;
     lobbyGameData: Record<string, unknown> | null;
+    currentCampaignId?: string | null;
     onSendChat: (message: string) => void;
     onCanvasClick: (x: number, y: number) => void;
     onLeave: () => void;
@@ -113,6 +116,7 @@ export default function GameScreen({
     lobbyGameType,
     lobbyGameId,
     lobbyGameData,
+    currentCampaignId = null,
     onSendChat,
     onCanvasClick,
     onLeave,
@@ -455,6 +459,7 @@ export default function GameScreen({
                                         onTryAgain={onTryAgain}
                                         onEmittedChatMessage={onEmittedChatMessage}
                                         onBattleStartStatusChange={setBattlePlayerListHidden}
+                                        currentCampaignId={currentCampaignId}
                                     />
                                     {/* Loading/resyncing overlay: keeps canvas visible, blocks interaction */}
                                     {showResyncOverlay && (

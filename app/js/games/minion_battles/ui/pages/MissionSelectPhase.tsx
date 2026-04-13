@@ -1,7 +1,7 @@
 /**
  * Mission Select Phase - React component for mission voting
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
@@ -55,9 +55,17 @@ const MISSIONS: Mission[] = [
 ];
 
 /** Mission groups for the select UI: group title and ordered mission ids. */
-const MISSION_GROUPS: { title: string; missionIds: string[] }[] = [
-    { title: 'World of Darkness', missionIds: ['dark_awakening', 'towards_the_light', 'light_empowered', 'monster'] },
-    { title: 'Bunker at the End', missionIds: ['last_holdout'] },
+const MISSION_GROUPS: { title: string; campaignId: string; missionIds: string[] }[] = [
+    {
+        title: 'A World of Darkness',
+        campaignId: 'world_of_darkness',
+        missionIds: ['dark_awakening', 'towards_the_light', 'light_empowered', 'monster'],
+    },
+    {
+        title: 'The Bunker at the End',
+        campaignId: 'bunker_at_the_end',
+        missionIds: ['last_holdout'],
+    },
 ];
 
 const MISSION_BY_ID = Object.fromEntries(MISSIONS.map((m) => [m.id, m]));
@@ -81,6 +89,7 @@ interface MissionSelectPhaseProps {
     /** Remove a local override (e.g. on request failure to revert optimistic update). */
     removeLocalOverride?: (path: string) => void;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
+    currentCampaignId?: string | null;
 }
 
 export default function MissionSelectPhase({
@@ -92,6 +101,7 @@ export default function MissionSelectPhase({
     setLocalOverride,
     removeLocalOverride,
     onPhaseChange,
+    currentCampaignId = null,
 }: MissionSelectPhaseProps) {
     const playerVote = missionVotes[playerId];
     const allPlayerIds = Object.keys(players);
@@ -99,6 +109,7 @@ export default function MissionSelectPhase({
     const firstVote =
         allPlayerIds.length > 0 && allPlayerIds[0] in missionVotes ? missionVotes[allPlayerIds[0]] : null;
     const allSame = !!firstVote && allPlayerIds.every((pid) => missionVotes[pid] === firstVote);
+    const [resettingGroupId, setResettingGroupId] = useState<string | null>(null);
 
     const handleMissionClick = useCallback(
         async (missionId: string) => {
@@ -186,6 +197,21 @@ export default function MissionSelectPhase({
         );
     };
 
+    const handleResetStoryline = useCallback(
+        async (group: { title: string; campaignId: string; missionIds: string[] }) => {
+            if (!currentCampaignId || currentCampaignId !== group.campaignId) return;
+            setResettingGroupId(group.campaignId);
+            try {
+                await api.resetCampaignStorylineMissionResults(currentCampaignId, group.missionIds);
+            } catch (error) {
+                console.error('Failed to reset storyline mission results:', error);
+            } finally {
+                setResettingGroupId(null);
+            }
+        },
+        [api, currentCampaignId],
+    );
+
     return (
         <div className="w-full p-5 max-w-[1200px] mx-auto">
             <h2 className="text-[32px] font-bold text-center mb-8">Select a Mission</h2>
@@ -194,9 +220,28 @@ export default function MissionSelectPhase({
                     .map((id) => MISSION_BY_ID[id])
                     .filter((m): m is Mission => m != null);
                 if (missions.length === 0) return null;
+                const canReset = currentCampaignId != null && currentCampaignId === group.campaignId;
+                const isResetting = resettingGroupId === group.campaignId;
                 return (
                     <section key={group.title} className="mb-10">
-                        <h3 className="text-xl font-semibold text-muted mb-4">{group.title}</h3>
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                            <h3 className="text-xl font-semibold text-muted">{group.title}</h3>
+                            <button
+                                type="button"
+                                className="px-3 py-1.5 rounded border border-border-custom bg-surface-light text-sm font-medium text-muted hover:text-white hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={() => {
+                                    void handleResetStoryline(group);
+                                }}
+                                disabled={!canReset || isResetting}
+                                title={
+                                    canReset
+                                        ? 'Clear mission results for this storyline'
+                                        : 'This storyline belongs to a different campaign'
+                                }
+                            >
+                                {isResetting ? 'Resetting…' : 'Reset Storyline'}
+                            </button>
+                        </div>
                         <div className="grid grid-cols-[repeat(auto-fit,minmax(400px,1fr))] gap-6">
                             {missions.map(renderMissionCard)}
                         </div>

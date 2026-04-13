@@ -66,6 +66,7 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
     onEmittedChatMessage?: (entry: import('../../components/Chat').MessageEntry) => void;
     /** Called when the game is about to switch from pre-battle story into battle. */
     onBattleStartStatusChange?: (starting: boolean) => void;
+    currentCampaignId?: string | null;
 }
 
 export default function MinionBattlesGame({
@@ -84,6 +85,7 @@ export default function MinionBattlesGame({
     onTryAgain,
     onEmittedChatMessage,
     onBattleStartStatusChange,
+    currentCampaignId,
 }: MinionBattlesGameProps) {
     const api = useMemo(
         () =>
@@ -312,6 +314,7 @@ export default function MinionBattlesGame({
                     setLocalOverride={setLocalOverride}
                     removeLocalOverride={removeLocalOverride}
                     onPhaseChange={handlePhaseChange}
+                    currentCampaignId={currentCampaignId ?? null}
                 />
             )}
             {gamePhase === 'character_select' && (
