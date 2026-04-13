@@ -71,6 +71,7 @@ export default function CampaignHomeScreen({
     const [campaignLoading, setCampaignLoading] = useState(false);
     const [creatingCampaign, setCreatingCampaign] = useState(false);
     const [selectingMission, setSelectingMission] = useState(false);
+    const [resettingStorylineId, setResettingStorylineId] = useState<string | null>(null);
     const [lobbyCode, setLobbyCode] = useState('');
     const [recentLobbyInfos, setRecentLobbyInfos] = useState<RecentLobbyInfo[]>([]);
 
@@ -151,6 +152,34 @@ export default function CampaignHomeScreen({
         },
         [onSelectMission, selectingMission, campaign?.id]
     );
+    const handleResetStoryline = useCallback(
+        async (storylineId: string) => {
+            if (!campaign) return;
+            const storyline = STORYLINES.find((entry) => entry.id === storylineId);
+            if (!storyline) return;
+            const missionIds = getAllMissionIdsInOrder(storyline);
+            if (missionIds.length === 0) return;
+            const confirmed = window.confirm(
+                `Reset storyline "${storyline.title}"? This will remove all saved mission results for this storyline in your campaign.`,
+            );
+            if (!confirmed) return;
+
+            setResettingStorylineId(storylineId);
+            try {
+                const missionIdSet = new Set(missionIds);
+                const filteredMissionResults = (campaign.missionResults ?? []).filter(
+                    (result) => !missionIdSet.has(result.missionId),
+                );
+                const updatedCampaign = await lobbyClient.updateCampaign(campaign.id, {
+                    missionResults: filteredMissionResults,
+                });
+                setCampaign(updatedCampaign);
+            } finally {
+                setResettingStorylineId(null);
+            }
+        },
+        [campaign, lobbyClient],
+    );
 
     const missionResults = useMemo(
         () => campaign?.missionResults ?? [],
@@ -215,9 +244,22 @@ export default function CampaignHomeScreen({
                                 {STORYLINES.map((storyline) => {
                                     const unlocked = getUnlockedMissionIds(storyline, missionResults);
                                     const missionIds = getAllMissionIdsInOrder(storyline);
+                                    const isResetting = resettingStorylineId === storyline.id;
                                     return (
                                         <div key={storyline.id} className="bg-surface rounded-lg p-5">
-                                            <h3 className="text-lg font-medium mb-4">{storyline.title}</h3>
+                                            <div className="mb-4 flex items-center justify-between gap-3">
+                                                <h3 className="text-lg font-medium">{storyline.title}</h3>
+                                                <button
+                                                    type="button"
+                                                    className="px-3 py-1.5 rounded border border-border-custom bg-surface-light text-sm text-muted hover:text-white hover:border-primary transition-colors disabled:opacity-60 disabled:cursor-wait"
+                                                    disabled={isResetting}
+                                                    onClick={() => {
+                                                        void handleResetStoryline(storyline.id);
+                                                    }}
+                                                >
+                                                    {isResetting ? 'Resetting…' : 'Reset Storyline'}
+                                                </button>
+                                            </div>
                                             <ul className="space-y-2">
                                                 {missionIds.map((missionId) => {
                                                     const def = MISSION_MAP[missionId];
