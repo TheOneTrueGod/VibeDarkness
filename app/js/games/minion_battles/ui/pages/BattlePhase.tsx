@@ -5,7 +5,7 @@
  * round tracking, targeting flow, order submission, and server sync.
  */
 
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { CardInstance, GameEngine } from '../../game/GameEngine';
@@ -142,7 +142,7 @@ export default function BattlePhase({
             window.__minionBattlesDebugGameTick = undefined;
             window.__minionBattlesDebugGameState = undefined;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
 
     useEffect(() => {
@@ -171,9 +171,7 @@ export default function BattlePhase({
         };
     }, []);
 
-    const playerUnit = useMemo(() => {
-        return sessionRef.current?.getEngine()?.getLocalPlayerUnit() ?? null;
-    }, [waitingForOrders, roundNumber]);
+    const playerUnit = sessionRef.current?.getEngine()?.getLocalPlayerUnit() ?? null;
 
     const onSidebarInfoChangeRef = useRef(onSidebarInfoChange);
     onSidebarInfoChangeRef.current = onSidebarInfoChange;
@@ -300,7 +298,7 @@ export default function BattlePhase({
                   }
                 : null,
         );
-    }, [gameSync?.saveCheckpoint, gameSync?.submitOrder]);
+    }, [gameSync]);
 
     useEffect(() => {
         if (!gameSync) return;
@@ -318,8 +316,7 @@ export default function BattlePhase({
         return () => {
             gameSync.registerBattleCallbacks(null);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gameSync?.registerBattleCallbacks]);
+    }, [gameSync]);
 
     useEffect(() => {
         const skipHandler = () => {
@@ -329,7 +326,7 @@ export default function BattlePhase({
         return () => {
             gameSync?.registerSkipTurnHandler?.(null);
         };
-    }, [gameSync?.registerSkipTurnHandler, isHost]);
+    }, [gameSync, isHost]);
 
     useEffect(() => {
         const currentSyncStatus = gameSync?.syncStatus ?? null;
@@ -367,6 +364,26 @@ export default function BattlePhase({
         setCurrentTargets([]);
     }, [selectedCardIndex]);
 
+    const submitOrder = useCallback((abilityId: string, targets: ResolvedTarget[]) => {
+        if (!waitingForOrders || !canSubmitOrders) return;
+
+        const movePath = pendingMovePathRef.current;
+
+        const order: BattleOrder = {
+            unitId: waitingForOrders.unitId,
+            abilityId,
+            targets,
+            movePath: movePath ?? undefined,
+        };
+
+        targetingStateRef.current.selectedAbility = null;
+        targetingStateRef.current.currentTargets = [];
+        targetingStateRef.current.waitingForOrders = null;
+        pendingMovePathRef.current = null;
+
+        sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders });
+    }, [waitingForOrders, canSubmitOrders]);
+
     const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
         const engine = sessionRef.current?.getEngine();
         const camera = sessionRef.current?.getCamera();
@@ -392,7 +409,7 @@ export default function BattlePhase({
             setSelectedAbility(null);
             setCurrentTargets([]);
         }
-    }, [selectedAbility, currentTargets, isMyTurn, waitingForOrders]);
+    }, [selectedAbility, currentTargets, isMyTurn, waitingForOrders, submitOrder]);
 
     const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
         const engine = sessionRef.current?.getEngine();
@@ -431,7 +448,7 @@ export default function BattlePhase({
         setSelectedCardIndex(null);
         setSelectedAbility(null);
         setCurrentTargets([]);
-    }, [isMyTurn, waitingForOrders]);
+    }, [isMyTurn, waitingForOrders, submitOrder]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -486,26 +503,6 @@ export default function BattlePhase({
             unit.setMovement(gridPath, undefined, engine.gameTick);
         }
     }, [isMyTurn, waitingForOrders]);
-
-    function submitOrder(abilityId: string, targets: ResolvedTarget[]) {
-        if (!waitingForOrders || !canSubmitOrders) return;
-
-        const movePath = pendingMovePathRef.current;
-
-        const order: BattleOrder = {
-            unitId: waitingForOrders.unitId,
-            abilityId,
-            targets,
-            movePath: movePath ?? undefined,
-        };
-
-        targetingStateRef.current.selectedAbility = null;
-        targetingStateRef.current.currentTargets = [];
-        targetingStateRef.current.waitingForOrders = null;
-        pendingMovePathRef.current = null;
-
-        sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders });
-    }
 
     const engine = sessionRef.current?.getEngine() ?? null;
     const renderer = sessionRef.current?.getRenderer() ?? null;

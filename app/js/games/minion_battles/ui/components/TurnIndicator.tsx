@@ -85,7 +85,7 @@ export default function TurnIndicator({ state, allyName = 'Player' }: TurnIndica
             }
         }
         return clearTimer;
-    }, [state]);
+    }, [state, phase]);
 
     const isExpanded = phase === 'open' || phase === 'opening';
     const isCollapsed = phase === 'closing' || phase === 'closed';

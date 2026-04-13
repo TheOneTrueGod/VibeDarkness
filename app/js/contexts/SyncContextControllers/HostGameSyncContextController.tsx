@@ -10,45 +10,41 @@ export class HostGameSyncContextController extends GameSyncContextController {
     if (!gameId) return Promise.reject("Can't fetch minimal state without game id");
     if (this.minimalStateInFlight) return Promise.reject("minimal state in flight");
     this.minimalStateInFlight = true;
-    return new Promise<FetchMinimalStateResult>(async (resolve, reject) => {
-      const result = await this.lobbyClient.getGameMinimalState(
-        this.lobbyId,
-        gameId,
-        checkpointGameTick,
-      );
-      if (!result.orders?.length) {
-        reject('no orders');
-        return
-      }
+    return this.lobbyClient
+      .getGameMinimalState(this.lobbyId, gameId, checkpointGameTick)
+      .then((result) => {
+        if (!result.orders?.length) {
+          throw new Error('no orders');
+        }
 
-      const snapTick = Number(previousState.gameTick);
-      const waitingUnitId = extractWaitingUnitId(previousState.state);
-      const newOrders = remoteOrdersToApply(result.orders, snapTick, waitingUnitId, {
-        localPlayerId: this.playerId,
-        state: previousState.state,
-        appliedKeys: this.appliedRemoteOrders,
-      });
-      const staleMergedOrdersReplay =
-        newOrders.length === 0
-        && result.orders.length > 0
-        && !isWaitingForRemotePlayerOrder(previousState.state, this.playerId)
-        && result.orders.every((o) => Number(o.gameTick) <= snapTick);
-      if (staleMergedOrdersReplay) {
-        this.logOrderPoll('host_stale_merged_orders_replay', {
-          checkpointGameTick,
-          snapTick,
-          orderCount: result.orders.length,
+        const snapTick = Number(previousState.gameTick);
+        const waitingUnitId = extractWaitingUnitId(previousState.state);
+        const newOrders = remoteOrdersToApply(result.orders, snapTick, waitingUnitId, {
+          localPlayerId: this.playerId,
+          state: previousState.state,
+          appliedKeys: this.appliedRemoteOrders,
         });
-        reject('stale merged orders');
-        return
-      }
+        const staleMergedOrdersReplay =
+          newOrders.length === 0
+          && result.orders.length > 0
+          && !isWaitingForRemotePlayerOrder(previousState.state, this.playerId)
+          && result.orders.every((o) => Number(o.gameTick) <= snapTick);
+        if (staleMergedOrdersReplay) {
+          this.logOrderPoll('host_stale_merged_orders_replay', {
+            checkpointGameTick,
+            snapTick,
+            orderCount: result.orders.length,
+          });
+          throw new Error('stale merged orders');
+        }
 
-      resolve({
-        gameTick: result.gameTick,
-        synchash: result.synchash,
-        orders: newOrders,
+        return {
+          gameTick: result.gameTick,
+          synchash: result.synchash,
+          orders: newOrders,
+        };
       })
-    }).catch((reason) => {
+    .catch((reason) => {
       this.logOrderPoll('minimalBattlePollError(Host)', {
         checkpointGameTick,
         error: reason instanceof Error ? reason.message : reason ?? 'unknown',

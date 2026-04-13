@@ -55,8 +55,8 @@ interface PostMissionStoryPhaseProps {
 export default function PostMissionStoryPhase({
     api,
     playerId,
-    missionId,
-    players,
+    missionId: _missionId,
+    players: _players,
     characterSelections = {},
     postMissionStory,
     playerEquipmentByPlayer = {},
@@ -88,7 +88,7 @@ export default function PostMissionStoryPhase({
             try {
                 const currentEquipment = playerEquipmentByPlayer?.[playerId] ?? [];
                 let itemId: string | undefined;
-                let replaceItemIds: string[] = [];
+                const replaceItemIds: string[] = [];
                 if (option?.action?.type === 'equip_item' && option.action.itemId) {
                     itemId = option.action.itemId;
                     const newItemDef = getItemDef(itemId);

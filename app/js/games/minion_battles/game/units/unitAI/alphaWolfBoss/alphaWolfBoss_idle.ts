@@ -9,8 +9,6 @@ import type { AlphaWolfBossAITreeContext, AlphaWolfBossNodeId } from './context'
 import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 
-const TREE_NAME = 'alphaWolfBoss';
-
 function getSightRadius(unit: Unit): number {
     const ctx = unit.aiContext as AlphaWolfBossAITreeContext;
     return ctx.sightRadius ?? getPerceptionRange(unit.characterId);
@@ -43,7 +41,7 @@ function pickOrGetPrey(unit: Unit, context: AIContext): Unit | null {
     return prey;
 }
 
-export const alphaWolfBoss_idle: AINode<typeof TREE_NAME, AlphaWolfBossNodeId> = {
+export const alphaWolfBoss_idle: AINode<'alphaWolfBoss', AlphaWolfBossNodeId> = {
     nodeId: 'alphaWolfBoss_idle',
     actions: {
         execute(unit: Unit, context: AIContext): void {

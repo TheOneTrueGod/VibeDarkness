@@ -10,6 +10,10 @@ import { GameRenderer } from '../../game/GameRenderer';
 import type { GameEngine } from '../../game/GameEngine';
 import type { Camera } from '../../game/Camera';
 
+/** Resize buckets — module scope so ResizeObserver effect deps stay stable. */
+const WIDTH_THRESHOLDS = [400, 560, 720, 880, 1040, 1200, 1600];
+const HEIGHT_THRESHOLDS = [300, 420, 540, 660, 780, 900, 1200];
+
 interface BattleCanvasProps {
     engine: GameEngine;
     camera: Camera;
@@ -146,8 +150,6 @@ export default function BattleCanvas({
 
     // Handle resize — only when size crosses a threshold to avoid flicker from small layout changes
     const lastBucketRef = useRef({ wBucket: -1, hBucket: -1 });
-    const WIDTH_THRESHOLDS = [400, 560, 720, 880, 1040, 1200, 1600];
-    const HEIGHT_THRESHOLDS = [300, 420, 540, 660, 780, 900, 1200];
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;

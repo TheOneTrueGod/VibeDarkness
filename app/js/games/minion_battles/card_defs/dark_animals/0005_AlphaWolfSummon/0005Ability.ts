@@ -1,6 +1,6 @@
 /**
  * AlphaWolfSummon - Alpha Wolf boss ability.
- * After 0.5s windup, emits a pulse effect and spawns 2 wolves.
+ * After ~0.65s windup, emits a pulse effect and spawns 2 wolves.
  * Wolves immediately target closest enemy and queue a DarkWolfBite attack.
  * Max 1 use per round.
  */
@@ -22,7 +22,7 @@ import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import type { EventBus } from '../../../game/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}05`;
-const PREFIRE_TIME = 0.5;
+const PREFIRE_TIME = 0.65;
 const HOWL_SHOCK_INTERVAL = 0.2;
 const HOWL_SHOCK_DURATION = 0.38;
 const PULSE_DURATION = 0.8;

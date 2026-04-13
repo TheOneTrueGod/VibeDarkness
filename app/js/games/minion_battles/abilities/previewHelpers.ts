@@ -237,7 +237,6 @@ export function createArcTargetPreview(options: ArcTargetPreviewOptions): Render
         if (dist === 0) return;
         const centerAngle = Math.atan2(dy, dx);
         const startAngle = centerAngle - halfArcRad;
-        const endAngle = centerAngle + halfArcRad;
         const innerR = caster.radius + innerOffset;
         const outerR = caster.radius + outerThickness;
 

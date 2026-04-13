@@ -24,7 +24,6 @@ import type { EventBus } from '../../game/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}10` as '0110';
 const DURATION = 1;
-const COOLDOWN_TIME = 1;
 const MOVEMENT_PENALTY = 0.1;
 const MAX_RETALIATION_PER_USE = 1;
 const SHIELD_ARC_DEG = 120;

@@ -50,7 +50,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const lobbyClient = useMemo(() => new LobbyClient(), []);
 
     const handleLogin = useCallback(
-        async (account: AccountState) => {
+        async (_account: AccountState) => {
             await refetch();
             const next = getNextRedirect();
             window.location.href = next;
@@ -424,7 +424,7 @@ function AppInner() {
         [lobbyClient, loadGameState, showToast]
     );
 
-    const handleCreateLobby = useCallback(
+    const _handleCreateLobby = useCallback(
         async () => {
             try {
                 const name = user?.name ?? 'Player';

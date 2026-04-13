@@ -4,7 +4,6 @@
  */
 
 import type { Unit } from '../Unit';
-import type { UnitAIContext } from './contextTypes';
 import type { DefaultAITreeContext } from './default/context';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { ResolvedTarget } from '../../types';
@@ -12,7 +11,6 @@ import type { SpecialTile } from '../../specialTiles/SpecialTile';
 import type { AIContext } from './types';
 import { areEnemies } from '../../teams';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-import { getPerceptionRange } from '../unit_defs/unitDef';
 import { getAbilityTargets } from '../../../abilities/Ability';
 
 /** Euclidean distance between two points. */
@@ -86,7 +84,6 @@ export function getOrPickClosestDefendPoint(
         ? defendPoints.find((t) => t.id === ctx.defensePointTargetId)
         : undefined;
     if (current) return current;
-    const unitGrid = grid.worldToGrid(unit.x, unit.y);
     let best: SpecialTile | null = null;
     let bestDist = Infinity;
     for (const tile of defendPoints) {

@@ -125,7 +125,7 @@ function createMockContext(options: {
         emitTurnEnd: (unitId) => {
             turnEnds.push(unitId);
         },
-        generateRandomInteger: (min, max) => min,
+        generateRandomInteger: (min, _max) => min,
         WORLD_WIDTH,
         WORLD_HEIGHT,
         hasLineOfSight: () => hasLineOfSight,

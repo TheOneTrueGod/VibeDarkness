@@ -1,7 +1,7 @@
 /**
  * Character Editor - edit portrait and equipment for a campaign character.
- * Portrait (30% height) with prev/next arrows; name top right.
- * Bottom 2/3: tabs (Equipment). Doll with core/weapon/utility slots; inventory grid; drag to equip.
+ * Portrait with prev/next on the same row as the name; tabs (Equipment / Upgrades).
+ * Equipment sidebar: paper doll or horizontal equipped-items list; inventory grid; drag to equip.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPortraitIds, getPortrait } from '../../../character_defs/portraits';
@@ -48,6 +48,8 @@ interface CharacterEditorProps {
     viewerAccount?: AccountState | null;
     /** Current campaign state (used for research resource checks). */
     campaign?: CampaignState | null;
+    /** How equipped items appear in the Equipment tab sidebar. */
+    equippedItemsDisplay?: 'paperDoll' | 'list';
 }
 
 type EditorTab = 'equipment' | 'research';
@@ -75,13 +77,14 @@ export default function CharacterEditor({
     character,
     api,
     onSaved,
-    onClose,
+    onClose: _onClose,
     editMode = false,
     inventoryItems,
     showInventoryPanel = true,
     account,
     viewerAccount,
     campaign,
+    equippedItemsDisplay = 'paperDoll',
 }: CharacterEditorProps) {
     const portraitIds = useMemo(() => getPortraitIds(), []);
     const totalPortraits = portraitIds.length;
@@ -90,7 +93,7 @@ export default function CharacterEditor({
         const i = portraitIds.indexOf(character.portraitId);
         return i >= 0 ? i : 0;
     });
-    const [name, setName] = useState(character.name);
+    const name = character.name;
     const [equipment, setEquipment] = useState<string[]>(() => [...character.equipment]);
     const [activeTab, setActiveTab] = useState<EditorTab>('equipment');
     const [saving, setSaving] = useState(false);
@@ -440,15 +443,16 @@ export default function CharacterEditor({
             <div className="flex-1 min-h-0 flex overflow-hidden">
                 {/* Left column: portrait + panel-specific sidebar */}
                 <div className="flex flex-col shrink-0 border-r border-border-custom bg-background/50">
-                    {/* Character portrait - always visible on every panel */}
-                    <div className="flex items-center gap-3 p-4 border-b border-border-custom shrink-0">
-                        <div className="flex flex-col items-center gap-2">
-                            <CharacterPortrait
-                                picture={portrait?.picture ?? ''}
-                                size="medium"
-                                className="border border-border-custom"
-                            />
-                            <div className="flex gap-2">
+                    {/* Character portrait — 16px (p-4) inset; name row; rule; portrait */}
+                    <div className="flex flex-col shrink-0 max-w-full box-border border-b border-border-custom p-4">
+                        <div className="flex items-center justify-between gap-2 min-w-0 border-b border-border-custom pb-4">
+                            <span
+                                className="text-lg font-semibold text-white truncate text-left min-w-0 flex-1"
+                                title={name}
+                            >
+                                {name || 'Adventurer'}
+                            </span>
+                            <div className="flex gap-2 shrink-0">
                                 <button
                                     type="button"
                                     className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
@@ -467,26 +471,41 @@ export default function CharacterEditor({
                                 </button>
                             </div>
                         </div>
-                        <span className="text-lg font-semibold text-white truncate max-w-[140px]" title={name}>
-                            {name || 'Adventurer'}
-                        </span>
+                        <div className="flex justify-center pt-4">
+                            <CharacterPortrait
+                                picture={portrait?.picture ?? ''}
+                                size="medium"
+                                className="border border-border-custom"
+                            />
+                        </div>
                     </div>
 
                     {/* Panel-specific sidebar */}
                     <div className="flex-1 min-h-0 overflow-auto p-3">
-                        {activeTab === 'equipment' && (
-                            <EquipmentDoll
-                                equipment={equipment}
-                                slotDescriptors={getSlotDescriptors(equipment)}
-                                onDropOnSlot={handleDropOnSlot}
-                                onDragOver={handleDragOver}
-                                onDragStartSlot={handleDragStartSlot}
-                                onDragEnd={handleDragEnd}
-                                dragItemId={dragItemId}
-                                dragSlot={dragSlot}
-                                editMode={editMode}
-                            />
-                        )}
+                        {activeTab === 'equipment' &&
+                            (equippedItemsDisplay === 'list' ? (
+                                <EquippedItemsList
+                                    equipment={equipment}
+                                    slotDescriptors={getSlotDescriptors(equipment)}
+                                    onDropOnSlot={handleDropOnSlot}
+                                    onDragOver={handleDragOver}
+                                    onDragStartSlot={handleDragStartSlot}
+                                    onDragEnd={handleDragEnd}
+                                    editMode={editMode}
+                                />
+                            ) : (
+                                <EquipmentDoll
+                                    equipment={equipment}
+                                    slotDescriptors={getSlotDescriptors(equipment)}
+                                    onDropOnSlot={handleDropOnSlot}
+                                    onDragOver={handleDragOver}
+                                    onDragStartSlot={handleDragStartSlot}
+                                    onDragEnd={handleDragEnd}
+                                    dragItemId={dragItemId}
+                                    dragSlot={dragSlot}
+                                    editMode={editMode}
+                                />
+                            ))}
                         {activeTab === 'research' && researchEnabled && (
                             <ResearchTreeList
                                 availableTrees={availableTrees}
@@ -567,7 +586,7 @@ export default function CharacterEditor({
                                             canResetResearch={permissionAccount?.role === 'admin'}
                                             firstTreeId={firstTreeId}
                                             onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
-                                            onResetResearch={(treeIds) => void handleResetResearch(availableTrees.map((t) => t.id))}
+                                            onResetResearch={(_treeIds) => void handleResetResearch(availableTrees.map((t) => t.id))}
                                         />
                                     ) : null}
                                 </>
@@ -592,6 +611,61 @@ interface EquipmentDollProps {
     dragItemId: string | null;
     dragSlot: EquipmentSlotType | null;
     editMode: boolean;
+}
+
+interface EquippedItemsListProps {
+    equipment: string[];
+    slotDescriptors: SlotDescriptor[];
+    onDropOnSlot: (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => void;
+    onDragOver: (e: React.DragEvent) => void;
+    onDragStartSlot: (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => void;
+    onDragEnd: () => void;
+    editMode: boolean;
+}
+
+function EquippedItemsList({
+    equipment,
+    slotDescriptors,
+    onDropOnSlot,
+    onDragOver,
+    onDragStartSlot,
+    onDragEnd,
+    editMode,
+}: EquippedItemsListProps) {
+    return (
+        <div className="grid grid-flow-col grid-rows-[4rem_4rem] auto-cols-max gap-2 overflow-x-auto pb-1 -mx-1 px-1 w-full min-w-0">
+            {slotDescriptors.map((desc) => {
+                const itemId = getEquippedForSlot(equipment, desc.type, desc.index);
+                const def = itemId ? getItemDef(itemId) : null;
+                const iconUrl = itemId ? ITEM_ICON_URLS[itemId] : null;
+                const key = desc.index !== undefined ? `${desc.type}_${desc.index}` : desc.type;
+                return (
+                    <div
+                        key={key}
+                        className={`flex shrink-0 w-16 h-16 flex-col items-center justify-center rounded border-2 border-dashed border-border-custom bg-surface/80 p-1 ${
+                            editMode ? 'cursor-pointer hover:border-primary' : 'cursor-default'
+                        } transition-colors`}
+                        onDrop={editMode ? (e) => onDropOnSlot(e, desc.type, desc.index) : undefined}
+                        onDragOver={editMode ? onDragOver : undefined}
+                        onDragStart={editMode && itemId ? (e) => onDragStartSlot(e, desc.type, desc.index) : undefined}
+                        draggable={editMode && !!itemId}
+                        onDragEnd={editMode ? onDragEnd : undefined}
+                        title={def?.name ?? desc.label}
+                    >
+                        {iconUrl ? (
+                            <img
+                                src={iconUrl}
+                                alt={def?.name ?? desc.label}
+                                className="w-8 h-8 object-contain pointer-events-none"
+                            />
+                        ) : (
+                            <span className="text-[10px] text-muted text-center leading-tight px-0.5">{desc.label}</span>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
 }
 
 /** Position hints for slot types; multiple weapon/utility use row. */
@@ -631,7 +705,7 @@ function EquipmentDoll({
                 <line x1="50" y1="55" x2="65" y2="95" stroke="#6b7280" strokeWidth="2" />
             </svg>
 
-            {slotDescriptors.map((desc, i) => {
+            {slotDescriptors.map((desc, _i) => {
                 const itemId = getEquippedForSlot(equipment, desc.type, desc.index);
                 const def = itemId ? getItemDef(itemId) : null;
                 const iconUrl = itemId ? ITEM_ICON_URLS[itemId] : null;

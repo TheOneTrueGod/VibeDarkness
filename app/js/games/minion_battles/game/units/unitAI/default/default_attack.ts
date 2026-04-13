@@ -8,9 +8,7 @@ import type { AINode } from '../types';
 import type { DefaultAITreeContext, DefaultNodeId } from './context';
 import { findEnemies, applyAIMovementToUnit, tryQueueAbilityOrder } from '../utils';
 
-const TREE_NAME = 'default';
-
-export const default_attack: AINode<typeof TREE_NAME, DefaultNodeId> = {
+export const default_attack: AINode<'default', DefaultNodeId> = {
     nodeId: 'default_attack',
     actions: {
         execute(unit: Unit, context: AIContext): void {

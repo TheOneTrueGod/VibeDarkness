@@ -18,14 +18,12 @@ import {
 } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 
-const TREE_NAME = 'aggroWander';
-
 const ROUND_DURATION = 10;
 
 /** How often (in rounds) the unit rescans for the nearest enemy while attacking. */
 const RESCAN_INTERVAL_ROUNDS = 0.25;
 
-export const aggroWander_attack: AINode<typeof TREE_NAME, AggroWanderNodeId> = {
+export const aggroWander_attack: AINode<'aggroWander', AggroWanderNodeId> = {
     nodeId: 'aggroWander_attack',
     actions: {
         execute(unit: Unit, context: AIContext): void {

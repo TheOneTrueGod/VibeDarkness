@@ -93,15 +93,14 @@ export function ResearchTreeContent({
     onResearchNode,
     onResetResearch,
 }: ResearchTreeContentProps) {
-    const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
-    const ctx = useMemo(
-        () => ({
+    const ctx = useMemo(() => {
+        const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
+        return {
             account: safeAccount as AccountState,
             character: { ...character, equipment, researchTrees } as CampaignCharacter,
             campaignResources,
-        }),
-        [campaignResources, character, equipment, researchTrees, safeAccount]
-    );
+        };
+    }, [account, campaignResources, character, equipment, researchTrees]);
 
     const VIEW_W = 520;
     const VIEW_H = 320;

@@ -14,8 +14,14 @@ import { getDefaultHp, getDefaultSpeed, getDefaultRadius, resolveEnemySpawnStats
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 
 /** Character IDs that have a dedicated unit factory. Used for createUnitByCharacterId only. */
-const CHARACTER_IDS = ['warrior', 'mage', 'ranger', 'healer', 'dark_wolf', 'alpha_wolf', 'boar'] as const;
-export type CharacterId = (typeof CHARACTER_IDS)[number];
+export type CharacterId =
+    | 'warrior'
+    | 'mage'
+    | 'ranger'
+    | 'healer'
+    | 'dark_wolf'
+    | 'alpha_wolf'
+    | 'boar';
 
 export type UnitFactoryConfig = {
     id?: string;

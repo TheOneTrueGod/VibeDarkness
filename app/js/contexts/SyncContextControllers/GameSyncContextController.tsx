@@ -39,34 +39,37 @@ export abstract class GameSyncContextController {
   fetchFullState(): Promise<FetchFullStateResult> {
     if (this.isFullStateInFlight) return Promise.reject();
     this.fullStateInFlight = true;
-    return new Promise<FetchFullStateResult>(async (resolve) => {
-      const { gameState: gs } = await this.lobbyClient.getLobbyState(this.lobbyId, this.playerId);
-      const payload = gs as GameStatePayload;
+    return this.lobbyClient
+      .getLobbyState(this.lobbyId, this.playerId)
+      .then(({ gameState: gs }) => {
+        const payload = gs as GameStatePayload;
 
-      const phase = (payload?.game as Record<string, unknown> | undefined)?.gamePhase
-        ?? (payload?.game as Record<string, unknown> | undefined)?.game_phase
-        ?? null;
+        const phase = (payload?.game as Record<string, unknown> | undefined)?.gamePhase
+          ?? (payload?.game as Record<string, unknown> | undefined)?.game_phase
+          ?? null;
 
-      this.logOrderPoll('fetchFullStateDone', {
-        phase,
-        gameId: payload?.gameId ?? null,
-        gameTick:
-          (payload?.game as Record<string, unknown> | undefined)?.gameTick
-          ?? (payload?.game as Record<string, unknown> | undefined)?.game_tick
-          ?? null,
+        this.logOrderPoll('fetchFullStateDone', {
+          phase,
+          gameId: payload?.gameId ?? null,
+          gameTick:
+            (payload?.game as Record<string, unknown> | undefined)?.gameTick
+            ?? (payload?.game as Record<string, unknown> | undefined)?.game_tick
+            ?? null,
+        });
+
+        this.appliedRemoteOrders.clear();
+        return { gameState: payload };
+      })
+      .catch((err) => {
+        console.error('Failed to fetch full game state:', err);
+        this.logOrderPoll('fetchFullStateError', {
+          err: err,
+        });
+        throw err;
+      })
+      .finally(() => {
+        this.fullStateInFlight = false;
       });
-
-      this.appliedRemoteOrders.clear();
-      resolve({ gameState: payload });
-    }).catch((err) => {
-      console.error('Failed to fetch full game state:', err);
-      this.logOrderPoll('fetchFullStateError', {
-        err: err,
-      });
-      throw err;
-    }).finally(() => {
-      this.fullStateInFlight = false;
-    })
   }
 
   get isMinimalStateInFlight(): boolean {

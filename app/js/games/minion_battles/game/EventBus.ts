@@ -60,11 +60,6 @@ export type GameEventDataMap = {
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;
 
-interface ListenerEntry {
-    event: GameEventType;
-    callback: EventCallback<GameEventType>;
-}
-
 export class EventBus {
     private listeners: Map<GameEventType, Set<EventCallback<GameEventType>>> = new Map();
 

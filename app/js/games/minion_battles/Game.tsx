@@ -11,7 +11,6 @@ import type { PlayerState, GameSidebarInfo } from '../../types';
 import type { LobbyClient } from '../../LobbyClient';
 import type { GameComponentProps } from '../../components/GameScreen';
 import { useLocalOverrides } from '../../hooks/useLocalOverrides';
-import { useToast } from '../../contexts/ToastContext';
 import type { GamePhase } from './state';
 import MissionSelectPhase from './ui/pages/MissionSelectPhase';
 import CharacterSelectPhase from './ui/pages/CharacterSelectPhase';
@@ -86,7 +85,6 @@ export default function MinionBattlesGame({
     onEmittedChatMessage,
     onBattleStartStatusChange,
 }: MinionBattlesGameProps) {
-    const { showToast } = useToast();
     const api = useMemo(
         () =>
             minionBattlesApiProp ??
@@ -95,7 +93,7 @@ export default function MinionBattlesGame({
     );
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
     const [victoryModalOpen, setVictoryModalOpen] = useState(false);
-    const raw = gameData ?? {};
+    const raw = useMemo(() => gameData ?? {}, [gameData]);
 
     // Infer battle phase when gamePhase is missing but engine state (units, gameTick) exists.
     // This happens when loading from checkpoints that lack phase metadata.
@@ -138,17 +136,24 @@ export default function MinionBattlesGame({
 
     // ---- Local overrides for instant feedback -----------------------------
     const localOverrides = useLocalOverrides();
+    const {
+        set: setLocalOverride,
+        remove: removeLocalOverride,
+        applyTo: applyLocalOverrides,
+        reconcile: reconcileLocalOverrides,
+        clear: clearLocalOverrides,
+    } = localOverrides;
 
     // Build "effective" state = server state + local overrides.
     // `applyTo`'s reference changes whenever overrides change, which causes
     // this memo to recompute — giving us instant UI updates.
     const effective = useMemo(
         () =>
-            localOverrides.applyTo({
+            applyLocalOverrides({
                 missionVotes,
                 characterSelections,
             }),
-        [missionVotes, characterSelections, localOverrides.applyTo],
+        [missionVotes, characterSelections, applyLocalOverrides],
     );
 
     const selectedMissionId = getSelectedMission(effective.missionVotes as Record<string, string>);
@@ -254,18 +259,18 @@ export default function MinionBattlesGame({
         setStoryReadyPlayerIds(newStoryReady);
         setCharacterSelectReadyPlayerIds(newReady);
 
-        localOverrides.reconcile({
+        reconcileLocalOverrides({
             missionVotes: newVotes ?? {},
             characterSelections: newCharSel ?? {},
         });
-    }, [gameData, localOverrides.reconcile]);
+    }, [gameData, reconcileLocalOverrides]);
 
     // ---- Phase transitions ------------------------------------------------
     const handlePhaseChange = useCallback(
         (phase: string, newGameState: Record<string, unknown>) => {
             // Phase changed — clear all local overrides since the game state
             // is being replaced wholesale by the server.
-            localOverrides.clear();
+            clearLocalOverrides();
 
             setGamePhase(phase as GamePhase);
             if (phase === 'battle' && newGameState) {
@@ -292,7 +297,7 @@ export default function MinionBattlesGame({
                 setCharacterSelectReadyPlayerIds(ready);
             }
         },
-        [localOverrides.clear],
+        [clearLocalOverrides],
     );
 
     return (
@@ -304,8 +309,8 @@ export default function MinionBattlesGame({
                     isHost={isHost}
                     players={players}
                     missionVotes={effective.missionVotes as Record<string, string>}
-                    setLocalOverride={localOverrides.set}
-                    removeLocalOverride={localOverrides.remove}
+                    setLocalOverride={setLocalOverride}
+                    removeLocalOverride={removeLocalOverride}
                     onPhaseChange={handlePhaseChange}
                 />
             )}
@@ -322,8 +327,8 @@ export default function MinionBattlesGame({
                     campaignId={missionDef?.campaignId}
                     missionDef={missionDef ?? null}
                     preMissionStory={preMissionStory}
-                    setLocalOverride={localOverrides.set}
-                    removeLocalOverride={localOverrides.remove}
+                    setLocalOverride={setLocalOverride}
+                    removeLocalOverride={removeLocalOverride}
                     onPhaseChange={handlePhaseChange}
                 />
             )}

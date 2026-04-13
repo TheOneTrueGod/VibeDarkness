@@ -13,8 +13,6 @@ import type { AggroWanderAITreeContext, AggroWanderNodeId } from './context';
 import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 
-const TREE_NAME = 'aggroWander';
-
 const ROUND_DURATION = 10;
 
 /** How often (in rounds) the unit picks a new wander destination. */
@@ -26,7 +24,7 @@ export const MAX_WANDER_DISTANCE = 2;
 /** How often (in rounds) the unit scans for nearby enemies. */
 export const SCAN_INTERVAL_ROUNDS = 0.25;
 
-export const aggroWander_wander: AINode<typeof TREE_NAME, AggroWanderNodeId> = {
+export const aggroWander_wander: AINode<'aggroWander', AggroWanderNodeId> = {
     nodeId: 'aggroWander_wander',
     actions: {
         execute(unit: Unit, context: AIContext): void {

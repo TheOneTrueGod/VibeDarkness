@@ -199,8 +199,9 @@ export function GameSyncProvider({
 
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
+  const gameId = externalGameId ?? gameState?.gameId ?? null;
   const gameIdRef = useRef<string | null>(null);
-  gameIdRef.current = externalGameId ?? gameState?.gameId ?? null;
+  gameIdRef.current = gameId;
 
   const syncContextControllerRef = useRef<HostGameSyncContextController | ClientGameSyncContextController>
     (new (isHost ? HostGameSyncContextController : ClientGameSyncContextController)
@@ -211,7 +212,7 @@ export function GameSyncProvider({
 
     syncContextControllerRef.current = new (isHost ? HostGameSyncContextController : ClientGameSyncContextController)
       (lobbyClient, lobbyId, playerId, gameIdRef.current ?? undefined);
-  }, [isHost, lobbyClient, lobbyId, playerId, gameIdRef.current]);
+  }, [isHost, lobbyClient, lobbyId, playerId, gameId]);
 
   useEffect(() => {
     lastMessageIdRef.current = initialLastMessageId ?? null;
@@ -220,8 +221,6 @@ export function GameSyncProvider({
   useEffect(() => {
     lobbyClient.setCurrentPlayerId(playerId);
   }, [lobbyClient, playerId]);
-
-  const gameId = externalGameId ?? gameState?.gameId ?? null;
 
   const requestResync = useCallback(() => {
     forceResyncRef.current = true;
@@ -316,7 +315,7 @@ export function GameSyncProvider({
           throw err;
         })
     },
-    [lobbyId, playerId, lobbyClient],
+    [],
   );
 
   const runMinimalBattlePoll = useCallback(

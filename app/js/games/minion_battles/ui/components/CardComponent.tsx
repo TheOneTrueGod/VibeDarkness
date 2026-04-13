@@ -44,7 +44,7 @@ export default function CardComponent({
     isMobile,
     showMobileDescription,
     onMobileDescriptionToggle,
-    onMobileDescriptionDismiss,
+    onMobileDescriptionDismiss: _onMobileDescriptionDismiss,
     gameState,
 }: CardComponentProps) {
     const handleClick = useCallback(() => {

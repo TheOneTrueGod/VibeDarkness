@@ -190,6 +190,7 @@ export const ThrowChargedRock: AbilityStatic = {
     abilityTimings: THROW_CHARGED_ROCK_BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {
         const eng = gameState as GameEngineLike | undefined;
+        if (!eng) return THROW_CHARGED_ROCK_BASE_TIMINGS;
         const research = getOwnerResearch(eng, caster);
         return research.has('more_rock') ? THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS : THROW_CHARGED_ROCK_BASE_TIMINGS;
     },
@@ -295,7 +296,7 @@ export const ThrowChargedRock: AbilityStatic = {
         }
     },
 
-    onProjectileExpired(engine: unknown, caster: Unit, projectile: Projectile, hitUnitId?: string): void {
+    onProjectileExpired(engine: unknown, caster: Unit, projectile: Projectile, _hitUnitId?: string): void {
         const eng = engine as GameEngineLike;
         const sourceUnit = eng.getUnit(caster.id);
         if (!sourceUnit) return;

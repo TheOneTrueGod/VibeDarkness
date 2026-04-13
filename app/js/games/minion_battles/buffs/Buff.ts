@@ -64,7 +64,7 @@ export abstract class Buff {
     }
 
     /** Create from JSON. Subclasses override and call super.fromJSON for base fields. */
-    static fromJSON(data: BuffSerialized): Buff {
+    static fromJSON(_data: BuffSerialized): Buff {
         throw new Error('Subclasses must implement fromJSON');
     }
 }

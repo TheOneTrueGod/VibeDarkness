@@ -166,16 +166,6 @@ export default function CharacterSelectPhase({
         });
     }, [myCharacters, campaignId, missionId, missionTraitFilter]);
 
-    /** Map characterId -> display name (from our characters; others show as "(selected)"). */
-    const characterIdToName = useMemo(() => {
-        const map: Record<string, string> = {};
-        for (const c of myCharacters) {
-            const portrait = getPortrait(c.portraitId);
-            map[c.id] = c.name || (portrait?.name ?? 'Character');
-        }
-        return map;
-    }, [myCharacters]);
-
     const handleSelectCharacter = useCallback(
         async (characterId: string, portraitId: string) => {
             const overridePath = `characterSelections.${playerId}`;
@@ -339,32 +329,36 @@ export default function CharacterSelectPhase({
                       : 'Select your character'}
             </h2>
 
-            <div className="flex gap-2 px-5 pb-4 shrink-0">
-                <button
-                    type="button"
-                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        activeTab === 'characters'
-                            ? 'border-primary bg-surface-light text-white'
-                            : 'border-border-custom bg-surface text-muted hover:text-white hover:border-primary'
-                    }`}
-                    onClick={() => setActiveTab('characters')}
-                >
-                    Characters
-                </button>
-                {isAdmin && (
-                    <button
-                        type="button"
-                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                            activeTab === 'players'
-                                ? 'border-primary bg-surface-light text-white'
-                                : 'border-border-custom bg-surface text-muted hover:text-white hover:border-primary'
-                        }`}
-                        onClick={() => setActiveTab('players')}
-                    >
-                        Players
-                    </button>
-                )}
-            </div>
+            {(!(editorOpen && characterToEdit) || isAdmin) && (
+                <div className="flex gap-2 px-5 pb-4 shrink-0">
+                    {!(editorOpen && characterToEdit) && (
+                        <button
+                            type="button"
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                                activeTab === 'characters'
+                                    ? 'border-primary bg-surface-light text-white'
+                                    : 'border-border-custom bg-surface text-muted hover:text-white hover:border-primary'
+                            }`}
+                            onClick={() => setActiveTab('characters')}
+                        >
+                            Characters
+                        </button>
+                    )}
+                    {isAdmin && (
+                        <button
+                            type="button"
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                                activeTab === 'players'
+                                    ? 'border-primary bg-surface-light text-white'
+                                    : 'border-border-custom bg-surface text-muted hover:text-white hover:border-primary'
+                            }`}
+                            onClick={() => setActiveTab('players')}
+                        >
+                            Players
+                        </button>
+                    )}
+                </div>
+            )}
 
             {activeTab === 'players' && isAdmin ? (
                 <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
@@ -384,6 +378,7 @@ export default function CharacterSelectPhase({
                         inventoryItems={isAdmin ? ALL_PLAYER_ITEMS : user?.inventoryItemIds ?? []}
                         account={user}
                         campaign={campaign}
+                        equippedItemsDisplay="list"
                     />
                 </div>
             ) : (
@@ -442,13 +437,29 @@ export default function CharacterSelectPhase({
             {activeTab !== 'players' && (
                 <div className="flex justify-center gap-4 py-4 px-5 shrink-0 border-t border-border-custom">
                     {editorOpen ? (
-                        <button
-                            type="button"
-                            className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
-                            onClick={() => setEditorOpen(false)}
-                        >
-                            Back
-                        </button>
+                        <>
+                            <button
+                                type="button"
+                                className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"
+                                onClick={() => setEditorOpen(false)}
+                            >
+                                Back
+                            </button>
+                            {mySelection && (
+                                <button
+                                    type="button"
+                                    disabled={effectivelyReady || setReadyLoading}
+                                    className={`px-8 py-3 text-lg font-bold rounded-lg transition-colors shadow-lg ${
+                                        effectivelyReady || setReadyLoading
+                                            ? 'bg-gray-600 text-gray-400 cursor-default'
+                                            : 'bg-primary text-secondary hover:opacity-90 cursor-pointer'
+                                    }`}
+                                    onClick={handleSetReady}
+                                >
+                                    Ready
+                                </button>
+                            )}
+                        </>
                     ) : (
                         <>
                             {mySelection && mySelection !== SPECTATOR_ID && !isControlEnemy(mySelection) && characterToEdit && (

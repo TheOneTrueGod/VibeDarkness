@@ -634,7 +634,7 @@ export class Unit extends GameObject {
         };
     }
 
-    static fromJSON(data: Record<string, unknown>, eventBus: EventBus): Unit {
+    static fromJSON(data: Record<string, unknown>, _eventBus: EventBus): Unit {
         const unit = new Unit({
             id: data.id as string,
             x: data.x as number,

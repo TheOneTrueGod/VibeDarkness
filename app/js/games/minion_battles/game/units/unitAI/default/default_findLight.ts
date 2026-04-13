@@ -9,11 +9,9 @@ import type { DefaultAITreeContext, DefaultNodeId } from './context';
 import { queueWaitAndEndTurn, findEnemies, getEnemiesInPerceptionAndLOS } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 
-const TREE_NAME = 'default';
-
 const IDLE_AT_LIGHT_DURATION = 2.5;
 
-export const default_findLight: AINode<typeof TREE_NAME, DefaultNodeId> = {
+export const default_findLight: AINode<'default', DefaultNodeId> = {
     nodeId: 'default_findLight',
     actions: {
         execute(unit: Unit, context: AIContext): void {

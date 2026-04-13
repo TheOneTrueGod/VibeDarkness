@@ -8,11 +8,9 @@ import type { AINode } from '../types';
 import type { DefaultNodeId } from './context';
 import { queueWaitAndEndTurn } from '../utils';
 
-const TREE_NAME = 'default';
-
 const WANDER_RADIUS = 4;
 
-export const default_wander: AINode<typeof TREE_NAME, DefaultNodeId> = {
+export const default_wander: AINode<'default', DefaultNodeId> = {
     nodeId: 'default_wander',
     actions: {
         execute(unit: Unit, context: AIContext): void {

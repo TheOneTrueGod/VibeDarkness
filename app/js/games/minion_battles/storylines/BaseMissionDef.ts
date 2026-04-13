@@ -92,8 +92,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         const worldW = grid ? grid.worldWidth : this.worldWidth;
         const worldH = grid ? grid.worldHeight : this.worldHeight;
         const playerSpacing = worldH / (playerCount + 1);
-        const missionConfig: MissionBattleConfig = this;
-        const spawnPoints = missionConfig.playerSpawnPoints ?? this.playerSpawnPoints;
+        const spawnPoints = this.playerSpawnPoints;
         for (let i = 0; i < playerCount; i++) {
             const pu = params.playerUnits[i];
             const equippedIds = params.equippedItemsByPlayer?.[pu.playerId] ?? [];
@@ -189,7 +188,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
 
         // Add enemies (health scaled by player count)
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
-        const fallbackTreeId = missionConfig.aiController === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
+        const fallbackTreeId = this.aiController === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
         const enemySpawns: UnitSpawnConfig[] = this.enemies.map((e) => ({ ...e, ownerId: 'ai' }));
         for (const spawn of enemySpawns) {
             const stats = resolveEnemySpawnStats(spawn);

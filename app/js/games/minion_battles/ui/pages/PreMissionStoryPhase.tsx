@@ -161,7 +161,7 @@ export default function PreMissionStoryPhase({
             try {
                 const currentEquipment = playerEquipmentByPlayer?.[playerId] ?? [];
                 let itemId: string | undefined;
-                let replaceItemIds: string[] = [];
+                const replaceItemIds: string[] = [];
                 if (option?.action?.type === 'equip_item' && option.action.itemId) {
                     itemId = option.action.itemId;
                     const newItemDef = getItemDef(itemId);

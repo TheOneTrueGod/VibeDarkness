@@ -33,7 +33,7 @@ export class Camera {
     }
 
     /** Update the local focus target used for auto-follow. */
-    setFocusTarget(targetX: number, targetY: number, targetRadius: number = 0): void {
+    setFocusTarget(targetX: number, targetY: number, _targetRadius: number = 0): void {
         this.clamp();
     }
 
@@ -73,7 +73,7 @@ export class Camera {
     }
 
     /** Immediately snap the camera to a world position. */
-    snapTo(targetX: number, targetY: number, targetRadius: number = 0): void {
+    snapTo(targetX: number, targetY: number, _targetRadius: number = 0): void {
         this.x = targetX;
         this.y = targetY;
         this.clamp();

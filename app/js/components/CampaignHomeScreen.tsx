@@ -76,17 +76,18 @@ export default function CampaignHomeScreen({
 
     const campaignIds = user?.campaignIds ?? [];
     const hasCampaign = campaignIds.length > 0;
+    const primaryCampaignId = campaignIds[0];
 
     // Load first campaign when user has campaignIds
     useEffect(() => {
-        if (!hasCampaign) {
+        if (!hasCampaign || primaryCampaignId == null) {
             setCampaign(null);
             return;
         }
         let cancelled = false;
         setCampaignLoading(true);
         lobbyClient
-            .getCampaign(campaignIds[0]!)
+            .getCampaign(primaryCampaignId)
             .then((c) => {
                 if (!cancelled) setCampaign(c);
             })
@@ -99,7 +100,7 @@ export default function CampaignHomeScreen({
         return () => {
             cancelled = true;
         };
-    }, [hasCampaign, campaignIds[0], lobbyClient]);
+    }, [hasCampaign, primaryCampaignId, lobbyClient]);
 
     const handleCreateFirstCampaign = useCallback(async () => {
         setCreatingCampaign(true);
@@ -151,7 +152,10 @@ export default function CampaignHomeScreen({
         [onSelectMission, selectingMission, campaign?.id]
     );
 
-    const missionResults = campaign?.missionResults ?? [];
+    const missionResults = useMemo(
+        () => campaign?.missionResults ?? [],
+        [campaign?.missionResults],
+    );
     const latestMissionResultById = useMemo(() => {
         const map = new Map<string, MissionResultWithItems>();
         for (const result of missionResults as MissionResultWithItems[]) {

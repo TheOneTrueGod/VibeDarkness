@@ -17,11 +17,9 @@ import {
 } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 
-const TREE_NAME = 'default';
-
 const DEFAULT_PATH_RETRIGGER = 50;
 
-export const default_siegeDefendPoint: AINode<typeof TREE_NAME, DefaultNodeId> = {
+export const default_siegeDefendPoint: AINode<'default', DefaultNodeId> = {
     nodeId: 'default_siegeDefendPoint',
     actions: {
         execute(unit: Unit, context: AIContext): void {

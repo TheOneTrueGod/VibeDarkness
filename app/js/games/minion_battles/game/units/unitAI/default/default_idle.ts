@@ -6,12 +6,10 @@ import type { Unit } from '../../Unit';
 import type { AIContext, AILightSource } from '../types';
 import type { AINode } from '../types';
 import type { DefaultAITreeContext, DefaultNodeId } from './context';
-import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
+import { findEnemies, getEnemiesInPerceptionAndLOS } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 import { distance } from '../utils';
 import { getOrPickClosestDefendPoint } from '../utils';
-
-const TREE_NAME = 'default';
 
 function getOrPickDefendPoint(unit: Unit, context: AIContext): { id: string } | null {
     const defendPoints = context.getAliveDefendPoints();
@@ -21,15 +19,16 @@ function getOrPickDefendPoint(unit: Unit, context: AIContext): { id: string } | 
 }
 
 
-export const default_idle: AINode<typeof TREE_NAME, DefaultNodeId> = {
+export const default_idle: AINode<'default', DefaultNodeId> = {
     nodeId: 'default_idle',
     actions: {
         execute(unit: Unit, context: AIContext): void {
-            const didTransition =
+            void (
                 tryTransitionToAttack(unit, context) ||
                 tryTransitionToSiegeDefendPoint(unit, context) ||
                 tryTransitionToFindLight(unit, context) ||
-                transitionToWander(unit);
+                transitionToWander(unit)
+            );
         },
     },
     edges: [],

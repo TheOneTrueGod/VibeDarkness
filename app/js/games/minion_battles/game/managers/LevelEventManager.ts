@@ -116,7 +116,7 @@ export class LevelEventManager {
 
         const terrainManager = this.ctx.terrainManager;
         if (!terrainManager) {
-            // eslint-disable-next-line no-console
+             
             console.error('spawnWave: terrainManager is null; skipping spawn wave.');
             return;
         }
@@ -141,7 +141,7 @@ export class LevelEventManager {
         const needsDarkness = evt.spawns.some((entry) => (entry.spawnBehaviour ?? 'edgeOfMap') === 'darkness');
         if (needsDarkness) {
             if (!this.ctx.lightLevelEnabled) {
-                // eslint-disable-next-line no-console
+                 
                 console.error('spawnWave: spawnBehaviour "darkness" requested but light system is disabled; skipping darkness spawns.');
             } else {
                 lightGrid = getLightGrid(this.ctx.globalLightLevel, width, height, this.ctx.getAllLightSources());
@@ -254,14 +254,14 @@ export class LevelEventManager {
 
         for (const { base, entry, behaviour, count } of otherEntries) {
             if (behaviour === 'darkness' && (!this.ctx.lightLevelEnabled || !lightGrid)) {
-                // eslint-disable-next-line no-console
+                 
                 console.error('spawnWave: spawnBehaviour "darkness" has no valid light grid; skipping this spawn entry.');
                 continue;
             }
 
             const candidates = collectCandidateTiles(behaviour === 'darkness' ? 'darkness' : 'anywhere', entry.spawnTarget);
             if (candidates.length === 0) {
-                // eslint-disable-next-line no-console
+                 
                 console.error(
                     `spawnWave: no valid tiles for behaviour "${behaviour}"` +
                         (entry.spawnTarget ? ` near (${entry.spawnTarget.x}, ${entry.spawnTarget.y})` : '') +
@@ -272,7 +272,7 @@ export class LevelEventManager {
 
             const spawnAttempts = Math.min(count, candidates.length);
             if (spawnAttempts < count) {
-                // eslint-disable-next-line no-console
+                 
                 console.error(
                     `spawnWave: requested ${count} spawns for behaviour "${behaviour}" but only found ${candidates.length} valid tiles.`,
                 );

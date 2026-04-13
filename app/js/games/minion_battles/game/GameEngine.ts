@@ -666,7 +666,6 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     private buildAIContext(): AIContext {
-        const engine = this;
         return {
             gameTick: this.gameTick,
             gameTime: this.gameTime,
@@ -677,12 +676,12 @@ export class GameEngine implements EngineContext {
             getLightSources: () => this.getLightSourcesForAI(),
             terrainManager: this.terrainManager,
             findGridPathForUnit: (unit, fromCol, fromRow, toCol, toRow) => {
-                if (!engine.terrainManager) return null;
+                if (!this.terrainManager) return null;
                 if (areEnemies(unit.teamId, 'player')) {
-                    const blocked = engine.getCrystalProtectedSet();
-                    return engine.terrainManager.findGridPathWithBlocked(fromCol, fromRow, toCol, toRow, blocked);
+                    const blocked = this.getCrystalProtectedSet();
+                    return this.terrainManager.findGridPathWithBlocked(fromCol, fromRow, toCol, toRow, blocked);
                 }
-                return engine.terrainManager.findGridPath(fromCol, fromRow, toCol, toRow);
+                return this.terrainManager.findGridPath(fromCol, fromRow, toCol, toRow);
             },
             queueOrder: (atTick, order) => this.queueOrder(atTick, order),
             emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId }),
@@ -702,7 +701,7 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     /** Process corrupting: units at destructible defend points deal 1 HP every 2 seconds and spawn orbs. */
-    private processCorrupting(dt: number): void {
+    private processCorrupting(_dt: number): void {
         const grid = this.terrainManager?.grid;
         if (!grid) return;
 

@@ -59,7 +59,7 @@ export type AINodeId = string;
 
 /** Edge condition: when true, transition to target node. Target must be in same tree. */
 export interface AIEdgeCondition<
-    TTreeName extends string,
+    _TTreeName extends string,
     TNodeIds extends AINodeId = AINodeId,
 > {
     /** Target node ID (must exist in same tree). */

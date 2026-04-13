@@ -55,7 +55,7 @@ export default function DebugConsole({
 }: DebugConsoleProps) {
     const [debugMode, setDebugMode] = useState(false);
     const [expanded, setExpanded] = useState(false);
-    const [tildeCount, setTildeCount] = useState(0);
+    const [, setTildeCount] = useState(0);
     const [activeTab, setActiveTab] = useState<TabId>(() => (inBattle && isAdmin ? 'battle-actions' : 'game-state'));
 
     const [mouseDebug, setMouseDebug] = useState<MouseDebugInfo | null>(null);

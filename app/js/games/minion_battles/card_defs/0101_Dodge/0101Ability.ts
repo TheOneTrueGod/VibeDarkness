@@ -1,5 +1,5 @@
 /**
- * Dodge - Warrior card. Move toward target up to 200px over 0.4s at constant rate.
+ * Dodge - Warrior card. Move toward target up to 140px over 0.4s at constant rate.
  * Spawns afterimages every 2 ticks during the dodge.
  */
 
@@ -19,7 +19,7 @@ import { getBodyColor, getCharacterSpriteKey } from '../../game/units/unit_defs/
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const DODGE_DURATION = 0.4;
-const DODGE_MAX_DISTANCE = 160;
+const DODGE_MAX_DISTANCE = 140;
 /** Step size (px) when testing passability along the dodge path to avoid moving into terrain. */
 const COLLISION_STEP = 4;
 
@@ -46,12 +46,6 @@ export const DodgeAbility: AbilityStatic = {
             start: 0,
             end: DODGE_DURATION,
             abilityPhase: AbilityPhase.Iframe,
-        },
-        {
-            id: 'cooldown',
-            start: DODGE_DURATION,
-            end: DODGE_DURATION + 0.8,
-            abilityPhase: AbilityPhase.Cooldown,
         },
     ],
     targets: [{ type: 'pixel', label: 'Direction to dodge' }] as TargetDef[],

@@ -2,7 +2,6 @@
  * EnemyArcherShot - Enemy ranged ability. Aims for 0.5s, locks target, shoots at 1.0s.
  */
 
-import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';

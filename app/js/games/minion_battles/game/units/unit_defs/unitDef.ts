@@ -38,13 +38,21 @@ export type UnitDeathEffectDef =
     | { type: typeof ParticleExplosion; image: EffectImageKey; count: number };
 
 /** Player unit character IDs backed by portraits. */
-const PLAYER_UNIT_IDS = ['warrior', 'mage', 'ranger', 'healer', 'rogue', 'necromancer'] as const;
+export type PlayerUnitId =
+    | 'warrior'
+    | 'mage'
+    | 'ranger'
+    | 'healer'
+    | 'rogue'
+    | 'necromancer';
 
 /** Enemy unit character IDs. */
-const ENEMY_UNIT_IDS = ['enemy_melee', 'enemy_ranged', 'dark_wolf', 'alpha_wolf', 'boar'] as const;
-
-export type PlayerUnitId = (typeof PLAYER_UNIT_IDS)[number];
-export type EnemyUnitId = (typeof ENEMY_UNIT_IDS)[number];
+export type EnemyUnitId =
+    | 'enemy_melee'
+    | 'enemy_ranged'
+    | 'dark_wolf'
+    | 'alpha_wolf'
+    | 'boar';
 export type UnitDefId = PlayerUnitId | EnemyUnitId;
 
 /** Body color, optional character sprite key, default HP/speed, size, and perception range (px) for AI. */
@@ -245,7 +253,7 @@ class DefaultUnitDef implements IUnitDef {
 const defaultUnitDef = new DefaultUnitDef();
 
 /** Get the unit def for a character ID. */
-export function getUnitDef(characterId: string): IUnitDef {
+export function getUnitDef(_characterId: string): IUnitDef {
     return defaultUnitDef;
 }
 

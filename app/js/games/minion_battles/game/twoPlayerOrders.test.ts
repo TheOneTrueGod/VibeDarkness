@@ -128,7 +128,7 @@ describe('Two-player order turns', () => {
     });
 
     it('completes a full turn cycle: p1 → p2 → p1', () => {
-        const { engine, unitP1, unitP2 } = createTwoPlayerEngine();
+        const { engine } = createTwoPlayerEngine();
 
         // --- Turn 1: Player 1 ---
         stepEngine(engine, 1);
@@ -150,7 +150,7 @@ describe('Two-player order turns', () => {
         // Wait cooldown is 1–3 seconds. Movement of 1 tile at 120 px/s on a 40px grid
         // completes quickly, so the cooldown should end after the 1-second minimum.
         // 1 second = 60 ticks. Add buffer for the unit update tick ordering.
-        const ticksAdvanced = stepEngine(engine, 300);
+        stepEngine(engine, 300);
 
         // --- Turn 2: One of the players should get a turn ---
         expect(engine.waitingForOrders).not.toBeNull();

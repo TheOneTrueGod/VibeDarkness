@@ -3,7 +3,6 @@
  * Health bonuses and ability modifiers are looked up here.
  */
 
-import { getDefaultHp } from '../game/units/unit_defs/unitDef';
 import { TRAINING_TREE_ID } from '../../../researchTrees/trees/training';
 
 /** Map of research node ID -> extra max health granted. */
