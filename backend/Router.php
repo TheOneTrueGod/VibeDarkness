@@ -21,6 +21,7 @@ use App\Http\Handlers\GetGameStateSnapshotHandler;
 use App\Http\Handlers\GetGameMinimalStateHandler;
 use App\Http\Handlers\SaveGameOrdersHandler;
 use App\Http\Handlers\GetGameOrdersHandler;
+use App\Http\Handlers\ResetGameToInitialSnapshotHandler;
 use App\Http\Handlers\NotFoundHandler;
 use App\Http\Handlers\PostMessageHandler;
 use App\Http\Handlers\StatsHandler;
@@ -80,6 +81,7 @@ class Router
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/state$#', SetLobbyStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/state$#', UpdateGameStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/snapshots$#', SaveGameStateSnapshotHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/reset-to-initial-snapshot$#', ResetGameToInitialSnapshotHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/snapshots/(\d+)$#', GetGameStateSnapshotHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/snapshots$#', GetGameStateSnapshotHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/minimal$#', GetGameMinimalStateHandler::class],

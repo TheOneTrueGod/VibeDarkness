@@ -320,6 +320,21 @@ export function getEnemyActionWindowFromIntervals(
  * Total duration (seconds) of the ability cycle: `max(end)` of normalized `abilityTimings`.
  * Every ability must define a non-empty `abilityTimings`.
  */
+/** Ability defs that may override timings per cast (e.g. research). */
+export type AbilityTimingsResolvable = {
+    id?: string;
+    abilityTimings: AbilityTimingEntry[];
+    getAbilityTimings?(caster?: unknown, gameState?: unknown): AbilityTimingEntry[];
+};
+
+export function resolveAbilityTimingEntries(
+    ability: AbilityTimingsResolvable,
+    caster?: unknown,
+    gameState?: unknown,
+): AbilityTimingEntry[] {
+    return ability.getAbilityTimings?.(caster, gameState) ?? ability.abilityTimings;
+}
+
 export function getTotalAbilityDuration(ability: {
     id?: string;
     abilityTimings: AbilityTimingEntry[];
@@ -328,6 +343,25 @@ export function getTotalAbilityDuration(ability: {
     if (entries.length === 0) {
         throw new Error(
             `getTotalAbilityDuration: ability "${ability.id ?? 'unknown'}" must have non-empty abilityTimings`,
+        );
+    }
+    const intervals = normalizeAbilityTimingsToIntervals(entries);
+    return getTotalAbilityDurationFromIntervals(intervals);
+}
+
+/**
+ * Cast duration using `getAbilityTimings(caster, gameState)` when defined, else `abilityTimings`.
+ * Use in simulation (e.g. `GameEngine`) so runtime overrides match the timeline.
+ */
+export function getTotalAbilityDurationForCast(
+    ability: AbilityTimingsResolvable,
+    caster?: unknown,
+    gameState?: unknown,
+): number {
+    const entries = resolveAbilityTimingEntries(ability, caster, gameState);
+    if (entries.length === 0) {
+        throw new Error(
+            `getTotalAbilityDurationForCast: ability "${ability.id ?? 'unknown'}" must have non-empty resolved timings`,
         );
     }
     const intervals = normalizeAbilityTimingsToIntervals(entries);

@@ -1,6 +1,11 @@
 import { AbilityState } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
-import { AbilityPhase } from '../../abilities/abilityTimings';
+import type {
+    AbilityStatic,
+    AbilityStateEntry,
+    AttackBlockedInfo,
+} from '../../abilities/Ability';
+import type { ActiveAbility } from '../../game/types';
+import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../../abilities/targetHelpers';
@@ -34,6 +39,89 @@ const MORE_ROCK_EXPLOSION_DAMAGE = 3;
 
 const MORE_POWER_EXPLOSION_DAMAGE = 8;
 const MORE_POWER_MAX_TARGETS = 4;
+
+/** One timeline cell for more-rock pattern `::::::=:::=...` (14 × slice = 1.4s total). */
+const MORE_ROCK_TIME_SLICE = 0.1;
+const MORE_ROCK_FIRST_THROW = 6 * MORE_ROCK_TIME_SLICE;
+const MORE_ROCK_SECOND_THROW = 10 * MORE_ROCK_TIME_SLICE;
+const MORE_ROCK_COOLDOWN_START = 11 * MORE_ROCK_TIME_SLICE;
+
+const BASE_MOVEMENT_PENALTY_UNTIL = 0.6;
+
+type ThrowChargedRockCastPayload = {
+    movementPenaltyUntil: number;
+};
+
+const THROW_CHARGED_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
+    {
+        id: 'windup',
+        start: 0,
+        end: 0.3,
+        abilityPhase: AbilityPhase.Windup,
+        timelineLabel: 'Startup',
+        timelineDescription: 'Winding up to throw the rock.',
+    },
+    {
+        id: 'flight',
+        start: 0.3,
+        end: 1.0,
+        abilityPhase: AbilityPhase.Active,
+        timelineLabel: 'Active',
+        timelineDescription: 'Rock is in flight and can hit enemies.',
+    },
+    {
+        id: 'recovery',
+        start: 1.0,
+        end: 1.6,
+        abilityPhase: AbilityPhase.Cooldown,
+        timelineLabel: 'Cooldown',
+        timelineDescription: 'Recovering after the throw.',
+    },
+];
+
+/** Timeline: `::::::=:::=...` (windup / throw / short windup / throw / cooldown). */
+const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
+    {
+        id: 'windup',
+        start: 0,
+        end: MORE_ROCK_FIRST_THROW,
+        abilityPhase: AbilityPhase.Windup,
+        timelineLabel: 'Startup',
+        timelineDescription: 'Winding up for the first throw.',
+    },
+    {
+        id: 'flight1',
+        start: MORE_ROCK_FIRST_THROW,
+        end: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
+        abilityPhase: AbilityPhase.Active,
+        timelineLabel: 'First throw',
+        timelineDescription: 'First rock is in flight.',
+    },
+    {
+        id: 'windup2',
+        start: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
+        end: MORE_ROCK_SECOND_THROW,
+        abilityPhase: AbilityPhase.Windup,
+        timelineLabel: 'Quick windup',
+        timelineDescription: 'Brief pause before the second throw.',
+    },
+    {
+        id: 'flight2',
+        start: MORE_ROCK_SECOND_THROW,
+        end: MORE_ROCK_SECOND_THROW + MORE_ROCK_TIME_SLICE,
+        abilityPhase: AbilityPhase.Active,
+        timelineLabel: 'Second throw',
+        timelineDescription: 'Second rock is in flight.',
+    },
+    {
+        id: 'recovery',
+        start: MORE_ROCK_COOLDOWN_START,
+        end: 14 * MORE_ROCK_TIME_SLICE,
+        abilityPhase: AbilityPhase.Cooldown,
+        timelineLabel: 'Cooldown',
+        timelineDescription: 'Recovering after both throws.',
+    },
+];
 
 const KNOCKBACK_MAGNITUDE = 24;
 const KNOCKBACK_POISE_DAMAGE = 3;
@@ -99,32 +187,12 @@ export const ThrowChargedRock: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: 0.3,
-    abilityTimings: [
-        {
-            id: 'windup',
-            start: 0,
-            end: 0.3,
-            abilityPhase: AbilityPhase.Windup,
-            timelineLabel: 'Startup',
-            timelineDescription: 'Winding up to throw the rock.',
-        },
-        {
-            id: 'flight',
-            start: 0.3,
-            end: 1.0,
-            abilityPhase: AbilityPhase.Active,
-            timelineLabel: 'Active',
-            timelineDescription: 'Rock is in flight and can hit enemies.',
-        },
-        {
-            id: 'recovery',
-            start: 1.0,
-            end: 1.6,
-            abilityPhase: AbilityPhase.Cooldown,
-            timelineLabel: 'Cooldown',
-            timelineDescription: 'Recovering after the throw.',
-        },
-    ],
+    abilityTimings: THROW_CHARGED_ROCK_BASE_TIMINGS,
+    getAbilityTimings(caster, gameState) {
+        const eng = gameState as GameEngineLike | undefined;
+        const research = getOwnerResearch(eng, caster);
+        return research.has('more_rock') ? THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS : THROW_CHARGED_ROCK_BASE_TIMINGS;
+    },
     targets: TWO_TARGETS,
     keywords: {
         exhaust: {
@@ -172,30 +240,53 @@ export const ThrowChargedRock: AbilityStatic = {
         ];
     },
 
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        const states: AbilityStateEntry[] = [];
-        if (currentTime < 0.6) {
-            states.push({ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } });
+    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
+        const eng = engine as GameEngineLike;
+        const research = getResearchSet(eng, caster.ownerId);
+        const hasMoreRock = research.has('more_rock');
+        const payload: ThrowChargedRockCastPayload = {
+            movementPenaltyUntil: hasMoreRock ? MORE_ROCK_SECOND_THROW : BASE_MOVEMENT_PENALTY_UNTIL,
+        };
+        active.castPayload = payload;
+    },
+
+    getAbilityStatesForActive(currentTime: number, active: ActiveAbility): AbilityStateEntry[] {
+        const payload = active.castPayload as ThrowChargedRockCastPayload | undefined;
+        const until = payload?.movementPenaltyUntil ?? BASE_MOVEMENT_PENALTY_UNTIL;
+        if (currentTime < until) {
+            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } }];
         }
-        return states;
+        return [];
+    },
+
+    getAbilityStates(currentTime: number): AbilityStateEntry[] {
+        if (currentTime < BASE_MOVEMENT_PENALTY_UNTIL) {
+            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } }];
+        }
+        return [];
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= 0.3 || currentTime < 0.3) return;
         const eng = engine as GameEngineLike;
         const research = getResearchSet(eng, caster.ownerId);
         const hasMoreRock = research.has('more_rock');
 
+        if (hasMoreRock) {
+            if (prevTime < MORE_ROCK_FIRST_THROW && currentTime >= MORE_ROCK_FIRST_THROW) {
+                const firstTarget = getPixelTargetPosition(targets, 0);
+                if (firstTarget) spawnProjectile(eng, caster, firstTarget);
+            }
+            if (prevTime < MORE_ROCK_SECOND_THROW && currentTime >= MORE_ROCK_SECOND_THROW) {
+                const secondTarget = getPixelTargetPosition(targets, 1);
+                if (secondTarget) spawnProjectile(eng, caster, secondTarget);
+            }
+            return;
+        }
+
+        if (prevTime >= 0.3 || currentTime < 0.3) return;
         const firstTarget = getPixelTargetPosition(targets, 0);
         if (!firstTarget) return;
         spawnProjectile(eng, caster, firstTarget);
-
-        if (hasMoreRock) {
-            const secondTarget = getPixelTargetPosition(targets, 1);
-            if (secondTarget) {
-                spawnProjectile(eng, caster, secondTarget);
-            }
-        }
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {

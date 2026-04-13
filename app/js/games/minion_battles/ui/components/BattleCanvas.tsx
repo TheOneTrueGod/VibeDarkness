@@ -318,7 +318,7 @@ export default function BattleCanvas({
     return (
         <div
             ref={containerRef}
-            className="flex-1 relative bg-dark-800 overflow-hidden max-w-5xl mx-auto w-full min-h-0"
+            className="min-h-0 w-full flex-1 overflow-hidden bg-dark-800 relative"
         >
             <canvas
                 ref={canvasRef}

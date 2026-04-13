@@ -2,8 +2,7 @@
  * Engine-level types for the battle system.
  */
 
-import type { TeamId } from './teams';
-import type { AISettings } from './units/Unit';
+import type { EnemySpawnDef } from '../storylines/types';
 
 /** Snapshot of engine timing state. */
 export interface GameTime {
@@ -100,21 +99,8 @@ export interface ResolvedTarget {
     position?: { x: number; y: number };
 }
 
-/** Configuration for spawning a unit at battle start. */
-export interface UnitSpawnConfig {
-    characterId: string;
-    name: string;
-    hp: number;
-    speed: number;
-    position: { x: number; y: number };
-    teamId: TeamId;
-    ownerId: string; // playerId or 'ai'
-    abilities: string[];
-    /** AI behavior settings (range preferences, etc.). */
-    aiSettings?: AISettings;
-    /** Visual/collision radius. Omitted uses unit default for that character. */
-    radius?: number;
-}
+/** Enemy placement at battle start: mission `EnemySpawnDef` plus owner. Baseline hp/speed resolved from unit defs when omitted. */
+export type UnitSpawnConfig = EnemySpawnDef & { ownerId: string };
 
 /** An ability actively being executed by a unit (tracked for tick-based effects). */
 export interface ActiveAbility {

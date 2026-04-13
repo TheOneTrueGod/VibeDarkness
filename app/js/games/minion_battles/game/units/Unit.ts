@@ -499,7 +499,9 @@ export class Unit extends GameObject {
             if (!ability) continue;
 
             const currentTime = gameTime - active.startTime;
-            const states = ability.getAbilityStates(currentTime);
+            const states =
+                ability.getAbilityStatesForActive?.(currentTime, active) ??
+                ability.getAbilityStates(currentTime);
 
             for (const entry of states) {
                 if (entry.state === AbilityState.MOVEMENT_PENALTY) {
@@ -521,7 +523,9 @@ export class Unit extends GameObject {
             if (!ability) continue;
 
             const currentTime = gameTime - active.startTime;
-            const states = ability.getAbilityStates(currentTime);
+            const states =
+                ability.getAbilityStatesForActive?.(currentTime, active) ??
+                ability.getAbilityStates(currentTime);
 
             for (const entry of states) {
                 if (entry.state === AbilityState.IFRAMES) return true;

@@ -19,7 +19,7 @@ import { createCardInstance, MAX_HAND_SIZE } from '../game/GameEngine';
 import { asCardDefId } from '../card_defs';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
-import { getDefaultHp } from '../game/units/unit_defs/unitDef';
+import { getDefaultHp, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
 
 const PLAYER_APPEARANCE_CHARACTER_IDS: readonly CharacterId[] = ['warrior', 'mage', 'ranger', 'healer'];
@@ -192,10 +192,12 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         const fallbackTreeId = missionConfig.aiController === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
         const enemySpawns: UnitSpawnConfig[] = this.enemies.map((e) => ({ ...e, ownerId: 'ai' }));
         for (const spawn of enemySpawns) {
+            const stats = resolveEnemySpawnStats(spawn);
             const unit = createUnitFromSpawnConfig(
                 {
                     ...spawn,
-                    hp: Math.round(spawn.hp * enemyHealthMult),
+                    hp: Math.round(stats.hp * enemyHealthMult),
+                    speed: stats.speed,
                     x: spawn.position.x,
                     y: spawn.position.y,
                     unitAITreeId: spawn.unitAITreeId ?? fallbackTreeId,

@@ -14,6 +14,8 @@ import type { PlayerState, AccountState, LobbyState, GameSidebarInfo } from '../
 import { LobbyClient } from '../LobbyClient';
 import { getGameById } from '../games/list';
 import { useGameSyncOptional } from '../contexts/GameSyncContext';
+import { useUser } from '../contexts/UserContext';
+import { useToast } from '../contexts/ToastContext';
 import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
 
 const MOBILE_BREAKPOINT = 768;
@@ -122,11 +124,14 @@ export default function GameScreen({
     pingEnabled = true,
     flashingPlayerIds,
 }: GameScreenProps) {
+    const { role } = useUser();
+    const { showToast } = useToast();
     const gameSync = useGameSyncOptional();
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
     const [gameLoadError, setGameLoadError] = useState<string | null>(null);
     const [gameSidebarInfo, setGameSidebarInfo] = useState<GameSidebarInfo | null>(null);
     const [battlePlayerListHidden, setBattlePlayerListHidden] = useState(false);
+    const [adminRestartLoading, setAdminRestartLoading] = useState(false);
 
     const effectiveLobbyPageState = gameSync?.gameState?.lobbyState ?? lobbyPageState;
     const effectiveLobbyGameId = gameSync?.gameState?.gameId ?? lobbyGameId;
@@ -150,6 +155,11 @@ export default function GameScreen({
     const gamePhase = effectiveLobbyGameData?.gamePhase ?? effectiveLobbyGameData?.game_phase;
     const inBattle = gamePhase === 'battle';
     const showResyncOverlay = isLoading || (isResyncing && inBattle);
+    const showAdminRestartBattle =
+        role === 'admin' &&
+        inBattle &&
+        effectiveLobbyGameType === 'minion_battles' &&
+        !!effectiveLobbyGameId;
 
     // Load game component dynamically when game type changes
     useEffect(() => {
@@ -206,6 +216,28 @@ export default function GameScreen({
     }, [chatMessages.length]);
 
     const closeChat = useCallback(() => setChatPanelOpen(false), []);
+
+    const handleAdminRestartBattle = useCallback(async () => {
+        if (!effectiveLobbyGameId || adminRestartLoading) return;
+        setAdminRestartLoading(true);
+        try {
+            await lobbyClient.resetBattleToInitialSnapshot(lobby.id, effectiveLobbyGameId, player.id);
+            gameSync?.requestResync();
+            showToast('Mission combat restarted from mission definition', 'success');
+        } catch (e) {
+            showToast(e instanceof Error ? e.message : 'Failed to reset battle', 'error');
+        } finally {
+            setAdminRestartLoading(false);
+        }
+    }, [
+        adminRestartLoading,
+        effectiveLobbyGameId,
+        gameSync,
+        lobby.id,
+        lobbyClient,
+        player.id,
+        showToast,
+    ]);
 
     useEffect(() => {
         if (chatPanelOpen) {
@@ -289,24 +321,45 @@ export default function GameScreen({
         );
     }, [account, gameSidebarInfo, effectivePlayers]);
 
-    const chatHeaderLeaveButton = (
-        <div className="flex items-center gap-2">
-            <button
-                type="button"
-                className="px-3 py-2 bg-primary text-secondary font-semibold text-xs rounded hover:bg-primary-hover transition-colors shrink-0"
-                onClick={onPing}
-                disabled={!pingEnabled}
-            >
-                Ping
-            </button>
-            <button
-                type="button"
-                className="px-4 py-2 bg-danger text-white font-semibold text-sm rounded hover:bg-danger-hover transition-colors shrink-0"
-                onClick={onLeave}
-            >
-                Leave
-            </button>
-        </div>
+    const chatHeaderLeaveButton = useMemo(
+        () => (
+            <div className="flex items-center gap-2">
+                {showAdminRestartBattle ? (
+                    <button
+                        type="button"
+                        className="px-3 py-2 bg-warning text-secondary font-semibold text-xs rounded hover:bg-warning/90 transition-colors shrink-0 disabled:opacity-50"
+                        onClick={handleAdminRestartBattle}
+                        disabled={adminRestartLoading}
+                    >
+                        {adminRestartLoading ? 'Restarting…' : 'Restart'}
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        className="px-3 py-2 bg-primary text-secondary font-semibold text-xs rounded hover:bg-primary-hover transition-colors shrink-0"
+                        onClick={onPing}
+                        disabled={!pingEnabled}
+                    >
+                        Ping
+                    </button>
+                )}
+                <button
+                    type="button"
+                    className="px-4 py-2 bg-danger text-white font-semibold text-sm rounded hover:bg-danger-hover transition-colors shrink-0"
+                    onClick={onLeave}
+                >
+                    Leave
+                </button>
+            </div>
+        ),
+        [
+            adminRestartLoading,
+            handleAdminRestartBattle,
+            onLeave,
+            onPing,
+            pingEnabled,
+            showAdminRestartBattle,
+        ],
     );
 
     const shouldHideBattlePlayerList =

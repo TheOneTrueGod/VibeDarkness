@@ -520,47 +520,65 @@ export default function BattlePhase({
     }
 
     return (
-        <div className="w-full h-full flex flex-col relative">
-            <RoundProgressBar
-                roundNumber={roundNumber}
-                progress={roundProgress}
-                isPaused={isPaused}
-            />
+        <div className="w-full h-full flex min-h-0 flex-col relative">
+            {/* Timeline rail + canvas stack share space above the hand; hand spans full width */}
+            <div className="flex min-h-0 flex-1 flex-row">
+                <aside
+                    className="flex w-64 shrink-0 min-h-0 flex-col border-r border-dark-700"
+                    aria-label="Action timeline"
+                >
+                    <BattleTimeline
+                        engine={engine}
+                        players={players}
+                        localPlayerId={playerId}
+                        layout="rail"
+                        previewAbility={isMyTurn ? selectedAbility : null}
+                    />
+                </aside>
 
-            <BattleCanvas
-                engine={engine}
-                camera={camera}
-                renderer={renderer}
-                targetingStateRef={targetingStateRef}
-                onCanvasClick={handleCanvasClick}
-                onCanvasRightClick={handleCanvasRightClick}
-                onCanvasMouseMove={handleCanvasMouseMove}
-            />
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                    <div className="relative flex min-h-0 flex-1 flex-col">
+                        <RoundProgressBar
+                            roundNumber={roundNumber}
+                            progress={roundProgress}
+                            isPaused={isPaused}
+                        />
+                        <BattleCanvas
+                            engine={engine}
+                            camera={camera}
+                            renderer={renderer}
+                            targetingStateRef={targetingStateRef}
+                            onCanvasClick={handleCanvasClick}
+                            onCanvasRightClick={handleCanvasRightClick}
+                            onCanvasMouseMove={handleCanvasMouseMove}
+                        />
+                    </div>
 
-            <TurnIndicator
-                state={
-                    !waitingForOrders ? 'playing' : isMyTurn ? 'your_turn' : 'ally_turn'
-                }
-                allyName={waitingForOrders && !isMyTurn ? players[waitingForOrders.ownerId]?.name ?? 'Player' : undefined}
-            />
+                    <TurnIndicator
+                        state={
+                            !waitingForOrders ? 'playing' : isMyTurn ? 'your_turn' : 'ally_turn'
+                        }
+                        allyName={
+                            waitingForOrders && !isMyTurn
+                                ? players[waitingForOrders.ownerId]?.name ?? 'Player'
+                                : undefined
+                        }
+                    />
+                </div>
+            </div>
 
-            <BattleTimeline
-                engine={engine}
-                players={players}
-                localPlayerId={playerId}
-                previewAbility={isMyTurn ? selectedAbility : null}
-            />
-
-            <CardHand
-                cards={myCards}
-                playerUnit={playerUnit}
-                isMyTurn={isMyTurn}
-                selectedCardIndex={selectedCardIndex}
-                onSelectCard={handleSelectCard}
-                onWait={handleWait}
-                gameState={engine}
-                gameTime={engine.gameTime}
-            />
+            <div className="shrink-0 min-w-0">
+                <CardHand
+                    cards={myCards}
+                    playerUnit={playerUnit}
+                    isMyTurn={isMyTurn}
+                    selectedCardIndex={selectedCardIndex}
+                    onSelectCard={handleSelectCard}
+                    onWait={handleWait}
+                    gameState={engine}
+                    gameTime={engine.gameTime}
+                />
+            </div>
         </div>
     );
 }

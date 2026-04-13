@@ -463,6 +463,61 @@ class LobbyManager
     }
 
     /**
+     * Admin-only: remove all battle checkpoint files and strip engine runtime fields from the
+     * persisted game JSON. Keeps lobby/story payload (mission votes, character selections, story
+     * choices, equipment maps, etc.) as after pre-mission story; sets gamePhase to battle so
+     * clients re-run mission.initializeGameState from the mission definition on next sync.
+     *
+     * @return array<string, mixed>|null Merged game state from getGameStateData, or null if the game file is missing
+     */
+    public function resetMinionBattleMissionAfterStory(string $lobbyId, string $gameId): ?array
+    {
+        $basePath = $this->getStoragePath() . '/' . $lobbyId;
+        $checkpointDir = $basePath . '/game_' . $gameId;
+        if (is_dir($checkpointDir)) {
+            foreach (scandir($checkpointDir) ?: [] as $file) {
+                if ($file === '.' || $file === '..') {
+                    continue;
+                }
+                $full = $checkpointDir . '/' . $file;
+                if (is_file($full)) {
+                    unlink($full);
+                }
+            }
+            @rmdir($checkpointDir);
+        }
+
+        $path = $basePath . '/game_' . $gameId . '.json';
+        if (!is_file($path)) {
+            return null;
+        }
+        $json = file_get_contents($path);
+        $data = json_decode($json !== false ? $json : 'null', true);
+        if (!is_array($data)) {
+            return null;
+        }
+
+        $stripKeys = [
+            'randomSeed', 'gameTime', 'gameTick', 'game_tick', 'roundNumber', 'round_number',
+            'snapshotIndex', 'snapshot_index', 'units', 'projectiles', 'effects', 'cards',
+            'waitingForOrders', 'waiting_for_orders', 'orders', 'specialTiles', 'special_tiles',
+            'aiControllerId', 'ai_controller_id', 'firedEventIndices', 'fired_event_indices',
+            'victoryCheckFirstEmitDone', 'victory_check_first_emit_done',
+            'continuousSpawnLastSpawnedAt', 'continuous_spawn_last_spawned_at', 'synchash',
+        ];
+        foreach ($stripKeys as $k) {
+            unset($data[$k]);
+        }
+
+        $data['gamePhase'] = 'battle';
+        unset($data['game_phase']);
+
+        $this->persistGameState($lobbyId, $gameId, $data);
+
+        return $this->getGameStateData($lobbyId, $gameId);
+    }
+
+    /**
      * Clean up inactive lobbies
      */
     public function cleanupInactiveLobbies(): int

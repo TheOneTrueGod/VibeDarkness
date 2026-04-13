@@ -224,7 +224,17 @@ export default function MinionBattlesGame({
         if (!gd || Object.keys(gd).length === 0) return;
 
         setLastGameStateFromServer(gd);
-        let newPhase = (gd.gamePhase ?? gd.game_phase) as GamePhase | undefined;
+
+        const explicitPhase = gd.gamePhase ?? gd.game_phase;
+        const hasServerBattleSnapshot =
+            Array.isArray(gd.units) &&
+            (gd.units as unknown[]).length > 0 &&
+            typeof (gd.gameTick ?? gd.game_tick) === 'number';
+        if (explicitPhase === 'battle' && !hasServerBattleSnapshot) {
+            setPhaseChangeGameState(null);
+        }
+
+        let newPhase = explicitPhase as GamePhase | undefined;
         if (!newPhase) {
             const hasBattleData =
                 (Array.isArray(gd.units) && gd.units.length > 0) ||

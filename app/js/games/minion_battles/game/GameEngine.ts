@@ -20,7 +20,7 @@ import { Projectile } from './projectiles/Projectile';
 import { Effect } from './effects/Effect';
 import { resetGameObjectIdCounter } from './GameObject';
 import { getAbility } from '../abilities/AbilityRegistry';
-import { getTotalAbilityDuration } from '../abilities/abilityTimings';
+import { getTotalAbilityDurationForCast } from '../abilities/abilityTimings';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
 import { areEnemies } from './teams';
@@ -632,7 +632,7 @@ export class GameEngine implements EngineContext {
 
                 ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime, active);
 
-                const totalDuration = getTotalAbilityDuration(ability);
+                const totalDuration = getTotalAbilityDurationForCast(ability, unit, this);
                 if (currentTime >= totalDuration) {
                     completed.push(i);
                 }

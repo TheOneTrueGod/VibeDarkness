@@ -4,7 +4,7 @@
  */
 
 import type { Unit } from '../game/units/Unit';
-import type { ActiveAbility } from '../game/types';
+import type { EventBus } from '../game/EventBus';
 import { getAbility } from './AbilityRegistry';
 import type { AbilityStatic } from './Ability';
 import type { AttackBlockedInfo } from './Ability';
@@ -116,8 +116,7 @@ export function executeBlock(
 export interface TryDamageOrBlockParams {
     engine: unknown;
     gameTime: number;
-    /** EventBus or any object with an emit method (for takeDamage). */
-    eventBus: unknown;
+    eventBus: EventBus;
     attackerX: number;
     attackerY: number;
     attackerId: string;

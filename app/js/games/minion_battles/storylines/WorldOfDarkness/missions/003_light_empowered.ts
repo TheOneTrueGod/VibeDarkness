@@ -13,7 +13,11 @@ import { ENEMY_DARK_WOLF, ENEMY_BOAR, ENEMY_RANGED } from '../../../constants/en
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { MAP_SEGMENT_50_50_CRYSTAL_CAVE, CAVE_CAMPFIRE, CRYSTAL_POINTS } from '../MapSegments/50_50_crystal_cave';
+import {
+    MAP_SEGMENT_50_50_CRYSTAL_CAVE,
+    CAVE_CAMPFIRE,
+    crystalSpecialTilesAt,
+} from '../MapSegments/50_50_crystal_cave';
 import {
     MAP_SEGMENT_50_49_CLIFF_PATH_NORTH,
     pointsOfInterest as cliffPathPOI,
@@ -122,41 +126,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         hp: 5,
         emitsLight: { lightAmount: 20, radius: 8 },
     },
-    {
-        defId: 'Crystal',
-        col: CRYSTAL_POINTS.crystal_1.col,
-        row: CRYSTAL_POINTS.crystal_1.row + BOTTOM_OFFSET_ROW,
-        emitsLight: { lightAmount: 20, radius: 3 },
-        protectRadius: 3,
-    },
-    {
-        defId: 'Crystal',
-        col: CRYSTAL_POINTS.crystal_2.col,
-        row: CRYSTAL_POINTS.crystal_2.row + BOTTOM_OFFSET_ROW,
-        emitsLight: { lightAmount: 20, radius: 3 },
-        protectRadius: 3,
-    },
-    {
-        defId: 'Crystal',
-        col: CRYSTAL_POINTS.crystal_3.col,
-        row: CRYSTAL_POINTS.crystal_3.row + BOTTOM_OFFSET_ROW,
-        emitsLight: { lightAmount: 20, radius: 3 },
-        protectRadius: 3,
-    },
-    {
-        defId: 'Crystal',
-        col: CRYSTAL_POINTS.crystal_4.col,
-        row: CRYSTAL_POINTS.crystal_4.row + BOTTOM_OFFSET_ROW,
-        emitsLight: { lightAmount: 20, radius: 3 },
-        protectRadius: 3,
-    },
-    {
-        defId: 'Crystal',
-        col: CRYSTAL_POINTS.crystal_5.col,
-        row: CRYSTAL_POINTS.crystal_5.row + BOTTOM_OFFSET_ROW,
-        emitsLight: { lightAmount: 20, radius: 3 },
-        protectRadius: 3,
-    },
+    ...crystalSpecialTilesAt(0, BOTTOM_OFFSET_ROW),
 ];
 
 const PRE_MISSION_STORY: PreMissionStoryDef = {

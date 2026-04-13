@@ -30,7 +30,9 @@ export interface SpawnTarget {
 export interface SpawnWaveEntry {
     characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf' | 'alpha_wolf' | 'boar';
     name?: string;
+    /** Override unit-def baseline HP when set. */
     hp?: number;
+    /** Override unit-def baseline speed when set. */
     speed?: number;
     aiSettings?: AISettings;
     /** Where to spawn this entry's units. Defaults to 'edgeOfMap'. */
@@ -125,10 +127,10 @@ export interface EnemySpawnDef {
     characterId: string;
     /** Display name for this enemy. */
     name: string;
-    /** Hit points. */
-    hp: number;
-    /** Movement speed in px/s. */
-    speed: number;
+    /** Hit points. Omitted → `getDefaultHp(characterId)` from unit defs. */
+    hp?: number;
+    /** Movement speed in px/s. Omitted → `getDefaultSpeed(characterId)`. */
+    speed?: number;
     /** Starting position in world space. */
     position: { x: number; y: number };
     /** Team this enemy belongs to. */

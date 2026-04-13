@@ -13,6 +13,7 @@ import type {
 } from '../../storylines/types';
 import { getEdgePositions } from '../../storylines/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../units/index';
+import { resolveEnemySpawnStats } from '../units/unit_defs/unitDef';
 import {
     ENEMY_MELEE,
     ENEMY_RANGED,
@@ -181,6 +182,7 @@ export class LevelEventManager {
                     const pos = positions[idx] ?? { x: 40, y: 40 };
                     idx++;
                     const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
+                    const stats = resolveEnemySpawnStats({ ...base, ...entry });
                     const config = {
                         ...base,
                         ...entry,
@@ -188,7 +190,8 @@ export class LevelEventManager {
                         x: pos.x,
                         y: pos.y,
                         ownerId: 'ai' as const,
-                        hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
+                        hp: Math.round(stats.hp * enemyHealthMult),
+                        speed: stats.speed,
                         unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                     };
                     const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus);
@@ -282,6 +285,7 @@ export class LevelEventManager {
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);
                 const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
+                const stats = resolveEnemySpawnStats({ ...base, ...entry });
                 const config = {
                     ...base,
                     ...entry,
@@ -289,7 +293,8 @@ export class LevelEventManager {
                     x: pos.x,
                     y: pos.y,
                     ownerId: 'ai' as const,
-                    hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
+                    hp: Math.round(stats.hp * enemyHealthMult),
+                    speed: stats.speed,
                     unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
                 const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus);
@@ -410,6 +415,7 @@ export class LevelEventManager {
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);
                 const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
+                const stats = resolveEnemySpawnStats({ ...base, ...entry });
                 const config = {
                     ...base,
                     ...entry,
@@ -417,7 +423,8 @@ export class LevelEventManager {
                     x: pos.x,
                     y: pos.y,
                     ownerId: 'ai' as const,
-                    hp: Math.round((entry.hp ?? base.hp) * enemyHealthMult),
+                    hp: Math.round(stats.hp * enemyHealthMult),
+                    speed: stats.speed,
                     unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
                 const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus);

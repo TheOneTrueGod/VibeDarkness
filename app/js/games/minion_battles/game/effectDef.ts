@@ -486,12 +486,42 @@ const pulseEffectDef: IEffectDef = {
     },
 };
 
+/** Howl shockwave: staggered expanding rings (sound pulse) for alpha wolf summon windup. */
+const howlShockwaveEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const progress = effect.progress;
+        const data = (effect.effectData ?? {}) as { colors?: number[] };
+        const colors = data.colors ?? [0xc4a574, 0x8b6914, 0x3d2914];
+        const rings = [
+            { delay: 0, growth: 100, width: 4, opacityMul: 1 },
+            { delay: 0.06, growth: 88, width: 3, opacityMul: 0.85 },
+            { delay: 0.12, growth: 76, width: 2, opacityMul: 0.7 },
+        ];
+        for (let i = 0; i < rings.length; i++) {
+            const r = rings[i]!;
+            const effectiveProgress =
+                progress <= r.delay ? 0 : Math.min(1, (progress - r.delay) / (1 - r.delay));
+            const radius = 12 + effectiveProgress * r.growth;
+            const alpha = Math.max(0, 0.92 * r.opacityMul * (1 - effectiveProgress * 1.05));
+            const color = colors[i] ?? 0x5d4e37;
+            g.circle(0, 0, radius);
+            g.stroke({ color, width: r.width, alpha });
+        }
+    },
+};
+
 const effectDefRegistry: Record<string, IEffectDef> = {
     default: defaultEffectDef,
     Afterimage: afterimageEffectDef,
     punch: punchEffectDef,
     ConeFlash: coneFlashEffectDef,
     Pulse: pulseEffectDef,
+    HowlShockwave: howlShockwaveEffectDef,
     bite: biteEffectDef,
     CorruptionOrb: corruptionOrbEffectDef,
     CorruptionProgressBar: corruptionProgressBarDef,

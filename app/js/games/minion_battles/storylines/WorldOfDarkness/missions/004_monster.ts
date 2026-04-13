@@ -1,7 +1,9 @@
 /**
  * Monster - Mission 4: Boss fight against the Alpha Wolf.
- * He waits outside the cave. When players leave and get within 400 units, he attacks.
- * Dark crystal creates a purple-tinted arena (7x7, light range 10).
+ * Map: 49_50 path (left) stitched to 50_50 crystal cave (right). The Alpha stands just inside
+ * the cave on the dark crystal (a few columns past the segment seam).
+ * When players leave and get within 400 units, he attacks.
+ * Dark crystal creates a purple-tinted arena (light range 10).
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
@@ -11,25 +13,30 @@ import { ENEMY_ALPHA_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { MAP_SEGMENT_50_50_CRYSTAL_CAVE } from '../MapSegments/50_50_crystal_cave';
-import { MAP_SEGMENT_50_49_CLIFF_PATH_NORTH } from '../MapSegments/50_49_cliff_path_north';
-import { MAP_SEGMENT_50_48_PATH_TOP } from '../MapSegments/50_48_path_top';
+import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
+import {
+    MAP_SEGMENT_50_50_CRYSTAL_CAVE,
+    CAVE_CAMPFIRE,
+    crystalSpecialTilesAt,
+} from '../MapSegments/50_50_crystal_cave';
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
-const SEGMENTS_VERTICAL = 3;
-const COLS = SEGMENT_COLS;
-const ROWS = SEGMENT_ROWS * SEGMENTS_VERTICAL;
+/** 49_50 left, 50_50 right (same horizontal layout as mission 2’s path + cave). */
+const COLS = SEGMENT_COLS * 2;
+const ROWS = SEGMENT_ROWS;
 const WORLD_WIDTH = COLS * CELL_SIZE;
 const WORLD_HEIGHT = ROWS * CELL_SIZE;
+
+/** Global column where segment 50_50 starts. */
+const RIGHT_SEGMENT_COL = SEGMENT_COLS;
 
 const _ = TerrainType.Grass;
 
 function createTerrain(): TerrainGrid {
-    const top = MAP_SEGMENT_50_48_PATH_TOP;
-    const middle = MAP_SEGMENT_50_49_CLIFF_PATH_NORTH;
-    const bottom = MAP_SEGMENT_50_50_CRYSTAL_CAVE;
-    const stitched = stitchTerrain([[top], [middle], [bottom]], _);
+    const left = MAP_SEGMENT_49_50_PATH_TO_CAVE;
+    const right = MAP_SEGMENT_50_50_CRYSTAL_CAVE;
+    const stitched = stitchTerrain([[left, right]], _);
     return TerrainGrid.createTerrainFromArray(COLS, ROWS, CELL_SIZE, stitched, _);
 }
 
@@ -40,10 +47,18 @@ function gridToWorld(col: number, row: number): { x: number; y: number } {
     };
 }
 
-/** Wolf and dark crystal: at cave entrance (south of cliff path, just above cave). */
-const WOLF_COL = 10;
-const WOLF_ROW = 43;
+/**
+ * Wolf and dark crystal: five columns into 50_50 from the 49_50 seam (was seam tile; shifted east).
+ */
+const WOLF_COL = SEGMENT_COLS - 1 + 5;
+const WOLF_ROW = 10;
 const WOLF_POSITION = gridToWorld(WOLF_COL, WOLF_ROW);
+
+/** Campfire deep in the crystal cave (50_50 local coords → global grid). */
+const CAVE_CAMPFIRE_GLOBAL = {
+    col: CAVE_CAMPFIRE.col + RIGHT_SEGMENT_COL,
+    row: CAVE_CAMPFIRE.row,
+} as const;
 
 const ENEMIES = [
     {
@@ -74,11 +89,12 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
     },
     {
         defId: 'Campfire',
-        col: 19,
-        row: 54,
+        col: CAVE_CAMPFIRE_GLOBAL.col,
+        row: CAVE_CAMPFIRE_GLOBAL.row,
         hp: 5,
         emitsLight: { lightAmount: 10, radius: 8 },
     },
+    ...crystalSpecialTilesAt(RIGHT_SEGMENT_COL),
 ];
 
 const PRE_MISSION_STORY: PreMissionStoryDef = {
@@ -138,15 +154,16 @@ export class MonsterMission extends BaseMissionDef {
     postMissionStory = POST_MISSION_STORY;
     lightLevelEnabled = true;
     globalLightLevel = -20;
+    /** Spawns in the back of the cave (50_50), same relative layout as prior single-column map. */
     playerSpawnPoints = [
-        { col: 17, row: 53 },
-        { col: 18, row: 53 },
-        { col: 19, row: 53 },
-        { col: 17, row: 54 },
-        { col: 19, row: 54 },
-        { col: 17, row: 55 },
-        { col: 18, row: 55 },
-        { col: 19, row: 55 },
+        { col: 17 + RIGHT_SEGMENT_COL, row: 9 },
+        { col: 18 + RIGHT_SEGMENT_COL, row: 9 },
+        { col: 19 + RIGHT_SEGMENT_COL, row: 9 },
+        { col: 17 + RIGHT_SEGMENT_COL, row: 10 },
+        { col: 19 + RIGHT_SEGMENT_COL, row: 10 },
+        { col: 17 + RIGHT_SEGMENT_COL, row: 11 },
+        { col: 18 + RIGHT_SEGMENT_COL, row: 11 },
+        { col: 19 + RIGHT_SEGMENT_COL, row: 11 },
     ];
 
     override initializeGameState(engine: Parameters<BaseMissionDef['initializeGameState']>[0], params: Parameters<BaseMissionDef['initializeGameState']>[1]): void {

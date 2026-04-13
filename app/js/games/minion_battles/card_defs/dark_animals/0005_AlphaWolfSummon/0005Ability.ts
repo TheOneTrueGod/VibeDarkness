@@ -23,6 +23,8 @@ import type { EventBus } from '../../../game/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}05`;
 const PREFIRE_TIME = 0.5;
+const HOWL_SHOCK_INTERVAL = 0.2;
+const HOWL_SHOCK_DURATION = 0.38;
 const PULSE_DURATION = 0.8;
 const WOLF_SPAWN_OFFSET = 35;
 const DARK_WOLF_BITE_ID = '0003';
@@ -102,11 +104,29 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
         _targets: ResolvedTarget[],
         prevTime: number,
         currentTime: number,
-        active?: ActiveAbility,
+        _active?: ActiveAbility,
     ): void {
-        if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
-        
         const eng = engine as GameEngineLike;
+        const timeEps = 1e-9;
+
+        // Repeated howl shockwaves during windup (every HOWL_SHOCK_INTERVAL s).
+        for (let t = 0; t < PREFIRE_TIME + timeEps; t += HOWL_SHOCK_INTERVAL) {
+            if (t + timeEps < prevTime) continue;
+            if (t > currentTime + timeEps) continue;
+            eng.addEffect(
+                new Effect({
+                    x: caster.x,
+                    y: caster.y,
+                    duration: HOWL_SHOCK_DURATION,
+                    effectType: 'HowlShockwave',
+                    effectData: {
+                        colors: [0xc4a574, 0x8b6914, 0x3d2914],
+                    },
+                }),
+            );
+        }
+
+        if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
 
         eng.addEffect(
             new Effect({

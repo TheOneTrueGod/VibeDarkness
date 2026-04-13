@@ -6,9 +6,11 @@ import {
     enteredTimingIds,
     exitedTimingIds,
     getTotalAbilityDuration,
+    getTotalAbilityDurationForCast,
     getTotalAbilityDurationFromIntervals,
     normalizeAbilityTimingsToIntervals,
     normalizeLegacyAbilityTimings,
+    resolveAbilityTimingEntries,
 } from './abilityTimings';
 
 describe('normalizeLegacyAbilityTimings', () => {
@@ -75,6 +77,21 @@ describe('getTotalAbilityDuration', () => {
         expect(() =>
             getTotalAbilityDuration({ id: 'empty', abilityTimings: [] }),
         ).toThrow(/non-empty abilityTimings/);
+    });
+});
+
+describe('resolveAbilityTimingEntries / getTotalAbilityDurationForCast', () => {
+    it('uses getAbilityTimings when provided', () => {
+        const ability = {
+            id: 'dyn',
+            abilityTimings: [{ id: 'a', start: 0, end: 1, abilityPhase: AbilityPhase.Windup }],
+            getAbilityTimings: () => [
+                { id: 'b', start: 0, end: 2.5, abilityPhase: AbilityPhase.Active },
+            ],
+        };
+        expect(resolveAbilityTimingEntries(ability)).toEqual(ability.getAbilityTimings());
+        expect(getTotalAbilityDuration(ability)).toBe(1);
+        expect(getTotalAbilityDurationForCast(ability)).toBe(2.5);
     });
 });
 

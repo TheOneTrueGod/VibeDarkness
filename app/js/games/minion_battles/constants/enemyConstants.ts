@@ -1,7 +1,6 @@
 /**
- * Canonical enemy types for Minion Battles.
- * Only two types: melee (ability 0002) and ranged (ability 0001).
- * Missions spread these and override name, hp, speed, position as needed.
+ * Canonical enemy templates for Minion Battles.
+ * Baseline hp/speed come from unit defs (`getDefaultHp` / `getDefaultSpeed`); missions may override.
  */
 
 import type { EnemySpawnDef } from '../storylines/types';
@@ -24,8 +23,6 @@ export function getEnemyHealthMultiplier(playerCount: number): number {
 export const ENEMY_MELEE: EnemySpawnDef = {
     characterId: 'enemy_melee',
     name: 'Melee Enemy',
-    hp: 12,
-    speed: 80,
     position: { x: 0, y: 0 },
     teamId: 'enemy',
     abilities: ['0002'],
@@ -36,32 +33,26 @@ export const ENEMY_MELEE: EnemySpawnDef = {
 export const ENEMY_RANGED: EnemySpawnDef = {
     characterId: 'enemy_ranged',
     name: 'Slime',
-    hp: 30,
-    speed: 60,
     position: { x: 0, y: 0 },
     teamId: 'enemy',
     abilities: ['0001'],
     aiSettings: { minRange: 100, maxRange: 200 },
 };
 
-/** Wolf: small fast enemy with DarkWolfBite (0003). 12 HP, 120 speed. */
+/** Wolf: small fast enemy with DarkWolfBite (0003). Baseline hp/speed in unit defs. */
 export const ENEMY_DARK_WOLF: EnemySpawnDef = {
     characterId: 'dark_wolf',
     name: 'Wolf',
-    hp: 12,
-    speed: 120,
     position: { x: 0, y: 0 },
     teamId: 'enemy',
     abilities: ['0003'],
     aiSettings: { minRange: 0, maxRange: 80 },
 };
 
-/** Boar: like wolf but bigger, double HP, Charge (0006). Large (22px), 24 HP, speed 100. Uses aggroWander AI. */
+/** Boar: Charge (0006), radius 22, aggroWander. Baseline hp/speed in unit defs. */
 export const ENEMY_BOAR: EnemySpawnDef = {
     characterId: 'boar',
     name: 'Boar',
-    hp: 24,
-    speed: 100,
     position: { x: 0, y: 0 },
     teamId: 'enemy',
     abilities: ['0006'],
@@ -70,12 +61,10 @@ export const ENEMY_BOAR: EnemySpawnDef = {
     unitAITreeId: 'aggroWander',
 };
 
-/** Alpha Wolf: boss with 200 HP, Claw (0004), Summon (0005), and Charge (0007). Extra Large (26px), speed 135. */
+/** Alpha Wolf: boss — baseline hp/speed in unit defs. Claw (0004), Summon (0005), Charge (0007). radius 26. */
 export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     characterId: 'alpha_wolf',
     name: 'Alpha Wolf',
-    hp: 200,
-    speed: 135,
     position: { x: 0, y: 0 },
     teamId: 'enemy',
     abilities: ['0004', '0005', '0007'],

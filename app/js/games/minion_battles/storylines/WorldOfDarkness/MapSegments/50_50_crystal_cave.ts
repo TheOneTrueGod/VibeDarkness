@@ -1,10 +1,11 @@
 /**
  * 50_50 Crystal Cave - Reusable map segment.
  * Rocky cave (backwards C shape) with opening at left, crystals on right wall.
- * Used in mission 2 (Towards the Light) and mission 3 (Light Empowered).
+ * Used in mission 2 (Towards the Light), mission 3 (Light Empowered), mission 4 (Monster).
  */
 
 import { TerrainType } from '../../../terrain/TerrainType';
+import type { SpecialTilePlacement } from '../../types';
 
 const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
@@ -43,7 +44,7 @@ export const pointsOfInterest = {
     campfire: CAVE_CAMPFIRE,
 } as const;
 
-/** Points of interest for crystal placements (same as mission 2). */
+/** Points of interest for crystal placements (segment-local grid). */
 export const CRYSTAL_POINTS = {
     crystal_1: { row: 7, col: 16 },
     crystal_2: { row: 13, col: 16 },
@@ -51,3 +52,31 @@ export const CRYSTAL_POINTS = {
     crystal_4: { row: 17, col: 17 },
     crystal_5: { row: 13, col: 20 },
 } as const;
+
+/** Shared gameplay fields for the five cave crystals (position added per mission via offset). */
+export const CRYSTAL_TILE_DEFAULTS: Omit<SpecialTilePlacement, 'col' | 'row'> = {
+    defId: 'Crystal',
+    emitsLight: { lightAmount: 20, radius: 3 },
+    protectRadius: 3,
+};
+
+const CRYSTAL_POSITIONS_ORDERED = [
+    CRYSTAL_POINTS.crystal_1,
+    CRYSTAL_POINTS.crystal_2,
+    CRYSTAL_POINTS.crystal_3,
+    CRYSTAL_POINTS.crystal_4,
+    CRYSTAL_POINTS.crystal_5,
+] as const;
+
+/**
+ * Full special-tile placements for the standard cave crystals, shifted onto the mission grid.
+ * @param colOffset — e.g. horizontal index where this 22-wide segment starts
+ * @param rowOffset — e.g. vertical index where this segment starts (stacked maps)
+ */
+export function crystalSpecialTilesAt(colOffset: number, rowOffset = 0): SpecialTilePlacement[] {
+    return CRYSTAL_POSITIONS_ORDERED.map(({ col, row }) => ({
+        ...CRYSTAL_TILE_DEFAULTS,
+        col: col + colOffset,
+        row: row + rowOffset,
+    }));
+}

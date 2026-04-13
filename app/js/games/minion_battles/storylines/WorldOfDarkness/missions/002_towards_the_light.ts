@@ -17,7 +17,11 @@ import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainG
 import { TerrainType } from '../../../terrain/TerrainType';
 import { MAP_SEGMENT_48_50_WAKEUP } from '../MapSegments/48_50_wakeup';
 import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
-import { MAP_SEGMENT_50_50_CRYSTAL_CAVE, CAVE_CAMPFIRE } from '../MapSegments/50_50_crystal_cave';
+import {
+    MAP_SEGMENT_50_50_CRYSTAL_CAVE,
+    CAVE_CAMPFIRE,
+    crystalSpecialTilesAt,
+} from '../MapSegments/50_50_crystal_cave';
 
 const COLS = 66;
 const ROWS = 22;
@@ -107,12 +111,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         hp: 5,
         emitsLight: { lightAmount: 10, radius: 8 },
     },
-    // Crystals tucked against the inner right wall of the backwards-C cave
-    { defId: 'Crystal', col: 60, row: 7, emitsLight: { lightAmount: 20, radius: 3 }, protectRadius: 3 },
-    { defId: 'Crystal', col: 60, row: 13, emitsLight: { lightAmount: 20, radius: 3 }, protectRadius: 3 },
-    { defId: 'Crystal', col: 62, row: 6, emitsLight: { lightAmount: 20, radius: 3 }, protectRadius: 3 },
-    { defId: 'Crystal', col: 61, row: 17, emitsLight: { lightAmount: 20, radius: 3 }, protectRadius: 3 },
-    { defId: 'Crystal', col: 65, row: 13, emitsLight: { lightAmount: 20, radius: 3 }, protectRadius: 3 },
+    ...crystalSpecialTilesAt(RIGHT_OFFSET_COL),
 ];
 
 const PRE_MISSION_STORY: PreMissionStoryDef = {

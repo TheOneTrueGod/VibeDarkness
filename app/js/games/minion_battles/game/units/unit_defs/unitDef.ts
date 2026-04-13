@@ -60,15 +60,53 @@ const UNIT_DEFS: Record<
         radius?: number;
         perceptionRange?: number;
         deathEffect?: UnitDeathEffectDef;
+        /** Short flavor text for battle UI (e.g. timeline hover). */
+        uiDescription?: string;
     }
 > = {
     // Player characters: slightly reduced default move speed for tighter control.
-    warrior: { bodyColor: 0x8b0000, hp: 50, speed: 90, size: 'Large' },
-    mage: { bodyColor: 0x4a148c, hp: 50, speed: 90, size: 'Small' },
-    ranger: { bodyColor: 0x2e7d32, hp: 50, speed: 90, size: 'Medium' },
-    healer: { bodyColor: 0xf5f5dc, hp: 50, speed: 90, size: 'Medium' },
-    rogue: { bodyColor: 0x2c2c2c, hp: 50, speed: 90, size: 'Small' },
-    necromancer: { bodyColor: 0x1a1a2e, hp: 50, speed: 90, size: 'Medium' },
+    warrior: {
+        bodyColor: 0x8b0000,
+        hp: 50,
+        speed: 90,
+        size: 'Large',
+        uiDescription: 'Frontline fighter who closes distance and soaks hits.',
+    },
+    mage: {
+        bodyColor: 0x4a148c,
+        hp: 50,
+        speed: 90,
+        size: 'Small',
+        uiDescription: 'Arcane caster focused on burst and control.',
+    },
+    ranger: {
+        bodyColor: 0x2e7d32,
+        hp: 50,
+        speed: 90,
+        size: 'Medium',
+        uiDescription: 'Keeps range and chips away from a safe distance.',
+    },
+    healer: {
+        bodyColor: 0xf5f5dc,
+        hp: 50,
+        speed: 90,
+        size: 'Medium',
+        uiDescription: 'Supports the party with recovery and buffs.',
+    },
+    rogue: {
+        bodyColor: 0x2c2c2c,
+        hp: 50,
+        speed: 90,
+        size: 'Small',
+        uiDescription: 'Fast skirmisher looking for openings.',
+    },
+    necromancer: {
+        bodyColor: 0x1a1a2e,
+        hp: 50,
+        speed: 90,
+        size: 'Medium',
+        uiDescription: 'Dark summoner who trades vitality for power.',
+    },
     // Enemies
     enemy_melee: {
         bodyColor: 0x555555,
@@ -77,6 +115,7 @@ const UNIT_DEFS: Record<
         speed: 80,
         size: 'Small',
         perceptionRange: 250,
+        uiDescription: 'Basic melee grunt that rushes into combat.',
     },
     enemy_ranged: {
         bodyColor: 0x555555,
@@ -85,6 +124,7 @@ const UNIT_DEFS: Record<
         speed: 60,
         size: 'Medium',
         perceptionRange: 400,
+        uiDescription: 'Stays back and harasses with ranged attacks.',
     },
     dark_wolf: {
         bodyColor: 0x1a1a2e,
@@ -94,15 +134,17 @@ const UNIT_DEFS: Record<
         size: 'Extra Small',
         perceptionRange: 300,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 8 },
+        uiDescription: 'Fast predator that lunges in for a quick bite.',
     },
     alpha_wolf: {
         bodyColor: 0x1a1a2e,
         characterSpriteKey: 'alpha_wolf',
-        hp: 200,
+        hp: 140,
         speed: 135,
         size: 'Extra Large',
         perceptionRange: 350,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 12 },
+        uiDescription: 'Pack leader with heavy claws and howling support.',
     },
     boar: {
         bodyColor: 0x4a3728,
@@ -112,6 +154,7 @@ const UNIT_DEFS: Record<
         size: 'Large',
         perceptionRange: 280,
         deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 10 },
+        uiDescription: 'Tough charger that bowls through the front line.',
     },
 };
 
@@ -224,10 +267,30 @@ export function getDefaultHp(characterId: string): number {
     return def?.hp ?? 50;
 }
 
+/** Battle UI blurb for tooltips (timeline hover, etc.). Placeholder when not configured. */
+export function getUnitUiDescription(characterId: string): string {
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.uiDescription ?? 'No unit description yet.';
+}
+
 /** Default speed for a character ID. Used when creating units without explicit speed. Returns 100 if not configured. */
 export function getDefaultSpeed(characterId: string): number {
     const def = UNIT_DEFS[characterId as UnitDefId];
     return def?.speed ?? 100;
+}
+
+/**
+ * Single source of truth for enemy baseline hp/speed: unit defs, with optional mission/spawn overrides.
+ */
+export function resolveEnemySpawnStats(partial: {
+    characterId: string;
+    hp?: number;
+    speed?: number;
+}): { hp: number; speed: number } {
+    return {
+        hp: partial.hp ?? getDefaultHp(partial.characterId),
+        speed: partial.speed ?? getDefaultSpeed(partial.characterId),
+    };
 }
 
 /** Perception range in px for AI (line-of-sight targeting). Returns 300 if not configured. */

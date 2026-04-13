@@ -489,6 +489,17 @@ export class LobbyClient {
         });
     }
 
+    /**
+     * Admin only: clear battle checkpoints and engine fields on the server so post-story lobby
+     * state remains but the mission combat is re-created from the mission definition on resync.
+     */
+    async resetBattleToInitialSnapshot(lobbyId: string, gameId: string, playerId: string): Promise<void> {
+        await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/reset-to-initial-snapshot`, {
+            method: 'POST',
+            body: JSON.stringify({ playerId }),
+        });
+    }
+
     /** Get a checkpoint by game tick, or latest if gameTick is undefined. */
     async getGameStateSnapshot(
         lobbyId: string,

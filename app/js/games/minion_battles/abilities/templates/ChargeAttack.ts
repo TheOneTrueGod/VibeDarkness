@@ -6,7 +6,7 @@ import type { Unit } from '../../game/units/Unit';
 import type { TargetDef } from '../targeting';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import { asCardDefId, type CardDef } from '../../card_defs/types';
-import { LungeMovement } from '../behaviors/LungeMovement';
+import { computeLungeChargeDirection, LungeMovement } from '../behaviors/LungeMovement';
 import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';
 import { Effect } from '../../game/effects/Effect';
 import { tryDamageOrBlock } from '../blockingHelpers';
@@ -20,6 +20,12 @@ export interface ChargeNote {
     targetY: number;
     lungeStartX: number;
     lungeStartY: number;
+    /** Fixed lunge direction (aim + jitter) from cast start; omitted in older saves. */
+    chargeDirX?: number;
+    chargeDirY?: number;
+    /** World origin for the lunge segment; set on first tick after windup (live caster position). */
+    lungeOriginX?: number;
+    lungeOriginY?: number;
     hitTargetIds: string[];
 }
 
@@ -132,6 +138,11 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 
         if (activeTimingIds(currentTime, this.abilityTimings).has('windup')) return;
 
+        if (note.lungeOriginX === undefined) {
+            note.lungeOriginX = caster.x;
+            note.lungeOriginY = caster.y;
+        }
+
         const segment = this.lunge.advance(caster, note, prevTime, currentTime, eng);
         this.damageEnemiesInPath(eng, caster, note, segment);
 
@@ -153,16 +164,27 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
         const note = this.getChargeNote(caster, activeAbility);
         if (!note) return;
 
-        const { dirX: ux, dirY: uy, dist } = getDirectionFromTo(
-            note.lungeStartX, note.lungeStartY, note.targetX, note.targetY,
-        );
-        if (dist === 0) return;
+        let ux: number;
+        let uy: number;
+        if (note.chargeDirX !== undefined && note.chargeDirY !== undefined) {
+            ux = note.chargeDirX;
+            uy = note.chargeDirY;
+        } else {
+            const d = getDirectionFromTo(
+                note.lungeStartX, note.lungeStartY, note.targetX, note.targetY,
+            );
+            if (d.dist === 0) return;
+            ux = d.dirX;
+            uy = d.dirY;
+        }
 
         const lineLen = this.config.baseMaxRange + caster.radius;
-        const endX = note.lungeStartX + ux * lineLen;
-        const endY = note.lungeStartY + uy * lineLen;
+        const ox = caster.x;
+        const oy = caster.y;
+        const endX = ox + ux * lineLen;
+        const endY = oy + uy * lineLen;
 
-        gr.moveTo(note.lungeStartX, note.lungeStartY);
+        gr.moveTo(ox, oy);
         gr.lineTo(endX, endY);
         gr.stroke({
             color: this.config.preview.color,
@@ -193,12 +215,21 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
         if (targetDef?.type === 'unit' && targetDef.unitId) {
             const targetUnit = eng.getUnit(targetDef.unitId);
             if (targetUnit?.isAlive()) {
+                const lungeStartX = caster.x;
+                const lungeStartY = caster.y;
+                const targetX = targetUnit.x;
+                const targetY = targetUnit.y;
+                const { dirX: chargeDirX, dirY: chargeDirY } = computeLungeChargeDirection(
+                    caster, lungeStartX, lungeStartY, targetX, targetY,
+                );
                 return {
                     targetId: targetDef.unitId,
-                    targetX: targetUnit.x,
-                    targetY: targetUnit.y,
-                    lungeStartX: caster.x,
-                    lungeStartY: caster.y,
+                    targetX,
+                    targetY,
+                    lungeStartX,
+                    lungeStartY,
+                    chargeDirX,
+                    chargeDirY,
                     hitTargetIds: [],
                 };
             }

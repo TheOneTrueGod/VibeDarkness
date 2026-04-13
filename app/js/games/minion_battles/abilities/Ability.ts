@@ -110,6 +110,12 @@ export interface AbilityStatic {
     readonly abilityTimings: AbilityTimingEntry[];
 
     /**
+     * Optional. When provided (with `caster` / `gameState`), overrides `abilityTimings` for that cast
+     * (timeline, `getTotalAbilityDurationForCast`). Registry tests and static fallbacks still use `abilityTimings`.
+     */
+    getAbilityTimings?(caster?: Unit, gameState?: unknown): AbilityTimingEntry[];
+
+    /**
      * Get tooltip lines for the card UI. Use {value} in a line for dynamic parts
      * (e.g. "Hit {1} enemy for {8} damage"). Dynamic segments are rendered in a distinct colour.
      */
@@ -156,6 +162,12 @@ export interface AbilityStatic {
      * `abilityTimings`, regardless of whether this method returns an empty list earlier or later.
      */
     getAbilityStates(currentTime: number): AbilityStateEntry[];
+
+    /**
+     * Optional. When implemented, `Unit` prefers this over `getAbilityStates` so per-cast data
+     * (e.g. `castPayload` from `beginActiveCast`) can affect movement penalties and similar.
+     */
+    getAbilityStatesForActive?(currentTime: number, active: ActiveAbility): AbilityStateEntry[];
 
     /**
      * Optional. Render a preview while the ability is active (e.g. enemy telegraph).
