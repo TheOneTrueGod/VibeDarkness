@@ -19,7 +19,6 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
-import RoundProgressBar from '../components/RoundProgressBar';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
 import type { MessageEntry } from '../../../../components/Chat';
@@ -534,11 +533,6 @@ export default function BattlePhase({
 
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="relative flex min-h-0 flex-1 flex-col">
-                        <RoundProgressBar
-                            roundNumber={roundNumber}
-                            progress={roundProgress}
-                            isPaused={isPaused}
-                        />
                         <BattleCanvas
                             engine={engine}
                             camera={camera}
@@ -568,6 +562,9 @@ export default function BattlePhase({
                     abilityIds={myAbilityIds}
                     playerUnit={playerUnit}
                     isMyTurn={isMyTurn}
+                    roundNumber={roundNumber}
+                    roundProgress={roundProgress}
+                    isPaused={isPaused}
                     selectedCardIndex={selectedCardIndex}
                     onSelectCard={handleSelectCard}
                     onWait={handleWait}

@@ -186,6 +186,7 @@ Player and AI inputs are represented as **`BattleOrder`** records (`unitId`, `ab
 - Use React for UI elements.
 - React components live in `ui/components/` (reusable UI) and `ui/pages/` (full-screen / phase-level surfaces).
 - Do not put game logic in React. React should call into the domain (commands, facades, or engine APIs) to change state.
+- Recovery pulse particles (round marker -> cards that regained charges) are implemented in `ui/components/CardHand.tsx` via the `pulseParticles` state and render loop; this is the place to adjust count, trajectory, and timing.
 
 ### Battle canvas (Pixi / WebGL)
 

@@ -20,11 +20,11 @@ import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
 import { getDefaultHp, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
-import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
+import { applyStickSwordResearchToAbilityRuntime, initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
 import { Ammo } from '../resources/Ammo';
 
 const PLAYER_APPEARANCE_CHARACTER_IDS: readonly CharacterId[] = ['warrior', 'mage', 'ranger', 'healer'];
-const AMMO_ABILITIES = new Set(['0105', '0203', '0204', '0205']);
+const AMMO_ABILITIES = new Set(['0105', '0112', '0203', '0204', '0205']);
 
 function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
     const needsAmmo = unit.abilities.some((abilityId) => AMMO_ABILITIES.has(abilityId));
@@ -167,6 +167,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 params.eventBus,
             );
             initializeAbilityRuntimeForUnit(unit);
+            applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
             engine.addUnit(unit);
         }

@@ -1,12 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { AccountState, CampaignResources } from '../../../../types';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
-import type { ResearchTreeDef } from '../../../../researchTrees/types';
+import type { ResearchTreeDef, Requirement } from '../../../../researchTrees/types';
 import {
     canResearchNode,
     computeEffectiveResourcesForTree,
+    meetsRequirement,
 } from '../../../../researchTrees/evaluator';
 import ResourcePill, { campaignResourceGains, RESOURCE_ORDER } from '../../../../components/ResourcePill';
+import { getItemDef } from '../../character_defs/items';
+
+function accountKnowledgeKeys(requirements: Requirement[]): string[] {
+    const keys: string[] = [];
+    for (const r of requirements) {
+        if (r.type === 'accountKnowledge') keys.push(r.key);
+    }
+    return keys;
+}
+
+function equippedItemRequirementLabels(requirements: Requirement[]): { itemId: string; label: string }[] {
+    const out: { itemId: string; label: string }[] = [];
+    for (const r of requirements) {
+        if (r.type === 'characterHasEquippedItem') {
+            const def = getItemDef(r.itemId);
+            out.push({ itemId: r.itemId, label: def?.name ?? r.itemId });
+        }
+    }
+    return out;
+}
 
 interface ResearchTreePanelProps {
     availableTrees: ResearchTreeDef[];
@@ -24,6 +45,8 @@ interface ResearchTreePanelProps {
 /** Scrollable list of research trees for sidebar use. */
 export interface ResearchTreeListProps {
     availableTrees: ResearchTreeDef[];
+    /** When set (e.g. debug “show all”), these tree rows render at 50% opacity — not normally visible for this character. */
+    dimmedTreeIds?: ReadonlySet<string>;
     selectedTreeId: string | null;
     onSelectTree: (treeId: string) => void;
     researchTrees: Record<string, string[]>;
@@ -31,6 +54,7 @@ export interface ResearchTreeListProps {
 
 export function ResearchTreeList({
     availableTrees,
+    dimmedTreeIds,
     selectedTreeId,
     onSelectTree,
     researchTrees,
@@ -44,12 +68,15 @@ export function ResearchTreeList({
                 const purchasedCount = (researchTrees[t.id] ?? []).length;
                 const isSelected = t.id === activeTreeId;
                 const hasPurchases = purchasedCount >= 1;
+                const dimmed = dimmedTreeIds?.has(t.id) ?? false;
                 return (
                     <button
                         key={t.id}
                         type="button"
                         onClick={() => onSelectTree(t.id)}
                         className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors shrink-0 ${
+                            dimmed ? 'opacity-80 ' : ''
+                        }${
                             isSelected
                                 ? 'border-primary bg-surface-light text-white'
                                 : hasPurchases
@@ -68,6 +95,8 @@ export function ResearchTreeList({
 /** Main content area for a selected research tree. */
 export interface ResearchTreeContentProps {
     tree: ResearchTreeDef;
+    /** When true, entire panel is drawn at 50% opacity (tree not normally visible for this character). */
+    dimmed?: boolean;
     account: AccountState | null;
     character: CampaignCharacter;
     equipment: string[];
@@ -82,6 +111,7 @@ export interface ResearchTreeContentProps {
 
 export function ResearchTreeContent({
     tree,
+    dimmed = false,
     account,
     character,
     equipment,
@@ -115,6 +145,14 @@ export function ResearchTreeContent({
     const effective = computeEffectiveResourcesForTree(tree, ctx);
     const researchedSet = new Set(researchTrees[tree.id] ?? []);
 
+    const researchedByTreeId = useMemo(() => {
+        const out: Record<string, Set<string>> = {};
+        for (const [treeId, nodeIds] of Object.entries(researchTrees)) {
+            out[treeId] = new Set(Array.isArray(nodeIds) ? nodeIds : []);
+        }
+        return out;
+    }, [researchTrees]);
+
     const bounds = tree.nodes.reduce(
         (acc, n) => {
             const { x, y } = n.position;
@@ -142,7 +180,7 @@ export function ResearchTreeContent({
     };
 
     return (
-        <div className="space-y-4">
+        <div className={`space-y-4 ${dimmed ? 'opacity-75' : ''}`}>
             <div className="rounded-lg border border-border-custom bg-surface-light p-4">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-col items-start gap-2">
@@ -229,38 +267,87 @@ export function ResearchTreeContent({
                             const enabled = !researched && check.ok;
                             const costGains = campaignResourceGains(n.cost);
                             const pos = mapPos(n.position);
+                            const knowledgeKeys = accountKnowledgeKeys(n.requirements);
+                            const itemReqs = equippedItemRequirementLabels(n.requirements);
+                            const hasReqBadges = knowledgeKeys.length > 0 || itemReqs.length > 0;
                             return (
-                                <button
+                                <div
                                     key={n.id}
-                                    type="button"
-                                    onClick={() => enabled && onResearchNode(tree.id, n.id)}
-                                    className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-lg border px-3 py-2 text-left w-[180px] ${
-                                        researched
-                                            ? 'bg-green-900 border-green-700 text-white'
-                                            : enabled
-                                              ? 'bg-surface-light border-primary text-white hover:bg-surface'
-                                              : 'bg-surface-light border-border-custom text-muted opacity-80'
-                                    }`}
+                                    className="absolute -translate-x-1/2 -translate-y-1/2"
                                     style={{ left: pos.x, top: pos.y }}
-                                    disabled={!enabled}
-                                    title={researched ? 'Researched' : enabled ? 'Click to research' : check.missing.join(', ')}
                                 >
-                                    <div className="text-sm font-semibold truncate">{n.title}</div>
-                                    <div className="text-[11px] text-muted flex flex-wrap items-center gap-2">
-                                        {costGains.length > 0 ? (
-                                            costGains.map(({ resource, count }) => (
-                                                <ResourcePill
-                                                    key={`${n.id}-${resource}`}
-                                                    resource={resource}
-                                                    count={count}
-                                                    className="text-[11px]"
-                                                />
-                                            ))
-                                        ) : (
-                                            <span>Free</span>
+                                    <div className="relative">
+                                        {hasReqBadges && (
+                                            <div className="absolute right-full top-0 z-10 flex max-w-[150px] flex-col gap-1 items-end pr-2">
+                                                {knowledgeKeys.map((key) => {
+                                                    const req = n.requirements.find(
+                                                        (r): r is Extract<Requirement, { type: 'accountKnowledge' }> =>
+                                                            r.type === 'accountKnowledge' && r.key === key,
+                                                    );
+                                                    const satisfied = req ? meetsRequirement(req, ctx, researchedByTreeId) : false;
+                                                    return (
+                                                        <span
+                                                            key={`${n.id}-know-${key}`}
+                                                            className={`rounded border border-amber-500/35 bg-amber-950/50 px-1.5 py-px text-[10px] font-medium text-amber-100/95 leading-tight shadow-sm whitespace-nowrap ${
+                                                                satisfied ? 'opacity-45' : 'opacity-100'
+                                                            }`}
+                                                            title={`Account knowledge: ${key}${satisfied ? ' (met)' : ' (required)'}`}
+                                                        >
+                                                            {key}
+                                                        </span>
+                                                    );
+                                                })}
+                                                {itemReqs.map(({ itemId, label }) => {
+                                                    const req = n.requirements.find(
+                                                        (r): r is Extract<Requirement, { type: 'characterHasEquippedItem' }> =>
+                                                            r.type === 'characterHasEquippedItem' && r.itemId === itemId,
+                                                    );
+                                                    const satisfied = req ? meetsRequirement(req, ctx, researchedByTreeId) : false;
+                                                    return (
+                                                        <span
+                                                            key={`${n.id}-item-${itemId}`}
+                                                            className={`max-w-[150px] truncate rounded border border-zinc-500/45 bg-zinc-800/65 px-1.5 py-px text-right text-[10px] font-medium text-zinc-200/95 leading-tight shadow-sm ${
+                                                                satisfied ? 'opacity-45' : 'opacity-100'
+                                                            }`}
+                                                            title={`Equipped: ${label} (${itemId})${satisfied ? ' (met)' : ' (required)'}`}
+                                                        >
+                                                            {label}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
                                         )}
+                                        <button
+                                            type="button"
+                                            onClick={() => enabled && onResearchNode(tree.id, n.id)}
+                                            className={`relative rounded-lg border px-3 py-2 text-left w-[180px] flex flex-col gap-1.5 ${
+                                                researched
+                                                    ? 'bg-green-900 border-green-700 text-white'
+                                                    : enabled
+                                                      ? 'bg-surface-light border-primary text-white hover:bg-surface'
+                                                      : 'bg-surface-light border-border-custom text-muted opacity-80'
+                                            }`}
+                                            disabled={!enabled}
+                                            title={researched ? 'Researched' : enabled ? 'Click to research' : check.missing.join(', ')}
+                                        >
+                                            <div className="text-sm font-semibold truncate">{n.title}</div>
+                                            <div className="text-[11px] text-muted flex flex-wrap items-center gap-2">
+                                                {costGains.length > 0 ? (
+                                                    costGains.map(({ resource, count }) => (
+                                                        <ResourcePill
+                                                            key={`${n.id}-${resource}`}
+                                                            resource={resource}
+                                                            count={count}
+                                                            className="text-[11px]"
+                                                        />
+                                                    ))
+                                                ) : (
+                                                    <span>Free</span>
+                                                )}
+                                            </div>
+                                        </button>
                                     </div>
-                                </button>
+                                </div>
                             );
                         })}
                     </div>

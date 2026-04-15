@@ -44,6 +44,8 @@ export { createCardInstance, MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/C
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
+/** Number of stamina charges granted by each round-start recovery. */
+export const ROUND_STAMINA_RECOVERY = 4;
 
 /** Fixed time step (seconds): 60 ticks/second. */
 const FIXED_DT = 1 / 60;
@@ -60,7 +62,7 @@ export type EngineStateCallback = () => void;
 /** Light level below or equal to this is "full darkness". */
 const FULL_DARKNESS_THRESHOLD = -20;
 /** Light level below or equal to this but above full darkness is "high darkness". */
-const HIGH_DARKNESS_THRESHOLD = -15;
+const HIGH_DARKNESS_THRESHOLD = -16;
 
 export class GameEngine implements EngineContext {
     /** Simulation data: managers, terrain, queues, timing scalars. */
@@ -854,7 +856,12 @@ export class GameEngine implements EngineContext {
     private applyStaminaPulse(): void {
         for (const unit of this.units) {
             if (!unit.isAlive()) continue;
-            addRecoveryChargeToUnitAbilities(unit, 'staminaCharge', Math.max(0, unit.stamina));
+            addRecoveryChargeToUnitAbilities(
+                unit,
+                'staminaCharge',
+                Math.max(0, unit.stamina * ROUND_STAMINA_RECOVERY),
+                (min, max) => this.generateRandomInteger(min, max),
+            );
         }
     }
 

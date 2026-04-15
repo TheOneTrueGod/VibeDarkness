@@ -24,6 +24,7 @@ import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { getDefaultHp } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
+import type { RecoveryChargeType } from '../../abilities/abilityUses';
 
 /** AI behavior settings for enemy units. */
 export interface AISettings {
@@ -79,7 +80,7 @@ export interface ApplyKnockbackParams {
 export interface UnitAbilityRuntimeState {
     currentUses: number;
     maxUses: number;
-    recoveryChargesByType: Record<string, number>;
+    recoveryChargesByType: Partial<Record<RecoveryChargeType, number>>;
 }
 
 export class Unit extends GameObject {

@@ -12,9 +12,18 @@ import DebugUnitsTab from './tabs/DebugUnitsTab';
 import DebugPlayerDataTab from './tabs/DebugPlayerDataTab';
 import DebugCampaignDataTab from './tabs/DebugCampaignDataTab';
 import DebugCharactersTab from './tabs/DebugCharactersTab';
+import DebugTogglesTab from './tabs/DebugTogglesTab';
 import DebugTabButton from './DebugTabButton';
 
-export type TabId = 'battle-actions' | 'game-state' | 'units' | 'orders' | 'player-data' | 'campaign-data' | 'characters';
+export type TabId =
+    | 'battle-actions'
+    | 'game-state'
+    | 'units'
+    | 'orders'
+    | 'player-data'
+    | 'campaign-data'
+    | 'characters'
+    | 'debug-toggles';
 
 export interface DebugConsoleProps {
     gameState: GameStatePayload | null;
@@ -138,6 +147,7 @@ export default function DebugConsole({
                     getCharacter={getCharacter}
                     onListMetaChange={setCharactersListMeta}
                 />
+                <DebugTogglesTab isActive={activeTab === 'debug-toggles'} />
             </>
         );
     }, [activeTab, fetchCampaignData, fetchCharactersList, fetchPlayerData, getCharacter, gameState, inBattle, isAdmin, isHost, skipCurrentTurn]);
@@ -195,6 +205,10 @@ export default function DebugConsole({
 
                         <DebugTabButton isActive={activeTab === 'game-state'} onClick={() => setActiveTab('game-state')}>
                             Game State
+                        </DebugTabButton>
+
+                        <DebugTabButton isActive={activeTab === 'debug-toggles'} onClick={() => setActiveTab('debug-toggles')}>
+                            Debug Toggles
                         </DebugTabButton>
 
                         {inBattle && (

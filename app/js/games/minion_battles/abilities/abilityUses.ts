@@ -1,8 +1,11 @@
 import type { AbilityStatic } from './Ability';
 import type { Unit } from '../game/units/Unit';
+import { STICK_SWORD_NODE_EXTRA_USES, STICK_SWORD_TREE_ID } from '../../../researchTrees/trees/stick_sword';
+
+export type RecoveryChargeType = 'staminaCharge' | 'lightCharge';
 
 export interface AbilityRecoveryRule {
-    chargeType: string;
+    chargeType: RecoveryChargeType;
     chargesPerRecovery: number;
     usesRecovered: number;
 }
@@ -27,6 +30,7 @@ const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
     throw_charged_rock: { maxUses: 3, recoveries: [{ chargeType: 'lightCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
     '0110': { maxUses: 1, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Shining Block
     '0105': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Laser Sword
+    '0112': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Swing Sword
     '0203': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Pistol
     '0204': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // SMG
     '0205': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Shotgun
@@ -44,6 +48,24 @@ export function ensureAbilityRuntimeState(unit: Unit, abilityId: string): void {
         currentUses: config.startingUses ?? config.maxUses,
         recoveryChargesByType: {},
     };
+}
+
+const SWING_SWORD_ABILITY_ID = '0112';
+const SWING_SWORD_EXTRA_USES = 2;
+
+/** Sword Conditioning research: +max uses for Swing Sword (base config is still 2). */
+export function applyStickSwordResearchToAbilityRuntime(
+    unit: Unit,
+    getResearchNodes: (treeId: string) => string[],
+): void {
+    const nodes = getResearchNodes(STICK_SWORD_TREE_ID);
+    if (!nodes.includes(STICK_SWORD_NODE_EXTRA_USES)) return;
+    if (!unit.abilities.includes(SWING_SWORD_ABILITY_ID)) return;
+    ensureAbilityRuntimeState(unit, SWING_SWORD_ABILITY_ID);
+    const runtime = unit.abilityRuntime[SWING_SWORD_ABILITY_ID];
+    if (!runtime) return;
+    runtime.maxUses += SWING_SWORD_EXTRA_USES;
+    runtime.currentUses += SWING_SWORD_EXTRA_USES;
 }
 
 export function initializeAbilityRuntimeForUnit(unit: Unit): void {
@@ -65,18 +87,57 @@ export function consumeAbilityUse(unit: Unit, abilityId: string): boolean {
     return true;
 }
 
-export function addRecoveryChargeToUnitAbilities(unit: Unit, chargeType: string, amount: number): void {
-    if (amount <= 0) return;
-    for (const abilityId of unit.abilities) {
-        applyRecoveryChargeToAbility(unit, abilityId, chargeType, amount);
+export function addRecoveryChargeToUnitAbilities(
+    unit: Unit,
+    chargeType: RecoveryChargeType,
+    amount: number,
+    generateRandomInteger?: (min: number, max: number) => number,
+): string[] {
+    if (amount <= 0) return [];
+    const pickRandomInteger =
+        generateRandomInteger ??
+        ((min: number, max: number): number => {
+            if (max < min) return min;
+            const span = max - min + 1;
+            return min + Math.floor(Math.random() * span);
+        });
+
+    const notedAbilities = unit.abilities
+        .map((abilityId) => ({
+            abilityId,
+            canAcceptRecoveryCharge: (type: RecoveryChargeType): boolean =>
+                canAbilityReceiveRecoveryCharge(unit, abilityId, type),
+        }))
+        .filter((ability) => ability.canAcceptRecoveryCharge(chargeType));
+
+    if (notedAbilities.length === 0) return [];
+    const selectedAbilityIds: string[] = [];
+
+    for (let count = 1; count <= amount; count++) {
+        if (notedAbilities.length === 0) break;
+        const idx = notedAbilities.length === 1 ? 0 : pickRandomInteger(0, notedAbilities.length - 1);
+        const selected = notedAbilities[idx];
+        if (!selected) break;
+        const changed = applyRecoveryChargeToAbility(unit, selected.abilityId, chargeType, 1);
+        if (!changed) {
+            notedAbilities.splice(idx, 1);
+            continue;
+        }
+        selectedAbilityIds.push(selected.abilityId);
+
+        if (!selected.canAcceptRecoveryCharge(chargeType)) {
+            notedAbilities.splice(idx, 1);
+        }
     }
+
+    return Array.from(new Set(selectedAbilityIds));
 }
 
-function getRelevantRulesForCharge(abilityId: string, chargeType: string): AbilityRecoveryRule[] {
+function getRelevantRulesForCharge(abilityId: string, chargeType: RecoveryChargeType): AbilityRecoveryRule[] {
     return getAbilityUseConfig(abilityId).recoveries.filter((r) => r.chargeType === chargeType);
 }
 
-function applyRecoveryChargeToAbility(unit: Unit, abilityId: string, chargeType: string, amount: number): boolean {
+function applyRecoveryChargeToAbility(unit: Unit, abilityId: string, chargeType: RecoveryChargeType, amount: number): boolean {
     if (amount <= 0) return false;
     ensureAbilityRuntimeState(unit, abilityId);
     const runtime = unit.abilityRuntime[abilityId];
@@ -111,7 +172,7 @@ function applyRecoveryChargeToAbility(unit: Unit, abilityId: string, chargeType:
     return runtime.currentUses !== prevUses || runtime.recoveryChargesByType[chargeType] !== prevCharge;
 }
 
-export function canAbilityReceiveRecoveryCharge(unit: Unit, abilityId: string, chargeType: string): boolean {
+export function canAbilityReceiveRecoveryCharge(unit: Unit, abilityId: string, chargeType: RecoveryChargeType): boolean {
     const rules = getRelevantRulesForCharge(abilityId, chargeType);
     if (rules.length === 0) return false;
     ensureAbilityRuntimeState(unit, abilityId);
@@ -126,7 +187,7 @@ export function canAbilityReceiveRecoveryCharge(unit: Unit, abilityId: string, c
 
 export function grantRecoveryChargeToRandomAbility(
     unit: Unit,
-    chargeType: string,
+    chargeType: RecoveryChargeType,
     generateRandomInteger: (min: number, max: number) => number,
     opts?: { excludeAbilityId?: string },
 ): boolean {

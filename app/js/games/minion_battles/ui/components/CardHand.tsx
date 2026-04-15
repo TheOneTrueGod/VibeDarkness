@@ -12,6 +12,7 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../game/units/Unit';
 import CardComponent from './CardComponent';
 import CardTooltip from './CardTooltip';
+import RoundTrackerCard from './RoundTrackerCard';
 
 interface CardHandProps {
     abilityIds: string[];
@@ -19,6 +20,9 @@ interface CardHandProps {
     playerUnit: Unit | null;
     /** Whether it's this player's turn to act. */
     isMyTurn: boolean;
+    roundNumber: number;
+    roundProgress: number;
+    isPaused: boolean;
     /** Currently selected card index (in the hand), or null. */
     selectedCardIndex: number | null;
     /** Called when a card is selected. */
@@ -33,6 +37,9 @@ export default function CardHand({
     abilityIds,
     playerUnit,
     isMyTurn,
+    roundNumber,
+    roundProgress,
+    isPaused,
     selectedCardIndex,
     onSelectCard,
     onWait,
@@ -41,6 +48,24 @@ export default function CardHand({
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(false);
     const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
+    const [animationNow, setAnimationNow] = useState<number>(() => performance.now());
+    const [pulseParticles, setPulseParticles] = useState<Array<{
+        id: string;
+        startMs: number;
+        durationMs: number;
+        fromX: number;
+        fromY: number;
+        toX: number;
+        toY: number;
+        controlX: number;
+        controlY: number;
+        staggerMs: number;
+    }>>([]);
+    const rowRef = React.useRef<HTMLDivElement | null>(null);
+    const roundTrackerRef = React.useRef<HTMLDivElement | null>(null);
+    const cardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+    const prevRoundRef = React.useRef<number>(roundNumber);
+    const prevRuntimeRef = React.useRef<Record<string, { currentUses: number; staminaCharge: number }>>({});
 
     // Detect mobile via touch support
     useEffect(() => {
@@ -59,11 +84,90 @@ export default function CardHand({
             .filter((entry): entry is { abilityId: string; ability: AbilityStatic; runtime: UnitAbilityRuntimeState } => Boolean(entry));
     }, [abilityIds, playerUnit]);
 
+    const runtimeSnapshot = useMemo<Record<string, { currentUses: number; staminaCharge: number }>>(
+        () =>
+            Object.fromEntries(
+                handCards.map((c) => [
+                    c.abilityId,
+                    {
+                        currentUses: c.runtime.currentUses,
+                        staminaCharge: c.runtime.recoveryChargesByType.staminaCharge ?? 0,
+                    },
+                ]),
+            ),
+        [handCards],
+    );
+
     useEffect(() => {
         if (hoveredCardId && !handCards.some((card) => card.abilityId === hoveredCardId)) {
             setHoveredCardId(null);
         }
     }, [handCards, hoveredCardId]);
+
+    useEffect(() => {
+        const prevRound = prevRoundRef.current;
+        if (roundNumber !== prevRound) {
+            const prev = prevRuntimeRef.current;
+            const gained = handCards
+                .filter((card) => {
+                    const old = prev[card.abilityId];
+                    if (!old) return false;
+                    const nowUses = card.runtime.currentUses;
+                    const nowStamina = card.runtime.recoveryChargesByType.staminaCharge ?? 0;
+                    return nowUses > old.currentUses || nowStamina > old.staminaCharge;
+                })
+                .map((c) => c.abilityId);
+
+            const rowEl = rowRef.current;
+            const trackerEl = roundTrackerRef.current;
+            if (rowEl && trackerEl && gained.length > 0) {
+                const rowRect = rowEl.getBoundingClientRect();
+                const trackerRect = trackerEl.getBoundingClientRect();
+                const trackerCenterX = trackerRect.left + trackerRect.width / 2 - rowRect.left;
+                const trackerCenterY = trackerRect.top + trackerRect.height / 2 - rowRect.top;
+                const start = performance.now();
+                const particles = gained.flatMap((abilityId, idx) => {
+                    const cardEl = cardRefs.current[abilityId];
+                    if (!cardEl) return [];
+                    const cardRect = cardEl.getBoundingClientRect();
+                    const cardBottomCenterX = cardRect.left + cardRect.width / 2 - rowRect.left;
+                    const cardBottomCenterY = cardRect.bottom - rowRect.top;
+                    return Array.from({ length: 4 }, (_, i) => ({
+                        id: `${abilityId}-${idx}-${i}-${start}`,
+                        startMs: start,
+                        durationMs: 850,
+                        fromX: trackerCenterX + (Math.random() - 0.5) * 12,
+                        fromY: trackerCenterY + (Math.random() - 0.5) * 12,
+                        toX: cardBottomCenterX + (Math.random() - 0.5) * 12,
+                        toY: cardBottomCenterY + (Math.random() - 0.5) * 12,
+                        controlX:
+                            (trackerCenterX + cardBottomCenterX) / 2 + (Math.random() - 0.5) * 44,
+                        controlY:
+                            Math.min(trackerCenterY, cardBottomCenterY) - 30 - Math.random() * 36,
+                        staggerMs: i * 45,
+                    }));
+                });
+                setPulseParticles((prevParticles) => [...prevParticles, ...particles]);
+            }
+        }
+        prevRoundRef.current = roundNumber;
+        prevRuntimeRef.current = runtimeSnapshot;
+    }, [roundNumber, handCards, runtimeSnapshot]);
+
+    useEffect(() => {
+        if (pulseParticles.length === 0) return;
+        let raf = 0;
+        const tick = () => {
+            const now = performance.now();
+            setAnimationNow(now);
+            setPulseParticles((prev) =>
+                prev.filter((p) => now - p.startMs - p.staggerMs <= p.durationMs),
+            );
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [pulseParticles.length]);
 
     const handleSelectCard = useCallback(
         (handIndex: number) => {
@@ -110,10 +214,36 @@ export default function CardHand({
                 </div>
             )}
             {/* Fixed-height row for wait button and ability cards */}
-            <div className="flex items-center gap-4 h-[152px]">
+            <div ref={rowRef} className="relative flex items-center gap-4 h-[152px]">
+                {pulseParticles.map((p) => {
+                    const t = Math.max(0, Math.min(1, (animationNow - p.startMs - p.staggerMs) / p.durationMs));
+                    const oneMinus = 1 - t;
+                    const x = oneMinus * oneMinus * p.fromX + 2 * oneMinus * t * p.controlX + t * t * p.toX;
+                    const y = oneMinus * oneMinus * p.fromY + 2 * oneMinus * t * p.controlY + t * t * p.toY;
+                    const opacity = t < 0.1 ? t / 0.1 : t > 0.85 ? (1 - t) / 0.15 : 1;
+                    return (
+                        <div
+                            key={p.id}
+                            className="absolute w-1.5 h-1.5 rounded-full bg-gray-300 pointer-events-none z-20"
+                            style={{
+                                left: x - 3,
+                                top: y - 3,
+                                opacity: Math.max(0, Math.min(1, opacity)),
+                            }}
+                        />
+                    );
+                })}
                 {/* Wait + abilities */}
                 {playerUnit && (
                     <>
+                        <RoundTrackerCard
+                            roundNumber={roundNumber}
+                            progress={roundProgress}
+                            isPaused={isPaused}
+                            onRootRef={(el) => {
+                                roundTrackerRef.current = el;
+                            }}
+                        />
                         <button
                             onClick={onWait}
                             disabled={!isMyTurn}
@@ -160,28 +290,34 @@ export default function CardHand({
                         const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
 
                         return (
-                            <CardComponent
+                            <div
                                 key={card.abilityId}
-                                ability={card.ability}
-                                runtime={card.runtime}
-                                isSelected={selectedCardIndex === index}
-                                isActive={isActive}
-                                isDisabled={isDisabled}
-                                onSelect={() => handleSelectCard(index)}
-                                isHovered={isHovered}
-                                onHoverChange={(hovered) => {
-                                    if (hovered) {
-                                        setHoveredCardId(card.abilityId);
-                                    } else {
-                                        setHoveredCardId((prev) => (prev === card.abilityId ? null : prev));
-                                    }
+                                ref={(el) => {
+                                    cardRefs.current[card.abilityId] = el;
                                 }}
-                                isMobile={isMobile}
-                                showMobileDescription={mobileDescIndex === index}
-                                onMobileDescriptionToggle={() => handleMobileDescToggle(index)}
-                                onMobileDescriptionDismiss={handleMobileDescDismiss}
-                                gameState={gameState}
-                            />
+                            >
+                                <CardComponent
+                                    ability={card.ability}
+                                    runtime={card.runtime}
+                                    isSelected={selectedCardIndex === index}
+                                    isActive={isActive}
+                                    isDisabled={isDisabled}
+                                    onSelect={() => handleSelectCard(index)}
+                                    isHovered={isHovered}
+                                    onHoverChange={(hovered) => {
+                                        if (hovered) {
+                                            setHoveredCardId(card.abilityId);
+                                        } else {
+                                            setHoveredCardId((prev) => (prev === card.abilityId ? null : prev));
+                                        }
+                                    }}
+                                    isMobile={isMobile}
+                                    showMobileDescription={mobileDescIndex === index}
+                                    onMobileDescriptionToggle={() => handleMobileDescToggle(index)}
+                                    onMobileDescriptionDismiss={handleMobileDescDismiss}
+                                    gameState={gameState}
+                                />
+                            </div>
                         );
                     })}
 

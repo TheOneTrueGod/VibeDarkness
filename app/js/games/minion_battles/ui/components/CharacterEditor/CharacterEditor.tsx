@@ -3,7 +3,7 @@
  * Portrait with prev/next on the same row as the name; tabs (Equipment / Upgrades).
  * Equipment sidebar: paper doll or horizontal equipped-items list; inventory grid; drag to equip.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { getPortraitIds, getPortrait } from '../../../character_defs/portraits';
 import {
     getItemDef,
@@ -30,6 +30,7 @@ import {
     treeHasAnyResearch,
 } from '../../../../../researchTrees/evaluator';
 import ResourcePill from '../../../../../components/ResourcePill';
+import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
 
 interface CharacterEditorProps {
     character: CampaignCharacter;
@@ -111,13 +112,19 @@ export default function CharacterEditor({
     const resolvedCampaign = campaign ?? localCampaign;
     const permissionAccount = viewerAccount ?? account ?? null;
 
+    const showAllResearchTreesDebug = useSyncExternalStore(
+        subscribeShowAllResearchTrees,
+        getShowAllResearchTrees,
+        getShowAllResearchTrees,
+    );
+
     useEffect(() => {
         setEquipment([...character.equipment]);
         setResearchTrees(character.researchTrees ?? {});
     }, [character.equipment, character.researchTrees]);
 
-    // Sync selected research tree when available trees change
-    const availableTrees = useMemo(() => {
+    /** Trees the character is allowed to see (gating), used for normal list and for dimming in debug “show all”. */
+    const eligibleResearchTrees = useMemo(() => {
         const res = resolvedCampaign?.resources;
         if (!res) return [];
         const ctx = {
@@ -143,13 +150,22 @@ export default function CharacterEditor({
         });
     }, [account, character, equipment, researchTrees, resolvedCampaign?.resources]);
 
+    const displayResearchTrees = showAllResearchTreesDebug ? RESEARCH_TREES : eligibleResearchTrees;
+
+    const dimmedResearchTreeIds = useMemo(() => {
+        if (!showAllResearchTreesDebug) return new Set<string>();
+        const eligibleIds = new Set(eligibleResearchTrees.map((t) => t.id));
+        return new Set(RESEARCH_TREES.filter((t) => !eligibleIds.has(t.id)).map((t) => t.id));
+    }, [showAllResearchTreesDebug, eligibleResearchTrees]);
+
     useEffect(() => {
-        const firstId = availableTrees[0]?.id ?? null;
-        const isSelectedStillAvailable = selectedTreeId != null && availableTrees.some((t) => t.id === selectedTreeId);
+        const firstId = displayResearchTrees[0]?.id ?? null;
+        const isSelectedStillAvailable =
+            selectedTreeId != null && displayResearchTrees.some((t) => t.id === selectedTreeId);
         if (!isSelectedStillAvailable) {
             setSelectedTreeId(firstId);
         }
-    }, [availableTrees, selectedTreeId]);
+    }, [displayResearchTrees, selectedTreeId]);
 
     useEffect(() => {
         if (campaign) {
@@ -406,8 +422,9 @@ export default function CharacterEditor({
         setDragSlot(null);
     }, []);
 
-    const firstTreeId = availableTrees[0]?.id ?? null;
-    const selectedTree = availableTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
+    const firstTreeId = displayResearchTrees[0]?.id ?? null;
+    const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
+    const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
 
     return (
         <div className="flex flex-col h-full w-full bg-surface rounded-lg border border-border-custom overflow-hidden">
@@ -508,7 +525,8 @@ export default function CharacterEditor({
                             ))}
                         {activeTab === 'research' && researchEnabled && (
                             <ResearchTreeList
-                                availableTrees={availableTrees}
+                                availableTrees={displayResearchTrees}
+                                dimmedTreeIds={dimmedResearchTreeIds}
                                 selectedTreeId={selectedTreeId}
                                 onSelectTree={(id) => setSelectedTreeId(id)}
                                 researchTrees={researchTrees}
@@ -572,11 +590,12 @@ export default function CharacterEditor({
                                         </div>
                                     )}
 
-                                    {availableTrees.length === 0 ? (
+                                    {displayResearchTrees.length === 0 ? (
                                         <p className="text-sm text-muted">No research trees available.</p>
                                     ) : selectedTree ? (
                                         <ResearchTreeContent
                                             tree={selectedTree}
+                                            dimmed={selectedTreeDimmed}
                                             account={account ?? null}
                                             character={character}
                                             equipment={equipment}
@@ -586,7 +605,9 @@ export default function CharacterEditor({
                                             canResetResearch={permissionAccount?.role === 'admin'}
                                             firstTreeId={firstTreeId}
                                             onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
-                                            onResetResearch={(_treeIds) => void handleResetResearch(availableTrees.map((t) => t.id))}
+                                            onResetResearch={(_treeIds) =>
+                                                void handleResetResearch(displayResearchTrees.map((t) => t.id))
+                                            }
                                         />
                                     ) : null}
                                 </>
