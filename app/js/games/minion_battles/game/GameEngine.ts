@@ -840,15 +840,11 @@ export class GameEngine implements EngineContext {
         this.state.effectManager.handleRoundEndTorchDecay(this.roundNumber);
     }
 
-    /** Apply the two per-round stamina pulses (start and midpoint). */
-    private processStaminaPulse(roundTime: number): void {
+    /** Apply the per-round stamina pulse once at round start. */
+    private processStaminaPulse(_roundTime: number): void {
         if (!this.appliedRoundStartRecovery) {
             this.applyStaminaPulse();
             this.appliedRoundStartRecovery = true;
-        }
-        if (!this.appliedMidRoundRecovery && roundTime >= ROUND_DURATION / 2) {
-            this.applyStaminaPulse();
-            this.appliedMidRoundRecovery = true;
         }
     }
 

@@ -36,10 +36,28 @@ const MIN_RANGE = 10;
 const SHIELD_FILL_COLOR = 0xbdbdbd;
 const SHIELD_STROKE_COLOR = 0x878787;
 const ALLY_CHARGE_RADIUS = 180;
+const ON_BLOCK_STAMINA_SURGE_RADIUS = 50;
+const ON_BLOCK_STAMINA_SURGES = 2;
 
 interface RaiseShieldEngineLike {
     units: Unit[];
     generateRandomInteger(min: number, max: number): number;
+}
+
+function grantOnBlockStaminaSurgesToNearbyAllies(engine: RaiseShieldEngineLike, defender: Unit): void {
+    for (const ally of engine.units) {
+        if (!ally.isAlive() || ally.id === defender.id) continue;
+        if (areEnemies(ally.teamId, defender.teamId)) continue;
+        const dist = Math.hypot(ally.x - defender.x, ally.y - defender.y);
+        if (dist > ON_BLOCK_STAMINA_SURGE_RADIUS) continue;
+        for (let i = 0; i < ON_BLOCK_STAMINA_SURGES; i++) {
+            grantRecoveryChargeToRandomAbility(
+                ally,
+                'staminaCharge',
+                (min, max) => engine.generateRandomInteger(min, max),
+            );
+        }
+    }
 }
 
 const RAISE_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -76,6 +94,7 @@ export const RaiseShieldAbility: AbilityStatic = {
         return [
             'Raise your shield blocking all attacks from the front',
             'Blocks attacks from the front arc',
+            'On Block: Allies within {50} gain {2} stamina surges',
         ];
     },
 
@@ -143,10 +162,11 @@ export const RaiseShieldAbility: AbilityStatic = {
         if (!defender.ownerId) return;
         const note = defender.abilityNote;
         if (!isAbilityNote(note, '0104')) return;
+        const eng = engine as RaiseShieldEngineLike;
+        grantOnBlockStaminaSurgesToNearbyAllies(eng, defender);
         const nextCount = (note.abilityNote.blockCount ?? 0) + 1;
         const wasRewarded = Boolean(note.abilityNote.rewardedTwiceBlock);
         if (nextCount >= 2 && !wasRewarded) {
-            const eng = engine as RaiseShieldEngineLike;
             grantRecoveryChargeToRandomAbility(
                 defender,
                 'staminaCharge',

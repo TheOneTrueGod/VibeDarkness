@@ -1,6 +1,7 @@
 import type { ResearchTreeDef } from '../types';
 
 export const TECH_SHIELD_TREE_ID = 'tech_shield';
+export const TECH_SHIELD_NODE_STRENGTHENING_LIGHT = 'extra_shields';
 
 export const techShieldTree: ResearchTreeDef = {
     id: TECH_SHIELD_TREE_ID,
@@ -36,8 +37,8 @@ export const techShieldTree: ResearchTreeDef = {
             effects: [{ type: 'replaceEquippedItem', fromItemId: '011', toItemId: '012' }],
         },
         {
-            id: 'extra_shields',
-            title: 'Extra Shields',
+            id: TECH_SHIELD_NODE_STRENGTHENING_LIGHT,
+            title: 'Strengthening Light',
             order: 30,
             position: { x: 240, y: 220 },
             prereqNodeIds: ['crystal_embedded_shield'],
@@ -46,7 +47,7 @@ export const techShieldTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TECH_SHIELD_TREE_ID, nodeId: 'throwing_crystal_shield' },
             ],
             cost: { crystals: 25 },
-            effects: [{ type: 'addExtraCardsFromItem', itemId: '011', cardId: '0104', count: 1 }],
+            effects: [],
         },
     ],
 };

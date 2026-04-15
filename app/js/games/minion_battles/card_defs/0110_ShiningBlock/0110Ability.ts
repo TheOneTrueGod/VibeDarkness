@@ -22,6 +22,7 @@ import { StunnedBuff } from '../../buffs/StunnedBuff';
 import { areEnemies } from '../../game/teams';
 import type { EventBus } from '../../game/EventBus';
 import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
+import { TECH_SHIELD_NODE_STRENGTHENING_LIGHT, TECH_SHIELD_TREE_ID } from '../../../../researchTrees/trees/tech_shield';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}10` as '0110';
 const DURATION = 1;
@@ -43,6 +44,10 @@ const RETALIATION_DAMAGE = 5;
 const RETALIATION_MAX_TARGETS = 3;
 const STUN_DURATION = 2;
 const CONE_FLASH_DURATION = 0.3;
+const STRENGTHENING_LIGHT_HEAL_RADIUS = 50;
+const STRENGTHENING_LIGHT_HEAL_AMOUNT = 5;
+const ON_BLOCK_STAMINA_SURGE_RADIUS = 50;
+const ON_BLOCK_STAMINA_SURGES = 2;
 
 const SHIELD_FILL_COLOR = 0x27d3c8; // crystal teal
 const SHIELD_STROKE_COLOR = 0x1a9d94;
@@ -55,6 +60,37 @@ interface GameEngineLike {
     gameTime: number;
     roundNumber: number;
     generateRandomInteger(min: number, max: number): number;
+    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
+}
+
+function hasStrengtheningLightResearch(engine: GameEngineLike, defender: Unit): boolean {
+    const nodes = engine.getPlayerResearchNodes?.(defender.ownerId, TECH_SHIELD_TREE_ID) ?? [];
+    return nodes.includes(TECH_SHIELD_NODE_STRENGTHENING_LIGHT);
+}
+
+function applyStrengtheningLightHeal(engine: GameEngineLike, defender: Unit): void {
+    for (const unit of engine.units) {
+        if (!unit.isAlive()) continue;
+        if (areEnemies(unit.teamId, defender.teamId)) continue;
+        if (Math.hypot(unit.x - defender.x, unit.y - defender.y) > STRENGTHENING_LIGHT_HEAL_RADIUS) continue;
+        unit.hp = Math.min(unit.maxHp, unit.hp + STRENGTHENING_LIGHT_HEAL_AMOUNT);
+    }
+}
+
+function grantOnBlockStaminaSurgesToNearbyAllies(engine: GameEngineLike, defender: Unit): void {
+    for (const ally of engine.units) {
+        if (!ally.isAlive() || ally.id === defender.id) continue;
+        if (areEnemies(ally.teamId, defender.teamId)) continue;
+        const dist = Math.hypot(ally.x - defender.x, ally.y - defender.y);
+        if (dist > ON_BLOCK_STAMINA_SURGE_RADIUS) continue;
+        for (let i = 0; i < ON_BLOCK_STAMINA_SURGES; i++) {
+            grantRecoveryChargeToRandomAbility(
+                ally,
+                'staminaCharge',
+                (min, max) => engine.generateRandomInteger(min, max),
+            );
+        }
+    }
 }
 
 const SHINING_BLOCK_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -136,7 +172,9 @@ export const ShiningBlockAbility: AbilityStatic = {
         return [
             'Raise your crystal shield blocking all attacks from the front',
             'On Block: Deals {5} damage and stuns up to {3} enemies for {2} seconds',
+            'On Block: Allies within {50} gain {2} stamina surges',
             'On successful block, nearby allies gain {1} light charge',
+            'Strengthening Light: On block, heal yourself and allies within {50} for {5} health',
         ];
     },
 
@@ -206,6 +244,10 @@ export const ShiningBlockAbility: AbilityStatic = {
         if (note.abilityNote.retaliationCount >= MAX_RETALIATION_PER_USE) return;
         const eng = engine as GameEngineLike;
         executeShiningBlockRetaliation(eng, defender, attackInfo);
+        grantOnBlockStaminaSurgesToNearbyAllies(eng, defender);
+        if (hasStrengtheningLightResearch(eng, defender)) {
+            applyStrengtheningLightHeal(eng, defender);
+        }
         for (const unit of eng.units) {
             if (!unit.isAlive()) continue;
             if (unit.id === defender.id) continue;
