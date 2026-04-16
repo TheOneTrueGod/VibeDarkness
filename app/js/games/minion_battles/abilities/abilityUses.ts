@@ -2,7 +2,7 @@ import type { AbilityStatic } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import { STICK_SWORD_NODE_EXTRA_USES, STICK_SWORD_TREE_ID } from '../../../researchTrees/trees/stick_sword';
 
-export type RecoveryChargeType = 'staminaCharge' | 'lightCharge';
+export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge';
 
 export interface AbilityRecoveryRule {
     chargeType: RecoveryChargeType;
@@ -31,6 +31,8 @@ const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
     '0110': { maxUses: 1, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Shining Block
     '0105': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Laser Sword
     '0112': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Swing Sword
+    '0113': { maxUses: 1, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Absorption Shield
+    '0114': { maxUses: 2, startingUses: 0, recoveries: [{ chargeType: 'energyCharge', chargesPerRecovery: 3, usesRecovered: 1 }] }, // Energy Blast
     '0203': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Pistol
     '0204': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // SMG
     '0205': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Shotgun
@@ -137,48 +139,93 @@ function getRelevantRulesForCharge(abilityId: string, chargeType: RecoveryCharge
     return getAbilityUseConfig(abilityId).recoveries.filter((r) => r.chargeType === chargeType);
 }
 
+function getMaxChargeBufferForType(abilityId: string, chargeType: RecoveryChargeType): number {
+    const rules = getRelevantRulesForCharge(abilityId, chargeType);
+    return Math.max(0, ...rules.map((rule) => Math.max(0, rule.chargesPerRecovery - 1)));
+}
+
 function applyRecoveryChargeToAbility(unit: Unit, abilityId: string, chargeType: RecoveryChargeType, amount: number): boolean {
     if (amount <= 0) return false;
     ensureAbilityRuntimeState(unit, abilityId);
     const runtime = unit.abilityRuntime[abilityId];
     if (!runtime) return false;
-    const relevantRules = getRelevantRulesForCharge(abilityId, chargeType);
+    const config = getAbilityUseConfig(abilityId);
+    const relevantRules = config.recoveries.filter((r) => r.chargeType === chargeType);
     if (relevantRules.length === 0) return false;
 
-    if (chargeType === 'staminaCharge' && runtime.currentUses >= runtime.maxUses) {
-        return false;
-    }
-
     const prevUses = runtime.currentUses;
-    const prevCharge = runtime.recoveryChargesByType[chargeType] ?? 0;
-    let chargePool = prevCharge + amount;
-    const maxChargeBuffer = Math.max(0, ...relevantRules.map((rule) => Math.max(0, rule.chargesPerRecovery - 1)));
+    const prevCharges = { ...runtime.recoveryChargesByType };
+    const maxChargeBufferForType = getMaxChargeBufferForType(abilityId, chargeType);
+    const currentForType = runtime.recoveryChargesByType[chargeType] ?? 0;
+    runtime.recoveryChargesByType[chargeType] = Math.min(maxChargeBufferForType + amount, currentForType + amount);
 
     if (runtime.currentUses >= runtime.maxUses) {
-        runtime.recoveryChargesByType[chargeType] = Math.min(maxChargeBuffer, chargePool);
-        return runtime.recoveryChargesByType[chargeType] !== prevCharge;
+        for (const rule of config.recoveries) {
+            const type = rule.chargeType;
+            const typeBuffer = getMaxChargeBufferForType(abilityId, type);
+            const current = runtime.recoveryChargesByType[type] ?? 0;
+            runtime.recoveryChargesByType[type] = Math.min(typeBuffer, current);
+        }
+        return (
+            runtime.currentUses !== prevUses
+            || JSON.stringify(runtime.recoveryChargesByType) !== JSON.stringify(prevCharges)
+        );
     }
 
-    for (const rule of relevantRules) {
-        if (rule.chargesPerRecovery <= 0 || rule.usesRecovered <= 0) continue;
-        const recoverSteps = Math.floor(chargePool / rule.chargesPerRecovery);
-        if (recoverSteps <= 0) continue;
-        chargePool -= recoverSteps * rule.chargesPerRecovery;
-        const recoveredUses = recoverSteps * rule.usesRecovered;
-        runtime.currentUses = Math.min(runtime.maxUses, runtime.currentUses + recoveredUses);
+    if (config.recoveries.length === 1) {
+        const onlyRule = config.recoveries[0];
+        if (!onlyRule || onlyRule.chargesPerRecovery <= 0 || onlyRule.usesRecovered <= 0) {
+            return runtime.currentUses !== prevUses || JSON.stringify(runtime.recoveryChargesByType) !== JSON.stringify(prevCharges);
+        }
+        const currentCharge = runtime.recoveryChargesByType[onlyRule.chargeType] ?? 0;
+        const recoverSteps = Math.floor(currentCharge / onlyRule.chargesPerRecovery);
+        if (recoverSteps > 0) {
+            const recoveredUses = recoverSteps * onlyRule.usesRecovered;
+            runtime.currentUses = Math.min(runtime.maxUses, runtime.currentUses + recoveredUses);
+            const spentCharges = recoverSteps * onlyRule.chargesPerRecovery;
+            runtime.recoveryChargesByType[onlyRule.chargeType] = Math.max(0, currentCharge - spentCharges);
+        }
+    } else {
+        const validRules = config.recoveries.filter((rule) => rule.chargesPerRecovery > 0 && rule.usesRecovered > 0);
+        if (validRules.length > 0) {
+            const availableCycles = validRules.map((rule) => {
+                const currentCharge = runtime.recoveryChargesByType[rule.chargeType] ?? 0;
+                return Math.floor(currentCharge / rule.chargesPerRecovery);
+            });
+            const recoverCycles = Math.min(...availableCycles);
+            if (recoverCycles > 0) {
+                const usesRecoveredPerCycle = Math.min(...validRules.map((rule) => rule.usesRecovered));
+                const totalRecovered = recoverCycles * usesRecoveredPerCycle;
+                runtime.currentUses = Math.min(runtime.maxUses, runtime.currentUses + totalRecovered);
+                for (const rule of validRules) {
+                    const currentCharge = runtime.recoveryChargesByType[rule.chargeType] ?? 0;
+                    const spent = recoverCycles * rule.chargesPerRecovery;
+                    runtime.recoveryChargesByType[rule.chargeType] = Math.max(0, currentCharge - spent);
+                }
+            }
+        }
     }
 
-    runtime.recoveryChargesByType[chargeType] = Math.min(maxChargeBuffer, chargePool);
-    return runtime.currentUses !== prevUses || runtime.recoveryChargesByType[chargeType] !== prevCharge;
+    for (const rule of config.recoveries) {
+        const type = rule.chargeType;
+        const typeBuffer = getMaxChargeBufferForType(abilityId, type);
+        const current = runtime.recoveryChargesByType[type] ?? 0;
+        if (runtime.currentUses >= runtime.maxUses) {
+            runtime.recoveryChargesByType[type] = Math.min(typeBuffer, current);
+        } else {
+            runtime.recoveryChargesByType[type] = Math.min(typeBuffer + rule.chargesPerRecovery, current);
+        }
+    }
+    return runtime.currentUses !== prevUses || JSON.stringify(runtime.recoveryChargesByType) !== JSON.stringify(prevCharges);
 }
 
 export function canAbilityReceiveRecoveryCharge(unit: Unit, abilityId: string, chargeType: RecoveryChargeType): boolean {
-    const rules = getRelevantRulesForCharge(abilityId, chargeType);
+    const config = getAbilityUseConfig(abilityId);
+    const rules = config.recoveries.filter((rule) => rule.chargeType === chargeType);
     if (rules.length === 0) return false;
     ensureAbilityRuntimeState(unit, abilityId);
     const runtime = unit.abilityRuntime[abilityId];
     if (!runtime) return false;
-    if (chargeType === 'staminaCharge' && runtime.currentUses >= runtime.maxUses) return false;
     const charge = runtime.recoveryChargesByType[chargeType] ?? 0;
     const maxChargeBuffer = Math.max(0, ...rules.map((rule) => Math.max(0, rule.chargesPerRecovery - 1)));
     if (runtime.currentUses < runtime.maxUses) return true;

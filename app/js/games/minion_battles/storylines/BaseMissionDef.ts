@@ -13,17 +13,15 @@ import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 import { resetGameObjectIdCounter } from '../game/GameObject';
-import type { CharacterId } from '../game/units/index';
 import { createPlayerUnit, createUnitFromSpawnConfig } from '../game/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
-import { getDefaultHp, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
+import { getDefaultHp, PLAYER_CHARACTER_ID, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
 import { applyStickSwordResearchToAbilityRuntime, initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
 import { Ammo } from '../resources/Ammo';
 
-const PLAYER_APPEARANCE_CHARACTER_IDS: readonly CharacterId[] = ['warrior', 'mage', 'ranger', 'healer'];
 const AMMO_ABILITIES = new Set(['0105', '0112', '0203', '0204', '0205']);
 
 function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
@@ -31,13 +29,6 @@ function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
     if (!needsAmmo) return;
     if (unit.getResource('ammo')) return;
     unit.attachResource(new Ammo(), engine.eventBus);
-}
-
-function getAppearanceCharacterId(portraitId: string | undefined): CharacterId {
-    if (portraitId && PLAYER_APPEARANCE_CHARACTER_IDS.includes(portraitId as CharacterId)) {
-        return portraitId as CharacterId;
-    }
-    return 'warrior';
 }
 
 /** Parameters for initializing game state. */
@@ -145,11 +136,10 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 spawnY = sp.row * cellSize + cellSize / 2;
             }
 
-            const appearanceCharacterId = getAppearanceCharacterId(pu.portraitId);
             const researchByPlayer = params.playerResearchTreesByPlayer ?? {};
             const getResearchNodes = (treeId: string) =>
                 researchByPlayer[pu.playerId]?.[treeId] ?? [];
-            const baseHp = getDefaultHp(appearanceCharacterId);
+            const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
             const healthBonus = getHealthBonusFromResearch(getResearchNodes);
             const maxHp = baseHp + healthBonus;
             const unit = createPlayerUnit(
@@ -160,7 +150,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     ownerId: pu.playerId,
                     name: pu.name,
                     abilities,
-                    appearanceCharacterId,
+                    portraitId: pu.portraitId ?? 'warrior',
                     hp: maxHp,
                     maxHp,
                 },

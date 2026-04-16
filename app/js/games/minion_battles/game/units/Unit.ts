@@ -22,9 +22,14 @@ import type { TerrainGrid } from '../../terrain/TerrainGrid';
 import { computeForcedDisplacement } from '../forceMove';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
-import { getDefaultHp } from './unit_defs/unitDef';
+import { getDefaultHp, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
+
+/** Old unit.characterId values for player units before unified `player` id. */
+const LEGACY_PLAYER_CHARACTER_IDS = new Set([
+    'warrior', 'mage', 'ranger', 'healer', 'rogue', 'necromancer',
+]);
 
 /** AI behavior settings for enemy units. */
 export interface AISettings {
@@ -90,6 +95,8 @@ export class Unit extends GameObject {
     teamId: TeamId;
     ownerId: string; // playerId or 'ai'
     characterId: string;
+    /** Campaign portrait ID for player units (`characterId === 'player'`). */
+    portraitId: string | undefined;
     name: string;
 
     /** Attached resource instances (Rage, Mana, etc.). */
@@ -163,6 +170,7 @@ export class Unit extends GameObject {
         teamId: TeamId;
         ownerId: string;
         characterId: string;
+        portraitId?: string;
         name: string;
         abilities?: string[];
         aiSettings?: AISettings | null;
@@ -182,6 +190,7 @@ export class Unit extends GameObject {
         this.teamId = config.teamId;
         this.ownerId = config.ownerId;
         this.characterId = config.characterId;
+        this.portraitId = config.portraitId;
         this.name = config.name;
         this.abilities = config.abilities ?? [];
         this.aiSettings = config.aiSettings ?? null;
@@ -609,6 +618,9 @@ export class Unit extends GameObject {
             teamId: this.teamId,
             ownerId: this.ownerId,
             characterId: this.characterId,
+            // Always persist a portrait id for players so JSON checkpoints do not omit it (undefined is stripped by JSON.stringify).
+            portraitId:
+                this.characterId === PLAYER_CHARACTER_ID ? (this.portraitId ?? 'warrior') : this.portraitId,
             name: this.name,
             movement: this.movement ? {
                 path: this.movement.path.map((p) => ({ ...p })),
@@ -660,6 +672,16 @@ export class Unit extends GameObject {
     }
 
     static fromJSON(data: Record<string, unknown>, _eventBus: EventBus): Unit {
+        const ownerId = data.ownerId as string;
+        let characterId = data.characterId as string;
+        let portraitId = data.portraitId as string | undefined;
+        if (LEGACY_PLAYER_CHARACTER_IDS.has(characterId) && ownerId !== 'ai') {
+            portraitId = portraitId ?? characterId;
+            characterId = PLAYER_CHARACTER_ID;
+        }
+        if (characterId === PLAYER_CHARACTER_ID && ownerId !== 'ai' && (portraitId === undefined || portraitId === '')) {
+            portraitId = 'warrior';
+        }
         const unit = new Unit({
             id: data.id as string,
             x: data.x as number,
@@ -668,8 +690,9 @@ export class Unit extends GameObject {
             maxHp: data.maxHp as number,
             speed: data.speed as number,
             teamId: data.teamId as TeamId,
-            ownerId: data.ownerId as string,
-            characterId: data.characterId as string,
+            ownerId,
+            characterId,
+            portraitId,
             name: data.name as string,
             abilities: data.abilities as string[],
             stamina: (data.stamina as number | undefined) ?? 1,

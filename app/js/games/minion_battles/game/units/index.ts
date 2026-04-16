@@ -1,27 +1,22 @@
 /**
  * Unit factory registry.
  *
- * Maps character IDs to factory functions that create properly-configured
- * Unit instances with the right stats and resources.
+ * Player units share `characterId === 'player'` and optional resources from items/research only.
  */
 
 import { Unit } from './Unit';
 import type { TeamId } from '../teams';
 import type { EventBus } from '../EventBus';
-import { Rage } from '../../resources/Rage';
-import { Mana } from '../../resources/Mana';
-import { getDefaultHp, getDefaultSpeed, getDefaultRadius, getDefaultStamina, resolveEnemySpawnStats } from './unit_defs/unitDef';
+import {
+    getDefaultHp,
+    getDefaultSpeed,
+    getDefaultRadius,
+    getDefaultStamina,
+    resolveEnemySpawnStats,
+    PLAYER_CHARACTER_ID,
+    resolvePlayerUnitRadius,
+} from './unit_defs/unitDef';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
-
-/** Character IDs that have a dedicated unit factory. Used for createUnitByCharacterId only. */
-export type CharacterId =
-    | 'warrior'
-    | 'mage'
-    | 'ranger'
-    | 'healer'
-    | 'dark_wolf'
-    | 'alpha_wolf'
-    | 'boar';
 
 export type UnitFactoryConfig = {
     id?: string;
@@ -31,64 +26,44 @@ export type UnitFactoryConfig = {
     ownerId: string;
     name: string;
     abilities?: string[];
-    /** Override default HP for this unit. Uses getDefaultHp(characterId) when not set. */
+    /** Override default HP for this unit. Uses getDefaultHp('player') when not set. */
     hp?: number;
     /** Override max HP (e.g. from research). Defaults to hp when not set. */
     maxHp?: number;
-    /** Override default speed for this unit. Uses getDefaultSpeed(characterId) when not set. */
+    /** Override default speed for this unit. Uses getDefaultSpeed('player') when not set. */
     speed?: number;
 };
 
 /**
- * Create a unit by character ID. Only accepts CharacterId (no portrait IDs).
- * Use createPlayerUnit for player-controlled units.
+ * Create a player-controlled unit. Baseline stats from UNIT_DEFS.player; portrait sets token size/color.
+ * No Rage/Mana here — attach via items/research when needed.
  */
-export function createUnitByCharacterId(
-    characterId: CharacterId,
-    config: UnitFactoryConfig,
-    eventBus: EventBus,
+export function createPlayerUnit(
+    config: UnitFactoryConfig & { portraitId: string },
+    _eventBus: EventBus,
 ): Unit {
-    const hp = config.hp ?? getDefaultHp(characterId);
+    const hp = config.hp ?? getDefaultHp(PLAYER_CHARACTER_ID);
     const maxHp = config.maxHp ?? hp;
-    const speed = config.speed ?? getDefaultSpeed(characterId);
-    const stamina = getDefaultStamina(characterId);
-    const radius = getDefaultRadius(characterId, DEFAULT_UNIT_RADIUS);
+    const speed = config.speed ?? getDefaultSpeed(PLAYER_CHARACTER_ID);
+    const stamina = getDefaultStamina(PLAYER_CHARACTER_ID);
+    const radius = resolvePlayerUnitRadius(config.portraitId);
 
-    const unit = new Unit({
-        ...config,
+    return new Unit({
+        id: config.id,
+        x: config.x,
+        y: config.y,
+        teamId: config.teamId,
+        ownerId: config.ownerId,
+        name: config.name,
+        abilities: config.abilities,
         hp,
         maxHp,
         speed,
-        characterId,
+        characterId: PLAYER_CHARACTER_ID,
+        portraitId: config.portraitId,
         radius,
         stamina,
     });
-
-    switch (characterId) {
-        case 'warrior':
-            unit.attachResource(new Rage(), eventBus);
-            break;
-        case 'mage':
-        case 'healer':
-            unit.attachResource(new Mana(), eventBus);
-            break;
-    }
-
-    return unit;
-}
-
-/**
- * Create a player-controlled unit. Use this for all player units; do not use
- * portrait IDs as characterId. Appearance is determined by appearanceCharacterId
- * (defaults to 'warrior' for portraits that have no unit class).
- */
-export function createPlayerUnit(
-    config: UnitFactoryConfig & { appearanceCharacterId?: CharacterId },
-    eventBus: EventBus,
-): Unit {
-    const appearanceCharacterId = config.appearanceCharacterId ?? 'warrior';
-    const { appearanceCharacterId: _drop, ...factoryConfig } = config;
-    return createUnitByCharacterId(appearanceCharacterId, factoryConfig, eventBus);
 }
 
 /**

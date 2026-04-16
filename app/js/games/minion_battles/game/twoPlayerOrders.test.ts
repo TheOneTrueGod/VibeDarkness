@@ -50,7 +50,8 @@ function createTwoPlayerEngine(): {
         speed: 120,
         teamId: 'player',
         ownerId: 'p1',
-        characterId: 'warrior',
+        characterId: 'player',
+        portraitId: 'warrior',
         name: 'Player 1',
     });
 
@@ -63,7 +64,8 @@ function createTwoPlayerEngine(): {
         speed: 120,
         teamId: 'player',
         ownerId: 'p2',
-        characterId: 'ranger',
+        characterId: 'player',
+        portraitId: 'ranger',
         name: 'Player 2',
     });
 

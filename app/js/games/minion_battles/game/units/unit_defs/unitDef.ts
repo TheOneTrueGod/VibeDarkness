@@ -9,7 +9,8 @@ import type { TeamId } from '../../teams';
 import { areEnemies } from '../../teams';
 import { ParticleExplosion } from '../../deathEffects/ParticleExplosion';
 import type { EffectImageKey } from '../../effectImages';
-import { UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
+import { getPortrait } from '../../../character_defs/portraits';
+import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
 
 /** Color for allied unit glows. */
 const ALLY_GLOW_COLOR = 0x22c55e; // green-500
@@ -26,6 +27,8 @@ export interface IUnitRenderContext {
     localTeamId: TeamId;
     /** Get a cached character texture by character ID (e.g. 'enemy_ranged' for bowman). */
     getCharacterTexture(characterId: string): Texture | null;
+    /** Preloaded portrait texture for player units (portrait ID from campaign). */
+    getPlayerPortraitTexture(portraitId: string): Texture | null;
 }
 
 /** Unit definition: responsible for drawing one unit type. */
@@ -37,14 +40,8 @@ export interface IUnitDef {
 export type UnitDeathEffectDef =
     | { type: typeof ParticleExplosion; image: EffectImageKey; count: number };
 
-/** Player unit character IDs backed by portraits. */
-export type PlayerUnitId =
-    | 'warrior'
-    | 'mage'
-    | 'ranger'
-    | 'healer'
-    | 'rogue'
-    | 'necromancer';
+/** Single runtime ID for all player-controlled battle units. */
+export type PlayerUnitDefId = 'player';
 
 /** Enemy unit character IDs. */
 export type EnemyUnitId =
@@ -53,7 +50,10 @@ export type EnemyUnitId =
     | 'dark_wolf'
     | 'alpha_wolf'
     | 'boar';
-export type UnitDefId = PlayerUnitId | EnemyUnitId;
+export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
+
+/** Serialized on units; all players share baseline stats from UNIT_DEFS.player. */
+export const PLAYER_CHARACTER_ID: PlayerUnitDefId = 'player';
 
 /** Body color, optional character sprite key, default HP/speed, size, and perception range (px) for AI. */
 const UNIT_DEFS: Record<
@@ -73,54 +73,14 @@ const UNIT_DEFS: Record<
         uiDescription?: string;
     }
 > = {
-    // Player characters: slightly reduced default move speed for tighter control.
-    warrior: {
-        bodyColor: 0x8b0000,
-        hp: 50,
-        speed: 90,
-        size: 'Large',
-        stamina: 1,
-        uiDescription: 'Frontline fighter who closes distance and soaks hits.',
-    },
-    mage: {
-        bodyColor: 0x4a148c,
-        hp: 50,
-        speed: 90,
-        size: 'Small',
-        stamina: 1,
-        uiDescription: 'Arcane caster focused on burst and control.',
-    },
-    ranger: {
-        bodyColor: 0x2e7d32,
+    // All player units: baseline stats; portrait defs may override body color and size on the token.
+    player: {
+        bodyColor: 0x4b5563,
         hp: 50,
         speed: 90,
         size: 'Medium',
         stamina: 1,
-        uiDescription: 'Keeps range and chips away from a safe distance.',
-    },
-    healer: {
-        bodyColor: 0xf5f5dc,
-        hp: 50,
-        speed: 90,
-        size: 'Medium',
-        stamina: 1,
-        uiDescription: 'Supports the party with recovery and buffs.',
-    },
-    rogue: {
-        bodyColor: 0x2c2c2c,
-        hp: 50,
-        speed: 90,
-        size: 'Small',
-        stamina: 1,
-        uiDescription: 'Fast skirmisher looking for openings.',
-    },
-    necromancer: {
-        bodyColor: 0x1a1a2e,
-        hp: 50,
-        speed: 90,
-        size: 'Medium',
-        stamina: 1,
-        uiDescription: 'Dark summoner who trades vitality for power.',
+        uiDescription: 'Adventurer — stats and abilities from equipment and research.',
     },
     // Enemies
     enemy_melee: {
@@ -178,6 +138,24 @@ const UNIT_DEFS: Record<
     },
 };
 
+/** Token fill behind the portrait sprite; portrait may override. */
+export function resolvePlayerBodyColor(portraitId: string | undefined): number {
+    const base = UNIT_DEFS.player.bodyColor;
+    if (!portraitId) return base;
+    const p = getPortrait(portraitId);
+    return p?.battleBodyColor ?? base;
+}
+
+/** Hitbox radius from global player default and optional portrait size override. */
+export function resolvePlayerUnitRadius(portraitId: string | undefined): number {
+    const baseSize = UNIT_DEFS.player.size ?? DEFAULT_UNIT_SIZE;
+    const baseR = UNIT_SIZE_MAP[baseSize];
+    if (!portraitId) return baseR;
+    const p = getPortrait(portraitId);
+    if (p?.battleUnitSize) return UNIT_SIZE_MAP[p.battleUnitSize];
+    return baseR;
+}
+
 export function getDefaultRadius(characterId: string, fallbackRadius: number): number {
     const def = UNIT_DEFS[characterId as UnitDefId];
     if (def?.size) return UNIT_SIZE_MAP[def.size];
@@ -193,10 +171,16 @@ class DefaultUnitDef implements IUnitDef {
         const isEnemy = areEnemies(context.localTeamId, unit.teamId);
         const glowColor = isEnemy ? ENEMY_GLOW_COLOR : ALLY_GLOW_COLOR;
         const def = UNIT_DEFS[unit.characterId as UnitDefId] ?? { bodyColor: DEFAULT_BODY_COLOR };
-        const bodyColor = def.bodyColor;
-        const characterTexture = def.characterSpriteKey
-            ? context.getCharacterTexture(def.characterSpriteKey)
-            : null;
+        const bodyColor =
+            unit.characterId === PLAYER_CHARACTER_ID
+                ? resolvePlayerBodyColor(unit.portraitId)
+                : (def.bodyColor ?? DEFAULT_BODY_COLOR);
+        let characterTexture: Texture | null = null;
+        if (unit.characterId === PLAYER_CHARACTER_ID && unit.portraitId) {
+            characterTexture = context.getPlayerPortraitTexture(unit.portraitId);
+        } else if (def.characterSpriteKey) {
+            characterTexture = context.getCharacterTexture(def.characterSpriteKey);
+        }
         const showCharacterSprite = Boolean(characterTexture);
 
         // Glow circle
@@ -279,6 +263,14 @@ export function getCharacterSpriteKey(characterId: string): string | undefined {
 export function getBodyColor(characterId: string): number {
     const def = UNIT_DEFS[characterId as UnitDefId];
     return def?.bodyColor ?? DEFAULT_BODY_COLOR;
+}
+
+/** Body color for a unit instance (player tokens use portrait overrides). */
+export function getBodyColorForUnit(unit: Unit): number {
+    if (unit.characterId === PLAYER_CHARACTER_ID) {
+        return resolvePlayerBodyColor(unit.portraitId);
+    }
+    return getBodyColor(unit.characterId);
 }
 
 /** Default HP for a character ID. Used when creating units without explicit hp. Returns 50 if not configured. */
@@ -373,6 +365,14 @@ export function ensureUnitCharacterSprite(visual: Container, unit: Unit, texture
 
 /** If a texture is now available for this unit's character sprite key, attach/update the sprite and hide the letter label. */
 export function syncUnitCharacterSpriteIfNeeded(visual: Container, unit: Unit, context: IUnitRenderContext): void {
+    if (unit.characterId === PLAYER_CHARACTER_ID && unit.portraitId) {
+        const texture = context.getPlayerPortraitTexture(unit.portraitId);
+        if (!texture) return;
+        ensureUnitCharacterSprite(visual, unit, texture);
+        const label = visual.children.find((c) => c.label === 'label');
+        if (label) label.visible = false;
+        return;
+    }
     const key = getCharacterSpriteKey(unit.characterId);
     if (!key) return;
     const texture = context.getCharacterTexture(key);

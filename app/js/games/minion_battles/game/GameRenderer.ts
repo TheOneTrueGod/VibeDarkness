@@ -22,7 +22,7 @@ import { TerrainRenderer } from '../terrain/TerrainRenderer';
 import {
     renderUnit,
     updateUnitHpBar,
-    getBodyColor,
+    getBodyColorForUnit,
     syncUnitCharacterSpriteIfNeeded,
     type IUnitRenderContext,
 } from './units/unit_defs/unitDef';
@@ -34,6 +34,7 @@ import type { SpecialTile } from './specialTiles/SpecialTile';
 import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid';
 import type { DamageTakenEvent } from './EventBus';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
+import { getPortraitIds, PORTRAITS } from '../character_defs/portraits';
 
 /** Hit flash duration in seconds (real time, not affected by pause). */
 const HIT_FLASH_DURATION = 0.3;
@@ -113,6 +114,8 @@ export class GameRenderer {
     private wolfHowlTexture: Texture | null = null;
     /** Cached texture for boar character sprite. */
     private boarTexture: Texture | null = null;
+    /** Preloaded player portrait textures (portrait ID → texture). */
+    private playerPortraitTextures: Map<string, Texture> = new Map();
     /** Cached texture for Campfire. */
     private campfireTexture: Texture | null = null;
 
@@ -271,6 +274,20 @@ export class GameRenderer {
                 this.effectTextures[key] = (await Assets.load(src)) as Texture;
             } catch (err) {
                 console.warn('[GameRenderer] Failed to load effect texture:', key, src, err);
+            }
+        }
+
+        for (const portraitId of getPortraitIds()) {
+            const pic = PORTRAITS[portraitId]?.picture;
+            if (!pic) continue;
+            try {
+                const blob = new Blob([pic], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const tex = (await Assets.load(url)) as Texture;
+                URL.revokeObjectURL(url);
+                this.playerPortraitTextures.set(portraitId, tex);
+            } catch (err) {
+                console.warn('[GameRenderer] Failed to load portrait texture:', portraitId, err);
             }
         }
 
@@ -695,6 +712,7 @@ export class GameRenderer {
                 if (characterId === 'boar') return this.boarTexture;
                 return null;
             },
+            getPlayerPortraitTexture: (portraitId: string) => this.playerPortraitTextures.get(portraitId) ?? null,
         };
     }
 
@@ -751,7 +769,7 @@ export class GameRenderer {
                 if (body) {
                     body.clear();
                     body.circle(0, 0, unit.radius);
-                    body.fill(getBodyColor(unit.characterId));
+                    body.fill(getBodyColorForUnit(unit));
                     body.stroke({ color: 0x000000, width: 1 });
                     if (isDebugOutlined) {
                         // Yellow outline for debug focus.
@@ -1040,6 +1058,15 @@ export class GameRenderer {
             visual.x = proj.x;
             visual.y = proj.y;
             visual.visible = proj.active;
+            if (proj.projectileType === 'energy_blast') {
+                const pulseTime = (this.currentEngine?.gameTime ?? 0) * 16;
+                const pulse = (Math.sin(pulseTime) + 1) / 2;
+                visual.scale.set(0.9 + pulse * 0.3);
+                visual.alpha = 0.8 + pulse * 0.2;
+            } else {
+                visual.scale.set(1);
+                visual.alpha = 1;
+            }
         }
     }
 

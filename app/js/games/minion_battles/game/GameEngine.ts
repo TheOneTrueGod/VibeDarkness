@@ -45,7 +45,7 @@ export { createCardInstance, MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/C
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
 /** Number of stamina charges granted by each round-start recovery. */
-export const ROUND_STAMINA_RECOVERY = 4;
+export const ROUND_STAMINA_RECOVERY = 5;
 
 /** Fixed time step (seconds): 60 ticks/second. */
 const FIXED_DT = 1 / 60;

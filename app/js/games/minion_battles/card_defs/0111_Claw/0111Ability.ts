@@ -15,7 +15,7 @@ import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { applyForcedDisplacementToward } from '../../abilities/effectHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
-import { getBodyColor, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
+import { getBodyColorForUnit, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
 import { areEnemies } from '../../game/teams';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
@@ -23,7 +23,7 @@ import type { EventBus } from '../../game/EventBus';
 import type { Effect as EffectType } from '../../game/effects/Effect';
 import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11`;
+const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11` as '0111';
 const CLAW_DURATION = 0.4;
 const CLAW_MAX_DISTANCE = 160;
 const COLLISION_STEP = 4;
@@ -121,7 +121,7 @@ export const ClawAbility: AbilityStatic = {
 
         for (let i = prevTwoTickPeriods + 1; i <= twoTickPeriods; i++) {
             const effectData: Record<string, unknown> = {
-                bodyColor: getBodyColor(caster.characterId),
+                bodyColor: getBodyColorForUnit(caster),
                 radius: caster.radius,
                 characterSpriteKey: getCharacterSpriteKey(caster.characterId),
             };

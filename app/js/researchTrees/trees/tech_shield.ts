@@ -24,7 +24,7 @@ export const techShieldTree: ResearchTreeDef = {
         },
         {
             id: 'throwing_crystal_shield',
-            title: 'Throwing Crystal Shield',
+            title: 'Shooting Shield',
             order: 20,
             position: { x: 60, y: 220 },
             prereqNodeIds: ['crystal_embedded_shield'],

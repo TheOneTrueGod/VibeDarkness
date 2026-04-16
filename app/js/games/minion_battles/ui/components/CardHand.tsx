@@ -199,7 +199,7 @@ export default function CardHand({
     }, [mobileDescIndex, handCards]);
 
     return (
-        <div className="relative bg-dark-900/80 border-t border-dark-700 px-4 py-2">
+        <div className="relative bg-dark-900/80 border-t border-dark-700 p-3">
             {playerUnit && playerUnit.resources.length > 0 && (
                 <div className="flex items-center justify-center gap-2 mb-2">
                     {playerUnit.resources.map((resource) => (
@@ -214,7 +214,7 @@ export default function CardHand({
                 </div>
             )}
             {/* Fixed-height row for wait button and ability cards */}
-            <div ref={rowRef} className="relative flex items-center gap-4 h-[152px]">
+            <div ref={rowRef} className="relative flex items-center gap-4 h-[158px]">
                 {pulseParticles.map((p) => {
                     const t = Math.max(0, Math.min(1, (animationNow - p.startMs - p.staggerMs) / p.durationMs));
                     const oneMinus = 1 - t;

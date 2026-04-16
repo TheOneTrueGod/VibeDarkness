@@ -30,6 +30,8 @@ import { ShiningBlockAbility } from '../card_defs/0110_ShiningBlock/0110Ability'
 import { BeastClawAbility } from '../card_defs/0511_BeastClaw/0511Ability';
 import { ClawAbility } from '../card_defs/0111_Claw/0111Ability';
 import { SwingSwordAbility } from '../card_defs/0112_SwingSword/0112Ability';
+import { AbsorptionShieldAbility } from '../card_defs/0113_AbsorptionShield/0113Ability';
+import { EnergyBlastAbility } from '../card_defs/0114_EnergyBlast/0114Ability';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
 
@@ -65,6 +67,8 @@ register(ShiningBlockAbility);
 register(BeastClawAbility);
 register(ClawAbility);
 register(SwingSwordAbility);
+register(AbsorptionShieldAbility);
+register(EnergyBlastAbility);
 
 /** Look up an ability by its ID. */
 export function getAbility(id: string): AbilityStatic | undefined {

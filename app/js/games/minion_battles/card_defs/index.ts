@@ -24,6 +24,8 @@ import { ShiningBlockCard } from './0110_ShiningBlock/0110Ability';
 import { BeastClawCard } from './0511_BeastClaw/0511Ability';
 import { ClawCard } from './0111_Claw/0111Ability';
 import { SwingSwordCard } from './0112_SwingSword/0112Ability';
+import { AbsorptionShieldCard } from './0113_AbsorptionShield/0113Ability';
+import { EnergyBlastCard } from './0114_EnergyBlast/0114Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -50,6 +52,8 @@ const cardDefs: CardDef[] = [
     BeastClawCard,
     ClawCard,
     SwingSwordCard,
+    AbsorptionShieldCard,
+    EnergyBlastCard,
 ];
 
 /** Map card ID -> card definition for resolving hands (arrays of card IDs) to card data. */

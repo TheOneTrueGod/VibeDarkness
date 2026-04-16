@@ -17,7 +17,8 @@ describe('Unit', () => {
             speed: 120,
             teamId: 'player',
             ownerId: 'p1',
-            characterId: 'warrior',
+            characterId: 'player',
+            portraitId: 'warrior',
             name: 'Test',
             abilities: ['throw_knife', '0101'],
             aiSettings: { minRange: 50, maxRange: 200 },
@@ -41,6 +42,7 @@ describe('Unit', () => {
         expect(restored.teamId).toBe(unit.teamId);
         expect(restored.ownerId).toBe(unit.ownerId);
         expect(restored.characterId).toBe(unit.characterId);
+        expect(restored.portraitId).toBe(unit.portraitId);
         expect(restored.name).toBe(unit.name);
         expect(restored.waitMinEndTime).toBe(unit.waitMinEndTime);
         expect(restored.waitMaxEndTime).toBe(unit.waitMaxEndTime);
@@ -70,5 +72,7 @@ describe('Unit', () => {
         expect(restored.movement).toBeNull();
         expect(restored.x).toBe(50);
         expect(restored.y).toBe(50);
+        expect(restored.characterId).toBe('player');
+        expect(restored.portraitId).toBe('ranger');
     });
 });

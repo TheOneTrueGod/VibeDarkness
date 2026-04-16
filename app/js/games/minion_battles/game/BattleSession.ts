@@ -12,6 +12,7 @@ import { SPECTATOR_ID } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { computeSynchash } from '../../../utils/synchash';
 import { GameEngine, CHECKPOINT_INTERVAL } from './GameEngine';
+import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
 import { Camera } from './Camera';
 import type { BattleOrder, OrderAtTick, SerializedGameState, WaitingForOrders } from './types';
@@ -135,6 +136,20 @@ export class BattleSession {
             engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
             if (mission.levelEvents && mission.levelEvents.length > 0) {
                 engine.setLevelEvents(mission.levelEvents);
+            }
+            const snapshotPortraitIds = (initRecord.characterPortraitIds ?? initRecord.character_portrait_ids) as
+                | Record<string, string>
+                | undefined;
+            if (snapshotPortraitIds) {
+                for (const unit of engine.units) {
+                    if (
+                        unit.characterId === PLAYER_CHARACTER_ID &&
+                        unit.isPlayerControlled() &&
+                        snapshotPortraitIds[unit.ownerId]
+                    ) {
+                        unit.portraitId = snapshotPortraitIds[unit.ownerId];
+                    }
+                }
             }
         } else {
             engine = new GameEngine();

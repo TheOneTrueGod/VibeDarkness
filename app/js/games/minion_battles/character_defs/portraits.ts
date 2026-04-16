@@ -3,11 +3,21 @@
  * Map of portrait ID -> { id, name, picture }.
  */
 
+import type { UnitSize } from '../game/units/unit_defs/unitConstants';
+
 export interface PortraitDef {
     id: string;
     name: string;
     /** SVG string or image URL for the portrait */
     picture: string;
+    /**
+     * Battle token body color (Pixi fill, e.g. 0x8b0000). Omitted → uses global player default from UNIT_DEFS.player.
+     */
+    battleBodyColor?: number;
+    /**
+     * Hitbox / token size on the battle map. Omitted → uses global player default from UNIT_DEFS.player.
+     */
+    battleUnitSize?: UnitSize;
 }
 
 function generateWarriorSVG(): string {
@@ -169,31 +179,43 @@ export const PORTRAITS: Record<string, PortraitDef> = {
         id: 'warrior',
         name: 'Warrior',
         picture: generateWarriorSVG(),
+        battleBodyColor: 0x8b0000,
+        battleUnitSize: 'Large',
     },
     'mage': {
         id: 'mage',
         name: 'Mage',
         picture: generateMageSVG(),
+        battleBodyColor: 0x4a148c,
+        battleUnitSize: 'Small',
     },
     'ranger': {
         id: 'ranger',
         name: 'Ranger',
         picture: generateRangerSVG(),
+        battleBodyColor: 0x2e7d32,
+        battleUnitSize: 'Medium',
     },
     'healer': {
         id: 'healer',
         name: 'Healer',
         picture: generateHealerSVG(),
+        battleBodyColor: 0xc9b896,
+        battleUnitSize: 'Medium',
     },
     'rogue': {
         id: 'rogue',
         name: 'Rogue',
         picture: generateRogueSVG(),
+        battleBodyColor: 0x2c2c2c,
+        battleUnitSize: 'Small',
     },
     'necromancer': {
         id: 'necromancer',
         name: 'Necromancer',
         picture: generateNecromancerSVG(),
+        battleBodyColor: 0x1a1a2e,
+        battleUnitSize: 'Medium',
     },
 };
 

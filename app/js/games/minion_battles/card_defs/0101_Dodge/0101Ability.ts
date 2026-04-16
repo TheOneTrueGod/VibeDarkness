@@ -15,7 +15,7 @@ import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { applyForcedDisplacementToward } from '../../abilities/effectHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
-import { getBodyColor, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
+import { getBodyColorForUnit, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
 import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
@@ -26,8 +26,6 @@ const COLLISION_STEP = 4;
 
 /** Duration of each afterimage in seconds (6 frames at 60 fps). */
 const AFTERIMAGE_DURATION = 6 / 60;
-const FIRST_STAMINA_GRANT_TIME = 0.05;
-const SECOND_STAMINA_GRANT_TIME = 0.25;
 
 interface DodgeEngineLike {
     addEffect(e: Effect): void;
@@ -74,20 +72,12 @@ export const DodgeAbility: AbilityStatic = {
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         const eng = engine as DodgeEngineLike;
-        if (prevTime < FIRST_STAMINA_GRANT_TIME && currentTime >= FIRST_STAMINA_GRANT_TIME) {
+        // onUse: grant one stamina recovery charge immediately when dodge begins.
+        if (prevTime <= 0 && currentTime > 0) {
             grantRecoveryChargeToRandomAbility(
                 caster,
                 'staminaCharge',
                 (min, max) => eng.generateRandomInteger(min, max),
-                { excludeAbilityId: CARD_ID },
-            );
-        }
-        if (prevTime < SECOND_STAMINA_GRANT_TIME && currentTime >= SECOND_STAMINA_GRANT_TIME) {
-            grantRecoveryChargeToRandomAbility(
-                caster,
-                'staminaCharge',
-                (min, max) => eng.generateRandomInteger(min, max),
-                { excludeAbilityId: CARD_ID },
             );
         }
         if (currentTime >= DODGE_DURATION) return;
@@ -110,7 +100,7 @@ export const DodgeAbility: AbilityStatic = {
 
         for (let i = prevTwoTickPeriods + 1; i <= twoTickPeriods; i++) {
             const effectData: Record<string, unknown> = {
-                bodyColor: getBodyColor(caster.characterId),
+                bodyColor: getBodyColorForUnit(caster),
                 radius: caster.radius,
                 characterSpriteKey: getCharacterSpriteKey(caster.characterId),
             };

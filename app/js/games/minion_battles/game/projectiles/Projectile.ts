@@ -29,7 +29,7 @@ export class Projectile extends GameObject {
     /** Optional visual trail type (e.g. 'bullet'). When set, update() will spawn matching effects as the projectile moves. */
     trailType?: 'bullet';
     /** Projectile look variant for custom rendering. */
-    projectileType?: 'default' | 'charged_rock';
+    projectileType?: 'default' | 'charged_rock' | 'energy_blast';
 
     constructor(config: {
         id?: string;
@@ -43,7 +43,7 @@ export class Projectile extends GameObject {
         sourceAbilityId: string;
         maxDistance: number;
         trailType?: 'bullet';
-        projectileType?: 'default' | 'charged_rock';
+        projectileType?: 'default' | 'charged_rock' | 'energy_blast';
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -112,6 +112,13 @@ export class Projectile extends GameObject {
             visual.lineTo(4, 4);
             visual.lineTo(9, 3);
             visual.stroke({ color: 0x8ef9ff, width: 2, alpha: 0.95 });
+        } else if (projectile.projectileType === 'energy_blast') {
+            visual.circle(0, 0, projectile.radius);
+            visual.fill({ color: 0x93e7ff, alpha: 0.95 });
+            visual.circle(0, 0, projectile.radius * 0.65);
+            visual.fill({ color: 0xd8f7ff, alpha: 0.85 });
+            visual.circle(0, 0, projectile.radius * 1.25);
+            visual.stroke({ color: 0x63d7ff, width: 2, alpha: 0.8 });
         } else {
             visual.circle(0, 0, projectile.radius);
             visual.fill(0xc0c0c0);
@@ -217,7 +224,7 @@ export class Projectile extends GameObject {
         proj.distanceTraveled = data.distanceTraveled as number;
         proj.radius = (data.radius as number) ?? 5;
         proj.trailType = (data.trailType as 'bullet' | undefined) ?? undefined;
-        proj.projectileType = (data.projectileType as 'default' | 'charged_rock' | undefined) ?? 'default';
+        proj.projectileType = (data.projectileType as 'default' | 'charged_rock' | 'energy_blast' | undefined) ?? 'default';
         return proj;
     }
 

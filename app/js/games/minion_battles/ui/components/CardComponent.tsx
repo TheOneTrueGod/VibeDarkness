@@ -61,10 +61,13 @@ export default function CardComponent({
     const usesLeft = Math.max(0, runtime.currentUses);
     const maxUses = Math.max(1, runtime.maxUses);
     const costs = getAbilityResourceCosts(ability);
-    const recoveryRule = getAbilityUseConfig(ability.id).recoveries[0];
-    const recoveryCurrent = recoveryRule ? (runtime.recoveryChargesByType[recoveryRule.chargeType] ?? 0) : 0;
-    const recoveryNeeded = recoveryRule ? recoveryRule.chargesPerRecovery : 0;
-    const showRecovery = Boolean(recoveryRule) && usesLeft < maxUses;
+    const recoveryRules = getAbilityUseConfig(ability.id).recoveries;
+    const showRecovery = recoveryRules.length > 0 && usesLeft < maxUses;
+    const recoveryColorByType: Record<string, string> = {
+        staminaCharge: 'bg-gray-300',
+        lightCharge: 'bg-yellow-300',
+        energyCharge: 'bg-cyan-300',
+    };
 
     return (
         <div
@@ -127,12 +130,21 @@ export default function CardComponent({
                         {usesLeft}/{maxUses}
                     </div>
                     {showRecovery && (
-                        <div className="flex-1 flex items-center gap-0.5 h-full">
-                            {Array.from({ length: Math.max(1, recoveryNeeded) }, (_, i) => (
-                                <div key={i} className="flex-1 max-w-[40px] h-2 rounded-[2px] border border-gray-600 bg-gray-800">
-                                    <div className={`h-full rounded-[1px] ${i < recoveryCurrent ? 'bg-gray-300' : 'bg-transparent'}`} />
-                                </div>
-                            ))}
+                        <div className="flex-1 flex flex-col justify-center gap-0.5">
+                            {recoveryRules.map((rule) => {
+                                const recoveryCurrent = runtime.recoveryChargesByType[rule.chargeType] ?? 0;
+                                const recoveryNeeded = Math.max(1, rule.chargesPerRecovery);
+                                const fillClass = recoveryColorByType[rule.chargeType] ?? 'bg-gray-300';
+                                return (
+                                    <div key={`${rule.chargeType}-${rule.chargesPerRecovery}`} className="flex items-center gap-0.5 h-2.5">
+                                        {Array.from({ length: recoveryNeeded }, (_, i) => (
+                                            <div key={i} className="flex-1 max-w-[40px] h-2 rounded-[2px] border border-gray-600 bg-gray-800">
+                                                <div className={`h-full rounded-[1px] ${i < recoveryCurrent ? fillClass : 'bg-transparent'}`} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
