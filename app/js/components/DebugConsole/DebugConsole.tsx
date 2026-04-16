@@ -14,6 +14,8 @@ import DebugCampaignDataTab from './tabs/DebugCampaignDataTab';
 import DebugCharactersTab from './tabs/DebugCharactersTab';
 import DebugTogglesTab from './tabs/DebugTogglesTab';
 import DebugTabButton from './DebugTabButton';
+import { useDebugSettings } from '../../contexts/DebugSettingsContext';
+import { Pause, Play, Repeat, SkipForward } from 'lucide-react';
 
 export type TabId =
     | 'battle-actions'
@@ -50,6 +52,15 @@ interface MouseDebugInfo {
     terrainName: string;
 }
 
+type DebugDockSide = 'bottom' | 'left' | 'top' | 'right';
+
+function nextDebugDockSide(side: DebugDockSide): DebugDockSide {
+    if (side === 'bottom') return 'left';
+    if (side === 'left') return 'top';
+    if (side === 'top') return 'right';
+    return 'bottom';
+}
+
 export default function DebugConsole({
     gameState,
     playerName,
@@ -62,10 +73,12 @@ export default function DebugConsole({
     fetchCharactersList,
     getCharacter,
 }: DebugConsoleProps) {
+    const { debugPauseMode, setDebugPauseMode, advanceOneDebugTick } = useDebugSettings();
     const [debugMode, setDebugMode] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [, setTildeCount] = useState(0);
     const [activeTab, setActiveTab] = useState<TabId>(() => (inBattle && isAdmin ? 'battle-actions' : 'game-state'));
+    const [dockSide, setDockSide] = useState<DebugDockSide>('bottom');
 
     const [mouseDebug, setMouseDebug] = useState<MouseDebugInfo | null>(null);
 
@@ -131,6 +144,14 @@ export default function DebugConsole({
 
     const tabLabel = playerName ? `${playerName} Data` : 'Player Data';
     const charactersTabGrayed = charactersListMeta.isNull && !charactersListMeta.isLoading;
+    const dockClass =
+        dockSide === 'bottom'
+            ? 'bottom-0 left-1/2 -translate-x-1/2 rounded-t-lg'
+            : dockSide === 'top'
+              ? 'top-0 left-1/2 -translate-x-1/2 rounded-b-lg'
+              : dockSide === 'left'
+                ? 'left-0 top-1/2 -translate-y-1/2 rounded-r-lg'
+                : 'right-0 top-1/2 -translate-y-1/2 rounded-l-lg';
 
     const content = useMemo(() => {
         return (
@@ -156,11 +177,11 @@ export default function DebugConsole({
 
     return (
         <div
-            className={`fixed bottom-0 left-1/2 -translate-x-1/2 z-[9999] bg-surface/[0.92] backdrop-blur border border-border-custom rounded-t-lg shadow flex flex-col overflow-hidden transition-all duration-200 ${
+            className={`fixed z-[9999] bg-surface/[0.92] backdrop-blur border border-border-custom shadow flex flex-col overflow-hidden transition-all duration-200 ${dockClass} ${
                 expanded ? 'w-[60vw] h-[60vh]' : 'w-auto h-auto max-h-[60px]'
             }`}
         >
-            <div className={`p-2 shrink-0 flex items-center justify-between gap-4 ${expanded ? 'min-w-[260px]' : ''}`}>
+            <div className={`p-2 shrink-0 flex items-center gap-4 ${expanded ? 'min-w-[260px]' : ''}`}>
                 <div>
                     <button
                         className="px-4 py-2 text-sm bg-surface-light text-white border border-border-custom rounded hover:bg-border-custom transition-colors"
@@ -186,7 +207,40 @@ export default function DebugConsole({
                                 <div>No mouse</div>
                             )}
                         </div>
-                        <div className="w-10" />
+                        {inBattle && (
+                            <div className="ml-auto flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    title={debugPauseMode ? 'Play' : 'Pause'}
+                                    aria-label={debugPauseMode ? 'Play' : 'Pause'}
+                                    className={`px-3 py-1.5 text-xs rounded border border-border-custom ${
+                                        debugPauseMode ? 'bg-primary/20 text-primary border-primary/50' : 'bg-surface-light text-white hover:bg-border-custom'
+                                    }`}
+                                    onClick={() => setDebugPauseMode(!debugPauseMode)}
+                                >
+                                    {debugPauseMode ? <Play size={14} /> : <Pause size={14} />}
+                                </button>
+                                <button
+                                    type="button"
+                                    title="Next Song"
+                                    aria-label="Next Song"
+                                    className="px-3 py-1.5 text-xs rounded border border-border-custom bg-surface-light text-white hover:bg-border-custom disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!debugPauseMode}
+                                    onClick={advanceOneDebugTick}
+                                >
+                                    <SkipForward size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    title={`Dock side: ${dockSide}. Click to switch side`}
+                                    aria-label={`Dock side: ${dockSide}. Click to switch side`}
+                                    className="px-3 py-1.5 text-xs rounded border border-border-custom bg-surface-light text-white hover:bg-border-custom"
+                                    onClick={() => setDockSide((prev) => nextDebugDockSide(prev))}
+                                >
+                                    <Repeat size={14} />
+                                </button>
+                            </div>
+                        )}
                     </>
                 )}
             </div>

@@ -380,7 +380,7 @@ export default function BattlePhase({
         targetingStateRef.current.waitingForOrders = null;
         pendingMovePathRef.current = null;
 
-        sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders });
+        void sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders });
     }, [waitingForOrders, canSubmitOrders]);
 
     const handleCanvasClick = useCallback((screenX: number, screenY: number) => {

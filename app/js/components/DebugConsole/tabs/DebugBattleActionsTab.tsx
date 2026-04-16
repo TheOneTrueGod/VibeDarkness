@@ -57,6 +57,7 @@ export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isH
                 />
                 <span className="text-[11px] text-muted">Player-controlled units move 10x faster while enabled.</span>
             </div>
+
         </div>
     );
 }

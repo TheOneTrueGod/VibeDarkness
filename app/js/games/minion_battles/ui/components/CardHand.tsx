@@ -132,6 +132,8 @@ export default function CardHand({
                     const cardRect = cardEl.getBoundingClientRect();
                     const cardBottomCenterX = cardRect.left + cardRect.width / 2 - rowRect.left;
                     const cardBottomCenterY = cardRect.bottom - rowRect.top;
+                    const chordMidX = (trackerCenterX + cardBottomCenterX) / 2;
+                    const chordMidY = (trackerCenterY + cardBottomCenterY) / 2;
                     return Array.from({ length: 4 }, (_, i) => ({
                         id: `${abilityId}-${idx}-${i}-${start}`,
                         startMs: start,
@@ -140,10 +142,9 @@ export default function CardHand({
                         fromY: trackerCenterY + (Math.random() - 0.5) * 12,
                         toX: cardBottomCenterX + (Math.random() - 0.5) * 12,
                         toY: cardBottomCenterY + (Math.random() - 0.5) * 12,
-                        controlX:
-                            (trackerCenterX + cardBottomCenterX) / 2 + (Math.random() - 0.5) * 44,
-                        controlY:
-                            Math.min(trackerCenterY, cardBottomCenterY) - 30 - Math.random() * 36,
+                        controlX: chordMidX + (Math.random() - 0.5) * 44,
+                        // Screen Y grows downward; place control above chord midpoint so the arc bulges upward.
+                        controlY: chordMidY - (48 + Math.random() * 56),
                         staggerMs: i * 45,
                     }));
                 });

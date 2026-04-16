@@ -274,7 +274,14 @@ export default function CharacterEditor({
         async (treeIds: string[]) => {
             if (permissionAccount?.role !== 'admin') return;
             if (!treeIds.length) return;
-            if (!window.confirm('Reset research for the currently visible research trees?')) return;
+            const treeLabels = treeIds
+                .map((id) => RESEARCH_TREES.find((t) => t.id === id)?.title ?? id)
+                .join(', ');
+            const confirmMsg =
+                treeIds.length === 1
+                    ? `Reset all research in “${treeLabels}”?`
+                    : `Reset all research in these trees: ${treeLabels}?`;
+            if (!window.confirm(confirmMsg)) return;
 
             setSaving(true);
             try {
@@ -530,6 +537,9 @@ export default function CharacterEditor({
                                 selectedTreeId={selectedTreeId}
                                 onSelectTree={(id) => setSelectedTreeId(id)}
                                 researchTrees={researchTrees}
+                                canResetResearch={permissionAccount?.role === 'admin'}
+                                resetSaving={saving}
+                                onResetResearchTree={(treeId) => void handleResetResearch([treeId])}
                             />
                         )}
                     </div>
@@ -603,11 +613,8 @@ export default function CharacterEditor({
                                             campaignResources={resolvedCampaign.resources}
                                             saving={saving}
                                             canResetResearch={permissionAccount?.role === 'admin'}
-                                            firstTreeId={firstTreeId}
                                             onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
-                                            onResetResearch={(_treeIds) =>
-                                                void handleResetResearch(displayResearchTrees.map((t) => t.id))
-                                            }
+                                            onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
                                         />
                                     ) : null}
                                 </>

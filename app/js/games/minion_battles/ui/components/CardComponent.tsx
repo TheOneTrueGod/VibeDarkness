@@ -9,6 +9,7 @@ import React, { useCallback } from 'react';
 import { getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Ability';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
+import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abilityUseChargeAnimation';
 import CardTooltip from './CardTooltip';
 
 interface CardComponentProps {
@@ -58,11 +59,21 @@ export default function CardComponent({
     }, [isDisabled, isMobile, showMobileDescription, onSelect, onMobileDescriptionToggle]);
 
     const tooltipLines = ability.getTooltipText(gameState);
-    const usesLeft = Math.max(0, runtime.currentUses);
-    const maxUses = Math.max(1, runtime.maxUses);
     const costs = getAbilityResourceCosts(ability);
     const recoveryRules = getAbilityUseConfig(ability.id).recoveries;
-    const showRecovery = recoveryRules.length > 0 && usesLeft < maxUses;
+    const showRecovery = recoveryRules.length > 0;
+    const firstRule = recoveryRules[0];
+    const animRule: AbilityChargeAnimRule | undefined = firstRule
+        ? {
+              chargeType: firstRule.chargeType,
+              chargesPerRecovery: firstRule.chargesPerRecovery,
+              usesRecovered: firstRule.usesRecovered,
+          }
+        : undefined;
+    const anim = useAbilityUseChargeAnimation(ability.id, runtime, showRecovery ? animRule : undefined);
+    const usesLeft = Math.max(0, anim.uses);
+    const maxUses = Math.max(1, anim.maxUses);
+    const isAtFullUses = usesLeft >= maxUses;
     const recoveryColorByType: Record<string, string> = {
         staminaCharge: 'bg-gray-300',
         lightCharge: 'bg-yellow-300',
@@ -103,7 +114,7 @@ export default function CardComponent({
             >
                 {/* Card image */}
                 <div
-                    className="w-full h-14 flex items-center justify-center mb-1"
+                    className="w-full h-14 flex items-center justify-center mb-1 mt-1"
                     dangerouslySetInnerHTML={{ __html: ability.image }}
                 />
 
@@ -131,17 +142,47 @@ export default function CardComponent({
                     </div>
                     {showRecovery && (
                         <div className="flex-1 flex flex-col justify-center gap-0.5">
-                            {recoveryRules.map((rule) => {
-                                const recoveryCurrent = runtime.recoveryChargesByType[rule.chargeType] ?? 0;
+                            {recoveryRules.map((rule, ruleIndex) => {
                                 const recoveryNeeded = Math.max(1, rule.chargesPerRecovery);
                                 const fillClass = recoveryColorByType[rule.chargeType] ?? 'bg-gray-300';
                                 return (
                                     <div key={`${rule.chargeType}-${rule.chargesPerRecovery}`} className="flex items-center gap-0.5 h-2.5">
-                                        {Array.from({ length: recoveryNeeded }, (_, i) => (
-                                            <div key={i} className="flex-1 max-w-[40px] h-2 rounded-[2px] border border-gray-600 bg-gray-800">
-                                                <div className={`h-full rounded-[1px] ${i < recoveryCurrent ? fillClass : 'bg-transparent'}`} />
-                                            </div>
-                                        ))}
+                                        {Array.from({ length: recoveryNeeded }, (_, i) => {
+                                            const fillOpacity = isAtFullUses ? 'opacity-50' : 'opacity-100';
+                                            let innerWidthPct = 0;
+                                            let showFill = false;
+                                            if (ruleIndex === 0) {
+                                                const baseFull = isAtFullUses || i < anim.chargeFloor;
+                                                if (anim.fillingSegmentIndex === i) {
+                                                    showFill = true;
+                                                    innerWidthPct = anim.fillProgress * 100;
+                                                } else if (anim.drainingSegmentIndex === i) {
+                                                    showFill = true;
+                                                    innerWidthPct = anim.drainProgress * 100;
+                                                } else if (baseFull) {
+                                                    showFill = true;
+                                                    innerWidthPct = 100;
+                                                }
+                                            } else {
+                                                const rc = runtime.recoveryChargesByType[rule.chargeType] ?? 0;
+                                                const isFilled = isAtFullUses || i < rc;
+                                                if (isFilled) {
+                                                    showFill = true;
+                                                    innerWidthPct = 100;
+                                                }
+                                            }
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className="flex-1 max-w-[40px] h-2 rounded-[2px] border border-gray-600 bg-gray-800 overflow-hidden"
+                                                >
+                                                    <div
+                                                        className={`h-full rounded-[1px] ${showFill ? `${fillClass} ${fillOpacity}` : 'bg-transparent'}`}
+                                                        style={{ width: `${innerWidthPct}%` }}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 );
                             })}

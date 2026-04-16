@@ -37,6 +37,7 @@ import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
 import { computeSynchash } from '../../../utils/synchash';
 import { addRecoveryChargeToUnitAbilities, canUseAbilityNow, consumeAbilityUse, ensureAbilityRuntimeState } from '../abilities/abilityUses';
+import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -397,8 +398,19 @@ export class GameEngine implements EngineContext {
         const frameTime = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
         this.lastTimestamp = timestamp;
 
-        if (!this.state.levelEventManager.isTerminal && !this.isPaused) {
-            this.accumulator += frameTime;
+        const debugPauseModeActive = debugSettingsSnapshot.debugPauseMode;
+        const canRunSimulation = !this.state.levelEventManager.isTerminal && !this.isPaused;
+        if (canRunSimulation) {
+            if (debugPauseModeActive) {
+                // Explicit one-step mode for deterministic debug inspection.
+                if (consumeDebugAdvanceTickRequest()) {
+                    this.accumulator += FIXED_DT;
+                } else {
+                    this.accumulator = 0;
+                }
+            } else {
+                this.accumulator += frameTime;
+            }
         }
 
         let stateChanged = false;

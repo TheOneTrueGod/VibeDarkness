@@ -50,6 +50,10 @@ export interface ResearchTreeListProps {
     selectedTreeId: string | null;
     onSelectTree: (treeId: string) => void;
     researchTrees: Record<string, string[]>;
+    /** When true, each tree row can show Reset for trees that have researched nodes (admin tooling). */
+    canResetResearch?: boolean;
+    resetSaving?: boolean;
+    onResetResearchTree?: (treeId: string) => void;
 }
 
 export function ResearchTreeList({
@@ -58,6 +62,9 @@ export function ResearchTreeList({
     selectedTreeId,
     onSelectTree,
     researchTrees,
+    canResetResearch = false,
+    resetSaving = false,
+    onResetResearchTree,
 }: ResearchTreeListProps) {
     const firstTreeId = availableTrees[0]?.id ?? null;
     const activeTreeId = selectedTreeId ?? firstTreeId;
@@ -69,23 +76,40 @@ export function ResearchTreeList({
                 const isSelected = t.id === activeTreeId;
                 const hasPurchases = purchasedCount >= 1;
                 const dimmed = dimmedTreeIds?.has(t.id) ?? false;
+                const showRowReset =
+                    canResetResearch && hasPurchases && typeof onResetResearchTree === 'function';
                 return (
-                    <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => onSelectTree(t.id)}
-                        className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors shrink-0 ${
-                            dimmed ? 'opacity-80 ' : ''
-                        }${
-                            isSelected
-                                ? 'border-primary bg-surface-light text-white'
-                                : hasPurchases
-                                  ? 'border-border-custom bg-surface text-gray-200 hover:bg-surface-light'
-                                  : 'border-border-custom bg-surface text-muted hover:bg-surface-light hover:text-gray-300'
-                        }`}
-                    >
-                        {t.title} ({purchasedCount})
-                    </button>
+                    <div key={t.id} className="flex gap-1 items-stretch shrink-0 min-w-0">
+                        <button
+                            type="button"
+                            onClick={() => onSelectTree(t.id)}
+                            className={`min-w-0 flex-1 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors ${
+                                dimmed ? 'opacity-80 ' : ''
+                            }${
+                                isSelected
+                                    ? 'border-primary bg-surface-light text-white'
+                                    : hasPurchases
+                                      ? 'border-border-custom bg-surface text-gray-200 hover:bg-surface-light'
+                                      : 'border-border-custom bg-surface text-muted hover:bg-surface-light hover:text-gray-300'
+                            }`}
+                        >
+                            <span className="block truncate">
+                                {t.title} ({purchasedCount})
+                            </span>
+                        </button>
+                        {showRowReset && (
+                            <button
+                                type="button"
+                                onClick={() => onResetResearchTree(t.id)}
+                                disabled={resetSaving}
+                                title={`Reset research in “${t.title}”`}
+                                aria-label={`Reset research in ${t.title}`}
+                                className="shrink-0 rounded-lg border border-border-custom bg-surface-light px-2 py-2 text-xs font-semibold text-white hover:bg-border-custom disabled:opacity-60"
+                            >
+                                Reset
+                            </button>
+                        )}
+                    </div>
                 );
             })}
         </div>
@@ -104,7 +128,6 @@ export interface ResearchTreeContentProps {
     campaignResources: CampaignResources;
     saving: boolean;
     canResetResearch: boolean;
-    firstTreeId: string | null;
     onResearchNode: (treeId: string, nodeId: string) => void;
     onResetResearch: (treeIds: string[]) => void;
 }
@@ -119,7 +142,6 @@ export function ResearchTreeContent({
     campaignResources,
     saving,
     canResetResearch,
-    firstTreeId,
     onResearchNode,
     onResetResearch,
 }: ResearchTreeContentProps) {
@@ -141,6 +163,7 @@ export function ResearchTreeContent({
     const PAD_BOTTOM = NODE_H;
     const FIRST_NODE_X_NUDGE = NODE_W / 2;
     const resetTreeIds = [tree.id];
+    const hasResearchInThisTree = (researchTrees[tree.id] ?? []).length > 0;
 
     const effective = computeEffectiveResourcesForTree(tree, ctx);
     const researchedSet = new Set(researchTrees[tree.id] ?? []);
@@ -200,13 +223,13 @@ export function ResearchTreeContent({
                         </div>
                     </div>
 
-                    {canResetResearch && tree.id === firstTreeId && (
+                    {canResetResearch && hasResearchInThisTree && (
                         <button
                             type="button"
                             onClick={() => onResetResearch(resetTreeIds)}
                             disabled={saving}
                             className="rounded-md bg-surface-light border border-border-custom px-3 py-1.5 text-sm font-semibold text-white hover:bg-border-custom disabled:opacity-60 mt-0.5"
-                            title="Un-research all researched nodes shown in this view"
+                            title={`Un-research all nodes in “${tree.title}”`}
                         >
                             Reset research
                         </button>
@@ -396,6 +419,9 @@ export default function ResearchTreePanel({
                         selectedTreeId={selectedTreeId}
                         onSelectTree={(id) => setSelectedTreeId(id)}
                         researchTrees={researchTrees}
+                        canResetResearch={canResetResearch}
+                        resetSaving={saving}
+                        onResetResearchTree={(treeId) => onResetResearch([treeId])}
                     />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -409,9 +435,8 @@ export default function ResearchTreePanel({
                             campaignResources={campaignResources}
                             saving={saving}
                             canResetResearch={canResetResearch}
-                            firstTreeId={firstTreeId}
                             onResearchNode={onResearchNode}
-                            onResetResearch={() => onResetResearch(availableTrees.map((t) => t.id))}
+                            onResetResearch={onResetResearch}
                         />
                     )}
                 </div>

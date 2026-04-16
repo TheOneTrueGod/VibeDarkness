@@ -302,20 +302,18 @@ export class BattleSession {
     /**
      * Local player submits an order at the current pause point.
      * Caller clears movement preview; session validates against the live engine.
+     * Does not advance the engine until {@link BattleSessionSyncBridge.submitOrder} completes
+     * (POST + GET /minimal apply path — same as remote order delivery).
      */
-    submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): void {
+    async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
         const engine = this.engine;
         if (!engine?.waitingForOrders || !opts.canSubmitOrders) return;
-
-        engine.applyOrder(order);
-        engine.resumeAfterOrders();
-        this.emit({ type: 'pause_state', paused: false, waitingForOrders: null });
-        this.emit({ type: 'card_state', engine });
 
         const atTick = engine.gameTick + 1;
         const checkpointGameTick = Math.floor(atTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
         const orderRecord: Record<string, unknown> = JSON.parse(JSON.stringify(order));
-        void this.syncBridge?.submitOrder(checkpointGameTick, atTick, orderRecord);
+
+        await this.syncBridge?.submitOrder(checkpointGameTick, atTick, orderRecord);
 
         const ordersFormatted = engine.pendingOrders.map((o) => ({
             gameTick: o.gameTick,
