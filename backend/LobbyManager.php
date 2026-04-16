@@ -1054,8 +1054,21 @@ class LobbyManager
         if (!is_array($selections) || $selections === []) {
             return false;
         }
-        $allPlayerIds = array_keys($selections);
-        $allPlayerIds = array_values(array_filter(array_map(static fn ($p) => is_int($p) ? (string) $p : $p, $allPlayerIds), static fn ($v) => is_string($v) && $v !== ''));
+        $allPlayerIds = [];
+        foreach ($selections as $selectionPlayerId => $characterId) {
+            $normalizedPlayerId = is_int($selectionPlayerId) ? (string) $selectionPlayerId : $selectionPlayerId;
+            if (!is_string($normalizedPlayerId) || $normalizedPlayerId === '') {
+                continue;
+            }
+            // Spectators do not vote in group votes; host/client UI only gates on active players.
+            if ($characterId === 'spectator') {
+                continue;
+            }
+            $allPlayerIds[] = $normalizedPlayerId;
+        }
+        if ($allPlayerIds === []) {
+            return false;
+        }
 
         $votes = $currentState['groupVoteVotes'][$voteId] ?? [];
         if (!is_array($votes)) {

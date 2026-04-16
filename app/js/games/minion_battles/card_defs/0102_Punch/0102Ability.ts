@@ -31,6 +31,10 @@ const CORE_TRAINING_DAMAGE_BONUS = 2;
 const PUNCH_EFFECT_DURATION = 0.2;
 /** Line thickness for hitbox and preview (px). Enemies within (unit.radius + this) of the line are hit. */
 const LINE_THICKNESS = 20;
+const POISE_DAMAGE = 1;
+const KNOCKBACK_MAGNITUDE = 12;
+const KNOCKBACK_AIR_TIME = 0.03;
+const KNOCKBACK_SLIDE_TIME = 0.06;
 
 /** Minimum cast range (caster cannot target closer than this). */
 function getMinRange(_caster: Unit): number {
@@ -50,6 +54,7 @@ interface GameEngineLike {
     gameTime: number;
     eventBus: EventBus;
     getPlayerResearchNodes?(playerId: string, treeId: string): string[];
+    interruptUnitAndRefundAbilities?(unit: Unit): void;
 }
 
 function getPunchDamage(engine: GameEngineLike, caster: Unit): number {
@@ -166,7 +171,7 @@ export const PunchAbility: AbilityStatic = {
         const targetUnit = hitUnits[0]!;
         if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) return;
 
-        tryDamageOrBlock(targetUnit, {
+        const didDamage = tryDamageOrBlock(targetUnit, {
             engine: eng,
             gameTime: eng.gameTime,
             eventBus: eng.eventBus,
@@ -177,6 +182,20 @@ export const PunchAbility: AbilityStatic = {
             damage: getPunchDamage(eng, caster),
             attackType: 'melee',
         });
+        if (!didDamage) return;
+
+        const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
+        targetUnit.applyKnockback(
+            POISE_DAMAGE,
+            {
+                knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
+                knockbackAirTime: KNOCKBACK_AIR_TIME,
+                knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
+                knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
+            },
+            eng.eventBus,
+            (u) => eng.interruptUnitAndRefundAbilities?.(u),
+        );
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
