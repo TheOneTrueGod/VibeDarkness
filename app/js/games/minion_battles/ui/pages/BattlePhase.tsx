@@ -21,6 +21,9 @@ import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
+import BossFightHud from '../components/boss/BossFightHud';
+import type { BossHudSlice } from '../components/boss/BossFightHud';
+import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
 import { useGameSyncOptional } from '../../../../contexts/GameSyncContext';
 import type { BattleCallbacks } from '../../../../contexts/GameSyncContext';
@@ -108,6 +111,7 @@ export default function BattlePhase({
     targetingStateRef.current = { selectedAbility, currentTargets, mouseWorld: mouseWorldRef.current, waitingForOrders };
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     const [, forceRender] = useState(0);
+    const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const prevSyncStatusRef = useRef<string | null>(null);
 
     const isMyTurn = waitingForOrders?.ownerId === playerId;
@@ -350,6 +354,42 @@ export default function BattlePhase({
         sessionRef.current?.replayWaitingForOrdersAfterSync();
     }, [gameSync?.syncStatus, gameSync?.gameState]);
 
+    useEffect(() => {
+        const tick = () => {
+            const eng = sessionRef.current?.getEngine();
+            if (!eng) {
+                setBossHud(null);
+                return;
+            }
+            const bosses = eng.units.filter((u) => u.isAlive() && u.tags.includes(UnitTag.Boss));
+            const b = bosses[0];
+            if (!b) {
+                setBossHud(null);
+                return;
+            }
+            const next: BossHudSlice = {
+                name: b.name,
+                hp: b.hp,
+                maxHp: b.maxHp,
+                poiseHp: b.poiseHp,
+                maxPoiseHp: b.maxPoiseHp,
+            };
+            setBossHud((prev) =>
+                prev &&
+                prev.name === next.name &&
+                prev.hp === next.hp &&
+                prev.maxHp === next.maxHp &&
+                prev.poiseHp === next.poiseHp &&
+                prev.maxPoiseHp === next.maxPoiseHp
+                    ? prev
+                    : next,
+            );
+        };
+        tick();
+        const id = window.setInterval(tick, 100);
+        return () => window.clearInterval(id);
+    }, []);
+
     const handleSelectCard = useCallback((handIndex: number, ability: AbilityStatic) => {
         if (selectedCardIndex === handIndex) {
             setSelectedCardIndex(null);
@@ -516,6 +556,7 @@ export default function BattlePhase({
 
     return (
         <div className="w-full h-full flex min-h-0 flex-col relative">
+            <BossFightHud boss={bossHud} />
             {/* Timeline rail + canvas stack share space above the hand; hand spans full width */}
             <div className="flex min-h-0 flex-1 flex-row">
                 <aside

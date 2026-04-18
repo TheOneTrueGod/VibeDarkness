@@ -4,6 +4,7 @@
  */
 
 import { Unit } from '../units/Unit';
+import { UnitTag } from '../units/unitTag';
 import { areAllies } from '../teams';
 import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
@@ -58,7 +59,7 @@ export class UnitManager {
         );
     }
 
-    /** Tag player units near a Crystal with 'protectedByCrystal'. */
+    /** Tag player units near a Crystal with {@link UnitTag.ProtectedByCrystal}. */
     processCrystalAura(): void {
         const grid = this.ctx.terrainManager?.grid;
         if (!grid) return;
@@ -71,9 +72,11 @@ export class UnitManager {
                 return Math.max(Math.abs(uc - c.col), Math.abs(ur - c.row)) <= radius;
             });
             if (nearCrystal) {
-                if (!unit.tags.includes('protectedByCrystal')) unit.tags = [...unit.tags, 'protectedByCrystal'];
+                if (!unit.tags.includes(UnitTag.ProtectedByCrystal)) {
+                    unit.tags = [...unit.tags, UnitTag.ProtectedByCrystal];
+                }
             } else {
-                unit.tags = unit.tags.filter((t) => t !== 'protectedByCrystal');
+                unit.tags = unit.tags.filter((t) => t !== UnitTag.ProtectedByCrystal);
             }
         }
     }

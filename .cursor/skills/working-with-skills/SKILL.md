@@ -42,6 +42,16 @@ AbilityGroupId values: Warrior = 1, Ranger = 2, Mage = 3, Healer = 4
 
 This prevents skills from becoming stale as the codebase evolves. The source of truth should remain in the code itself.
 
+## Minion Battles abilities: tags
+
+When a skill touches Minion Battles **abilities**, it should **mention that abilities can have typed `tags`** (separate from structured `keywords` such as exhaust) and **send the reader to the implementation** instead of listing tag ids or hint text:
+
+- `app/js/games/minion_battles/abilities/Ability.ts` — `AbilityTag` on `AbilityStatic`, tag resolution helpers
+- `app/js/games/minion_battles/abilities/abilityTagCatalog.ts` — per-tag **hint** copy and optional typed **catalog settings**
+- `app/js/games/minion_battles/abilities/abilityUses.ts` — recovery charge distribution respects tag behaviour (e.g. priority)
+
+Follow the same rule as above: **do not paste tag unions or catalog strings into skills**; reference these files so the skill stays accurate as tags evolve.
+
 ## Structure
 
 Every skill needs YAML frontmatter with `name` and `description`:

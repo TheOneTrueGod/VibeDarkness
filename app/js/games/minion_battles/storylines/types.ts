@@ -7,6 +7,7 @@
 
 import type { TeamId } from '../game/teams';
 import type { AISettings } from '../game/units/Unit';
+import type { UnitTag } from '../game/units/unitTag';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { InBattleStoryDef, PostMissionStoryDef, PreMissionStoryDef } from './storyTypes';
 
@@ -46,6 +47,8 @@ export interface SpawnWaveEntry {
     spawnCount?: number;
     /** Override the AI tree for this spawn entry (e.g. 'aggroWander'). Falls back to mission aiController mapping. */
     unitAITreeId?: string;
+    /** Tags applied to each spawned unit (e.g. boss HUD). */
+    unitTags?: UnitTag[];
 }
 
 /** Victory condition: eliminate all enemy units. */
@@ -143,6 +146,8 @@ export interface EnemySpawnDef {
     radius?: number;
     /** Override the AI tree for this enemy (e.g. 'aggroWander'). Falls back to mission aiController mapping. */
     unitAITreeId?: string;
+    /** Tags on the spawned unit (see `UnitTag` enum). */
+    unitTags?: UnitTag[];
 }
 
 /** Tags that can be applied to special tile placements (e.g. destructible). */

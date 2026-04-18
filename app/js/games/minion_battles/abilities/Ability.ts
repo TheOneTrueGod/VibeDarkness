@@ -58,6 +58,29 @@ export interface AbilityAISettings {
 
 export type AbilityKeyword = 'exhaust';
 
+/**
+ * Simple capability / classification tags on an ability (distinct from structured `keywords` like exhaust).
+ * Extend this union when new tags are needed.
+ */
+export type AbilityTag = 'priority';
+
+type AbilityTagResolver = (abilityId: string) => readonly AbilityTag[];
+
+let abilityTagResolver: AbilityTagResolver | null = null;
+
+/** Wired from `AbilityRegistry` after abilities are registered; avoids circular imports into `abilityUses`. */
+export function setAbilityTagResolver(resolver: AbilityTagResolver): void {
+    abilityTagResolver = resolver;
+}
+
+export function getAbilityTagsForId(abilityId: string): readonly AbilityTag[] {
+    return abilityTagResolver?.(abilityId) ?? [];
+}
+
+export function abilityHasTag(abilityId: string, tag: AbilityTag): boolean {
+    return getAbilityTagsForId(abilityId).includes(tag);
+}
+
 export interface AbilityKeywordDefs {
     exhaust: {
         newCards?: {
@@ -88,6 +111,8 @@ export interface AbilityStatic {
     readonly targets: TargetDef[];
     /** Optional ability keywords that alter card lifecycle behavior. */
     readonly keywords?: Partial<{ [K in AbilityKeyword]: AbilityKeywordDefs[K] }>;
+    /** Optional tags (e.g. recovery-charge priority). Distinct from `keywords`. */
+    readonly tags?: readonly AbilityTag[];
     /**
      * Optional target resolver. If omitted, callers should use `ability.targets`.
      * Use when target count/labels depend on runtime state (e.g. research).

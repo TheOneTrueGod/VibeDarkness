@@ -12,6 +12,7 @@ import type { AIContext } from './types';
 import { areEnemies } from '../../teams';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { getAbilityTargets } from '../../../abilities/Ability';
+import { UnitTag } from '../unitTag';
 
 /** Euclidean distance between two points. */
 export function distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -20,10 +21,10 @@ export function distance(x1: number, y1: number, x2: number, y2: number): number
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-/** Get all living units hostile to the given unit. Enemies cannot see units with tag 'protectedByCrystal'. */
+/** Get all living units hostile to the given unit. Enemies cannot see crystal-protected player units. */
 export function findEnemies(unit: Unit, units: Unit[]): Unit[] {
     const hostile = units.filter((u) => u.isAlive() && areEnemies(unit.teamId, u.teamId));
-    return hostile.filter((u) => !u.tags?.includes('protectedByCrystal'));
+    return hostile.filter((u) => !u.tags?.includes(UnitTag.ProtectedByCrystal));
 }
 
 /**

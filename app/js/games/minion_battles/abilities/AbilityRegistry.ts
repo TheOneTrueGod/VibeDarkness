@@ -5,7 +5,7 @@
  * system can look them up by ID string.
  */
 
-import type { AbilityStatic } from './Ability';
+import { setAbilityTagResolver, type AbilityStatic } from './Ability';
 import { ThrowRock } from '../card_defs/0107_ThrowRock/0107Ability';
 import { ThrowChargedRock } from '../card_defs/0108_ThrowChargedRock/0108Ability';
 import { ThrowKnife } from '../card_defs/0109_ThrowKnife/0109Ability';
@@ -69,6 +69,8 @@ register(ClawAbility);
 register(SwingSwordAbility);
 register(AbsorptionShieldAbility);
 register(EnergyBlastAbility);
+
+setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 
 /** Look up an ability by its ID. */
 export function getAbility(id: string): AbilityStatic | undefined {

@@ -4,6 +4,7 @@
  */
 
 import type { EnemySpawnDef } from '../storylines/types';
+import { UnitTag } from '../game/units/unitTag';
 
 /** Enemy health multiplier by player count (2–6 players). 1 player uses 1.0. */
 export const ENEMY_HEALTH_MULTIPLIER_BY_PLAYER_COUNT: Readonly<Record<number, number>> = {
@@ -70,4 +71,5 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     abilities: ['0004', '0005', '0007'],
     aiSettings: { minRange: 0, maxRange: 100 },
     radius: 26,
+    unitTags: [UnitTag.Boss],
 };

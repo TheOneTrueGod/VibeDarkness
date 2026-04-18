@@ -17,6 +17,7 @@ import {
     resolvePlayerUnitRadius,
 } from './unit_defs/unitDef';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
+import type { UnitTag } from './unitTag';
 
 export type UnitFactoryConfig = {
     id?: string;
@@ -85,6 +86,7 @@ export function createUnitFromSpawnConfig(
         radius?: number;
         unitAITreeId?: string;
         stamina?: number;
+        unitTags?: UnitTag[];
     },
     _eventBus: EventBus,
 ): Unit {
@@ -108,6 +110,10 @@ export function createUnitFromSpawnConfig(
 
     if (config.aiSettings) {
         unit.aiSettings = config.aiSettings;
+    }
+
+    if (config.unitTags && config.unitTags.length > 0) {
+        unit.tags = [...config.unitTags];
     }
 
     return unit;

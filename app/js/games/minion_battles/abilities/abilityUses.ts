@@ -1,4 +1,4 @@
-import type { AbilityStatic } from './Ability';
+import { abilityHasTag, type AbilityStatic } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import { STICK_SWORD_NODE_EXTRA_USES, STICK_SWORD_TREE_ID } from '../../../researchTrees/trees/stick_sword';
 
@@ -118,7 +118,7 @@ export function addRecoveryChargeToUnitAbilities(
 
     for (let count = 1; count <= amount; count++) {
         if (notedAbilities.length === 0) break;
-        const idx = notedAbilities.length === 1 ? 0 : pickRandomInteger(0, notedAbilities.length - 1);
+        const idx = pickRecoveryChargeRecipientIndex(notedAbilities, pickRandomInteger);
         const selected = notedAbilities[idx];
         if (!selected) break;
         const changed = applyRecoveryChargeToAbility(unit, selected.abilityId, chargeType, 1);
@@ -134,6 +134,26 @@ export function addRecoveryChargeToUnitAbilities(
     }
 
     return Array.from(new Set(selectedAbilityIds));
+}
+
+/**
+ * Prefer abilities tagged `priority` when several can accept the same recovery charge.
+ */
+function pickRecoveryChargeRecipientIndex(
+    notedAbilities: { abilityId: string }[],
+    pickRandomInteger: (min: number, max: number) => number,
+): number {
+    const priorityIndices: number[] = [];
+    const otherIndices: number[] = [];
+    for (let i = 0; i < notedAbilities.length; i++) {
+        const { abilityId } = notedAbilities[i]!;
+        if (abilityHasTag(abilityId, 'priority')) priorityIndices.push(i);
+        else otherIndices.push(i);
+    }
+    const pool = priorityIndices.length > 0 ? priorityIndices : otherIndices;
+    if (pool.length === 1) return pool[0]!;
+    const j = pickRandomInteger(0, pool.length - 1);
+    return pool[j]!;
 }
 
 function getRelevantRulesForCharge(abilityId: string, chargeType: RecoveryChargeType): AbilityRecoveryRule[] {
@@ -244,8 +264,10 @@ export function grantRecoveryChargeToRandomAbility(
         return canAbilityReceiveRecoveryCharge(unit, abilityId, chargeType);
     });
     if (eligible.length === 0) return false;
-    const idx = eligible.length === 1 ? 0 : generateRandomInteger(0, eligible.length - 1);
-    const selected = eligible[idx];
+    const priorityEligible = eligible.filter((abilityId) => abilityHasTag(abilityId, 'priority'));
+    const pool = priorityEligible.length > 0 ? priorityEligible : eligible;
+    const idx = pool.length === 1 ? 0 : generateRandomInteger(0, pool.length - 1);
+    const selected = pool[idx];
     if (!selected) return false;
     return applyRecoveryChargeToAbility(unit, selected, chargeType, 1);
 }

@@ -25,6 +25,8 @@ import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { getDefaultHp, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
+import type { UnitTag } from './unitTag';
+import { parseUnitTagsFromJSON } from './unitTag';
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -136,8 +138,8 @@ export class Unit extends GameObject {
     /** UnitAITree ID for AI-controlled units. Default 'default'. */
     unitAITreeId: string = 'default';
 
-    /** Optional tags (e.g. 'protectedByCrystal' when near a crystal; enemies cannot see the unit). Not serialized by default; mission logic can set. */
-    tags: string[] = [];
+    /** Optional tags (crystal aura, boss UI, etc.). Serialized for checkpoints when non-empty. */
+    tags: UnitTag[] = [];
 
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;
@@ -668,6 +670,7 @@ export class Unit extends GameObject {
             ),
             stamina: this.stamina,
             buffs: this.buffs.map((b) => b.toJSON()),
+            ...(this.tags.length > 0 ? { tags: [...this.tags] } : {}),
         };
     }
 
@@ -743,6 +746,7 @@ export class Unit extends GameObject {
 
         const buffsData = (data.buffs as BuffSerialized[] | undefined) ?? [];
         unit.buffs = buffsData.map((b) => buffFromJSON(b));
+        unit.tags = parseUnitTagsFromJSON(data.tags);
         const runtimeData = (data.abilityRuntime as Record<string, UnitAbilityRuntimeState> | undefined) ?? {};
         unit.abilityRuntime = Object.fromEntries(
             Object.entries(runtimeData).map(([abilityId, runtime]) => [
