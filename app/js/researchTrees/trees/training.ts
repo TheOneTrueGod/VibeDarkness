@@ -14,6 +14,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: 'core_training',
             title: 'Core Training',
+            description: 'Increase max health for all battles.',
             order: 10,
             position: { x: 140, y: 80 },
             prereqNodeIds: [],
@@ -28,6 +29,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: 'training_path_a',
             title: 'Training Path A',
+            description: 'Specialize in agile combat drills.',
             order: 20,
             position: { x: 60, y: 220 },
             prereqNodeIds: ['core_training'],
@@ -39,6 +41,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: 'training_path_b',
             title: 'Training Path B',
+            description: 'Specialize in resilient combat drills.',
             order: 30,
             position: { x: 240, y: 220 },
             prereqNodeIds: ['core_training'],

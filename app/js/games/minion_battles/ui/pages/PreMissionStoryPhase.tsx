@@ -207,7 +207,8 @@ export default function PreMissionStoryPhase({
         if (!currentPhrase || !isGroupVote(currentPhrase)) return;
         setIsApplyingGroupVote(true);
         try {
-            if (isHost && currentPhrase.effect) {
+            const amHostNow = (players[playerId]?.isHost ?? isHost) === true;
+            if (amHostNow && currentPhrase.effect) {
                 await api.sendMessage(MessageType.STORY_GROUP_VOTE_APPLY, {
                     voteId: currentPhrase.voteId,
                     phraseIndex,
@@ -220,7 +221,7 @@ export default function PreMissionStoryPhase({
         } finally {
             setIsApplyingGroupVote(false);
         }
-    }, [currentPhrase, isHost, api, phraseIndex, advancePhrase]);
+    }, [currentPhrase, players, playerId, isHost, api, phraseIndex, advancePhrase]);
 
     const allPlayerIds = Object.keys(players);
     /** Playing players (non-spectators); used for single-player shortcut. */

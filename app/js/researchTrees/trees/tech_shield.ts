@@ -14,6 +14,7 @@ export const techShieldTree: ResearchTreeDef = {
         {
             id: 'crystal_embedded_shield',
             title: 'Crystal Embedded Shield',
+            description: 'Embed a crystal into your shield.',
             order: 10,
             position: { x: 140, y: 80 },
             prereqNodeIds: [],
@@ -25,6 +26,7 @@ export const techShieldTree: ResearchTreeDef = {
         {
             id: 'throwing_crystal_shield',
             title: 'Shooting Shield',
+            description: 'Convert shield into a ranged weapon.',
             order: 20,
             position: { x: 60, y: 220 },
             prereqNodeIds: ['crystal_embedded_shield'],
@@ -39,6 +41,7 @@ export const techShieldTree: ResearchTreeDef = {
         {
             id: TECH_SHIELD_NODE_STRENGTHENING_LIGHT,
             title: 'Strengthening Light',
+            description: 'Empower shield defense with crystal light.',
             order: 30,
             position: { x: 240, y: 220 },
             prereqNodeIds: ['crystal_embedded_shield'],

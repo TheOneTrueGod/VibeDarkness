@@ -14,6 +14,22 @@ import CardComponent from './CardComponent';
 import CardTooltip from './CardTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
 
+interface PulseParticle {
+    id: string;
+    startMs: number;
+    durationMs: number;
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+    controlX: number;
+    controlY: number;
+    staggerMs: number;
+    sizeFrom: number;
+    sizeTo: number;
+    alphaMode: 'fade' | 'rise';
+}
+
 interface CardHandProps {
     abilityIds: string[];
     /** The player's unit (for resource checks). */
@@ -49,21 +65,11 @@ export default function CardHand({
     const [isMobile, setIsMobile] = useState(false);
     const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
     const [animationNow, setAnimationNow] = useState<number>(() => performance.now());
-    const [pulseParticles, setPulseParticles] = useState<Array<{
-        id: string;
-        startMs: number;
-        durationMs: number;
-        fromX: number;
-        fromY: number;
-        toX: number;
-        toY: number;
-        controlX: number;
-        controlY: number;
-        staggerMs: number;
-    }>>([]);
+    const [pulseParticles, setPulseParticles] = useState<PulseParticle[]>([]);
     const rowRef = React.useRef<HTMLDivElement | null>(null);
     const roundTrackerRef = React.useRef<HTMLDivElement | null>(null);
     const cardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+    const recoveryPillRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
     const prevRoundRef = React.useRef<number>(roundNumber);
     const prevRuntimeRef = React.useRef<Record<string, { currentUses: number; staminaCharge: number }>>({});
 
@@ -106,21 +112,21 @@ export default function CardHand({
 
     useEffect(() => {
         const prevRound = prevRoundRef.current;
-        if (roundNumber !== prevRound) {
-            const prev = prevRuntimeRef.current;
-            const gained = handCards
-                .filter((card) => {
-                    const old = prev[card.abilityId];
-                    if (!old) return false;
-                    const nowUses = card.runtime.currentUses;
-                    const nowStamina = card.runtime.recoveryChargesByType.staminaCharge ?? 0;
-                    return nowUses > old.currentUses || nowStamina > old.staminaCharge;
-                })
-                .map((c) => c.abilityId);
+        const prev = prevRuntimeRef.current;
+        const gained = handCards
+            .filter((card) => {
+                const old = prev[card.abilityId];
+                if (!old) return false;
+                const nowUses = card.runtime.currentUses;
+                const nowStamina = card.runtime.recoveryChargesByType.staminaCharge ?? 0;
+                return nowUses > old.currentUses || nowStamina > old.staminaCharge;
+            })
+            .map((c) => c.abilityId);
 
+        if (gained.length > 0) {
             const rowEl = rowRef.current;
             const trackerEl = roundTrackerRef.current;
-            if (rowEl && trackerEl && gained.length > 0) {
+            if (roundNumber !== prevRound && rowEl && trackerEl) {
                 const rowRect = rowEl.getBoundingClientRect();
                 const trackerRect = trackerEl.getBoundingClientRect();
                 const trackerCenterX = trackerRect.left + trackerRect.width / 2 - rowRect.left;
@@ -146,7 +152,44 @@ export default function CardHand({
                         // Screen Y grows downward; place control above chord midpoint so the arc bulges upward.
                         controlY: chordMidY - (48 + Math.random() * 56),
                         staggerMs: i * 45,
+                        sizeFrom: 6,
+                        sizeTo: 6,
+                        alphaMode: 'fade' as const,
                     }));
+                });
+                setPulseParticles((prevParticles) => [...prevParticles, ...particles]);
+            } else if (roundNumber === prevRound && rowEl) {
+                const rowRect = rowEl.getBoundingClientRect();
+                const start = performance.now();
+                const particles = gained.flatMap((abilityId, idx) => {
+                    const pillEl = recoveryPillRefs.current[abilityId];
+                    if (!pillEl) return [];
+                    const pillRect = pillEl.getBoundingClientRect();
+                    const targetX = pillRect.left + pillRect.width / 2 - rowRect.left;
+                    const targetY = pillRect.top + pillRect.height / 2 - rowRect.top;
+                    return Array.from({ length: 6 }, (_, i) => {
+                        const angle = Math.random() * Math.PI * 2;
+                        const radius = 45 + Math.random() * 10;
+                        const fromX = targetX + Math.cos(angle) * radius;
+                        const fromY = targetY + Math.sin(angle) * radius;
+                        const midX = (fromX + targetX) / 2;
+                        const midY = (fromY + targetY) / 2;
+                        return {
+                            id: `pill-${abilityId}-${idx}-${i}-${start}`,
+                            startMs: start,
+                            durationMs: 520,
+                            fromX,
+                            fromY,
+                            toX: targetX,
+                            toY: targetY,
+                            controlX: midX + (Math.random() - 0.5) * 10,
+                            controlY: midY + (Math.random() - 0.5) * 10,
+                            staggerMs: i * 28,
+                            sizeFrom: 5.5,
+                            sizeTo: 2,
+                            alphaMode: 'rise' as const,
+                        };
+                    });
                 });
                 setPulseParticles((prevParticles) => [...prevParticles, ...particles]);
             }
@@ -221,14 +264,19 @@ export default function CardHand({
                     const oneMinus = 1 - t;
                     const x = oneMinus * oneMinus * p.fromX + 2 * oneMinus * t * p.controlX + t * t * p.toX;
                     const y = oneMinus * oneMinus * p.fromY + 2 * oneMinus * t * p.controlY + t * t * p.toY;
-                    const opacity = t < 0.1 ? t / 0.1 : t > 0.85 ? (1 - t) / 0.15 : 1;
+                    const opacity = p.alphaMode === 'rise'
+                        ? t
+                        : (t < 0.1 ? t / 0.1 : t > 0.85 ? (1 - t) / 0.15 : 1);
+                    const size = p.sizeFrom + (p.sizeTo - p.sizeFrom) * t;
                     return (
                         <div
                             key={p.id}
-                            className="absolute w-1.5 h-1.5 rounded-full bg-gray-300 pointer-events-none z-20"
+                            className="absolute rounded-full bg-gray-300 pointer-events-none z-20"
                             style={{
-                                left: x - 3,
-                                top: y - 3,
+                                left: x - size / 2,
+                                top: y - size / 2,
+                                width: size,
+                                height: size,
                                 opacity: Math.max(0, Math.min(1, opacity)),
                             }}
                         />
@@ -317,6 +365,9 @@ export default function CardHand({
                                     onMobileDescriptionToggle={() => handleMobileDescToggle(index)}
                                     onMobileDescriptionDismiss={handleMobileDescDismiss}
                                     gameState={gameState}
+                                    onPrimaryRecoveryPillRef={(el) => {
+                                        recoveryPillRefs.current[card.abilityId] = el;
+                                    }}
                                 />
                             </div>
                         );

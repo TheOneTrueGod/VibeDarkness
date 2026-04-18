@@ -19,6 +19,7 @@ export const stickSwordTree: ResearchTreeDef = {
         {
             id: 'craft_sword',
             title: 'Craft Sword',
+            description: 'Replace stick with a forged sword.',
             order: 10,
             position: { x: 140, y: 80 },
             prereqNodeIds: [],
@@ -30,6 +31,7 @@ export const stickSwordTree: ResearchTreeDef = {
         {
             id: STICK_SWORD_NODE_EXTRA_TARGET,
             title: '+1 Swing Sword target',
+            description: 'Swing Sword can strike one extra foe.',
             order: 20,
             position: { x: 60, y: 220 },
             prereqNodeIds: ['craft_sword'],
@@ -44,6 +46,7 @@ export const stickSwordTree: ResearchTreeDef = {
         {
             id: STICK_SWORD_NODE_EXTRA_USES,
             title: '+2 Swing Sword uses',
+            description: 'Gain two additional Swing Sword uses.',
             order: 30,
             position: { x: 240, y: 220 },
             prereqNodeIds: ['craft_sword'],

@@ -10,6 +10,7 @@ import { potShieldItem } from './hands/003_pot_shield';
 import { crystalEmbeddedShieldItem } from './hands/011_crystal_embedded_shield';
 import { throwingCrystalShieldItem } from './hands/012_throwing_crystal_shield';
 import { chargedRocksItem } from './hands/013_charged_rocks';
+import { throwingKnivesItem } from './hands/016_throwing_knives';
 import { coreBasicItem } from './core/004_core_basic';
 import { coreWeaponsItem } from './core/006_core_weapons';
 import { beastCoreItem } from './core/014_beast_core';
@@ -26,6 +27,7 @@ import potShieldIcon from './assets/003_pot_shield.svg';
 import crystalEmbeddedShieldIcon from './assets/011_crystal_embedded_shield.svg';
 import throwingCrystalShieldIcon from './assets/012_throwing_crystal_shield.svg';
 import chargedRocksIcon from './assets/013_charged_rocks.svg';
+import throwingKnivesIcon from './assets/016_throwing_knives.svg';
 import coreBasicIcon from './assets/004_core_basic.svg';
 import throwTorchIcon from './assets/005_throw_torch.svg';
 import coreWeaponsIcon from './assets/006_core_weapons.svg';
@@ -52,6 +54,7 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [crystalEmbeddedShieldItem.id]: crystalEmbeddedShieldIcon,
     [throwingCrystalShieldItem.id]: throwingCrystalShieldIcon,
     [chargedRocksItem.id]: chargedRocksIcon,
+    [throwingKnivesItem.id]: throwingKnivesIcon,
     [coreBasicItem.id]: coreBasicIcon,
     [throwTorchUtilityItem.id]: throwTorchIcon,
     [coreWeaponsItem.id]: coreWeaponsIcon,
@@ -88,6 +91,7 @@ export const ITEMS: Record<string, ItemDef> = {
     [crystalEmbeddedShieldItem.id]: crystalEmbeddedShieldItem,
     [throwingCrystalShieldItem.id]: throwingCrystalShieldItem,
     [chargedRocksItem.id]: chargedRocksItem,
+    [throwingKnivesItem.id]: throwingKnivesItem,
     [coreBasicItem.id]: coreBasicItem,
     [coreWeaponsItem.id]: coreWeaponsItem,
     [beastCoreItem.id]: beastCoreItem,

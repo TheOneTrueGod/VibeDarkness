@@ -30,6 +30,8 @@ interface CardComponentProps {
     onMobileDescriptionDismiss: () => void;
     /** Current game state for dynamic descriptions. */
     gameState?: unknown;
+    /** Optional ref to the primary recovery pill row for external effects. */
+    onPrimaryRecoveryPillRef?: (el: HTMLDivElement | null) => void;
 }
 
 export default function CardComponent({
@@ -46,6 +48,7 @@ export default function CardComponent({
     onMobileDescriptionToggle,
     onMobileDescriptionDismiss: _onMobileDescriptionDismiss,
     gameState,
+    onPrimaryRecoveryPillRef,
 }: CardComponentProps) {
     const handleClick = useCallback(() => {
         if (isDisabled) return;
@@ -146,7 +149,11 @@ export default function CardComponent({
                                 const recoveryNeeded = Math.max(1, rule.chargesPerRecovery);
                                 const fillClass = recoveryColorByType[rule.chargeType] ?? 'bg-gray-300';
                                 return (
-                                    <div key={`${rule.chargeType}-${rule.chargesPerRecovery}`} className="flex items-center gap-0.5 h-2.5">
+                                    <div
+                                        key={`${rule.chargeType}-${rule.chargesPerRecovery}`}
+                                        ref={ruleIndex === 0 ? onPrimaryRecoveryPillRef ?? null : null}
+                                        className="flex items-center gap-0.5 h-2.5"
+                                    >
                                         {Array.from({ length: recoveryNeeded }, (_, i) => {
                                             const fillOpacity = isAtFullUses ? 'opacity-50' : 'opacity-100';
                                             let innerWidthPct = 0;

@@ -157,7 +157,7 @@ export function ResearchTreeContent({
     const VIEW_W = 520;
     const VIEW_H = 320;
     const NODE_W = 180;
-    const NODE_H = 56;
+    const NODE_H = 92;
     const PAD_LEFT_RIGHT = NODE_W / 2;
     const PAD_TOP = NODE_H;
     const PAD_BOTTOM = NODE_H;
@@ -262,6 +262,28 @@ export function ResearchTreeContent({
                                 }),
                             )}
                             {tree.nodes.flatMap((n) =>
+                                n.requirements.flatMap((req, reqIndex) => {
+                                    if (req.type !== 'anyResearched') return [];
+                                    return req.nodeIds.map((nodeId) => {
+                                        const from = tree.nodes.find((x) => x.id === nodeId);
+                                        if (!from) return null;
+                                        const a = mapPos(from.position);
+                                        const b = mapPos(n.position);
+                                        return (
+                                            <line
+                                                key={`o:${n.id}:${reqIndex}:${nodeId}`}
+                                                x1={a.x}
+                                                y1={a.y}
+                                                x2={b.x}
+                                                y2={b.y}
+                                                stroke="rgba(255,255,255,0.25)"
+                                                strokeWidth="2"
+                                            />
+                                        );
+                                    });
+                                }),
+                            )}
+                            {tree.nodes.flatMap((n) =>
                                 n.exclusiveWithNodeIds.map((ex) => {
                                     const other = tree.nodes.find((x) => x.id === ex);
                                     if (!other) return null;
@@ -288,6 +310,7 @@ export function ResearchTreeContent({
                             const researched = researchedSet.has(n.id);
                             const check = canResearchNode(tree, n.id, ctx);
                             const enabled = !researched && check.ok;
+                            const blocked = !researched && !check.ok;
                             const costGains = campaignResourceGains(n.cost);
                             const pos = mapPos(n.position);
                             const knowledgeKeys = accountKnowledgeKeys(n.requirements);
@@ -343,17 +366,30 @@ export function ResearchTreeContent({
                                         <button
                                             type="button"
                                             onClick={() => enabled && onResearchNode(tree.id, n.id)}
-                                            className={`relative rounded-lg border px-3 py-2 text-left w-[180px] flex flex-col gap-1.5 ${
+                                            className={`relative rounded-lg border px-3 py-2 text-left w-[180px] min-h-[92px] flex flex-col gap-1 ${
                                                 researched
                                                     ? 'bg-green-900 border-green-700 text-white'
                                                     : enabled
                                                       ? 'bg-surface-light border-primary text-white hover:bg-surface'
-                                                      : 'bg-surface-light border-border-custom text-muted opacity-80'
+                                                      : blocked
+                                                        ? 'bg-zinc-800 border-zinc-500 text-zinc-100'
+                                                        : 'bg-surface-light border-border-custom text-muted'
                                             }`}
                                             disabled={!enabled}
-                                            title={researched ? 'Researched' : enabled ? 'Click to research' : check.missing.join(', ')}
+                                            title={researched ? 'Researched' : enabled ? 'Click to research' : 'Cannot be Researched'}
                                         >
                                             <div className="text-sm font-semibold truncate">{n.title}</div>
+                                            <div
+                                                className="text-[11px] leading-tight text-gray-300"
+                                                style={{
+                                                    display: '-webkit-box',
+                                                    WebkitLineClamp: 2,
+                                                    WebkitBoxOrient: 'vertical',
+                                                    overflow: 'hidden',
+                                                }}
+                                            >
+                                                {n.description}
+                                            </div>
                                             <div className="text-[11px] text-muted flex flex-wrap items-center gap-2">
                                                 {costGains.length > 0 ? (
                                                     costGains.map(({ resource, count }) => (

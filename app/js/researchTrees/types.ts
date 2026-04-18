@@ -9,6 +9,7 @@ export type Requirement =
     | { type: 'characterHasEquippedItem'; itemId: string }
     | { type: 'characterHasCore' }
     | { type: 'characterHasTrait'; trait: string }
+    | { type: 'anyResearched'; treeId: string; nodeIds: string[] }
     | { type: 'notResearched'; treeId: string; nodeId: string };
 
 export type ResearchEffect =
@@ -18,6 +19,7 @@ export type ResearchEffect =
 export interface ResearchNodeDef {
     id: string;
     title: string;
+    description: string;
     /** Stable ordering used for deterministic application. Lower applies first. */
     order: number;
     position: { x: number; y: number };

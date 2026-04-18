@@ -47,8 +47,6 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
     ) => Promise<void>;
     /** Called when user clicks Leave in the defeat modal. */
     onLeave?: () => void;
-    /** Called when user clicks Try Again in the defeat modal; creates a new lobby for the same mission. */
-    onTryAgain?: (missionId: string) => Promise<void>;
     /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: import('../../components/Chat').MessageEntry) => void;
     /** Called when the game is about to switch from pre-battle story into battle. */
@@ -68,7 +66,6 @@ export default function MinionBattlesGame({
     onSidebarInfoChange,
     onRecordMissionResult,
     onLeave,
-    onTryAgain,
     onEmittedChatMessage,
     onBattleStartStatusChange,
 }: MinionBattlesGameProps) {
@@ -437,7 +434,7 @@ export default function MinionBattlesGame({
                     <div className="bg-surface-light border border-border-custom rounded-lg shadow-xl p-10 mx-4 text-center min-h-[35vh] w-[min(90%, 28rem)] flex flex-col justify-center">
                         <h2 className="text-2xl font-bold text-danger mb-2">Defeat!</h2>
                         <p className="text-muted mb-6">You have succumbed to the darkness</p>
-                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <div className="flex justify-center">
                             <button
                                 type="button"
                                 className="px-4 py-2 bg-dark-600 hover:bg-dark-500 text-white font-medium rounded transition-colors"
@@ -447,18 +444,6 @@ export default function MinionBattlesGame({
                                 }}
                             >
                                 Leave
-                            </button>
-                            <button
-                                type="button"
-                                className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-medium rounded transition-colors"
-                                onClick={() => {
-                                    setDefeatModalOpen(false);
-                                    if (!selectedMissionId) return;
-                                    const missionId = selectedMissionId;
-                                    void onTryAgain?.(missionId);
-                                }}
-                            >
-                                Try again
                             </button>
                         </div>
                     </div>

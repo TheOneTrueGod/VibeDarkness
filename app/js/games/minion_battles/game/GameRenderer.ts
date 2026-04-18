@@ -1058,6 +1058,12 @@ export class GameRenderer {
             visual.x = proj.x;
             visual.y = proj.y;
             visual.visible = proj.active;
+            if (proj.projectileType === 'throwing_knife') {
+                // Point the knife tip in the direction of travel.
+                visual.rotation = Math.atan2(proj.velocityY, proj.velocityX) + Math.PI / 2;
+            } else {
+                visual.rotation = 0;
+            }
             if (proj.projectileType === 'energy_blast') {
                 const pulseTime = (this.currentEngine?.gameTime ?? 0) * 16;
                 const pulse = (Math.sin(pulseTime) + 1) / 2;

@@ -58,6 +58,10 @@ export function meetsRequirement(req: Requirement, ctx: ResearchContext, researc
             return getCoreFromEquipment(ctx.character.equipment) !== null;
         case 'characterHasTrait':
             return ctx.character.traits.includes(req.trait);
+        case 'anyResearched': {
+            const set = researched[req.treeId] ?? new Set<string>();
+            return req.nodeIds.some((nodeId) => set.has(nodeId));
+        }
         case 'notResearched': {
             const set = researched[req.treeId] ?? new Set<string>();
             return !set.has(req.nodeId);
