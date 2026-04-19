@@ -136,6 +136,8 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 
 Skills are located in the `.cursor/skills` directory.
 
+**Narrative and lore** (primer, tone guides, idea stability): `.cursor/skills/narrative/` — start from `narrative-hub/SKILL.md` when editing story, flavor text, or canon-sensitive copy.
+
 ### Backwards compatibility
 
 - **Do** preserve backwards compatibility for **out-of-battle** persisted or shared data—e.g. **Players**, **Campaigns**, and similar structures that survive across sessions or are shared outside a single battle.

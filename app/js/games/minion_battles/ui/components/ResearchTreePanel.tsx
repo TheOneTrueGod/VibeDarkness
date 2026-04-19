@@ -153,7 +153,8 @@ export function ResearchTreeContent({
 	}, [account, campaignResources, character, equipment, researchTrees]);
 
 	const VIEW_W = 520;
-	const VIEW_H = 320;
+	/** Taller canvas so normalized node positions map to more vertical gap between rows. */
+	const VIEW_H = 400;
 	const NODE_W = 180;
 	const NODE_H = 92;
 	const PAD_LEFT_RIGHT = NODE_W / 2;
@@ -236,7 +237,7 @@ export function ResearchTreeContent({
 
 				<div
 					className="mt-4 relative overflow-auto rounded-lg border border-border-custom bg-surface"
-					style={{ height: 360 }}
+					style={{ height: 440 }}
 				>
 					<div className="relative" style={{ width: VIEW_W, height: VIEW_H }}>
 						<svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}>

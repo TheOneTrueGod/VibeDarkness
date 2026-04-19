@@ -8,7 +8,6 @@ import type { MessageEntry } from './Chat';
 import PlayerList from './PlayerList';
 import GameCanvas from './GameCanvas';
 import type { ClickData } from './GameCanvas';
-import ResourceDisplay from './ResourceDisplay';
 import GameList from './GameList';
 import type { PlayerState, AccountState, LobbyState, GameSidebarInfo } from '../types';
 import { LobbyClient } from '../LobbyClient';
@@ -106,7 +105,7 @@ export default function GameScreen({
     lobbyClient,
     lobby,
     player,
-    account,
+    account: _account,
     players,
     chatMessages,
     connectionStatus,
@@ -258,72 +257,59 @@ export default function GameScreen({
     }, [isMobileOrTablet]);
 
     const chatTopContent = useMemo(() => {
-        const hasResources = !!account;
-        const hasSidebar = !!gameSidebarInfo;
-        if (!hasResources && !hasSidebar) return null;
+        if (!gameSidebarInfo) return null;
 
         return (
             <div className="flex flex-col gap-2">
-                {hasResources && (
-                    <div className="flex flex-wrap items-center gap-2">
-                        <ResourceDisplay resources={account} />
-                    </div>
-                )}
-                {hasSidebar && (
-                    <>
-                        {/* Turn indicator - always occupies space; invisible when not your turn */}
-                        <div
-                            className={`text-sm px-3 py-2 rounded-lg bg-green-700 text-white font-medium text-center border border-green-500 ${
-                                gameSidebarInfo.turnIndicator.visible ? '' : 'invisible'
-                            }`}
-                        >
-                            {gameSidebarInfo.turnIndicator.text}
-                        </div>
-                        {/* Player unit health list */}
-                        <div className="flex flex-col gap-1.5">
-                            {gameSidebarInfo.playerUnits.map((pu) => {
-                                const pState = effectivePlayers[pu.playerId];
-                                const hpPct = pu.maxHp > 0 ? Math.round((pu.hp / pu.maxHp) * 100) : 0;
-                                const barColor = !pu.isAlive
-                                    ? 'bg-gray-600'
-                                    : hpPct > 60
-                                      ? 'bg-green-500'
-                                      : hpPct > 30
-                                        ? 'bg-yellow-500'
-                                        : 'bg-red-500';
-                                return (
-                                    <div key={pu.playerId} className="flex flex-col gap-0.5">
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span
-                                                className="font-medium truncate"
-                                                style={{ color: pState?.color ?? '#fff' }}
-                                            >
-                                                {pu.playerName}
-                                            </span>
-                                            <span className="text-muted capitalize text-[11px]">
-                                                {pu.characterId}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="flex-1 h-1.5 bg-dark-700 rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full transition-all ${barColor}`}
-                                                    style={{ width: `${hpPct}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-[10px] text-muted w-12 text-right">
-                                                {pu.hp}/{pu.maxHp}
-                                            </span>
-                                        </div>
+                {/* Turn indicator - always occupies space; invisible when not your turn */}
+                <div
+                    className={`text-sm px-3 py-2 rounded-lg bg-green-700 text-white font-medium text-center border border-green-500 ${
+                        gameSidebarInfo.turnIndicator.visible ? '' : 'invisible'
+                    }`}
+                >
+                    {gameSidebarInfo.turnIndicator.text}
+                </div>
+                {/* Player unit health list */}
+                <div className="flex flex-col gap-1.5">
+                    {gameSidebarInfo.playerUnits.map((pu) => {
+                        const pState = effectivePlayers[pu.playerId];
+                        const hpPct = pu.maxHp > 0 ? Math.round((pu.hp / pu.maxHp) * 100) : 0;
+                        const barColor = !pu.isAlive
+                            ? 'bg-gray-600'
+                            : hpPct > 60
+                              ? 'bg-green-500'
+                              : hpPct > 30
+                                ? 'bg-yellow-500'
+                                : 'bg-red-500';
+                        return (
+                            <div key={pu.playerId} className="flex flex-col gap-0.5">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span
+                                        className="font-medium truncate"
+                                        style={{ color: pState?.color ?? '#fff' }}
+                                    >
+                                        {pu.playerName}
+                                    </span>
+                                    <span className="text-muted capitalize text-[11px]">{pu.characterId}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="flex-1 h-1.5 bg-dark-700 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all ${barColor}`}
+                                            style={{ width: `${hpPct}%` }}
+                                        />
                                     </div>
-                );
-            })}
-                        </div>
-                    </>
-                )}
+                                    <span className="text-[10px] text-muted w-12 text-right">
+                                        {pu.hp}/{pu.maxHp}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         );
-    }, [account, gameSidebarInfo, effectivePlayers]);
+    }, [gameSidebarInfo, effectivePlayers]);
 
     const chatHeaderLeaveButton = useMemo(
         () => (

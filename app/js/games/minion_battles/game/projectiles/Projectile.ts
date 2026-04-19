@@ -123,7 +123,8 @@ export class Projectile extends GameObject {
             // Minimal silhouette: short wooden handle + thin triangular blade.
             visual.rect(-2, -4, 4, 8);
             visual.fill({ color: 0x8b5a2b, alpha: 0.98 });
-            visual.polygon([-2, -4, 2, -4, 0, -13]);
+            // Pixi v8 Graphics uses poly([x,y,...], close), not polygon().
+            visual.poly([-2, -4, 2, -4, 0, -13], true);
             visual.fill({ color: 0xe7ebef, alpha: 1 });
             visual.moveTo(-1, -8);
             visual.lineTo(0, -12);
