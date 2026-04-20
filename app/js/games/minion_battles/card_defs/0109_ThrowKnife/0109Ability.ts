@@ -282,6 +282,6 @@ export const ThrowKnifeCard: CardDef = {
     id: asCardDefId('throw_knife'),
     name: 'Throw Knife',
     abilityId: 'throw_knife',
-    durability: 3,
+    durability: 5,
     discardDuration: { duration: 1, unit: 'rounds' },
 };
