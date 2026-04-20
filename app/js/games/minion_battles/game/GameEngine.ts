@@ -6,7 +6,7 @@
  * preserving the existing public API via facade methods/getters.
  */
 
-import { EventBus } from './EventBus';
+import { EventBus, type DamageTakenEvent } from './EventBus';
 import type {
     ActiveAbility,
     WaitingForOrders,
@@ -39,6 +39,7 @@ import { computeSynchash } from '../../../utils/synchash';
 import { addRecoveryChargeToUnitAbilities, canUseAbilityNow, consumeAbilityUse, ensureAbilityRuntimeState } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
 import { onRoundProgressMilestone } from './roundProgressMilestones';
+import { onDamage } from './onDamage';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -311,6 +312,17 @@ export class GameEngine implements EngineContext {
 
         this.eventBus.on('round_end', (data) => {
             this.handleRoundEnd(data.roundNumber);
+        });
+
+        this.eventBus.on('damage_taken', (data: DamageTakenEvent) => {
+            onDamage(
+                {
+                    addEffect: (e) => this.addEffect(e),
+                    generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
+                    getUnit: (id) => this.getUnit(id),
+                },
+                data,
+            );
         });
     }
 

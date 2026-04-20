@@ -8,15 +8,9 @@ import { Effect } from '../game/effects/Effect';
 import { PARTICLE_EXPLOSION_DURATION_SECONDS } from '../game/deathEffects/ParticleExplosion';
 import { getCreatureType } from '../game/units/unit_defs/unitDef';
 import { BleedBuff, BLEED_BUFF_TYPE } from './BleedBuff';
-import { buildDamageNumberMotionFields, type DamageNumberMotionData } from '../game/effects/damageNumberMotion';
 
 /** Damage dealt on each bleed milestone tick = this value × current stacks (before losing one stack). */
 export const BLEED_TICK_DAMAGE_PER_STACK = 5;
-
-/** Purple floating number for “no blood” dark-creature bleed ticks. */
-const BLEED_NUMBER_COLOR_DARK = 0xc084fc;
-/** Red floating number when the creature bleeds normally. */
-const BLEED_NUMBER_COLOR_RED = 0xff3344;
 
 const MINI_DISSOLUTION_PARTICLE_COUNT = 6;
 
@@ -48,42 +42,12 @@ function spawnMiniDarkDissolutionParticles(unit: Unit, fx: BleedDamageFxContext)
     }
 }
 
-function spawnBleedDamageNumber(
-    unit: Unit,
-    amount: number,
-    color: number,
-    fx: BleedDamageFxContext,
-    from?: { x: number; y: number } | null,
-): void {
-    const motion = buildDamageNumberMotionFields(unit.x, unit.y, (a, b) => fx.generateRandomInteger(a, b), from ?? null);
-    const effectData: DamageNumberMotionData = {
-        amount,
-        color,
-        ...motion,
-    };
-
-    fx.addEffect(
-        new Effect({
-            x: unit.x,
-            y: unit.y,
-            duration: 0.92,
-            effectType: 'DamageNumber',
-            effectData,
-        }),
-    );
-}
-
+/** Extra VFX for dark-creature bleed ticks (floating number comes from global `onDamage`). */
 function spawnBleedDamageVisuals(unit: Unit, actualDamage: number, fx: BleedDamageFxContext): void {
     if (actualDamage <= 0) return;
     const creature = getCreatureType(unit.characterId);
-    const isDarkCreature = creature === 'dark_creature';
-
-    if (isDarkCreature) {
-        spawnMiniDarkDissolutionParticles(unit, fx);
-        spawnBleedDamageNumber(unit, actualDamage, BLEED_NUMBER_COLOR_DARK, fx);
-    } else {
-        spawnBleedDamageNumber(unit, actualDamage, BLEED_NUMBER_COLOR_RED, fx);
-    }
+    if (creature !== 'dark_creature') return;
+    spawnMiniDarkDissolutionParticles(unit, fx);
 }
 
 function findBleedBuff(unit: Unit): BleedBuff | undefined {
