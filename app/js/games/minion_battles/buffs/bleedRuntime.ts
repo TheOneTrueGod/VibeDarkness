@@ -42,7 +42,7 @@ function spawnMiniDarkDissolutionParticles(unit: Unit, fx: BleedDamageFxContext)
     }
 }
 
-/** Extra VFX for dark-creature bleed ticks (floating number comes from global `onDamage`). */
+/** Extra VFX for dark-creature bleed ticks (floating number comes from `createDamageTakenEffect`). */
 function spawnBleedDamageVisuals(unit: Unit, actualDamage: number, fx: BleedDamageFxContext): void {
     if (actualDamage <= 0) return;
     const creature = getCreatureType(unit.characterId);

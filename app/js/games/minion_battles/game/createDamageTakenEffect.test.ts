@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { onDamage, type OnDamageFxContext } from './onDamage';
+import { createDamageTakenEffect, type DamageTakenEffectContext } from './createDamageTakenEffect';
 import type { DamageTakenEvent } from './EventBus';
 import { Unit } from './units/Unit';
 
-describe('onDamage', () => {
+describe('createDamageTakenEffect', () => {
     it('spawns a DamageNumber effect when amount > 0', () => {
         const addEffect = vi.fn();
         const unit = new Unit({
@@ -18,13 +18,13 @@ describe('onDamage', () => {
             portraitId: 'warrior',
             name: 'Victim',
         });
-        const ctx: OnDamageFxContext = {
+        const ctx: DamageTakenEffectContext = {
             addEffect,
             generateRandomInteger: (a, b) => Math.floor((a + b) / 2),
             getUnit: (id) => (id === 'v1' ? unit : undefined),
         };
         const ev: DamageTakenEvent = { unitId: 'v1', amount: 7, sourceUnitId: null };
-        onDamage(ctx, ev);
+        createDamageTakenEffect(ctx, ev);
         expect(addEffect).toHaveBeenCalledTimes(1);
         const fx = addEffect.mock.calls[0]![0] as { effectType: string; effectData: { amount?: number } };
         expect(fx.effectType).toBe('DamageNumber');
@@ -33,12 +33,12 @@ describe('onDamage', () => {
 
     it('does nothing when amount is 0', () => {
         const addEffect = vi.fn();
-        const ctx: OnDamageFxContext = {
+        const ctx: DamageTakenEffectContext = {
             addEffect,
             generateRandomInteger: (a, _b) => a,
             getUnit: () => undefined,
         };
-        onDamage(ctx, { unitId: 'x', amount: 0, sourceUnitId: null });
+        createDamageTakenEffect(ctx, { unitId: 'x', amount: 0, sourceUnitId: null });
         expect(addEffect).not.toHaveBeenCalled();
     });
 });

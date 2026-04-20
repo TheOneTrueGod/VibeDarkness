@@ -8,7 +8,7 @@ import { Effect } from './effects/Effect';
 import { buildDamageNumberMotionFields, type DamageNumberMotionData } from './effects/damageNumberMotion';
 import { getCreatureType } from './units/unit_defs/unitDef';
 
-export interface OnDamageFxContext {
+export interface DamageTakenEffectContext {
     addEffect(effect: Effect): void;
     generateRandomInteger(min: number, max: number): number;
     getUnit(id: string): Unit | undefined;
@@ -23,7 +23,7 @@ function pickDamageNumberColor(unit: Unit): number {
 }
 
 function spawnDamageNumberEffect(
-    ctx: OnDamageFxContext,
+    ctx: DamageTakenEffectContext,
     unit: Unit,
     amount: number,
     color: number,
@@ -47,10 +47,10 @@ function spawnDamageNumberEffect(
 }
 
 /**
- * React to combat damage: spawn a parabolic DamageNumber at the victim.
+ * Spawn VFX for combat damage: a parabolic DamageNumber at the victim.
  * Uses source unit position for flight direction when `sourceUnitId` resolves to a live unit.
  */
-export function onDamage(ctx: OnDamageFxContext, ev: DamageTakenEvent): void {
+export function createDamageTakenEffect(ctx: DamageTakenEffectContext, ev: DamageTakenEvent): void {
     if (ev.amount <= 0) return;
     const unit = ctx.getUnit(ev.unitId);
     if (!unit) return;

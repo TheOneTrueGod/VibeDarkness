@@ -39,7 +39,7 @@ import { computeSynchash } from '../../../utils/synchash';
 import { addRecoveryChargeToUnitAbilities, canUseAbilityNow, consumeAbilityUse, ensureAbilityRuntimeState } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
 import { onRoundProgressMilestone } from './roundProgressMilestones';
-import { onDamage } from './onDamage';
+import { createDamageTakenEffect } from './createDamageTakenEffect';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -315,7 +315,7 @@ export class GameEngine implements EngineContext {
         });
 
         this.eventBus.on('damage_taken', (data: DamageTakenEvent) => {
-            onDamage(
+            createDamageTakenEffect(
                 {
                     addEffect: (e) => this.addEffect(e),
                     generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
