@@ -8,35 +8,37 @@
 
 - Frontend for this game: `app/js/games/minion_battles/*`
 - Backend (PHP API, checkpoints, etc.): `backend/*`
-- HTTP helpers for this game live in `app/js/games/minion_battles/api/` (`MinionBattlesApi`, `types.ts`), wrapping the project-wide `app/js/LobbyClient.ts`.
+- HTTP helpers for this game live in `app/js/games/minion_battles/api/`, wrapping the project-wide `app/js/LobbyClient.ts`.
+
+Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this guide as a complete file index**—open the folder or use search; filenames drift in a legacy codebase. Step-by-step workflows for agents live under **`.cursor/skills/`** (e.g. **working-on-minion-battles**, **creating-an-ability**, **editing-card-behaviour**, **working-with-hitboxes**, **game-engine**, **game-sync-data-flow**, **missions**, **modifying-spawn-definitions**, **narrative/narrative-hub**, **writing-style-***).
 
 ### Directory layout
 
-| Directory | Contents |
-|-----------|----------|
-| `game/` | `GameEngine`, `GameState`, `GameRenderer`, `Camera`, `EventBus`, `LightGrid`, type definitions (`types.ts`, `effectDef.ts`), `GameObject`, and sub-folders |
-| `game/managers/` | `UnitManager`, `CardManager`, `EffectManager`, `ProjectileManager`, `LevelEventManager`, `SpecialTileManager` |
-| `game/deathEffects/` | `DeathEffect`, `ParticleExplosion` |
-| `game/units/` | `Unit`, unit factory index, player unit types (`WarriorUnit`, `RangerUnit`, etc.), `GenericEnemy` |
-| `game/units/unit_defs/` | `unitDef.ts`, `unitConstants.ts` |
-| `game/units/dark_animals/` | `DarkWolf`, `slimeRanged` (`ENEMY_RANGED` spawn template) |
-| `game/units/unitAI/` | AI trees, nodes, runner, utils (with `default/`, `alphaWolfBoss/`, `aggroWander/` sub-folders) |
-| `game/effects/` | `Effect` runtime objects |
-| `game/projectiles/` | `Projectile` runtime objects |
-| `game/specialTiles/` | `SpecialTile` runtime objects |
-| `ui/components/` | React UI components (`BattleCanvas`, `CardHand`, `BattleTimeline`, `CharacterEditor/`, etc.) |
-| `ui/pages/` | Phase-level React components (`BattlePhase`, `CharacterSelectPhase`, `PreMissionStoryPhase`, etc.) |
-| `api/` | `MinionBattlesApi` (HTTP facade), `types.ts` (DTOs for lobby game JSON, characters, admin) |
-| `terrain/` | `TerrainManager`, `TerrainGrid`, `Pathfinder`, terrain tile types |
-| `abilities/` | `Ability` class, `abilityTimings.ts` (intervals + timeline merge helpers), `targeting.ts`, `behaviors/`, `templates/`, preview helpers |
-| `card_defs/` | Per-card ability definition folders |
-| `character_defs/` | Character definitions and `items/` |
-| `constants/` | Shared constants (`enemyConstants.ts`, `npcs.ts`) |
-| `buffs/` | Buff definitions and runtime buff logic |
-| `storylines/` | Campaign storylines and `missions/` per storyline |
-| `resources/` | Resource system classes (`Mana`, `Rage`, etc.) |
-| `hitboxes/` | Hitbox shape classes for ability collision |
-| `utils/` | Shared utility functions |
+| Directory | Purpose |
+|-----------|---------|
+| `game/` | Simulation and presentation: engine, state, renderer, camera, events, light grid, shared wire/runtime types, `GameObject`, and subfolders. |
+| `game/managers/` | Slices of battle state (units, cards, effects, projectiles, level events, special tiles). |
+| `game/deathEffects/` | Death VFX; standard purple Darkness dissolution is centralized in `darkCreatureDissolutionDef.ts` (see **writing-style-enemies** / **working-on-minion-battles** skills). |
+| `game/units/` | Unit model, factories, `GenericEnemy`, AI under `unitAI/`, optional enemy archetype helpers under `dark_animals/`. |
+| `game/units/unit_defs/` | Per-`characterId` baselines (`unitDef.ts`, `unitConstants.ts`), including optional **`creatureType`**. |
+| `game/units/dark_animals/` | Darkness-flavoured enemy factories or spawn templates co-located with that theme. |
+| `game/units/unitAI/` | AI runner, trees, and behaviour modules (grouped subfolders by tree/archetype). |
+| `game/effects/` | In-battle effect runtime objects. |
+| `game/projectiles/` | Projectile runtime objects. |
+| `game/specialTiles/` | Special tile runtime objects. |
+| `ui/components/` | Reusable React battle UI. |
+| `ui/pages/` | Full-screen or phase-level React surfaces (lobby-adjacent flow, battle shell, editors). |
+| `api/` | Minion Battles HTTP facade and DTO-style types for lobby payloads. |
+| `terrain/` | Grid, pathfinding, terrain types, terrain manager. |
+| `abilities/` | Ability classes, timings, targeting, behaviours/templates, previews. |
+| `card_defs/` | One folder per card/ability definition asset. |
+| `character_defs/` | Playable character definitions, portraits, items. |
+| `constants/` | Shared numeric/template constants (enemy templates re-export from `game/` where appropriate). |
+| `buffs/` | Buff defs and runtime buff logic. |
+| `storylines/` | Campaign storyline modules and per-line `missions/`. |
+| `resources/` | In-battle resource types (mana, rage, etc.). |
+| `hitboxes/` | Hitbox shapes for ability collision. |
+| `utils/` | Shared helpers. |
 
 ## Architecture for the game state
 
@@ -311,7 +313,7 @@ Rules for what belongs in snapshots:
 
 #### Layout on disk
 
-Engine, simulation core, managers, and runtime GameObjects live under `game/` (including `GameEngine`, managers under `game/managers/`, units under `game/units/`). Unit definitions are in `game/units/unit_defs/unitConstants.ts` and `game/units/unit_defs/unitDef.ts`.
+Matches **Directory layout**: `game/` holds engine, managers, and GameObjects; `game/units/` holds runtime units and `unit_defs/` for static per-`characterId` data (including optional **`creatureType`**). Use the tree as navigation, not a closed file manifest.
 
 ### Missions and level flow
 
@@ -323,4 +325,4 @@ Engine, simulation core, managers, and runtime GameObjects live under `game/` (i
 - A GameObject holds **instance** state (position, AI state, current health/resources, etc.). Many **kinds** of the same object type can exist.
 - Example: a **GameUnit** has runtime fields and a **unit type** that references a **unit_def** (image, max health, move speed, abilities, etc.). A GameUnit may override some def values; the def is the static baseline.
 - **Definitions (`*_defs`)** are **immutable at runtime** after load: no mutating def objects during ticks. Overrides and dynamic values live on the **instance**.
-- Unit definitions live in `game/units/unit_defs/` (e.g. `unitConstants.ts`, `unitDef.ts`); runtime unit classes are in `game/units/`.
+- Unit definitions live in `game/units/unit_defs/`; runtime unit construction and `Unit` live in `game/units/`.

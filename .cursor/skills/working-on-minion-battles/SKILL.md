@@ -5,8 +5,8 @@ description: When working on anything called minion battles, work primarily in t
 
 # Working on Minion Battles
 
-## Agents.md
-Read `app/js/games/minion_battles/Agents.md` for coding conventions and folder structure
+## AGENTS.md
+Read `app/js/games/minion_battles/AGENTS.md` for coding conventions and folder layout (folder roles, not an exhaustive file list).
 
 ## Instructions
 
