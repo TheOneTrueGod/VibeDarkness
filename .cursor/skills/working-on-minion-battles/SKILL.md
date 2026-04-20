@@ -18,6 +18,7 @@ When working on Minion Battles (the game):
 4. **Integration**: If wiring to the lobby (e.g. game selection, messages), follow AGENTS.md for adding game state and message types; keep Minion Battles–specific code under `app/js/games/minion_battles/` where possible.
 5. **Creating abilities**: When adding a new ability or card, use the **creating-an-ability** skill: create a folder `card_defs/####_ABILITY_NAME` with `####Ability.ts` containing both the CardDef and the ability, implement `doCardEffect` and `renderPreview`, and register in AbilityRegistry and card_defs/index. See that skill for the full workflow and group ID enum.
 6. **Hitboxes**: When an ability needs collision detection against enemies (melee, lunge, AoE), use the hitbox classes in `hitboxes/`. See the **working-with-hitboxes** skill for available types, usage patterns, and how to add new shapes.
+7. **Enemy creature type**: When adding a new enemy `characterId` in `game/units/unit_defs/unitDef.ts`, set optional **`creatureType`** when clear (`writing-style-enemies`); purple dissolution death uses **`darkCreatureDissolutionDeathEffect`** in `game/deathEffects/darkCreatureDissolutionDef.ts`. If unclear, ask the user.
 
 ## Teams
 

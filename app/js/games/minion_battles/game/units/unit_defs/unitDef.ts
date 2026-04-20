@@ -7,8 +7,9 @@ import { Container, Graphics, Sprite, Text, TextStyle, type Texture } from 'pixi
 import type { Unit } from '../Unit';
 import type { TeamId } from '../../teams';
 import { areEnemies } from '../../teams';
-import { ParticleExplosion } from '../../deathEffects/ParticleExplosion';
 import type { EffectImageKey } from '../../effectImages';
+import { ParticleExplosion } from '../../deathEffects/ParticleExplosion';
+import { darkCreatureDissolutionDeathEffect } from '../../deathEffects/darkCreatureDissolutionDef';
 import { getPortrait } from '../../../character_defs/portraits';
 import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
 
@@ -52,6 +53,12 @@ export type EnemyUnitId =
     | 'boar';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
+/**
+ * Narrative / VFX hint for enemy categorization (see writing-style-enemies skill).
+ * Set on every enemy unit def when the category is clear; if ambiguous, prompt the user before locking copy or visuals.
+ */
+export type CreatureType = 'dark_creature' | 'beast';
+
 /** Serialized on units; all players share baseline stats from UNIT_DEFS.player. */
 export const PLAYER_CHARACTER_ID: PlayerUnitDefId = 'player';
 
@@ -69,6 +76,8 @@ const UNIT_DEFS: Record<
         stamina?: number;
         perceptionRange?: number;
         deathEffect?: UnitDeathEffectDef;
+        /** Darkness vs natural beast; drives expectations for death/damage presentation and copy. */
+        creatureType?: CreatureType;
         /** Short flavor text for battle UI (e.g. timeline hover). */
         uiDescription?: string;
     }
@@ -101,6 +110,8 @@ const UNIT_DEFS: Record<
         size: 'Medium',
         stamina: 1,
         perceptionRange: 400,
+        creatureType: 'dark_creature',
+        deathEffect: darkCreatureDissolutionDeathEffect(8),
         uiDescription: 'Stays back and harasses with ranged attacks.',
     },
     dark_wolf: {
@@ -111,7 +122,8 @@ const UNIT_DEFS: Record<
         size: 'Extra Small',
         stamina: 1,
         perceptionRange: 300,
-        deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 8 },
+        creatureType: 'dark_creature',
+        deathEffect: darkCreatureDissolutionDeathEffect(8),
         uiDescription: 'Fast predator that lunges in for a quick bite.',
     },
     alpha_wolf: {
@@ -122,7 +134,7 @@ const UNIT_DEFS: Record<
         size: 'Extra Large',
         stamina: 1,
         perceptionRange: 350,
-        deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 12 },
+        deathEffect: darkCreatureDissolutionDeathEffect(12),
         uiDescription: 'Pack leader with heavy claws and howling support.',
     },
     boar: {
@@ -133,7 +145,7 @@ const UNIT_DEFS: Record<
         size: 'Large',
         stamina: 1,
         perceptionRange: 280,
-        deathEffect: { type: ParticleExplosion, image: 'darkBlob', count: 10 },
+        deathEffect: darkCreatureDissolutionDeathEffect(10),
         uiDescription: 'Tough charger that bowls through the front line.',
     },
 };
@@ -320,6 +332,12 @@ export function getPerceptionRange(characterId: string): number {
 export function getDeathEffectDef(characterId: string): UnitDeathEffectDef | undefined {
     const def = UNIT_DEFS[characterId as UnitDefId];
     return def?.deathEffect;
+}
+
+/** Creature category from unit defs; undefined when unset (treat as uncategorized for new-enemy workflows). */
+export function getCreatureType(characterId: string): CreatureType | undefined {
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    return def?.creatureType;
 }
 
 /**

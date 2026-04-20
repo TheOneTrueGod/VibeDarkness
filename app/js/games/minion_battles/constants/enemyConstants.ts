@@ -30,15 +30,7 @@ export const ENEMY_MELEE: EnemySpawnDef = {
     aiSettings: { minRange: 30, maxRange: 80 },
 };
 
-/** Ranged enemy (slime): knows ability 0001 (Enemy Archer Shot). */
-export const ENEMY_RANGED: EnemySpawnDef = {
-    characterId: 'enemy_ranged',
-    name: 'Slime',
-    position: { x: 0, y: 0 },
-    teamId: 'enemy',
-    abilities: ['0001'],
-    aiSettings: { minRange: 100, maxRange: 200 },
-};
+export { ENEMY_RANGED } from '../game/units/dark_animals/slimeRanged';
 
 /** Wolf: small fast enemy with DarkWolfBite (0003). Baseline hp/speed in unit defs. */
 export const ENEMY_DARK_WOLF: EnemySpawnDef = {

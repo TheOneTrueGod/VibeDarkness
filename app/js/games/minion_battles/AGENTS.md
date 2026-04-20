@@ -19,7 +19,7 @@
 | `game/deathEffects/` | `DeathEffect`, `ParticleExplosion` |
 | `game/units/` | `Unit`, unit factory index, player unit types (`WarriorUnit`, `RangerUnit`, etc.), `GenericEnemy` |
 | `game/units/unit_defs/` | `unitDef.ts`, `unitConstants.ts` |
-| `game/units/dark_animals/` | `DarkWolf` |
+| `game/units/dark_animals/` | `DarkWolf`, `slimeRanged` (`ENEMY_RANGED` spawn template) |
 | `game/units/unitAI/` | AI trees, nodes, runner, utils (with `default/`, `alphaWolfBoss/`, `aggroWander/` sub-folders) |
 | `game/effects/` | `Effect` runtime objects |
 | `game/projectiles/` | `Projectile` runtime objects |

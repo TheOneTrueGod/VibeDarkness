@@ -18,6 +18,8 @@ Use this skill when:
   - `LevelEventSpawnWave`: defines `type`, `trigger`, and `spawns: SpawnWaveEntry[]`
   - `SpawnWaveEntry`: defines `characterId`, optional overrides (`name`, `hp`, `speed`, `aiSettings`), and spawn controls (`spawnBehaviour`, `spawnTarget`, `spawnCount`). See `types.ts` for valid `characterId` values and full field definitions.
 
+When you introduce a **new** `characterId`, add its baseline row in `game/units/unit_defs/unitDef.ts` and set optional **`creatureType`** (`dark_creature` | `beast`) when the category is obvious from `writing-style-enemies/STYLE.md`; if not obvious, **ask the user** before committing.
+
 ## Behaviour semantics
 
 - **Defaults (backwards compatible)**:
