@@ -121,6 +121,11 @@ export interface AbilityStatic {
     /** AI settings controlling when this ability is used (range check). */
     readonly aiSettings?: AbilityAISettings;
     /**
+     * Multiplies the attacker's flat damage bonus contribution for this ability.
+     * Default behavior is 1; use lower values for multi-hit abilities.
+     */
+    readonly damageModifierMultiplier?: number;
+    /**
      * Time in seconds before the ability's main effect typically fires (windup / telegraph end).
      * The engine calls `doCardEffect` every tick until the cast ends; use this (or interval ids from
      * `abilityTimings`) inside `doCardEffect` for threshold checks. `AbilityBase` also uses it for the

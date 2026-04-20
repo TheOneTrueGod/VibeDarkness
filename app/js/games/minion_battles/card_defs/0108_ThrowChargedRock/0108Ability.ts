@@ -17,6 +17,7 @@ import { createCrystalLightEffect } from '../../abilities/effectHelpers';
 import { areEnemies } from '../../game/teams';
 import type { EventBus } from '../../game/EventBus';
 import { asCardDefId, type CardDef } from '../types';
+import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 
 const THROW_CHARGED_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <path d="M20 4 L32 12 L36 24 L28 36 L12 34 L4 20 Z" fill="#6b6b6b" stroke="#5a5a5a" stroke-width="1"/>
@@ -335,8 +336,8 @@ export const ThrowChargedRock: AbilityStatic = {
             .map((entry) => entry.unit);
 
         for (const unit of units) {
-            console.log("Damaging unit", unit.id, " for ", explosionDamage);
-            unit.takeDamage(explosionDamage, sourceUnit.id, eng.eventBus);
+            const modifiedDamage = getModifiedAbilityDamage(sourceUnit, explosionDamage);
+            unit.takeDamage(modifiedDamage, sourceUnit.id, eng.eventBus);
             const { dirX, dirY } = getDirectionFromTo(projectile.x, projectile.y, unit.x, unit.y);
             unit.applyKnockback(
                 KNOCKBACK_POISE_DAMAGE,

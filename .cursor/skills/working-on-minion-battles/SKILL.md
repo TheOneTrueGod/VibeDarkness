@@ -30,6 +30,12 @@ See `game/teams.ts` for team definitions (`TeamId`), alliance rules (`ALLIANCE_M
 - **Getting allies**: Use `engine.getAllies(caster)` to get all units allied with the caster (alive, excluding the caster). This filters by team alliance, not by `ownerId`.
 - **Where teamId is set**: See `storylines/BaseMissionDef.ts` for player unit team assignment and enemy spawn configs (e.g. `enemyConstants.ts`) for enemy teams.
 
+## Descriptive Values
+
+- Shared descriptive magnitudes live in `app/js/researchTrees/descriptiveValue.ts` (`DescriptiveValue` + percent table).
+- Check these whenever adding/updating player-facing magnitude words like Tiny/Small/Medium/Large/Huge in research, tooltips, or UI copy.
+- Any displayed descriptive value should be highlighted via `{...}` token formatting so it renders with the highlighted color (yellow in the default theme).
+
 ## Host vs Client vs Server
 
 These terms are different than normally used.

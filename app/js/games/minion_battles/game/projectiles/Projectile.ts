@@ -14,6 +14,7 @@ import type { Unit } from '../units/Unit';
 import type { EventBus } from '../EventBus';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 
 export class Projectile extends GameObject {
     velocityX: number;
@@ -179,11 +180,18 @@ export class Projectile extends GameObject {
                         return null;
                     }
                 }
-                unit.takeDamage(this.damage, this.sourceUnitId, eventBus);
+                const sourceUnit = (engine as { getUnit?: (id: string) => Unit | undefined } | undefined)?.getUnit?.(this.sourceUnitId);
+                const sourceAbility = getAbility(this.sourceAbilityId);
+                const modifiedDamage = getModifiedAbilityDamage(
+                    sourceUnit,
+                    this.damage,
+                    sourceAbility?.damageModifierMultiplier,
+                );
+                unit.takeDamage(modifiedDamage, this.sourceUnitId, eventBus);
                 eventBus.emit('projectile_hit', {
                     projectileId: this.id,
                     targetUnitId: unit.id,
-                    damage: this.damage,
+                    damage: modifiedDamage,
                 });
                 if (engine) {
                     this.triggerExpireEffect(engine, unit.id);

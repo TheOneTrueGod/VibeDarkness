@@ -18,6 +18,7 @@ import {
 } from './unit_defs/unitDef';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import type { UnitTag } from './unitTag';
+import type { UnitCombatSettings } from './Unit';
 
 export type UnitFactoryConfig = {
     id?: string;
@@ -33,6 +34,8 @@ export type UnitFactoryConfig = {
     maxHp?: number;
     /** Override default speed for this unit. Uses getDefaultSpeed('player') when not set. */
     speed?: number;
+    /** Optional combat tuning values (e.g. flat damage bonus from research). */
+    combatSettings?: UnitCombatSettings;
 };
 
 /**
@@ -64,6 +67,7 @@ export function createPlayerUnit(
         portraitId: config.portraitId,
         radius,
         stamina,
+        combatSettings: config.combatSettings,
     });
 }
 

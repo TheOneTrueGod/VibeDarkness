@@ -8,6 +8,7 @@ import type { EventBus } from '../game/EventBus';
 import { getAbility } from './AbilityRegistry';
 import type { AbilityStatic } from './Ability';
 import type { AttackBlockedInfo } from './Ability';
+import { getModifiedAbilityDamage } from './damageModifiers';
 
 export interface BlockingArc {
     abilityId: string;
@@ -147,6 +148,9 @@ export function tryDamageOrBlock(
             return false;
         }
     }
-    defender.takeDamage(damage, attackerId, eventBus);
+    const attacker = (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(attackerId);
+    const ability = getAbility(abilityId);
+    const modifiedDamage = getModifiedAbilityDamage(attacker, damage, ability?.damageModifierMultiplier);
+    defender.takeDamage(modifiedDamage, attackerId, eventBus);
     return true;
 }

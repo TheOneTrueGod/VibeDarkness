@@ -94,7 +94,9 @@ export default function CharacterEditor({
         const i = portraitIds.indexOf(character.portraitId);
         return i >= 0 ? i : 0;
     });
-    const name = character.name;
+    const [name, setName] = useState(character.name);
+    const [nameDraft, setNameDraft] = useState(character.name);
+    const [isEditingName, setIsEditingName] = useState(false);
     const [equipment, setEquipment] = useState<string[]>(() => [...character.equipment]);
     const [activeTab, setActiveTab] = useState<EditorTab>('equipment');
     const [saving, setSaving] = useState(false);
@@ -108,6 +110,7 @@ export default function CharacterEditor({
 
     const selectedPortraitId = portraitIds[portraitIndex] ?? portraitIds[0];
     const portrait = getPortrait(selectedPortraitId);
+    const displayName = name || (portrait?.name ?? 'Adventurer');
 
     const resolvedCampaign = campaign ?? localCampaign;
     const permissionAccount = viewerAccount ?? account ?? null;
@@ -122,6 +125,12 @@ export default function CharacterEditor({
         setEquipment([...character.equipment]);
         setResearchTrees(character.researchTrees ?? {});
     }, [character.equipment, character.researchTrees]);
+
+    useEffect(() => {
+        setName(character.name);
+        setNameDraft(character.name);
+        setIsEditingName(false);
+    }, [character.name, character.id]);
 
     /** Trees the character is allowed to see (gating), used for normal list and for dimming in debug “show all”. */
     const eligibleResearchTrees = useMemo(() => {
@@ -226,6 +235,35 @@ export default function CharacterEditor({
         },
         [character.id, equipment, api, name, onSaved]
     );
+
+    const saveName = useCallback(async () => {
+        const trimmedName = nameDraft.trim();
+        if (!trimmedName || trimmedName === name) {
+            setNameDraft(name);
+            setIsEditingName(false);
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await api.updateCharacter(character.id, { name: trimmedName });
+            setName(trimmedName);
+            setNameDraft(trimmedName);
+            onSaved?.({ equipment, name: trimmedName, portraitId: selectedPortraitId });
+            setIsEditingName(false);
+        } catch (e) {
+            console.error('Failed to save name:', e);
+            setNameDraft(name);
+            setIsEditingName(false);
+        } finally {
+            setSaving(false);
+        }
+    }, [api, character.id, equipment, name, nameDraft, onSaved, selectedPortraitId]);
+
+    const cancelNameEdit = useCallback(() => {
+        setNameDraft(name);
+        setIsEditingName(false);
+    }, [name]);
 
     const goPrevPortrait = useCallback(() => {
         const next = portraitIndex === 0 ? totalPortraits - 1 : portraitIndex - 1;
@@ -470,12 +508,76 @@ export default function CharacterEditor({
                     {/* Character portrait — 16px (p-4) inset; name row; rule; portrait */}
                     <div className="flex flex-col shrink-0 max-w-full box-border border-b border-border-custom p-4">
                         <div className="flex items-center justify-between gap-2 min-w-0 border-b border-border-custom pb-4">
-                            <span
-                                className="text-lg font-semibold text-white truncate text-left min-w-0 flex-1"
-                                title={name}
-                            >
-                                {name || 'Adventurer'}
-                            </span>
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                {editMode && !isEditingName && (
+                                    <button
+                                        type="button"
+                                        className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer shrink-0"
+                                        onClick={() => {
+                                            setNameDraft(name);
+                                            setIsEditingName(true);
+                                        }}
+                                        aria-label="Edit character name"
+                                        title="Edit character name"
+                                    >
+                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16.862 3.487a2.125 2.125 0 013.004 3.004L8.5 17.857 4 19l1.143-4.5L16.862 3.487z" />
+                                        </svg>
+                                    </button>
+                                )}
+                                {editMode && isEditingName ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="w-8 h-8 rounded border border-emerald-500/70 bg-emerald-600/20 text-emerald-300 flex items-center justify-center hover:bg-emerald-600/35 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-default"
+                                            onClick={() => void saveName()}
+                                            aria-label="Apply name change"
+                                            title="Apply name change"
+                                            disabled={saving}
+                                        >
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </button>
+                                        <input
+                                            type="text"
+                                            value={nameDraft}
+                                            onChange={(e) => setNameDraft(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    void saveName();
+                                                } else if (e.key === 'Escape') {
+                                                    e.preventDefault();
+                                                    cancelNameEdit();
+                                                }
+                                            }}
+                                            className="flex-1 min-w-0 rounded border border-border-custom bg-surface px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                                            placeholder={portrait?.name ?? 'Adventurer'}
+                                            aria-label="Character name"
+                                            autoFocus
+                                        />
+                                        <button
+                                            type="button"
+                                            className="w-8 h-8 rounded border border-red-500/70 bg-red-600/20 text-red-300 flex items-center justify-center hover:bg-red-600/35 cursor-pointer shrink-0"
+                                            onClick={cancelNameEdit}
+                                            aria-label="Cancel name change"
+                                            title="Cancel name change"
+                                        >
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 6l12 12M18 6L6 18" />
+                                            </svg>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <span
+                                        className="text-lg font-semibold text-white truncate text-left min-w-0 flex-1"
+                                        title={displayName}
+                                    >
+                                        {displayName}
+                                    </span>
+                                )}
+                            </div>
                             <div className="flex gap-2 shrink-0">
                                 <button
                                     type="button"

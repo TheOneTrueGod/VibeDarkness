@@ -9,6 +9,10 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { fireGunShotAtTarget } from '../../abilities/gunHelpers';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { getPixelTargetPosition } from '../../abilities/targetHelpers';
+import {
+    ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES,
+    DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
+} from '../../abilities/damageModifiers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}03`;
 const PREFIRE_FIRST_SHOT = 0.5;
@@ -31,6 +35,7 @@ export const PistolAbility: AbilityStatic = {
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 10, allowPartialIfPositive: true }],
     rechargeTurns: 0,
+    damageModifierMultiplier: ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES[CARD_ID] ?? DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
     prefireTime: PREFIRE_FIRST_SHOT,
     abilityTimings: [
         {

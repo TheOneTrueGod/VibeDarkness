@@ -27,7 +27,6 @@ const PREFIRE_TIME = 0.2;
 const BASE_MIN_RANGE = 0;
 const BASE_MAX_RANGE = 30;
 const BASE_DAMAGE = 8;
-const CORE_TRAINING_DAMAGE_BONUS = 2;
 const PUNCH_EFFECT_DURATION = 0.2;
 /** Line thickness for hitbox and preview (px). Enemies within (unit.radius + this) of the line are hit. */
 const LINE_THICKNESS = 20;
@@ -53,14 +52,11 @@ interface GameEngineLike {
     addEffect(effect: Effect): void;
     gameTime: number;
     eventBus: EventBus;
-    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
     interruptUnitAndRefundAbilities?(unit: Unit): void;
 }
 
-function getPunchDamage(engine: GameEngineLike, caster: Unit): number {
-    const nodes = engine.getPlayerResearchNodes?.(caster.ownerId, 'training') ?? [];
-    const hasCoreTraining = nodes.includes('core_training');
-    return BASE_DAMAGE + (hasCoreTraining ? CORE_TRAINING_DAMAGE_BONUS : 0);
+function getPunchDamage(): number {
+    return BASE_DAMAGE;
 }
 
 const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -113,7 +109,7 @@ export const PunchAbility: AbilityStatic = {
         const playerUnit = eng?.localPlayerId
             ? eng.units?.find((u) => u.ownerId === eng.localPlayerId)
             : undefined;
-        const damage = eng && playerUnit ? getPunchDamage(eng, playerUnit) : BASE_DAMAGE;
+        const damage = eng && playerUnit ? getPunchDamage() : BASE_DAMAGE;
         return [`Hit {1} enemy for {${damage}} damage`];
     },
 
@@ -179,7 +175,7 @@ export const PunchAbility: AbilityStatic = {
             attackerY: caster.y,
             attackerId: caster.id,
             abilityId: CARD_ID,
-            damage: getPunchDamage(eng, caster),
+            damage: getPunchDamage(),
             attackType: 'melee',
         });
         if (!didDamage) return;

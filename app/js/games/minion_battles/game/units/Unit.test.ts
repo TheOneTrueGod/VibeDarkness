@@ -22,6 +22,7 @@ describe('Unit', () => {
             name: 'Test',
             abilities: ['throw_knife', '0101'],
             aiSettings: { minRange: 50, maxRange: 200 },
+            combatSettings: { damageModifier: { flatAmt: 2, multiplier: 1 } },
         });
         unit.active = true;
         unit.waitMinEndTime = 10;
@@ -49,6 +50,7 @@ describe('Unit', () => {
         expect(restored.radius).toBe(unit.radius);
         expect(restored.abilities).toEqual(unit.abilities);
         expect(restored.aiSettings).toEqual(unit.aiSettings);
+        expect(restored.combatSettings).toEqual(unit.combatSettings);
         expect(restored.movement).not.toBeNull();
         expect(restored.movement!.path).toEqual(unit.movement!.path);
         expect(restored.movement!.pathfindingTick).toBe(unit.movement!.pathfindingTick);
@@ -74,5 +76,20 @@ describe('Unit', () => {
         expect(restored.y).toBe(50);
         expect(restored.characterId).toBe('player');
         expect(restored.portraitId).toBe('ranger');
+    });
+
+    it('returns default damage modifier when unset', () => {
+        const unit = new Unit({
+            id: 'unit_3',
+            x: 0,
+            y: 0,
+            hp: 10,
+            speed: 100,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+            name: 'NoMod',
+        });
+        expect(unit.getDamageModifier()).toEqual({ flatAmt: 0, multiplier: 1 });
     });
 });

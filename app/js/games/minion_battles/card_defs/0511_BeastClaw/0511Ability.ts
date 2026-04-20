@@ -19,6 +19,10 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
+import {
+    ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES,
+    DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
+} from '../../abilities/damageModifiers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}11`;
 const PREFIRE_TIME = 0.25;
@@ -114,6 +118,7 @@ export const BeastClawAbility: AbilityStatic = {
     image: CLAW_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
+    damageModifierMultiplier: ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES[CARD_ID] ?? DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },

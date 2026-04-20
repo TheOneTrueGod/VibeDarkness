@@ -41,6 +41,12 @@ export interface AISettings {
     maxRange: number;
 }
 
+export type DamageModifier = { flatAmt: number; multiplier: number };
+
+export interface UnitCombatSettings {
+    damageModifier?: DamageModifier;
+}
+
 import type { UnitAIContext } from './unitAI/contextTypes';
 export type { UnitAIContext } from './unitAI/contextTypes';
 
@@ -161,6 +167,8 @@ export class Unit extends GameObject {
 
     /** Active buffs/debuffs on this unit. Serialized for checkpoints. */
     buffs: Buff[] = [];
+    /** Per-unit combat tuning values (optional, serialized). */
+    combatSettings: UnitCombatSettings | undefined;
 
     constructor(config: {
         id?: string;
@@ -184,6 +192,8 @@ export class Unit extends GameObject {
         maxPoiseHp?: number;
         /** Stamina stat. */
         stamina?: number;
+        /** Optional per-unit combat tuning values. */
+        combatSettings?: UnitCombatSettings;
     }) {
         super(config.id ?? generateGameObjectId('unit'), config.x, config.y);
         this.hp = config.hp;
@@ -201,6 +211,7 @@ export class Unit extends GameObject {
         this.maxPoiseHp = config.maxPoiseHp ?? 0;
         this.poiseHp = this.maxPoiseHp;
         this.stamina = config.stamina ?? 1;
+        this.combatSettings = config.combatSettings;
     }
 
     /** Attach a resource and subscribe its event listeners. */
@@ -241,6 +252,11 @@ export class Unit extends GameObject {
         const base = getDefaultHp(this.characterId);
         const bonus = getHealthBonusFromResearch(getResearchNodes);
         return base + bonus;
+    }
+
+    /** Return this unit's damage modifier; defaults to no bonus. */
+    getDamageModifier(): DamageModifier {
+        return this.combatSettings?.damageModifier ?? { flatAmt: 0, multiplier: 1 };
     }
 
     /** Apply damage to this unit. Returns actual damage dealt. */
@@ -670,6 +686,7 @@ export class Unit extends GameObject {
             ),
             stamina: this.stamina,
             buffs: this.buffs.map((b) => b.toJSON()),
+            combatSettings: this.combatSettings,
             ...(this.tags.length > 0 ? { tags: [...this.tags] } : {}),
         };
     }
@@ -699,6 +716,7 @@ export class Unit extends GameObject {
             name: data.name as string,
             abilities: data.abilities as string[],
             stamina: (data.stamina as number | undefined) ?? 1,
+            combatSettings: data.combatSettings as UnitCombatSettings | undefined,
         });
         unit.active = data.active as boolean;
 

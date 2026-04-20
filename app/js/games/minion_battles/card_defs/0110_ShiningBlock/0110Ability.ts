@@ -23,6 +23,7 @@ import { areEnemies } from '../../game/teams';
 import type { EventBus } from '../../game/EventBus';
 import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
 import { TECH_SHIELD_NODE_STRENGTHENING_LIGHT, TECH_SHIELD_TREE_ID } from '../../../../researchTrees/trees/tech_shield';
+import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}10` as '0110';
 const DURATION = 1;
@@ -126,7 +127,8 @@ function executeShiningBlockRetaliation(engine: GameEngineLike, defender: Unit, 
     const toHit = enemiesInCone.slice(0, RETALIATION_MAX_TARGETS);
 
     for (const { unit } of toHit) {
-        unit.takeDamage(RETALIATION_DAMAGE, defender.id, engine.eventBus);
+        const modifiedDamage = getModifiedAbilityDamage(defender, RETALIATION_DAMAGE);
+        unit.takeDamage(modifiedDamage, defender.id, engine.eventBus);
         const stun = new StunnedBuff(STUN_DURATION);
         unit.addBuff(stun, engine.gameTime, engine.roundNumber);
         unit.interruptAllAbilities();

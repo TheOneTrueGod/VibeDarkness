@@ -18,7 +18,7 @@ import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
 import { getDefaultHp, PLAYER_CHARACTER_ID, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
-import { getHealthBonusFromResearch } from '../research/researchTrainingEffects';
+import { getDamageBonusFromResearch, getHealthBonusFromResearch } from '../research/researchTrainingEffects';
 import { applyStickSwordResearchToAbilityRuntime, initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
 import { Ammo } from '../resources/Ammo';
 
@@ -141,6 +141,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 researchByPlayer[pu.playerId]?.[treeId] ?? [];
             const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
             const healthBonus = getHealthBonusFromResearch(getResearchNodes);
+            const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
             const maxHp = baseHp + healthBonus;
             const unit = createPlayerUnit(
                 {
@@ -153,6 +154,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     portraitId: pu.portraitId ?? 'warrior',
                     hp: maxHp,
                     maxHp,
+                    combatSettings: flatDamageBonus > 0
+                        ? { damageModifier: { flatAmt: flatDamageBonus, multiplier: 1 } }
+                        : undefined,
                 },
                 params.eventBus,
             );

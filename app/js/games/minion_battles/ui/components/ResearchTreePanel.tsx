@@ -10,6 +10,24 @@ import {
 import ResourcePill, { campaignResourceGains, RESOURCE_ORDER } from '../../../../components/ResourcePill';
 import { getItemDef } from '../../character_defs/items';
 
+function parseHighlightedSegments(text: string): Array<{ text: string; highlighted: boolean }> {
+	const segments: Array<{ text: string; highlighted: boolean }> = [];
+	const re = /\{([^}]*)\}/g;
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+	while ((match = re.exec(text)) !== null) {
+		if (match.index > lastIndex) {
+			segments.push({ text: text.slice(lastIndex, match.index), highlighted: false });
+		}
+		segments.push({ text: match[1], highlighted: true });
+		lastIndex = match.index + match[0].length;
+	}
+	if (lastIndex < text.length) {
+		segments.push({ text: text.slice(lastIndex), highlighted: false });
+	}
+	return segments;
+}
+
 function accountKnowledgeKeys(requirements: Requirement[]): string[] {
 	const keys: string[] = [];
 	for (const r of requirements) {
@@ -384,7 +402,14 @@ export function ResearchTreeContent({
 													overflow: 'hidden',
 												}}
 											>
-												{n.description}
+												{parseHighlightedSegments(n.description).map((segment, idx) => (
+													<span
+														key={`${n.id}-desc-${idx}`}
+														className={segment.highlighted ? 'text-amber-300' : 'text-gray-300'}
+													>
+														{segment.text}
+													</span>
+												))}
 											</div>
 											<div className="text-[11px] text-muted flex flex-wrap items-center gap-2">
 												{costGains.length > 0 ? (
