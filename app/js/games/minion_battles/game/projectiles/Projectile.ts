@@ -15,6 +15,9 @@ import type { EventBus } from '../EventBus';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
+import { applyBleedStack } from '../../buffs/bleedRuntime';
+
+const THROW_KNIFE_ABILITY_ID = 'throw_knife';
 
 export class Projectile extends GameObject {
     velocityX: number;
@@ -188,6 +191,10 @@ export class Projectile extends GameObject {
                     sourceAbility?.damageModifierMultiplier,
                 );
                 unit.takeDamage(modifiedDamage, this.sourceUnitId, eventBus);
+                if (this.sourceAbilityId === THROW_KNIFE_ABILITY_ID && engine) {
+                    const e = engine as { gameTime: number; roundNumber: number };
+                    applyBleedStack(unit, e.gameTime, e.roundNumber);
+                }
                 eventBus.emit('projectile_hit', {
                     projectileId: this.id,
                     targetUnitId: unit.id,

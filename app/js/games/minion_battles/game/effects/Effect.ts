@@ -6,6 +6,7 @@
  */
 
 import { GameObject, generateGameObjectId } from '../GameObject';
+import { computeDamageNumberWorldPosition, type DamageNumberMotionData } from './damageNumberMotion';
 
 export class Effect extends GameObject {
     /** Total duration in seconds. */
@@ -78,6 +79,12 @@ export class Effect extends GameObject {
             this.x += vx * dt;
             this.y += vy * dt;
         }
+        // DamageNumber: parabolic path + ease-out (see damageNumberMotion); update before lifetime cull.
+        if (this.effectType === 'DamageNumber') {
+            const pos = computeDamageNumberWorldPosition(this.effectData as Partial<DamageNumberMotionData>, this.progress);
+            this.x = pos.x;
+            this.y = pos.y;
+        }
         // TorchProjectile: when it reaches the target, spawn the ground Torch effect then deactivate
         if (this.effectType === 'TorchProjectile' && this.elapsed >= this.duration) {
             const data = this.effectData as {
@@ -147,7 +154,7 @@ export class Effect extends GameObject {
             return;
         }
         // Traveling effect: interpolate position from start to end
-        if (this.startX !== undefined && this.startY !== undefined) {
+        if (this.startX !== undefined && this.startY !== undefined && this.effectType !== 'DamageNumber') {
             const t = this.progress;
             this.x = this.startX + (this.endX - this.startX) * t;
             this.y = this.startY + (this.endY - this.startY) * t;

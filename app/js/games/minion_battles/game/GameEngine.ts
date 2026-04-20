@@ -38,6 +38,7 @@ import { GameState } from './GameState';
 import { computeSynchash } from '../../../utils/synchash';
 import { addRecoveryChargeToUnitAbilities, canUseAbilityNow, consumeAbilityUse, ensureAbilityRuntimeState } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
+import { onRoundProgressMilestone } from './roundProgressMilestones';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -434,7 +435,7 @@ export class GameEngine implements EngineContext {
         this.gameTick++;
 
         const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
-        this.processStaminaPulse(roundTime);
+        this.processRoundProgressMilestones(roundTime);
 
         // Apply scheduled orders
         const toApply = this.pendingOrders.filter((o) => o.gameTick === this.gameTick);
@@ -852,11 +853,27 @@ export class GameEngine implements EngineContext {
         this.state.effectManager.handleRoundEndTorchDecay(this.roundNumber);
     }
 
-    /** Apply the per-round stamina pulse once at round start. */
-    private processStaminaPulse(_roundTime: number): void {
+    /**
+     * Round timer milestones (same cadence as UI round progress: 0% and 50%).
+     * Stamina recovery runs at round start; bleed ticks at both milestones.
+     */
+    private processRoundProgressMilestones(roundTime: number): void {
+        const milestoneCtx = {
+            units: this.units,
+            eventBus: this.eventBus,
+            applyStaminaPulse: () => this.applyStaminaPulse(),
+            bleedFx: {
+                addEffect: (e: Effect) => this.addEffect(e),
+                generateRandomInteger: (min: number, max: number) => this.generateRandomInteger(min, max),
+            },
+        };
         if (!this.appliedRoundStartRecovery) {
-            this.applyStaminaPulse();
+            onRoundProgressMilestone('round_start', milestoneCtx);
             this.appliedRoundStartRecovery = true;
+        }
+        if (!this.appliedMidRoundRecovery && roundTime >= ROUND_DURATION / 2) {
+            onRoundProgressMilestone('round_half', milestoneCtx);
+            this.appliedMidRoundRecovery = true;
         }
     }
 

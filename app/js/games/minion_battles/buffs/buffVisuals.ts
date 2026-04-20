@@ -7,6 +7,7 @@ import { Graphics } from 'pixi.js';
 import type { Unit } from '../game/units/Unit';
 import type { Buff } from './Buff';
 import { STUNNED_BUFF_TYPE } from './StunnedBuff';
+import { BLEED_BUFF_TYPE, BleedBuff } from './BleedBuff';
 
 /** Context passed when rendering a buff visual. */
 export interface IBuffVisualContext {
@@ -81,6 +82,26 @@ const stunnedBuffVisual: BuffVisualRenderer = (g, unit, _buff, ctx) => {
     drawFivePointedStar(g, x2, y2, starSize, angle * 0.5 + Math.PI / 2, fillColor, strokeColor);
 };
 
+/** Bleed: small red droplets above the unit; stack count scales dot size slightly. */
+const bleedBuffVisual: BuffVisualRenderer = (g, unit, buff, _ctx) => {
+    const bleed = buff as BleedBuff;
+    const stacks = bleed.stacks;
+    if (stacks <= 0) return;
+
+    const baseY = -unit.radius - 4;
+    const dropletCount = Math.min(5, stacks);
+    const denom = dropletCount <= 1 ? 1 : dropletCount - 1;
+    for (let i = 0; i < dropletCount; i++) {
+        const t = i / denom;
+        const spread = (t - 0.5) * (unit.radius * 0.5);
+        const y = baseY - i * 3;
+        const r = 2 + Math.min(2, stacks * 0.15);
+        g.ellipse(spread, y, r, r * 1.2);
+        g.fill({ color: 0xb91c1c, alpha: 0.9 });
+        g.stroke({ color: 0x450a0a, width: 1, alpha: 0.85 });
+    }
+};
+
 /** Register a buff visual renderer. */
 export function registerBuffVisual(buffType: string, renderer: BuffVisualRenderer): void {
     registry[buffType] = renderer;
@@ -93,3 +114,4 @@ export function getBuffVisualRenderer(buffType: string): BuffVisualRenderer {
 
 // Register built-in buff visuals
 registerBuffVisual(STUNNED_BUFF_TYPE, stunnedBuffVisual);
+registerBuffVisual(BLEED_BUFF_TYPE, bleedBuffVisual);

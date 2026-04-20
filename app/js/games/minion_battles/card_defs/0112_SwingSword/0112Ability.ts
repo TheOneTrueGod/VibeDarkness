@@ -18,6 +18,7 @@ import type { EventBus } from '../../game/EventBus';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import { applyBleedStack } from '../../buffs/bleedRuntime';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { ThickLineHitbox } from '../../hitboxes';
 import {
@@ -96,6 +97,7 @@ interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
     addEffect(effect: Effect): void;
     gameTime: number;
+    roundNumber: number;
     eventBus: EventBus;
     interruptUnitAndRefundAbilities(unit: Unit): void;
     getPlayerResearchNodes?(playerId: string, treeId: string): string[];
@@ -213,6 +215,8 @@ export const SwingSwordAbility: AbilityStatic = {
                 attackType: 'melee',
             });
             if (blocked) continue;
+
+            applyBleedStack(targetUnit, eng.gameTime, eng.roundNumber);
 
             const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
             targetUnit.applyKnockback(
