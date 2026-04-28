@@ -170,15 +170,12 @@ export function ResearchTreeContent({
 		};
 	}, [account, campaignResources, character, equipment, researchTrees]);
 
-	const VIEW_W = 520;
-	/** Taller canvas so normalized node positions map to more vertical gap between rows. */
-	const VIEW_H = 400;
+	const VIEW_W_MIN = 520;
+	const VIEW_H_MIN = 400;
 	const NODE_W = 180;
 	const NODE_H = 92;
-	const PAD_LEFT_RIGHT = NODE_W / 2;
-	const PAD_TOP = NODE_H;
-	const PAD_BOTTOM = NODE_H;
-	const FIRST_NODE_X_NUDGE = NODE_W / 2;
+	const CANVAS_PAD_X = NODE_W;
+	const CANVAS_PAD_Y = NODE_H;
 	const resetTreeIds = [tree.id];
 	const hasResearchInThisTree = (researchTrees[tree.id] ?? []).length > 0;
 
@@ -205,17 +202,12 @@ export function ResearchTreeContent({
 		},
 		{ minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
 	);
-	const spanX = Math.max(1, bounds.maxX - bounds.minX);
-	const spanY = Math.max(1, bounds.maxY - bounds.minY);
-	const innerW = Math.max(1, VIEW_W - PAD_LEFT_RIGHT * 2);
-	const innerH = Math.max(1, VIEW_H - PAD_TOP - PAD_BOTTOM);
+	const VIEW_W = Math.max(VIEW_W_MIN, bounds.maxX + CANVAS_PAD_X);
+	const VIEW_H = Math.max(VIEW_H_MIN, bounds.maxY + CANVAS_PAD_Y);
 	const mapPos = (p: { x: number; y: number }) => {
-		const nx = (p.x - bounds.minX) / spanX;
-		const ny = (p.y - bounds.minY) / spanY;
-		const isFirstColumn = Math.abs(p.y - bounds.minY) < 1e-6;
 		return {
-			x: PAD_LEFT_RIGHT + ny * innerW + (isFirstColumn ? FIRST_NODE_X_NUDGE : 0),
-			y: PAD_TOP + nx * innerH,
+			x: p.x,
+			y: p.y,
 		};
 	};
 
@@ -333,6 +325,13 @@ export function ResearchTreeContent({
 							const knowledgeKeys = accountKnowledgeKeys(n.requirements);
 							const itemReqs = equippedItemRequirementLabels(n.requirements);
 							const hasReqBadges = knowledgeKeys.length > 0 || itemReqs.length > 0;
+							const hoverTooltip = [
+								n.title,
+								n.description.replace(/\{([^}]*)\}/g, '$1'),
+								n.flavorText ? `Flavor: ${n.flavorText}` : '',
+							]
+								.filter((line) => line.length > 0)
+								.join('\n');
 							return (
 								<div
 									key={n.id}
@@ -390,7 +389,7 @@ export function ResearchTreeContent({
 															: 'bg-surface-light border-border-custom text-muted'
 												}`}
 											disabled={!enabled}
-											title={researched ? 'Researched' : enabled ? 'Click to research' : 'Cannot be Researched'}
+											title={hoverTooltip}
 										>
 											<div className="text-sm font-semibold truncate">{n.title}</div>
 											<div

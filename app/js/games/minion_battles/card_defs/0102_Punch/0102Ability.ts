@@ -9,10 +9,11 @@
 
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
-import { AbilityPhase } from '../../abilities/abilityTimings';
+import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import type { Unit } from '../../game/units/Unit';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
+import type { ActiveAbility } from '../../game/types';
 import { asCardDefId, type CardDef } from '../types';
 import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
@@ -21,12 +22,19 @@ import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { ThickLineHitbox } from '../../hitboxes';
+import { getTrainingPunchResearchState, type TrainingPunchResearchState } from '../../research/researchTrainingEffects';
+import { DescriptiveValue, getApproxIntegerIncrease } from '../../../../researchTrees/descriptiveValue';
+import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
+import { STUNNED_BUFF_TYPE, StunnedBuff } from '../../buffs/StunnedBuff';
+import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
 const PREFIRE_TIME = 0.2;
 const BASE_MIN_RANGE = 0;
 const BASE_MAX_RANGE = 30;
 const BASE_DAMAGE = 8;
+const STRONG_PUNCH_BONUS_DAMAGE = getApproxIntegerIncrease(BASE_DAMAGE, DescriptiveValue.Small);
+const SNEAKY_PUNCH_BONUS_DAMAGE = getApproxIntegerIncrease(BASE_DAMAGE, DescriptiveValue.Medium);
 const PUNCH_EFFECT_DURATION = 0.2;
 /** Line thickness for hitbox and preview (px). Enemies within (unit.radius + this) of the line are hit. */
 const LINE_THICKNESS = 20;
@@ -34,6 +42,27 @@ const POISE_DAMAGE = 1;
 const KNOCKBACK_MAGNITUDE = 12;
 const KNOCKBACK_AIR_TIME = 0.03;
 const KNOCKBACK_SLIDE_TIME = 0.06;
+const STRONG_PUNCH_STUN_DURATION = 1.2;
+const DOUBLE_PUNCH_SECOND_STRIKE_TIME = 0.42;
+const MOVEMENT_LOCK_BASE_END = 0.2;
+const MOVEMENT_LOCK_DOUBLE_END = 0.42;
+const ONE_TARGETS: TargetDef[] = [{ type: 'pixel', label: 'Target point' }];
+const TWO_TARGETS: TargetDef[] = [
+    { type: 'pixel', label: 'First target point' },
+    { type: 'pixel', label: 'Second target point' },
+];
+const BASE_TIMINGS: AbilityTimingInterval[] = [
+    { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
+    { id: 'hit', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
+    { id: 'cooldown', start: 0.3, end: 1.6, abilityPhase: AbilityPhase.Cooldown },
+];
+const DOUBLE_PUNCH_TIMINGS: AbilityTimingInterval[] = [
+    { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
+    { id: 'hit1', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
+    { id: 'reset', start: 0.3, end: DOUBLE_PUNCH_SECOND_STRIKE_TIME, abilityPhase: AbilityPhase.Windup },
+    { id: 'hit2', start: DOUBLE_PUNCH_SECOND_STRIKE_TIME, end: 0.52, abilityPhase: AbilityPhase.Active },
+    { id: 'cooldown', start: 0.52, end: 1.9, abilityPhase: AbilityPhase.Cooldown },
+];
 
 /** Minimum cast range (caster cannot target closer than this). */
 function getMinRange(_caster: Unit): number {
@@ -51,12 +80,157 @@ interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
     addEffect(effect: Effect): void;
     gameTime: number;
+    roundNumber: number;
     eventBus: EventBus;
+    generateRandomInteger(min: number, max: number): number;
+    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
     interruptUnitAndRefundAbilities?(unit: Unit): void;
 }
 
-function getPunchDamage(): number {
-    return BASE_DAMAGE;
+interface PunchPlan {
+    targets: TargetDef[];
+    abilityTimings: AbilityTimingInterval[];
+    movementLockUntil: number;
+    strikeTimes: { time: number; targetIndex: number }[];
+    research: TrainingPunchResearchState;
+}
+
+type PunchCastPayload = {
+    movementLockUntil: number;
+};
+
+function buildPunchPlan(research: TrainingPunchResearchState): PunchPlan {
+    if (research.hasDoublePunch) {
+        return {
+            targets: TWO_TARGETS,
+            abilityTimings: DOUBLE_PUNCH_TIMINGS,
+            movementLockUntil: MOVEMENT_LOCK_DOUBLE_END,
+            strikeTimes: [
+                { time: 0.2, targetIndex: 0 },
+                { time: DOUBLE_PUNCH_SECOND_STRIKE_TIME, targetIndex: 1 },
+            ],
+            research,
+        };
+    }
+    return {
+        targets: ONE_TARGETS,
+        abilityTimings: BASE_TIMINGS,
+        movementLockUntil: MOVEMENT_LOCK_BASE_END,
+        strikeTimes: [{ time: 0.2, targetIndex: 0 }],
+        research,
+    };
+}
+
+function getOwnerPunchResearch(engine: GameEngineLike | undefined, caster?: Unit): TrainingPunchResearchState {
+    if (!engine) {
+        return {
+            hasDoublePunch: false,
+            hasStrongPunch: false,
+            hasSneakyPunch: false,
+            hasChargingPunch: false,
+        };
+    }
+    const ownerId = caster?.ownerId ?? engine.localPlayerId;
+    if (!ownerId || !engine.getPlayerResearchNodes) {
+        return {
+            hasDoublePunch: false,
+            hasStrongPunch: false,
+            hasSneakyPunch: false,
+            hasChargingPunch: false,
+        };
+    }
+    return getTrainingPunchResearchState((treeId: string) => engine.getPlayerResearchNodes?.(ownerId, treeId) ?? []);
+}
+
+function getPunchBaseDamageForTarget(research: TrainingPunchResearchState, target: Unit | undefined): number {
+    let damage = BASE_DAMAGE;
+    if (research.hasStrongPunch) {
+        damage += STRONG_PUNCH_BONUS_DAMAGE;
+    }
+    if (research.hasSneakyPunch && target?.hasBuff(STUNNED_BUFF_TYPE)) {
+        damage += SNEAKY_PUNCH_BONUS_DAMAGE;
+    }
+    return damage;
+}
+
+function tryStrikeTarget(engine: GameEngineLike, caster: Unit, plan: PunchPlan, targetIndex: number, targets: ResolvedTarget[]): void {
+    const targetPos = getPixelTargetPosition(targets, targetIndex);
+    if (!targetPos) return;
+
+    const maxR = getMaxRange(caster);
+    const { x: endX, y: endY } = getAimPointClampedToMaxRange(caster, targetPos, maxR);
+    const hitUnits = ThickLineHitbox.getUnitsInHitbox(
+        engine,
+        caster,
+        caster.x,
+        caster.y,
+        endX,
+        endY,
+        LINE_THICKNESS,
+    );
+
+    const { dirX: dX, dirY: dY } = getDirectionFromTo(caster.x, caster.y, endX, endY);
+    const effectStartX = caster.x + dX * (caster.radius * 0.5);
+    const effectStartY = caster.y + dY * (caster.radius * 0.5);
+    engine.addEffect(
+        new Effect({
+            x: endX,
+            y: endY,
+            duration: PUNCH_EFFECT_DURATION,
+            effectType: 'punch',
+            startX: effectStartX,
+            startY: effectStartY,
+        }),
+    );
+
+    if (hitUnits.length === 0) return;
+    hitUnits.sort((a, b) => {
+        const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
+        const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
+        return da - db;
+    });
+
+    const targetUnit = hitUnits[0]!;
+    if (!targetUnit.isAlive() || targetUnit.hasIFrames(engine.gameTime)) return;
+
+    const baseDamage = getPunchBaseDamageForTarget(plan.research, targetUnit);
+    const didDamage = tryDamageOrBlock(targetUnit, {
+        engine,
+        gameTime: engine.gameTime,
+        eventBus: engine.eventBus,
+        attackerX: caster.x,
+        attackerY: caster.y,
+        attackerId: caster.id,
+        abilityId: CARD_ID,
+        damage: getModifiedAbilityDamage(caster, baseDamage),
+        attackType: 'melee',
+    });
+    if (!didDamage) return;
+
+    if (plan.research.hasStrongPunch) {
+        const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
+        targetUnit.applyKnockback(
+            POISE_DAMAGE,
+            {
+                knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
+                knockbackAirTime: KNOCKBACK_AIR_TIME,
+                knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
+                knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
+            },
+            engine.eventBus,
+            (u) => engine.interruptUnitAndRefundAbilities?.(u),
+        );
+        targetUnit.addBuff(new StunnedBuff(STRONG_PUNCH_STUN_DURATION), engine.gameTime, engine.roundNumber);
+        targetUnit.interruptAllAbilities();
+    }
+
+    if (plan.research.hasChargingPunch) {
+        grantRecoveryChargeToRandomAbility(
+            caster,
+            'lightCharge',
+            (min, max) => engine.generateRandomInteger(min, max),
+        );
+    }
 }
 
 const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -96,21 +270,38 @@ export const PunchAbility: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,
-    abilityTimings: [
-        { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
-        { id: 'hit', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
-        { id: 'cooldown', start: 0.3, end: 1.6, abilityPhase: AbilityPhase.Cooldown },
-    ],
-    targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
+    abilityTimings: BASE_TIMINGS,
+    getAbilityTimings(caster, gameState) {
+        const engine = gameState as GameEngineLike | undefined;
+        const research = getOwnerPunchResearch(engine, caster);
+        return buildPunchPlan(research).abilityTimings;
+    },
+    targets: ONE_TARGETS,
+    getTargets(caster?: Unit, gameState?: unknown): TargetDef[] {
+        const engine = gameState as GameEngineLike | undefined;
+        return buildPunchPlan(getOwnerPunchResearch(engine, caster)).targets;
+    },
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
     getTooltipText(gameState?: unknown): string[] {
-        const eng = gameState as GameEngineLike | undefined;
-        const playerUnit = eng?.localPlayerId
-            ? eng.units?.find((u) => u.ownerId === eng.localPlayerId)
-            : undefined;
-        const damage = eng && playerUnit ? getPunchDamage() : BASE_DAMAGE;
-        return [`Hit {1} enemy for {${damage}} damage`];
+        const engine = gameState as GameEngineLike | undefined;
+        const research = getOwnerPunchResearch(engine);
+        const lines: string[] = [];
+        if (research.hasDoublePunch) {
+            lines.push(`Hit {2} enemies in sequence for {${BASE_DAMAGE}} damage each`);
+        } else {
+            lines.push(`Hit {1} enemy for {${BASE_DAMAGE}} damage`);
+        }
+        if (research.hasStrongPunch) {
+            lines.push(`Strong Punch: +{${STRONG_PUNCH_BONUS_DAMAGE}} damage, knockback, and stun`);
+        }
+        if (research.hasSneakyPunch) {
+            lines.push(`Sneaky Punch: +{${SNEAKY_PUNCH_BONUS_DAMAGE}} damage vs stunned enemies`);
+        }
+        if (research.hasChargingPunch) {
+            lines.push('Charging Punch: On hit, grant {1} Light Charge');
+        }
+        return lines;
     },
 
     getRange(caster: Unit): { minRange: number; maxRange: number } {
@@ -118,80 +309,38 @@ export const PunchAbility: AbilityStatic = {
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < PREFIRE_TIME) {
+        if (currentTime < MOVEMENT_LOCK_BASE_END) {
+            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
+        }
+        return [];
+    },
+    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
+        const eng = engine as GameEngineLike;
+        const plan = buildPunchPlan(getOwnerPunchResearch(eng, caster));
+        const payload: PunchCastPayload = { movementLockUntil: plan.movementLockUntil };
+        active.castPayload = payload;
+    },
+    getAbilityStatesForActive(currentTime: number, active: ActiveAbility): AbilityStateEntry[] {
+        const payload = active.castPayload as PunchCastPayload | undefined;
+        const movementLockUntil = payload?.movementLockUntil ?? MOVEMENT_LOCK_BASE_END;
+        if (currentTime < movementLockUntil) {
             return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
         }
         return [];
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
-
         const pos = getPixelTargetPosition(targets, 0);
-        if (!pos) return;
-
         const eng = engine as GameEngineLike;
-        const maxR = getMaxRange(caster);
-        const { x: endX, y: endY } = getAimPointClampedToMaxRange(caster, pos, maxR);
+        const plan = buildPunchPlan(getOwnerPunchResearch(eng, caster));
 
-        const hitUnits = ThickLineHitbox.getUnitsInHitbox(
-            eng,
-            caster,
-            caster.x,
-            caster.y,
-            endX,
-            endY,
-            LINE_THICKNESS,
-        );
-
-        const { dirX: dX, dirY: dY } = getDirectionFromTo(caster.x, caster.y, endX, endY);
-        const effectStartX = caster.x + dX * (caster.radius * 0.5);
-        const effectStartY = caster.y + dY * (caster.radius * 0.5);
-        const punchEffect = new Effect({
-            x: endX,
-            y: endY,
-            duration: PUNCH_EFFECT_DURATION,
-            effectType: 'punch',
-            startX: effectStartX,
-            startY: effectStartY,
-        });
-        eng.addEffect(punchEffect);
-
-        if (hitUnits.length === 0) return;
-
-        hitUnits.sort((a, b) => {
-            const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
-            const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
-            return da - db;
-        });
-        const targetUnit = hitUnits[0]!;
-        if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) return;
-
-        const didDamage = tryDamageOrBlock(targetUnit, {
-            engine: eng,
-            gameTime: eng.gameTime,
-            eventBus: eng.eventBus,
-            attackerX: caster.x,
-            attackerY: caster.y,
-            attackerId: caster.id,
-            abilityId: CARD_ID,
-            damage: getPunchDamage(),
-            attackType: 'melee',
-        });
-        if (!didDamage) return;
-
-        const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
-        targetUnit.applyKnockback(
-            POISE_DAMAGE,
-            {
-                knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
-                knockbackAirTime: KNOCKBACK_AIR_TIME,
-                knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-            },
-            eng.eventBus,
-            (u) => eng.interruptUnitAndRefundAbilities?.(u),
-        );
+        // Preserve baseline behavior: no hit if first target is missing.
+        if (!pos) return;
+        for (const strike of plan.strikeTimes) {
+            if (prevTime < strike.time && currentTime >= strike.time) {
+                tryStrikeTarget(eng, caster, plan, strike.targetIndex, targets);
+            }
+        }
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {

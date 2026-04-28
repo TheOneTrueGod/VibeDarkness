@@ -16,7 +16,7 @@ export const techShieldTree: ResearchTreeDef = {
             title: 'Crystal Embedded Shield',
             description: 'Embed a crystal into your shield.',
             order: 10,
-            position: { x: 140, y: 80 },
+            position: { x: 340, y: 100 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'characterHasEquippedItem', itemId: '003' }],
@@ -28,7 +28,7 @@ export const techShieldTree: ResearchTreeDef = {
             title: 'Shooting Shield',
             description: 'Convert shield into a ranged weapon.',
             order: 20,
-            position: { x: 60, y: 220 },
+            position: { x: 230, y: 240 },
             prereqNodeIds: ['crystal_embedded_shield'],
             exclusiveWithNodeIds: ['extra_shields'],
             requirements: [
@@ -43,7 +43,7 @@ export const techShieldTree: ResearchTreeDef = {
             title: 'Strengthening Light',
             description: 'Empower shield defense with crystal light.',
             order: 30,
-            position: { x: 240, y: 220 },
+            position: { x: 470, y: 240 },
             prereqNodeIds: ['crystal_embedded_shield'],
             exclusiveWithNodeIds: ['throwing_crystal_shield'],
             requirements: [

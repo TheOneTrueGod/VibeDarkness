@@ -20,6 +20,7 @@ export interface ResearchNodeDef {
     id: string;
     title: string;
     description: string;
+    flavorText?: string;
     /** Stable ordering used for deterministic application. Lower applies first. */
     order: number;
     position: { x: number; y: number };
