@@ -19,14 +19,17 @@ interface CharacterPortraitProps {
     size?: CharacterPortraitSize;
     /** Optional extra class names for the wrapper (e.g. border, shadow). */
     className?: string;
+    /** Optional custom square size in px, overrides preset `size` when provided. */
+    sizePx?: number;
 }
 
 export default function CharacterPortrait({
     picture,
     size = 'medium',
     className = '',
+    sizePx,
 }: CharacterPortraitProps) {
-    const px = SIZE_PX[size];
+    const px = sizePx ?? SIZE_PX[size];
     return (
         <div
             className={`rounded-lg overflow-hidden relative bg-background shrink-0 ${className}`}

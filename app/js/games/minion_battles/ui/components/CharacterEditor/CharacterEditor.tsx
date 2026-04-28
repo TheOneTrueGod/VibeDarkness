@@ -4,6 +4,7 @@
  * Equipment sidebar: paper doll or horizontal equipped-items list; inventory grid; drag to equip.
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { Check, Pencil, X } from 'lucide-react';
 import { getPortraitIds, getPortrait } from '../../../character_defs/portraits';
 import {
     getItemDef,
@@ -39,6 +40,12 @@ interface CharacterEditorProps {
     onClose?: () => void;
     /** Whether equipment editing is enabled. Defaults to false. */
     editMode?: boolean;
+    /**
+     * Whether the player can rename the character (pencil / inline edit).
+     * Independent of {@link editMode} (equipment drag-drop). Defaults to true so lobby
+     * “Edit character” can rename while inventory stays view-only when `editMode` is false.
+     */
+    allowNameEdit?: boolean;
     /** Optional inventory to display and drag from; defaults to the standard player inventory. */
     inventoryItems?: string[];
     /** Whether to render the inventory sidebar. Defaults to true. */
@@ -54,6 +61,7 @@ interface CharacterEditorProps {
 }
 
 type EditorTab = 'equipment' | 'research';
+const MAX_CHARACTER_NAME_LENGTH = 15;
 
 /** Slot descriptor for the doll: type and optional index for weapon/utility. */
 export interface SlotDescriptor {
@@ -80,6 +88,7 @@ export default function CharacterEditor({
     onSaved,
     onClose: _onClose,
     editMode = false,
+    allowNameEdit = true,
     inventoryItems,
     showInventoryPanel = true,
     account,
@@ -87,6 +96,12 @@ export default function CharacterEditor({
     campaign,
     equippedItemsDisplay = 'paperDoll',
 }: CharacterEditorProps) {
+    const canEditName = editMode || allowNameEdit;
+
+    const sanitizeCharacterName = useCallback((value: string): string => {
+        return value.replace(/[^a-zA-Z0-9]/g, '').slice(0, MAX_CHARACTER_NAME_LENGTH);
+    }, []);
+
     const portraitIds = useMemo(() => getPortraitIds(), []);
     const totalPortraits = portraitIds.length;
 
@@ -237,7 +252,7 @@ export default function CharacterEditor({
     );
 
     const saveName = useCallback(async () => {
-        const trimmedName = nameDraft.trim();
+        const trimmedName = sanitizeCharacterName(nameDraft).trim();
         if (!trimmedName || trimmedName === name) {
             setNameDraft(name);
             setIsEditingName(false);
@@ -258,7 +273,7 @@ export default function CharacterEditor({
         } finally {
             setSaving(false);
         }
-    }, [api, character.id, equipment, name, nameDraft, onSaved, selectedPortraitId]);
+    }, [api, character.id, equipment, name, nameDraft, onSaved, sanitizeCharacterName, selectedPortraitId]);
 
     const cancelNameEdit = useCallback(() => {
         setNameDraft(name);
@@ -504,15 +519,15 @@ export default function CharacterEditor({
             {/* Content: left (portrait + sidebar) | right (main) */}
             <div className="flex-1 min-h-0 flex overflow-hidden">
                 {/* Left column: portrait + panel-specific sidebar */}
-                <div className="flex flex-col shrink-0 border-r border-border-custom bg-background/50">
+                <div className="flex w-[232px] flex-col shrink-0 border-r border-border-custom bg-background/50">
                     {/* Character portrait — 16px (p-4) inset; name row; rule; portrait */}
                     <div className="flex flex-col shrink-0 max-w-full box-border border-b border-border-custom p-4">
                         <div className="flex items-center justify-between gap-2 min-w-0 border-b border-border-custom pb-4">
                             <div className="flex items-center gap-2 min-w-0 flex-1">
-                                {editMode && !isEditingName && (
+                                {canEditName && !isEditingName && (
                                     <button
                                         type="button"
-                                        className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer shrink-0"
+                                        className="h-6 w-6 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer shrink-0"
                                         onClick={() => {
                                             setNameDraft(name);
                                             setIsEditingName(true);
@@ -520,29 +535,25 @@ export default function CharacterEditor({
                                         aria-label="Edit character name"
                                         title="Edit character name"
                                     >
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16.862 3.487a2.125 2.125 0 013.004 3.004L8.5 17.857 4 19l1.143-4.5L16.862 3.487z" />
-                                        </svg>
+                                        <Pencil className="h-3 w-3" aria-hidden />
                                     </button>
                                 )}
-                                {editMode && isEditingName ? (
+                                {canEditName && isEditingName ? (
                                     <>
                                         <button
                                             type="button"
-                                            className="w-8 h-8 rounded border border-emerald-500/70 bg-emerald-600/20 text-emerald-300 flex items-center justify-center hover:bg-emerald-600/35 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-default"
+                                            className="h-6 w-6 rounded border border-emerald-500/70 bg-emerald-600/20 text-emerald-300 flex items-center justify-center hover:bg-emerald-600/35 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-default"
                                             onClick={() => void saveName()}
                                             aria-label="Apply name change"
                                             title="Apply name change"
                                             disabled={saving}
                                         >
-                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                            </svg>
+                                            <Check className="h-3 w-3" aria-hidden />
                                         </button>
                                         <input
                                             type="text"
                                             value={nameDraft}
-                                            onChange={(e) => setNameDraft(e.target.value)}
+                                            onChange={(e) => setNameDraft(sanitizeCharacterName(e.target.value))}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter') {
                                                     e.preventDefault();
@@ -555,18 +566,20 @@ export default function CharacterEditor({
                                             className="flex-1 min-w-0 rounded border border-border-custom bg-surface px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
                                             placeholder={portrait?.name ?? 'Adventurer'}
                                             aria-label="Character name"
+                                            maxLength={MAX_CHARACTER_NAME_LENGTH}
+                                            pattern="[A-Za-z0-9]{1,15}"
+                                            title="Use letters and numbers only (max 15 characters)."
+                                            spellCheck={false}
                                             autoFocus
                                         />
                                         <button
                                             type="button"
-                                            className="w-8 h-8 rounded border border-red-500/70 bg-red-600/20 text-red-300 flex items-center justify-center hover:bg-red-600/35 cursor-pointer shrink-0"
+                                            className="h-6 w-6 rounded border border-red-500/70 bg-red-600/20 text-red-300 flex items-center justify-center hover:bg-red-600/35 cursor-pointer shrink-0"
                                             onClick={cancelNameEdit}
                                             aria-label="Cancel name change"
                                             title="Cancel name change"
                                         >
-                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 6l12 12M18 6L6 18" />
-                                            </svg>
+                                            <X className="h-3 w-3" aria-hidden />
                                         </button>
                                     </>
                                 ) : (
@@ -578,29 +591,31 @@ export default function CharacterEditor({
                                     </span>
                                 )}
                             </div>
-                            <div className="flex gap-2 shrink-0">
-                                <button
-                                    type="button"
-                                    className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
-                                    onClick={goPrevPortrait}
-                                    aria-label="Previous portrait"
-                                >
-                                    ‹
-                                </button>
-                                <button
-                                    type="button"
-                                    className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
-                                    onClick={goNextPortrait}
-                                    aria-label="Next portrait"
-                                >
-                                    ›
-                                </button>
-                            </div>
+                            {!isEditingName && (
+                                <div className="flex gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
+                                        onClick={goPrevPortrait}
+                                        aria-label="Previous portrait"
+                                    >
+                                        ‹
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
+                                        onClick={goNextPortrait}
+                                        aria-label="Next portrait"
+                                    >
+                                        ›
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <div className="flex justify-center pt-4">
                             <CharacterPortrait
                                 picture={portrait?.picture ?? ''}
-                                size="medium"
+                                sizePx={200}
                                 className="border border-border-custom"
                             />
                         </div>
