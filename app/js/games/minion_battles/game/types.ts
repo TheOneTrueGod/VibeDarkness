@@ -60,6 +60,12 @@ export interface SerializedGameState {
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     /** Host-computed state hash from last snapshot (optional; restored on load for sync). */
     synchash?: string;
+    /** True while a cinematic/gameplay-freeze sequence is active (e.g. boss death story beat). */
+    storyPauseActive?: boolean;
+    /** Optional tag for the active story pause sequence. */
+    storyPauseReason?: string | null;
+    /** Absolute gameTime when story pause should auto-end, if any. */
+    storyPauseEndsAt?: number | null;
 }
 
 /** Serialized card instance. */

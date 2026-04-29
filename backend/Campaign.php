@@ -12,7 +12,17 @@ class Campaign
     private string $name;
     /** @var array<int, array{id: string, name: string, characterId: string}> */
     private array $campaignCharacters;
-    /** @var array<int, array{missionId: string, result: string, timestamp?: float, resourceDelta?: array{food?: int, metal?: int, population?: int, crystals?: int}, itemIds?: array<int, string>}> */
+    /**
+     * @var array<int, array{
+     *   missionId: string,
+     *   result: string,
+     *   timestamp?: float,
+     *   resourceDelta?: array{food?: int, metal?: int, population?: int, crystals?: int},
+     *   itemIds?: array<int, string>,
+     *   researchRewardIds?: array<int, string>,
+     *   researchRewards?: array<int, array{treeId: string, nodeId: string}>
+     * }>
+     */
     private array $missionResults;
     /** @var array{food: int, metal: int, population: int, crystals: int} */
     private array $resources;
@@ -84,8 +94,14 @@ class Campaign
     }
 
     /** Add or override a mission result. Only one result per mission; new result replaces existing. Does not add resources to campaign; use getEffectiveResources() for display. */
-    public function addMissionResult(string $missionId, string $result, ?array $resourceDelta = null, ?array $itemIds = null): void
-    {
+    public function addMissionResult(
+        string $missionId,
+        string $result,
+        ?array $resourceDelta = null,
+        ?array $itemIds = null,
+        ?array $researchRewardIds = null,
+        ?array $researchRewards = null
+    ): void {
         $entry = [
             'missionId' => $missionId,
             'result' => $result,
@@ -108,6 +124,33 @@ class Campaign
             );
             if ($filtered !== []) {
                 $entry['itemIds'] = $filtered;
+            }
+        }
+        if ($researchRewardIds !== null && is_array($researchRewardIds)) {
+            $filteredResearch = array_values(
+                array_filter(
+                    array_map(static fn ($id) => is_string($id) ? trim($id) : '', $researchRewardIds),
+                    static fn ($id): bool => $id !== ''
+                )
+            );
+            if ($filteredResearch !== []) {
+                $entry['researchRewardIds'] = $filteredResearch;
+            }
+        }
+        if ($researchRewards !== null && is_array($researchRewards)) {
+            $norm = [];
+            foreach ($researchRewards as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $treeId = isset($row['treeId']) && is_string($row['treeId']) ? trim($row['treeId']) : '';
+                $nodeId = isset($row['nodeId']) && is_string($row['nodeId']) ? trim($row['nodeId']) : '';
+                if ($treeId !== '' && $nodeId !== '') {
+                    $norm[] = ['treeId' => $treeId, 'nodeId' => $nodeId];
+                }
+            }
+            if ($norm !== []) {
+                $entry['researchRewards'] = $norm;
             }
         }
         $existingIndex = null;
@@ -136,10 +179,10 @@ class Campaign
         foreach ($this->missionResults as $r) {
             $delta = $r['resourceDelta'] ?? null;
             if (is_array($delta)) {
-                $out['food'] = max(0, $out['food'] + (int) ($delta['food'] ?? 0));
-                $out['metal'] = max(0, $out['metal'] + (int) ($delta['metal'] ?? 0));
-                $out['population'] = max(0, $out['population'] + (int) ($delta['population'] ?? 0));
-                $out['crystals'] = max(0, $out['crystals'] + (int) ($delta['crystals'] ?? 0));
+                $out['food'] += (int) ($delta['food'] ?? 0);
+                $out['metal'] += (int) ($delta['metal'] ?? 0);
+                $out['population'] += (int) ($delta['population'] ?? 0);
+                $out['crystals'] += (int) ($delta['crystals'] ?? 0);
             }
         }
         return $out;

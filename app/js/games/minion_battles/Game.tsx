@@ -7,7 +7,7 @@
  * for the server round-trip.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { PlayerState, GameSidebarInfo } from '../../types';
+import type { MissionResearchRewardEntry, PlayerState, GameSidebarInfo } from '../../types';
 import type { LobbyClient } from '../../LobbyClient';
 import type { GameComponentProps } from '../../components/GameScreen';
 import { useLocalOverrides } from '../../hooks/useLocalOverrides';
@@ -43,7 +43,9 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
         result: string,
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>,
         grantKnowledgeKeys?: string[],
-        itemIds?: string[]
+        itemIds?: string[],
+        researchRewardIds?: string[],
+        researchRewards?: MissionResearchRewardEntry[]
     ) => Promise<void>;
     /** Called when user clicks Leave in the defeat modal. */
     onLeave?: () => void;
@@ -201,6 +203,8 @@ export default function MinionBattlesGame({
     const [missionRewards, setMissionRewards] = useState<{
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
         itemFromFirstChoice?: string;
+        researchRewardIds?: string[];
+        researchRewards?: MissionResearchRewardEntry[];
     } | null>(null);
 
     // ---- Sync from gameData (GameSyncContext owns fetching; gameData flows from there) ----
@@ -336,6 +340,8 @@ export default function MinionBattlesGame({
                             amSpectator ? undefined : rewards.resourceDelta,
                             amSpectator ? undefined : grantKnowledgeKeys,
                             amSpectator ? undefined : itemIds,
+                            amSpectator ? undefined : rewards.researchRewardIds,
+                            amSpectator ? undefined : rewards.researchRewards
                         );
                         setMissionRewards({
                             ...rewards,
@@ -412,7 +418,8 @@ export default function MinionBattlesGame({
                                 missionResult,
                                 undefined,
                                 grantKnowledgeKeys,
-                                amSpectator ? undefined : startingItemIds
+                                amSpectator ? undefined : startingItemIds,
+                                undefined
                             );
                             setMissionRewards(
                                 amSpectator

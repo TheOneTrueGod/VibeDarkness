@@ -166,23 +166,8 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'choice',
             choiceId: 'towards_the_light_cave_choice',
-            options: [
-                {
-                    id: 'investigate_crystals',
-                    label: 'Investigate Crystals',
-                    action: { type: 'grant_resources', crystals: 5, metal: 2 },
-                },
-                {
-                    id: 'gather_materials',
-                    label: 'Gather Materials',
-                    action: { type: 'grant_resources', metal: 5, crystals: 2 },
-                },
-                {
-                    id: 'prepare_soup',
-                    label: 'Prepare Soup',
-                    action: { type: 'grant_resources', metal: 1, crystals: 1, food: 5 },
-                },
-            ],
+            resolverId: 'towards_the_light',
+            options: [],
         },
     ],
 };

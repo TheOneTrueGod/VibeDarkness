@@ -3,24 +3,30 @@
  */
 import React from 'react';
 import { getItemDef, ITEM_ICON_URLS } from '../../character_defs/items';
-import type { CampaignResourceKey } from '../../../../types';
+import type { CampaignResourceKey, MissionResearchRewardEntry } from '../../../../types';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
+import ResearchNodeCard from './ResearchNodeCard';
+import { getResolvedMissionResearchRewards } from '../../../../researchTrees/list';
 
 interface VictoryModalProps {
     missionRewards: {
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
         itemFromFirstChoice?: string;
+        researchRewardIds?: string[];
+        researchRewards?: MissionResearchRewardEntry[];
     } | null;
     onClose: () => void;
 }
 
 export default function VictoryModal({ missionRewards, onClose }: VictoryModalProps) {
+    const researchRewards = getResolvedMissionResearchRewards(missionRewards);
     const hasRewards =
         missionRewards &&
         ((missionRewards.itemFromFirstChoice != null && missionRewards.itemFromFirstChoice !== '') ||
             (missionRewards.resourceDelta &&
                 Object.keys(missionRewards.resourceDelta).length > 0 &&
-                Object.values(missionRewards.resourceDelta).some((v) => v != null && v > 0)));
+                Object.values(missionRewards.resourceDelta).some((v) => v != null && v > 0)) ||
+            researchRewards.length > 0);
 
     const resourceDelta = missionRewards?.resourceDelta ?? {};
     const itemId = missionRewards?.itemFromFirstChoice;
@@ -57,6 +63,25 @@ export default function VictoryModal({ missionRewards, onClose }: VictoryModalPr
                                     {gainedResources.map(({ resource, count }) => (
                                         <ResourcePill key={resource} resource={resource} count={count} />
                                     ))}
+                                </div>
+                            ) : null}
+                            {researchRewards.length > 0 ? (
+                                <div className="w-full space-y-2">
+                                    <p className="text-sm text-muted">Research gained:</p>
+                                    <div className="flex flex-wrap justify-center gap-3">
+                                        {researchRewards.map(({ rewardId, node }) => (
+                                            <ResearchNodeCard
+                                                key={rewardId}
+                                                variant="display"
+                                                tone="muted"
+                                                layout="comfortable"
+                                                node={node}
+                                                showCost={false}
+                                                showRequirements={false}
+                                                state="researched"
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
                             ) : null}
                         </div>

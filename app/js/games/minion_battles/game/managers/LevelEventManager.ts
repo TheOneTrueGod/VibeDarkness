@@ -86,6 +86,7 @@ export class LevelEventManager {
     }
 
     processLevelEvents(): void {
+        if (this.ctx.storyPauseActive) return;
         for (let i = 0; i < this.levelEvents.length; i++) {
             const evt = this.levelEvents[i];
             if (evt.type === 'spawnWave') {
@@ -436,6 +437,7 @@ export class LevelEventManager {
 
     /** Run all victory checks (called periodically and before turns). */
     runVictoryChecks(): void {
+        if (this.ctx.storyPauseActive) return;
         for (let i = 0; i < this.levelEvents.length; i++) {
             const evt = this.levelEvents[i];
             if (evt.type === 'victoryCheck') {
@@ -491,6 +493,7 @@ export class LevelEventManager {
 
     /** If all player units are dead, fire defeat once and pause. */
     runDefeatCheck(): void {
+        if (this.ctx.storyPauseActive) return;
         if (this.defeatFired) return;
         const hasAlivePlayer = this.ctx.units.some(
             (u) => u.isPlayerControlled() && u.isAlive(),

@@ -66,13 +66,20 @@ export interface ResourcePillProps {
 export default function ResourcePill({ resource, count, className = '' }: ResourcePillProps) {
     const meta = RESOURCE_META[resource];
     const { color, Icon, label } = meta;
+    const isNegative = count < 0;
+    const displayColor = isNegative ? '#f87171' : color;
     return (
         <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[13px] font-semibold bg-surface-light ${className}`}
-            style={{ borderWidth: 1, borderStyle: 'solid', borderColor: color, color }}
+            style={{
+                borderWidth: 1,
+                borderStyle: 'solid',
+                borderColor: displayColor,
+                color: displayColor,
+            }}
             title={`${count} ${label}`}
         >
-            <Icon color={color} />
+            <Icon color={displayColor} />
             {count}
         </span>
     );

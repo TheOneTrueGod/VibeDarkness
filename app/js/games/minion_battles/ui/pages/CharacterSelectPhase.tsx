@@ -253,22 +253,58 @@ export default function CharacterSelectPhase({
         }
     }, [api, onPhaseChange, characterSelections]);
 
+    const handleContinueToPostMissionStory = useCallback(async () => {
+        try {
+            const newGameState = await api.updateGameState({
+                gamePhase: 'post_mission_story',
+                characterSelectReadyPlayerIds: [],
+            });
+            await api.sendMessage(MessageType.GAME_PHASE_CHANGED, {
+                gamePhase: 'post_mission_story',
+            });
+            if (onPhaseChange) {
+                const merged = {
+                    ...newGameState,
+                    characterSelections:
+                        (newGameState.characterSelections ?? newGameState.character_selections) ??
+                        characterSelections,
+                };
+                onPhaseChange('post_mission_story', merged);
+            }
+        } catch (error) {
+            console.error('Failed to continue to post-mission story:', error);
+        }
+    }, [api, onPhaseChange, characterSelections]);
+
     const hasTriggeredAdvanceRef = useRef(false);
     useEffect(() => {
         if (!allReady) {
             hasTriggeredAdvanceRef.current = false;
         }
     }, [allReady]);
-    // When all players are ready and at least one has a character, host advances to next phase (pre_mission_story or battle).
+    // When all players are ready and at least one has a character, host advances to next phase.
+    // Story-only missions can skip battle and jump straight into post-mission story.
     useEffect(() => {
         if (!isHost || !allSelected || !allReady || !atLeastOneCharacter || hasTriggeredAdvanceRef.current) return;
         hasTriggeredAdvanceRef.current = true;
         if (preMissionStory) {
             handleContinueToStory();
+        } else if (missionDef?.skipBattle && missionDef.postMissionStory) {
+            handleContinueToPostMissionStory();
         } else {
             handleStartGame();
         }
-    }, [isHost, allSelected, allReady, atLeastOneCharacter, preMissionStory, handleContinueToStory, handleStartGame]);
+    }, [
+        isHost,
+        allSelected,
+        allReady,
+        atLeastOneCharacter,
+        preMissionStory,
+        missionDef,
+        handleContinueToStory,
+        handleContinueToPostMissionStory,
+        handleStartGame,
+    ]);
 
     const createCharacterApi = useCallback(
         async (payload: {

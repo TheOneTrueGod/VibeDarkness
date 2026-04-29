@@ -14,6 +14,10 @@ import { throwingKnivesItem } from './hands/016_throwing_knives';
 import { coreBasicItem } from './core/004_core_basic';
 import { coreWeaponsItem } from './core/006_core_weapons';
 import { beastCoreItem } from './core/014_beast_core';
+import { coreEarthItem } from './core/017_core_earth';
+import { coreAirItem } from './core/018_core_air';
+import { coreChargedItem } from './core/019_core_charged';
+import { coreBlinkItem } from './core/020_core_blink';
 import { throwTorchUtilityItem } from './utility/005_throw_torch';
 import { pistolItem } from './weapons/007_pistol';
 import { smgItem } from './weapons/008_smg';
@@ -32,6 +36,10 @@ import coreBasicIcon from './assets/004_core_basic.svg';
 import throwTorchIcon from './assets/005_throw_torch.svg';
 import coreWeaponsIcon from './assets/006_core_weapons.svg';
 import beastCoreIcon from './assets/014_beast_core.svg';
+import coreEarthIcon from './assets/017_core_earth.svg';
+import coreAirIcon from './assets/018_core_air.svg';
+import coreChargedIcon from './assets/019_core_charged.svg';
+import coreBlinkIcon from './assets/020_core_blink.svg';
 import pistolIcon from './assets/007_pistol.svg';
 import smgIcon from './assets/008_smg.svg';
 import shotgunIcon from './assets/009_shotgun.svg';
@@ -59,6 +67,10 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [throwTorchUtilityItem.id]: throwTorchIcon,
     [coreWeaponsItem.id]: coreWeaponsIcon,
     [beastCoreItem.id]: beastCoreIcon,
+    [coreEarthItem.id]: coreEarthIcon,
+    [coreAirItem.id]: coreAirIcon,
+    [coreChargedItem.id]: coreChargedIcon,
+    [coreBlinkItem.id]: coreBlinkIcon,
     [pistolItem.id]: pistolIcon,
     [smgItem.id]: smgIcon,
     [shotgunItem.id]: shotgunIcon,
@@ -77,6 +89,10 @@ export const ALL_PLAYER_ITEMS: string[] = [
     coreBasicItem.id,
     coreWeaponsItem.id,
     beastCoreItem.id,
+    coreEarthItem.id,
+    coreAirItem.id,
+    coreChargedItem.id,
+    coreBlinkItem.id,
     throwTorchUtilityItem.id,
     pistolItem.id,
     smgItem.id,
@@ -95,6 +111,10 @@ export const ITEMS: Record<string, ItemDef> = {
     [coreBasicItem.id]: coreBasicItem,
     [coreWeaponsItem.id]: coreWeaponsItem,
     [beastCoreItem.id]: beastCoreItem,
+    [coreEarthItem.id]: coreEarthItem,
+    [coreAirItem.id]: coreAirItem,
+    [coreChargedItem.id]: coreChargedItem,
+    [coreBlinkItem.id]: coreBlinkItem,
     [throwTorchUtilityItem.id]: throwTorchUtilityItem,
     [pistolItem.id]: pistolItem,
     [smgItem.id]: smgItem,

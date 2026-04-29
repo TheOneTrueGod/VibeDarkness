@@ -277,6 +277,11 @@ export class Unit extends GameObject {
         });
 
         if (this.hp <= 0) {
+            if (this.hasBuff('cant_die')) {
+                this.hp = 1;
+                return actual;
+            }
+
             this.hp = 0;
             this.active = false;
 

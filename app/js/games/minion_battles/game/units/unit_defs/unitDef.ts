@@ -132,7 +132,7 @@ const UNIT_DEFS: Record<
         hp: 140,
         speed: 135,
         size: 'Extra Large',
-        stamina: 1,
+        stamina: 2,
         perceptionRange: 350,
         deathEffect: darkCreatureDissolutionDeathEffect(12),
         uiDescription: 'Pack leader with heavy claws and howling support.',

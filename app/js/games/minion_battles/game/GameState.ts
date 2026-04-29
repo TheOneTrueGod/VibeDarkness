@@ -24,6 +24,9 @@ export class GameState {
     snapshotIndex = 0;
     isPaused = true;
     waitingForOrders: WaitingForOrders | null = null;
+    storyPauseActive = false;
+    storyPauseReason: string | null = null;
+    storyPauseEndsAt: number | null = null;
     /** Hash of serialized state at current tick; from server on load, recomputed after each sim tick while unpaused. */
     synchash: string | null = null;
 

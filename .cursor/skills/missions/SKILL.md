@@ -39,3 +39,12 @@ For reusable terrain, use **map segments** from the storylines folder. See the *
 - Story types: `app/js/games/minion_battles/storylines/storyTypes.ts`
 - Mission registration: `app/js/games/minion_battles/storylines/index.ts` (MISSION_MAP)
 - Storyline flow: `app/js/games/minion_battles/storylines/WorldOfDarkness/WorldOfDarkness.ts` (edges)
+
+## Campaign resources and research costs
+
+- Mission rewards and story choices should treat campaign `resources` as the base earned pool.
+- When a mission/story grants research directly, do not mutate base campaign resources just for that grant.
+- Effective resources used by research UI/checks are computed from:
+  - `effective = base campaign resources - researched node costs`.
+- Effective values can be negative; UI should render negative resource counts clearly (red styling).
+- In mission result UIs, display research gained separately from raw resource deltas.

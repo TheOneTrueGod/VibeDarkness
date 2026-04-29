@@ -7,6 +7,7 @@
 
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { computeDamageNumberWorldPosition, type DamageNumberMotionData } from './damageNumberMotion';
+import type { Unit } from '../units/Unit';
 
 export class Effect extends GameObject {
     /** Total duration in seconds. */
@@ -58,6 +59,118 @@ export class Effect extends GameObject {
     update(dt: number, engine: unknown): void {
         if (!this.active) return;
         this.elapsed += dt;
+
+        if (this.effectType === 'AlphaWolfStoryController') {
+            const ctx = engine as {
+                addEffect(e: Effect): void;
+                generateRandomInteger(min: number, max: number): number;
+                units: Unit[];
+            };
+            const data = this.effectData as {
+                radialRatePerSecond?: number;
+                homingRatePerSecond?: number;
+                radialRemainder?: number;
+                homingRemainder?: number;
+            };
+            const radialPhase = this.elapsed <= 1;
+            const homingPhase = this.elapsed > 1 && this.elapsed <= 3;
+            const playerTargets = ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
+
+            if (radialPhase) {
+                const total = (data.radialRatePerSecond ?? 24) * dt + (data.radialRemainder ?? 0);
+                const spawnCount = Math.floor(total);
+                data.radialRemainder = total - spawnCount;
+                for (let i = 0; i < spawnCount; i++) {
+                    const angle = (ctx.generateRandomInteger(0, 6283) / 1000) * 2 * Math.PI;
+                    const speed = 120 + (ctx.generateRandomInteger(0, 1000) / 1000) * 160;
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed;
+                    ctx.addEffect(
+                        new Effect({
+                            x: this.x,
+                            y: this.y,
+                            duration: 1,
+                            effectType: 'ParticleImage',
+                            effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.7 + (ctx.generateRandomInteger(0, 1000) / 1000) * 0.5 },
+                        }),
+                    );
+                }
+            }
+
+            if (homingPhase && playerTargets.length > 0) {
+                const total = (data.homingRatePerSecond ?? 20) * dt + (data.homingRemainder ?? 0);
+                const spawnCount = Math.floor(total);
+                data.homingRemainder = total - spawnCount;
+                for (let i = 0; i < spawnCount; i++) {
+                    const idx = ctx.generateRandomInteger(0, playerTargets.length - 1);
+                    const target = playerTargets[idx];
+                    if (!target) continue;
+                    const spawnAngle = (ctx.generateRandomInteger(0, 6283) / 1000) * 2 * Math.PI;
+                    const spawnRadius = 16 + (ctx.generateRandomInteger(0, 1000) / 1000) * 20;
+                    const sx = this.x + Math.cos(spawnAngle) * spawnRadius;
+                    const sy = this.y + Math.sin(spawnAngle) * spawnRadius;
+                    const mx = (sx + target.x) * 0.5 + (ctx.generateRandomInteger(-120, 120));
+                    const my = (sy + target.y) * 0.5 - (70 + ctx.generateRandomInteger(0, 80));
+                    ctx.addEffect(
+                        new Effect({
+                            x: sx,
+                            y: sy,
+                            duration: 2,
+                            effectType: 'StoryHomingParticle',
+                            effectData: {
+                                imageKey: 'darkBlob',
+                                startX: sx,
+                                startY: sy,
+                                controlX: mx,
+                                controlY: my,
+                                targetUnitId: target.id,
+                                targetX: target.x,
+                                targetY: target.y,
+                                pulseSpawned: false,
+                            },
+                        }),
+                    );
+                }
+            }
+        }
+        if (this.effectType === 'StoryHomingParticle') {
+            const ctx = engine as {
+                addEffect(e: Effect): void;
+                getUnit(id: string): Unit | undefined;
+            };
+            const data = this.effectData as {
+                startX: number;
+                startY: number;
+                controlX: number;
+                controlY: number;
+                targetUnitId?: string;
+                targetX: number;
+                targetY: number;
+                pulseSpawned?: boolean;
+            };
+            const t = this.progress;
+            const targetUnit = data.targetUnitId ? ctx.getUnit(data.targetUnitId) : undefined;
+            const tx = targetUnit?.x ?? data.targetX;
+            const ty = targetUnit?.y ?? data.targetY;
+            data.targetX = tx;
+            data.targetY = ty;
+            this.x = (1 - t) * (1 - t) * data.startX + 2 * (1 - t) * t * data.controlX + t * t * tx;
+            this.y = (1 - t) * (1 - t) * data.startY + 2 * (1 - t) * t * data.controlY + t * t * ty;
+            if (t >= 1 && !data.pulseSpawned) {
+                data.pulseSpawned = true;
+                ctx.addEffect(
+                    new Effect({
+                        x: tx,
+                        y: ty,
+                        duration: 0.45,
+                        effectType: 'Pulse',
+                        effectData: { colors: [0xa855f7, 0x7e22ce, 0x581c87] },
+                    }),
+                );
+                this.active = false;
+            }
+            return;
+        }
         // ParticleImage: simple 2D particle with velocity damping
         if (this.effectType === 'ParticleImage') {
             const data = this.effectData as { vx?: number; vy?: number };

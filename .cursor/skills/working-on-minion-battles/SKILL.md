@@ -37,6 +37,15 @@ See `game/teams.ts` for team definitions (`TeamId`), alliance rules (`ALLIANCE_M
 - Check these whenever adding/updating player-facing magnitude words like Tiny/Small/Medium/Large/Huge in research, tooltips, or UI copy.
 - Any displayed descriptive value should be highlighted via `{...}` token formatting so it renders with the highlighted color (yellow in the default theme).
 
+## Campaign Resources and Research Costs
+
+- Treat campaign `resources` as the **base earned pool** (missions, grants, etc.).
+- Do **not** mutate campaign resources when a research node is granted by story/reward effects.
+- Effective/available resources for research are computed as:
+  - `effective = base campaign resources - sum(costs of researched nodes)`.
+- This effective value may be negative; UI should handle and display negative values clearly (red styling for negative resource numbers).
+- When adding reward UIs or mission-result UIs, keep this model consistent: show what research was gained separately from base resource deltas.
+
 ## Host vs Client vs Server
 
 These terms are different than normally used.

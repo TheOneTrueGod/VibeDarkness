@@ -35,6 +35,11 @@ export interface CampaignCharacter {
     characterId: string;
 }
 
+export interface MissionResearchRewardEntry {
+    treeId: string;
+    nodeId: string;
+}
+
 export interface MissionResult {
     missionId: string;
     result: string;
@@ -47,6 +52,13 @@ export interface MissionResult {
     itemId?: string;
     /** Optional generic item id array for compatibility with alternate payload shapes. */
     itemIds?: string[];
+    /** Canonical research reward ids (`treeId+nodeId`). */
+    researchRewardIds?: string[];
+    /**
+     * Optional research nodes awarded by this mission result.
+     * Duplicate `{ treeId, nodeId }` entries are allowed.
+     */
+    researchRewards?: MissionResearchRewardEntry[];
 }
 
 export interface CampaignResources {

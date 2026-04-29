@@ -496,6 +496,66 @@ const particleImageEffectDef: IEffectDef = {
     },
 };
 
+/** Alpha wolf story remnant: dark wolf icon that slowly shakes in place. */
+const alphaWolfStoryRemnantEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, context: IEffectRenderContext): Container {
+        const texture = context.getCharacterTexture?.('dark_wolf') ?? Texture.EMPTY;
+        const sprite = new Sprite(texture);
+        sprite.anchor.set(0.5, 0.5);
+        sprite.width = 42;
+        sprite.height = 42;
+        sprite.label = 'storyRemnant';
+        return sprite;
+    },
+    updateVisual(visual: Container, effect: Effect, context: IEffectRenderContext): void {
+        const sprite = visual as Sprite;
+        const tex = context.getCharacterTexture?.('dark_wolf');
+        if (tex && sprite.texture !== tex) sprite.texture = tex;
+        const data = effect.effectData as { shakeFrequencyHz?: number; shakeAmplitudePx?: number };
+        const hz = data.shakeFrequencyHz ?? 3.5;
+        const amp = data.shakeAmplitudePx ?? 4;
+        sprite.x = Math.sin(effect.elapsed * Math.PI * 2 * hz) * amp;
+        sprite.alpha = Math.max(0, 1 - Math.max(0, effect.progress - 0.9) / 0.1);
+    },
+};
+
+/** Alpha wolf story controller has no direct visual; it only spawns particles/effects. */
+const alphaWolfStoryControllerEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, _effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+    },
+};
+
+/** Purple homing particle that travels from wolf remnant to player targets. */
+const storyHomingParticleEffectDef: IEffectDef = {
+    createVisual(effect: Effect, context: IEffectRenderContext): Container {
+        const data = effect.effectData as { imageKey?: EffectImageKey };
+        const texture = data.imageKey ? context.getEffectTexture(data.imageKey) : null;
+        const sprite = new Sprite(texture ?? Texture.EMPTY);
+        sprite.anchor.set(0.5, 0.5);
+        sprite.width = 16;
+        sprite.height = 16;
+        return sprite;
+    },
+    updateVisual(visual: Container, effect: Effect, context: IEffectRenderContext): void {
+        const sprite = visual as Sprite;
+        const data = effect.effectData as { imageKey?: EffectImageKey };
+        if (data.imageKey) {
+            const tex = context.getEffectTexture(data.imageKey);
+            if (tex && sprite.texture !== tex) sprite.texture = tex;
+        }
+        const life = Math.max(0.35, 1 - effect.progress * 0.4);
+        sprite.alpha = life;
+        const size = 14 + (1 - effect.progress) * 6;
+        sprite.width = size;
+        sprite.height = size;
+    },
+};
+
 /** Pulse effect: three waves of colored circles expanding and fading at different speeds. */
 const pulseEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
@@ -563,6 +623,9 @@ const effectDefRegistry: Record<string, IEffectDef> = {
     ConeFlash: coneFlashEffectDef,
     Pulse: pulseEffectDef,
     HowlShockwave: howlShockwaveEffectDef,
+    AlphaWolfStoryRemnant: alphaWolfStoryRemnantEffectDef,
+    AlphaWolfStoryController: alphaWolfStoryControllerEffectDef,
+    StoryHomingParticle: storyHomingParticleEffectDef,
     bite: biteEffectDef,
     CorruptionOrb: corruptionOrbEffectDef,
     CorruptionProgressBar: corruptionProgressBarDef,

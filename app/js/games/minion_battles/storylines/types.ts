@@ -223,6 +223,11 @@ export interface MissionBattleConfig {
     preMissionStory?: PreMissionStoryDef;
     /** Optional post-mission story (after victory, before victory screen). */
     postMissionStory?: PostMissionStoryDef;
+    /**
+     * If true, this mission skips the battle phase entirely.
+     * Host advances directly into post_mission_story (when present).
+     */
+    skipBattle?: boolean;
     /** Optional in-battle story segments (types only; no runtime yet). */
     inBattleStories?: InBattleStoryDef[];
     /** If true, apply global and source-based light level (darkness overlay, enemy visibility). Default true. */

@@ -7,26 +7,9 @@ import {
 	computeEffectiveResourcesForTree,
 	meetsRequirement,
 } from '../../../../researchTrees/evaluator';
-import ResourcePill, { campaignResourceGains, RESOURCE_ORDER } from '../../../../components/ResourcePill';
+import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
+import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
 import { getItemDef } from '../../character_defs/items';
-
-function parseHighlightedSegments(text: string): Array<{ text: string; highlighted: boolean }> {
-	const segments: Array<{ text: string; highlighted: boolean }> = [];
-	const re = /\{([^}]*)\}/g;
-	let lastIndex = 0;
-	let match: RegExpExecArray | null;
-	while ((match = re.exec(text)) !== null) {
-		if (match.index > lastIndex) {
-			segments.push({ text: text.slice(lastIndex, match.index), highlighted: false });
-		}
-		segments.push({ text: match[1], highlighted: true });
-		lastIndex = match.index + match[0].length;
-	}
-	if (lastIndex < text.length) {
-		segments.push({ text: text.slice(lastIndex), highlighted: false });
-	}
-	return segments;
-}
 
 function accountKnowledgeKeys(requirements: Requirement[]): string[] {
 	const keys: string[] = [];
@@ -333,125 +316,60 @@ export function ResearchTreeContent({
 							const check = canResearchNode(tree, n.id, ctx);
 							const enabled = !researched && check.ok;
 							const blocked = !researched && !check.ok;
-							const costGains = campaignResourceGains(n.cost);
 							const pos = mapPos(n.position);
 							const knowledgeKeys = accountKnowledgeKeys(n.requirements);
 							const itemReqs = equippedItemRequirementLabels(n.requirements);
-							const hasReqBadges = knowledgeKeys.length > 0 || itemReqs.length > 0;
 							const selectionReason = researched
 								? 'Already researched.'
 								: blocked
 									? getResearchBlockReason(check.missing)
 									: null;
-							const hasTooltipContent = Boolean(n.flavorText || selectionReason);
+							const requirementBadges: ResearchRequirementBadge[] = [
+								...knowledgeKeys.map((key) => {
+									const req = n.requirements.find(
+										(r): r is Extract<Requirement, { type: 'accountKnowledge' }> =>
+											r.type === 'accountKnowledge' && r.key === key,
+									);
+									const satisfied = req ? meetsRequirement(req, ctx, researchedByTreeId) : false;
+									return {
+										id: `${n.id}-know-${key}`,
+										label: key,
+										type: 'knowledge' as const,
+										satisfied,
+										title: `Account knowledge: ${key}${satisfied ? ' (met)' : ' (required)'}`,
+									};
+								}),
+								...itemReqs.map(({ itemId, label }) => {
+									const req = n.requirements.find(
+										(r): r is Extract<Requirement, { type: 'characterHasEquippedItem' }> =>
+											r.type === 'characterHasEquippedItem' && r.itemId === itemId,
+									);
+									const satisfied = req ? meetsRequirement(req, ctx, researchedByTreeId) : false;
+									return {
+										id: `${n.id}-item-${itemId}`,
+										label,
+										type: 'item' as const,
+										satisfied,
+										title: `Equipped: ${label} (${itemId})${satisfied ? ' (met)' : ' (required)'}`,
+									};
+								}),
+							];
 							return (
 								<div
 									key={n.id}
 									className="absolute -translate-x-1/2 -translate-y-1/2"
 									style={{ left: pos.x, top: pos.y }}
 								>
-									<div className="relative group">
-										{hasReqBadges && (
-											<div className="absolute right-full top-0 z-10 flex max-w-[150px] flex-col gap-1 items-end pr-2">
-												{knowledgeKeys.map((key) => {
-													const req = n.requirements.find(
-														(r): r is Extract<Requirement, { type: 'accountKnowledge' }> =>
-															r.type === 'accountKnowledge' && r.key === key,
-													);
-													const satisfied = req ? meetsRequirement(req, ctx, researchedByTreeId) : false;
-													return (
-														<span
-															key={`${n.id}-know-${key}`}
-															className={`rounded border border-amber-500/35 bg-amber-950/50 px-1.5 py-px text-[10px] font-medium text-amber-100/95 leading-tight shadow-sm whitespace-nowrap ${satisfied ? 'opacity-45' : 'opacity-100'
-																}`}
-															title={`Account knowledge: ${key}${satisfied ? ' (met)' : ' (required)'}`}
-														>
-															{key}
-														</span>
-													);
-												})}
-												{itemReqs.map(({ itemId, label }) => {
-													const req = n.requirements.find(
-														(r): r is Extract<Requirement, { type: 'characterHasEquippedItem' }> =>
-															r.type === 'characterHasEquippedItem' && r.itemId === itemId,
-													);
-													const satisfied = req ? meetsRequirement(req, ctx, researchedByTreeId) : false;
-													return (
-														<span
-															key={`${n.id}-item-${itemId}`}
-															className={`max-w-[150px] truncate rounded border border-zinc-500/45 bg-zinc-800/65 px-1.5 py-px text-right text-[10px] font-medium text-zinc-200/95 leading-tight shadow-sm ${satisfied ? 'opacity-45' : 'opacity-100'
-																}`}
-															title={`Equipped: ${label} (${itemId})${satisfied ? ' (met)' : ' (required)'}`}
-														>
-															{label}
-														</span>
-													);
-												})}
-											</div>
-										)}
-										<button
-											type="button"
-											onClick={() => enabled && onResearchNode(tree.id, n.id)}
-											className={`relative rounded-lg border px-3 py-2 text-left w-[180px] min-h-[92px] flex flex-col gap-1 ${researched
-													? 'bg-green-900 border-green-700 text-white'
-													: enabled
-														? 'bg-surface-light border-primary text-white hover:bg-surface'
-														: blocked
-															? 'bg-zinc-800 border-zinc-500 text-zinc-100'
-															: 'bg-surface-light border-border-custom text-muted'
-												}`}
-											disabled={!enabled}
-											aria-label={n.title}
-										>
-											<div className="text-sm font-semibold truncate">{n.title}</div>
-											<div
-												className="text-[11px] leading-tight text-gray-300"
-												style={{
-													display: '-webkit-box',
-													WebkitLineClamp: 2,
-													WebkitBoxOrient: 'vertical',
-													overflow: 'hidden',
-												}}
-											>
-												{parseHighlightedSegments(n.description).map((segment, idx) => (
-													<span
-														key={`${n.id}-desc-${idx}`}
-														className={segment.highlighted ? 'text-amber-300' : 'text-gray-300'}
-													>
-														{segment.text}
-													</span>
-												))}
-											</div>
-											<div className="text-[11px] text-muted flex flex-wrap items-center gap-2">
-												{costGains.length > 0 ? (
-													costGains.map(({ resource, count }) => (
-														<ResourcePill
-															key={`${n.id}-${resource}`}
-															resource={resource}
-															count={count}
-															className="text-[11px]"
-														/>
-													))
-												) : (
-													<span>Free</span>
-												)}
-											</div>
-										</button>
-										{hasTooltipContent && (
-											<div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-60 -translate-x-1/2 rounded-md border border-border-custom bg-surface-light px-3 py-2 text-xs text-gray-200 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
-												{n.flavorText && (
-													<p className="mt-0.5 italic text-gray-200">
-														{n.flavorText}
-													</p>
-												)}
-												{selectionReason && (
-													<p className={`${n.flavorText ? 'mt-2' : 'mt-0.5'} text-rose-200`}>
-														{selectionReason}
-													</p>
-												)}
-											</div>
-										)}
-									</div>
+									<ResearchNodeCard
+										node={n}
+										variant="interactive"
+										state={researched ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
+										showCost
+										showRequirements
+										onClick={() => enabled && onResearchNode(tree.id, n.id)}
+										selectionReason={selectionReason}
+										requirementBadges={requirementBadges}
+									/>
 								</div>
 							);
 						})}

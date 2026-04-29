@@ -198,6 +198,8 @@ export class LobbyClient {
                 resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
                 grantKnowledgeKeys?: string[];
                 itemIds?: string[];
+                researchRewardIds?: string[];
+                researchRewards?: Array<{ treeId: string; nodeId: string }>;
             };
         }
     ): Promise<import('./types').CampaignState> {

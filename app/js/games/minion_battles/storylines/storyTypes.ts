@@ -44,14 +44,57 @@ export interface StoryChoiceActionGrantResources {
     crystals?: number;
 }
 
+/** Choice action: grant one research node to the player's selected campaign character. */
+export interface StoryChoiceActionGrantResearchToPlayer {
+    type: 'grant_research_to_player';
+    treeId: string;
+    nodeId: string;
+}
+
+/** Choice action: grant one of several research nodes based on equipped items. */
+export interface StoryChoiceActionGrantResearchConditional {
+    type: 'grant_research_conditional';
+    candidates: Array<{
+        equippedItemId: string;
+        treeId: string;
+        nodeId: string;
+    }>;
+}
+
 /** Extensible choice action union. */
-export type StoryChoiceAction = StoryChoiceActionEquipItem | StoryChoiceActionGrantResources;
+export type StoryChoiceAction =
+    | StoryChoiceActionEquipItem
+    | StoryChoiceActionGrantResources
+    | StoryChoiceActionGrantResearchToPlayer
+    | StoryChoiceActionGrantResearchConditional;
+
+/** Registry of mission-specific resolvers for equipment-dependent post-mission options. */
+export const POST_MISSION_CHOICE_RESOLVER_IDS = ['towards_the_light'] as const;
+export type PostMissionChoiceResolverId = (typeof POST_MISSION_CHOICE_RESOLVER_IDS)[number];
+
+/** One row in a choice phrase (pre- or post-mission). */
+export interface StoryChoiceOptionRow {
+    id: string;
+    /** Stable id for saves / analytics; UI may prefer `loreTitle` when set. */
+    label: string;
+    /** Player-facing heading when present (e.g. post-mission reward picks). */
+    loreTitle?: string;
+    /** Short flavor line under the heading. */
+    loreDescription?: string;
+    action: StoryChoiceAction;
+    disabledLabel?: string;
+}
 
 /** Choice phrase: player selects one option; action is applied (e.g. equip item). */
 export interface ChoicePhrase {
     type: 'choice';
     choiceId: string;
-    options: { id: string; label: string; action: StoryChoiceAction }[];
+    /**
+     * When set, the client replaces `options` with the result of `getComputedPostMissionChoiceOptions`
+     * (see customPostMissionChoices.ts). Static `options` may be an empty placeholder.
+     */
+    resolverId?: PostMissionChoiceResolverId;
+    options: StoryChoiceOptionRow[];
 }
 
 /**

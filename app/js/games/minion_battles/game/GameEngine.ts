@@ -48,6 +48,7 @@ import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../
 import { onRoundProgressMilestone } from './roundProgressMilestones';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { triggerAbilityEvent } from '../abilities/events';
+import { CantDieBuff } from '../buffs/CantDieBuff';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -153,6 +154,27 @@ export class GameEngine implements EngineContext {
     }
     set waitingForOrders(v: WaitingForOrders | null) {
         this.state.waitingForOrders = v;
+    }
+
+    get storyPauseActive(): boolean {
+        return this.state.storyPauseActive;
+    }
+    set storyPauseActive(v: boolean) {
+        this.state.storyPauseActive = v;
+    }
+
+    get storyPauseReason(): string | null {
+        return this.state.storyPauseReason;
+    }
+    set storyPauseReason(v: string | null) {
+        this.state.storyPauseReason = v;
+    }
+
+    get storyPauseEndsAt(): number | null {
+        return this.state.storyPauseEndsAt;
+    }
+    set storyPauseEndsAt(v: number | null) {
+        this.state.storyPauseEndsAt = v;
     }
 
     get synchash(): string | null {
@@ -317,6 +339,10 @@ export class GameEngine implements EngineContext {
         this.eventBus.on('unit_died', (data) => {
             const unit = this.getUnit(data.unitId);
             if (!unit) return;
+            if (unit.characterId === 'alpha_wolf') {
+                this.startAlphaWolfStoryDeathSequence(unit);
+                return;
+            }
             const deathEffectDef = getDeathEffectDef(unit.characterId);
             if (!deathEffectDef) return;
             const effect = new deathEffectDef.type({
@@ -340,6 +366,62 @@ export class GameEngine implements EngineContext {
                 data,
             );
         });
+    }
+
+    private startStoryPause(reason: string, durationSeconds: number): void {
+        this.storyPauseActive = true;
+        this.storyPauseReason = reason;
+        this.storyPauseEndsAt = this.gameTime + durationSeconds;
+        this.waitingForOrders = null;
+        this.isPaused = false;
+        for (const unit of this.units) {
+            if (!unit.isPlayerControlled() || !unit.isAlive()) continue;
+            if (unit.hasBuff('cant_die')) continue;
+            unit.addBuff(new CantDieBuff(durationSeconds), this.gameTime, this.roundNumber);
+        }
+        this.onStateChanged?.();
+    }
+
+    private endStoryPause(): void {
+        this.storyPauseActive = false;
+        this.storyPauseReason = null;
+        this.storyPauseEndsAt = null;
+        for (const unit of this.units) {
+            if (!unit.isPlayerControlled()) continue;
+            unit.buffs = unit.buffs.filter((buff) => buff._type !== 'cant_die');
+        }
+    }
+
+    private startAlphaWolfStoryDeathSequence(unit: Unit): void {
+        const STORY_DURATION_SECONDS = 5;
+        this.startStoryPause('alpha_wolf_death', STORY_DURATION_SECONDS);
+        this.addEffect(
+            new Effect({
+                x: unit.x,
+                y: unit.y,
+                duration: STORY_DURATION_SECONDS,
+                effectType: 'AlphaWolfStoryRemnant',
+                effectData: {
+                    shakeFrequencyHz: 3.5,
+                    shakeAmplitudePx: 4,
+                },
+            }),
+        );
+        this.addEffect(
+            new Effect({
+                x: unit.x,
+                y: unit.y,
+                duration: STORY_DURATION_SECONDS,
+                effectType: 'AlphaWolfStoryController',
+                effectData: {
+                    seededAt: this.gameTime,
+                    radialRatePerSecond: 24,
+                    homingRatePerSecond: 20,
+                    radialRemainder: 0,
+                    homingRemainder: 0,
+                },
+            }),
+        );
     }
 
     prepareForNewGame(config: { localPlayerId: string; terrainManager?: TerrainManager | null; isHost?: boolean; aiControllerId?: string | null }): void {
@@ -575,18 +657,26 @@ export class GameEngine implements EngineContext {
             this.appliedMidRoundRecovery = false;
         }
 
-        this.state.levelEventManager.processLevelEvents();
-        this.processActiveAbilities(dt);
-        this.processUnitTicks(dt);
-        this.state.unitManager.processCrystalAura();
-        this.processCorrupting(dt);
+        if (!this.storyPauseActive) {
+            this.state.levelEventManager.processLevelEvents();
+            this.processActiveAbilities(dt);
+            this.processUnitTicks(dt);
+            this.state.unitManager.processCrystalAura();
+            this.processCorrupting(dt);
+        }
         this.processPlayerDarknessCorruption(dt);
-        this.state.projectileManager.update(dt);
+        if (!this.storyPauseActive) {
+            this.state.projectileManager.update(dt);
+        }
         this.state.effectManager.update(dt);
         this.state.unitManager.cleanupInactive();
         this.state.projectileManager.cleanupInactive();
         this.state.effectManager.cleanupInactive();
-        this.state.levelEventManager.runDefeatCheck();
+        if (!this.storyPauseActive) {
+            this.state.levelEventManager.runDefeatCheck();
+        } else if (this.storyPauseEndsAt != null && this.gameTime >= this.storyPauseEndsAt) {
+            this.endStoryPause();
+        }
         this.scheduleSynchashUpdate();
     }
 
@@ -1139,6 +1229,9 @@ export class GameEngine implements EngineContext {
             victoryCheckFirstEmitDone: levelEventData.victoryCheckFirstEmitDone,
             continuousSpawnLastSpawnedAt: levelEventData.continuousSpawnLastSpawnedAt,
             playerResearchTreesByPlayer: cardData.playerResearchTreesByPlayer,
+            storyPauseActive: this.storyPauseActive,
+            storyPauseReason: this.storyPauseReason,
+            storyPauseEndsAt: this.storyPauseEndsAt,
         };
     }
 
@@ -1153,6 +1246,9 @@ export class GameEngine implements EngineContext {
         engine.snapshotIndex = data.snapshotIndex;
         engine.waitingForOrders = data.waitingForOrders;
         engine.aiControllerId = data.aiControllerId ?? null;
+        engine.storyPauseActive = data.storyPauseActive ?? false;
+        engine.storyPauseReason = data.storyPauseReason ?? null;
+        engine.storyPauseEndsAt = data.storyPauseEndsAt ?? null;
 
         engine.state.levelEventManager.restoreFromJSON({
             firedEventIndices: data.firedEventIndices,

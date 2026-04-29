@@ -232,11 +232,47 @@ class PostMessageHandler
                 http_response_code(400);
                 return ['success' => false, 'error' => 'No active game'];
             }
-            $itemId = isset($payload['itemId']) && is_string($payload['itemId']) ? $payload['itemId'] : null;
+            $actionType = isset($payload['actionType']) && is_string($payload['actionType']) ? trim($payload['actionType']) : null;
+            if ($actionType === '') {
+                $actionType = null;
+            }
+            if ($actionType !== null && $actionType !== 'equip_item' && $actionType !== 'grant_research_to_player') {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'Unsupported actionType'];
+            }
+            $itemId = isset($payload['itemId']) && is_string($payload['itemId']) ? trim($payload['itemId']) : null;
+            if ($itemId === '') {
+                $itemId = null;
+            }
+            $treeId = isset($payload['treeId']) && is_string($payload['treeId']) ? trim($payload['treeId']) : null;
+            $nodeId = isset($payload['nodeId']) && is_string($payload['nodeId']) ? trim($payload['nodeId']) : null;
+            if (($treeId !== null && $treeId === '') || ($nodeId !== null && $nodeId === '')) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'treeId and nodeId must be non-empty strings'];
+            }
+            if (($treeId === null) !== ($nodeId === null)) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'treeId and nodeId must be provided together'];
+            }
+            if ($actionType === 'grant_research_to_player' && ($treeId === null || $nodeId === null)) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'treeId and nodeId required for grant_research_to_player'];
+            }
             $replaceItemIds = isset($payload['replaceItemIds']) && is_array($payload['replaceItemIds'])
                 ? array_values(array_filter($payload['replaceItemIds'], static fn ($v): bool => is_string($v)))
                 : [];
-            $success = $manager->applyStoryChoice($lobbyId, $gameId, $playerId, $choiceId, $optionId, $itemId, $replaceItemIds);
+            $success = $manager->applyStoryChoice(
+                $lobbyId,
+                $gameId,
+                $playerId,
+                $choiceId,
+                $optionId,
+                $itemId,
+                $replaceItemIds,
+                $actionType,
+                $treeId,
+                $nodeId
+            );
             if (!$success) {
                 http_response_code(400);
                 return ['success' => false, 'error' => 'Failed to apply story choice'];

@@ -41,7 +41,7 @@ export function subtractCosts(resources: CampaignResources, costs: CampaignResou
     const out: CampaignResources = { ...resources };
     for (const [k, v] of Object.entries(costs)) {
         const key = k as CampaignResourceKey;
-        out[key] = Math.max(0, (out[key] ?? 0) - (v ?? 0));
+        out[key] = (out[key] ?? 0) - (v ?? 0);
     }
     return out;
 }

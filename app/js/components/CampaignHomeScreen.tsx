@@ -6,12 +6,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
-import type { CampaignState, MissionResult } from '../types';
+import type { CampaignState, MissionResult, MissionResearchRewardEntry } from '../types';
 import { STORYLINES, MISSION_MAP } from '../games/minion_battles/storylines';
 import { getUnlockedMissionIds, getAllMissionIdsInOrder, hasVictoryResult } from '../games/minion_battles/storylines/unlock';
+import { getResolvedMissionResearchRewards } from '../researchTrees/list';
 import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
 import AdminPlayersHomePanel from './AdminPlayersHomePanel';
 import ResourcePill, { campaignResourceGains } from './ResourcePill';
+import ResearchNodeCard from './ResearchNodeCard';
 import { ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
 import AbilityTestPage from './AbilityTestPage';
 import {
@@ -49,6 +51,7 @@ type MissionResultWithItems = MissionResult & {
     itemCardIds?: string[];
     itemIds?: string[];
     itemId?: string;
+    researchRewards?: MissionResearchRewardEntry[];
 };
 
 export default function CampaignHomeScreen({
@@ -282,6 +285,8 @@ export default function CampaignHomeScreen({
                                                     const hasVictory = hasVictoryResult(missionId, missionResults);
                                                     const missionResult = latestMissionResultById.get(missionId);
                                                     const gainedResources = campaignResourceGains(missionResult?.resourceDelta);
+                                                    const gainedResearchRewards =
+                                                        getResolvedMissionResearchRewards(missionResult);
                                                     const gainedItemCardIds = [
                                                         ...(Array.isArray(missionResult?.itemCardIds)
                                                             ? missionResult.itemCardIds
@@ -369,6 +374,25 @@ export default function CampaignHomeScreen({
                                                                                         </span>
                                                                                     );
                                                                                 })
+                                                                            ) : (
+                                                                                <span className="text-muted">None</span>
+                                                                            )}
+                                                                        </span>
+                                                                        <span className="flex flex-col items-start gap-2 text-sm text-muted">
+                                                                            Research gained:
+                                                                            {gainedResearchRewards.length > 0 ? (
+                                                                                <span className="flex flex-wrap items-start gap-2">
+                                                                                    {gainedResearchRewards.map(({ treeId, nodeId, node }) => (
+                                                                                        <ResearchNodeCard
+                                                                                            key={`${missionId}-${treeId}-${nodeId}`}
+                                                                                            variant="display"
+                                                                                            node={node}
+                                                                                            showCost={false}
+                                                                                            showRequirements={false}
+                                                                                            state="researched"
+                                                                                        />
+                                                                                    ))}
+                                                                                </span>
                                                                             ) : (
                                                                                 <span className="text-muted">None</span>
                                                                             )}

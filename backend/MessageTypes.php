@@ -83,6 +83,16 @@ enum MessageType: string
             self::CLICK => ['timestamp'],
             self::STATE_RESPONSE => ['lobbyName'],
             self::PLAYER_JOIN => ['isHost'],
+            self::STORY_CHOICE => [
+                'itemId',
+                'replaceItemIds',
+                'actionType',
+                'treeId',
+                'nodeId',
+                'researchTreeId',
+                'researchNodeId',
+                'researchRewardId',
+            ],
             default => [],
         };
     }

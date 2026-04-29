@@ -58,7 +58,21 @@ const MessageSchema: Record<string, SchemaDef> = Object.freeze({
     [MessageType.CHARACTER_SELECT_READY]: { required: [], optional: [] },
     [MessageType.GAME_PHASE_CHANGED]: { required: ['gamePhase'], optional: [] },
     [MessageType.BATTLE_ORDERS_READY]: { required: ['snapshotIndex'], optional: [] },
-    [MessageType.STORY_CHOICE]: { required: ['choiceId', 'optionId'], optional: [] },
+    [MessageType.STORY_CHOICE]: {
+        required: ['choiceId', 'optionId'],
+        optional: [
+            'itemId',
+            'replaceItemIds',
+            // Backend: grant_research_to_player uses actionType + treeId + nodeId (PostMessageHandler).
+            'actionType',
+            'treeId',
+            'nodeId',
+            // Legacy/alternate keys (older clients).
+            'researchTreeId',
+            'researchNodeId',
+            'researchRewardId',
+        ],
+    },
     [MessageType.STORY_READY]: { required: [], optional: [] },
     [MessageType.STORY_GRANT_EQUIPMENT_RANDOM]: {
         required: ['missionId', 'phraseIndex', 'itemId'],

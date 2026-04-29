@@ -817,6 +817,8 @@ class LobbyManager
     /**
      * Apply a story choice (any player). Merges choice into game state.
      * If itemId is provided, also equips that item on the player's selected character (and removes replaceItemIds).
+     * If actionType is grant_research_to_player and treeId/nodeId are provided, grants that research node on the selected character idempotently.
+     * For backward compatibility, research is also granted when treeId/nodeId are provided and actionType is omitted.
      *
      * @param list<string> $replaceItemIds Item IDs to unequip when equipping itemId (e.g. same-slot items)
      */
@@ -827,7 +829,10 @@ class LobbyManager
         string $choiceId,
         string $optionId,
         ?string $itemId = null,
-        array $replaceItemIds = []
+        array $replaceItemIds = [],
+        ?string $actionType = null,
+        ?string $treeId = null,
+        ?string $nodeId = null
     ): bool {
         $lobby = $this->getLobby($lobbyId);
         if ($lobby === null) {
@@ -845,6 +850,17 @@ class LobbyManager
             return false;
         }
 
+        if ($actionType === 'grant_research_to_player') {
+            $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
+            $characterIdForGrant = is_array($selections) ? ($selections[$playerId] ?? null) : null;
+            if (!is_string($characterIdForGrant) || $characterIdForGrant === '') {
+                return false;
+            }
+            if (CharacterManager::getInstance()->getCharacter($characterIdForGrant) === null) {
+                return false;
+            }
+        }
+
         $choices = $currentState['playerStoryChoices'] ?? [];
         if (!isset($choices[$playerId]) || !is_array($choices[$playerId])) {
             $choices[$playerId] = [];
@@ -857,6 +873,49 @@ class LobbyManager
             $characterId = is_array($selections) ? ($selections[$playerId] ?? null) : null;
             if (is_string($characterId) && $characterId !== '') {
                 CharacterManager::getInstance()->equipItem($characterId, $itemId, $replaceItemIds);
+            }
+        }
+
+        if ($actionType !== null && $actionType !== 'equip_item' && $actionType !== 'grant_research_to_player') {
+            return false;
+        }
+
+        if ($treeId !== null && $nodeId !== null) {
+            $treeId = trim($treeId);
+            $nodeId = trim($nodeId);
+        }
+
+        $shouldGrantResearch = $treeId !== null
+            && $nodeId !== null
+            && $treeId !== ''
+            && $nodeId !== ''
+            && ($actionType === null || $actionType === 'grant_research_to_player');
+
+        if ($actionType === 'grant_research_to_player' && !$shouldGrantResearch) {
+            return false;
+        }
+
+        if ($shouldGrantResearch) {
+            $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
+            $characterId = is_array($selections) ? ($selections[$playerId] ?? null) : null;
+            if (is_string($characterId) && $characterId !== '') {
+                $characterManager = CharacterManager::getInstance();
+                $character = $characterManager->getCharacter($characterId);
+                if ($character !== null) {
+                    $researchTrees = $character->getResearchTrees();
+                    if (!is_array($researchTrees)) {
+                        $researchTrees = [];
+                    }
+                    $existingTreeNodes = $researchTrees[$treeId] ?? [];
+                    if (!is_array($existingTreeNodes)) {
+                        $existingTreeNodes = [];
+                    }
+                    if (!in_array($nodeId, $existingTreeNodes, true)) {
+                        $existingTreeNodes[] = $nodeId;
+                        $researchTrees[$treeId] = array_values($existingTreeNodes);
+                        $characterManager->updateCharacter($characterId, ['researchTrees' => $researchTrees]);
+                    }
+                }
             }
         }
 

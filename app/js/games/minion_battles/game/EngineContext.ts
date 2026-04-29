@@ -18,6 +18,7 @@ export interface EngineContext {
     gameTime: number;
     gameTick: number;
     roundNumber: number;
+    storyPauseActive: boolean;
 
     readonly eventBus: EventBus;
     terrainManager: TerrainManager | null;
