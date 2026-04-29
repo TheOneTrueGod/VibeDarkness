@@ -18,6 +18,16 @@ Important: ability implementation files belong in `card_defs/` folders (not dire
 - **Helpers**: See utility files in `abilities/` (`targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`) for available helpers. When adding new reusable behaviour, add or extend a helper first, then call it from the ability.
 - **Hitboxes**: For hit-detection shapes, see the **working-with-hitboxes** skill.
 
+## `abilityEvents` authoring order
+
+When implementing `abilityEvents`, follow this policy:
+
+1. Prefer reusable presets over defining a new inline event rule.
+2. Prefer an inline event rule over a custom handler.
+3. If no inline primitive exists, prompt the user whether the behavior is one-off or should be generalized into a reusable condition/effect/preset.
+4. Custom handlers require a short explanatory comment.
+5. Within one event rule, conditions use AND semantics; across multiple event rules, matching uses OR semantics.
+
 ## Where to put it
 
 1. **New folder**: `app/js/games/minion_battles/card_defs/####_ABILITY_NAME`

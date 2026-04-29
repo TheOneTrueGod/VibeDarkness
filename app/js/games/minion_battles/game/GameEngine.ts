@@ -23,6 +23,7 @@ import { getAbility } from '../abilities/AbilityRegistry';
 import { getTotalAbilityDurationForCast } from '../abilities/abilityTimings';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
+import { AbilityEventType } from '../abilities/Ability';
 import { areEnemies } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { LevelEvent } from '../storylines/types';
@@ -40,6 +41,7 @@ import { addRecoveryChargeToUnitAbilities, canUseAbilityNow, consumeAbilityUse, 
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
 import { onRoundProgressMilestone } from './roundProgressMilestones';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
+import { triggerAbilityEvent } from '../abilities/events';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -625,6 +627,20 @@ export class GameEngine implements EngineContext {
 
         const existing = unit.activeAbilities.findIndex((a) => a.abilityId === ability.id);
         if (existing >= 0) {
+            const existingActive = unit.activeAbilities[existing];
+            if (existingActive) {
+                const existingElapsed = Math.max(0, this.gameTime - existingActive.startTime);
+                triggerAbilityEvent({
+                    engine: this,
+                    caster: unit,
+                    ability,
+                    activeAbility: existingActive,
+                    targets: existingActive.targets,
+                    eventType: AbilityEventType.ON_CAST_END,
+                    prevTime: existingElapsed,
+                    currentTime: existingElapsed,
+                });
+            }
             unit.activeAbilities.splice(existing, 1);
             unit.clearAbilityNote();
         }
@@ -636,6 +652,16 @@ export class GameEngine implements EngineContext {
         };
         ability.beginActiveCast?.(this, unit, active.targets, active);
         unit.activeAbilities.push(active);
+        triggerAbilityEvent({
+            engine: this,
+            caster: unit,
+            ability,
+            activeAbility: active,
+            targets: active.targets,
+            eventType: AbilityEventType.ON_CAST_START,
+            prevTime: 0,
+            currentTime: 0,
+        });
 
         this.state.cardManager.trackAbilityUse(unit.id, ability.id);
 
@@ -666,8 +692,19 @@ export class GameEngine implements EngineContext {
 
                 const currentTime = this.gameTime - active.startTime;
                 const prevTime = currentTime - dt;
+                const safePrevTime = Math.max(0, prevTime);
 
-                ability.doCardEffect(this, unit, active.targets, Math.max(0, prevTime), currentTime, active);
+                ability.doCardEffect(this, unit, active.targets, safePrevTime, currentTime, active);
+                triggerAbilityEvent({
+                    engine: this,
+                    caster: unit,
+                    ability,
+                    activeAbility: active,
+                    targets: active.targets,
+                    eventType: AbilityEventType.ON_CAST_TICK,
+                    prevTime: safePrevTime,
+                    currentTime,
+                });
 
                 const totalDuration = getTotalAbilityDurationForCast(ability, unit, this);
                 if (currentTime >= totalDuration) {
@@ -676,7 +713,25 @@ export class GameEngine implements EngineContext {
             }
 
             for (let i = completed.length - 1; i >= 0; i--) {
-                unit.activeAbilities.splice(completed[i], 1);
+                const completedIndex = completed[i];
+                if (completedIndex === undefined) continue;
+                const active = unit.activeAbilities[completedIndex];
+                if (!active) continue;
+                const ability = getAbility(active.abilityId);
+                if (ability) {
+                    const elapsed = Math.max(0, this.gameTime - active.startTime);
+                    triggerAbilityEvent({
+                        engine: this,
+                        caster: unit,
+                        ability,
+                        activeAbility: active,
+                        targets: active.targets,
+                        eventType: AbilityEventType.ON_CAST_END,
+                        prevTime: elapsed,
+                        currentTime: elapsed,
+                    });
+                }
+                unit.activeAbilities.splice(completedIndex, 1);
             }
         }
     }
@@ -685,14 +740,45 @@ export class GameEngine implements EngineContext {
         const unit = this.getUnit(unitId);
         if (!unit) return;
         const idx = unit.activeAbilities.findIndex((a) => a.abilityId === abilityId);
-        if (idx >= 0) unit.activeAbilities.splice(idx, 1);
+        if (idx < 0) return;
+        const active = unit.activeAbilities[idx];
+        if (!active) return;
+        const ability = getAbility(active.abilityId);
+        if (ability) {
+            const elapsed = Math.max(0, this.gameTime - active.startTime);
+            triggerAbilityEvent({
+                engine: this,
+                caster: unit,
+                ability,
+                activeAbility: active,
+                targets: active.targets,
+                eventType: AbilityEventType.ON_CAST_END,
+                prevTime: elapsed,
+                currentTime: elapsed,
+            });
+        }
+        unit.activeAbilities.splice(idx, 1);
     }
 
     interruptUnitAndRefundAbilities(unit: Unit): void {
         while (unit.activeAbilities.length > 0) {
             const active = unit.activeAbilities[0];
+            if (!active) break;
             const ability = getAbility(active.abilityId);
-            if (ability) refundAbilityCost(unit, ability);
+            if (ability) {
+                refundAbilityCost(unit, ability);
+                const elapsed = Math.max(0, this.gameTime - active.startTime);
+                triggerAbilityEvent({
+                    engine: this,
+                    caster: unit,
+                    ability,
+                    activeAbility: active,
+                    targets: active.targets,
+                    eventType: AbilityEventType.ON_CAST_END,
+                    prevTime: elapsed,
+                    currentTime: elapsed,
+                });
+            }
             unit.activeAbilities.splice(0, 1);
         }
         unit.clearAbilityNote();

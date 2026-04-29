@@ -326,3 +326,11 @@ Matches **Directory layout**: `game/` holds engine, managers, and GameObjects; `
 - Example: a **GameUnit** has runtime fields and a **unit type** that references a **unit_def** (image, max health, move speed, abilities, etc.). A GameUnit may override some def values; the def is the static baseline.
 - **Definitions (`*_defs`)** are **immutable at runtime** after load: no mutating def objects during ticks. Overrides and dynamic values live on the **instance**.
 - Unit definitions live in `game/units/unit_defs/`; runtime unit construction and `Unit` live in `game/units/`.
+
+### `abilityEvents` authoring policy
+
+- Prefer reusable presets over defining a new inline event rule.
+- Prefer an inline event rule over a custom handler.
+- If no inline primitive exists, prompt the user whether the behavior is one-off or should be generalized into a reusable condition/effect/preset.
+- Custom handlers require a short explanatory comment.
+- Within one event rule, conditions use AND semantics; across multiple event rules, matching uses OR semantics.

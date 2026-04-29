@@ -14,8 +14,10 @@ import type { Unit } from '../units/Unit';
 import type { EventBus } from '../EventBus';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { AbilityEventType } from '../../abilities/Ability';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { applyBleedStack } from '../../buffs/bleedRuntime';
+import { triggerAbilityEventFromAttack } from '../../abilities/events';
 
 const THROW_KNIFE_ABILITY_ID = 'throw_knife';
 
@@ -191,6 +193,24 @@ export class Projectile extends GameObject {
                     sourceAbility?.damageModifierMultiplier,
                 );
                 unit.takeDamage(modifiedDamage, this.sourceUnitId, eventBus);
+                if (engine) {
+                    triggerAbilityEventFromAttack({
+                        engine: engine as {
+                            gameTime: number;
+                            roundNumber: number;
+                            getUnit(id: string): Unit | undefined;
+                            generateRandomInteger(min: number, max: number): number;
+                            eventBus: EventBus;
+                            getPlayerResearchNodes?: (playerId: string, treeId: string) => string[];
+                            interruptUnitAndRefundAbilities?: (unit: Unit) => void;
+                        },
+                        attackingAbilityId: this.sourceAbilityId,
+                        sourceUnitId: this.sourceUnitId,
+                        eventType: AbilityEventType.ON_ATTACK_HIT,
+                        hitResult: 'hit',
+                        primaryTarget: unit,
+                    });
+                }
                 if (this.sourceAbilityId === THROW_KNIFE_ABILITY_ID && engine) {
                     const e = engine as { gameTime: number; roundNumber: number };
                     applyBleedStack(unit, e.gameTime, e.roundNumber);

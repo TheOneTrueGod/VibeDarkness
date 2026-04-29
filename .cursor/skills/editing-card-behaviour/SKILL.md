@@ -58,6 +58,7 @@ When **editing card behaviour**, follow this checklist:
 3. **Changing cast timing or prefire**: Distinguish **card cycle** (durability + `discardDuration`) from **cast timeline** (`abilityTimings` + `prefireTime` used in behaviour / default movement lock). Keep `abilityTimings` consistent with what `doCardEffect` does so the unit is not stuck “casting” longer or shorter than the real effects. Avoid stacking very long discard timers with very long casts so the card still shows up in play.
 4. **Changing resource cost**: Make sure the owning unit actually has the required resource.
 5. **Debugging draw/discard issues**: Inspect `CardInstance`, `onCardUsed`, `moveToDiscard`, `processDiscardSeconds`, and `handleRoundEnd` in the engine. Confirm the card's `abilityId` matches and the `CardDef` is correctly registered.
+6. **Editing `abilityEvents`**: Prefer reusable presets over new inline event rules, and prefer inline event rules over custom handlers. If no inline primitive exists, prompt the user whether the behavior is one-off or should be generalized into a reusable condition/effect/preset. Custom handlers require a short explanatory comment. Within one event rule, conditions use AND semantics; across multiple event rules, matching uses OR semantics.
 
 ### 9. Relationship to other skills
 

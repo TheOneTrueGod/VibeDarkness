@@ -12,6 +12,7 @@ import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import type { AbilityTimingEntry } from './abilityTimings';
 import type { CardDefId } from '../card_defs/types';
+import type { AbilityEventRule } from './events/AbilityEventRule';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
 export interface IAbilityPreviewGraphics {
@@ -37,6 +38,20 @@ export enum AbilityState {
     MOVEMENT_PENALTY = 'movement_penalty',
     /** Unit cannot be hit by projectiles. No data. */
     IFRAMES = 'iframes',
+}
+
+/** Event hooks for declarative ability rule execution. */
+export enum AbilityEventType {
+    /** Fires once when the cast starts and `beginActiveCast` has been initialized. */
+    ON_CAST_START = 'on_cast_start',
+    /** Fires each tick while the cast is active. Use rule conditions to gate timing windows. */
+    ON_CAST_TICK = 'on_cast_tick',
+    /** Fires once when the cast naturally ends or is removed from the active list. */
+    ON_CAST_END = 'on_cast_end',
+    /** Fires when this ability's attack successfully damages a target. */
+    ON_ATTACK_HIT = 'on_attack_hit',
+    /** Fires when this ability is blocked by another active blocking ability. */
+    ON_ATTACK_BLOCKED = 'on_attack_blocked',
 }
 
 /** A single active state produced by an ability at a given time. */
@@ -113,6 +128,8 @@ export interface AbilityStatic {
     readonly keywords?: Partial<{ [K in AbilityKeyword]: AbilityKeywordDefs[K] }>;
     /** Optional tags (e.g. recovery-charge priority). Distinct from `keywords`. */
     readonly tags?: readonly AbilityTag[];
+    /** Optional declarative rules keyed by trigger event. */
+    readonly abilityEvents?: Partial<Record<AbilityEventType, readonly AbilityEventRule[]>>;
     /**
      * Optional target resolver. If omitted, callers should use `ability.targets`.
      * Use when target count/labels depend on runtime state (e.g. research).

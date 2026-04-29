@@ -8,7 +8,9 @@ import type { EventBus } from '../game/EventBus';
 import { getAbility } from './AbilityRegistry';
 import type { AbilityStatic } from './Ability';
 import type { AttackBlockedInfo } from './Ability';
+import { AbilityEventType } from './Ability';
 import { getModifiedAbilityDamage } from './damageModifiers';
+import { triggerAbilityEventFromAttack } from './events';
 
 export interface BlockingArc {
     abilityId: string;
@@ -109,6 +111,23 @@ export function executeBlock(
 ): void {
     const ability = getAbility(attackingAbilityId);
     ability?.onAttackBlocked(engine, defender, attackInfo);
+    triggerAbilityEventFromAttack({
+        engine: engine as {
+            gameTime: number;
+            roundNumber: number;
+            getUnit(id: string): Unit | undefined;
+            generateRandomInteger(min: number, max: number): number;
+            eventBus: EventBus;
+            getPlayerResearchNodes?: (playerId: string, treeId: string) => string[];
+            interruptUnitAndRefundAbilities?: (unit: Unit) => void;
+        },
+        attackingAbilityId,
+        sourceUnitId: attackInfo.sourceUnitId,
+        eventType: AbilityEventType.ON_ATTACK_BLOCKED,
+        hitResult: 'blocked',
+        primaryTarget: defender,
+        attackInfo,
+    });
     if (block?.ability.onBlockSuccess) {
         block.ability.onBlockSuccess(engine, defender, attackInfo);
     }
@@ -152,5 +171,21 @@ export function tryDamageOrBlock(
     const ability = getAbility(abilityId);
     const modifiedDamage = getModifiedAbilityDamage(attacker, damage, ability?.damageModifierMultiplier);
     defender.takeDamage(modifiedDamage, attackerId, eventBus);
+    triggerAbilityEventFromAttack({
+        engine: engine as {
+            gameTime: number;
+            roundNumber: number;
+            getUnit(id: string): Unit | undefined;
+            generateRandomInteger(min: number, max: number): number;
+            eventBus: EventBus;
+            getPlayerResearchNodes?: (playerId: string, treeId: string) => string[];
+            interruptUnitAndRefundAbilities?: (unit: Unit) => void;
+        },
+        attackingAbilityId: abilityId,
+        sourceUnitId: attackerId,
+        eventType: AbilityEventType.ON_ATTACK_HIT,
+        hitResult: 'hit',
+        primaryTarget: defender,
+    });
     return true;
 }

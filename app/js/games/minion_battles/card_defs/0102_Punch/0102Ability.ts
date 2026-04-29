@@ -7,7 +7,7 @@
  * and deals damage to the closest enemy in the line (if any).
  */
 
-import { AbilityState } from '../../abilities/Ability';
+import { AbilityEventType, AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import type { Unit } from '../../game/units/Unit';
@@ -24,9 +24,8 @@ import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromT
 import { ThickLineHitbox } from '../../hitboxes';
 import { getTrainingPunchResearchState, type TrainingPunchResearchState } from '../../research/researchTrainingEffects';
 import { DescriptiveValue, getApproxIntegerIncrease } from '../../../../researchTrees/descriptiveValue';
-import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
-import { STUNNED_BUFF_TYPE, StunnedBuff } from '../../buffs/StunnedBuff';
-import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
+import { STUNNED_BUFF_TYPE } from '../../buffs/StunnedBuff';
+import { TRAINING_NODE_CHARGING_PUNCH, TRAINING_NODE_STRONG_PUNCH, TRAINING_TREE_ID } from '../../../../researchTrees/trees/training';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
 const PREFIRE_TIME = 0.2;
@@ -202,35 +201,12 @@ function tryStrikeTarget(engine: GameEngineLike, caster: Unit, plan: PunchPlan, 
         attackerY: caster.y,
         attackerId: caster.id,
         abilityId: CARD_ID,
-        damage: getModifiedAbilityDamage(caster, baseDamage),
+        // `tryDamageOrBlock` applies standard ability damage modifiers once.
+        damage: baseDamage,
         attackType: 'melee',
     });
     if (!didDamage) return;
 
-    if (plan.research.hasStrongPunch) {
-        const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
-        targetUnit.applyKnockback(
-            POISE_DAMAGE,
-            {
-                knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
-                knockbackAirTime: KNOCKBACK_AIR_TIME,
-                knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-            },
-            engine.eventBus,
-            (u) => engine.interruptUnitAndRefundAbilities?.(u),
-        );
-        targetUnit.addBuff(new StunnedBuff(STRONG_PUNCH_STUN_DURATION), engine.gameTime, engine.roundNumber);
-        targetUnit.interruptAllAbilities();
-    }
-
-    if (plan.research.hasChargingPunch) {
-        grantRecoveryChargeToRandomAbility(
-            caster,
-            'lightCharge',
-            (min, max) => engine.generateRandomInteger(min, max),
-        );
-    }
 }
 
 const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -282,6 +258,39 @@ export const PunchAbility: AbilityStatic = {
         return buildPunchPlan(getOwnerPunchResearch(engine, caster)).targets;
     },
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
+    abilityEvents: {
+        [AbilityEventType.ON_ATTACK_HIT]: [
+            {
+                id: 'punch_strong_cc',
+                conditions: [
+                    { type: 'hitResultIs', result: 'hit' },
+                    { type: 'casterHasResearchNode', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_STRONG_PUNCH },
+                ],
+                effects: [
+                    {
+                        type: 'applyKnockbackToPrimaryTarget',
+                        poiseDamage: POISE_DAMAGE,
+                        magnitude: KNOCKBACK_MAGNITUDE,
+                        airTime: KNOCKBACK_AIR_TIME,
+                        slideTime: KNOCKBACK_SLIDE_TIME,
+                        sourceAbilityId: CARD_ID,
+                    },
+                    { type: 'applyStunnedToPrimaryTarget', duration: STRONG_PUNCH_STUN_DURATION },
+                    { type: 'interruptPrimaryTargetAbilities' },
+                ],
+            },
+            {
+                id: 'punch_charging_recover',
+                conditions: [
+                    { type: 'hitResultIs', result: 'hit' },
+                    { type: 'casterHasResearchNode', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
+                ],
+                effects: [
+                    { type: 'recoverCharge', chargeType: 'lightCharge', amount: 1, recipient: 'randomAbility' },
+                ],
+            },
+        ],
+    },
 
     getTooltipText(gameState?: unknown): string[] {
         const engine = gameState as GameEngineLike | undefined;
