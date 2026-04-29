@@ -194,7 +194,7 @@ export class LevelEventManager {
                         speed: stats.speed,
                         unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                     };
-                    const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus);
+                    const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
                     this.ctx.addUnit(unit);
                 }
             }
@@ -297,7 +297,7 @@ export class LevelEventManager {
                     speed: stats.speed,
                     unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
-                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus);
+                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
                 this.ctx.addUnit(unit);
             }
         }
@@ -427,7 +427,7 @@ export class LevelEventManager {
                     speed: stats.speed,
                     unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
-                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus);
+                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
                 this.ctx.addUnit(unit);
                 if (unitCountByTeam) unitCountByTeam[base.teamId] += 1;
             }

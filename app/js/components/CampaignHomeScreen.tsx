@@ -3,6 +3,7 @@
  * Shown when user is logged in and on the lobby screen (no active lobby).
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
 import type { CampaignState, MissionResult } from '../types';
@@ -12,20 +13,24 @@ import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
 import AdminPlayersHomePanel from './AdminPlayersHomePanel';
 import ResourcePill, { campaignResourceGains } from './ResourcePill';
 import { ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
-
-type TabId = 'welcome' | 'mission_select' | 'join_mission' | 'players';
-
-const TAB_IDS: TabId[] = ['welcome', 'mission_select', 'join_mission', 'players'];
+import AbilityTestPage from './AbilityTestPage';
+import {
+    type TabId,
+    CAMPAIGN_TAB_IDS,
+    tabFromCampaignSlug,
+    campaignPathForTab,
+} from './ability-tests/campaignTabPaths';
 
 /** Per-tab settings: label and whether the tab is visible for the current user. */
 const TAB_SETTINGS: Record<
     TabId,
-    { label: string; isVisible: (isAdmin: boolean) => boolean }
+    { label: string; isVisible: (isAdmin: boolean) => boolean; adminTab?: boolean }
 > = {
     welcome: { label: 'Welcome', isVisible: () => true },
-    mission_select: { label: 'Mission Select', isVisible: (isAdmin) => isAdmin },
+    mission_select: { label: 'Mission Select', isVisible: (isAdmin) => isAdmin, adminTab: true },
     join_mission: { label: 'Join Mission', isVisible: () => true },
-    players: { label: 'Players', isVisible: (isAdmin) => isAdmin },
+    players: { label: 'Players', isVisible: (isAdmin) => isAdmin, adminTab: true },
+    ability_test: { label: 'Ability Test', isVisible: (isAdmin) => isAdmin, adminTab: true },
 };
 
 /** Default tab when no tab is selected; non-admins see Join Mission first. */
@@ -52,21 +57,26 @@ export default function CampaignHomeScreen({
     onJoinLobby,
     refetchUser,
 }: CampaignHomeScreenProps) {
+    const navigate = useNavigate();
+    const { tabSlug } = useParams<{ tabSlug: string }>();
     const { user, role } = useUser();
     const isAdmin = role === 'admin';
     const defaultTab = getDefaultTab(isAdmin);
     const visibleTabs = useMemo(
-        () => TAB_IDS.filter((id) => TAB_SETTINGS[id].isVisible(isAdmin)),
+        () => CAMPAIGN_TAB_IDS.filter((id) => TAB_SETTINGS[id].isVisible(isAdmin)),
         [isAdmin]
     );
-    const [activeTab, setActiveTab] = useState<TabId>(() => defaultTab);
+    const activeTab = tabFromCampaignSlug(tabSlug) ?? defaultTab;
 
-    // When admin status or visibility changes, ensure active tab is visible; otherwise switch to default.
     useEffect(() => {
-        if (!visibleTabs.includes(activeTab)) {
-            setActiveTab(defaultTab);
+        const fromUrl = tabFromCampaignSlug(tabSlug);
+        if (fromUrl != null && visibleTabs.includes(fromUrl)) {
+            return;
         }
-    }, [isAdmin, visibleTabs, activeTab, defaultTab]);
+        const fallback =
+            (visibleTabs.includes(defaultTab) ? defaultTab : visibleTabs[0]) ?? 'welcome';
+        navigate(campaignPathForTab(fallback), { replace: true });
+    }, [tabSlug, visibleTabs, defaultTab, navigate]);
     const [campaign, setCampaign] = useState<CampaignState | null>(null);
     const [campaignLoading, setCampaignLoading] = useState(false);
     const [creatingCampaign, setCreatingCampaign] = useState(false);
@@ -206,7 +216,11 @@ export default function CampaignHomeScreen({
         <div className="min-h-screen flex flex-col">
             <div
                 className={`flex-1 mx-auto w-full px-5 py-8 max-md:px-5 max-md:py-5 ${
-                    activeTab === 'players' ? 'max-w-[1800px]' : 'max-w-[800px]'
+                    activeTab === 'players'
+                        ? 'max-w-[1800px]'
+                        : activeTab === 'ability_test'
+                          ? 'max-w-[min(1800px,100%)]'
+                          : 'max-w-[800px]'
                 }`}
             >
                 <h1 className="text-center text-4xl max-md:text-3xl font-bold mb-8 text-primary">
@@ -402,6 +416,8 @@ export default function CampaignHomeScreen({
                                 <AdminPlayersHomePanel lobbyClient={lobbyClient} />
                             </div>
                         )}
+
+                        {activeTab === 'ability_test' && isAdmin && <AbilityTestPage />}
                     </>
                 )}
             </div>
@@ -409,17 +425,18 @@ export default function CampaignHomeScreen({
             {hasCampaign && campaign && (
                 <nav className="flex border-t border-border-custom bg-surface" aria-label="Tabs">
                     {visibleTabs.map((id) => {
-                        const { label } = TAB_SETTINGS[id];
+                        const { label, adminTab } = TAB_SETTINGS[id];
+                        const isActive = activeTab === id;
                         return (
                             <button
                                 key={id}
                                 type="button"
                                 className={`flex-1 py-4 text-sm font-medium transition-colors ${
-                                    activeTab === id
+                                    isActive
                                         ? 'text-primary border-b-2 border-primary'
                                         : 'text-muted hover:text-white border-b-2 border-transparent'
-                                }`}
-                                onClick={() => setActiveTab(id)}
+                                } ${adminTab ? 'bg-red-950/50 hover:bg-red-950/70' : ''}`}
+                                onClick={() => navigate(campaignPathForTab(id))}
                             >
                                 {label}
                             </button>

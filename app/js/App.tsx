@@ -3,6 +3,7 @@
  * Replaces the old vanilla JS GameApp class.
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { UserProvider, useUser } from './contexts/UserContext';
 import { DebugSettingsProvider } from './contexts/DebugSettingsContext';
@@ -27,6 +28,7 @@ import type {
 } from './types';
 import { WebRtcLobbyMesh, WebRtcPingTestFn } from './WebRtcLobbyMesh';
 import { GameSyncProvider, useGameSyncOptional } from './contexts/GameSyncContext';
+import { campaignPathForTab } from './components/ability-tests/campaignTabPaths';
 
 const LOBBY_PATH_PREFIX = '/lobby/';
 
@@ -79,8 +81,16 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
 }
 
+/** Default campaign home after login or unknown `/` path. */
+function CampaignIndexRedirect() {
+    const { role } = useUser();
+    const isAdmin = role === 'admin';
+    return <Navigate to={isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission')} replace />;
+}
+
 /** Inner app component that uses Toast context */
 function AppInner() {
+    const navigate = useNavigate();
     const { showToast } = useToast();
     const { user, role, refetch: refetchUser } = useUser();
     const lobbyClient = useMemo(() => new LobbyClient(), []);
@@ -438,7 +448,7 @@ function AppInner() {
                 setConnectionStatus('connecting');
                 setScreen('game');
                 setChatEnabled(false);
-                window.history.pushState(null, '', `${LOBBY_PATH_PREFIX}${lobby.id}`);
+                navigate(`${LOBBY_PATH_PREFIX}${lobby.id}`, { replace: true });
                 setPlayers({ [player.id]: { ...player, isConnected: false } });
                 await startInLobby(lobby, player);
             } catch (error) {
@@ -448,7 +458,7 @@ function AppInner() {
                 );
             }
         },
-        [lobbyClient, showToast, startInLobby, user]
+        [lobbyClient, showToast, startInLobby, user, navigate]
     );
 
     /** Create a lobby for a specific mission and go straight to character select. */
@@ -488,7 +498,7 @@ function AppInner() {
                 setChatEnabled(false);
                 setPlayers({ [player.id]: { ...player, isConnected: false } });
                 setScreen('game');
-                window.history.pushState(null, '', `${LOBBY_PATH_PREFIX}${lobby.id}`);
+                navigate(`${LOBBY_PATH_PREFIX}${lobby.id}`, { replace: true });
 
                 setPollMessagesReady(false);
                 setLastPollMessageId(null);
@@ -500,7 +510,7 @@ function AppInner() {
                 );
             }
         },
-        [lobbyClient, user, showToast, startInLobby, loadGameState]
+        [lobbyClient, user, showToast, startInLobby, loadGameState, navigate]
     );
 
     const handleJoinLobby = useCallback(
@@ -516,7 +526,7 @@ function AppInner() {
                 setConnectionStatus('connecting');
                 setScreen('game');
                 setChatEnabled(false);
-                window.history.pushState(null, '', `${LOBBY_PATH_PREFIX}${lobby.id}`);
+                navigate(`${LOBBY_PATH_PREFIX}${lobby.id}`, { replace: true });
                 setPlayers({ [player.id]: { ...player, isConnected: false } });
                 await startInLobby(lobby, player);
             } catch (error) {
@@ -526,7 +536,7 @@ function AppInner() {
                 );
             }
         },
-        [lobbyClient, showToast, startInLobby]
+        [lobbyClient, showToast, startInLobby, navigate]
     );
 
     const handleLeaveLobby = useCallback(async () => {
@@ -551,11 +561,13 @@ function AppInner() {
         setCurrentCampaignId(null);
         setLastPollMessageId(null);
         setPollMessagesReady(false);
-        window.history.replaceState(null, '', '/');
+        const home =
+            role === 'admin' ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
+        navigate(home, { replace: true });
         setScreen('lobby');
         refetchUser();
         showToast('Left the lobby', 'info');
-    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser]);
+    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, role]);
 
     // ==================== Chat and canvas handlers ====================
 
@@ -665,7 +677,9 @@ function AppInner() {
                         (error instanceof Error ? error.message : 'Unknown error'),
                     'error'
                 );
-                window.history.replaceState(null, '', '/');
+                navigate(role === 'admin' ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission'), {
+                    replace: true,
+                });
             }
         })();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -674,8 +688,8 @@ function AppInner() {
 
     useEffect(() => {
         const onPopState = () => {
-            if (currentLobby && window.location.pathname === '/') {
-                handleLeaveLobby();
+            if (currentLobby && !window.location.pathname.match(/^\/lobby\//)) {
+                void handleLeaveLobby();
             }
         };
         window.addEventListener('popstate', onPopState);
@@ -687,12 +701,23 @@ function AppInner() {
     return (
         <>
             {screen === 'lobby' && (
-                <CampaignHomeScreen
-                    lobbyClient={lobbyClient}
-                    onSelectMission={handleCreateLobbyForMission}
-                    onJoinLobby={handleJoinLobby}
-                    refetchUser={refetchUser}
-                />
+                <Routes>
+                    <Route path="/lobby/:lobbyCode" element={null} />
+                    <Route
+                        path="/campaign/:tabSlug"
+                        element={
+                            <CampaignHomeScreen
+                                lobbyClient={lobbyClient}
+                                onSelectMission={handleCreateLobbyForMission}
+                                onJoinLobby={handleJoinLobby}
+                                refetchUser={refetchUser}
+                            />
+                        }
+                    />
+                    <Route path="/campaign" element={<CampaignIndexRedirect />} />
+                    <Route path="/" element={<CampaignIndexRedirect />} />
+                    <Route path="*" element={<CampaignIndexRedirect />} />
+                </Routes>
             )}
             {screen === 'game' && currentLobby && currentPlayer && (
                 <GameSyncProvider

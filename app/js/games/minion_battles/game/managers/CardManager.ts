@@ -17,13 +17,6 @@ export const MAX_HAND_SIZE = 6;
 /** Number of cards drawn at the beginning of each round. */
 export const CARDS_PER_ROUND = 2;
 
-let nextCardInstanceId = 1;
-
-function generateCardInstanceId(): string {
-    const suffix = nextCardInstanceId++;
-    return `card-${Date.now().toString(36)}-${suffix}`;
-}
-
 /** Card instance tracked per player. */
 export interface CardInstance {
     instanceId: string;
@@ -38,33 +31,30 @@ export interface CardInstance {
     discardAddedAtTime?: number;
 }
 
-/** Create a card instance with defaults (durability from card def). */
-export function createCardInstance(
-    cardDefId: CardDefId,
-    abilityId: string,
-    location: CardInstance['location'],
-): CardInstance {
-    const def = getCardDef(cardDefId);
-    if (!def) {
-        console.error(`ERROR: Unable to get card def (${cardDefId}) for ability id (${abilityId}).`);
-    }
-    return {
-        instanceId: generateCardInstanceId(),
-        cardDefId,
-        abilityId,
-        location,
-        durability: def?.durability ?? 1,
-    };
-}
-
 export class CardManager {
     cards: Record<string, CardInstance[]> = {};
     playerResearchTreesByPlayer: Record<string, Record<string, string[]>> = {};
     private abilityUsesThisRound: Map<string, number> = new Map();
     private ctx: EngineContext;
+    private cardInstanceSeq = 1;
 
     constructor(ctx: EngineContext) {
         this.ctx = ctx;
+    }
+
+    /** Create a card instance with defaults (durability from card def). Per-engine sequence. */
+    createCardInstance(cardDefId: CardDefId, abilityId: string, location: CardInstance['location']): CardInstance {
+        const def = getCardDef(cardDefId);
+        if (!def) {
+            console.error(`ERROR: Unable to get card def (${cardDefId}) for ability id (${abilityId}).`);
+        }
+        return {
+            instanceId: `card-${this.cardInstanceSeq++}`,
+            cardDefId,
+            abilityId,
+            location,
+            durability: def?.durability ?? 1,
+        };
     }
 
     /** Handle card-use bookkeeping after an ability fires: decrement durability, discard/exhaust when 0. */
@@ -88,7 +78,7 @@ export class CardManager {
                 for (const entry of generated) {
                     const quantity = Math.max(1, entry.quantity ?? 1);
                     for (let i = 0; i < quantity; i++) {
-                        const newCard = createCardInstance(entry.cardDefId, entry.abilityId, entry.location);
+                        const newCard = this.createCardInstance(entry.cardDefId, entry.abilityId, entry.location);
                         if (entry.location === 'discard') {
                             newCard.durability = 0;
                             newCard.discardRoundsRemaining = entry.rounds;
@@ -215,7 +205,7 @@ export class CardManager {
         if (!targetUnit.abilities.includes(abilityId)) {
             targetUnit.abilities.push(abilityId);
         }
-        const newCard = createCardInstance(cardDefId, abilityId, 'deck');
+        const newCard = this.createCardInstance(cardDefId, abilityId, 'deck');
         const targetPlayerId = targetUnit.ownerId;
         this.cards[targetPlayerId].push(newCard);
     }
@@ -286,7 +276,7 @@ export class CardManager {
                         ...rest,
                         cardDefId,
                         location: loc,
-                        instanceId: raw.instanceId ?? generateCardInstanceId(),
+                        instanceId: raw.instanceId ?? `card-${this.cardInstanceSeq++}`,
                         durability: raw.durability ?? def?.durability ?? 1,
                     } as CardInstance;
                 }),

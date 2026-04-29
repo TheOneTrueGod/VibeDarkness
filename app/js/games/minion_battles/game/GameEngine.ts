@@ -18,7 +18,6 @@ import type {
 import { Unit } from './units/Unit';
 import { Projectile } from './projectiles/Projectile';
 import { Effect } from './effects/Effect';
-import { resetGameObjectIdCounter } from './GameObject';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getTotalAbilityDurationForCast } from '../abilities/abilityTimings';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
@@ -51,7 +50,7 @@ import { triggerAbilityEvent } from '../abilities/events';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
-export { createCardInstance, MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/CardManager';
+export { MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/CardManager';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
@@ -75,6 +74,11 @@ const FULL_DARKNESS_THRESHOLD = -20;
 /** Light level below or equal to this but above full darkness is "high darkness". */
 const HIGH_DARKNESS_THRESHOLD = -16;
 
+function parseGameObjectIdNumber(id: string): number | null {
+    const match = /_(\d+)$/.exec(id);
+    return match ? parseInt(match[1], 10) : null;
+}
+
 export class GameEngine implements EngineContext {
     /** Simulation data: managers, terrain, queues, timing scalars. */
     readonly state = new GameState(this);
@@ -85,6 +89,9 @@ export class GameEngine implements EngineContext {
     private animFrameId = 0;
     private running = false;
     private synchashUpdateSeq = 0;
+
+    /** Monotonic id suffix for new GameObjects created while this engine is authoritative. */
+    private objectIdSeq = 1;
 
     // -- Callbacks (engine wiring, not serialized) --
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
@@ -340,7 +347,7 @@ export class GameEngine implements EngineContext {
         this.terrainManager = config.terrainManager ?? null;
         this.aiControllerId = config.aiControllerId ?? null;
         this.state.levelEventManager.resetTerminalState();
-        resetGameObjectIdCounter(1);
+        this.resetObjectIdSequence(1);
         if (config.isHost) {
             this.randomSeed = this.generateHostSeed();
         }
@@ -410,6 +417,66 @@ export class GameEngine implements EngineContext {
         if (this.animFrameId) {
             cancelAnimationFrame(this.animFrameId);
             this.animFrameId = 0;
+        }
+    }
+
+    /**
+     * Advance the simulation by N fixed physics steps (60 Hz), independent of `requestAnimationFrame` / pause.
+     * Intended for headless tests and tooling.
+     */
+    stepSimulationFixedTicks(n: number): void {
+        const steps = Math.max(0, Math.floor(n));
+        for (let i = 0; i < steps; i++) {
+            this.fixedUpdate(FIXED_DT);
+        }
+    }
+
+    /** Advance simulation by a wall-clock duration using fixed-step integration at 60 Hz. */
+    advanceSimulationSeconds(sec: number): void {
+        if (sec <= 0) return;
+        const steps = Math.round(sec / FIXED_DT);
+        this.stepSimulationFixedTicks(steps);
+    }
+
+    /** Allocate a unique id for a new unit/projectile/effect under this engine instance. */
+    allocateObjectId(prefix = 'obj'): string {
+        return `${prefix}_${this.objectIdSeq++}`;
+    }
+
+    /** Reset id allocation (e.g. fresh battle). */
+    resetObjectIdSequence(next = 1): void {
+        this.objectIdSeq = Math.max(1, Math.floor(next));
+    }
+
+    /**
+     * After deserializing a snapshot, bump the allocator so newly spawned objects never reuse
+     * numeric suffixes from restored ids.
+     */
+    syncObjectIdsFromSnapshot(data: SerializedGameState): void {
+        let maxN = 0;
+        for (const u of data.units ?? []) {
+            const id = (u as { id?: string }).id;
+            if (typeof id === 'string') {
+                const n = parseGameObjectIdNumber(id);
+                if (n !== null && n > maxN) maxN = n;
+            }
+        }
+        for (const p of data.projectiles ?? []) {
+            const id = (p as { id?: string }).id;
+            if (typeof id === 'string') {
+                const n = parseGameObjectIdNumber(id);
+                if (n !== null && n > maxN) maxN = n;
+            }
+        }
+        for (const e of data.effects ?? []) {
+            const id = (e as { id?: string }).id;
+            if (typeof id === 'string') {
+                const n = parseGameObjectIdNumber(id);
+                if (n !== null && n > maxN) maxN = n;
+            }
+        }
+        if (maxN > 0) {
+            this.resetObjectIdSequence(maxN + 1);
         }
     }
 
@@ -1088,8 +1155,7 @@ export class GameEngine implements EngineContext {
         // Restore cards + research trees
         engine.state.cardManager.restoreFromJSON(data.cards, data.playerResearchTreesByPlayer);
 
-        // Advance global game-object ID counter
-        advanceGameObjectIdCounterFromSnapshot(data);
+        engine.syncObjectIdsFromSnapshot(data);
 
         // Re-register core event listeners
         engine.registerCoreEventListeners();
@@ -1126,38 +1192,5 @@ export class GameEngine implements EngineContext {
         this.state.projectileManager.projectiles = [];
         this.state.effectManager.effects = [];
         this.state.specialTileManager.specialTiles = [];
-    }
-}
-
-function parseGameObjectIdNumber(id: string): number | null {
-    const match = /_(\d+)$/.exec(id);
-    return match ? parseInt(match[1], 10) : null;
-}
-
-function advanceGameObjectIdCounterFromSnapshot(data: SerializedGameState): void {
-    let maxN = 0;
-    for (const u of data.units ?? []) {
-        const id = (u as { id?: string }).id;
-        if (typeof id === 'string') {
-            const n = parseGameObjectIdNumber(id);
-            if (n !== null && n > maxN) maxN = n;
-        }
-    }
-    for (const p of data.projectiles ?? []) {
-        const id = (p as { id?: string }).id;
-        if (typeof id === 'string') {
-            const n = parseGameObjectIdNumber(id);
-            if (n !== null && n > maxN) maxN = n;
-        }
-    }
-    for (const e of data.effects ?? []) {
-        const id = (e as { id?: string }).id;
-        if (typeof id === 'string') {
-            const n = parseGameObjectIdNumber(id);
-            if (n !== null && n > maxN) maxN = n;
-        }
-    }
-    if (maxN > 0) {
-        resetGameObjectIdCounter(maxN + 1);
     }
 }

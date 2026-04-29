@@ -163,7 +163,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
                 unitAITreeId: caster.unitAITreeId,
             };
 
-            const wolf = createUnitFromSpawnConfig(config, eng.eventBus);
+            const wolf = createUnitFromSpawnConfig(config, eng.eventBus, eng);
             eng.addUnit(wolf);
 
             const closest = enemies.reduce<Unit | null>((best, e) => {

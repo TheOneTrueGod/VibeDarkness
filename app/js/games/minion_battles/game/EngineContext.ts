@@ -46,4 +46,7 @@ export interface EngineContext {
     getCrystalProtectionMap(): Map<string, number>;
 
     getAllLightSources(): LightSource[];
+
+    /** When implemented (full engine), allocates unique ids for new gameplay objects for this battle instance. */
+    allocateObjectId?(prefix?: string): string;
 }

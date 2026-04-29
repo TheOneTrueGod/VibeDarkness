@@ -1,10 +1,9 @@
 /**
- * LightGrid - Per-tile light level computation and caching.
+ * LightGrid - Per-tile light level computation.
  *
  * Light level is global + sum of source contributions. Each source adds
  * max(0, emission - distance) where distance is Euclidean (circular) distance
  * in tiles (tile center to source center), and only within the source's radius.
- * Recomputes only when the set of light sources (or their params) changes.
  */
 
 export interface LightSource {
@@ -47,28 +46,8 @@ export function computeLightGrid(
     return grid;
 }
 
-/** Build a cache key from current light source state. */
-function sourcesKey(sources: LightSource[]): string {
-    const parts = sources
-        .slice()
-        .sort((a, b) => a.col - b.col || a.row - b.row)
-        .map((s) => `${s.col},${s.row},${s.emission},${s.radius}`);
-    return parts.join('|');
-}
-
-interface LightGridCache {
-    globalLightLevel: number;
-    width: number;
-    height: number;
-    key: string;
-    grid: number[][];
-}
-
-let cache: LightGridCache | null = null;
-
 /**
- * Get (or compute) the light grid. Only recomputes when globalLightLevel, dimensions,
- * or the set of light sources (col, row, emission, radius) changes.
+ * Compute the light grid (no shared module cache — safe for concurrent simulations).
  */
 export function getLightGrid(
     globalLightLevel: number,
@@ -76,22 +55,8 @@ export function getLightGrid(
     height: number,
     sources: LightSource[],
 ): number[][] {
-    const key = sourcesKey(sources);
-    if (
-        cache &&
-        cache.globalLightLevel === globalLightLevel &&
-        cache.width === width &&
-        cache.height === height &&
-        cache.key === key
-    ) {
-        return cache.grid;
-    }
-    const grid = computeLightGrid(globalLightLevel, width, height, sources);
-    cache = { globalLightLevel, width, height, key, grid };
-    return grid;
+    return computeLightGrid(globalLightLevel, width, height, sources);
 }
 
-/** Clear the cache (e.g. when starting a new battle). */
-export function clearLightGridCache(): void {
-    cache = null;
-}
+/** @deprecated Previously cleared a module cache; no-op — kept for call-site compatibility */
+export function clearLightGridCache(): void {}

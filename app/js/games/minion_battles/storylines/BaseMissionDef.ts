@@ -12,7 +12,6 @@ import type { EnemySpawnDef, MissionBattleConfig, LevelEvent, PlayerSpawnPoint }
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
-import { resetGameObjectIdCounter } from '../game/GameObject';
 import { createPlayerUnit, createUnitFromSpawnConfig } from '../game/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
@@ -84,7 +83,6 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         engine.localPlayerId = params.localPlayerId;
         engine.terrainManager = params.terrainManager ?? null;
-        resetGameObjectIdCounter(1);
 
         // Add player units
         const playerCount = params.playerUnits.length;
@@ -159,6 +157,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                         : undefined,
                 },
                 params.eventBus,
+                engine,
             );
             initializeAbilityRuntimeForUnit(unit);
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
@@ -187,6 +186,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     unitAITreeId: spawn.unitAITreeId ?? fallbackTreeId,
                 },
                 params.eventBus,
+                engine,
             );
             initializeAbilityRuntimeForUnit(unit);
             attachAmmoIfNeeded(engine, unit);

@@ -7,6 +7,7 @@
 import { Unit } from './Unit';
 import type { TeamId } from '../teams';
 import type { EventBus } from '../EventBus';
+import type { EngineContext } from '../EngineContext';
 import {
     getDefaultHp,
     getDefaultSpeed,
@@ -19,6 +20,7 @@ import {
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import type { UnitTag } from './unitTag';
 import type { UnitCombatSettings } from './Unit';
+import { generateGameObjectId } from '../GameObject';
 
 export type UnitFactoryConfig = {
     id?: string;
@@ -45,6 +47,7 @@ export type UnitFactoryConfig = {
 export function createPlayerUnit(
     config: UnitFactoryConfig & { portraitId: string },
     _eventBus: EventBus,
+    idSource?: Pick<EngineContext, 'allocateObjectId'>,
 ): Unit {
     const hp = config.hp ?? getDefaultHp(PLAYER_CHARACTER_ID);
     const maxHp = config.maxHp ?? hp;
@@ -53,7 +56,7 @@ export function createPlayerUnit(
     const radius = resolvePlayerUnitRadius(config.portraitId);
 
     return new Unit({
-        id: config.id,
+        id: config.id ?? idSource?.allocateObjectId?.('unit') ?? generateGameObjectId('unit'),
         x: config.x,
         y: config.y,
         teamId: config.teamId,
@@ -93,10 +96,11 @@ export function createUnitFromSpawnConfig(
         unitTags?: UnitTag[];
     },
     _eventBus: EventBus,
+    idSource?: Pick<EngineContext, 'allocateObjectId'>,
 ): Unit {
     const { hp, speed } = resolveEnemySpawnStats(config);
     const unit = new Unit({
-        id: config.id,
+        id: config.id ?? idSource?.allocateObjectId?.('unit') ?? generateGameObjectId('unit'),
         x: config.x,
         y: config.y,
         teamId: config.teamId,

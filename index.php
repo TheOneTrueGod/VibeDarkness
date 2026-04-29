@@ -58,8 +58,13 @@ if (preg_match('/^\/assets\//', $path)) {
     }
 }
 
-// SPA fallback: serve dist/index.html for app root, index, and lobby deep-link
-if ($path === '/' || $path === '/index.html' || preg_match('#^/lobby/[A-Za-z0-9]+$#', $path)) {
+// SPA fallback: serve dist/index.html for app root, index, lobby deep-link, and campaign routes
+if (
+    $path === '/'
+    || $path === '/index.html'
+    || preg_match('#^/lobby/[A-Za-z0-9]+$#', $path)
+    || preg_match('#^/campaign(/|$)#', $path)
+) {
     $distIndex = __DIR__ . '/dist/index.html';
     if (file_exists($distIndex)) {
         header('Content-Type: text/html');
