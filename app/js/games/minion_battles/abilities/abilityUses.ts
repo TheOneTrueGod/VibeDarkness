@@ -2,7 +2,7 @@ import { abilityHasTag, type AbilityStatic } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import { STICK_SWORD_NODE_EXTRA_USES, STICK_SWORD_TREE_ID } from '../../../researchTrees/trees/stick_sword';
 
-export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge';
+export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge' | 'roundCharge';
 
 export interface AbilityRecoveryRule {
     chargeType: RecoveryChargeType;
@@ -28,7 +28,7 @@ const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
     '0103': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 2 }] }, // Swing Bat
     throw_rock: { maxUses: 6, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
     throw_knife: { maxUses: 5, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
-    '0501': { maxUses: 1, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 }] }, // Throw Torch
+    '0501': { maxUses: 1, recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Throw Torch
     throw_charged_rock: { maxUses: 3, recoveries: [{ chargeType: 'lightCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
     '0110': { maxUses: 1, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Shining Block
     '0105': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Laser Sword
@@ -271,4 +271,15 @@ export function grantRecoveryChargeToRandomAbility(
     const selected = pool[idx];
     if (!selected) return false;
     return applyRecoveryChargeToAbility(unit, selected, chargeType, 1);
+}
+
+/** One roundCharge per eligible ability at round start (not random pool distribution). */
+export function grantRoundChargesToEligibleAbilities(unit: Unit): void {
+    const roundChargeAbilityIds = unit.abilities.filter((abilityId) =>
+        getAbilityUseConfig(abilityId).recoveries.some((r) => r.chargeType === 'roundCharge'),
+    );
+    for (const abilityId of roundChargeAbilityIds) {
+        if (!canAbilityReceiveRecoveryCharge(unit, abilityId, 'roundCharge')) continue;
+        applyRecoveryChargeToAbility(unit, abilityId, 'roundCharge', 1);
+    }
 }

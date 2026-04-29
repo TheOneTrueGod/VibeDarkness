@@ -1,7 +1,7 @@
 /**
  * Effects tied to the round progress bar cadence (0% and 50% of the round timer).
  *
- * Stamina recovery fires at round start; bleed ticks at both milestones.
+ * Stamina recovery and roundCharge recovery fire at round start; bleed ticks at both milestones.
  */
 
 import type { Unit } from './units/Unit';
@@ -14,6 +14,7 @@ export interface RoundProgressMilestoneContext {
     units: Unit[];
     eventBus: EventBus;
     applyStaminaPulse: () => void;
+    applyRoundChargePulse: () => void;
     bleedFx?: BleedDamageFxContext;
 }
 
@@ -24,6 +25,7 @@ export interface RoundProgressMilestoneContext {
 export function onRoundProgressMilestone(milestone: RoundProgressMilestone, ctx: RoundProgressMilestoneContext): void {
     if (milestone === 'round_start') {
         ctx.applyStaminaPulse();
+        ctx.applyRoundChargePulse();
     }
     tickBleedForRoundMilestone(ctx.units, ctx.eventBus, ctx.bleedFx);
 }

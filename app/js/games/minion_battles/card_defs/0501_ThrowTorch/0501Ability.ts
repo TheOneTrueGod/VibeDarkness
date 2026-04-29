@@ -8,8 +8,7 @@
  * is added to their ability list.
  */
 
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, AbilityTag } from '../../abilities/Ability';
-import { getAbilityTagHint } from '../../abilities/abilityTagCatalog';
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
@@ -55,9 +54,8 @@ export const ThrowTorchAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Throw Torch',
     image: THROW_TORCH_IMAGE,
-    tags: ['priority'] satisfies readonly AbilityTag[],
     resourceCost: null,
-    rechargeTurns: 2,
+    rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         {
@@ -77,11 +75,7 @@ export const ThrowTorchAbility: AbilityStatic = {
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
 
     getTooltipText(_gameState?: unknown): string[] {
-        return [
-            `Place a torch on the ground that emits light`,
-            `Lasts ${TORCH_ROUNDS} rounds`,
-            `${getAbilityTagHint('priority')} — stamina recovery charges prefer this ability when it can still store or recover uses`,
-        ];
+        return [`Place a torch on the ground that emits light`, `Lasts ${TORCH_ROUNDS} rounds`];
     },
 
     getRange(caster: Unit): { minRange: number; maxRange: number } {

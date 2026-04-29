@@ -37,7 +37,13 @@ import type { CardDefId } from '../card_defs';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
 import { computeSynchash } from '../../../utils/synchash';
-import { addRecoveryChargeToUnitAbilities, canUseAbilityNow, consumeAbilityUse, ensureAbilityRuntimeState } from '../abilities/abilityUses';
+import {
+    addRecoveryChargeToUnitAbilities,
+    canUseAbilityNow,
+    consumeAbilityUse,
+    ensureAbilityRuntimeState,
+    grantRoundChargesToEligibleAbilities,
+} from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
 import { onRoundProgressMilestone } from './roundProgressMilestones';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
@@ -960,6 +966,7 @@ export class GameEngine implements EngineContext {
             units: this.units,
             eventBus: this.eventBus,
             applyStaminaPulse: () => this.applyStaminaPulse(),
+            applyRoundChargePulse: () => this.applyRoundChargePulse(),
             bleedFx: {
                 addEffect: (e: Effect) => this.addEffect(e),
                 generateRandomInteger: (min: number, max: number) => this.generateRandomInteger(min, max),
@@ -985,6 +992,14 @@ export class GameEngine implements EngineContext {
                 Math.max(0, unit.stamina * ROUND_STAMINA_RECOVERY),
                 (min, max) => this.generateRandomInteger(min, max),
             );
+        }
+    }
+
+    /** One roundCharge per ability that lists it (e.g. Throw Torch), applied after stamina pulse. */
+    private applyRoundChargePulse(): void {
+        for (const unit of this.units) {
+            if (!unit.isAlive()) continue;
+            grantRoundChargesToEligibleAbilities(unit);
         }
     }
 

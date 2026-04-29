@@ -10,6 +10,8 @@ import { getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Abi
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abilityUseChargeAnimation';
+import { ChargeIcon } from './ChargeIcon';
+import { RECOVERY_CHARGE_DEFINITIONS } from './recoveryChargeDefinitions';
 import CardTooltip from './CardTooltip';
 
 interface CardComponentProps {
@@ -77,11 +79,6 @@ export default function CardComponent({
     const usesLeft = Math.max(0, anim.uses);
     const maxUses = Math.max(1, anim.maxUses);
     const isAtFullUses = usesLeft >= maxUses;
-    const recoveryColorByType: Record<string, string> = {
-        staminaCharge: 'bg-gray-300',
-        lightCharge: 'bg-yellow-300',
-        energyCharge: 'bg-cyan-300',
-    };
 
     return (
         <div
@@ -102,7 +99,7 @@ export default function CardComponent({
             <div
                 className={`
                     relative w-[124px] h-[158px] rounded-lg border-2 transition-all duration-150
-                    flex flex-col items-center justify-between p-2 overflow-hidden pointer-events-none
+                    flex flex-col items-center justify-between p-2 overflow-visible pointer-events-none
                     ${isSelected
                         ? 'border-yellow-400 bg-dark-700 -translate-y-2 shadow-lg shadow-yellow-400/20'
                         : isHovered
@@ -147,12 +144,15 @@ export default function CardComponent({
                         <div className="flex-1 flex flex-col justify-center gap-0.5">
                             {recoveryRules.map((rule, ruleIndex) => {
                                 const recoveryNeeded = Math.max(1, rule.chargesPerRecovery);
-                                const fillClass = recoveryColorByType[rule.chargeType] ?? 'bg-gray-300';
+                                const chargeDef = RECOVERY_CHARGE_DEFINITIONS[rule.chargeType];
+                                const rowTitle = chargeDef.rowExplanation;
                                 return (
                                     <div
                                         key={`${rule.chargeType}-${rule.chargesPerRecovery}`}
                                         ref={ruleIndex === 0 ? onPrimaryRecoveryPillRef ?? null : null}
-                                        className="flex items-center gap-0.5 h-2.5"
+                                        className="flex min-h-[14px] items-center gap-0.5 overflow-visible py-px"
+                                        title={rowTitle}
+                                        aria-label={rowTitle}
                                     >
                                         {Array.from({ length: recoveryNeeded }, (_, i) => {
                                             const fillOpacity = isAtFullUses ? 'opacity-50' : 'opacity-100';
@@ -179,15 +179,13 @@ export default function CardComponent({
                                                 }
                                             }
                                             return (
-                                                <div
+                                                <ChargeIcon
                                                     key={i}
-                                                    className="flex-1 max-w-[40px] h-2 rounded-[2px] border border-gray-600 bg-gray-800 overflow-hidden"
-                                                >
-                                                    <div
-                                                        className={`h-full rounded-[1px] ${showFill ? `${fillClass} ${fillOpacity}` : 'bg-transparent'}`}
-                                                        style={{ width: `${innerWidthPct}%` }}
-                                                    />
-                                                </div>
+                                                    chargeType={rule.chargeType}
+                                                    showFill={showFill}
+                                                    fillOpacity={fillOpacity}
+                                                    innerWidthPct={innerWidthPct}
+                                                />
                                             );
                                         })}
                                     </div>

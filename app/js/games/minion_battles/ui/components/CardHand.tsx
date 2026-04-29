@@ -13,6 +13,9 @@ import type { Unit, UnitAbilityRuntimeState } from '../../game/units/Unit';
 import CardComponent from './CardComponent';
 import CardTooltip from './CardTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
+import type { RecoveryChargeType } from '../../abilities/abilityUses';
+
+const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
 
 interface PulseParticle {
     id: string;
@@ -71,7 +74,9 @@ export default function CardHand({
     const cardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
     const recoveryPillRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
     const prevRoundRef = React.useRef<number>(roundNumber);
-    const prevRuntimeRef = React.useRef<Record<string, { currentUses: number; staminaCharge: number }>>({});
+    const prevRuntimeRef = React.useRef<
+        Record<string, { currentUses: number; charges: Partial<Record<RecoveryChargeType, number>> }>
+    >({});
 
     // Detect mobile via touch support
     useEffect(() => {
@@ -90,14 +95,16 @@ export default function CardHand({
             .filter((entry): entry is { abilityId: string; ability: AbilityStatic; runtime: UnitAbilityRuntimeState } => Boolean(entry));
     }, [abilityIds, playerUnit]);
 
-    const runtimeSnapshot = useMemo<Record<string, { currentUses: number; staminaCharge: number }>>(
+    const runtimeSnapshot = useMemo<
+        Record<string, { currentUses: number; charges: Partial<Record<RecoveryChargeType, number>> }>
+    >(
         () =>
             Object.fromEntries(
                 handCards.map((c) => [
                     c.abilityId,
                     {
                         currentUses: c.runtime.currentUses,
-                        staminaCharge: c.runtime.recoveryChargesByType.staminaCharge ?? 0,
+                        charges: { ...c.runtime.recoveryChargesByType },
                     },
                 ]),
             ),
@@ -118,8 +125,10 @@ export default function CardHand({
                 const old = prev[card.abilityId];
                 if (!old) return false;
                 const nowUses = card.runtime.currentUses;
-                const nowStamina = card.runtime.recoveryChargesByType.staminaCharge ?? 0;
-                return nowUses > old.currentUses || nowStamina > old.staminaCharge;
+                if (nowUses > old.currentUses) return true;
+                return RECOVERY_CHARGE_TYPES.some(
+                    (k) => (card.runtime.recoveryChargesByType[k] ?? 0) > (old.charges[k] ?? 0),
+                );
             })
             .map((c) => c.abilityId);
 
