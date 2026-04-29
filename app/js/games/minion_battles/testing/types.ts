@@ -6,6 +6,8 @@ export interface ScenarioDefinition {
     id: string;
     title: string;
     category: 'ability' | 'general';
+    /** When `category` is `general`, optional sidebar subsection (e.g. Movement). */
+    generalSection?: string;
     /** Wall-clock budget converted to max fixed ticks at 60 Hz (default 5000 ms). */
     maxDurationMs?: number;
     buildEngine(): GameEngine | Promise<GameEngine>;

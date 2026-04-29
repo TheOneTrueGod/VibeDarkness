@@ -17,11 +17,14 @@ import {
 } from '../../harness/buildTinyBattleEngine';
 
 const P = TINY_BATTLE_PLAYER_ID;
+const TEST_CELL_SIZE = 40;
+const PLAYER_START = { x: 3 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2, y: 2 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2 };
+const DUMMY_START = { x: 5 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2, y: 2 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2 };
 
 function tinyPunchEngine(researchNodes: string[]): GameEngine {
     const engine = buildTinyBattleEngine({
-        gridW: 14,
-        gridH: 10,
+        gridW: 8,
+        gridH: 6,
         localPlayerId: P,
         grass: true,
         playerResearchTreesByPlayer:
@@ -29,8 +32,8 @@ function tinyPunchEngine(researchNodes: string[]): GameEngine {
     });
     placePlayerAndDummy(engine, {
         playerId: P,
-        playerWorld: { x: 160, y: 220 },
-        dummyWorld: { x: 205, y: 220 },
+        playerWorld: PLAYER_START,
+        dummyWorld: DUMMY_START,
         abilities: ['0102'],
         playerResearchTreesByPlayer:
             researchNodes.length > 0 ? { [P]: { [TRAINING_TREE_ID]: researchNodes } } : undefined,
@@ -117,35 +120,44 @@ export const punchSneakyScenario: ScenarioDefinition = {
     getInitialOrders: (e) => punchOrder(e),
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
-        return Boolean(d && d.hp < 480);
+        if (!d) return false;
+        // Baseline single punch is ~8 damage; sneaky vs stunned should deal strictly more.
+        const lost = d.maxHp - d.hp;
+        return lost > 8;
     },
     failureMessage: (e) => {
         const d = e.getUnit('target_dummy');
-        return `dummy hp=${d?.hp} expected large drop from sneaky bonus`;
+        const lost = d ? d.maxHp - d.hp : 0;
+        return `dummy lost ${lost} hp, expected more than 8 (sneaky bonus vs stunned)`;
     },
 };
 
 export const punchChargingScenario: ScenarioDefinition = {
     id: 'punch_research_charging',
-    title: 'Charging Punch grants light charge (throw charged rock recipient)',
+    title: 'Charging Punch restores a Throw Charged Rock use on hit',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine: () => {
         const engine = buildTinyBattleEngine({
-            gridW: 14,
-            gridH: 10,
+            gridW: 8,
+            gridH: 6,
             localPlayerId: P,
             grass: true,
             playerResearchTreesByPlayer: { [P]: { [TRAINING_TREE_ID]: [TRAINING_NODE_CHARGING_PUNCH] } },
         });
         placePlayerAndDummy(engine, {
             playerId: P,
-            playerWorld: { x: 160, y: 220 },
-            dummyWorld: { x: 205, y: 220 },
+            playerWorld: PLAYER_START,
+            dummyWorld: DUMMY_START,
             abilities: ['0102', 'throw_charged_rock'],
             playerResearchTreesByPlayer: { [P]: { [TRAINING_TREE_ID]: [TRAINING_NODE_CHARGING_PUNCH] } },
         });
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0102'), abilityId: '0102' }]);
+        const u = engine.getLocalPlayerUnit();
+        const rt = u?.abilityRuntime['throw_charged_rock'];
+        // At max uses, throw_charged_rock cannot accept lightCharge (buffer is 0). Deplete uses so
+        // recoverCharge can apply; the runtime then converts light charge into a use immediately.
+        if (rt) rt.currentUses = 0;
         return engine;
     },
     getInitialOrders: (e) => punchOrder(e),
@@ -153,12 +165,11 @@ export const punchChargingScenario: ScenarioDefinition = {
         const u = e.getLocalPlayerUnit();
         if (!u) return false;
         const rt = u.abilityRuntime['throw_charged_rock'];
-        const lc = rt?.recoveryChargesByType?.lightCharge ?? 0;
-        return lc >= 1;
+        return Boolean(rt && rt.currentUses >= 1);
     },
     failureMessage: (e) => {
         const u = e.getLocalPlayerUnit();
         const rt = u?.abilityRuntime['throw_charged_rock'];
-        return `lightCharge=${rt?.recoveryChargesByType?.lightCharge ?? 0}`;
+        return `throw_charged_rock uses=${rt?.currentUses ?? '—'} (expected ≥1 after hit)`;
     },
 };

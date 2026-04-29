@@ -438,6 +438,37 @@ export class GameEngine implements EngineContext {
         this.stepSimulationFixedTicks(steps);
     }
 
+    /**
+     * Effect types that may stay `active` for a long time but are not transient combat/VFX
+     * (scenario runners should not wait on them to "finish playing").
+     */
+    private static readonly SCENARIO_RUNNER_NON_BLOCKING_EFFECT_TYPES = new Set<string>(['Torch', 'CorruptionProgressBar']);
+
+    /**
+     * True when scripted battle work is done: no pending orders, no casts/movement/knockback/wait
+     * lockout on units, no active projectiles, and no active transient effects.
+     * Used by `testing/runner/SimulationRunner` to end scenarios early instead of burning max ticks.
+     */
+    isScenarioRunnerBattleIdle(): boolean {
+        if (this.pendingOrders.length > 0) return false;
+        for (const unit of this.units) {
+            if (!unit.active) continue;
+            if (unit.activeAbilities.length > 0) return false;
+            if (unit.isInKnockback()) return false;
+            if (unit.movement != null && unit.movement.path.length > 0) return false;
+            if (unit.isInWaitLockout()) return false;
+        }
+        for (const p of this.projectiles) {
+            if (p.active) return false;
+        }
+        for (const e of this.effects) {
+            if (!e.active) continue;
+            if (GameEngine.SCENARIO_RUNNER_NON_BLOCKING_EFFECT_TYPES.has(e.effectType)) continue;
+            return false;
+        }
+        return true;
+    }
+
     /** Allocate a unique id for a new unit/projectile/effect under this engine instance. */
     allocateObjectId(prefix = 'obj'): string {
         return `${prefix}_${this.objectIdSeq++}`;

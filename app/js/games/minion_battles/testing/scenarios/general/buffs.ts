@@ -13,6 +13,7 @@ export const swingSwordAppliesBleedScenario: ScenarioDefinition = {
     id: 'buff_swing_sword_bleed',
     title: 'Swing Sword applies bleed debuff on hit',
     category: 'general',
+    generalSection: 'Debuffs',
     maxDurationMs: 5000,
     buildEngine() {
         const engine = buildTinyBattleEngine({

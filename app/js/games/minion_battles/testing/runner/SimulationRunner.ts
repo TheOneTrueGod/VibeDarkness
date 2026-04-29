@@ -72,10 +72,19 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
                     markSettled();
                     return;
                 }
+                if (engine.isScenarioRunnerBattleIdle()) {
+                    markSettled();
+                    return;
+                }
                 engine.stepSimulationFixedTicks(1);
                 ticks++;
             }
-            if (ticks >= maxTicks || scenario.assertPass(engine) || engine.state.levelEventManager.isTerminal) {
+            if (
+                ticks >= maxTicks ||
+                scenario.assertPass(engine) ||
+                engine.state.levelEventManager.isTerminal ||
+                engine.isScenarioRunnerBattleIdle()
+            ) {
                 markSettled();
             }
         },
@@ -121,8 +130,6 @@ export function runScenarioHeadless(scenario: ScenarioDefinition): ScenarioRunRe
             if (scenario.assertPass(engine)) {
                 return { passed: true, message: 'ok', ticks };
             }
-            engine.stepSimulationFixedTicks(1);
-            ticks++;
             if (engine.state.levelEventManager.isTerminal) {
                 return {
                     passed: false,
@@ -130,6 +137,11 @@ export function runScenarioHeadless(scenario: ScenarioDefinition): ScenarioRunRe
                     ticks,
                 };
             }
+            if (engine.isScenarioRunnerBattleIdle()) {
+                break;
+            }
+            engine.stepSimulationFixedTicks(1);
+            ticks++;
         }
 
         const msg = scenario.assertPass(engine)
