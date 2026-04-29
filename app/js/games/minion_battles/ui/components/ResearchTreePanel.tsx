@@ -47,6 +47,19 @@ function equippedItemRequirementLabels(requirements: Requirement[]): { itemId: s
 	return out;
 }
 
+function getResearchBlockReason(missing: string[]): string | null {
+	const first = missing[0];
+	if (!first) return null;
+	if (first === 'unknown_node') return 'Unknown research node.';
+	if (first === 'exclusive_conflict') return 'Conflicts with another researched node.';
+	if (first === 'requirements_not_met') return 'Requirements are not met.';
+	if (first.startsWith('insufficient_')) {
+		const resource = first.replace('insufficient_', '');
+		return `Not enough ${resource}.`;
+	}
+	return 'Cannot be researched yet.';
+}
+
 interface ResearchTreePanelProps {
 	availableTrees: ResearchTreeDef[];
 	account: AccountState | null;
@@ -325,20 +338,19 @@ export function ResearchTreeContent({
 							const knowledgeKeys = accountKnowledgeKeys(n.requirements);
 							const itemReqs = equippedItemRequirementLabels(n.requirements);
 							const hasReqBadges = knowledgeKeys.length > 0 || itemReqs.length > 0;
-							const hoverTooltip = [
-								n.title,
-								n.description.replace(/\{([^}]*)\}/g, '$1'),
-								n.flavorText ? `Flavor: ${n.flavorText}` : '',
-							]
-								.filter((line) => line.length > 0)
-								.join('\n');
+							const selectionReason = researched
+								? 'Already researched.'
+								: blocked
+									? getResearchBlockReason(check.missing)
+									: null;
+							const hasTooltipContent = Boolean(n.flavorText || selectionReason);
 							return (
 								<div
 									key={n.id}
 									className="absolute -translate-x-1/2 -translate-y-1/2"
 									style={{ left: pos.x, top: pos.y }}
 								>
-									<div className="relative">
+									<div className="relative group">
 										{hasReqBadges && (
 											<div className="absolute right-full top-0 z-10 flex max-w-[150px] flex-col gap-1 items-end pr-2">
 												{knowledgeKeys.map((key) => {
@@ -389,7 +401,7 @@ export function ResearchTreeContent({
 															: 'bg-surface-light border-border-custom text-muted'
 												}`}
 											disabled={!enabled}
-											title={hoverTooltip}
+											aria-label={n.title}
 										>
 											<div className="text-sm font-semibold truncate">{n.title}</div>
 											<div
@@ -425,6 +437,20 @@ export function ResearchTreeContent({
 												)}
 											</div>
 										</button>
+										{hasTooltipContent && (
+											<div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-60 -translate-x-1/2 rounded-md border border-border-custom bg-surface-light px-3 py-2 text-xs text-gray-200 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+												{n.flavorText && (
+													<p className="mt-0.5 italic text-gray-200">
+														{n.flavorText}
+													</p>
+												)}
+												{selectionReason && (
+													<p className={`${n.flavorText ? 'mt-2' : 'mt-0.5'} text-rose-200`}>
+														{selectionReason}
+													</p>
+												)}
+											</div>
+										)}
 									</div>
 								</div>
 							);
