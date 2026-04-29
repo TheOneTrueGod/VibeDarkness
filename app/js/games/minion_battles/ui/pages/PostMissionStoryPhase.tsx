@@ -3,7 +3,7 @@
  * Each player advances at their own pace. Choice results are sent to the server.
  * When the player completes (makes their choice), onComplete is called with rewards.
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
@@ -65,6 +65,7 @@ export default function PostMissionStoryPhase({
     const [phraseIndex, setPhraseIndex] = useState(0);
     const [backgroundImage, setBackgroundImage] = useState<string | undefined>();
     const [bgOpacity, setBgOpacity] = useState(1);
+    const hasCompletedRef = useRef(false);
 
     const phrases: PostMissionPhrase[] = postMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
@@ -79,9 +80,21 @@ export default function PostMissionStoryPhase({
         }
     }, [phraseIndex, currentPhrase]);
 
+    const completeIfNeeded = useCallback(() => {
+        if (hasCompletedRef.current) return;
+        hasCompletedRef.current = true;
+        onComplete({});
+    }, [onComplete]);
+
     const advancePhrase = useCallback(() => {
-        setPhraseIndex((i) => Math.min(i + 1, phrases.length));
-    }, [phrases.length]);
+        setPhraseIndex((i) => {
+            const next = Math.min(i + 1, phrases.length);
+            if (next >= phrases.length) {
+                completeIfNeeded();
+            }
+            return next;
+        });
+    }, [phrases.length, completeIfNeeded]);
 
     const handleChoice = useCallback(
         async (choiceId: string, optionId: string, option?: { action?: { type: string; itemId?: string } }) => {
@@ -124,6 +137,8 @@ export default function PostMissionStoryPhase({
             const itemFromFirstChoice =
                 action?.type === 'equip_item' && action.itemId ? action.itemId : undefined;
 
+            if (hasCompletedRef.current) return;
+            hasCompletedRef.current = true;
             onComplete({
                 resourceDelta: resourceDelta ?? undefined,
                 itemFromFirstChoice,

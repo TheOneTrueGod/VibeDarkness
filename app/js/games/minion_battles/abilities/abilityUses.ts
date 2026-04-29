@@ -1,6 +1,8 @@
 import { abilityHasTag, type AbilityStatic } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import { STICK_SWORD_NODE_EXTRA_USES, STICK_SWORD_TREE_ID } from '../../../researchTrees/trees/stick_sword';
+import { TRAINING_NODE_CHARGING_PUNCH, TRAINING_TREE_ID } from '../../../researchTrees/trees/training';
+import { getAbility } from './AbilityRegistry';
 
 export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge' | 'roundCharge';
 
@@ -24,7 +26,7 @@ const DEFAULT_USE_CONFIG: AbilityUseConfig = {
 const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
     '0003': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Dark Wolf Bite
     '0101': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 }] }, // Dodge
-    '0102': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Punch
+    '0102': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 }] }, // Punch
     '0103': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 2 }] }, // Swing Bat
     throw_rock: { maxUses: 6, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
     throw_knife: { maxUses: 5, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
@@ -56,6 +58,11 @@ export function ensureAbilityRuntimeState(unit: Unit, abilityId: string): void {
 
 const SWING_SWORD_ABILITY_ID = '0112';
 const SWING_SWORD_EXTRA_USES = 2;
+const THROW_ROCK_ABILITY_ID = 'throw_rock';
+const THROW_CHARGED_ROCK_ABILITY_ID = 'throw_charged_rock';
+const THROW_ROCK_USES_PENALTY_WITH_CHARGED = 3;
+const PUNCH_ABILITY_ID = '0102';
+const PUNCH_CHARGING_RESEARCH_USES_PENALTY = 1;
 
 /** Sword Conditioning research: +max uses for Swing Sword (base config is still 2). */
 export function applyStickSwordResearchToAbilityRuntime(
@@ -72,10 +79,38 @@ export function applyStickSwordResearchToAbilityRuntime(
     runtime.currentUses += SWING_SWORD_EXTRA_USES;
 }
 
+/** Throw Rock loses max uses while Throw Charged Rock is equipped. */
+function applyThrowRockUsePenaltyForChargedRock(unit: Unit): void {
+    if (!unit.abilities.includes(THROW_CHARGED_ROCK_ABILITY_ID)) return;
+    if (!unit.abilities.includes(THROW_ROCK_ABILITY_ID)) return;
+    ensureAbilityRuntimeState(unit, THROW_ROCK_ABILITY_ID);
+    const runtime = unit.abilityRuntime[THROW_ROCK_ABILITY_ID];
+    if (!runtime) return;
+    runtime.maxUses = Math.max(0, runtime.maxUses - THROW_ROCK_USES_PENALTY_WITH_CHARGED);
+    runtime.currentUses = Math.min(runtime.currentUses, runtime.maxUses);
+}
+
+/** Training(Charging Punch): Punch has fewer max uses. */
+export function applyTrainingResearchToAbilityRuntime(
+    unit: Unit,
+    getResearchNodes: (treeId: string) => string[],
+): void {
+    const nodes = getResearchNodes(TRAINING_TREE_ID);
+    if (!nodes.includes(TRAINING_NODE_CHARGING_PUNCH)) return;
+    if (!unit.abilities.includes(PUNCH_ABILITY_ID)) return;
+    ensureAbilityRuntimeState(unit, PUNCH_ABILITY_ID);
+    const runtime = unit.abilityRuntime[PUNCH_ABILITY_ID];
+    if (!runtime) return;
+    runtime.maxUses = Math.max(0, runtime.maxUses - PUNCH_CHARGING_RESEARCH_USES_PENALTY);
+    runtime.currentUses = Math.min(runtime.currentUses, runtime.maxUses);
+}
+
 export function initializeAbilityRuntimeForUnit(unit: Unit): void {
     for (const abilityId of unit.abilities) {
         ensureAbilityRuntimeState(unit, abilityId);
     }
+    applyThrowRockUsePenaltyForChargedRock(unit);
+    syncNestedCardAbilityState(unit);
 }
 
 export function canUseAbilityNow(unit: Unit, ability: AbilityStatic): boolean {
@@ -88,6 +123,7 @@ export function consumeAbilityUse(unit: Unit, abilityId: string): boolean {
     const runtime = unit.abilityRuntime[abilityId];
     if (!runtime || runtime.currentUses <= 0) return false;
     runtime.currentUses -= 1;
+    syncNestedCardAbilityState(unit);
     return true;
 }
 
@@ -106,7 +142,7 @@ export function addRecoveryChargeToUnitAbilities(
             return min + Math.floor(Math.random() * span);
         });
 
-    const notedAbilities = unit.abilities
+    const notedAbilities = getAbilityIdsEligibleForRecovery(unit)
         .map((abilityId) => ({
             abilityId,
             canAcceptRecoveryCharge: (type: RecoveryChargeType): boolean =>
@@ -134,6 +170,7 @@ export function addRecoveryChargeToUnitAbilities(
         }
     }
 
+    syncNestedCardAbilityState(unit);
     return Array.from(new Set(selectedAbilityIds));
 }
 
@@ -188,16 +225,20 @@ function applyRecoveryChargeToAbility(unit: Unit, abilityId: string, chargeType:
             const current = runtime.recoveryChargesByType[type] ?? 0;
             runtime.recoveryChargesByType[type] = Math.min(typeBuffer, current);
         }
-        return (
+        const changed =
             runtime.currentUses !== prevUses
             || JSON.stringify(runtime.recoveryChargesByType) !== JSON.stringify(prevCharges)
-        );
+        ;
+        if (changed) syncNestedCardAbilityState(unit);
+        return changed;
     }
 
     if (config.recoveries.length === 1) {
         const onlyRule = config.recoveries[0];
         if (!onlyRule || onlyRule.chargesPerRecovery <= 0 || onlyRule.usesRecovered <= 0) {
-            return runtime.currentUses !== prevUses || JSON.stringify(runtime.recoveryChargesByType) !== JSON.stringify(prevCharges);
+            const changed = runtime.currentUses !== prevUses || JSON.stringify(runtime.recoveryChargesByType) !== JSON.stringify(prevCharges);
+            if (changed) syncNestedCardAbilityState(unit);
+            return changed;
         }
         const currentCharge = runtime.recoveryChargesByType[onlyRule.chargeType] ?? 0;
         const recoverSteps = Math.floor(currentCharge / onlyRule.chargesPerRecovery);
@@ -238,7 +279,9 @@ function applyRecoveryChargeToAbility(unit: Unit, abilityId: string, chargeType:
             runtime.recoveryChargesByType[type] = Math.min(typeBuffer + rule.chargesPerRecovery, current);
         }
     }
-    return runtime.currentUses !== prevUses || JSON.stringify(runtime.recoveryChargesByType) !== JSON.stringify(prevCharges);
+    const changed = runtime.currentUses !== prevUses || JSON.stringify(runtime.recoveryChargesByType) !== JSON.stringify(prevCharges);
+    if (changed) syncNestedCardAbilityState(unit);
+    return changed;
 }
 
 export function canAbilityReceiveRecoveryCharge(unit: Unit, abilityId: string, chargeType: RecoveryChargeType): boolean {
@@ -260,7 +303,7 @@ export function grantRecoveryChargeToRandomAbility(
     generateRandomInteger: (min: number, max: number) => number,
     opts?: { excludeAbilityId?: string },
 ): boolean {
-    const eligible = unit.abilities.filter((abilityId) => {
+    const eligible = getAbilityIdsEligibleForRecovery(unit).filter((abilityId) => {
         if (opts?.excludeAbilityId && abilityId === opts.excludeAbilityId) return false;
         return canAbilityReceiveRecoveryCharge(unit, abilityId, chargeType);
     });
@@ -273,6 +316,20 @@ export function grantRecoveryChargeToRandomAbility(
     return applyRecoveryChargeToAbility(unit, selected, chargeType, 1);
 }
 
+function getAbilityIdsEligibleForRecovery(unit: Unit): string[] {
+    const visibleAbilityIds = [...unit.abilities];
+    const allAbilityIds = new Set<string>(visibleAbilityIds);
+    const parentAbilityIds = Object.keys(unit.abilityRuntime);
+    for (const abilityId of visibleAbilityIds) {
+        for (const parentAbilityId of parentAbilityIds) {
+            const parentAbility = getAbility(parentAbilityId);
+            if (parentAbility?.keywords?.nestedCard?.fallbackAbilityId !== abilityId) continue;
+            allAbilityIds.add(parentAbilityId);
+        }
+    }
+    return [...allAbilityIds];
+}
+
 /** One roundCharge per eligible ability at round start (not random pool distribution). */
 export function grantRoundChargesToEligibleAbilities(unit: Unit): void {
     const roundChargeAbilityIds = unit.abilities.filter((abilityId) =>
@@ -281,5 +338,40 @@ export function grantRoundChargesToEligibleAbilities(unit: Unit): void {
     for (const abilityId of roundChargeAbilityIds) {
         if (!canAbilityReceiveRecoveryCharge(unit, abilityId, 'roundCharge')) continue;
         applyRecoveryChargeToAbility(unit, abilityId, 'roundCharge', 1);
+    }
+    syncNestedCardAbilityState(unit);
+}
+
+function canAbilityAppearAsNestedParent(unit: Unit, abilityId: string): boolean {
+    ensureAbilityRuntimeState(unit, abilityId);
+    const runtime = unit.abilityRuntime[abilityId];
+    return (runtime?.currentUses ?? 0) > 0;
+}
+
+/**
+ * Keep runtime nested-card slots synchronized with ability uses/charge recovery.
+ * Parent abilities swap to fallback at 0 uses and swap back once parent is usable.
+ */
+export function syncNestedCardAbilityState(unit: Unit): void {
+    for (let idx = 0; idx < unit.abilities.length; idx++) {
+        const abilityId = unit.abilities[idx];
+        if (!abilityId) continue;
+        const ability = getAbility(abilityId);
+        const fallbackAbilityId = ability?.keywords?.nestedCard?.fallbackAbilityId;
+        if (fallbackAbilityId) {
+            if (!canAbilityAppearAsNestedParent(unit, abilityId)) {
+                unit.abilities[idx] = fallbackAbilityId;
+                ensureAbilityRuntimeState(unit, fallbackAbilityId);
+            }
+            continue;
+        }
+
+        for (const parentAbilityId of Object.keys(unit.abilityRuntime)) {
+            const parentAbility = getAbility(parentAbilityId);
+            if (parentAbility?.keywords?.nestedCard?.fallbackAbilityId !== abilityId) continue;
+            if (!canAbilityAppearAsNestedParent(unit, parentAbilityId)) continue;
+            unit.abilities[idx] = parentAbilityId;
+            break;
+        }
     }
 }

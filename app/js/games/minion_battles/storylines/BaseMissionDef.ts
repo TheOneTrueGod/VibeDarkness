@@ -17,8 +17,16 @@ import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
 import { getDefaultHp, PLAYER_CHARACTER_ID, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
-import { getDamageBonusFromResearch, getHealthBonusFromResearch } from '../research/researchTrainingEffects';
-import { applyStickSwordResearchToAbilityRuntime, initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
+import {
+    getDamageBonusFromResearch,
+    getHealthBonusFromResearch,
+    getStaminaRecoveryBonusFromResearch,
+} from '../research/researchTrainingEffects';
+import {
+    applyStickSwordResearchToAbilityRuntime,
+    applyTrainingResearchToAbilityRuntime,
+    initializeAbilityRuntimeForUnit,
+} from '../abilities/abilityUses';
 import { Ammo } from '../resources/Ammo';
 
 const AMMO_ABILITIES = new Set(['0105', '0112', '0203', '0204', '0205']);
@@ -140,6 +148,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
             const healthBonus = getHealthBonusFromResearch(getResearchNodes);
             const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
+            const staminaRecoveryBonus = getStaminaRecoveryBonusFromResearch(getResearchNodes);
             const maxHp = baseHp + healthBonus;
             const unit = createPlayerUnit(
                 {
@@ -159,8 +168,12 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 params.eventBus,
                 engine,
             );
+            if (staminaRecoveryBonus > 0) {
+                unit.stamina += staminaRecoveryBonus;
+            }
             initializeAbilityRuntimeForUnit(unit);
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
+            applyTrainingResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
             engine.addUnit(unit);
         }

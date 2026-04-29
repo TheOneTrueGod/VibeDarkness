@@ -7,8 +7,6 @@
 import { getCardDef, asCardDefId } from '../../card_defs';
 import type { CardDefId } from '../../card_defs';
 import type { EngineContext } from '../EngineContext';
-import type { Unit } from '../units/Unit';
-import type { AbilityStatic } from '../../abilities/Ability';
 import type { SerializedCardInstance } from '../types';
 
 /** Maximum cards in hand. Draw at round start if below this. */
@@ -57,65 +55,6 @@ export class CardManager {
         };
     }
 
-    /** Handle card-use bookkeeping after an ability fires: decrement durability, discard/exhaust when 0. */
-    onCardUsed(unit: Unit, ability: AbilityStatic): void {
-        const playerId = unit.ownerId;
-        const abilityId = ability.id;
-        const playerCards = this.cards[playerId];
-        if (!playerCards) return;
-        const card = playerCards.find(
-            (c) => c.abilityId === abilityId && c.location === 'hand',
-        );
-        if (!card) return;
-
-        card.durability--;
-        if (card.durability <= 0) {
-            const exhaust = ability.keywords?.exhaust;
-            if (exhaust) {
-                const idx = playerCards.indexOf(card);
-                if (idx >= 0) playerCards.splice(idx, 1);
-                const generated = exhaust.newCards ?? [];
-                for (const entry of generated) {
-                    const quantity = Math.max(1, entry.quantity ?? 1);
-                    for (let i = 0; i < quantity; i++) {
-                        const newCard = this.createCardInstance(entry.cardDefId, entry.abilityId, entry.location);
-                        if (entry.location === 'discard') {
-                            newCard.durability = 0;
-                            newCard.discardRoundsRemaining = entry.rounds;
-                            delete newCard.discardAddedAtTime;
-                        }
-                        playerCards.push(newCard);
-                    }
-                }
-                return;
-            }
-            const def = getCardDef(card.cardDefId);
-            const discardDuration = def?.discardDuration ?? { duration: 1, unit: 'rounds' as const };
-            if (discardDuration.unit === 'never') {
-                const idx = playerCards.indexOf(card);
-                if (idx >= 0) playerCards.splice(idx, 1);
-                return;
-            }
-            this.moveToDiscard(card);
-        }
-    }
-
-    /** Move a card to discard and set duration tracking. */
-    moveToDiscard(card: CardInstance): void {
-        const def = getCardDef(card.cardDefId);
-        const discardDuration = def?.discardDuration ?? { duration: 1, unit: 'rounds' as const };
-        if (discardDuration.unit === 'never') return;
-
-        card.location = 'discard';
-        card.durability = 0;
-
-        if (discardDuration.unit === 'rounds') {
-            card.discardRoundsRemaining = discardDuration.duration;
-        } else {
-            card.discardAddedAtTime = this.ctx.gameTime;
-        }
-    }
-
     private drawCard(playerId: string): number {
         const playerCards = this.cards[playerId];
         if (!playerCards) return 0;
@@ -152,46 +91,6 @@ export class CardManager {
             }
         }
         this.drawCardsForPlayer(playerId, maxHandSize - handCount);
-    }
-
-    /** Process discard pile: seconds-based cards (called each tick). */
-    processDiscardSeconds(): void {
-        for (const playerId of Object.keys(this.cards)) {
-            for (const card of this.cards[playerId]) {
-                if (card.location !== 'discard' || card.discardAddedAtTime === undefined) continue;
-
-                const def = getCardDef(card.cardDefId);
-                const dd = def?.discardDuration;
-                if (dd?.unit !== 'seconds') continue;
-
-                if (this.ctx.gameTime - card.discardAddedAtTime >= dd.duration) {
-                    card.location = 'deck';
-                    card.durability = def?.durability ?? 1;
-                    delete card.discardRoundsRemaining;
-                    delete card.discardAddedAtTime;
-                }
-            }
-        }
-    }
-
-    /** Round-end: decrement rounds-based discard timers and draw cards. */
-    handleRoundEndCards(): void {
-        for (const playerId of Object.keys(this.cards)) {
-            for (const card of this.cards[playerId]) {
-                if (card.location !== 'discard' || card.discardRoundsRemaining === undefined) continue;
-
-                const def = getCardDef(card.cardDefId);
-                card.discardRoundsRemaining--;
-                if (card.discardRoundsRemaining <= 0) {
-                    card.location = 'deck';
-                    card.durability = def?.durability ?? 1;
-                    delete card.discardRoundsRemaining;
-                    delete card.discardAddedAtTime;
-                }
-            }
-
-            this.drawCardsForPlayer(playerId, CARDS_PER_ROUND);
-        }
     }
 
     transferCardToAllyDeck(caster: Unit, cardDefId: CardDefId, abilityId: string): void {

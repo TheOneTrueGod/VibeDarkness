@@ -197,15 +197,8 @@ export const ThrowChargedRock: AbilityStatic = {
     },
     targets: TWO_TARGETS,
     keywords: {
-        exhaust: {
-            newCards: [
-                {
-                    cardDefId: asCardDefId('throw_rock'),
-                    abilityId: 'throw_rock',
-                    location: 'discard',
-                    rounds: 2,
-                },
-            ],
+        nestedCard: {
+            fallbackAbilityId: 'throw_rock',
         },
     },
     getTargets(caster?: Unit, gameState?: unknown): TargetDef[] {

@@ -11,7 +11,6 @@ import type { ResolvedTarget } from '../game/types';
 import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import type { AbilityTimingEntry } from './abilityTimings';
-import type { CardDefId } from '../card_defs/types';
 import type { AbilityEventRule } from './events/AbilityEventRule';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
@@ -71,10 +70,10 @@ export interface AbilityAISettings {
     priority?: number;
 }
 
-export type AbilityKeyword = 'exhaust';
+export type AbilityKeyword = 'nestedCard';
 
 /**
- * Simple capability / classification tags on an ability (distinct from structured `keywords` like exhaust).
+ * Simple capability / classification tags on an ability (distinct from structured `keywords` like nestedCard).
  * Extend this union when new tags are needed.
  */
 export type AbilityTag = 'priority';
@@ -97,14 +96,8 @@ export function abilityHasTag(abilityId: string, tag: AbilityTag): boolean {
 }
 
 export interface AbilityKeywordDefs {
-    exhaust: {
-        newCards?: {
-            cardDefId: CardDefId;
-            abilityId: string;
-            location: 'deck' | 'hand' | 'discard';
-            rounds: number;
-            quantity?: number;
-        }[];
+    nestedCard: {
+        fallbackAbilityId: string;
     };
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AbilityEventType } from '../../abilities/Ability';
-import { ensureAbilityRuntimeState } from '../../abilities/abilityUses';
+import { consumeAbilityUse, ensureAbilityRuntimeState, syncNestedCardAbilityState } from '../../abilities/abilityUses';
 import { triggerAbilityEventFromAttack } from '../../abilities/events';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { EventBus } from '../../game/EventBus';
@@ -43,9 +43,13 @@ describe('Punch abilityEvents integration', () => {
         });
         const defender = createUnit({ id: 'defender', ownerId: 'ai', teamId: 'enemy', x: 10, y: 0, abilities: [] });
         ensureAbilityRuntimeState(caster, 'throw_charged_rock');
+        ensureAbilityRuntimeState(caster, 'throw_rock');
         const runtime = caster.abilityRuntime.throw_charged_rock;
         expect(runtime).toBeDefined();
         if (runtime) runtime.currentUses = 0;
+        syncNestedCardAbilityState(caster);
+        expect(caster.abilities).toContain('throw_rock');
+        expect(caster.abilities).not.toContain('throw_charged_rock');
 
         caster.activeAbilities.push({
             abilityId: '0102',
@@ -75,6 +79,8 @@ describe('Punch abilityEvents integration', () => {
             primaryTarget: defender,
         });
         expect(caster.abilityRuntime.throw_charged_rock?.currentUses).toBe(1);
+        expect(caster.abilities).toContain('throw_charged_rock');
+        expect(caster.abilities).not.toContain('throw_rock');
 
         if (runtime) runtime.currentUses = 0;
         triggerAbilityEventFromAttack({
@@ -188,8 +194,11 @@ describe('Punch abilityEvents integration', () => {
             abilities: ['0104'],
         });
         ensureAbilityRuntimeState(caster, 'throw_charged_rock');
+        ensureAbilityRuntimeState(caster, 'throw_rock');
         const runtime = caster.abilityRuntime.throw_charged_rock;
         if (runtime) runtime.currentUses = 0;
+        syncNestedCardAbilityState(caster);
+        expect(caster.abilities).toEqual(['0102', 'throw_rock']);
 
         const units = [caster, defender];
         const engine = {
@@ -221,6 +230,7 @@ describe('Punch abilityEvents integration', () => {
         });
         expect(hitDidDamage).toBe(true);
         expect(caster.abilityRuntime.throw_charged_rock?.currentUses).toBe(1);
+        expect(caster.abilities).toEqual(['0102', 'throw_charged_rock']);
         expect(defender.hasBuff(STUNNED_BUFF_TYPE)).toBe(true);
 
         if (runtime) runtime.currentUses = 0;
@@ -246,5 +256,73 @@ describe('Punch abilityEvents integration', () => {
         });
         expect(blockedDidDamage).toBe(false);
         expect(caster.abilityRuntime.throw_charged_rock?.currentUses).toBe(0);
+    });
+
+    it('swaps charged rock to throw rock on depletion and restores slot order on recovery', () => {
+        const caster = createUnit({
+            id: 'caster',
+            ownerId: 'p1',
+            teamId: 'player',
+            x: 0,
+            y: 0,
+            abilities: ['0102', 'throw_charged_rock', '0101'],
+        });
+        ensureAbilityRuntimeState(caster, 'throw_charged_rock');
+        ensureAbilityRuntimeState(caster, 'throw_rock');
+        const charged = caster.abilityRuntime.throw_charged_rock;
+        if (charged) charged.currentUses = 1;
+
+        consumeAbilityUse(caster, 'throw_charged_rock');
+        expect(caster.abilities).toEqual(['0102', 'throw_rock', '0101']);
+        expect(caster.abilityRuntime.throw_charged_rock?.currentUses).toBe(0);
+
+        const defender = createUnit({ id: 'defender', ownerId: 'ai', teamId: 'enemy', x: 10, y: 0, abilities: [] });
+        caster.activeAbilities.push({
+            abilityId: '0102',
+            startTime: 0,
+            targets: [{ type: 'pixel', position: { x: 20, y: 0 } }],
+        });
+        const units = [caster, defender];
+        const engine = {
+            gameTime: 1,
+            roundNumber: 1,
+            eventBus: new EventBus(),
+            getUnit: (id: string) => units.find((u) => u.id === id),
+            generateRandomInteger: (min: number) => min,
+            getPlayerResearchNodes: (playerId: string, treeId: string) => {
+                if (playerId === 'p1' && treeId === TRAINING_TREE_ID) return [TRAINING_NODE_CHARGING_PUNCH];
+                return [];
+            },
+        };
+
+        triggerAbilityEventFromAttack({
+            engine,
+            attackingAbilityId: '0102',
+            sourceUnitId: caster.id,
+            eventType: AbilityEventType.ON_ATTACK_HIT,
+            hitResult: 'hit',
+            primaryTarget: defender,
+        });
+
+        expect(caster.abilityRuntime.throw_charged_rock?.currentUses).toBe(1);
+        expect(caster.abilities).toEqual(['0102', 'throw_charged_rock', '0101']);
+    });
+
+    it('does not swap abilities that have no nested replacement metadata', () => {
+        const caster = createUnit({
+            id: 'caster',
+            ownerId: 'p1',
+            teamId: 'player',
+            x: 0,
+            y: 0,
+            abilities: ['0102'],
+        });
+        ensureAbilityRuntimeState(caster, '0102');
+        const punch = caster.abilityRuntime['0102'];
+        if (punch) punch.currentUses = 1;
+
+        consumeAbilityUse(caster, '0102');
+        expect(caster.abilityRuntime['0102']?.currentUses).toBe(0);
+        expect(caster.abilities).toEqual(['0102']);
     });
 });

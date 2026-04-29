@@ -78,6 +78,7 @@ export const DodgeAbility: AbilityStatic = {
                 caster,
                 'staminaCharge',
                 (min, max) => eng.generateRandomInteger(min, max),
+                { excludeAbilityId: CARD_ID },
             );
         }
         if (currentTime >= DODGE_DURATION) return;

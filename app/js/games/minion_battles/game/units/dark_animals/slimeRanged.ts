@@ -11,5 +11,5 @@ export const ENEMY_RANGED: EnemySpawnDef = {
     position: { x: 0, y: 0 },
     teamId: 'enemy',
     abilities: ['0001'],
-    aiSettings: { minRange: 100, maxRange: 200 },
+    aiSettings: { minRange: 70, maxRange: 140 },
 };

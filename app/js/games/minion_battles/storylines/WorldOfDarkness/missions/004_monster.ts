@@ -121,21 +121,10 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "The Alpha Wolf falls. From his chest, a dark crystal pulses—a BeastCore. The power of the beast, yours to wield.",
+            text: "TO DO: POST MISSION STORY.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'choice',
-            choiceId: 'monster_beastcore_choice',
-            options: [
-                {
-                    id: 'claim_beastcore',
-                    label: 'Claim the BeastCore',
-                    action: { type: 'equip_item', itemId: '014' },
-                },
-            ],
-        },
+        }
     ],
 };
 

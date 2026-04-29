@@ -5,8 +5,16 @@ import { GameEngine } from '../../game/GameEngine';
 import type { Unit } from '../../game/units/Unit';
 import { createPlayerUnit } from '../../game/units/index';
 import { getDefaultHp, PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/unitDef';
-import { getHealthBonusFromResearch, getDamageBonusFromResearch } from '../../research/researchTrainingEffects';
-import { applyStickSwordResearchToAbilityRuntime, initializeAbilityRuntimeForUnit } from '../../abilities/abilityUses';
+import {
+    getHealthBonusFromResearch,
+    getDamageBonusFromResearch,
+    getStaminaRecoveryBonusFromResearch,
+} from '../../research/researchTrainingEffects';
+import {
+    applyStickSwordResearchToAbilityRuntime,
+    applyTrainingResearchToAbilityRuntime,
+    initializeAbilityRuntimeForUnit,
+} from '../../abilities/abilityUses';
 import { getCardDef, asCardDefId, type CardDefId } from '../../card_defs';
 import type { CardInstance } from '../../game/managers/CardManager';
 import { createTargetDummyAtWorld } from '../fixtures/targetDummies';
@@ -83,6 +91,7 @@ export function spawnTinyPlayerUnit(
     const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
     const healthBonus = getHealthBonusFromResearch(getResearchNodes);
     const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
+    const staminaRecoveryBonus = getStaminaRecoveryBonusFromResearch(getResearchNodes);
     const maxHp = baseHp + healthBonus;
     const unit = createPlayerUnit(
         {
@@ -101,8 +110,12 @@ export function spawnTinyPlayerUnit(
         eventBus,
         engine,
     );
+    if (staminaRecoveryBonus > 0) {
+        unit.stamina += staminaRecoveryBonus;
+    }
     initializeAbilityRuntimeForUnit(unit);
     applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
+    applyTrainingResearchToAbilityRuntime(unit, getResearchNodes);
     engine.addUnit(unit);
     return unit;
 }

@@ -105,8 +105,8 @@ const UNIT_DEFS: Record<
     enemy_ranged: {
         bodyColor: 0x555555,
         characterSpriteKey: 'enemy_ranged',
-        hp: 30,
-        speed: 60,
+        hp: 23,
+        speed: 50,
         size: 'Medium',
         stamina: 1,
         perceptionRange: 400,
@@ -140,7 +140,7 @@ const UNIT_DEFS: Record<
     boar: {
         bodyColor: 0x4a3728,
         characterSpriteKey: 'boar',
-        hp: 24,
+        hp: 36,
         speed: 100,
         size: 'Large',
         stamina: 1,
