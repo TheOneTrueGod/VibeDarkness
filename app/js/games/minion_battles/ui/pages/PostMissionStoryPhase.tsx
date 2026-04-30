@@ -23,7 +23,7 @@ import { getComputedPostMissionChoiceOptions } from '../../storylines/customPost
 import { getItemDef } from '../../character_defs/items';
 import { SPECTATOR_ID } from '../../state';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
-import ResearchNodeCard from '../components/ResearchNodeCard';
+import ResearchRewardTinyChip from '../../../../components/ResearchRewardTinyChip';
 import { getResearchNode } from '../../../../researchTrees/list';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import VNTextBox from '../components/VNTextBox';
@@ -437,14 +437,8 @@ export default function PostMissionStoryPhase({
                                                         )}
                                                         {resolvedOption.researchReward && (
                                                             <div className="pt-1 flex justify-start">
-                                                                <ResearchNodeCard
+                                                                <ResearchRewardTinyChip
                                                                     node={resolvedOption.researchReward.node}
-                                                                    variant="display"
-                                                                    tone="muted"
-                                                                    layout="comfortable"
-                                                                    showCost={false}
-                                                                    showRequirements={false}
-                                                                    state="researched"
                                                                 />
                                                             </div>
                                                         )}

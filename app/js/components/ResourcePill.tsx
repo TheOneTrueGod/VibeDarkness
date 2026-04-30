@@ -70,7 +70,7 @@ export default function ResourcePill({ resource, count, className = '' }: Resour
     const displayColor = isNegative ? '#f87171' : color;
     return (
         <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[13px] font-semibold bg-surface-light ${className}`}
+            className={`inline-flex min-h-[32px] shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-semibold leading-snug bg-surface-light ${className}`}
             style={{
                 borderWidth: 1,
                 borderStyle: 'solid',

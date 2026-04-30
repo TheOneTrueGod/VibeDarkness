@@ -2,18 +2,19 @@
  * Campaign home - tabbed view: Welcome, Mission Select, Join Mission.
  * Shown when user is logged in and on the lobby screen (no active lobby).
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
-import type { CampaignState, MissionResult, MissionResearchRewardEntry } from '../types';
+import type { CampaignResourceKey, CampaignState, MissionResult, MissionResearchRewardEntry } from '../types';
 import { STORYLINES, MISSION_MAP } from '../games/minion_battles/storylines';
 import { getUnlockedMissionIds, getAllMissionIdsInOrder, hasVictoryResult } from '../games/minion_battles/storylines/unlock';
-import { getResolvedMissionResearchRewards } from '../researchTrees/list';
+import { getResolvedMissionResearchRewards, type ResolvedResearchReward } from '../researchTrees/list';
 import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
 import AdminPlayersHomePanel from './AdminPlayersHomePanel';
 import ResourcePill, { campaignResourceGains } from './ResourcePill';
-import ResearchNodeCard from './ResearchNodeCard';
+import ResearchRewardTinyChip, { MISSION_REWARD_CHIP_CLASSNAME } from './ResearchRewardTinyChip';
 import { ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
 import AbilityTestPage from './AbilityTestPage';
 import {
@@ -53,6 +54,97 @@ type MissionResultWithItems = MissionResult & {
     itemId?: string;
     researchRewards?: MissionResearchRewardEntry[];
 };
+
+/** Design 1: single “Rewards” label + mixed row (research · items · resources). */
+function MissionRewardsStrip({
+    missionId,
+    gainedResources,
+    gainedItemCardIds,
+    gainedResearchRewards,
+}: {
+    missionId: string;
+    gainedResources: { resource: CampaignResourceKey; count: number }[];
+    gainedItemCardIds: string[];
+    gainedResearchRewards: ResolvedResearchReward[];
+}) {
+    const hasResearch = gainedResearchRewards.length > 0;
+    const hasItems = gainedItemCardIds.length > 0;
+    const hasResources = gainedResources.length > 0;
+    const hasAnyReward = hasResearch || hasItems || hasResources;
+
+    const blocks: { key: string; content: ReactNode }[] = [];
+    if (hasResearch) {
+        blocks.push({
+            key: 'research',
+            content: (
+                <span className="inline-flex flex-wrap items-center gap-2 align-middle">
+                    {gainedResearchRewards.map(({ treeId, nodeId, node }) => (
+                        <ResearchRewardTinyChip key={`${missionId}-${treeId}-${nodeId}`} node={node} />
+                    ))}
+                </span>
+            ),
+        });
+    }
+    if (hasItems) {
+        blocks.push({
+            key: 'items',
+            content: (
+                <span className="inline-flex flex-wrap items-center gap-2 align-middle">
+                    {gainedItemCardIds.map((itemId, idx) => {
+                        const itemDef = getItemDef(itemId);
+                        const iconUrl = ITEM_ICON_URLS[itemId];
+                        return (
+                            <span
+                                key={`${missionId}-${itemId}-${idx}`}
+                                className={`${MISSION_REWARD_CHIP_CLASSNAME} text-white`}
+                                title={itemDef?.name ?? itemId}
+                            >
+                                {iconUrl ? (
+                                    <img src={iconUrl} alt="" className="h-4 w-4 object-contain" aria-hidden />
+                                ) : null}
+                                {itemDef?.name ?? itemId}
+                            </span>
+                        );
+                    })}
+                </span>
+            ),
+        });
+    }
+    if (hasResources) {
+        blocks.push({
+            key: 'resources',
+            content: (
+                <span className="inline-flex flex-wrap items-center gap-2 align-middle">
+                    {gainedResources.map(({ resource, count }) => (
+                        <ResourcePill key={`${missionId}-${resource}`} resource={resource} count={count} />
+                    ))}
+                </span>
+            ),
+        });
+    }
+
+    return (
+        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted">
+            <span className="shrink-0 font-medium">Rewards:</span>
+            {!hasAnyReward ? (
+                <span className="text-muted">None</span>
+            ) : (
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-2">
+                    {blocks.map((b, i) => (
+                        <Fragment key={b.key}>
+                            {i > 0 && (
+                                <span className="select-none text-zinc-600" aria-hidden>
+                                    ·
+                                </span>
+                            )}
+                            {b.content}
+                        </Fragment>
+                    ))}
+                </span>
+            )}
+        </span>
+    );
+}
 
 export default function CampaignHomeScreen({
     lobbyClient,
@@ -303,100 +395,58 @@ export default function CampaignHomeScreen({
                                                                 onClick={() => handleMissionClick(missionId)}
                                                                 title={!isUnlocked ? 'Complete the previous mission to unlock' : undefined}
                                                             >
-                                                                <span className="flex items-center justify-between gap-3">
-                                                                    <span className="flex items-center gap-2">
+                                                                <span className="flex items-start justify-between gap-3">
+                                                                    <span className="flex min-w-0 items-center gap-2">
                                                                         {!isUnlocked && (
                                                                             <svg className="w-5 h-5 flex-shrink-0 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                                                             </svg>
                                                                         )}
-                                                                        {name}
+                                                                        <span className="truncate">{name}</span>
                                                                     </span>
-                                                                    {hasVictory && (
-                                                                        <span className="flex-shrink-0 text-success" aria-hidden>
-                                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                            </svg>
-                                                                        </span>
-                                                                    )}
+                                                                    <span className="flex shrink-0 items-center gap-2">
+                                                                        {missionResult ? (
+                                                                            <>
+                                                                                <span
+                                                                                    className={
+                                                                                        missionResult.result.toLowerCase() === 'victory'
+                                                                                            ? 'text-sm font-semibold text-success'
+                                                                                            : 'text-sm font-semibold text-danger'
+                                                                                    }
+                                                                                >
+                                                                                    {missionResult.result.toLowerCase() === 'victory'
+                                                                                        ? 'Victory'
+                                                                                        : missionResult.result}
+                                                                                </span>
+                                                                                {missionResult.result.toLowerCase() === 'victory' && (
+                                                                                    <span className="text-success" aria-hidden>
+                                                                                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                                        </svg>
+                                                                                    </span>
+                                                                                )}
+                                                                            </>
+                                                                        ) : (
+                                                                            hasVictory && (
+                                                                                <span className="text-success" aria-hidden>
+                                                                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                                    </svg>
+                                                                                </span>
+                                                                            )
+                                                                        )}
+                                                                    </span>
                                                                 </span>
                                                                 {missionResult && (
                                                                     <span className="mt-3 pt-3 border-t border-border-custom flex flex-col gap-2">
-                                                                        <span className="text-sm text-muted">
-                                                                            Result:{' '}
-                                                                            <span
-                                                                                className={
-                                                                                    missionResult.result.toLowerCase() === 'victory'
-                                                                                        ? 'text-success font-semibold'
-                                                                                        : 'text-danger font-semibold'
-                                                                                }
-                                                                            >
-                                                                                {missionResult.result.toLowerCase() === 'victory'
-                                                                                    ? 'Victory'
-                                                                                    : missionResult.result}
-                                                                            </span>
-                                                                        </span>
-                                                                        <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
-                                                                            Resources gained:
-                                                                            {gainedResources.length > 0 ? (
-                                                                                gainedResources.map(({ resource, count }) => (
-                                                                                    <ResourcePill
-                                                                                        key={`${missionId}-${resource}`}
-                                                                                        resource={resource}
-                                                                                        count={count}
-                                                                                    />
-                                                                                ))
-                                                                            ) : (
-                                                                                <span className="text-muted">None</span>
-                                                                            )}
-                                                                        </span>
-                                                                        <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
-                                                                            Item cards gained:
-                                                                            {gainedItemCardIds.length > 0 ? (
-                                                                                gainedItemCardIds.map((itemId, idx) => {
-                                                                                    const itemDef = getItemDef(itemId);
-                                                                                    const iconUrl = ITEM_ICON_URLS[itemId];
-                                                                                    return (
-                                                                                        <span
-                                                                                            key={`${missionId}-${itemId}-${idx}`}
-                                                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
-                                                                                            title={itemDef?.name ?? itemId}
-                                                                                        >
-                                                                                            {iconUrl ? (
-                                                                                                <img
-                                                                                                    src={iconUrl}
-                                                                                                    alt=""
-                                                                                                    className="w-4 h-4 object-contain"
-                                                                                                    aria-hidden
-                                                                                                />
-                                                                                            ) : null}
-                                                                                            {itemDef?.name ?? itemId}
-                                                                                        </span>
-                                                                                    );
-                                                                                })
-                                                                            ) : (
-                                                                                <span className="text-muted">None</span>
-                                                                            )}
-                                                                        </span>
-                                                                        <span className="flex flex-col items-start gap-2 text-sm text-muted">
-                                                                            Research gained:
-                                                                            {gainedResearchRewards.length > 0 ? (
-                                                                                <span className="flex flex-wrap items-start gap-2">
-                                                                                    {gainedResearchRewards.map(({ treeId, nodeId, node }) => (
-                                                                                        <ResearchNodeCard
-                                                                                            key={`${missionId}-${treeId}-${nodeId}`}
-                                                                                            variant="display"
-                                                                                            node={node}
-                                                                                            showCost={false}
-                                                                                            showRequirements={false}
-                                                                                            state="researched"
-                                                                                        />
-                                                                                    ))}
-                                                                                </span>
-                                                                            ) : (
-                                                                                <span className="text-muted">None</span>
-                                                                            )}
-                                                                        </span>
+                                                                        <MissionRewardsStrip
+                                                                            missionId={missionId}
+                                                                            gainedResources={gainedResources}
+                                                                            gainedItemCardIds={gainedItemCardIds}
+                                                                            gainedResearchRewards={
+                                                                                gainedResearchRewards
+                                                                            }
+                                                                        />
                                                                     </span>
                                                                 )}
                                                             </button>
