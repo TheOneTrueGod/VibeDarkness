@@ -18,6 +18,10 @@ import { AbilityEventType } from '../../abilities/Ability';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { applyBleedStack } from '../../buffs/bleedRuntime';
 import { triggerAbilityEventFromAttack } from '../../abilities/events';
+import { TerrainType } from '../../terrain/TerrainType';
+import type { TerrainManager } from '../../terrain/TerrainManager';
+import type { ProjectileModifierId } from './ProjectileTravelModifiers';
+import { shouldCountTraversalDistance } from './ProjectileTravelModifiers';
 
 const THROW_KNIFE_ABILITY_ID = 'throw_knife';
 
@@ -36,6 +40,8 @@ export class Projectile extends GameObject {
     trailType?: 'bullet';
     /** Projectile look variant for custom rendering. */
     projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife';
+    /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
+    modifiers: ProjectileModifierId[];
 
     constructor(config: {
         id?: string;
@@ -50,6 +56,7 @@ export class Projectile extends GameObject {
         maxDistance: number;
         trailType?: 'bullet';
         projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife';
+        modifiers?: ProjectileModifierId[];
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -61,6 +68,7 @@ export class Projectile extends GameObject {
         this.maxDistance = config.maxDistance;
         this.trailType = config.trailType;
         this.projectileType = config.projectileType ?? 'default';
+        this.modifiers = config.modifiers ?? [];
     }
 
     update(dt: number, engine: unknown): void {
@@ -73,7 +81,8 @@ export class Projectile extends GameObject {
         const moveY = this.velocityY * dt;
         this.x += moveX;
         this.y += moveY;
-        this.distanceTraveled += Math.sqrt(moveX * moveX + moveY * moveY);
+        const terrainManager = (engine as { terrainManager?: TerrainManager | null })?.terrainManager ?? null;
+        this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, this.x, this.y, terrainManager);
 
         if (this.trailType === 'bullet') {
             const eng = engine as { addEffect?: (effect: Effect) => void };
@@ -249,6 +258,7 @@ export class Projectile extends GameObject {
             radius: this.radius,
             trailType: this.trailType,
             projectileType: this.projectileType,
+            modifiers: this.modifiers,
         };
     }
 
@@ -264,6 +274,7 @@ export class Projectile extends GameObject {
             sourceUnitId: data.sourceUnitId as string,
             sourceAbilityId: (data.sourceAbilityId as string) ?? 'throw_knife',
             maxDistance: data.maxDistance as number,
+            modifiers: (data.modifiers as ProjectileModifierId[] | undefined) ?? [],
         });
         proj.active = data.active as boolean;
         proj.distanceTraveled = data.distanceTraveled as number;
@@ -281,5 +292,37 @@ export class Projectile extends GameObject {
         if (!caster) return;
         const ability = getAbility(this.sourceAbilityId);
         ability?.onProjectileExpired?.(engine, caster, this, hitUnitId);
+    }
+
+    private calculateDistanceContribution(
+        fromX: number,
+        fromY: number,
+        toX: number,
+        toY: number,
+        terrainManager: TerrainManager | null,
+    ): number {
+        const dx = toX - fromX;
+        const dy = toY - fromY;
+        const totalDistance = Math.sqrt(dx * dx + dy * dy);
+        if (totalDistance === 0) return 0;
+        if (!terrainManager || this.modifiers.length === 0) return totalDistance;
+
+        const steps = Math.max(1, Math.ceil(totalDistance));
+        const segmentDistance = totalDistance / steps;
+        let countedDistance = 0;
+
+        for (let i = 0; i < steps; i++) {
+            const tStart = i / steps;
+            const tEnd = (i + 1) / steps;
+            const sampleT = (tStart + tEnd) / 2;
+            const sampleX = fromX + dx * sampleT;
+            const sampleY = fromY + dy * sampleT;
+            const terrainType = terrainManager.getTerrainAt(sampleX, sampleY) ?? TerrainType.Grass;
+            if (shouldCountTraversalDistance({ terrainType, segmentDistance }, this.modifiers)) {
+                countedDistance += segmentDistance;
+            }
+        }
+
+        return countedDistance;
     }
 }

@@ -8,10 +8,23 @@
 import type { TerrainGrid } from './TerrainGrid';
 import { TerrainType } from './TerrainType';
 import { Pathfinder } from './Pathfinding';
+import { EARTH_CORE_STONE_DAMAGE_PER_INSTANCE } from '../constants/earthCoreConstants';
+import type {
+    SerializedStoneTileMutation,
+    StoneTileState,
+    StoneTileStateData,
+    TerrainStoneDamagedTransition,
+} from './TerrainGrid';
+
+export interface TerrainStoneDamagedEvent extends TerrainStoneDamagedTransition {
+    worldX: number;
+    worldY: number;
+}
 
 export class TerrainManager {
     readonly grid: TerrainGrid;
     readonly pathfinder: Pathfinder;
+    private onStoneDamaged?: (event: TerrainStoneDamagedEvent) => void;
 
     constructor(grid: TerrainGrid) {
         this.grid = grid;
@@ -82,5 +95,59 @@ export class TerrainManager {
     /** Clear the pathfinding cache. */
     clearPathCache(): void {
         this.pathfinder.clearCache();
+    }
+
+    getStoneState(col: number, row: number): StoneTileState {
+        return this.grid.getStoneState(col, row);
+    }
+
+    getStoneHealth(col: number, row: number): number {
+        return this.grid.getStoneHealth(col, row);
+    }
+
+    createOrMarkRock(col: number, row: number): StoneTileStateData | null {
+        this.clearPathCache();
+        return this.grid.createOrMarkRock(col, row);
+    }
+
+    damageRock(
+        col: number,
+        row: number,
+        damage: number = EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
+    ): TerrainStoneDamagedTransition | null {
+        this.clearPathCache();
+        const transition = this.grid.damageRock(col, row, damage);
+        this.emitStoneDamagedIfNeeded(transition);
+        return transition;
+    }
+
+    consumeRockInRadius(centerCol: number, centerRow: number, radius: number): TerrainStoneDamagedTransition | null {
+        this.clearPathCache();
+        const transition = this.grid.consumeRockInRadius(centerCol, centerRow, radius);
+        this.emitStoneDamagedIfNeeded(transition);
+        return transition;
+    }
+
+    setStoneDamagedEmitter(emitter: ((event: TerrainStoneDamagedEvent) => void) | undefined): void {
+        this.onStoneDamaged = emitter;
+    }
+
+    toStoneMutationsJSON(): SerializedStoneTileMutation[] {
+        return this.grid.toStoneMutationsJSON();
+    }
+
+    restoreStoneMutationsJSON(data: SerializedStoneTileMutation[] | undefined): void {
+        this.grid.restoreStoneMutationsJSON(data);
+        this.clearPathCache();
+    }
+
+    private emitStoneDamagedIfNeeded(transition: TerrainStoneDamagedTransition | null): void {
+        if (!transition || !this.onStoneDamaged) return;
+        const world = this.grid.gridToWorld(transition.col, transition.row);
+        this.onStoneDamaged({
+            ...transition,
+            worldX: world.x,
+            worldY: world.y,
+        });
     }
 }

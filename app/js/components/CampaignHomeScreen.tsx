@@ -374,6 +374,7 @@ export default function CampaignHomeScreen({
                                                     const def = MISSION_MAP[missionId];
                                                     const name = def?.name ?? missionId;
                                                     const isUnlocked = unlocked.has(missionId);
+                                                    const canStartMission = isUnlocked || isAdmin;
                                                     const hasVictory = hasVictoryResult(missionId, missionResults);
                                                     const missionResult = latestMissionResultById.get(missionId);
                                                     const gainedResources = campaignResourceGains(missionResult?.resourceDelta);
@@ -391,13 +392,17 @@ export default function CampaignHomeScreen({
                                                             <button
                                                                 type="button"
                                                                 className="w-full text-left px-4 py-3 rounded border transition-all bg-surface-light border-border-custom hover:border-primary hover:bg-surface disabled:opacity-70 disabled:cursor-wait"
-                                                                disabled={selectingMission || !isUnlocked}
+                                                                disabled={selectingMission || !canStartMission}
                                                                 onClick={() => handleMissionClick(missionId)}
-                                                                title={!isUnlocked ? 'Complete the previous mission to unlock' : undefined}
+                                                                title={
+                                                                    !canStartMission
+                                                                        ? 'Complete the previous mission to unlock'
+                                                                        : undefined
+                                                                }
                                                             >
                                                                 <span className="flex items-start justify-between gap-3">
                                                                     <span className="flex min-w-0 items-center gap-2">
-                                                                        {!isUnlocked && (
+                                                                        {!canStartMission && (
                                                                             <svg className="w-5 h-5 flex-shrink-0 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                                                             </svg>

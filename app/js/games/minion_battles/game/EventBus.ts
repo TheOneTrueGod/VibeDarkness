@@ -7,12 +7,15 @@
 
 export type GameEventType =
     | 'damage_taken'
+    | 'round_start'
     | 'turn_start'
     | 'turn_end'
     | 'round_end'
     | 'unit_died'
     | 'ability_used'
-    | 'projectile_hit';
+    | 'projectile_hit'
+    | 'terrain_stone_damaged'
+    | 'nearby_stone_damaged';
 
 export interface DamageTakenEvent {
     unitId: string;
@@ -22,6 +25,10 @@ export interface DamageTakenEvent {
 
 export interface TurnStartEvent {
     unitId: string;
+}
+
+export interface RoundStartEvent {
+    roundNumber: number;
 }
 
 export interface TurnEndEvent {
@@ -48,14 +55,40 @@ export interface ProjectileHitEvent {
     damage: number;
 }
 
+export interface NearbyStoneDamagedEvent {
+    /** Unit who is within Earth Core nearby-stone range. */
+    unitId: string;
+    /** Unit that caused the stone damage, if known. */
+    sourceUnitId: string | null;
+    /** True when the source is self/ally for unitId. */
+    causedBySelfOrAlly: boolean;
+    /** Optional world/grid context for future consumers. */
+    col?: number;
+    row?: number;
+}
+
+export interface TerrainStoneDamagedEvent {
+    col: number;
+    row: number;
+    worldX: number;
+    worldY: number;
+    previousState: 'natural_stone' | 'created_rock' | 'cracked_rock' | 'spent_rubble';
+    state: 'natural_stone' | 'created_rock' | 'cracked_rock' | 'spent_rubble';
+    previousHealth: number;
+    health: number;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
+    round_start: RoundStartEvent;
     turn_start: TurnStartEvent;
     turn_end: TurnEndEvent;
     round_end: RoundEndEvent;
     unit_died: UnitDiedEvent;
     ability_used: AbilityUsedEvent;
     projectile_hit: ProjectileHitEvent;
+    terrain_stone_damaged: TerrainStoneDamagedEvent;
+    nearby_stone_damaged: NearbyStoneDamagedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

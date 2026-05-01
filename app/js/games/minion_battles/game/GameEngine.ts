@@ -6,7 +6,7 @@
  * preserving the existing public API via facade methods/getters.
  */
 
-import { EventBus, type DamageTakenEvent } from './EventBus';
+import { EventBus, type DamageTakenEvent, type NearbyStoneDamagedEvent } from './EventBus';
 import type {
     ActiveAbility,
     WaitingForOrders,
@@ -428,6 +428,9 @@ export class GameEngine implements EngineContext {
         this.registerCoreEventListeners();
         this.localPlayerId = config.localPlayerId;
         this.terrainManager = config.terrainManager ?? null;
+        this.terrainManager?.setStoneDamagedEmitter((event) => {
+            this.eventBus.emit('terrain_stone_damaged', event);
+        });
         this.aiControllerId = config.aiControllerId ?? null;
         this.state.levelEventManager.resetTerminalState();
         this.resetObjectIdSequence(1);
@@ -872,6 +875,14 @@ export class GameEngine implements EngineContext {
     // Active Ability Processing
     // ========================================================================
 
+    /**
+     * Emit a typed nearby-stone-damaged event for Earth Core reactions.
+     * Producers can call this helper instead of emitting directly.
+     */
+    emitNearbyStoneDamaged(event: NearbyStoneDamagedEvent): void {
+        this.eventBus.emit('nearby_stone_damaged', event);
+    }
+
     private processActiveAbilities(dt: number): void {
         for (const unit of this.units) {
             if (unit.activeAbilities.length === 0) continue;
@@ -1163,6 +1174,7 @@ export class GameEngine implements EngineContext {
             },
         };
         if (!this.appliedRoundStartRecovery) {
+            this.eventBus.emit('round_start', { roundNumber: this.roundNumber });
             onRoundProgressMilestone('round_start', milestoneCtx);
             this.appliedRoundStartRecovery = true;
         }
@@ -1229,6 +1241,7 @@ export class GameEngine implements EngineContext {
             victoryCheckFirstEmitDone: levelEventData.victoryCheckFirstEmitDone,
             continuousSpawnLastSpawnedAt: levelEventData.continuousSpawnLastSpawnedAt,
             playerResearchTreesByPlayer: cardData.playerResearchTreesByPlayer,
+            terrainStoneMutations: this.terrainManager?.toStoneMutationsJSON() ?? [],
             storyPauseActive: this.storyPauseActive,
             storyPauseReason: this.storyPauseReason,
             storyPauseEndsAt: this.storyPauseEndsAt,
@@ -1239,6 +1252,9 @@ export class GameEngine implements EngineContext {
         const engine = new GameEngine();
         engine.localPlayerId = localPlayerId;
         engine.terrainManager = terrainManager ?? null;
+        engine.terrainManager?.setStoneDamagedEmitter((event) => {
+            engine.eventBus.emit('terrain_stone_damaged', event);
+        });
         engine.randomSeed = data.randomSeed ?? 0;
         engine.gameTime = data.gameTime;
         engine.gameTick = data.gameTick ?? 0;
@@ -1285,6 +1301,7 @@ export class GameEngine implements EngineContext {
 
         // Restore cards + research trees
         engine.state.cardManager.restoreFromJSON(data.cards, data.playerResearchTreesByPlayer);
+        engine.terrainManager?.restoreStoneMutationsJSON(data.terrainStoneMutations);
 
         engine.syncObjectIdsFromSnapshot(data);
 
@@ -1315,6 +1332,7 @@ export class GameEngine implements EngineContext {
     destroy(): void {
         this.stop();
         this.synchashUpdateSeq++;
+        this.terrainManager?.setStoneDamagedEmitter(undefined);
         for (const unit of this.units) {
             unit.detachAllResources(this.eventBus);
         }

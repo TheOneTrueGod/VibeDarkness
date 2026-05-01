@@ -30,3 +30,4 @@ Whenever you finish a command where **files have been created, saved, or deleted
 
 - Skip this hook if **no files** were created, saved, or deleted during the command
 - Skip for purely informational or exploratory requests (e.g. "what does X do?", "explain Y")
+- Skip when the only modified files are planning documents (e.g. files under `Plans/` or standalone plan/design markdown docs) and no code/runtime/config files changed

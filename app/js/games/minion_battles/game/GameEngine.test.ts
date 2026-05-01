@@ -5,6 +5,15 @@ import { describe, it, expect } from 'vitest';
 import { GameEngine } from './GameEngine';
 import { resetGameObjectIdCounter } from './GameObject';
 import { DARK_AWAKENING } from '../storylines/WorldOfDarkness/missions/001_dark_awakening';
+import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
+import { TerrainManager } from '../terrain/TerrainManager';
+import { TerrainType } from '../terrain/TerrainType';
+import { Resonance } from '../resources/Resonance';
+import {
+    EARTH_CORE_RESONANCE_GAIN_ROUND_START,
+    EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
+    EARTH_CORE_RESONANCE_MAX,
+} from '../constants/earthCoreConstants';
 
 describe('GameEngine', () => {
     it.each([
@@ -112,6 +121,159 @@ describe('GameEngine', () => {
             expect(r.hp).toBe(u.hp);
             expect(r.teamId).toBe(u.teamId);
         }
+        engine.destroy();
+    });
+
+    it('emits round_start once when round begins', () => {
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1' });
+
+        const emittedRoundStarts: number[] = [];
+        engine.eventBus.on('round_start', (data) => {
+            emittedRoundStarts.push(data.roundNumber);
+        });
+
+        engine.stepSimulationFixedTicks(1);
+        expect(emittedRoundStarts).toEqual([1]);
+        engine.stepSimulationFixedTicks(1);
+        expect(emittedRoundStarts).toEqual([1]);
+
+        engine.destroy();
+    });
+
+    it('emits nearby_stone_damaged through engine helper', () => {
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1' });
+
+        const emitted: Array<{ unitId: string; sourceUnitId: string | null; causedBySelfOrAlly: boolean }> = [];
+        engine.eventBus.on('nearby_stone_damaged', (data) => {
+            emitted.push({
+                unitId: data.unitId,
+                sourceUnitId: data.sourceUnitId,
+                causedBySelfOrAlly: data.causedBySelfOrAlly,
+            });
+        });
+
+        engine.emitNearbyStoneDamaged({
+            unitId: 'unit_1',
+            sourceUnitId: 'unit_2',
+            causedBySelfOrAlly: true,
+            col: 4,
+            row: 6,
+        });
+
+        expect(emitted).toEqual([
+            {
+                unitId: 'unit_1',
+                sourceUnitId: 'unit_2',
+                causedBySelfOrAlly: true,
+            },
+        ]);
+
+        engine.destroy();
+    });
+
+    it('applies resonance gains from round_start and nearby_stone_damaged events', () => {
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        DARK_AWAKENING.initializeGameState(engine, {
+            playerUnits: [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }],
+            localPlayerId: 'p1',
+            eventBus: engine.eventBus,
+            equippedItemsByPlayer: { p1: ['004'] },
+        });
+
+        const unit = engine.units[0];
+        expect(unit).toBeDefined();
+        if (!unit) {
+            engine.destroy();
+            return;
+        }
+
+        const resonance = new Resonance();
+        unit.attachResource(resonance, engine.eventBus);
+
+        engine.stepSimulationFixedTicks(1); // emits round_start once at battle start
+        expect(resonance.current).toBe(EARTH_CORE_RESONANCE_GAIN_ROUND_START);
+
+        engine.emitNearbyStoneDamaged({
+            unitId: unit.id,
+            sourceUnitId: unit.id,
+            causedBySelfOrAlly: true,
+        });
+        expect(resonance.current).toBe(
+            EARTH_CORE_RESONANCE_GAIN_ROUND_START + EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
+        );
+
+        for (let i = 0; i < 40; i++) {
+            engine.emitNearbyStoneDamaged({
+                unitId: unit.id,
+                sourceUnitId: unit.id,
+                causedBySelfOrAlly: true,
+            });
+        }
+        expect(resonance.current).toBe(EARTH_CORE_RESONANCE_MAX);
+
+        engine.destroy();
+    });
+
+    it('emits terrain_stone_damaged from terrain mutations', () => {
+        const grid = TerrainGrid.createFilledTerrain(3, 3, CELL_SIZE, TerrainType.Grass);
+        grid.set(1, 1, TerrainType.Rock);
+        const terrainManager = new TerrainManager(grid);
+
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1', terrainManager });
+
+        const emitted: Array<{ previousState: string; state: string }> = [];
+        engine.eventBus.on('terrain_stone_damaged', (event) => {
+            emitted.push({
+                previousState: event.previousState,
+                state: event.state,
+            });
+        });
+
+        terrainManager.damageRock(1, 1); // natural -> cracked
+        terrainManager.damageRock(1, 1); // cracked -> cracked, no event
+        terrainManager.damageRock(1, 1);
+        terrainManager.damageRock(1, 1);
+        terrainManager.damageRock(1, 1); // cracked -> spent
+
+        expect(emitted).toEqual([
+            { previousState: 'natural_stone', state: 'cracked_rock' },
+            { previousState: 'cracked_rock', state: 'spent_rubble' },
+        ]);
+
+        engine.destroy();
+    });
+
+    it('serializes and restores terrain stone mutations in checkpoints', () => {
+        const grid = TerrainGrid.createFilledTerrain(4, 4, CELL_SIZE, TerrainType.Grass);
+        grid.set(1, 1, TerrainType.Rock);
+        grid.set(2, 1, TerrainType.Rock);
+        const terrainManager = new TerrainManager(grid);
+
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1', terrainManager });
+
+        terrainManager.createOrMarkRock(2, 1);
+        terrainManager.damageRock(1, 1); // natural -> cracked
+        terrainManager.consumeRockInRadius(2, 1, 0); // created -> spent
+
+        const json = engine.toJSON();
+        expect(json.terrainStoneMutations).toBeDefined();
+        expect(json.terrainStoneMutations?.length).toBeGreaterThan(0);
+
+        const restoredGrid = TerrainGrid.createFilledTerrain(4, 4, CELL_SIZE, TerrainType.Grass);
+        const restoredTerrainManager = new TerrainManager(restoredGrid);
+        const restored = GameEngine.fromJSON(json, 'p1', restoredTerrainManager);
+
+        expect(restoredTerrainManager.getStoneState(1, 1)).toBe('cracked_rock');
+        expect(restoredTerrainManager.getStoneHealth(1, 1)).toBe(24);
+        expect(restoredTerrainManager.getStoneState(2, 1)).toBe('spent_rubble');
+        expect(restoredGrid.get(2, 1)).toBe(TerrainType.Dirt);
+
+        restored.destroy();
         engine.destroy();
     });
 });

@@ -3,6 +3,7 @@
  */
 
 import type { EnemySpawnDef } from '../storylines/types';
+import type { SerializedStoneTileMutation } from '../terrain/TerrainGrid';
 
 /** Snapshot of engine timing state. */
 export interface GameTime {
@@ -60,6 +61,8 @@ export interface SerializedGameState {
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     /** Host-computed state hash from last snapshot (optional; restored on load for sync). */
     synchash?: string;
+    /** Runtime terrain mutations (rock durability/state transitions). */
+    terrainStoneMutations?: SerializedStoneTileMutation[];
     /** True while a cinematic/gameplay-freeze sequence is active (e.g. boss death story beat). */
     storyPauseActive?: boolean;
     /** Optional tag for the active story pause sequence. */

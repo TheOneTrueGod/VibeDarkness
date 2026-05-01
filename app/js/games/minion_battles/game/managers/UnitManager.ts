@@ -11,6 +11,7 @@ import type { EventBus } from '../EventBus';
 import type { Resource } from '../../resources/Resource';
 import { Rage } from '../../resources/Rage';
 import { Mana } from '../../resources/Mana';
+import { Resonance } from '../../resources/Resonance';
 
 function createResourceFromId(id: string): Resource | null {
     switch (id) {
@@ -18,6 +19,8 @@ function createResourceFromId(id: string): Resource | null {
             return new Rage();
         case 'mana':
             return new Mana();
+        case 'resonance':
+            return new Resonance();
         default:
             return null;
     }

@@ -76,6 +76,84 @@ describe('TerrainGrid', () => {
             expect(grid.get(1, 1)).toBe(R);
         });
     });
+
+    describe('stone durability mutations', () => {
+        it('transitions natural stone to cracked then spent after durability is depleted', () => {
+            const grid = TerrainGrid.createFilledTerrain(3, 3, CELL_SIZE, TerrainType.Grass);
+            grid.set(1, 1, TerrainType.Rock);
+
+            expect(grid.getStoneState(1, 1)).toBe('natural_stone');
+            expect(grid.getStoneHealth(1, 1)).toBe(30);
+
+            const cracked = grid.damageRock(1, 1, 6);
+            expect(cracked).not.toBeNull();
+            expect(cracked?.previousState).toBe('natural_stone');
+            expect(cracked?.state).toBe('cracked_rock');
+            expect(grid.getStoneState(1, 1)).toBe('cracked_rock');
+            expect(grid.getStoneHealth(1, 1)).toBe(24);
+            expect(grid.get(1, 1)).toBe(TerrainType.Rock);
+
+            for (let i = 0; i < 3; i++) {
+                const noTransition = grid.damageRock(1, 1, 6);
+                expect(noTransition).toBeNull();
+            }
+            expect(grid.getStoneHealth(1, 1)).toBe(6);
+            expect(grid.getStoneState(1, 1)).toBe('cracked_rock');
+
+            const spent = grid.damageRock(1, 1, 6);
+            expect(spent).not.toBeNull();
+            expect(spent?.previousState).toBe('cracked_rock');
+            expect(spent?.state).toBe('spent_rubble');
+            expect(grid.getStoneState(1, 1)).toBe('spent_rubble');
+            expect(grid.getStoneHealth(1, 1)).toBe(0);
+            expect(grid.get(1, 1)).toBe(TerrainType.Dirt);
+        });
+
+        it('prefers created/cracked rock before natural when consuming in radius', () => {
+            const grid = TerrainGrid.createFilledTerrain(5, 5, CELL_SIZE, TerrainType.Grass);
+            grid.set(2, 2, TerrainType.Rock); // natural
+            grid.set(3, 2, TerrainType.Rock); // will become cracked
+            grid.set(1, 2, TerrainType.Rock); // will become created
+
+            grid.createOrMarkRock(1, 2);
+            grid.damageRock(3, 2, 6);
+            expect(grid.getStoneState(2, 2)).toBe('natural_stone');
+            expect(grid.getStoneState(3, 2)).toBe('cracked_rock');
+            expect(grid.getStoneState(1, 2)).toBe('created_rock');
+
+            const firstConsumed = grid.consumeRockInRadius(2, 2, 2);
+            expect(firstConsumed).not.toBeNull();
+            expect(firstConsumed?.previousState === 'created_rock' || firstConsumed?.previousState === 'cracked_rock').toBe(true);
+
+            const secondConsumed = grid.consumeRockInRadius(2, 2, 2);
+            expect(secondConsumed).not.toBeNull();
+            expect(secondConsumed?.previousState === 'created_rock' || secondConsumed?.previousState === 'cracked_rock').toBe(true);
+            expect(secondConsumed?.previousState).not.toBe(firstConsumed?.previousState);
+
+            const thirdConsumed = grid.consumeRockInRadius(2, 2, 2);
+            expect(thirdConsumed).not.toBeNull();
+            expect(thirdConsumed?.previousState).toBe('natural_stone');
+            expect(grid.get(2, 2)).toBe(TerrainType.Dirt);
+        });
+
+        it('serializes and restores stone mutations for checkpoints', () => {
+            const source = TerrainGrid.createFilledTerrain(4, 4, CELL_SIZE, TerrainType.Grass);
+            source.set(0, 0, TerrainType.Rock);
+            source.set(1, 0, TerrainType.Rock);
+            source.createOrMarkRock(1, 0);
+            source.damageRock(0, 0, 6);
+            source.consumeRockInRadius(1, 0, 0);
+
+            const snapshot = source.toStoneMutationsJSON();
+            const restored = TerrainGrid.createFilledTerrain(4, 4, CELL_SIZE, TerrainType.Grass);
+            restored.restoreStoneMutationsJSON(snapshot);
+
+            expect(restored.getStoneState(0, 0)).toBe('cracked_rock');
+            expect(restored.getStoneHealth(0, 0)).toBe(24);
+            expect(restored.getStoneState(1, 0)).toBe('spent_rubble');
+            expect(restored.get(1, 0)).toBe(TerrainType.Dirt);
+        });
+    });
 });
 
 describe('stitchTerrain', () => {
