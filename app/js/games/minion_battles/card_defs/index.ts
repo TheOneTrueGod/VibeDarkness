@@ -26,18 +26,18 @@ import { ClawCard } from './0111_Claw/0111Ability';
 import { SwingSwordCard } from './0112_SwingSword/0112Ability';
 import { AbsorptionShieldCard } from './0113_AbsorptionShield/0113Ability';
 import { EnergyBlastCard } from './0114_EnergyBlast/0114Ability';
-import { ImpactConversionCard } from './earth_core/0521_ImpactConversion/0521Ability';
-import { BedrockScavengerCard } from './earth_core/0522_BedrockScavenger/0522Ability';
-import { DeepResonanceCard } from './earth_core/0523_DeepResonance/0523Ability';
-import { EarthernPunchCard } from './earth_core/0524_EarthernPunch/0524Ability';
-import { ShakingGroundCard } from './earth_core/0525_ShakingGround/0525Ability';
-import { ShatterCard } from './earth_core/0526_Shatter/0526Ability';
-import { FaultHarvestCard } from './earth_core/0528_FaultHarvest/0528Ability';
-import { SeismicGuardCard } from './earth_core/0529_SeismicGuard/0529Ability';
-import { StoneTombCard } from './earth_core/0530_StoneTomb/0530Ability';
-import { KnockCard } from './earth_core/0531_Knock/0531Ability';
-import { AnchoredTremorCard } from './earth_core/0532_AnchoredTremor/0532Ability';
-import { StoneyPunchCard } from './earth_core/0533_StoneyPunch/0533Ability';
+import { ImpactConversionCard } from './05_earth_core/0521_ImpactConversion/0521Ability';
+import { BedrockScavengerCard } from './05_earth_core/0522_BedrockScavenger/0522Ability';
+import { DeepResonanceCard } from './05_earth_core/0523_DeepResonance/0523Ability';
+import { EarthernPunchCard } from './05_earth_core/0524_EarthernPunch/0524Ability';
+import { ShakingGroundCard } from './05_earth_core/0525_ShakingGround/0525Ability';
+import { ShatterCard } from './05_earth_core/0526_Shatter/0526Ability';
+import { FaultHarvestCard } from './05_earth_core/0528_FaultHarvest/0528Ability';
+import { SeismicGuardCard } from './05_earth_core/0529_SeismicGuard/0529Ability';
+import { StoneTombCard } from './05_earth_core/0530_StoneTomb/0530Ability';
+import { KnockCard } from './05_earth_core/0531_Knock/0531Ability';
+import { AnchoredTremorCard } from './05_earth_core/0532_AnchoredTremor/0532Ability';
+import { StoneyPunchCard } from './05_earth_core/0533_StoneyPunch/0533Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,

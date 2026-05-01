@@ -1,4 +1,4 @@
-import { EARTH_CORE_SHARED_DIAMETER } from '../card_defs/earth_core/earthCoreConstants';
+import { EARTH_CORE_SHARED_DIAMETER } from '../card_defs/05_earth_core/earthCoreConstants';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { Unit } from '../game/units/Unit';
 import { isEarthCoreStoneState } from './earthCoreHelpers';

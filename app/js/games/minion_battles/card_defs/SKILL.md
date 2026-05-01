@@ -31,7 +31,7 @@ When implementing `abilityEvents`, follow this policy:
 ## Where to put it
 
 1. **Skill tree folder (recommended for a coherent line of cards)**  
-   Group related defs under `app/js/games/minion_battles/card_defs/<tree_folder>/` (examples: `earth_core/`, `utility/`). Each ability still gets its own `####_ABILITY_NAME/` folder **inside** that tree folder.
+   Group related defs under `app/js/games/minion_battles/card_defs/<tree_folder>/` (examples: `05_earth_core/`, `utility/`). Each ability still gets its own `####_ABILITY_NAME/` folder **inside** that tree folder.
 
 2. **Per-ability folder**: `app/js/games/minion_battles/card_defs/[<tree_folder>/]####_ABILITY_NAME`
    - `####` = 4-digit ability/card ID (see below).
@@ -52,9 +52,9 @@ The 4-digit ID is `<group><index>`:
 ## Skill trees and `AbilityGroupId`
 
 - **Do not invent a new leading digit** without adding a matching **`AbilityGroupId`** enum member and using `formatGroupId(thatGroup)` when constructing ids in code.
-- **`05` = Earth** (`AbilityGroupId.Earth`). Earth cards belong under `card_defs/earth_core/`.
+- **`05` = Earth / “earth skills”** (`AbilityGroupId.Earth`). **Folder:** `card_defs/05_earth_core/`. **Tree overview & Earth-specific authoring rules:** `card_defs/05_earth_core/EarthCore.md` — read it **before** adding or changing any **`05xx`** card, Resonance/stone/Stonephase/tremorsense behaviour, or shared Earth helpers. It is the canonical place for how Earth diverges from generic ability patterns.
 - **`06` = Utility** (`AbilityGroupId.Utility`) for cross-cutting utility cards that are not Earth-specific; keep them under `card_defs/utility/`.
-- **Adding a new thematic tree**: (1) append a new `AbilityGroupId` value, (2) assign ids as `formatGroupId(newGroup) + two-digit index`, (3) place all related ability folders under a new `card_defs/<tree_folder>/` (same co-location pattern as above).
+- **Adding a new thematic tree**: (1) append a new `AbilityGroupId` value, (2) assign ids as `formatGroupId(newGroup) + two-digit index`, (3) place all related ability folders under `card_defs/<NN>_<short_name>/` (match the two-digit group in the folder prefix), and (4) add a **`<Name>Core.md`** inside that folder (same role as `EarthCore.md`) and **link it from this section** with “when to read” guidance.
 
 ## What goes in the ability file
 

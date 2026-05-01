@@ -13,7 +13,7 @@ import {
     EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
     EARTH_CORE_RESONANCE_MAX,
     EARTH_CORE_RESONANCE_GAIN_ON_ARMOUR_LOST_FROM_DAMAGE,
-} from '../card_defs/earth_core/earthCoreConstants';
+} from '../card_defs/05_earth_core/earthCoreConstants';
 import { IMPACT_CONVERSION_PASSIVE_ID } from '../abilities/earthCoreMeleePassives';
 
 export class Resonance extends Resource {

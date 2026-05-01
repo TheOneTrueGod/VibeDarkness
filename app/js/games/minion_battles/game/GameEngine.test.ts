@@ -14,7 +14,7 @@ import {
     EARTH_CORE_RESONANCE_GAIN_ROUND_START,
     EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
     EARTH_CORE_RESONANCE_MAX,
-} from '../card_defs/earth_core/earthCoreConstants';
+} from '../card_defs/05_earth_core/earthCoreConstants';
 import { BEDROCK_SCAVENGER_PASSIVE_ID } from '../abilities/earthCoreMeleePassives';
 import { getEarthCoreArmour } from '../abilities/earthCoreArmour';
 import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';

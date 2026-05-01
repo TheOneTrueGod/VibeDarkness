@@ -8,7 +8,7 @@
 import type { TerrainGrid } from './TerrainGrid';
 import { TerrainType } from './TerrainType';
 import { Pathfinder } from './Pathfinding';
-import { EARTH_CORE_STONE_DAMAGE_PER_INSTANCE } from '../card_defs/earth_core/earthCoreConstants';
+import { EARTH_CORE_STONE_DAMAGE_PER_INSTANCE } from '../card_defs/05_earth_core/earthCoreConstants';
 import type {
     SerializedStoneTileMutation,
     StoneTileState,

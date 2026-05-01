@@ -57,7 +57,7 @@ Follow the same rule as above: **do not paste tag unions or catalog strings into
 When adding or reorganizing a **thematic line of cards** (a new skill tree):
 
 1. Add a **`AbilityGroupId`** entry in `app/js/games/minion_battles/card_defs/AbilityGroupId.ts` (source of truth for the first two digits of 4-digit ids). Use `formatGroupId()` when composing ids in TypeScript.
-2. Co-locate all related `card_defs` under **`app/js/games/minion_battles/card_defs/<tree_folder>/`** (see `earth_core/` and `utility/` for folder layout and import depth). Do not scatter one tree across unrelated top-level folders.
+2. Co-locate all related `card_defs` under **`app/js/games/minion_battles/card_defs/<tree_folder>/`** (see `05_earth_core/` and `utility/` for folder layout and import depth). For Earth (**`05`**), read `05_earth_core/EarthCore.md` when changing that line. Do not scatter one tree across unrelated top-level folders.
 3. Follow **`app/js/games/minion_battles/card_defs/SKILL.md`** for id rules, registration, and `abilityTimings`; keep this skill free of duplicated numeric assignments.
 
 ## Structure

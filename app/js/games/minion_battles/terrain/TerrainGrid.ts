@@ -10,7 +10,7 @@ import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
 import {
     EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
     EARTH_CORE_STONE_HEALTH,
-} from '../card_defs/earth_core/earthCoreConstants';
+} from '../card_defs/05_earth_core/earthCoreConstants';
 
 /** Default cell size in pixels. */
 export const CELL_SIZE = 40;
