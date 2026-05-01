@@ -32,6 +32,18 @@ import { ClawAbility } from '../card_defs/0111_Claw/0111Ability';
 import { SwingSwordAbility } from '../card_defs/0112_SwingSword/0112Ability';
 import { AbsorptionShieldAbility } from '../card_defs/0113_AbsorptionShield/0113Ability';
 import { EnergyBlastAbility } from '../card_defs/0114_EnergyBlast/0114Ability';
+import { ImpactConversionAbility } from '../card_defs/0521_ImpactConversion/0521Ability';
+import { BedrockScavengerAbility } from '../card_defs/0522_BedrockScavenger/0522Ability';
+import { DeepResonanceAbility } from '../card_defs/0523_DeepResonance/0523Ability';
+import { EarthernPunchAbility } from '../card_defs/0524_EarthernPunch/0524Ability';
+import { ShakingGroundAbility } from '../card_defs/0525_ShakingGround/0525Ability';
+import { ShatterAbility } from '../card_defs/0526_Shatter/0526Ability';
+import { FaultHarvest } from '../card_defs/0601_FaultHarvest/0601Ability';
+import { SeismicGuard } from '../card_defs/0602_SeismicGuard/0602Ability';
+import { StoneTomb } from '../card_defs/0603_StoneTomb/0603Ability';
+import { KnockAbility } from '../card_defs/0604_Knock/0604Ability';
+import { AnchoredTremor } from '../card_defs/0605_AnchoredTremor/0605Ability';
+import { StoneyPunch } from '../card_defs/0606_StoneyPunch/0606Ability';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
 
@@ -69,6 +81,18 @@ register(ClawAbility);
 register(SwingSwordAbility);
 register(AbsorptionShieldAbility);
 register(EnergyBlastAbility);
+register(ImpactConversionAbility);
+register(BedrockScavengerAbility);
+register(DeepResonanceAbility);
+register(EarthernPunchAbility);
+register(ShakingGroundAbility);
+register(ShatterAbility);
+register(FaultHarvest);
+register(SeismicGuard);
+register(StoneTomb);
+register(KnockAbility);
+register(AnchoredTremor);
+register(StoneyPunch);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 

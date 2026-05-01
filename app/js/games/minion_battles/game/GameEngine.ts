@@ -49,6 +49,8 @@ import { onRoundProgressMilestone } from './roundProgressMilestones';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { triggerAbilityEvent } from '../abilities/events';
 import { CantDieBuff } from '../buffs/CantDieBuff';
+import { BEDROCK_SCAVENGER_PASSIVE_ID, countStoneTilesInTremorsense, getBedrockScavengerRoundStartArmour } from '../abilities/earthCoreMeleePassives';
+import { grantEarthCoreArmourFromSource } from '../abilities/earthCoreArmour';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -365,6 +367,18 @@ export class GameEngine implements EngineContext {
                 },
                 data,
             );
+        });
+
+        this.eventBus.on('round_start', () => {
+            if (!this.terrainManager) return;
+            for (const unit of this.units) {
+                if (!unit.isAlive()) continue;
+                if (!unit.abilities.includes(BEDROCK_SCAVENGER_PASSIVE_ID)) continue;
+                const stoneTiles = countStoneTilesInTremorsense(unit, this.terrainManager);
+                const armourGain = getBedrockScavengerRoundStartArmour(stoneTiles);
+                if (armourGain <= 0) continue;
+                grantEarthCoreArmourFromSource(unit, 'bedrock_scavenger', armourGain, 3);
+            }
         });
     }
 

@@ -27,6 +27,7 @@ import { getHealthBonusFromResearch } from '../../research/researchTrainingEffec
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
 import type { UnitTag } from './unitTag';
 import { parseUnitTagsFromJSON } from './unitTag';
+import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -267,13 +268,17 @@ export class Unit extends GameObject {
         if (debugSettingsSnapshot.godModeEnabled && this.isPlayerControlled()) {
             return 0;
         }
-        const actual = Math.min(amount, this.hp);
+        const armourDamage = applyDamageToEarthCoreArmour(this, amount);
+        const actual = Math.min(armourDamage.remainingDamage, this.hp);
         this.hp -= actual;
 
         eventBus.emit('damage_taken', {
             unitId: this.id,
             amount: actual,
             sourceUnitId,
+            incomingDamage: amount,
+            hpDamage: actual,
+            armourRemoved: armourDamage.armourRemoved,
         });
 
         if (this.hp <= 0) {

@@ -21,6 +21,12 @@ export interface DamageTakenEvent {
     unitId: string;
     amount: number;
     sourceUnitId: string | null;
+    /** Incoming damage value before armour absorption. */
+    incomingDamage?: number;
+    /** HP damage applied after armour absorption. */
+    hpDamage?: number;
+    /** Armour removed by this damage instance. */
+    armourRemoved?: number;
 }
 
 export interface TurnStartEvent {

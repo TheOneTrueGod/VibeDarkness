@@ -26,6 +26,18 @@ import { ClawCard } from './0111_Claw/0111Ability';
 import { SwingSwordCard } from './0112_SwingSword/0112Ability';
 import { AbsorptionShieldCard } from './0113_AbsorptionShield/0113Ability';
 import { EnergyBlastCard } from './0114_EnergyBlast/0114Ability';
+import { ImpactConversionCard } from './0521_ImpactConversion/0521Ability';
+import { BedrockScavengerCard } from './0522_BedrockScavenger/0522Ability';
+import { DeepResonanceCard } from './0523_DeepResonance/0523Ability';
+import { EarthernPunchCard } from './0524_EarthernPunch/0524Ability';
+import { ShakingGroundCard } from './0525_ShakingGround/0525Ability';
+import { ShatterCard } from './0526_Shatter/0526Ability';
+import { FaultHarvestCard } from './0601_FaultHarvest/0601Ability';
+import { SeismicGuardCard } from './0602_SeismicGuard/0602Ability';
+import { StoneTombCard } from './0603_StoneTomb/0603Ability';
+import { KnockCard } from './0604_Knock/0604Ability';
+import { AnchoredTremorCard } from './0605_AnchoredTremor/0605Ability';
+import { StoneyPunchCard } from './0606_StoneyPunch/0606Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -54,6 +66,18 @@ const cardDefs: CardDef[] = [
     SwingSwordCard,
     AbsorptionShieldCard,
     EnergyBlastCard,
+    ImpactConversionCard,
+    BedrockScavengerCard,
+    DeepResonanceCard,
+    EarthernPunchCard,
+    ShakingGroundCard,
+    ShatterCard,
+    FaultHarvestCard,
+    SeismicGuardCard,
+    StoneTombCard,
+    KnockCard,
+    AnchoredTremorCard,
+    StoneyPunchCard,
 ];
 
 /** Map card ID -> card definition for resolving hands (arrays of card IDs) to card data. */

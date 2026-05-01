@@ -6,13 +6,15 @@
  */
 
 import { Resource } from './Resource';
-import type { EventBus, RoundStartEvent, NearbyStoneDamagedEvent } from '../game/EventBus';
+import type { EventBus, RoundStartEvent, NearbyStoneDamagedEvent, DamageTakenEvent } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 import {
     EARTH_CORE_RESONANCE_GAIN_ROUND_START,
     EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
     EARTH_CORE_RESONANCE_MAX,
+    EARTH_CORE_RESONANCE_GAIN_ON_ARMOUR_LOST_FROM_DAMAGE,
 } from '../constants/earthCoreConstants';
+import { IMPACT_CONVERSION_PASSIVE_ID } from '../abilities/earthCoreMeleePassives';
 
 export class Resonance extends Resource {
     readonly id = 'resonance';
@@ -21,6 +23,7 @@ export class Resonance extends Resource {
 
     private boundOnRoundStart: ((data: RoundStartEvent) => void) | null = null;
     private boundOnNearbyStoneDamaged: ((data: NearbyStoneDamagedEvent) => void) | null = null;
+    private boundOnDamageTaken: ((data: DamageTakenEvent) => void) | null = null;
 
     constructor() {
         super(0, EARTH_CORE_RESONANCE_MAX);
@@ -40,6 +43,14 @@ export class Resonance extends Resource {
             this.add(EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY);
         };
         eventBus.on('nearby_stone_damaged', this.boundOnNearbyStoneDamaged);
+
+        this.boundOnDamageTaken = (data: DamageTakenEvent) => {
+            if (data.unitId !== this.unitId) return;
+            if (!unit.abilities.includes(IMPACT_CONVERSION_PASSIVE_ID)) return;
+            if ((data.armourRemoved ?? 0) <= 0) return;
+            this.add(EARTH_CORE_RESONANCE_GAIN_ON_ARMOUR_LOST_FROM_DAMAGE);
+        };
+        eventBus.on('damage_taken', this.boundOnDamageTaken);
     }
 
     protected unsubscribe(eventBus: EventBus): void {
@@ -50,6 +61,10 @@ export class Resonance extends Resource {
         if (this.boundOnNearbyStoneDamaged) {
             eventBus.off('nearby_stone_damaged', this.boundOnNearbyStoneDamaged);
             this.boundOnNearbyStoneDamaged = null;
+        }
+        if (this.boundOnDamageTaken) {
+            eventBus.off('damage_taken', this.boundOnDamageTaken);
+            this.boundOnDamageTaken = null;
         }
     }
 }

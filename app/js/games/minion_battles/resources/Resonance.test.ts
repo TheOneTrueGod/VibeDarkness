@@ -5,8 +5,11 @@ import { Unit } from '../game/units/Unit';
 import {
     EARTH_CORE_RESONANCE_GAIN_ROUND_START,
     EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
+    EARTH_CORE_RESONANCE_GAIN_ON_ARMOUR_LOST_FROM_DAMAGE,
     EARTH_CORE_RESONANCE_MAX,
 } from '../constants/earthCoreConstants';
+import { IMPACT_CONVERSION_PASSIVE_ID } from '../abilities/earthCoreMeleePassives';
+import { grantEarthCoreArmourFromSource } from '../abilities/earthCoreArmour';
 
 function makeUnit(id: string): Unit {
     return new Unit({
@@ -93,5 +96,34 @@ describe('Resonance', () => {
             causedBySelfOrAlly: true,
         });
         expect(resonance.current).toBe(0);
+    });
+
+    it('gains from damage_taken only when Impact Conversion passive is present and armour is removed', () => {
+        const eventBus = new EventBus();
+        const unit = makeUnit('unit_a');
+        const resonance = new Resonance();
+        unit.attachResource(resonance, eventBus);
+
+        eventBus.emit('damage_taken', { unitId: unit.id, amount: 4, sourceUnitId: 'enemy', armourRemoved: 3 });
+        expect(resonance.current).toBe(0);
+
+        unit.abilities.push(IMPACT_CONVERSION_PASSIVE_ID);
+        eventBus.emit('damage_taken', { unitId: unit.id, amount: 4, sourceUnitId: 'enemy', armourRemoved: 0 });
+        expect(resonance.current).toBe(0);
+
+        eventBus.emit('damage_taken', { unitId: unit.id, amount: 4, sourceUnitId: 'enemy', armourRemoved: 2 });
+        expect(resonance.current).toBe(EARTH_CORE_RESONANCE_GAIN_ON_ARMOUR_LOST_FROM_DAMAGE);
+    });
+
+    it('gains from real damage instances that consume armour', () => {
+        const eventBus = new EventBus();
+        const unit = makeUnit('unit_a');
+        const resonance = new Resonance();
+        unit.attachResource(resonance, eventBus);
+        unit.abilities.push(IMPACT_CONVERSION_PASSIVE_ID);
+        grantEarthCoreArmourFromSource(unit, 'test_source', 2, 10);
+
+        unit.takeDamage(1, 'enemy', eventBus);
+        expect(resonance.current).toBe(EARTH_CORE_RESONANCE_GAIN_ON_ARMOUR_LOST_FROM_DAMAGE);
     });
 });

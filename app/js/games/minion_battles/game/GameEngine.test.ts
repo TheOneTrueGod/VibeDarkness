@@ -9,11 +9,14 @@ import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { TerrainType } from '../terrain/TerrainType';
 import { Resonance } from '../resources/Resonance';
+import { Unit } from './units/Unit';
 import {
     EARTH_CORE_RESONANCE_GAIN_ROUND_START,
     EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
     EARTH_CORE_RESONANCE_MAX,
 } from '../constants/earthCoreConstants';
+import { BEDROCK_SCAVENGER_PASSIVE_ID } from '../abilities/earthCoreMeleePassives';
+import { getEarthCoreArmour } from '../abilities/earthCoreArmour';
 
 describe('GameEngine', () => {
     it.each([
@@ -213,6 +216,35 @@ describe('GameEngine', () => {
             });
         }
         expect(resonance.current).toBe(EARTH_CORE_RESONANCE_MAX);
+
+        engine.destroy();
+    });
+
+    it('grants Bedrock Scavenger armour on round_start based on nearby stone, capped at 3', () => {
+        const grid = TerrainGrid.createFilledTerrain(8, 8, CELL_SIZE, TerrainType.Grass);
+        const terrainManager = new TerrainManager(grid);
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1', terrainManager });
+        const unit = new Unit({
+            id: 'unit_bedrock',
+            x: 4 * CELL_SIZE + (CELL_SIZE / 2),
+            y: 4 * CELL_SIZE + (CELL_SIZE / 2),
+            hp: 100,
+            speed: 100,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+            name: 'Bedrock Tester',
+        });
+        engine.addUnit(unit);
+        unit.abilities.push(BEDROCK_SCAVENGER_PASSIVE_ID);
+        grid.set(4, 4, TerrainType.Rock);
+        grid.set(5, 4, TerrainType.Rock);
+        grid.createOrMarkRock(4, 5);
+        grid.set(3, 4, TerrainType.Rock); // More than cap in range.
+
+        engine.stepSimulationFixedTicks(1);
+        expect(getEarthCoreArmour(unit)).toBe(3);
 
         engine.destroy();
     });
