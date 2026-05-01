@@ -306,7 +306,7 @@ export class Effect extends GameObject {
     static fromJSON(data: Record<string, unknown>): Effect {
         const endX = (data.endX ?? data.x) as number;
         const endY = (data.endY ?? data.y) as number;
-        const config: Parameters<Effect['constructor']>[0] = {
+        const config: ConstructorParameters<typeof Effect>[0] = {
             id: data.id as string,
             x: endX,
             y: endY,

@@ -8,7 +8,7 @@
 
 import type { GameEngine } from '../game/GameEngine';
 import type { UnitSpawnConfig } from '../game/types';
-import type { EnemySpawnDef, MissionBattleConfig, LevelEvent, PlayerSpawnPoint } from './types';
+import type { AIControllerId, EnemySpawnDef, MissionBattleConfig, LevelEvent, PlayerSpawnPoint } from './types';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
@@ -23,6 +23,7 @@ import {
     getStaminaRecoveryBonusFromResearch,
 } from '../research/researchTrainingEffects';
 import {
+    applyCrystalRocksResearchToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
     applyTrainingResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
@@ -82,6 +83,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     specialTiles?: import('./types').SpecialTilePlacement[];
     /** Optional grid-based player spawn points. */
     playerSpawnPoints?: PlayerSpawnPoint[];
+    /** AI controller for enemy units; see `MissionBattleConfig`. */
+    aiController?: AIControllerId;
 
     /**
      * Set up the initial game state with player units, enemies, projectiles, and effects.
@@ -172,6 +175,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 unit.stamina += staminaRecoveryBonus;
             }
             initializeAbilityRuntimeForUnit(unit);
+            applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             applyTrainingResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);

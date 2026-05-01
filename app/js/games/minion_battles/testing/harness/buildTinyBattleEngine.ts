@@ -11,6 +11,7 @@ import {
     getStaminaRecoveryBonusFromResearch,
 } from '../../research/researchTrainingEffects';
 import {
+    applyCrystalRocksResearchToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
     applyTrainingResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
@@ -114,6 +115,7 @@ export function spawnTinyPlayerUnit(
         unit.stamina += staminaRecoveryBonus;
     }
     initializeAbilityRuntimeForUnit(unit);
+    applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
     applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
     applyTrainingResearchToAbilityRuntime(unit, getResearchNodes);
     engine.addUnit(unit);

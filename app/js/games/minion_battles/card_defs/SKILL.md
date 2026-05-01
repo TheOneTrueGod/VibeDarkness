@@ -30,11 +30,14 @@ When implementing `abilityEvents`, follow this policy:
 
 ## Where to put it
 
-1. **New folder**: `app/js/games/minion_battles/card_defs/####_ABILITY_NAME`
+1. **Skill tree folder (recommended for a coherent line of cards)**  
+   Group related defs under `app/js/games/minion_battles/card_defs/<tree_folder>/` (examples: `earth_core/`, `utility/`). Each ability still gets its own `####_ABILITY_NAME/` folder **inside** that tree folder.
+
+2. **Per-ability folder**: `app/js/games/minion_battles/card_defs/[<tree_folder>/]####_ABILITY_NAME`
    - `####` = 4-digit ability/card ID (see below).
    - `ABILITY_NAME` = short name in SCREAMING_SNAKE or PascalCase.
 
-2. **Single file inside that folder**: `####_ABILITY_NAME.ts`
+3. **Single file inside that folder**: `####_ABILITY_NAME.ts`
    - The **file name must match the folder name** exactly.
    - This file holds **both** the `CardDef` and the ability (`AbilityStatic` implementation).
    - Legacy/non-numbered abilities may use `card_defs/<ability_name>/<ability_name>.ts`.
@@ -43,8 +46,15 @@ When implementing `abilityEvents`, follow this policy:
 
 The 4-digit ID is `<group><index>`:
 
-- **First two digits = group ID** (character/class). See `AbilityGroupId` in the card_defs codebase for valid group IDs and their zero-padded format.
+- **First two digits = group ID** (character/class). See `AbilityGroupId.ts` in this folder for valid group IDs and `formatGroupId()` for zero-padding.
 - **Last two digits = index** of the card within that group (01, 02, 03, …).
+
+## Skill trees and `AbilityGroupId`
+
+- **Do not invent a new leading digit** without adding a matching **`AbilityGroupId`** enum member and using `formatGroupId(thatGroup)` when constructing ids in code.
+- **`05` = Earth** (`AbilityGroupId.Earth`). Earth cards belong under `card_defs/earth_core/`.
+- **`06` = Utility** (`AbilityGroupId.Utility`) for cross-cutting utility cards that are not Earth-specific; keep them under `card_defs/utility/`.
+- **Adding a new thematic tree**: (1) append a new `AbilityGroupId` value, (2) assign ids as `formatGroupId(newGroup) + two-digit index`, (3) place all related ability folders under a new `card_defs/<tree_folder>/` (same co-location pattern as above).
 
 ## What goes in the ability file
 

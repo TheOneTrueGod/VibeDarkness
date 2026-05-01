@@ -14,6 +14,7 @@ export interface RoundProgressMilestoneContext {
     units: Unit[];
     eventBus: EventBus;
     applyStaminaPulse: () => void;
+    applyChargedRocksLightChargePulse: () => void;
     applyRoundChargePulse: () => void;
     bleedFx?: BleedDamageFxContext;
 }
@@ -25,6 +26,7 @@ export interface RoundProgressMilestoneContext {
 export function onRoundProgressMilestone(milestone: RoundProgressMilestone, ctx: RoundProgressMilestoneContext): void {
     if (milestone === 'round_start') {
         ctx.applyStaminaPulse();
+        ctx.applyChargedRocksLightChargePulse();
         ctx.applyRoundChargePulse();
     }
     tickBleedForRoundMilestone(ctx.units, ctx.eventBus, ctx.bleedFx);

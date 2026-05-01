@@ -51,6 +51,7 @@ import { triggerAbilityEvent } from '../abilities/events';
 import { CantDieBuff } from '../buffs/CantDieBuff';
 import { BEDROCK_SCAVENGER_PASSIVE_ID, countStoneTilesInTremorsense, getBedrockScavengerRoundStartArmour } from '../abilities/earthCoreMeleePassives';
 import { grantEarthCoreArmourFromSource } from '../abilities/earthCoreArmour';
+import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -60,6 +61,8 @@ export { MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/CardManager';
 const ROUND_DURATION = 10;
 /** Number of stamina charges granted by each round-start recovery. */
 export const ROUND_STAMINA_RECOVERY = 4;
+const CHARGED_ROCKS_NODE_ID = 'charged_rocks';
+const CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND = 1;
 
 /** Fixed time step (seconds): 60 ticks/second. */
 const FIXED_DT = 1 / 60;
@@ -1181,6 +1184,7 @@ export class GameEngine implements EngineContext {
             units: this.units,
             eventBus: this.eventBus,
             applyStaminaPulse: () => this.applyStaminaPulse(),
+            applyChargedRocksLightChargePulse: () => this.applyChargedRocksLightChargePulse(),
             applyRoundChargePulse: () => this.applyRoundChargePulse(),
             bleedFx: {
                 addEffect: (e: Effect) => this.addEffect(e),
@@ -1206,6 +1210,22 @@ export class GameEngine implements EngineContext {
                 unit,
                 'staminaCharge',
                 Math.max(0, unit.stamina * ROUND_STAMINA_RECOVERY),
+                (min, max) => this.generateRandomInteger(min, max),
+            );
+            syncNestedCardAbilityState(unit);
+        }
+    }
+
+    /** Charged Rocks passive: grants one lightCharge at round start. */
+    private applyChargedRocksLightChargePulse(): void {
+        for (const unit of this.units) {
+            if (!unit.isAlive()) continue;
+            const researched = this.getPlayerResearchNodes(unit.ownerId, CRYSTAL_ROCKS_TREE_ID);
+            if (!researched.includes(CHARGED_ROCKS_NODE_ID)) continue;
+            addRecoveryChargeToUnitAbilities(
+                unit,
+                'lightCharge',
+                CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND,
                 (min, max) => this.generateRandomInteger(min, max),
             );
             syncNestedCardAbilityState(unit);

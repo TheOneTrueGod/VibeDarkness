@@ -1,4 +1,4 @@
-import { EARTH_CORE_SHARED_DIAMETER } from '../constants/earthCoreConstants';
+import { EARTH_CORE_SHARED_DIAMETER } from '../card_defs/earth_core/earthCoreConstants';
 import type { StoneTileState } from '../terrain/TerrainGrid';
 
 /**

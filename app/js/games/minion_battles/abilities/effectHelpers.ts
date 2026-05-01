@@ -4,6 +4,7 @@
  */
 
 import type { Unit } from '../game/units/Unit';
+import type { EventBus } from '../game/EventBus';
 import type { AttackBlockedInfo } from './Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../game/forceMove';
@@ -117,7 +118,7 @@ export function drawCardForPlayer(
 
 interface EngineWithGetUnit {
     getUnit?(id: string): Unit | undefined;
-    eventBus?: { emit: (event: string, data: unknown) => void };
+    eventBus?: EventBus;
     cancelActiveAbility?(unitId: string, abilityId: string): void;
 }
 

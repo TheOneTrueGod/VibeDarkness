@@ -17,7 +17,7 @@ afterAll(() => {
     vi.unstubAllGlobals();
 });
 import type { MinionBattlesApi } from '../api/minionBattlesApi';
-import type { PlayerState } from '../../../../types';
+import type { PlayerState } from '../../../types';
 import { BattleSession } from './BattleSession';
 import type { BattleOrder } from './types';
 

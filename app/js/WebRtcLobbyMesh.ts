@@ -70,7 +70,7 @@ export class WebRtcLobbyMesh {
         if (!entry) {
             // Create a non-initiator connection if we don't have one yet.
             await this.createConnection(fromPlayerId, false);
-            entry = this.peers.get(fromPlayerId) ?? null;
+            entry = this.peers.get(fromPlayerId);
         }
         if (!entry) return;
         const { pc } = entry;

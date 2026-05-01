@@ -60,3 +60,8 @@ When adding or editing **tooltips, hover boxes, popovers, or any floating help U
 - When in doubt:
   - Look at similar components in the same area and copy their structure and base classes, then adapt as needed.
 
+## After edits
+
+- Run `npx tsc` and fix any issues it finds.
+- Run **`npm run lint`** and **`npm run test`** when your changes affect behaviour, types, or shared utilities (Vitest covers the repo).
+

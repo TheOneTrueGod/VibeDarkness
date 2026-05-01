@@ -2,6 +2,7 @@ import { abilityHasTag, type AbilityStatic } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import { STICK_SWORD_NODE_EXTRA_USES, STICK_SWORD_TREE_ID } from '../../../researchTrees/trees/stick_sword';
 import { TRAINING_NODE_CHARGING_PUNCH, TRAINING_TREE_ID } from '../../../researchTrees/trees/training';
+import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 import { getAbility } from './AbilityRegistry';
 
 export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge' | 'roundCharge';
@@ -31,7 +32,7 @@ const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
     '0103': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 2 }] }, // Swing Bat
     throw_rock: { maxUses: 6, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
     throw_knife: { maxUses: 5, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
-    '0501': { maxUses: 1, recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Throw Torch
+    '0601': { maxUses: 1, recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Throw Torch
     throw_charged_rock: { maxUses: 3, recoveries: [{ chargeType: 'lightCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
     '0110': { maxUses: 1, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Shining Block
     '0105': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Laser Sword
@@ -60,7 +61,7 @@ export function ensureAbilityRuntimeState(unit: Unit, abilityId: string): void {
 const SWING_SWORD_ABILITY_ID = '0112';
 const SWING_SWORD_EXTRA_USES = 2;
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
-const THROW_CHARGED_ROCK_ABILITY_ID = 'throw_charged_rock';
+const CRYSTAL_ROCKS_NODE_CHARGED_ROCKS = 'charged_rocks';
 const THROW_ROCK_USES_PENALTY_WITH_CHARGED = 3;
 const PUNCH_ABILITY_ID = '0102';
 const PUNCH_CHARGING_RESEARCH_USES_PENALTY = 1;
@@ -80,9 +81,13 @@ export function applyStickSwordResearchToAbilityRuntime(
     runtime.currentUses += SWING_SWORD_EXTRA_USES;
 }
 
-/** Throw Rock loses max uses while Throw Charged Rock is equipped. */
-function applyThrowRockUsePenaltyForChargedRock(unit: Unit): void {
-    if (!unit.abilities.includes(THROW_CHARGED_ROCK_ABILITY_ID)) return;
+/** Charged Rocks research: Throw Rock has fewer max uses. */
+export function applyCrystalRocksResearchToAbilityRuntime(
+    unit: Unit,
+    getResearchNodes: (treeId: string) => string[],
+): void {
+    const nodes = getResearchNodes(CRYSTAL_ROCKS_TREE_ID);
+    if (!nodes.includes(CRYSTAL_ROCKS_NODE_CHARGED_ROCKS)) return;
     if (!unit.abilities.includes(THROW_ROCK_ABILITY_ID)) return;
     ensureAbilityRuntimeState(unit, THROW_ROCK_ABILITY_ID);
     const runtime = unit.abilityRuntime[THROW_ROCK_ABILITY_ID];
@@ -110,7 +115,6 @@ export function initializeAbilityRuntimeForUnit(unit: Unit): void {
     for (const abilityId of unit.abilities) {
         ensureAbilityRuntimeState(unit, abilityId);
     }
-    applyThrowRockUsePenaltyForChargedRock(unit);
     syncNestedCardAbilityState(unit);
 }
 

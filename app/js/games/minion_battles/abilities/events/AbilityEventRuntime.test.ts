@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AbilityEventType } from '../Ability';
+import { AbilityEventType, type AbilityStatic } from '../Ability';
 import { ensureAbilityRuntimeState } from '../abilityUses';
 import { Unit } from '../../game/units/Unit';
 import { EventBus } from '../../game/EventBus';
@@ -60,7 +60,7 @@ describe('AbilityEventRuntime', () => {
                     },
                 ],
             },
-        };
+        } as AbilityStatic;
 
         const context: AbilityEventRuntimeContext = {
             engine: {
@@ -122,7 +122,7 @@ describe('AbilityEventRuntime', () => {
                     },
                 ],
             },
-        };
+        } as AbilityStatic;
 
         const context: AbilityEventRuntimeContext = {
             engine: {
@@ -177,7 +177,7 @@ describe('AbilityEventRuntime', () => {
                     },
                 ],
             },
-        };
+        } as AbilityStatic;
 
         const context: AbilityEventRuntimeContext = {
             engine: {
@@ -238,7 +238,7 @@ describe('AbilityEventRuntime', () => {
                     },
                 ],
             },
-        };
+        } as AbilityStatic;
 
         const context: AbilityEventRuntimeContext = {
             engine: {
@@ -247,6 +247,7 @@ describe('AbilityEventRuntime', () => {
                 getUnit: () => caster,
                 eventBus: new EventBus(),
                 generateRandomInteger: (min) => min,
+                getPlayerResearchNodes: () => [],
             },
             caster,
             ability,

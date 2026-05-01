@@ -98,6 +98,6 @@ export interface UnitAITree<TTreeName extends string = string, TNodeIds extends 
 export function isNodeInTree<T extends UnitAITree>(
     tree: T,
     nodeId: string,
-): nodeId is keyof T['nodes'] {
+): nodeId is Extract<keyof T['nodes'], string> {
     return nodeId in tree.nodes;
 }

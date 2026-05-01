@@ -7,7 +7,7 @@ import {
     EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
     EARTH_CORE_RESONANCE_GAIN_ON_ARMOUR_LOST_FROM_DAMAGE,
     EARTH_CORE_RESONANCE_MAX,
-} from '../constants/earthCoreConstants';
+} from '../card_defs/earth_core/earthCoreConstants';
 import { IMPACT_CONVERSION_PASSIVE_ID } from '../abilities/earthCoreMeleePassives';
 import { grantEarthCoreArmourFromSource } from '../abilities/earthCoreArmour';
 

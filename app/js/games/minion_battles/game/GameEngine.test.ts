@@ -14,9 +14,10 @@ import {
     EARTH_CORE_RESONANCE_GAIN_ROUND_START,
     EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
     EARTH_CORE_RESONANCE_MAX,
-} from '../constants/earthCoreConstants';
+} from '../card_defs/earth_core/earthCoreConstants';
 import { BEDROCK_SCAVENGER_PASSIVE_ID } from '../abilities/earthCoreMeleePassives';
 import { getEarthCoreArmour } from '../abilities/earthCoreArmour';
+import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
 
 describe('GameEngine', () => {
     it.each([
@@ -245,6 +246,43 @@ describe('GameEngine', () => {
 
         engine.stepSimulationFixedTicks(1);
         expect(getEarthCoreArmour(unit)).toBe(3);
+
+        engine.destroy();
+    });
+
+    it('grants one lightCharge at round_start when charged_rocks is researched', () => {
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.setPlayerResearchTreesByPlayer({
+            p1: {
+                crystal_rocks: ['charged_rocks'],
+            },
+        });
+        const unit = new Unit({
+            id: 'unit_charged_rocks',
+            x: 100,
+            y: 100,
+            hp: 100,
+            speed: 100,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+            name: 'Charged Rocks Tester',
+            abilities: ['throw_charged_rock'],
+        });
+        initializeAbilityRuntimeForUnit(unit);
+        const runtime = unit.abilityRuntime.throw_charged_rock;
+        expect(runtime).toBeDefined();
+        if (!runtime) {
+            engine.destroy();
+            return;
+        }
+        runtime.currentUses = Math.max(0, runtime.currentUses - 1);
+        expect(runtime.currentUses).toBe(2);
+        engine.addUnit(unit);
+
+        engine.stepSimulationFixedTicks(1);
+        expect(unit.abilityRuntime.throw_charged_rock?.currentUses).toBe(3);
 
         engine.destroy();
     });

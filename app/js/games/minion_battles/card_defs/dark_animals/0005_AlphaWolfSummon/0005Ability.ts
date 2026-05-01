@@ -44,6 +44,7 @@ interface GameEngineLike {
     gameTick: number;
     gameTime: number;
     eventBus: EventBus;
+    allocateObjectId?(prefix?: string): string;
 }
 
 const SUMMON_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">

@@ -8,6 +8,7 @@ import { getCardDef, asCardDefId } from '../../card_defs';
 import type { CardDefId } from '../../card_defs';
 import type { EngineContext } from '../EngineContext';
 import type { SerializedCardInstance } from '../types';
+import type { Unit } from '../units/Unit';
 
 /** Maximum cards in hand. Draw at round start if below this. */
 export const MAX_HAND_SIZE = 6;

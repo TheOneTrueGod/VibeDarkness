@@ -14,7 +14,7 @@ export const crystalRocksTree: ResearchTreeDef = {
         {
             id: 'charged_rocks',
             title: 'Charged Rocks',
-            description: 'Infuse rocks with unstable crystal energy.',
+            description: 'Infuse rocks with unstable crystal energy. Passive: gain {1 lightCharge} at round start.',
             order: 10,
             position: { x: 240, y: 180 },
             prereqNodeIds: [],

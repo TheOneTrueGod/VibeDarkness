@@ -5,6 +5,6 @@ export const throwTorchUtilityItem: ItemDef = {
     id: '005',
     name: 'Torch',
     slots: ['utility'],
-    cardsToAdd: [{ cardId: '0501', count: 1 }],
+    cardsToAdd: [{ cardId: '0601', count: 1 }],
     icon: '005_throw_torch.svg',
 };

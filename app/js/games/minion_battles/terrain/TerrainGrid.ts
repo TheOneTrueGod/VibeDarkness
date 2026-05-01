@@ -10,7 +10,7 @@ import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
 import {
     EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
     EARTH_CORE_STONE_HEALTH,
-} from '../constants/earthCoreConstants';
+} from '../card_defs/earth_core/earthCoreConstants';
 
 /** Default cell size in pixels. */
 export const CELL_SIZE = 40;
@@ -132,8 +132,7 @@ export class TerrainGrid {
             this.stoneStateByIndex.set(this.indexOf(col, row), { state: nextState, health: nextHealth });
         }
 
-        if ((previousState !== 'cracked_rock' && nextState === 'cracked_rock')
-            || (previousState !== 'spent_rubble' && nextState === 'spent_rubble')) {
+        if ((previousState !== 'cracked_rock' && nextState === 'cracked_rock') || nextState === 'spent_rubble') {
             return {
                 col,
                 row,

@@ -46,6 +46,8 @@ export interface ActiveLobbyEntry {
 interface ApiResponse {
     success: boolean;
     error?: string;
+    /** Some account endpoints return `user` instead of `account`. */
+    user?: AccountInfo;
     account?: AccountInfo;
     accounts?: AccountInfo[];
     campaign?: import('./types').CampaignState;
@@ -59,6 +61,7 @@ interface ApiResponse {
     lastMessageId?: number | null;
     messages?: PollMessage[];
     messageId?: number;
+    chatEntry?: Record<string, unknown>;
     stats?: unknown;
     gameStateData?: Record<string, unknown>;
     character?: CampaignCharacterPayload;
@@ -512,7 +515,10 @@ export class LobbyClient {
             ? `/api/lobbies/${lobbyId}/games/${gameId}/snapshots/${gameTick}`
             : `/api/lobbies/${lobbyId}/games/${gameId}/snapshots`;
         const params = new URLSearchParams({ playerId: this._currentPlayerId ?? '' });
-        const data = await this.request(`${endpoint}?${params}`) as { snapshot: { gameTick: number; state: Record<string, unknown>; orders: Array<{ gameTick: number; order: Record<string, unknown> }> } | null; gameTick: number | null };
+        const data = await this.request(`${endpoint}?${params}`) as unknown as {
+            snapshot: { gameTick: number; state: Record<string, unknown>; orders: Array<{ gameTick: number; order: Record<string, unknown> }> } | null;
+            gameTick: number | null;
+        };
         if (!data.snapshot) return null;
         return {
             gameTick: data.snapshot.gameTick ?? data.gameTick ?? 0,
@@ -551,7 +557,7 @@ export class LobbyClient {
         }
         const data = await this.request(
             `/api/lobbies/${lobbyId}/games/${gameId}/minimal?${params}`,
-        ) as { gameTick: number | null; synchash: string | null; orders: Array<{ gameTick: number; order: Record<string, unknown> }> };
+        ) as unknown as { gameTick: number | null; synchash: string | null; orders: Array<{ gameTick: number; order: Record<string, unknown> }> };
         return {
             gameTick: data.gameTick ?? null,
             synchash: data.synchash ?? null,
@@ -568,7 +574,7 @@ export class LobbyClient {
         const params = new URLSearchParams({ playerId: this._currentPlayerId ?? '' });
         const data = await this.request(
             `/api/lobbies/${lobbyId}/games/${gameId}/orders/${checkpointGameTick}?${params}`,
-        ) as { orders: Array<{ gameTick: number; order: Record<string, unknown> }> | null; state: Record<string, unknown> | null; gameTick: number };
+        ) as unknown as { orders: Array<{ gameTick: number; order: Record<string, unknown> }> | null; state: Record<string, unknown> | null; gameTick: number };
         if (data.orders == null) return null;
         return {
             orders: data.orders,

@@ -8,7 +8,7 @@ export const DEFAULT_DAMAGE_MODIFIER_MULTIPLIER = 1;
  */
 export const ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES: Record<string, number> = {
     // Beast Claw does a double slash.
-    '0511': 0.5,
+    '0611': 0.5,
     // Pistol fires three shots.
     '0203': 1 / 3,
     // Shotgun fires five pellets.
