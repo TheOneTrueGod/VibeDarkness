@@ -1,16 +1,43 @@
-- Wolves are showing an attack forecast in the timeline but not doing it
-- Enemies can move while stunned
-- Fix bug where it doesn't use the card selected and instead
-- Slime has slightly too much health
-
-
+People's Choices
 Chip:  Crystal + Crystal
 Clarence:  Crystal + Crystal
 Voen: metal
-- Turn indicator isn't obvious enough
+
+Feedback April 30, 2026
+- Increase the time it takes for a wolf to charge up its attack
+- Hints on loss screen
+- Make it so throw rock 2 shots a wolf
+- Music and sound effects
+- Make a "Creating an ability" skill
+- Scroll wheel to zoom in and out (this should not change the actual distance between things)
+- Shift click to make movement should in a straight line
+- Make rock take precedence graphically over trees, so it doesn't look like there's gaps to move through
+- There's an invisible wall in the top rightish of map 49_50
+- You can keep playing when it's in "waiting for host" state
+- Implement that "spawn point" idea.  In the second mission, have wolves only spawn from the west of the player.
+- Create a way for admins to give a player a mission result.  Maybe "Copy my mission result" or something like that to give me options
+- Make the dark damage animation more clear  Maybe larger particles that spawn farther away
+- Make the campfire lose its light slower (but still be noticeable on turn 1)
+- Adjust the cave so the campfire gives off light
+- Make the darkness damage time take longer
+- Stop long distance moves if an enemy gets within... 60?
+- Do that plan you had for making effects more "In your face"
+  - Have an "animation layer" where these things happen on.  Make it in front of the existing layers.
+	- At the start of the fight, show the objectives in the center of the screen, then have them "animate" over to the right.  Replace part of the chat window with "objectives".
+	- At the start of a round, show "Round Start" in big letters, and have the recoverySurges of the current player appear in big icons, then have particles fly out of them and to the relevant cards
+	- When the dodge skill is used, have the particles fly out of the player's unit, and into the cards so the cause and effect are more tied together
+- Reduce the number of clicks needed to go through the intro sequence (the "Start game" click is unneccessary, the voting screen is unneccessary when there's a spectator or in single player)
+- Make the round marker more prominent.  Maybe a semicircle in the middle above the turn indicator?
+
+
+--- Carried forward feedback
+- Wolves are showing an attack forecast in the timeline but not doing it
+- Enemies can move while stunned
+- Fix bug where it doesn't use the card selected and instead
 - Make sure that a new mission result overrides an old one
-- Zoom
-Move "Your Turn" down to line between timeline and cards
+
+--- OLD FEEDBACK
+
 - Show an animation for when it's your Turn
 - The Round indicator is too far away from the main sightlines of the player, and doesn't show how long it'll be until the round ends
 - Tooltips on timeline can't be read
