@@ -18,6 +18,24 @@ Important: ability implementation files belong in `card_defs/` folders (not dire
 - **Helpers**: See utility files in `abilities/` (`targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`) for available helpers. When adding new reusable behaviour, add or extend a helper first, then call it from the ability.
 - **Hitboxes**: For hit-detection shapes, see the **working-with-hitboxes** skill.
 
+## Juicing the game
+
+**Juice** is the presentation and feedback that makes mechanics **readable and satisfying**: telegraph → payoff → read the result. Implementing correct rules is necessary but not sufficient; consider how the cast **feels** in battle.
+
+Ask for each ability:
+
+- **Anticipation** — Does windup and targeting make the intent obvious? (`prefireTime`, `renderTargetingPreview`, early `abilityTimings` bands.)
+- **Impact** — Is the payoff moment clear? Prefer aligning one-shot `doCardEffect` thresholds with meaningful timing intervals and phases (see **`abilityTimings`** below).
+- **Aftermath** — Is recovery or lingering feedback clear enough that the cadence isn’t muddy? (timeline labels/phases, short effects.)
+
+**Hooks in this codebase**
+
+- **`abilityTimings`** — Defines phase colours and the battle timeline; keep intervals truthful so rings match what the sim does at each second.
+- **Damage feedback** — `GameRenderer` subscribes to `damage_taken` on the event bus and runs a brief **hit flash** on the damaged unit (`game/GameRenderer.ts`). Flows that apply damage through normal paths get this largely “for free.”
+- **Battle effects** — Particle bursts, glows, etc. via the effects system (`game/effects/Effect.ts`, defs in `game/effectDef.ts`), typically spawned from ability logic or helpers with `engine.addEffect(...)` where appropriate.
+- **`abilityEvents`** — Primarily **gameplay rule** hooks (`abilities/events/AbilityEffect.ts`). Prefer presets and inline rules; use **`custom`** effects only when needed, with the required comment, consistent with **`abilityEvents` authoring order** below.
+- **Player-facing copy** — Names, descriptions, and tooltip rhythm: **writing-style-abilities** (`.cursor/skills/narrative/writing-style-abilities/SKILL.md`).
+
 ## `abilityEvents` authoring order
 
 When implementing `abilityEvents`, follow this policy:
@@ -138,3 +156,10 @@ While knockback is active, the unit cannot move or act. If it hits a wall, it bo
 - [ ] Ability registered in `AbilityRegistry.ts`; card def registered in `card_defs/index.ts`.
 - [ ] Character's card list includes the new card id if the character should have the card.
 - [ ] If the ability inflicts knockback: use `targetUnit.applyKnockback` with serializable params.
+
+### Juice / feel
+
+- [ ] Windup / impact / recovery line up with **`abilityTimings`** so the timeline matches the sim.
+- [ ] **`renderTargetingPreview`** matches what the ability actually hits where it affects fairness or clarity.
+- [ ] Damage path: if damage goes through usual `takeDamage` / event flow, hit flash applies; otherwise intentional extra feedback (effects / other presentation) was considered.
+- [ ] Tooltip and timeline wording don’t contradict timings (coordinate with narrative skill if needed).

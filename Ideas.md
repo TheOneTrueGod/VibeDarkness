@@ -4,6 +4,24 @@ Clarence:  Crystal + Crystal
 Voen: metal
 
 Feedback April 30, 2026
+
+Things I like
+- I liked the card system
+- Enjoyed the differences in the missions
+
+Things Gobi Doesn't like
+- The slowness is annoying
+
+- Make the darkness look more poisoney and deadly instead of just dark
+- Ramp up darkness damage over time
+- Boar didn't attack player 2
+- Swing Bat didn't upgrade with the appropriate research
+- Swing bat takes too long to cool down
+- timeline view scrolls horizontally when there's an ability icon
+- basic punch should only cost 1 stamina
+- In multiplayer, all units spawn on the same position
+- Spectators show up in the player list on the left
+- Raise shield doesn't do anything?
 - Increase the time it takes for a wolf to charge up its attack
 - Hints on loss screen
 - Make it so throw rock 2 shots a wolf
