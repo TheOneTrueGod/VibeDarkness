@@ -5,13 +5,14 @@ Voen: metal
 
 Feedback April 30, 2026
 
-Things I like
+Things Gobi liked
 - I liked the card system
 - Enjoyed the differences in the missions
 
 Things Gobi Doesn't like
 - The slowness is annoying
 
+- The alpha wolf is stunlockable.  introduce that "decaying stuns" mechanic.
 - Make the darkness look more poisoney and deadly instead of just dark
 - Ramp up darkness damage over time
 - Boar didn't attack player 2
