@@ -38,7 +38,10 @@ export interface RoundStartEvent {
 }
 
 export interface TurnEndEvent {
-    unitId: string;
+    /** @deprecated Prefer {@link unitIds} for parallel batches; still set for AI-only emit paths. */
+    unitId?: string;
+    /** All units whose parallel order batch ended (single bus emit per batch). */
+    unitIds?: string[];
 }
 
 export interface RoundEndEvent {

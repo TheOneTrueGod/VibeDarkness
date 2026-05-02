@@ -1,10 +1,8 @@
 /**
- * Two-player order turn test: verifies that in a minimal two-player setup,
- * the engine correctly alternates between players when each submits wait
- * orders with small (1-tile) movement, and that the game state advances
- * smoothly through multiple turn cycles.
+ * Two-player order turn test: verifies parallel order batches (multiple human waiters
+ * per pause), deterministic resume only after all orders, and turn_end batch semantics.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { GameEngine } from './GameEngine';
 import { Unit } from './units/Unit';
 import { resetGameObjectIdCounter } from './GameObject';
@@ -21,11 +19,20 @@ const FIXED_DT = 1 / 60;
 function stepEngine(engine: GameEngine, maxTicks: number): number {
     let ticks = 0;
     for (let i = 0; i < maxTicks; i++) {
-        (engine as any).fixedUpdate(FIXED_DT);
+        (engine as unknown as { fixedUpdate(dt: number): void }).fixedUpdate(FIXED_DT);
         ticks++;
         if (engine.waitingForOrders) break;
     }
     return ticks;
+}
+
+/** Order pause is deferred to the next tick boundary; may require more than one fixed step. */
+function advanceUntilOrderPause(engine: GameEngine, maxSteps = 24): void {
+    for (let i = 0; i < maxSteps; i++) {
+        (engine as unknown as { fixedUpdate(dt: number): void }).fixedUpdate(FIXED_DT);
+        if (engine.waitingForOrders != null) return;
+    }
+    throw new Error('expected waitingForOrders within maxSteps');
 }
 
 /** Create a minimal engine with two player-controlled units on a flat map. */
@@ -85,187 +92,149 @@ function makeWaitOrder(unitId: string, moveCol: number, moveRow: number): Battle
 }
 
 describe('Two-player order turns', () => {
-    it('pauses for player 1 on the first tick', () => {
+    it('pauses once with both player units in the parallel waiter list', () => {
         const { engine } = createTwoPlayerEngine();
 
-        stepEngine(engine, 1);
+        advanceUntilOrderPause(engine);
 
         expect(engine.waitingForOrders).not.toBeNull();
-        expect(engine.waitingForOrders!.ownerId).toBe('p1');
-        expect(engine.waitingForOrders!.unitId).toBe('unit_p1');
+        const w = engine.waitingForOrders!;
+        expect(w.waiters.map((x) => x.ownerId).sort()).toEqual(['p1', 'p2']);
+        expect(w.waiters.map((x) => x.unitId).sort()).toEqual(['unit_p1', 'unit_p2']);
 
         engine.destroy();
     });
 
-    it('resumes after player 1 submits a wait order', () => {
+    it('stays paused until both players submit in the same batch', () => {
         const { engine } = createTwoPlayerEngine();
 
-        stepEngine(engine, 1);
+        advanceUntilOrderPause(engine);
         expect(engine.waitingForOrders).not.toBeNull();
 
         engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
-
-        expect(engine.waitingForOrders).toBeNull();
-
-        engine.destroy();
-    });
-
-    it('pauses for player 2 after player 1 submits', () => {
-        const { engine } = createTwoPlayerEngine();
-
-        stepEngine(engine, 1);
-        expect(engine.waitingForOrders!.ownerId).toBe('p1');
-
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
-
-        // Advance; p2's unit also has canAct() = true, so engine should pause
-        // for p2 within a few ticks (it needs to process the queued order first).
-        stepEngine(engine, 5);
-
         expect(engine.waitingForOrders).not.toBeNull();
-        expect(engine.waitingForOrders!.ownerId).toBe('p2');
-        expect(engine.waitingForOrders!.unitId).toBe('unit_p2');
-
-        engine.destroy();
-    });
-
-    it('completes a full turn cycle: p1 → p2 → p1', () => {
-        const { engine } = createTwoPlayerEngine();
-
-        // --- Turn 1: Player 1 ---
-        stepEngine(engine, 1);
-        expect(engine.waitingForOrders!.ownerId).toBe('p1');
-        const tickBeforeP1Order = engine.gameTick;
-
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
-        expect(engine.waitingForOrders).toBeNull();
-
-        // --- Turn 1: Player 2 ---
-        stepEngine(engine, 5);
-        expect(engine.waitingForOrders).not.toBeNull();
-        expect(engine.waitingForOrders!.ownerId).toBe('p2');
 
         engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
         expect(engine.waitingForOrders).toBeNull();
 
-        // --- Both on cooldown; advance enough ticks for the wait cooldown to expire ---
-        // Wait cooldown is 1–3 seconds. Movement of 1 tile at 120 px/s on a 40px grid
-        // completes quickly, so the cooldown should end after the 1-second minimum.
-        // 1 second = 60 ticks. Add buffer for the unit update tick ordering.
+        engine.destroy();
+    });
+
+    it('emits a single turn_end with both unitIds when the parallel batch completes', () => {
+        const { engine } = createTwoPlayerEngine();
+        const emitSpy = vi.spyOn(engine.eventBus, 'emit');
+
+        advanceUntilOrderPause(engine);
+        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+
+        const turnEnds = emitSpy.mock.calls.filter((c) => c[0] === 'turn_end');
+        expect(turnEnds).toHaveLength(1);
+        expect(turnEnds[0]![1]).toMatchObject({
+            unitIds: ['unit_p1', 'unit_p2'],
+        });
+
+        emitSpy.mockRestore();
+        engine.destroy();
+    });
+
+    it('after both submit, advances and later pauses again for the next round', () => {
+        const { engine } = createTwoPlayerEngine();
+
+        advanceUntilOrderPause(engine);
+        expect(engine.waitingForOrders!.waiters).toHaveLength(2);
+
+        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        expect(engine.waitingForOrders).toBeNull();
+
         stepEngine(engine, 300);
 
-        // --- Turn 2: One of the players should get a turn ---
         expect(engine.waitingForOrders).not.toBeNull();
-        expect(engine.gameTick).toBeGreaterThan(tickBeforeP1Order);
-
-        // The first unit processed in the loop that finishes cooldown gets the turn.
-        // Since p1's unit is first in the units array, p1 should get the turn first.
-        expect(engine.waitingForOrders!.ownerId).toBe('p1');
+        expect(engine.waitingForOrders!.waiters.length).toBeGreaterThanOrEqual(1);
 
         engine.destroy();
     });
 
-    it('tracks the onWaitingForOrders callback through the cycle', () => {
+    it('tracks the onWaitingForOrders callback once per pause (not per partial submit)', () => {
         const { engine } = createTwoPlayerEngine();
 
         const turnLog: WaitingForOrders[] = [];
         engine.setOnWaitingForOrders((info) => {
-            turnLog.push({ ...info });
+            turnLog.push({
+                waiters: info.waiters.map((w) => ({ ...w })),
+                atTick: info.atTick,
+            });
         });
 
-        // Turn 1: p1
-        stepEngine(engine, 1);
+        advanceUntilOrderPause(engine);
         expect(turnLog).toHaveLength(1);
-        expect(turnLog[0].ownerId).toBe('p1');
+        expect(turnLog[0]!.waiters).toHaveLength(2);
 
         engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
-
-        // Turn 1: p2
-        stepEngine(engine, 5);
-        expect(turnLog).toHaveLength(2);
-        expect(turnLog[1].ownerId).toBe('p2');
+        expect(turnLog).toHaveLength(1);
 
         engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        expect(turnLog).toHaveLength(1);
 
-        // Turn 2: p1 again
         stepEngine(engine, 300);
-        expect(turnLog).toHaveLength(3);
-        expect(turnLog[2].ownerId).toBe('p1');
+        expect(turnLog.length).toBeGreaterThanOrEqual(2);
 
         engine.destroy();
     });
 
-    it('advances gameTick and gameTime between turns', () => {
+    it('advances gameTick and gameTime after a full batch', () => {
         const { engine } = createTwoPlayerEngine();
 
-        stepEngine(engine, 1);
+        advanceUntilOrderPause(engine);
         const tick1 = engine.gameTick;
         const time1 = engine.gameTime;
 
         engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
         stepEngine(engine, 5);
 
-        const tick2 = engine.gameTick;
-        const time2 = engine.gameTime;
-
-        expect(tick2).toBeGreaterThan(tick1);
-        expect(time2).toBeGreaterThan(time1);
-
-        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
-        stepEngine(engine, 300);
-
-        expect(engine.gameTick).toBeGreaterThan(tick2);
-        expect(engine.gameTime).toBeGreaterThan(time2);
+        expect(engine.gameTick).toBeGreaterThan(tick1);
+        expect(engine.gameTime).toBeGreaterThan(time1);
 
         engine.destroy();
     });
 
-    it('snapshotIndex increments with each turn', () => {
+    it('snapshotIndex increments on pause but not on partial batch submit', () => {
         const { engine } = createTwoPlayerEngine();
 
-        stepEngine(engine, 1);
-        const snap1 = engine.snapshotIndex;
+        advanceUntilOrderPause(engine);
+        const snapPause = engine.snapshotIndex;
 
         engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
-        stepEngine(engine, 5);
-        const snap2 = engine.snapshotIndex;
+        expect(engine.snapshotIndex).toBe(snapPause);
 
         engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
-        stepEngine(engine, 300);
-        const snap3 = engine.snapshotIndex;
+        expect(engine.waitingForOrders).toBeNull();
 
-        expect(snap2).toBe(snap1 + 1);
-        expect(snap3).toBe(snap2 + 1);
+        stepEngine(engine, 300);
+        expect(engine.snapshotIndex).toBe(snapPause + 1);
 
         engine.destroy();
     });
 
-    it('simulates remote order delivery via queueOrder + resumeAfterOrders', () => {
+    it('simulates remote order delivery via queueOrder + tryResumeParallel', () => {
         const { engine } = createTwoPlayerEngine();
 
-        // p1's turn
-        stepEngine(engine, 1);
-        expect(engine.waitingForOrders!.ownerId).toBe('p1');
+        advanceUntilOrderPause(engine);
+        expect(engine.waitingForOrders!.waiters.some((w) => w.ownerId === 'p1')).toBe(true);
 
-        // Simulate p1 submitting locally
         engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        expect(engine.waitingForOrders).not.toBeNull();
 
-        // p2's turn
-        stepEngine(engine, 5);
-        expect(engine.waitingForOrders!.ownerId).toBe('p2');
-
-        // Simulate remote order delivery: the other client submitted for p2,
-        // and we receive it via polling (queueOrder + resumeAfterOrders).
-        const atTick = engine.gameTick + 1;
+        const atTick = engine.waitingForOrders!.atTick;
         engine.queueOrder(atTick, makeWaitOrder('unit_p2', 9, 5));
-        engine.resumeAfterOrders();
+        engine.tryResumeParallel();
 
         expect(engine.waitingForOrders).toBeNull();
 
-        // Advance to next turn
         stepEngine(engine, 300);
         expect(engine.waitingForOrders).not.toBeNull();
-        expect(engine.waitingForOrders!.ownerId).toBe('p1');
 
         engine.destroy();
     });
@@ -276,25 +245,22 @@ describe('Two-player order turns', () => {
         let p2Col = 8;
 
         for (let cycle = 0; cycle < 3; cycle++) {
-            // p1's turn
             stepEngine(engine, 300);
-            expect(engine.waitingForOrders).not.toBeNull();
-            expect(engine.waitingForOrders!.ownerId).toBe('p1');
+            const batch = engine.waitingForOrders;
+            expect(batch).not.toBeNull();
 
-            p1Col++;
-            engine.applyOrder(makeWaitOrder('unit_p1', p1Col, 5));
-
-            // p2's turn
-            stepEngine(engine, 300);
-            expect(engine.waitingForOrders).not.toBeNull();
-            expect(engine.waitingForOrders!.ownerId).toBe('p2');
-
-            p2Col++;
-            engine.applyOrder(makeWaitOrder('unit_p2', p2Col, 5));
+            for (const waiter of batch!.waiters) {
+                if (waiter.unitId === 'unit_p1') {
+                    p1Col++;
+                    engine.applyOrder(makeWaitOrder('unit_p1', p1Col, 5));
+                } else if (waiter.unitId === 'unit_p2') {
+                    p2Col++;
+                    engine.applyOrder(makeWaitOrder('unit_p2', p2Col, 5));
+                }
+            }
+            expect(engine.waitingForOrders).toBeNull();
         }
 
-        // After 3 full cycles, both units should still be alive and the
-        // engine should be ready for the next turn.
         expect(unitP1.isAlive()).toBe(true);
         expect(unitP2.isAlive()).toBe(true);
 

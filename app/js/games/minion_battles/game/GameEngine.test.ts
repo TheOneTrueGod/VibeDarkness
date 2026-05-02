@@ -64,7 +64,7 @@ describe('GameEngine', () => {
         engine.gameTick = 330;
         engine.roundNumber = 2;
         engine.snapshotIndex = 3;
-        engine.waitingForOrders = { unitId: 'unit_1', ownerId: 'p1' };
+        engine.waitingForOrders = { waiters: [{ unitId: 'unit_1', ownerId: 'p1' }], atTick: 331 };
         engine.pendingOrders = [
             { gameTick: 331, order: { unitId: 'unit_1', abilityId: 'wait', targets: [] } },
         ];

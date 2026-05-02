@@ -482,7 +482,8 @@ export class GameRenderer {
         } | null;
         currentTargets: unknown[];
         mouseWorld: { x: number; y: number };
-        waitingForOrders: { unitId: string } | null;
+        waitingForOrders: { unitId?: string } | null;
+        previewOrderUnitId?: string | null;
     } | null = null;
 
     /** Main render call: sync all visuals with engine state. */
@@ -510,7 +511,8 @@ export class GameRenderer {
             } | null;
             currentTargets: unknown[];
             mouseWorld: { x: number; y: number };
-            waitingForOrders: { unitId: string } | null;
+            waitingForOrders: { unitId?: string } | null;
+            previewOrderUnitId?: string | null;
         } | null,
     ): void {
         if (!this.initialized) return;
@@ -1009,12 +1011,13 @@ export class GameRenderer {
             return;
         }
         const ability = ts.selectedAbility;
-        if (!ability?.renderTargetingPreview || !ts.waitingForOrders) {
+        const previewUnitId = ts.previewOrderUnitId ?? ts.waitingForOrders?.unitId;
+        if (!ability?.renderTargetingPreview || !previewUnitId) {
             this.targetingPreviewGraphics.clear();
             return;
         }
 
-        const caster = engine.getUnit(ts.waitingForOrders!.unitId);
+        const caster = engine.getUnit(previewUnitId);
         if (!caster) {
             this.targetingPreviewGraphics.clear();
             return;

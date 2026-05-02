@@ -41,7 +41,23 @@ describe('remoteOrdersToApply', () => {
 
     it('with opts null, ignores appliedKeys (only tick / waiting rules)', () => {
         const serverOrders = [order(5, 'x')];
-        const pending = remoteOrdersToApply(serverOrders, 5, 'x', null);
+        const pending = remoteOrdersToApply(serverOrders, 5, ['x'], null);
         expect(pending).toHaveLength(1);
+    });
+
+    it('includes current-tick orders for any listed waiting unit id', () => {
+        const state = {
+            units: [
+                { id: 'unit_a', ownerId: 'p1' },
+                { id: 'unit_b', ownerId: 'p1' },
+            ],
+        };
+        const serverOrders = [order(10, 'unit_a'), order(10, 'unit_b')];
+        const pending = remoteOrdersToApply(serverOrders, 10, ['unit_a', 'unit_b'], {
+            localPlayerId: 'p1',
+            state,
+            appliedKeys: new Set(),
+        });
+        expect(pending.map((o) => (o.order as { unitId: string }).unitId).sort()).toEqual(['unit_a', 'unit_b']);
     });
 });

@@ -18,7 +18,7 @@ import { computeSynchash } from '../utils/synchash';
 import { HostGameSyncContextController } from './SyncContextControllers/HostGameSyncContextController';
 import { ClientGameSyncContextController } from './SyncContextControllers/ClientGameSyncContextController';
 import { LobbyClient } from '../LobbyClient';
-import { SerializedGameState } from '../games/minion_battles/game/types';
+import { normalizeWaitingForOrdersFromJSON, SerializedGameState } from '../games/minion_battles/game/types';
 
 /** Must match GameEngine.CHECKPOINT_INTERVAL */
 const CHECKPOINT_INTERVAL = 10;
@@ -33,18 +33,30 @@ function logOrderPoll(event: string, details: Record<string, unknown> = {}): voi
   console.debug(`[GameSync] ${event}`, details);
 }
 
+function gameTickFromState(state: Record<string, unknown>): number {
+  const t = state.gameTick ?? state.game_tick;
+  return typeof t === 'number' ? t : Number(t) || 0;
+}
+
+/** Unit ids for all units in the current parallel order batch, or null if not waiting. */
+export function extractWaitingUnitIds(state: Record<string, unknown>): string[] | null {
+  const norm = normalizeWaitingForOrdersFromJSON(state.waitingForOrders, gameTickFromState(state));
+  return norm ? norm.waiters.map((w) => w.unitId) : null;
+}
+
 export function isWaitingForRemotePlayerOrder(
   state: Record<string, unknown>,
   localPlayerId: string,
 ): boolean {
-  const w = state.waitingForOrders as { ownerId?: string } | null | undefined;
-  return w != null && typeof w.ownerId === 'string' && w.ownerId !== localPlayerId;
+  const norm = normalizeWaitingForOrdersFromJSON(state.waitingForOrders, gameTickFromState(state));
+  if (!norm) return false;
+  return norm.waiters.some((w) => w.ownerId !== localPlayerId);
 }
 
-/** Unit id the engine is paused on, or null if not waiting for orders. */
+/** @deprecated Prefer {@link extractWaitingUnitIds}; first waiter only. */
 export function extractWaitingUnitId(state: Record<string, unknown>): string | null {
-  const w = state.waitingForOrders as { unitId?: string } | null | undefined;
-  return w != null && typeof w.unitId === 'string' ? w.unitId : null;
+  const ids = extractWaitingUnitIds(state);
+  return ids != null && ids.length > 0 ? ids[0]! : null;
 }
 
 function getUnitOwnerIdFromState(state: Record<string, unknown>, unitId: string): string | null {
@@ -90,7 +102,7 @@ type RemoteOrderFilterOpts = {
 export function remoteOrdersToApply(
   serverOrders: Array<{ gameTick: number; order: Record<string, unknown> }>,
   engineTick: number,
-  waitingUnitId: string | null,
+  waitingUnitIds: string[] | null,
   opts: RemoteOrderFilterOpts | null,
 ): Array<{ gameTick: number; order: Record<string, unknown> }> {
   return serverOrders.filter((o) => {
@@ -105,7 +117,7 @@ export function remoteOrdersToApply(
     if (t > engineTick) return true;
     if (t < engineTick) return false;
 
-    if (waitingUnitId != null && uid === waitingUnitId) return true;
+    if (waitingUnitIds != null && waitingUnitIds.includes(uid)) return true;
 
     if (opts != null) {
       const owner = getUnitOwnerIdFromState(opts.state, uid);
@@ -120,7 +132,10 @@ export function remoteOrdersToApply(
 export type EngineSnapshot = {
   gameTick: number;
   state: Record<string, unknown>;
-  waitingForOrders: { unitId: string; ownerId: string } | null;
+  waitingForOrders: {
+    waiters: Array<{ unitId: string; ownerId: string }>;
+    atTick: number;
+  } | null;
   /** Client hash for `state` at `gameTick`; null until computed or loaded from server. */
   synchash: string | null;
 }
@@ -204,7 +219,7 @@ export function GameSyncProvider({
     unitId: string;
     onApplied: () => void;
   };
-  const pendingOrderAckRef = useRef<PendingOrderAckHandle | null>(null);
+  const pendingOrderAcksRef = useRef<PendingOrderAckHandle[]>([]);
 
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
@@ -281,30 +296,30 @@ export function GameSyncProvider({
         return {
           pendingRemoteOrders: [] as Array<{ gameTick: number; order: Record<string, unknown> }>,
           engineTick: snapshot.gameTick,
-          waitingUnitId: null as string | null,
+          waitingUnitIds: null as string[] | null,
           stateForFilter: snapshot.state,
         };
       }
       const liveForTick = callbacks.getEngineSnapshot() ?? snapshot;
       const engineTick = Number(liveForTick.gameTick ?? snapshot.gameTick);
-      const waitingUnitId = extractWaitingUnitId(liveForTick.state ?? snapshot.state);
+      const waitingUnitIds = extractWaitingUnitIds(liveForTick.state ?? snapshot.state);
       const stateForFilter = liveForTick.state ?? snapshot.state;
       const pendingRemoteOrders = remoteOrdersToApply(
         minimalResult.orders,
         engineTick,
-        waitingUnitId,
+        waitingUnitIds,
         {
           localPlayerId: playerId,
           state: stateForFilter,
           appliedKeys: appliedRemoteOrdersRef.current,
         },
       );
-      return { pendingRemoteOrders, engineTick, waitingUnitId, stateForFilter };
+      return { pendingRemoteOrders, engineTick, waitingUnitIds, stateForFilter };
     },
     [playerId],
   );
 
-  /** Apply a non-empty pending list; fulfills {@link pendingOrderAckRef} when it matches the submit. */
+  /** Apply a non-empty pending list; fulfills matching {@link pendingOrderAcksRef} entries. */
   const applyPendingBattleOrderList = useCallback(
     (pendingRemoteOrders: Array<{ gameTick: number; order: Record<string, unknown> }>) => {
       const callbacks = battleCallbacksRef.current;
@@ -314,18 +329,18 @@ export function GameSyncProvider({
       callbacks.onOrdersReceived(pendingRemoteOrders);
       markAppliedRemoteOrders(pendingRemoteOrders, appliedRemoteOrdersRef.current);
 
-      const ack = pendingOrderAckRef.current;
-      if (
-        ack &&
-        pendingRemoteOrders.some(
-          (o) =>
-            o.gameTick === ack.atTick &&
-            typeof (o.order as { unitId?: unknown }).unitId === 'string' &&
-            (o.order as { unitId: string }).unitId === ack.unitId,
-        )
-      ) {
-        pendingOrderAckRef.current = null;
-        ack.onApplied();
+      const acks = pendingOrderAcksRef.current;
+      if (acks.length > 0) {
+        for (const o of pendingRemoteOrders) {
+          const uid = (o.order as { unitId?: unknown }).unitId;
+          if (typeof uid !== 'string') continue;
+          const idx = acks.findIndex((a) => a.atTick === o.gameTick && a.unitId === uid);
+          if (idx >= 0) {
+            const ack = acks[idx]!;
+            acks.splice(idx, 1);
+            ack.onApplied();
+          }
+        }
       }
 
       logOrderPoll('battle_orders_applied_from_minimal', {
@@ -337,7 +352,7 @@ export function GameSyncProvider({
 
   /**
    * One GET /minimal → filter → optionally apply. Returns whether any orders were applied.
-   * Fulfills {@link pendingOrderAckRef} when the applied batch includes the pending submit.
+   * Fulfills pending submit acks when the applied batch includes matching orders.
    */
   const applyBattleOrdersFromMinimalResult = useCallback(
     (minimalResult: MinimalStateResult, snapshot: EngineSnapshot): boolean => {
@@ -381,24 +396,25 @@ export function GameSyncProvider({
       await lobbyClient.saveGameOrders(lobbyId, gameId, checkpointGameTick, atTick, order);
 
       await new Promise<void>((resolve, reject) => {
-        pendingOrderAckRef.current = {
+        const handle: PendingOrderAckHandle = {
           checkpointGameTick,
           atTick,
           unitId,
           onApplied: () => resolve(),
         };
+        pendingOrderAcksRef.current.push(handle);
 
         void (async () => {
           try {
             const callbacks = battleCallbacksRef.current;
             if (!callbacks) {
-              pendingOrderAckRef.current = null;
+              pendingOrderAcksRef.current = pendingOrderAcksRef.current.filter((h) => h !== handle);
               reject(new Error('Battle callbacks not registered'));
               return;
             }
             const snap = callbacks.getEngineSnapshot();
             if (!snap) {
-              pendingOrderAckRef.current = null;
+              pendingOrderAcksRef.current = pendingOrderAcksRef.current.filter((h) => h !== handle);
               reject(new Error('Engine snapshot unavailable'));
               return;
             }
@@ -408,7 +424,7 @@ export function GameSyncProvider({
             }
             applyBattleOrdersFromMinimalResult(minimal, snap);
           } catch (e) {
-            pendingOrderAckRef.current = null;
+            pendingOrderAcksRef.current = pendingOrderAcksRef.current.filter((h) => h !== handle);
             reject(e instanceof Error ? e : new Error(String(e)));
           }
         })();
@@ -422,7 +438,7 @@ export function GameSyncProvider({
     if (callbacks == null) {
       appliedRemoteOrdersRef.current.clear();
       waitingForOrdersSynchashRef.current = null;
-      pendingOrderAckRef.current = null;
+      pendingOrderAcksRef.current = [];
     }
   }, []);
 
@@ -503,10 +519,15 @@ export function GameSyncProvider({
           engineTick,
           serverOrders: minimalResult.orders.length,
           pendingRemoteOrders: pendingRemoteOrders.length,
-          waitingUnitId: extractWaitingUnitId(liveSnap.state ?? snapshot.state),
+          waitingUnitIds: extractWaitingUnitIds(liveSnap.state ?? snapshot.state),
         });
 
         if (!isHost && serverTick < 0) {
+          console.info(
+            '[GameSync] UI: Waiting for host — snapshot not available',
+            'Minimal battle state poll returned no valid server game tick (gameTick missing or < 0), so the lobby has no host battle snapshot yet; orders stay disabled until the host publishes checkpoint state.',
+            { checkpointGameTick, serverTick: minimalResult.gameTick },
+          );
           setCanSubmitOrders(false);
           consecutiveWaitCountRef.current += 1;
           setWaitingForHostReason('Host snapshot not available yet');
@@ -764,15 +785,14 @@ export function GameSyncProvider({
             return;
           }
 
-          const waitingOnRemotePlayerOrder = snap.waitingForOrders.ownerId !== playerId;
-          const waitingOnSubmittedOrderAck = pendingOrderAckRef.current != null;
+          const waitingOnRemotePlayerOrder = isWaitingForRemotePlayerOrder(snap.state, playerId);
+          const waitingOnSubmittedOrderAck = pendingOrderAcksRef.current.length > 0;
           if (!waitingOnRemotePlayerOrder && !waitingOnSubmittedOrderAck) {
             return;
           }
 
-          const nextTick = snap.gameTick + 1;
           const checkpointGameTick =
-            Math.floor(nextTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+            Math.floor(snap.gameTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
           await runMinimalBattlePoll(checkpointGameTick, snap);
         }
       })();

@@ -254,6 +254,7 @@ export class BattleSession {
             engine.isPaused = false;
         }
 
+        engine.clearDeferredOrderPauseAndAccumulator();
         engine.start();
 
         if (engine.synchash == null) {
@@ -282,7 +283,9 @@ export class BattleSession {
         return {
             gameTick: eng.gameTick,
             state: eng.toJSON() as unknown as Record<string, unknown>,
-            waitingForOrders: w ? { unitId: w.unitId, ownerId: w.ownerId } : null,
+            waitingForOrders: w
+                ? { waiters: w.waiters.map((x) => ({ unitId: x.unitId, ownerId: x.ownerId })), atTick: w.atTick }
+                : null,
             synchash: eng.synchash,
         };
     }
@@ -294,8 +297,12 @@ export class BattleSession {
         for (const { gameTick: atTick, order } of orders) {
             eng.queueOrder(atTick, order as unknown as BattleOrder);
         }
-        eng.resumeAfterOrders();
-        this.emit({ type: 'pause_state', paused: false, waitingForOrders: null });
+        eng.tryResumeParallel();
+        this.emit({
+            type: 'pause_state',
+            paused: !!eng.waitingForOrders,
+            waitingForOrders: eng.waitingForOrders,
+        });
         this.emit({ type: 'card_state', engine: eng });
     }
 
@@ -307,9 +314,11 @@ export class BattleSession {
      */
     async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
         const engine = this.engine;
-        if (!engine?.waitingForOrders || !opts.canSubmitOrders) return;
+        const batch = engine?.waitingForOrders;
+        if (!batch || !opts.canSubmitOrders) return;
+        if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;
 
-        const atTick = engine.gameTick + 1;
+        const atTick = batch.atTick;
         const checkpointGameTick = Math.floor(atTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
         const orderRecord: Record<string, unknown> = JSON.parse(JSON.stringify(order));
 
@@ -327,14 +336,25 @@ export class BattleSession {
     /** Host: force a wait order and persist checkpoint (skip turn). */
     skipTurn(): void {
         const engine = this.engine;
-        if (!engine?.waitingForOrders || !this.config.isHost) return;
-        engine.applyOrder({
-            unitId: engine.waitingForOrders.unitId,
-            abilityId: 'wait',
-            targets: [],
+        const batch = engine?.waitingForOrders;
+        if (!batch || !this.config.isHost) return;
+        const atTick = batch.atTick;
+        for (const waiter of batch.waiters) {
+            const unit = engine.getUnit(waiter.unitId);
+            if (!unit?.isPlayerControlled()) continue;
+            if (engine.hasPendingOrderForUnit(waiter.unitId, atTick)) continue;
+            engine.queueOrder(atTick, {
+                unitId: waiter.unitId,
+                abilityId: 'wait',
+                targets: [],
+            });
+        }
+        engine.tryResumeParallel();
+        this.emit({
+            type: 'pause_state',
+            paused: !!engine.waitingForOrders,
+            waitingForOrders: engine.waitingForOrders,
         });
-        engine.resumeAfterOrders();
-        this.emit({ type: 'pause_state', paused: false, waitingForOrders: null });
         this.emit({ type: 'card_state', engine });
         const ordersFormatted = engine.pendingOrders.map((o) => ({
             gameTick: o.gameTick,
@@ -350,10 +370,13 @@ export class BattleSession {
     /** Re-emit waiting-for-orders UI after a full-state sync (same tick). */
     replayWaitingForOrdersAfterSync(): void {
         const engine = this.engine;
-        if (!engine?.waitingForOrders) return;
-        const waiting = engine.waitingForOrders;
-        const unit = engine.getUnit(waiting.unitId);
-        if (!unit || !engine.shouldPauseForOrders(unit)) return;
+        const waiting = engine?.waitingForOrders;
+        if (!waiting) return;
+        const stillPaused = waiting.waiters.some((w) => {
+            const unit = engine.getUnit(w.unitId);
+            return unit != null && engine.shouldPauseForOrders(unit);
+        });
+        if (!stillPaused) return;
         this.emit({
             type: 'waiting_for_orders',
             engine,

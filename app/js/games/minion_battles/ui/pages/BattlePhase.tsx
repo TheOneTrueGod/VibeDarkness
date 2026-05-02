@@ -10,7 +10,7 @@ import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
-import type { WaitingForOrders, BattleOrder, ResolvedTarget } from '../../game/types';
+import type { OrderWaiter, WaitingForOrders, BattleOrder, ResolvedTarget } from '../../game/types';
 import { BattleSession } from '../../game/BattleSession';
 import { resolveClick, validateAndResolveTarget } from '../../abilities/targeting';
 import type { AbilityStatic } from '../../abilities/Ability';
@@ -97,6 +97,8 @@ export default function BattlePhase({
     const [roundProgress, setRoundProgress] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const [waitingForOrders, setWaitingForOrders] = useState<WaitingForOrders | null>(null);
+    /** Local player's current unit in a parallel batch (next unit still needing an order). */
+    const [activeLocalWaiter, setActiveLocalWaiter] = useState<OrderWaiter | null>(null);
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
@@ -107,14 +109,30 @@ export default function BattlePhase({
         currentTargets: ResolvedTarget[];
         mouseWorld: { x: number; y: number };
         waitingForOrders: WaitingForOrders | null;
-    }>({ selectedAbility: null, currentTargets: [], mouseWorld: { x: 0, y: 0 }, waitingForOrders: null });
-    targetingStateRef.current = { selectedAbility, currentTargets, mouseWorld: mouseWorldRef.current, waitingForOrders };
+        /** Caster unit for targeting preview (parallel batch active local unit). */
+        previewOrderUnitId: string | null;
+    }>({
+        selectedAbility: null,
+        currentTargets: [],
+        mouseWorld: { x: 0, y: 0 },
+        waitingForOrders: null,
+        previewOrderUnitId: null,
+    });
+    targetingStateRef.current = {
+        selectedAbility,
+        currentTargets,
+        mouseWorld: mouseWorldRef.current,
+        waitingForOrders,
+        previewOrderUnitId: activeLocalWaiter?.unitId ?? null,
+    };
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     const [, forceRender] = useState(0);
     const [bossHud, setBossHud] = useState<BossHudSlice>(null);
+    const [storyPauseActive, setStoryPauseActive] = useState(false);
     const prevSyncStatusRef = useRef<string | null>(null);
 
-    const isMyTurn = waitingForOrders?.ownerId === playerId;
+    const isMyTurn = activeLocalWaiter != null;
+    const canUseOrderUi = isMyTurn && canSubmitOrders && !storyPauseActive;
 
     // ========================================================================
     // Debug unit focus/outline bridge (DebugConsole -> Pixi world)
@@ -174,8 +192,6 @@ export default function BattlePhase({
         };
     }, []);
 
-    const playerUnit = sessionRef.current?.getEngine()?.getLocalPlayerUnit() ?? null;
-
     const onSidebarInfoChangeRef = useRef(onSidebarInfoChange);
     onSidebarInfoChangeRef.current = onSidebarInfoChange;
     const playersRef = useRef(players);
@@ -200,7 +216,7 @@ export default function BattlePhase({
 
             onSidebarInfoChangeRef.current({
                 turnIndicator: {
-                    visible: isMyTurn,
+                    visible: canUseOrderUi,
                     text: 'Your turn! Select a card to play.',
                 },
                 playerUnits,
@@ -210,7 +226,7 @@ export default function BattlePhase({
         update();
         const interval = setInterval(update, 500);
         return () => clearInterval(interval);
-    }, [isMyTurn, roundNumber]);
+    }, [canUseOrderUi, roundNumber]);
 
     useEffect(() => {
         return () => {
@@ -221,7 +237,8 @@ export default function BattlePhase({
     const updateCardStateRef = useRef<((engine: GameEngine) => void) | null>(null);
 
     function updateCardState(engine: GameEngine) {
-        const unit = engine.getLocalPlayerUnit();
+        const active = engine.getActiveOrderWaiterForPlayer(playerId);
+        const unit = active ? engine.getUnit(active.unitId) : engine.getLocalPlayerUnit();
         setMyAbilityIds([...(unit?.abilities ?? [])]);
     }
     updateCardStateRef.current = updateCardState;
@@ -230,8 +247,11 @@ export default function BattlePhase({
         (engine: GameEngine, info: WaitingForOrders, _source: 'engine_callback' | 'post_full_state_sync') => {
             setWaitingForOrders(info);
             setIsPaused(true);
+            setStoryPauseActive(engine.storyPauseActive);
 
-            const unit = engine.getUnit(info.unitId);
+            const active = engine.getActiveOrderWaiterForPlayer(playerId);
+            setActiveLocalWaiter(active);
+            const unit = active ? engine.getUnit(active.unitId) : undefined;
             const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
             pendingMovePathRef.current = existingPath && existingPath.length > 0
                 ? existingPath.map((p) => ({ ...p }))
@@ -239,7 +259,7 @@ export default function BattlePhase({
 
             updateCardStateRef.current?.(engine);
         },
-        [],
+        [playerId],
     );
 
     useEffect(() => {
@@ -268,6 +288,9 @@ export default function BattlePhase({
             if (ev.type === 'pause_state') {
                 setWaitingForOrders(ev.waitingForOrders);
                 setIsPaused(ev.paused);
+                const eng = sessionRef.current?.getEngine();
+                setActiveLocalWaiter(eng?.getActiveOrderWaiterForPlayer(playerId) ?? null);
+                setStoryPauseActive(eng?.storyPauseActive ?? false);
             }
             if (ev.type === 'round_number') {
                 setRoundNumber(ev.roundNumber);
@@ -277,6 +300,8 @@ export default function BattlePhase({
             }
             if (ev.type === 'card_state') {
                 updateCardState(ev.engine);
+                setActiveLocalWaiter(ev.engine.getActiveOrderWaiterForPlayer(playerId));
+                setStoryPauseActive(ev.engine.storyPauseActive);
             }
         });
 
@@ -340,10 +365,13 @@ export default function BattlePhase({
         if (prevSyncStatus !== 'resyncing' && prevSyncStatus !== 'loading') return;
 
         const engine = sessionRef.current?.getEngine();
-        if (!engine || !engine.waitingForOrders) return;
-        const waiting = engine.waitingForOrders;
-        const unit = engine.getUnit(waiting.unitId);
-        if (!unit || !engine.shouldPauseForOrders(unit)) return;
+        const waiting = engine?.waitingForOrders;
+        if (!engine || !waiting) return;
+        const needsReplay = waiting.waiters.some((w) => {
+            const unit = engine.getUnit(w.unitId);
+            return unit != null && engine.shouldPauseForOrders(unit);
+        });
+        if (!needsReplay) return;
 
         console.debug('[BattlePhase] Replaying waiting-for-orders after full-state sync', {
             fromSyncStatus: prevSyncStatus,
@@ -404,12 +432,12 @@ export default function BattlePhase({
     }, [selectedCardIndex]);
 
     const submitOrder = useCallback((abilityId: string, targets: ResolvedTarget[]) => {
-        if (!waitingForOrders || !canSubmitOrders) return;
+        if (!waitingForOrders || !activeLocalWaiter || !canUseOrderUi) return;
 
         const movePath = pendingMovePathRef.current;
 
         const order: BattleOrder = {
-            unitId: waitingForOrders.unitId,
+            unitId: activeLocalWaiter.unitId,
             abilityId,
             targets,
             movePath: movePath ?? undefined,
@@ -420,18 +448,18 @@ export default function BattlePhase({
         targetingStateRef.current.waitingForOrders = null;
         pendingMovePathRef.current = null;
 
-        void sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders });
-    }, [waitingForOrders, canSubmitOrders]);
+        void sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders: canUseOrderUi });
+    }, [waitingForOrders, activeLocalWaiter, canUseOrderUi]);
 
     const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
         const engine = sessionRef.current?.getEngine();
         const camera = sessionRef.current?.getCamera();
-        if (!engine || !camera || !selectedAbility || !isMyTurn) return;
+        if (!engine || !camera || !selectedAbility || !canUseOrderUi || !activeLocalWaiter) return;
 
         const clickResult = resolveClick(screenX, screenY, camera, engine.units);
 
         const targetIndex = currentTargets.length;
-        const caster = waitingForOrders ? engine.getUnit(waitingForOrders.unitId) : undefined;
+        const caster = engine.getUnit(activeLocalWaiter.unitId);
         const resolvedTargets = getAbilityTargets(selectedAbility, caster, engine);
         const targetDef = resolvedTargets[targetIndex];
         if (!targetDef) return;
@@ -448,7 +476,7 @@ export default function BattlePhase({
             setSelectedAbility(null);
             setCurrentTargets([]);
         }
-    }, [selectedAbility, currentTargets, isMyTurn, waitingForOrders, submitOrder]);
+    }, [selectedAbility, currentTargets, canUseOrderUi, activeLocalWaiter, submitOrder]);
 
     const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
         const engine = sessionRef.current?.getEngine();
@@ -481,13 +509,13 @@ export default function BattlePhase({
 
     const handleWait = useCallback(() => {
         const engine = sessionRef.current?.getEngine();
-        if (!engine || !isMyTurn || !waitingForOrders) return;
+        if (!engine || !canUseOrderUi || !activeLocalWaiter || !waitingForOrders) return;
 
         submitOrder('wait', []);
         setSelectedCardIndex(null);
         setSelectedAbility(null);
         setCurrentTargets([]);
-    }, [isMyTurn, waitingForOrders, submitOrder]);
+    }, [canUseOrderUi, activeLocalWaiter, waitingForOrders, submitOrder]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -516,7 +544,7 @@ export default function BattlePhase({
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number) => {
         const engine = sessionRef.current?.getEngine();
         const camera = sessionRef.current?.getCamera();
-        if (!engine || !camera || !isMyTurn || !waitingForOrders) return;
+        if (!engine || !camera || !canUseOrderUi || !activeLocalWaiter || !waitingForOrders) return;
         if (!engine.terrainManager) return;
 
         const grid = engine.terrainManager.grid;
@@ -526,7 +554,7 @@ export default function BattlePhase({
         const clampedX = Math.max(0, Math.min(worldPos.x, worldWidth));
         const clampedY = Math.max(0, Math.min(worldPos.y, worldHeight));
 
-        const unit = engine.getUnit(waitingForOrders.unitId);
+        const unit = engine.getUnit(activeLocalWaiter.unitId);
         if (!unit) return;
 
         const unitGrid = grid.worldToGrid(unit.x, unit.y);
@@ -540,7 +568,7 @@ export default function BattlePhase({
             pendingMovePathRef.current = gridPath;
             unit.setMovement(gridPath, undefined, engine.gameTick);
         }
-    }, [isMyTurn, waitingForOrders]);
+    }, [canUseOrderUi, activeLocalWaiter, waitingForOrders]);
 
     const engine = sessionRef.current?.getEngine() ?? null;
     const renderer = sessionRef.current?.getRenderer() ?? null;
@@ -568,7 +596,7 @@ export default function BattlePhase({
                         players={players}
                         localPlayerId={playerId}
                         layout="rail"
-                        previewAbility={isMyTurn ? selectedAbility : null}
+                        previewAbility={canUseOrderUi ? selectedAbility : null}
                     />
                 </aside>
 
@@ -587,11 +615,23 @@ export default function BattlePhase({
 
                     <TurnIndicator
                         state={
-                            !waitingForOrders ? 'playing' : isMyTurn ? 'your_turn' : 'ally_turn'
+                            !waitingForOrders
+                                ? 'playing'
+                                : storyPauseActive
+                                  ? 'playing'
+                                  : canUseOrderUi
+                                    ? 'your_turn'
+                                    : waitingForOrders.waiters.some((w) => w.ownerId !== playerId)
+                                      ? 'ally_turn'
+                                      : 'playing'
                         }
                         allyName={
-                            waitingForOrders && !isMyTurn
-                                ? players[waitingForOrders.ownerId]?.name ?? 'Player'
+                            waitingForOrders &&
+                            waitingForOrders.waiters.some((w) => w.ownerId !== playerId)
+                                ? players[
+                                      waitingForOrders.waiters.find((w) => w.ownerId !== playerId)!
+                                          .ownerId
+                                  ]?.name ?? 'Player'
                                 : undefined
                         }
                     />
@@ -601,8 +641,12 @@ export default function BattlePhase({
             <div className="shrink-0 min-w-0">
                 <CardHand
                     abilityIds={myAbilityIds}
-                    playerUnit={playerUnit}
-                    isMyTurn={isMyTurn}
+                    playerUnit={
+                        activeLocalWaiter != null
+                            ? engine.getUnit(activeLocalWaiter.unitId) ?? engine.getLocalPlayerUnit()
+                            : engine.getLocalPlayerUnit()
+                    }
+                    isMyTurn={canUseOrderUi}
                     roundNumber={roundNumber}
                     roundProgress={roundProgress}
                     isPaused={isPaused}

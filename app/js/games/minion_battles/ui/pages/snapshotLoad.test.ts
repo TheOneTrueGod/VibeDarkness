@@ -23,7 +23,7 @@ function makeCheckpointSnapshot(overrides: Partial<Record<string, unknown>> = {}
     // Advance a bit and pause for orders
     engine.gameTick = 65;
     engine.gameTime = 2.5;
-    engine.waitingForOrders = { unitId: 'unit_1', ownerId: 'p1' };
+    engine.waitingForOrders = { waiters: [{ unitId: 'unit_1', ownerId: 'p1' }], atTick: 66 };
 
     const state = engine.toJSON() as unknown as Record<string, unknown>;
     engine.destroy();
@@ -73,7 +73,10 @@ describe('Snapshot load on reconnection', () => {
         );
         expect(restored.gameTick).toBe(65);
         expect(restored.gameTime).toBe(2.5);
-        expect(restored.waitingForOrders).toEqual({ unitId: 'unit_1', ownerId: 'p1' });
+        expect(restored.waitingForOrders).toEqual({
+            waiters: [{ unitId: 'unit_1', ownerId: 'p1' }],
+            atTick: 66,
+        });
         restored.destroy();
     });
 });

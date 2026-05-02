@@ -1,4 +1,4 @@
-import { EngineSnapshot, extractWaitingUnitId, isWaitingForRemotePlayerOrder, remoteOrdersToApply } from "../GameSyncContext";
+import { EngineSnapshot, extractWaitingUnitIds, isWaitingForRemotePlayerOrder, remoteOrdersToApply } from "../GameSyncContext";
 import { FetchMinimalStateResult, GameSyncContextController } from "./GameSyncContextController";
 
 export class HostGameSyncContextController extends GameSyncContextController {
@@ -18,8 +18,8 @@ export class HostGameSyncContextController extends GameSyncContextController {
         }
 
         const snapTick = Number(previousState.gameTick);
-        const waitingUnitId = extractWaitingUnitId(previousState.state);
-        const newOrders = remoteOrdersToApply(result.orders, snapTick, waitingUnitId, {
+        const waitingUnitIds = extractWaitingUnitIds(previousState.state);
+        const newOrders = remoteOrdersToApply(result.orders, snapTick, waitingUnitIds, {
           localPlayerId: this.playerId,
           state: previousState.state,
           appliedKeys: this.appliedRemoteOrders,

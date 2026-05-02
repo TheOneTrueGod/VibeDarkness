@@ -49,8 +49,10 @@ function mountSessionAtLocalPlayerTurn(): { session: BattleSession; unitId: stri
 
     for (let i = 0; i < 400; i++) {
         (live as unknown as { fixedUpdate(dt: number): void }).fixedUpdate(FIXED_DT);
-        if (live.waitingForOrders?.ownerId === 'p1') {
-            return { session, unitId: live.waitingForOrders.unitId };
+        const batch = live.waitingForOrders;
+        if (batch?.waiters.some((w) => w.ownerId === 'p1')) {
+            const unitId = live.getActiveOrderWaiterForPlayer('p1')?.unitId;
+            if (unitId) return { session, unitId };
         }
     }
     throw new Error('expected engine to pause for p1');

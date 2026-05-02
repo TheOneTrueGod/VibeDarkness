@@ -15,10 +15,52 @@ export interface GameTime {
     roundProgress: number;
 }
 
-/** Information about which unit the engine is waiting on. */
-export interface WaitingForOrders {
+/** One player-controlled unit that owes an order before the parallel batch can resume. */
+export interface OrderWaiter {
     unitId: string;
     ownerId: string;
+}
+
+/**
+ * Frozen set of units waiting for orders at this pause. All must queue orders at {@link atTick}
+ * before the simulation unpauses.
+ */
+export interface WaitingForOrders {
+    waiters: OrderWaiter[];
+    /** Tick at which batch orders apply (usually `gameTick + 1` at pause time). */
+    atTick: number;
+}
+
+/** Normalize checkpoint `waitingForOrders` (current shape or legacy `{ unitId, ownerId }`). */
+export function normalizeWaitingForOrdersFromJSON(raw: unknown, gameTick: number): WaitingForOrders | null {
+    if (raw == null) return null;
+    if (typeof raw !== 'object') return null;
+    const o = raw as Record<string, unknown>;
+    const atFallback = gameTick + 1;
+    if (Array.isArray(o.waiters)) {
+        const waiters: OrderWaiter[] = [];
+        for (const w of o.waiters) {
+            if (w && typeof w === 'object') {
+                const rec = w as Record<string, unknown>;
+                if (typeof rec.unitId === 'string' && typeof rec.ownerId === 'string') {
+                    waiters.push({ unitId: rec.unitId, ownerId: rec.ownerId });
+                }
+            }
+        }
+        if (waiters.length === 0) return null;
+        const atTick = typeof o.atTick === 'number' ? o.atTick : atFallback;
+        waiters.sort((a, b) =>
+            a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
+        );
+        return { waiters, atTick };
+    }
+    if (typeof o.unitId === 'string' && typeof o.ownerId === 'string') {
+        return {
+            waiters: [{ unitId: o.unitId, ownerId: o.ownerId }],
+            atTick: typeof o.atTick === 'number' ? o.atTick : atFallback,
+        };
+    }
+    return null;
 }
 
 /** Serialized special tile (e.g. Campfire with current HP). */

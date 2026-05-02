@@ -7,13 +7,15 @@
  */
 
 import { EventBus, type DamageTakenEvent, type NearbyStoneDamagedEvent } from './EventBus';
-import type {
-    ActiveAbility,
-    WaitingForOrders,
-    SerializedGameState,
-    BattleOrder,
-    OrderAtTick,
-    ResolvedTarget,
+import {
+    normalizeWaitingForOrdersFromJSON,
+    type ActiveAbility,
+    type OrderWaiter,
+    type WaitingForOrders,
+    type SerializedGameState,
+    type BattleOrder,
+    type OrderAtTick,
+    type ResolvedTarget,
 } from './types';
 import { Unit } from './units/Unit';
 import { Projectile } from './projectiles/Projectile';
@@ -97,6 +99,12 @@ export class GameEngine implements EngineContext {
 
     /** Monotonic id suffix for new GameObjects created while this engine is authoritative. */
     private objectIdSeq = 1;
+
+    /**
+     * Parallel order pause detected at end of a tick; committed at the **start** of the next
+     * `fixedUpdate` (before `gameTick` / `gameTime` advance) so every unit's `update` ran on the prior tick.
+     */
+    private deferredOrderPauseWaiters: OrderWaiter[] | null = null;
 
     // -- Callbacks (engine wiring, not serialized) --
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
@@ -388,6 +396,7 @@ export class GameEngine implements EngineContext {
         this.storyPauseReason = reason;
         this.storyPauseEndsAt = this.gameTime + durationSeconds;
         this.waitingForOrders = null;
+        this.deferredOrderPauseWaiters = null;
         this.isPaused = false;
         for (const unit of this.units) {
             if (!unit.isPlayerControlled() || !unit.isAlive()) continue;
@@ -509,8 +518,15 @@ export class GameEngine implements EngineContext {
     start(): void {
         if (this.running) return;
         this.running = true;
+        this.accumulator = 0;
         this.lastTimestamp = performance.now();
         this.animFrameId = requestAnimationFrame((ts) => this.loop(ts));
+    }
+
+    /** Clear deferred pause and wall-clock catch-up so a loaded battle does not burst-simulate on first paint. */
+    clearDeferredOrderPauseAndAccumulator(): void {
+        this.deferredOrderPauseWaiters = null;
+        this.accumulator = 0;
     }
 
     stop(): void {
@@ -650,15 +666,34 @@ export class GameEngine implements EngineContext {
     private fixedUpdate(dt: number): void {
         if (this.state.levelEventManager.isTerminal) return;
 
+        // Commit order pause at tick boundary (after all units updated on the prior completed tick).
+        if (this.deferredOrderPauseWaiters != null && this.deferredOrderPauseWaiters.length > 0) {
+            const waiters = this.deferredOrderPauseWaiters;
+            this.deferredOrderPauseWaiters = null;
+            const atTick = this.gameTick + 1;
+            this.waitingForOrders = { waiters, atTick };
+            this.isPaused = true;
+            this.snapshotIndex++;
+            this.onWaitingForOrders?.(this.waitingForOrders);
+            this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
+            this.scheduleSynchashUpdate();
+            return;
+        }
+
         this.gameTime += dt;
         this.gameTick++;
 
         const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
         this.processRoundProgressMilestones(roundTime);
 
-        // Apply scheduled orders
+        // Apply scheduled orders (stable merge when multiple orders share this tick)
         const toApply = this.pendingOrders.filter((o) => o.gameTick === this.gameTick);
         this.pendingOrders = this.pendingOrders.filter((o) => o.gameTick !== this.gameTick);
+        toApply.sort((a, b) => {
+            const ua = a.order.unitId;
+            const ub = b.order.unitId;
+            return ua < ub ? -1 : ua > ub ? 1 : 0;
+        });
         for (const { order } of toApply) {
             this.applyOrderLogic(order);
         }
@@ -707,7 +742,7 @@ export class GameEngine implements EngineContext {
         });
     }
 
-    /** Per-tick unit processing: movement, pathfinding retriggering, AI, turn pausing. */
+    /** Per-tick unit processing: movement, pathfinding retriggering, AI, deferred order pause. */
     private processUnitTicks(dt: number): void {
         for (const unit of this.units) {
             if (!unit.active) continue;
@@ -720,14 +755,10 @@ export class GameEngine implements EngineContext {
             }
 
             unit.update(dt, this);
+        }
 
-            if (this.shouldPauseForOrders(unit)) {
-                this.state.levelEventManager.runVictoryChecks();
-                this.pauseForOrders(unit);
-                this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
-                return;
-            }
-
+        for (const unit of this.units) {
+            if (!unit.active) continue;
             if (!unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
                 this.state.levelEventManager.runVictoryChecks();
                 const tree = getUnitAITree(unit.unitAITreeId);
@@ -736,6 +767,16 @@ export class GameEngine implements EngineContext {
                 }
             }
         }
+
+        if (this.waitingForOrders != null) {
+            return;
+        }
+
+        const waiters = this.collectParallelWaiters();
+        if (waiters.length > 0) {
+            this.state.levelEventManager.runVictoryChecks();
+            this.deferredOrderPauseWaiters = waiters;
+        }
     }
 
     // ========================================================================
@@ -743,14 +784,11 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     /**
-     * Returns true if there is already a pending order queued for the given unit at the next tick.
-     * Used to decide whether to pause for orders or let the engine apply the order naturally.
+     * Returns true if there is already a pending order for `unitId` at `atTick`
+     * (defaults to next tick when omitted).
      */
-    hasPendingOrderForUnit(unitId: string): boolean {
-        const atTick = this.gameTick + 1;
-        return this.pendingOrders.some(
-            (o) => o.gameTick === atTick && (o.order as { unitId?: string }).unitId === unitId,
-        );
+    hasPendingOrderForUnit(unitId: string, atTick: number = this.gameTick + 1): boolean {
+        return this.pendingOrders.some((o) => o.gameTick === atTick && o.order.unitId === unitId);
     }
 
     /**
@@ -763,22 +801,55 @@ export class GameEngine implements EngineContext {
         return !this.hasPendingOrderForUnit(unit.id);
     }
 
-    private pauseForOrders(unit: Unit): void {
-        this.waitingForOrders = {
-            unitId: unit.id,
-            ownerId: unit.ownerId,
-        };
-        this.isPaused = true;
-        this.snapshotIndex++;
-        this.onWaitingForOrders?.(this.waitingForOrders);
+    /** All player units that owe orders in the current parallel slice (deterministic order). */
+    private collectParallelWaiters(): OrderWaiter[] {
+        const out: OrderWaiter[] = [];
+        for (const unit of this.units) {
+            if (!unit.active) continue;
+            if (this.shouldPauseForOrders(unit)) {
+                out.push({ unitId: unit.id, ownerId: unit.ownerId });
+            }
+        }
+        out.sort((a, b) =>
+            a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
+        );
+        return out;
+    }
+
+    /**
+     * Next local player's unit in this batch that still needs an order at the batch tick (UI / previews).
+     */
+    getActiveOrderWaiterForPlayer(playerId: string): OrderWaiter | null {
+        const w = this.waitingForOrders;
+        if (!w) return null;
+        for (const waiter of w.waiters) {
+            if (waiter.ownerId !== playerId) continue;
+            if (!this.hasPendingOrderForUnit(waiter.unitId, w.atTick)) {
+                return waiter;
+            }
+        }
+        return null;
     }
 
     applyOrder(order: BattleOrder): void {
-        const atTick = this.waitingForOrders ? this.gameTick + 1 : this.gameTick;
+        let atTick = this.gameTick;
+        if (this.waitingForOrders) {
+            const batch = this.waitingForOrders;
+            const allowed = batch.waiters.some((x) => x.unitId === order.unitId);
+            if (!allowed) {
+                // TODO [rollback]: Support transactional batch apply—snapshot pre-batch, validate all orders, rollback state if any reject; or buffer commits until atomic apply.
+                return;
+            }
+            if (this.hasPendingOrderForUnit(order.unitId, batch.atTick)) {
+                // TODO [rollback]: Support transactional batch apply—snapshot pre-batch, validate all orders, rollback state if any reject; or buffer commits until atomic apply.
+                return;
+            }
+            atTick = batch.atTick;
+        }
         this.queueOrder(atTick, order);
 
         if (this.waitingForOrders) {
-            this.resumeAfterOrders();
+            this.tryResumeParallel();
         }
     }
 
@@ -816,16 +887,29 @@ export class GameEngine implements EngineContext {
         this.executeAbility(unit, ability, order.targets);
     }
 
-    resumeAfterOrders(): void {
-        const prev = this.waitingForOrders;
+    /**
+     * Unpause only when every frozen waiter has a pending order at the batch tick.
+     * Invoked after each `applyOrder` / remote `queueOrder` while paused.
+     */
+    tryResumeParallel(): void {
+        const batch = this.waitingForOrders;
+        if (!batch) return;
+        const allReady = batch.waiters.every((w) => this.hasPendingOrderForUnit(w.unitId, batch.atTick));
+        if (!allReady) return;
+
+        const unitIds = batch.waiters.map((w) => w.unitId).sort();
         this.waitingForOrders = null;
         this.isPaused = false;
+        this.deferredOrderPauseWaiters = null;
 
-        if (prev) {
-            this.eventBus.emit('turn_end', { unitId: prev.unitId });
-        }
+        this.eventBus.emit('turn_end', { unitIds });
 
         this.onStateChanged?.();
+    }
+
+    /** @deprecated Use {@link tryResumeParallel}; kept for tests and gradual migration. */
+    resumeAfterOrders(): void {
+        this.tryResumeParallel();
     }
 
     // ========================================================================
@@ -1029,7 +1113,7 @@ export class GameEngine implements EngineContext {
                 return this.terrainManager.findGridPath(fromCol, fromRow, toCol, toRow);
             },
             queueOrder: (atTick, order) => this.queueOrder(atTick, order),
-            emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId }),
+            emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId, unitIds: [unitId] }),
             generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
             getAbilityUsesThisRound: (unitId, abilityId) =>
                 this.state.cardManager.getAbilityUsesThisRound(unitId, abilityId),
@@ -1298,7 +1382,7 @@ export class GameEngine implements EngineContext {
         engine.gameTick = data.gameTick ?? 0;
         engine.roundNumber = data.roundNumber;
         engine.snapshotIndex = data.snapshotIndex;
-        engine.waitingForOrders = data.waitingForOrders;
+        engine.waitingForOrders = normalizeWaitingForOrdersFromJSON(data.waitingForOrders, engine.gameTick);
         engine.aiControllerId = data.aiControllerId ?? null;
         engine.storyPauseActive = data.storyPauseActive ?? false;
         engine.storyPauseReason = data.storyPauseReason ?? null;
@@ -1317,12 +1401,13 @@ export class GameEngine implements EngineContext {
 
         engine.synchash = typeof data.synchash === 'string' ? data.synchash : null;
 
-        // If the order is already in pendingOrders, the engine does not need to pause — it will
-        // apply the order naturally on the appropriate tick. Clearing the pause state here allows
-        // the engine to run without waiting for external order delivery.
-        if (engine.waitingForOrders && engine.hasPendingOrderForUnit(engine.waitingForOrders.unitId)) {
-            engine.waitingForOrders = null;
-            engine.isPaused = false;
+        // If every waiter already has a pending order at the batch tick, clear pause.
+        if (engine.waitingForOrders) {
+            const { waiters, atTick } = engine.waitingForOrders;
+            if (waiters.every((w) => engine.hasPendingOrderForUnit(w.unitId, atTick))) {
+                engine.waitingForOrders = null;
+                engine.isPaused = false;
+            }
         }
 
         // Restore units (direct push, bypasses addUnit jitter since state is serialized)
@@ -1346,17 +1431,23 @@ export class GameEngine implements EngineContext {
         // Re-register core event listeners
         engine.registerCoreEventListeners();
 
-        // Infer waitingForOrders for legacy checkpoints that omit the field.
-        // Skip inference when the unit already has a pending order: the engine will apply it naturally.
+        // Infer parallel waiters for legacy checkpoints that omit the field.
         if (!engine.waitingForOrders) {
+            const inferredWaiters: OrderWaiter[] = [];
             for (const unit of engine.units) {
+                if (!unit.active) continue;
                 if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
                     if (!engine.hasPendingOrderForUnit(unit.id)) {
-                        engine.waitingForOrders = { unitId: unit.id, ownerId: unit.ownerId };
-                        engine.isPaused = true;
+                        inferredWaiters.push({ unitId: unit.id, ownerId: unit.ownerId });
                     }
-                    break;
                 }
+            }
+            inferredWaiters.sort((a, b) =>
+                a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
+            );
+            if (inferredWaiters.length > 0) {
+                engine.waitingForOrders = { waiters: inferredWaiters, atTick: engine.gameTick + 1 };
+                engine.isPaused = true;
             }
         }
 
@@ -1364,11 +1455,17 @@ export class GameEngine implements EngineContext {
         engine.appliedRoundStartRecovery = roundTime > 0;
         engine.appliedMidRoundRecovery = roundTime >= ROUND_DURATION / 2;
 
+        engine.deferredOrderPauseWaiters = null;
+        if (engine.waitingForOrders != null) {
+            engine.isPaused = true;
+        }
+
         return engine;
     }
 
     destroy(): void {
         this.stop();
+        this.deferredOrderPauseWaiters = null;
         this.synchashUpdateSeq++;
         this.terrainManager?.setStoneDamagedEmitter(undefined);
         for (const unit of this.units) {
