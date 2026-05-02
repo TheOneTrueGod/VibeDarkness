@@ -6,22 +6,14 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
-import { getNpc } from '../../constants/npcs';
-import type {
-    PreMissionStoryDef,
-    DialoguePhrase,
-    ChoicePhrase,
-    GrantEquipmentRandomPhrase,
-    GroupVotePhrase,
-    PreMissionPhrase,
-    StoryChoiceActionGrantResources,
-} from '../../storylines/storyTypes';
+import type { PreMissionStoryDef } from '../../storylines/storyTypes';
 import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
-import VNTextBox from '../components/VNTextBox';
-import CharacterPortrait from '../components/CharacterPortrait';
-import StoryTextEffect from '../components/StoryTextEffect';
-import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
+import PreMissionStoryEndScreen from './preMissionStory/PreMissionStoryEndScreen';
+import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
+import DialoguePortraitRow from './preMissionStory/DialoguePortraitRow';
+import StoryPhraseBottomPanel from './preMissionStory/StoryPhraseBottomPanel';
+import { isDialogue, isGrantEquipmentRandom, isGroupVote } from './preMissionStory/preMissionStoryTypeGuards';
 
 interface PreMissionStoryPhaseProps {
     api: MinionBattlesApi;
@@ -44,26 +36,6 @@ interface PreMissionStoryPhaseProps {
     onBattleStartStatusChange?: (starting: boolean) => void;
 }
 
-function isDialogue(phrase: PreMissionPhrase | undefined): phrase is DialoguePhrase {
-    return !!phrase && phrase.type === 'dialogue';
-}
-
-function isChoice(phrase: PreMissionPhrase | undefined): phrase is ChoicePhrase {
-    return phrase?.type === 'choice';
-}
-
-function isGrantEquipmentRandom(phrase: PreMissionPhrase | undefined): phrase is GrantEquipmentRandomPhrase {
-    return phrase?.type === 'grant_equipment_random';
-}
-
-function isGroupVote(phrase: PreMissionPhrase | undefined): phrase is GroupVotePhrase {
-    return phrase?.type === 'groupVote';
-}
-
-function isGrantResources(action: { type: string } | undefined): action is StoryChoiceActionGrantResources {
-    return !!action && action.type === 'grant_resources';
-}
-
 export default function PreMissionStoryPhase({
     api,
     playerId,
@@ -83,7 +55,7 @@ export default function PreMissionStoryPhase({
     const [bgOpacity, setBgOpacity] = useState(1);
     const [isApplyingGroupVote, setIsApplyingGroupVote] = useState(false);
 
-    const phrases: PreMissionPhrase[] = preMissionStory.phrases;
+    const phrases = preMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
     const isEnd = phraseIndex >= phrases.length;
     const amSpectator = (characterSelections[playerId] ?? '') === SPECTATOR_ID;
@@ -185,7 +157,7 @@ export default function PreMissionStoryPhase({
             }
             advancePhrase();
         },
-        [api, playerId, playerEquipmentByPlayer, advancePhrase]
+        [api, playerId, playerEquipmentByPlayer, advancePhrase],
     );
 
     const handleGroupVote = useCallback(
@@ -200,7 +172,7 @@ export default function PreMissionStoryPhase({
                 console.error('Failed to send group vote:', error);
             }
         },
-        [api, phraseIndex]
+        [api, phraseIndex],
     );
 
     const handleGroupVoteNext = useCallback(async () => {
@@ -225,9 +197,7 @@ export default function PreMissionStoryPhase({
 
     const allPlayerIds = Object.keys(players);
     /** Playing players (non-spectators); used for single-player shortcut. */
-    const playingPlayerIds = allPlayerIds.filter(
-        (id) => (characterSelections[id] ?? '') !== SPECTATOR_ID,
-    );
+    const playingPlayerIds = allPlayerIds.filter((id) => (characterSelections[id] ?? '') !== SPECTATOR_ID);
     const singlePlayer = allPlayerIds.length <= 1;
     /** All players (including spectators) must reach the end before host can start. */
     const allReady =
@@ -237,25 +207,12 @@ export default function PreMissionStoryPhase({
 
     if (isEnd) {
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-surface">
-                {isHost ? (
-                    <div className="flex flex-col items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={handleStartGame}
-                            disabled={!hostCanStart}
-                            className="px-8 py-3 text-white text-lg font-bold rounded-lg bg-green-600 hover:bg-green-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
-                        >
-                            Start Game
-                        </button>
-                        {!hostCanStart && !singlePlayer && (
-                            <p className="text-muted text-lg">Waiting for players</p>
-                        )}
-                    </div>
-                ) : (
-                    <p className="text-muted text-lg">Waiting for host</p>
-                )}
-            </div>
+            <PreMissionStoryEndScreen
+                isHost={isHost}
+                hostCanStart={hostCanStart}
+                singlePlayer={singlePlayer}
+                onStartGame={handleStartGame}
+            />
         );
     }
 
@@ -263,254 +220,31 @@ export default function PreMissionStoryPhase({
         return null;
     }
 
-    const showBackground = isDialogue(currentPhrase) && currentPhrase.backgroundImage;
-    if (showBackground && currentPhrase.backgroundImage !== backgroundImage) {
-        setBackgroundImage(currentPhrase.backgroundImage);
-    }
-
-    const isTitleEffect = isDialogue(currentPhrase) && currentPhrase.textEffect === 'title_bounce';
+    const contentJustify = isDialogue(currentPhrase) ? 'end' : 'center';
 
     return (
-        <div className="w-full h-full flex flex-col overflow-hidden bg-black relative">
-            {/* Background image: top 80% only so bottom sits ~20% into the text box area */}
-            {backgroundImage && (
-                <div
-                    className="absolute inset-0 bg-cover bg-center transition-opacity duration-500 z-0"
-                    style={{ backgroundImage: `url(${backgroundImage})`, opacity: bgOpacity }}
+        <PreMissionStoryLayout
+            backgroundImage={backgroundImage}
+            bgOpacity={bgOpacity}
+            contentJustify={contentJustify}
+        >
+            {isDialogue(currentPhrase) && <DialoguePortraitRow phrase={currentPhrase} />}
+            <div className="shrink-0 py-4 sm:py-6 flex flex-col gap-4 w-full min-w-0 max-w-full justify-center items-stretch">
+                <StoryPhraseBottomPanel
+                    phrase={currentPhrase}
+                    players={players}
+                    playingPlayerIds={playingPlayerIds}
+                    allPlayerIds={allPlayerIds}
+                    playerId={playerId}
+                    amSpectator={amSpectator}
+                    groupVoteVotes={groupVoteVotes}
+                    isApplyingGroupVote={isApplyingGroupVote}
+                    onAdvance={advancePhrase}
+                    onChoose={handleChoice}
+                    onGroupVote={handleGroupVote}
+                    onGroupVoteNext={handleGroupVoteNext}
                 />
-            )}
-            <div className="relative z-10 flex-1 flex flex-col min-h-0 justify-end items-center overflow-y-auto overflow-x-hidden">
-                {/* Content constrained to max-width for narrator text boxes & images */}
-                <div className="w-full max-w-[1200px] flex flex-col flex-1 min-h-0 justify-end mx-auto px-3 sm:px-6 min-w-0">
-                    {/* Portrait row: when dialogue (including textEffect phrases) */}
-                    {isDialogue(currentPhrase) && (
-                        <div className="flex shrink-0 justify-between gap-4 pt-4 pb-0 h-[140px] items-end">
-                            <div className="flex gap-2 items-end">
-                                {(currentPhrase.portraits?.left ?? (currentPhrase.speakerId ? [currentPhrase.speakerId] : [])).slice(0, 2).map((npcId) => {
-                                    const npc = getNpc(npcId);
-                                    const isActive = currentPhrase.speakerId === npcId;
-                                    return npc?.portrait ? (
-                                        <CharacterPortrait
-                                            key={npcId}
-                                            picture={npc.portrait}
-                                            size="large"
-                                            className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
-                                        />
-                                    ) : (
-                                        <div
-                                            key={npcId}
-                                            className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
-                                            style={{ backgroundColor: npc?.color ?? '#333' }}
-                                        />
-                                    );
-                                })}
-                            </div>
-                            <div className="flex gap-2 items-end">
-                                {(currentPhrase.portraits?.right ?? []).slice(0, 2).map((npcId) => {
-                                    const npc = getNpc(npcId);
-                                    const isActive = currentPhrase.speakerId === npcId;
-                                    return npc?.portrait ? (
-                                        <CharacterPortrait
-                                            key={npcId}
-                                            picture={npc.portrait}
-                                            size="small"
-                                            className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
-                                        />
-                                    ) : (
-                                        <div
-                                            key={npcId}
-                                            className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
-                                            style={{ backgroundColor: npc?.color ?? '#333' }}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Dialogue: text box. Choice: separate card above where text box would be; text box hidden. */}
-                    <div className="shrink-0 pb-4 sm:pb-6 flex flex-col gap-4 w-full min-w-0 max-w-full">
-                        {isDialogue(currentPhrase) ? (
-                            <VNTextBox
-                                title={getNpc(currentPhrase.speakerId)?.name ?? 'Unknown'}
-                                titleColor={getNpc(currentPhrase.speakerId)?.color ?? '#ffffff'}
-                                actions={
-                                    <button
-                                        type="button"
-                                        onClick={advancePhrase}
-                                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
-                                    >
-                                        Next
-                                    </button>
-                                }
-                            >
-                                {isTitleEffect ? (
-                                    <StoryTextEffect effect="title_bounce" text={currentPhrase.text} />
-                                ) : (
-                                    <p className="mb-0">{currentPhrase.text}</p>
-                                )}
-                            </VNTextBox>
-                        ) : isChoice(currentPhrase) ? (
-                            <>
-                                <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-4 sm:p-6 w-full max-w-full min-w-0 mx-auto">
-                                    {amSpectator ? (
-                                        <div className="flex flex-col items-center space-y-3 text-center">
-                                            <p className="text-muted mb-4">Spectators do not make choices.</p>
-                                            <button
-                                                type="button"
-                                                onClick={advancePhrase}
-                                                className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
-                                            >
-                                                Next
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-stretch gap-3 w-full min-w-0">
-                                            {currentPhrase.options.map((opt) => (
-                                                <button
-                                                    key={opt.id}
-                                                    type="button"
-                                                    onClick={() => handleChoice(currentPhrase.choiceId, opt.id, opt)}
-                                                    className="block w-full max-w-full min-w-0 text-center px-4 sm:px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white flex flex-col gap-2 items-center justify-center"
-                                                >
-                                                    <span className="break-words">{opt.label}</span>
-                                                    {isGrantResources(opt.action) && (
-                                                        <div className="flex flex-wrap items-center justify-center gap-2">
-                                                            {campaignResourceGains({
-                                                                food: opt.action.food,
-                                                                metal: opt.action.metal,
-                                                                crystals: opt.action.crystals,
-                                                            }).map(({ resource, count }) => (
-                                                                <ResourcePill
-                                                                    key={`${opt.id}-${resource}`}
-                                                                    resource={resource}
-                                                                    count={count}
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                                {/* Spacer so choice card sits above where the text box would be (shorter on narrow viewports so options stay on-screen) */}
-                                <div className="min-h-[4rem] sm:min-h-[8rem] md:min-h-[16rem]" aria-hidden />
-                            </>
-                        ) : isGroupVote(currentPhrase) ? (
-                            (() => {
-                                const voteId = currentPhrase.voteId;
-                                const options =
-                                    currentPhrase.optionSource === 'players'
-                                        ? playingPlayerIds.map((id) => ({
-                                              id,
-                                              label: players[id]?.name ?? id,
-                                          }))
-                                        : currentPhrase.options ?? [];
-                                const votesForVote = groupVoteVotes[voteId] ?? {};
-                                const myVote = votesForVote[playerId];
-                                const allVoted = playingPlayerIds.every((pid) => votesForVote[pid] != null);
-                                const voterNames = (optionId: string) =>
-                                    allPlayerIds
-                                        .filter((pid) => votesForVote[pid] === optionId)
-                                        .map((pid) => players[pid]?.name ?? pid)
-                                        .join(', ');
-                                return (
-                                    <>
-                                        <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-hidden p-4 sm:p-6 w-full max-w-full min-w-0 mx-auto">
-                                            <p className="text-white mb-4 text-center sm:text-left break-words">{currentPhrase.text}</p>
-                                            <div className="flex flex-col gap-3 w-full min-w-0">
-                                                {options.map((opt) => {
-                                                    const voters = voterNames(opt.id);
-                                                    const isMyVote = myVote === opt.id;
-                                                    return (
-                                                        <div
-                                                            key={opt.id}
-                                                            className="rounded-lg border-2 border-border-custom bg-surface overflow-hidden"
-                                                        >
-                                                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 min-w-0">
-                                                                {myVote != null ? (
-                                                                    <span
-                                                                        className={`flex-1 min-w-0 text-center sm:text-left text-lg text-white break-words ${
-                                                                            isMyVote ? 'font-semibold' : ''
-                                                                        }`}
-                                                                    >
-                                                                        {opt.label}
-                                                                        {isMyVote && (
-                                                                            <span className="text-primary ml-2">
-                                                                                (your vote)
-                                                                            </span>
-                                                                        )}
-                                                                    </span>
-                                                                ) : amSpectator ? (
-                                                                    <span className="flex-1 min-w-0 text-center sm:text-left text-lg text-muted break-words">
-                                                                        {opt.label} (spectators do not vote)
-                                                                    </span>
-                                                                ) : (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            handleGroupVote(voteId, opt.id)
-                                                                        }
-                                                                        className="flex-1 min-w-0 text-center sm:text-left px-2 py-2 rounded-lg text-lg text-white hover:bg-surface-light/80 transition-colors break-words"
-                                                                    >
-                                                                        {opt.label}
-                                                                    </button>
-                                                                )}
-                                                                {voters ? (
-                                                                    <span className="text-sm text-muted shrink-0 text-center sm:text-right">
-                                                                        {voters}
-                                                                    </span>
-                                                                ) : null}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                            {allVoted && (
-                                                <div className="mt-4 flex justify-end items-center gap-2">
-                                                    {isApplyingGroupVote && (
-                                                        <svg
-                                                            className="animate-spin h-5 w-5 text-primary"
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            aria-hidden
-                                                        >
-                                                            <circle
-                                                                className="opacity-25"
-                                                                cx="12"
-                                                                cy="12"
-                                                                r="10"
-                                                                stroke="currentColor"
-                                                                strokeWidth="4"
-                                                            />
-                                                            <path
-                                                                className="opacity-75"
-                                                                fill="currentColor"
-                                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                                            />
-                                                        </svg>
-                                                    )}
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleGroupVoteNext}
-                                                        disabled={isApplyingGroupVote}
-                                                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {isApplyingGroupVote ? 'Applying…' : 'Next'}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="min-h-[4rem] sm:min-h-[8rem] md:min-h-[16rem]" aria-hidden />
-                                    </>
-                                );
-                            })()
-                        ) : null}
-                    </div>
-                </div>
             </div>
-        </div>
+        </PreMissionStoryLayout>
     );
 }

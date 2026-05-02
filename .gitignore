@@ -4,3 +4,4 @@ dist/
 storage/
 deploy.zip
 Plans/
+vendor/

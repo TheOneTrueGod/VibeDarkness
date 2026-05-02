@@ -1,8 +1,21 @@
 {
     "id": 1,
-    "name": "Jer",
-    "fire": 9,
-    "water": 5,
-    "earth": 1,
-    "air": 9
+    "name": "TheOneTrueGod",
+    "role": "admin",
+    "fire": 8,
+    "water": 7,
+    "earth": 6,
+    "air": 9,
+    "recentLobbies": [
+        "D7B947"
+    ],
+    "campaignIds": [
+        "b20ed5832a01070a"
+    ],
+    "characterIds": [
+        "char_2c1428630628ad7e"
+    ],
+    "inventoryItemIds": [],
+    "knowledge": [],
+    "passwordHash": "$2y$12$4slaAwe25DxOfE0aPaWI\/evNgycN6sYpupO17CmDakd.wOyzosM\/2"
 }
