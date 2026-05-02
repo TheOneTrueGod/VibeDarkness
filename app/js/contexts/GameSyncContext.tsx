@@ -460,6 +460,27 @@ export function GameSyncProvider({
       setSyncStatus((prev) => (prev === 'loading' ? 'loading' : 'resyncing'));
       syncContextControllerRef.current.fetchFullState()
         .then(({ gameState: gs }) => {
+          const gameRec = (gs?.game as Record<string, unknown> | undefined) ?? null;
+          const phase = gameRec?.gamePhase ?? gameRec?.game_phase;
+          const serverBattleTick = gameRec != null ? gameTickFromState(gameRec) : 0;
+          const live = battleCallbacksRef.current?.getEngineSnapshot();
+          if (
+            isHost
+            && phase === 'battle'
+            && live != null
+            && serverBattleTick < live.gameTick
+          ) {
+            logOrderPoll('host_full_fetch_skipped_stale_battle_blob', {
+              reason: desyncContext?.reason ?? 'normal',
+              serverBattleTick,
+              localEngineTick: live.gameTick,
+            });
+            setSyncStatus('synced');
+            setCanSubmitOrders(true);
+            consecutiveWaitCountRef.current = 0;
+            return;
+          }
+
           setGameState(gs);
           battleCallbacksRef.current?.onFullResync?.(gs.game as unknown as SerializedGameState);
           setSyncStatus('synced');
@@ -488,7 +509,7 @@ export function GameSyncProvider({
           throw err;
         })
     },
-    [],
+    [isHost],
   );
 
   const runMinimalBattlePoll = useCallback(
@@ -697,11 +718,16 @@ export function GameSyncProvider({
   useEffect(() => {
     const onVisibilityChange = () => {
       if (document.visibilityState !== 'visible') return;
+      // Host engine is canonical during battle; reloading the lobby game blob can replace
+      // live state with an older async checkpoint or a bad fallback (see getGameStateData).
+      if (isHost && battleCallbacksRef.current != null) {
+        return;
+      }
       forceResyncRef.current = true;
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-  }, []);
+  }, [isHost]);
 
   useEffect(() => {
     if (syncStatus !== 'waiting_for_host') {

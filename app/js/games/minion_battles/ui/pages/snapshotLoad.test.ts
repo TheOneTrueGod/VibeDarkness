@@ -20,6 +20,7 @@ function makeCheckpointSnapshot(overrides: Partial<Record<string, unknown>> = {}
         eventBus: engine.eventBus,
         equippedItemsByPlayer: { p1: ['004'] },
     });
+    engine.registerBattleObjectives(DARK_AWAKENING.battleObjectives ?? []);
     // Advance a bit and pause for orders
     engine.gameTick = 65;
     engine.gameTime = 2.5;

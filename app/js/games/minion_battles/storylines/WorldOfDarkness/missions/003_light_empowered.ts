@@ -7,7 +7,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
-import type { LevelEvent, SpecialTilePlacement } from '../../types';
+import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF, ENEMY_BOAR, ENEMY_RANGED } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
@@ -111,9 +111,26 @@ const LEVEL_EVENTS: LevelEvent[] = [
                 maxDistance: 2,
             },
         ],
-        emittedMessage: 'Kill the boar and return to the cave',
-        emittedByNpcId: '1',
         missionResult: 'victory',
+    },
+];
+
+const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
+    {
+        id: 'kill_boar',
+        label: 'Hunt and kill the boar',
+        toComplete: { type: 'unitDead', unitCharacterId: 'boar' },
+    },
+    {
+        id: 'return_cave',
+        label: 'Return to the cave with your party',
+        requiresCompletedId: 'kill_boar',
+        toComplete: {
+            type: 'allUnitsNearPosition',
+            col: CAVE_CAMPFIRE.col,
+            row: CAVE_CAMPFIRE.row + BOTTOM_OFFSET_ROW,
+            maxDistance: 2,
+        },
     },
 ];
 
@@ -189,6 +206,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;
     levelEvents = LEVEL_EVENTS;
+    battleObjectives = BATTLE_OBJECTIVES;
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
     aiController = 'stateBased' as const;

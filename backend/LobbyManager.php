@@ -585,8 +585,64 @@ class LobbyManager
     }
 
     /**
+     * @param array<string, mixed> $checkpoint
+     */
+    private function checkpointEngineStateLooksUsable(array $checkpoint): bool
+    {
+        $state = $checkpoint['state'] ?? null;
+        if (!is_array($state)) {
+            return false;
+        }
+        $units = $state['units'] ?? null;
+
+        return is_array($units) && count($units) > 0;
+    }
+
+    /**
+     * Build lobby `game` payload from one checkpoint file plus phase metadata from game_<id>.json.
+     *
+     * @param array<string, mixed> $checkpoint
+     * @return array<string, mixed>
+     */
+    private function mergeCheckpointPayloadWithLobbyMeta(string $lobbyId, string $gameId, array $checkpoint, int $filenameTick): array
+    {
+        $basePath = $this->getStoragePath() . '/' . $lobbyId;
+        $state = $checkpoint['state'] ?? [];
+        if (!is_array($state)) {
+            $state = [];
+        }
+        $synchash = $checkpoint['synchash'] ?? null;
+        $result = array_merge($state, [
+            'gameTick' => $checkpoint['gameTick'] ?? $filenameTick,
+            'orders' => $checkpoint['orders'] ?? [],
+            'synchash' => $synchash,
+        ]);
+        // Merge phase metadata from main game file (checkpoints only have engine state)
+        $basePathFile = $basePath . '/game_' . $gameId . '.json';
+        if (is_file($basePathFile)) {
+            $baseData = json_decode((string) file_get_contents($basePathFile), true);
+            if (is_array($baseData)) {
+                foreach (['gamePhase', 'game_phase', 'selectedMissionId', 'selected_mission_id', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'characterSelectReadyPlayerIds', 'character_select_ready_player_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds', 'groupVoteVotes', 'groupVoteApplied'] as $key) {
+                    if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
+                        $result[$key] = $baseData[$key];
+                    }
+                }
+                // Also merge dotted keys like characterSelections.1
+                foreach (array_keys($baseData) as $key) {
+                    if (strpos($key, 'characterSelections.') === 0 || strpos($key, 'character_selections.') === 0
+                        || strpos($key, 'characterPortraitIds.') === 0 || strpos($key, 'character_portrait_ids.') === 0) {
+                        $result[$key] = $baseData[$key];
+                    }
+                }
+            }
+        }
+
+        return $this->mergePlayerEquipmentIntoState($result);
+    }
+
+    /**
      * Load game state from storage (for inclusion in lobby state response when in game).
-     * Returns the most recent checkpoint snapshot if any exist, otherwise falls back to game_<gameId>.json.
+     * Returns the most recent usable checkpoint snapshot if any exist, otherwise falls back to game_<gameId>.json.
      */
     public function getGameStateData(string $lobbyId, string $gameId): ?array
     {
@@ -595,54 +651,37 @@ class LobbyManager
         $prefix = 'game_' . $gameId . '_';
         $suffix = '.json';
 
-        // Look for the latest checkpoint
         if (is_dir($checkpointDir)) {
-            $latestTick = -1;
-            $latestFile = null;
-            foreach (scandir($checkpointDir) as $file) {
+            $candidates = [];
+            foreach (scandir($checkpointDir) ?: [] as $file) {
+                if (!is_string($file)) {
+                    continue;
+                }
                 if (strpos($file, $prefix) === 0 && substr($file, -strlen($suffix)) === $suffix) {
                     $tickStr = substr($file, strlen($prefix), -strlen($suffix));
-                    if (ctype_digit($tickStr)) {
-                        $t = (int) $tickStr;
-                        if ($t > $latestTick) {
-                            $latestTick = $t;
-                            $latestFile = $file;
-                        }
+                    if ($tickStr !== '' && ctype_digit($tickStr)) {
+                        $candidates[] = ['tick' => (int) $tickStr, 'file' => $file];
                     }
                 }
             }
-            if ($latestFile !== null) {
-                $json = file_get_contents($checkpointDir . '/' . $latestFile);
-                $checkpoint = json_decode($json, true);
-                if (is_array($checkpoint)) {
-                    $state = $checkpoint['state'] ?? [];
-                    $synchash = $checkpoint['synchash'] ?? null;
-                    $result = array_merge($state, [
-                        'gameTick' => $checkpoint['gameTick'] ?? $latestTick,
-                        'orders' => $checkpoint['orders'] ?? [],
-                        'synchash' => $synchash,
-                    ]);
-                    // Merge phase metadata from main game file (checkpoints only have engine state)
-                    $basePathFile = $basePath . '/game_' . $gameId . '.json';
-                    if (is_file($basePathFile)) {
-                        $baseData = json_decode(file_get_contents($basePathFile), true);
-                        if (is_array($baseData)) {
-                            foreach (['gamePhase', 'game_phase', 'selectedMissionId', 'selected_mission_id', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'characterSelectReadyPlayerIds', 'character_select_ready_player_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds', 'groupVoteVotes', 'groupVoteApplied'] as $key) {
-                                if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
-                                    $result[$key] = $baseData[$key];
-                                }
-                            }
-                            // Also merge dotted keys like characterSelections.1
-                            foreach (array_keys($baseData) as $key) {
-                                if (strpos($key, 'characterSelections.') === 0 || strpos($key, 'character_selections.') === 0
-                                    || strpos($key, 'characterPortraitIds.') === 0 || strpos($key, 'character_portrait_ids.') === 0) {
-                                    $result[$key] = $baseData[$key];
-                                }
-                            }
-                        }
-                    }
-                    return $this->mergePlayerEquipmentIntoState($result);
+            usort($candidates, static function (array $a, array $b): int {
+                return $b['tick'] <=> $a['tick'];
+            });
+            foreach ($candidates as $entry) {
+                $path = $checkpointDir . '/' . $entry['file'];
+                if (!is_file($path)) {
+                    continue;
                 }
+                $raw = file_get_contents($path);
+                if ($raw === false || $raw === '') {
+                    continue;
+                }
+                $checkpoint = json_decode($raw, true);
+                if (!is_array($checkpoint) || !$this->checkpointEngineStateLooksUsable($checkpoint)) {
+                    continue;
+                }
+
+                return $this->mergeCheckpointPayloadWithLobbyMeta($lobbyId, $gameId, $checkpoint, $entry['tick']);
             }
         }
 

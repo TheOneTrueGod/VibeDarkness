@@ -190,6 +190,8 @@ export class BattleSession {
             engine.synchash = typeof initRecord?.synchash === 'string' ? initRecord.synchash : null;
         }
 
+        engine.registerBattleObjectives(mission.battleObjectives ?? []);
+
         this.engine = engine;
 
         this.emit({ type: 'round_number', roundNumber: engine.roundNumber });

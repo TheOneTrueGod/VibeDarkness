@@ -201,32 +201,16 @@ export default function BattlePhase({
         const update = () => {
             const engine = sessionRef.current?.getEngine();
             if (!engine || !onSidebarInfoChangeRef.current) return;
-            const currentPlayers = playersRef.current;
-
-            const playerUnits = engine.units
-                .filter((u) => u.isPlayerControlled())
-                .map((u) => ({
-                    playerId: u.ownerId,
-                    playerName: currentPlayers[u.ownerId]?.name ?? 'Unknown',
-                    characterId: u.characterId,
-                    hp: u.hp,
-                    maxHp: u.maxHp,
-                    isAlive: u.isAlive(),
-                }));
 
             onSidebarInfoChangeRef.current({
-                turnIndicator: {
-                    visible: canUseOrderUi,
-                    text: 'Your turn! Select a card to play.',
-                },
-                playerUnits,
+                objectives: engine.getBattleObjectiveRows(),
             });
         };
 
         update();
         const interval = setInterval(update, 500);
         return () => clearInterval(interval);
-    }, [canUseOrderUi, roundNumber]);
+    }, [roundNumber]);
 
     useEffect(() => {
         return () => {
@@ -588,7 +572,7 @@ export default function BattlePhase({
             {/* Timeline rail + canvas stack share space above the hand; hand spans full width */}
             <div className="flex min-h-0 flex-1 flex-row">
                 <aside
-                    className="flex w-64 shrink-0 min-h-0 flex-col overflow-x-hidden border-r border-dark-700"
+                    className="flex w-72 shrink-0 min-h-0 flex-col overflow-x-hidden border-r border-dark-700"
                     aria-label="Action timeline"
                 >
                     <BattleTimeline
@@ -597,6 +581,7 @@ export default function BattlePhase({
                         localPlayerId={playerId}
                         layout="rail"
                         previewAbility={canUseOrderUi ? selectedAbility : null}
+                        previewOrderUnitId={activeLocalWaiter?.unitId ?? null}
                     />
                 </aside>
 

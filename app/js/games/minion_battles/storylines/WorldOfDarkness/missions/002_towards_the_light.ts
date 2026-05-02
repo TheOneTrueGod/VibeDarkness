@@ -9,7 +9,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
-import type { LevelEvent, SpecialTilePlacement } from '../../types';
+import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
@@ -87,9 +87,20 @@ const LEVEL_EVENTS: LevelEvent[] = [
                 maxDistance: 2,
             },
         ],
-        emittedMessage: 'Find safety',
-        emittedByNpcId: '1',
         missionResult: 'victory',
+    },
+];
+
+const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
+    {
+        id: 'find_safety',
+        label: 'Find safety — reach the light deep in the cave with your whole party',
+        toComplete: {
+            type: 'allUnitsNearPosition',
+            col: CAVE_CAMPFIRE.col + RIGHT_OFFSET_COL,
+            row: CAVE_CAMPFIRE.row,
+            maxDistance: 2,
+        },
     },
 ];
 
@@ -181,6 +192,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;
     levelEvents = LEVEL_EVENTS;
+    battleObjectives = BATTLE_OBJECTIVES;
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
     aiController = 'stateBased' as const;

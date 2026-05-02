@@ -8,7 +8,14 @@
 
 import type { GameEngine } from '../game/GameEngine';
 import type { UnitSpawnConfig } from '../game/types';
-import type { AIControllerId, EnemySpawnDef, MissionBattleConfig, LevelEvent, PlayerSpawnPoint } from './types';
+import type {
+    AIControllerId,
+    EnemySpawnDef,
+    MissionBattleConfig,
+    LevelEvent,
+    PlayerSpawnPoint,
+    BattleObjectiveDef,
+} from './types';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
@@ -79,6 +86,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     abstract worldHeight: number;
     /** Optional level events (spawn waves, victory checks, etc.). */
     levelEvents?: LevelEvent[];
+    /** Optional battle objectives (see MissionBattleConfig). */
+    battleObjectives?: BattleObjectiveDef[];
     /** Optional special tiles (Campfire, Crystal, etc.) placed on the map. */
     specialTiles?: import('./types').SpecialTilePlacement[];
     /** Optional grid-based player spawn points. */

@@ -4,6 +4,8 @@ import type { GameEngine } from '../../game/GameEngine';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
+import { PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/unitDef';
+import { getPortrait } from '../../character_defs/portraits';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
 import { TimelineHoverFlyout } from './TimelineHoverFlyout';
 import slimeIcon from '../../assets/characters/slime.svg';
@@ -99,6 +101,8 @@ function enemyActionWindowForAbility(
 
 type BattleTimelineLayout = 'strip' | 'rail';
 
+const RAIL_COMPACT_STORAGE_KEY = 'minionBattles.battleTimelineRailCompact';
+
 interface BattleTimelineProps {
     engine: GameEngine;
     players: Record<string, PlayerState>;
@@ -107,10 +111,67 @@ interface BattleTimelineProps {
     windowSeconds?: number;
     /** When the local player has a card selected (previewing), show how it would look on the timeline if they used it now. */
     previewAbility?: AbilityStatic | null;
+    /** Unit currently receiving an order in parallel batch; timeline preview applies to this unit only. */
+    previewOrderUnitId?: string | null;
     /**
      * `strip` — full-width bar (e.g. below canvas). `rail` — left sidebar: fill parent height, scroll rows internally.
      */
     layout?: BattleTimelineLayout;
+}
+
+function playerControlledUnitsForOwner(engine: GameEngine, playerId: string): Unit[] {
+    return engine.units
+        .filter((u) => u.ownerId === playerId && u.isPlayerControlled())
+        .slice()
+        .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function hpBarColorClass(hp: number, maxHp: number, alive: boolean): string {
+    if (!alive || maxHp <= 0) return 'bg-gray-600';
+    const pct = (hp / maxHp) * 100;
+    if (pct > 60) return 'bg-green-500';
+    if (pct > 30) return 'bg-yellow-500';
+    return 'bg-red-500';
+}
+
+function UnitRailIcon({
+    unit,
+    playerColor,
+    playerNameFallback,
+}: {
+    unit: Unit;
+    playerColor: string;
+    playerNameFallback: string;
+}) {
+    if (unit.characterId === PLAYER_CHARACTER_ID && unit.portraitId) {
+        const p = getPortrait(unit.portraitId);
+        if (p?.picture) {
+            return (
+                <div
+                    className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-dark-600 bg-dark-800 [&>svg]:h-full [&>svg]:w-full [&>svg]:max-h-full [&>svg]:max-w-full"
+                    title={unit.name}
+                    dangerouslySetInnerHTML={{ __html: p.picture }}
+                />
+            );
+        }
+    }
+    const iconUrl = ENEMY_CHARACTER_ICONS[unit.characterId];
+    if (iconUrl) {
+        return (
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-dark-600 bg-dark-800">
+                <img src={iconUrl} alt="" className="h-full w-full object-contain" title={unit.name} />
+            </div>
+        );
+    }
+    return (
+        <div
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-xs font-bold text-black"
+            style={{ backgroundColor: playerColor }}
+            title={unit.name}
+        >
+            {(unit.name || playerNameFallback)?.[0]?.toUpperCase() ?? '?'}
+        </div>
+    );
 }
 
 function renderEnemyTimelineTrack(
@@ -337,6 +398,125 @@ function renderPlayerTimelineTrack(
     );
 }
 
+function renderPlayerUnitTimelineUnified(
+    engine: GameEngine,
+    unit: Unit,
+    playerId: string,
+    player: PlayerState,
+    windowSeconds: number,
+    localPlayerId: string,
+    previewAbility: AbilityStatic | null | undefined,
+    previewOrderUnitId: string | null | undefined,
+    compact: boolean,
+    hover: TimelinePanelHover,
+    setHover: (next: TimelinePanelHover) => void,
+): React.ReactNode {
+    const now = engine.gameTime;
+    const rowKey = `player:${playerId}:${unit.id}`;
+    const alive = unit.isAlive();
+    const hpPct = unit.maxHp > 0 ? Math.round((unit.hp / unit.maxHp) * 100) : 0;
+    const barClass = hpBarColorClass(unit.hp, unit.maxHp, alive);
+
+    const showPreview = !!(
+        playerId === localPlayerId &&
+        previewOrderUnitId &&
+        unit.id === previewOrderUnitId &&
+        previewAbility
+    );
+
+    const active = unit.activeAbilities[0];
+    const ability = active ? getAbility(active.abilityId) : null;
+
+    let segments: {
+        phaseId: BattleTimelinePhaseId;
+        start: number;
+        duration: number;
+        label: string;
+        description: string;
+    }[] = [];
+    let isPreview = false;
+
+    if (showPreview && previewAbility) {
+        const intervals = intervalsForAbility(previewAbility, unit, engine);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
+        isPreview = true;
+    } else if (active && ability) {
+        const intervals = intervalsForAbility(ability, unit, engine);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        const elapsed = now - active.startTime;
+        segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+    }
+
+    const displayAbility = ability ?? (showPreview ? previewAbility : null);
+    const hasTimeline = !!(displayAbility && segments.length > 0 && alive);
+
+    const track =
+        hasTimeline && displayAbility
+            ? renderPlayerTimelineTrack(
+                  rowKey,
+                  unit,
+                  windowSeconds,
+                  segments,
+                  true,
+                  displayAbility,
+                  isPreview,
+                  hover,
+                  setHover,
+              )
+            : (
+                  <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
+                      <TimelineTimeRuler windowSeconds={windowSeconds} />
+                  </div>
+              );
+
+    const iconEl = (
+        <UnitRailIcon unit={unit} playerColor={player.color} playerNameFallback={player.name} />
+    );
+
+    if (compact) {
+        return (
+            <div key={unit.id} className="relative min-w-0 overflow-hidden rounded-md py-1 pr-1">
+                <div className="pointer-events-none absolute inset-0 rounded-md bg-dark-800/90" aria-hidden />
+                <div
+                    className={`pointer-events-none absolute left-0 top-0 bottom-0 rounded-l-md ${barClass} opacity-35`}
+                    style={{ width: `${hpPct}%` }}
+                    aria-hidden
+                />
+                <div className="relative z-10 flex min-w-0 items-center gap-2 pl-1">
+                    {iconEl}
+                    <span className="min-w-0 flex-1 truncate text-[11px] text-gray-100" title={unit.name}>
+                        {unit.name}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-gray-400">
+                        ({unit.hp}/{unit.maxHp})
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div key={unit.id} className="flex min-w-0 flex-col gap-1 border-b border-dark-700/40 pb-2 last:border-b-0">
+            <div className="flex min-w-0 items-center gap-2">
+                {iconEl}
+                <span className="min-w-0 truncate text-xs font-medium text-gray-100" title={unit.name}>
+                    {unit.name}
+                </span>
+            </div>
+            <div className="flex min-w-0 items-center gap-2 pl-0">
+                <span className="w-11 shrink-0 text-right text-[10px] text-gray-400">
+                    {unit.hp}/{unit.maxHp}
+                </span>
+                <div className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-dark-700">
+                    <div className={`absolute left-0 top-0 h-full rounded-full ${barClass}`} style={{ width: `${hpPct}%` }} />
+                </div>
+            </div>
+            {track}
+        </div>
+    );
+}
+
 function renderPlayerRow(
     engine: GameEngine,
     playerId: string,
@@ -485,9 +665,17 @@ export default function BattleTimeline({
     localPlayerId,
     windowSeconds = 2,
     previewAbility = null,
+    previewOrderUnitId = null,
     layout = 'strip',
 }: BattleTimelineProps) {
     const [panelHover, setPanelHover] = useState<TimelinePanelHover>(null);
+    const [railCompact, setRailCompact] = useState(() => {
+        try {
+            return typeof localStorage !== 'undefined' && localStorage.getItem(RAIL_COMPACT_STORAGE_KEY) === '1';
+        } catch {
+            return false;
+        }
+    });
 
     const handlePanelPointerLeave = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         const next = e.relatedTarget as Node | null;
@@ -542,6 +730,28 @@ export default function BattleTimeline({
                 className="relative flex h-full min-h-0 min-w-0 flex-col bg-dark-900/95"
                 onPointerLeave={handlePanelPointerLeave}
             >
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-dark-700/80 px-2 py-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                        Party and actions
+                    </span>
+                    <button
+                        type="button"
+                        className="shrink-0 rounded px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-dark-700"
+                        onClick={() => {
+                            setRailCompact((c) => {
+                                const next = !c;
+                                try {
+                                    localStorage.setItem(RAIL_COMPACT_STORAGE_KEY, next ? '1' : '0');
+                                } catch {
+                                    /* ignore */
+                                }
+                                return next;
+                            });
+                        }}
+                    >
+                        {railCompact ? 'Expanded' : 'Compact'}
+                    </button>
+                </div>
                 <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-2 py-2">
                     <div className="flex min-w-0 flex-col gap-3">
                         {renderEnemyRow(engine, windowSeconds, 'rail', setPanelHover)}
@@ -549,19 +759,45 @@ export default function BattleTimeline({
                             className="border-0 border-t border-gray-500/80"
                             aria-hidden
                         />
-                        {orderedPlayers.map(([playerId, player]) =>
-                            renderPlayerRow(
-                                engine,
-                                playerId,
-                                player,
-                                windowSeconds,
-                                localPlayerId,
-                                previewAbility,
-                                'rail',
-                                panelHover,
-                                setPanelHover,
-                            ),
-                        )}
+                        {orderedPlayers.map(([playerId, player]) => {
+                            const units = playerControlledUnitsForOwner(engine, playerId);
+                            return (
+                                <div key={playerId} className="flex min-w-0 flex-col gap-1.5">
+                                    <div
+                                        className="min-w-0 truncate text-xs font-semibold text-gray-200"
+                                        title={player.name}
+                                    >
+                                        <span style={{ color: player.color }}>{player.name}</span>
+                                        {player.isHost && (
+                                            <span className="ml-1 text-[10px] text-primary">(HOST)</span>
+                                        )}
+                                    </div>
+                                    {units.length === 0 ? (
+                                        <div className="rounded-md bg-dark-800/50 px-2 py-1 text-[10px] text-gray-500">
+                                            No unit in battle
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-2">
+                                            {units.map((unit) =>
+                                                renderPlayerUnitTimelineUnified(
+                                                    engine,
+                                                    unit,
+                                                    playerId,
+                                                    player,
+                                                    windowSeconds,
+                                                    localPlayerId,
+                                                    previewAbility,
+                                                    previewOrderUnitId,
+                                                    railCompact,
+                                                    panelHover,
+                                                    setPanelHover,
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
                 {flyout}

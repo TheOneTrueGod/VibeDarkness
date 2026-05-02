@@ -80,15 +80,8 @@ export interface CampaignState {
 
 /** Info pushed from a game component into the chat sidebar. */
 export interface GameSidebarInfo {
-    turnIndicator: { visible: boolean; text: string };
-    playerUnits: {
-        playerId: string;
-        playerName: string;
-        characterId: string;
-        hp: number;
-        maxHp: number;
-        isAlive: boolean;
-    }[];
+    /** Battle objectives (Minion Battles); shown as a todo-style list above chat. */
+    objectives: { id: string; label: string; completed: boolean }[];
 }
 
 export interface GameStatePayload {

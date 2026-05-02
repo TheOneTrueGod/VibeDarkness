@@ -12,6 +12,7 @@ import { EffectManager } from './managers/EffectManager';
 import { CardManager } from './managers/CardManager';
 import { SpecialTileManager } from './managers/SpecialTileManager';
 import { LevelEventManager } from './managers/LevelEventManager';
+import { ObjectiveManager } from './managers/ObjectiveManager';
 
 export class GameState {
     readonly eventBus = new EventBus();
@@ -36,6 +37,7 @@ export class GameState {
     readonly cardManager: CardManager;
     readonly specialTileManager: SpecialTileManager;
     readonly levelEventManager: LevelEventManager;
+    readonly objectiveManager: ObjectiveManager;
 
     terrainManager: TerrainManager | null = null;
 
@@ -59,5 +61,6 @@ export class GameState {
         this.cardManager = new CardManager(ctx);
         this.specialTileManager = new SpecialTileManager(ctx);
         this.levelEventManager = new LevelEventManager(ctx);
+        this.objectiveManager = new ObjectiveManager(ctx);
     }
 }

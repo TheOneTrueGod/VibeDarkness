@@ -27,7 +27,7 @@ import type { AbilityStatic } from '../abilities/Ability';
 import { AbilityEventType } from '../abilities/Ability';
 import { areEnemies } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
-import type { LevelEvent } from '../storylines/types';
+import type { BattleObjectiveDef, LevelEvent } from '../storylines/types';
 import type { SpecialTile } from './specialTiles/SpecialTile';
 import { isTileDefendPoint } from './specialTiles/SpecialTile';
 import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from './units/unitAI';
@@ -280,7 +280,17 @@ export class GameEngine implements EngineContext {
 
     registerLevelEvents(events: LevelEvent[]): void { this.state.levelEventManager.registerLevelEvents(events); }
     setLevelEvents(events: LevelEvent[]): void { this.state.levelEventManager.setLevelEvents(events); }
-    setOnEmitMessage(cb: (text: string, npcId?: string) => void): void { this.state.levelEventManager.setOnEmitMessage(cb); }
+    registerBattleObjectives(defs: BattleObjectiveDef[]): void {
+        this.state.objectiveManager.setDefs(defs);
+    }
+
+    getBattleObjectiveRows(): { id: string; label: string; completed: boolean }[] {
+        return this.state.objectiveManager.getDisplayRows();
+    }
+    setOnEmitMessage(cb: (text: string, npcId?: string) => void): void {
+        this.state.levelEventManager.setOnEmitMessage(cb);
+        this.state.objectiveManager.setOnEmitMessage(cb);
+    }
     setOnVictory(cb: (missionResult: string) => void): void { this.state.levelEventManager.setOnVictory(cb); }
     setOnDefeat(cb: () => void): void { this.state.levelEventManager.setOnDefeat(cb); }
 
@@ -712,6 +722,7 @@ export class GameEngine implements EngineContext {
 
         if (!this.storyPauseActive) {
             this.state.levelEventManager.processLevelEvents();
+            this.state.objectiveManager.processObjectives();
             this.processActiveAbilities(dt);
             this.processUnitTicks(dt);
             this.state.unitManager.processCrystalAura();
@@ -1367,6 +1378,7 @@ export class GameEngine implements EngineContext {
             storyPauseActive: this.storyPauseActive,
             storyPauseReason: this.storyPauseReason,
             storyPauseEndsAt: this.storyPauseEndsAt,
+            objectives: this.state.objectiveManager.toJSON(),
         };
     }
 
@@ -1393,6 +1405,8 @@ export class GameEngine implements EngineContext {
             victoryCheckFirstEmitDone: data.victoryCheckFirstEmitDone,
             continuousSpawnLastSpawnedAt: data.continuousSpawnLastSpawnedAt,
         });
+
+        engine.state.objectiveManager.importSnapshot(data.objectives);
 
         engine.pendingOrders = (data.orders ?? []).map((o) => ({
             gameTick: o.gameTick,

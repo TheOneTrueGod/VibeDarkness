@@ -7,7 +7,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
-import type { LevelEvent, SpecialTilePlacement } from '../../types';
+import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
@@ -137,9 +137,15 @@ const LEVEL_EVENTS: LevelEvent[] = [
         type: 'victoryCheck',
         trigger: { afterRound: 4 },
         conditions: [{ type: 'eliminateAllEnemies' }],
-        emittedMessage: 'Eliminate all enemies to win',
-        emittedByNpcId: '1',
         missionResult: 'victory',
+    },
+];
+
+const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
+    {
+        id: 'eliminate_enemies',
+        label: 'Eliminate all enemies to win',
+        toComplete: { type: 'eliminateAllEnemies' },
     },
 ];
 
@@ -203,6 +209,7 @@ export class DarkAwakeningMission extends BaseMissionDef {
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;
     levelEvents = LEVEL_EVENTS;
+    battleObjectives = BATTLE_OBJECTIVES;
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
     aiController = 'stateBased' as const;

@@ -76,6 +76,22 @@ export type VictoryCondition =
     | VictoryConditionAllUnitsNearPosition
     | VictoryConditionUnitDead;
 
+/** When an objective completes, run these in order (host only for npcChat). */
+export type ObjectiveOnCompleteEffect =
+    | { type: 'revealObjective'; id: string }
+    | { type: 'npcChat'; text: string; npcId?: string };
+
+/** In-battle objective shown in ObjectivePanel; evaluated each tick on the host sim. */
+export interface BattleObjectiveDef {
+    id: string;
+    /** Player-facing line in the objectives list. */
+    label: string;
+    /** If set, hidden in UI until that objective id is completed. */
+    requiresCompletedId?: string;
+    toComplete: VictoryCondition;
+    onComplete?: ObjectiveOnCompleteEffect[];
+}
+
 /** Base fields shared by all level events. */
 interface LevelEventBase {
     /** Optional message sent to lobby chat when the event triggers. */
@@ -210,6 +226,8 @@ export interface MissionBattleConfig {
     enemies: EnemySpawnDef[];
     /** Level events: spawn waves, victory checks, etc. */
     levelEvents?: LevelEvent[];
+    /** Optional battle objectives (ObjectivePanel); state is checkpointed. */
+    battleObjectives?: BattleObjectiveDef[];
     /** Create the terrain grid for this mission's battlefield. */
     createTerrain: () => TerrainGrid;
     /** Optional special tiles (Campfire, Crystal, etc.) placed on the map. */

@@ -111,6 +111,8 @@ export interface SerializedGameState {
     storyPauseReason?: string | null;
     /** Absolute gameTime when story pause should auto-end, if any. */
     storyPauseEndsAt?: number | null;
+    /** Battle objective completion / reveal state (optional). */
+    objectives?: { completedIds: string[]; revealedIds: string[] };
 }
 
 /** Serialized card instance. */

@@ -10,6 +10,7 @@ import GameCanvas from './GameCanvas';
 import type { ClickData } from './GameCanvas';
 import GameList from './GameList';
 import type { PlayerState, AccountState, LobbyState, GameSidebarInfo } from '../types';
+import ObjectivePanel from '../games/minion_battles/ui/components/ObjectivePanel';
 import { LobbyClient } from '../LobbyClient';
 import { getGameById } from '../games/list';
 import { useGameSyncOptional } from '../contexts/GameSyncContext';
@@ -265,55 +266,10 @@ export default function GameScreen({
 
         return (
             <div className="flex flex-col gap-2">
-                {/* Turn indicator - always occupies space; invisible when not your turn */}
-                <div
-                    className={`text-sm px-3 py-2 rounded-lg bg-green-700 text-white font-medium text-center border border-green-500 ${
-                        gameSidebarInfo.turnIndicator.visible ? '' : 'invisible'
-                    }`}
-                >
-                    {gameSidebarInfo.turnIndicator.text}
-                </div>
-                {/* Player unit health list */}
-                <div className="flex flex-col gap-1.5">
-                    {gameSidebarInfo.playerUnits.map((pu) => {
-                        const pState = effectivePlayers[pu.playerId];
-                        const hpPct = pu.maxHp > 0 ? Math.round((pu.hp / pu.maxHp) * 100) : 0;
-                        const barColor = !pu.isAlive
-                            ? 'bg-gray-600'
-                            : hpPct > 60
-                              ? 'bg-green-500'
-                              : hpPct > 30
-                                ? 'bg-yellow-500'
-                                : 'bg-red-500';
-                        return (
-                            <div key={pu.playerId} className="flex flex-col gap-0.5">
-                                <div className="flex items-center justify-between text-xs">
-                                    <span
-                                        className="font-medium truncate"
-                                        style={{ color: pState?.color ?? '#fff' }}
-                                    >
-                                        {pu.playerName}
-                                    </span>
-                                    <span className="text-muted capitalize text-[11px]">{pu.characterId}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="flex-1 h-1.5 bg-dark-700 rounded-full overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full transition-all ${barColor}`}
-                                            style={{ width: `${hpPct}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-[10px] text-muted w-12 text-right">
-                                        {pu.hp}/{pu.maxHp}
-                                    </span>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                <ObjectivePanel objectives={gameSidebarInfo.objectives} />
             </div>
         );
-    }, [gameSidebarInfo, effectivePlayers]);
+    }, [gameSidebarInfo]);
 
     const chatHeaderLeaveButton = useMemo(
         () => (
