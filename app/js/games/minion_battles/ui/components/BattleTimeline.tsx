@@ -476,8 +476,11 @@ function renderPlayerUnitTimelineUnified(
 
     if (compact) {
         return (
-            <div key={unit.id} className="relative min-w-0 overflow-hidden rounded-md py-1 pr-1">
-                <div className="pointer-events-none absolute inset-0 rounded-md bg-dark-800/90" aria-hidden />
+            <div
+                key={unit.id}
+                className="relative min-w-0 overflow-hidden rounded-md border border-white py-1 pr-1"
+            >
+                <div className="pointer-events-none absolute inset-0 bg-black" aria-hidden />
                 <div
                     className={`pointer-events-none absolute left-0 top-0 bottom-0 rounded-l-md ${barClass} opacity-35`}
                     style={{ width: `${hpPct}%` }}
