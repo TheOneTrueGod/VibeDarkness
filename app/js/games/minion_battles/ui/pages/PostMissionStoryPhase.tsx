@@ -312,8 +312,10 @@ export default function PostMissionStoryPhase({
             />
         ) : null;
 
-    const phrasePanelWrapClassName =
+    const phrasePanelWrapDialogue =
         'shrink-0 py-2 sm:py-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
+    const phrasePanelWrapNonDialogue =
+        'shrink-0 pt-8 sm:pt-10 pb-2 sm:pb-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
 
     return (
         <PreMissionStoryLayout
@@ -330,11 +332,11 @@ export default function PostMissionStoryPhase({
             ) : showingDialogue ? (
                 <>
                     <DialoguePortraitRow phrase={dialoguePhrase} />
-                    <div className={phrasePanelWrapClassName}>{dialoguePanel}</div>
+                    <div className={phrasePanelWrapDialogue}>{dialoguePanel}</div>
                 </>
             ) : (
                 <div
-                    className={`flex flex-col gap-4 pb-6 ${phrasePanelWrapClassName} ${
+                    className={`flex flex-col gap-4 pb-6 ${phrasePanelWrapNonDialogue} ${
                         centerChoiceInViewport ? 'my-auto min-h-0 overflow-y-auto overflow-x-hidden' : ''
                     }`}
                 >

@@ -254,8 +254,11 @@ export default function PreMissionStoryPhase({
         />
     );
 
-    const phrasePanelWrapClassName =
+    /** Extra top inset so centered choice/vote cards aren’t flush with the scroll viewport top */
+    const phrasePanelWrapDialogue =
         'shrink-0 py-2 sm:py-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
+    const phrasePanelWrapNonDialogue =
+        'shrink-0 pt-8 sm:pt-10 pb-2 sm:pb-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
 
     return (
         <PreMissionStoryLayout
@@ -272,10 +275,10 @@ export default function PreMissionStoryPhase({
             ) : showingDialogue ? (
                 <>
                     <DialoguePortraitRow phrase={currentPhrase} />
-                    <div className={phrasePanelWrapClassName}>{phrasePanel}</div>
+                    <div className={phrasePanelWrapDialogue}>{phrasePanel}</div>
                 </>
             ) : (
-                <div className={phrasePanelWrapClassName}>{phrasePanel}</div>
+                <div className={phrasePanelWrapNonDialogue}>{phrasePanel}</div>
             )}
         </PreMissionStoryLayout>
     );
