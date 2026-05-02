@@ -560,7 +560,7 @@ export default function BattlePhase({
             {/* Timeline rail + canvas stack share space above the hand; hand spans full width */}
             <div className="flex min-h-0 flex-1 flex-row">
                 <aside
-                    className="flex w-64 shrink-0 min-h-0 flex-col border-r border-dark-700"
+                    className="flex w-64 shrink-0 min-h-0 flex-col overflow-x-hidden border-r border-dark-700"
                     aria-label="Action timeline"
                 >
                     <BattleTimeline

@@ -20,6 +20,7 @@ import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { ThickLineHitbox } from '../../hitboxes';
+import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
 const PREFIRE_TIME = 0.2;
@@ -28,7 +29,7 @@ const BASE_MAX_RANGE = 56;
 const DAMAGE = 10;
 const SWING_BAT_EFFECT_DURATION = 0.4;
 const POISE_DAMAGE = 10;
-const KNOCKBACK_MAGNITUDE = 80;
+const KNOCKBACK_MAGNITUDE = 45;
 const KNOCKBACK_AIR_TIME = 0.3;
 const KNOCKBACK_SLIDE_TIME = 0.2;
 /** Line thickness for hitbox and preview (px). */
@@ -108,7 +109,7 @@ export const SwingBatAbility: AbilityStatic = {
     abilityTimings: [
         { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
         { id: 'hit', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
-        { id: 'cooldown', start: 0.3, end: 2.3, abilityPhase: AbilityPhase.Cooldown },
+        { id: 'cooldown', start: 0.3, end: 1.55, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
@@ -170,6 +171,11 @@ export const SwingBatAbility: AbilityStatic = {
         const targetUnit = hitUnits[0]!;
         if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) return;
 
+        let hitDamage = DAMAGE;
+        if (isSinglePlayerBattle(eng.units) && targetUnit.characterId === 'dark_wolf') {
+            hitDamage = Math.max(DAMAGE, targetUnit.maxHp);
+        }
+
         const blocked = !tryDamageOrBlock(targetUnit, {
             engine: eng,
             gameTime: eng.gameTime,
@@ -178,7 +184,7 @@ export const SwingBatAbility: AbilityStatic = {
             attackerY: caster.y,
             attackerId: caster.id,
             abilityId: CARD_ID,
-            damage: DAMAGE,
+            damage: hitDamage,
             attackType: 'melee',
         });
         if (blocked) return;

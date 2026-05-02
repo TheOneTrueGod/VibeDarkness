@@ -124,9 +124,9 @@ function renderEnemyTimelineTrack(
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
     return (
-        <div className="relative h-10 overflow-visible rounded-md bg-dark-800/80">
+        <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
             <TimelineTimeRuler windowSeconds={windowSeconds} />
-            <div className="absolute inset-0 overflow-visible rounded-md">
+            <div className="absolute inset-0 overflow-hidden rounded-md">
                 {markers.map((marker, idx) => {
                     const startPercent = (marker.startFromNow / windowSeconds) * 100;
                     const duration = marker.endFromNow - marker.startFromNow;
@@ -161,9 +161,9 @@ function renderEnemyTimelineTrack(
                                 <div className="h-[4px] w-full rounded-full bg-red-600" />
                             </div>
                             <div
-                                className="absolute top-1/2 z-30 flex h-5 w-5 -translate-y-1/2 cursor-default items-center justify-center overflow-hidden rounded-sm border border-black bg-red-600"
+                                className="absolute top-1/2 z-30 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-default items-center justify-center overflow-hidden rounded-sm border border-black bg-red-600"
                                 style={{
-                                    left: `${endPercent}%`,
+                                    left: `clamp(8px, ${endPercent}%, calc(100% - 8px))`,
                                 }}
                                 title={marker.unit.name || 'Enemy'}
                                 onPointerEnter={onMarkerEnter}
@@ -295,12 +295,12 @@ function renderPlayerTimelineTrack(
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
     return (
-        <div className="relative h-10 overflow-visible rounded-md bg-dark-800/80">
+        <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
             <TimelineTimeRuler windowSeconds={windowSeconds} />
             {hasTimeline && (
                 <>
                     <div
-                        className={`absolute inset-0 overflow-visible rounded-md ${isPreview ? 'opacity-70' : ''}`}
+                        className={`absolute inset-0 overflow-hidden rounded-md ${isPreview ? 'opacity-70' : ''}`}
                     >
                         {segments.map((seg, idx) => (
                             <TimelinePhaseSegment
@@ -324,9 +324,9 @@ function renderPlayerTimelineTrack(
                             />
                         ))}
                     </div>
-                    {/* Left edge of icon = right end of the time window (overflow-visible track shows the rest) */}
+                    {/* Keep icon inside the track so the sidebar does not gain horizontal scroll */}
                     <div
-                        className={`pointer-events-none absolute top-1/2 left-full z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-dark-600 bg-dark-900 text-[10px] text-gray-100 shadow-sm ${isPreview ? 'opacity-70' : ''}`}
+                        className={`pointer-events-none absolute top-1/2 right-1 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-dark-600 bg-dark-900 text-[10px] text-gray-100 shadow-sm ${isPreview ? 'opacity-70' : ''}`}
                         title={displayAbility.name}
                     >
                         <AbilityIconInBox html={displayAbility.image} className="h-5 w-5" />
@@ -376,7 +376,7 @@ function renderPlayerRow(
         );
 
         const emptyTrack = (
-            <div className="relative h-10 overflow-visible rounded-md bg-dark-800/80">
+            <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
                 <TimelineTimeRuler windowSeconds={windowSeconds} />
             </div>
         );
@@ -441,7 +441,7 @@ function renderPlayerRow(
                   setHover,
               )
             : (
-                  <div className="relative h-10 overflow-visible rounded-md bg-dark-800/80">
+                  <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
                       <TimelineTimeRuler windowSeconds={windowSeconds} />
                   </div>
               );

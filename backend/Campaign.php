@@ -176,7 +176,21 @@ class Campaign
             'population' => (int) ($this->resources['population'] ?? 0),
             'crystals' => (int) ($this->resources['crystals'] ?? 0),
         ];
+        $latestByMission = [];
         foreach ($this->missionResults as $r) {
+            if (!is_array($r)) {
+                continue;
+            }
+            $mid = $r['missionId'] ?? '';
+            if ($mid === '') {
+                continue;
+            }
+            $ts = $r['timestamp'] ?? 0;
+            if (!isset($latestByMission[$mid]) || ($latestByMission[$mid]['timestamp'] ?? 0) <= $ts) {
+                $latestByMission[$mid] = $r;
+            }
+        }
+        foreach ($latestByMission as $r) {
             $delta = $r['resourceDelta'] ?? null;
             if (is_array($delta)) {
                 $out['food'] += (int) ($delta['food'] ?? 0);

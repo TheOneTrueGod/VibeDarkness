@@ -76,10 +76,8 @@ export const WORLD_HEIGHT = 800;
 
 export type EngineStateCallback = () => void;
 
-/** Light level below or equal to this is "full darkness". */
+/** Per-cell light from `getLightGrid` (lower = darker). Corruption fills only in full darkness — see `FULL_DARKNESS_THRESHOLD`. */
 const FULL_DARKNESS_THRESHOLD = -20;
-/** Light level below or equal to this but above full darkness is "high darkness". */
-const HIGH_DARKNESS_THRESHOLD = -16;
 
 function parseGameObjectIdNumber(id: string): number | null {
     const match = /_(\d+)$/.exec(id);
@@ -1132,7 +1130,7 @@ export class GameEngine implements EngineContext {
         }
     }
 
-    /** Darkness corruption: player units in darkness accumulate corruption and take damage. */
+    /** Darkness corruption: fills only in full darkness; escalating damage procs when the bar completes there. */
     private processPlayerDarknessCorruption(dt: number): void {
         if (!this.lightLevelEnabled || !this.terrainManager?.grid) return;
 
@@ -1151,17 +1149,23 @@ export class GameEngine implements EngineContext {
             const light = lightGrid[safeRow]![safeCol]!;
 
             const inFullDarkness = light <= FULL_DARKNESS_THRESHOLD;
-            const inHighDarkness = light <= HIGH_DARKNESS_THRESHOLD;
-            if (inHighDarkness) {
-                unit.corruptionProgress = Math.min(1, unit.corruptionProgress + dt);
+            /** Slower fill/drain so damage ticks take noticeably longer to proc (~2.2s to fill vs ~1s). */
+            const corruptionRate = 0.45;
+            if (inFullDarkness) {
+                unit.corruptionProgress = Math.min(1, unit.corruptionProgress + dt * corruptionRate);
             } else {
-                unit.corruptionProgress = Math.max(0, unit.corruptionProgress - dt);
+                unit.corruptionProgress = Math.max(0, unit.corruptionProgress - dt * corruptionRate);
+                if (unit.corruptionProgress <= 0) {
+                    unit.darknessDamageProcCount = 0;
+                }
             }
 
-            if (unit.corruptionProgress >= 1) {
+            if (inFullDarkness && unit.corruptionProgress >= 1) {
                 unit.corruptionProgress = 0;
-                const damage = inFullDarkness ? 5 : 2;
+                const hitIndex = unit.darknessDamageProcCount + 1;
+                const damage = 2 * hitIndex;
                 unit.takeDamage(damage, null, this.eventBus);
+                unit.darknessDamageProcCount += 1;
             }
         }
     }

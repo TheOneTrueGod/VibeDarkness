@@ -29,11 +29,14 @@ export default function PlayerList({
 }: PlayerListProps) {
     const readySet = readyPlayerIds != null ? new Set(readyPlayerIds) : null;
     const flashingSet = flashingPlayerIds != null ? new Set(flashingPlayerIds) : null;
+    const visiblePlayers = Object.values(players).filter(
+        (player) => characterSelections?.[player.id] !== SPECTATOR_ID,
+    );
     return (
         <div className="mt-4 p-4 bg-surface rounded">
             <h3 className="mb-3 text-sm text-muted uppercase">Players</h3>
             <ul className="list-none flex flex-wrap gap-2">
-                {Object.values(players).map((player) => {
+                {visiblePlayers.map((player) => {
                     const characterId = characterSelections?.[player.id];
                     const secondLine =
                         characterId === SPECTATOR_ID

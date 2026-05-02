@@ -18,6 +18,7 @@ import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { asCardDefId, type CardDef } from '../types';
+import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 
 const ABILITY_ID = 'throw_rock';
 const RANGE = 200;
@@ -111,6 +112,7 @@ interface GameEngineLike {
     addProjectile(projectile: Projectile): void;
     getPlayerResearchNodes?(playerId: string, treeId: string): string[];
     localPlayerId?: string;
+    units?: Unit[];
 }
 
 function getResearchSet(engine: GameEngineLike, playerId: string): Set<string> {
@@ -126,6 +128,17 @@ function getOwnerResearch(engine: GameEngineLike | undefined, caster?: Unit): Se
 
 function rockDamageForResearch(research: Set<string>): number {
     return research.has('more_power') ? MORE_POWER_DAMAGE : BASE_DAMAGE;
+}
+
+/** Default dark wolf HP at ×1 enemy scaling — two hits at this damage kill a wolf. */
+const TWO_SHOT_WOLF_PER_HIT_DAMAGE = 6;
+
+function rockProjectileDamage(engine: GameEngineLike, research: Set<string>): number {
+    let damage = rockDamageForResearch(research);
+    if (isSinglePlayerBattle(engine.units)) {
+        damage = Math.max(damage, TWO_SHOT_WOLF_PER_HIT_DAMAGE);
+    }
+    return damage;
 }
 
 function spawnProjectile(
@@ -192,7 +205,7 @@ export const ThrowRock: AbilityStatic = {
         const eng = gameState as GameEngineLike | undefined;
         const research = eng ? getOwnerResearch(eng) : new Set<string>();
         const hasMoreRock = research.has('more_rock');
-        const dmg = rockDamageForResearch(research);
+        const dmg = eng ? rockProjectileDamage(eng, research) : rockDamageForResearch(research);
         if (hasMoreRock) {
             return [`Throws {2} rocks dealing {${dmg}} damage each to the first enemy hit`];
         }
@@ -228,7 +241,7 @@ export const ThrowRock: AbilityStatic = {
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         const eng = engine as GameEngineLike;
         const research = getResearchSet(eng, caster.ownerId);
-        const damage = rockDamageForResearch(research);
+        const damage = rockProjectileDamage(eng, research);
         const hasMoreRock = research.has('more_rock');
 
         if (hasMoreRock) {

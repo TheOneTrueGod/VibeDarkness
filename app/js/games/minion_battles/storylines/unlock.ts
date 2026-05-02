@@ -5,14 +5,32 @@
 import type { StorylineDef } from './types';
 import type { MissionResult } from '../../../types';
 
+/** One entry per mission id — keeps the newest by optional timestamp (handles legacy duplicate rows). */
+export function latestMissionResultsOnly(missionResults: MissionResult[]): MissionResult[] {
+    const map = new Map<string, MissionResult>();
+    for (const r of missionResults) {
+        const existing = map.get(r.missionId);
+        if (!existing) {
+            map.set(r.missionId, r);
+            continue;
+        }
+        const existingTs = (existing as { timestamp?: number }).timestamp ?? 0;
+        const nextTs = (r as { timestamp?: number }).timestamp ?? 0;
+        if (nextTs >= existingTs) {
+            map.set(r.missionId, r);
+        }
+    }
+    return [...map.values()];
+}
+
 /** Mission is completed if it appears in campaign missionResults. */
 export function isMissionCompleted(missionId: string, missionResults: MissionResult[]): boolean {
-    return missionResults.some((r) => r.missionId === missionId);
+    return latestMissionResultsOnly(missionResults).some((r) => r.missionId === missionId);
 }
 
 /** Mission has a victory (non-defeat) result. */
 export function hasVictoryResult(missionId: string, missionResults: MissionResult[]): boolean {
-    return missionResults.some((r) => r.missionId === missionId && r.result !== 'defeat');
+    return latestMissionResultsOnly(missionResults).some((r) => r.missionId === missionId && r.result !== 'defeat');
 }
 
 /**
@@ -26,9 +44,10 @@ export function getUnlockedMissionIds(
     const unlocked = new Set<string>();
     unlocked.add(storyline.startMissionId);
 
+    const latest = latestMissionResultsOnly(missionResults);
     const edges = storyline.edges ?? [];
     for (const edge of edges) {
-        const fromResult = missionResults.find((r) => r.missionId === edge.fromMissionId && r.result === edge.result);
+        const fromResult = latest.find((r) => r.missionId === edge.fromMissionId && r.result === edge.result);
         if (fromResult) {
             unlocked.add(edge.toMissionId);
         }

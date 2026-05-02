@@ -15,11 +15,12 @@ import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
  * Render order: layers are drawn bottom to top so higher-priority
  * terrain types paint over lower ones.
  */
+/** Rock last so grass/thick grass edges do not paint over stone (clearer blocked tiles). */
 const LAYER_ORDER: TerrainType[] = [
-    TerrainType.Rock,
     TerrainType.Grass,
     TerrainType.ThickGrass,
     TerrainType.Dirt,
+    TerrainType.Rock,
 ];
 
 export class TerrainRenderer {

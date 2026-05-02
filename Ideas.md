@@ -14,31 +14,31 @@ Things Gobi Doesn't like
 
 - The alpha wolf is stunlockable.  introduce that "decaying stuns" mechanic.
 - Make the darkness look more poisoney and deadly instead of just dark
-- Ramp up darkness damage over time
+[x] Ramp up darkness damage over time
 - Boar didn't attack player 2
 - Swing Bat didn't upgrade with the appropriate research
-- Swing bat takes too long to cool down
-- timeline view scrolls horizontally when there's an ability icon
-- basic punch should only cost 1 stamina
+[x] Swing bat takes too long to cool down
+[x] timeline view scrolls horizontally when there's an ability icon
+[x] basic punch should only cost 1 stamina
 - In multiplayer, all units spawn on the same position
-- Spectators show up in the player list on the left
+[x] Spectators show up in the player list on the left
 - Raise shield doesn't do anything?
 - Increase the time it takes for a wolf to charge up its attack
 - Hints on loss screen
-- Make it so throw rock 2 shots a wolf
+[x] Make it so throw rock 2 shots a wolf
 - Music and sound effects
 - Make a "Creating an ability" skill
 - Scroll wheel to zoom in and out (this should not change the actual distance between things)
 - Shift click to make movement should in a straight line
-- Make rock take precedence graphically over trees, so it doesn't look like there's gaps to move through
+[x] Make rock take precedence graphically over trees, so it doesn't look like there's gaps to move through
 - There's an invisible wall in the top rightish of map 49_50
 - You can keep playing when it's in "waiting for host" state
 - Implement that "spawn point" idea.  In the second mission, have wolves only spawn from the west of the player.
 - Create a way for admins to give a player a mission result.  Maybe "Copy my mission result" or something like that to give me options
 - Make the dark damage animation more clear  Maybe larger particles that spawn farther away
-- Make the campfire lose its light slower (but still be noticeable on turn 1)
+[x] Make the campfire lose its light slower (but still be noticeable on turn 1)
 - Adjust the cave so the campfire gives off light
-- Make the darkness damage time take longer
+[x] Make the darkness damage time take longer
 - Stop long distance moves if an enemy gets within... 60?
 - Do that plan you had for making effects more "In your face"
   - Have an "animation layer" where these things happen on.  Make it in front of the existing layers.
@@ -51,9 +51,9 @@ Things Gobi Doesn't like
 
 --- Carried forward feedback
 - Wolves are showing an attack forecast in the timeline but not doing it
-- Enemies can move while stunned
+[x] Enemies can move while stunned
 - Fix bug where it doesn't use the card selected and instead
-- Make sure that a new mission result overrides an old one
+[x] Make sure that a new mission result overrides an old one
 
 --- OLD FEEDBACK
 

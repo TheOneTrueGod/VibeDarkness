@@ -155,8 +155,14 @@ export class Unit extends GameObject {
     waitMinEndTime: number | null = null;
     waitMaxEndTime: number | null = null;
 
-    /** Darkness corruption progress 0..1. Fills in 1s when in full darkness or the tier below, drains in 1s when not. At 1: deal 5 damage (full darkness) or 2 (tier below) and reset. */
+    /** Darkness corruption progress 0..1. Fills only in full darkness; drains when brighter. At 1 in full darkness: escalating damage then reset to 0. */
     corruptionProgress: number = 0;
+
+    /**
+     * How many darkness damage procs this unit has taken since last full reset.
+     * Next proc deals `2 * (darknessDamageProcCount + 1)` damage. Reset when corruption drains to 0 outside full darkness.
+     */
+    darknessDamageProcCount: number = 0;
 
     /** Current Poise HP. When 0 or below, knockback is applied. */
     poiseHp: number = 0;
@@ -422,6 +428,11 @@ export class Unit extends GameObject {
             return;
         }
 
+        // Stunned units must not advance along a movement path (canAct already blocks new orders).
+        if (this.hasBuff('stunned')) {
+            return;
+        }
+
         // Move along grid path
         if (!this.isAlive() || !this.movement || this.movement.path.length === 0) return;
 
@@ -674,6 +685,8 @@ export class Unit extends GameObject {
             moveJitter: this.moveJitter,
             waitMinEndTime: this.waitMinEndTime,
             waitMaxEndTime: this.waitMaxEndTime,
+            corruptionProgress: this.corruptionProgress,
+            darknessDamageProcCount: this.darknessDamageProcCount,
             poiseHp: this.poiseHp,
             maxPoiseHp: this.maxPoiseHp,
             knockback: this.knockback ? {
@@ -759,6 +772,7 @@ export class Unit extends GameObject {
         unit.poiseHp = (data.poiseHp as number) ?? 0;
         unit.maxPoiseHp = (data.maxPoiseHp as number) ?? 0;
         unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));
+        unit.darknessDamageProcCount = Math.max(0, Math.floor((data.darknessDamageProcCount as number) ?? 0));
         const kb = data.knockback as KnockbackState | null;
         if (kb && typeof kb.knockbackElapsed === 'number') {
             unit.knockback = {
