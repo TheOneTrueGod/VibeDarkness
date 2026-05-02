@@ -10,8 +10,10 @@ import type { PreMissionStoryDef } from '../../storylines/storyTypes';
 import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
 import PreMissionStoryEndScreen from './preMissionStory/PreMissionStoryEndScreen';
-import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
+import PreMissionStoryLayout, { type StoryViewportLayoutMode } from './preMissionStory/PreMissionStoryLayout';
 import DialoguePortraitRow from './preMissionStory/DialoguePortraitRow';
+import DialoguePortraitSidebar from './preMissionStory/DialoguePortraitSidebar';
+import { STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX } from './preMissionStory/storyViewportConstants';
 import StoryPhraseBottomPanel from './preMissionStory/StoryPhraseBottomPanel';
 import { isDialogue, isGrantEquipmentRandom, isGroupVote } from './preMissionStory/preMissionStoryTypeGuards';
 
@@ -54,6 +56,11 @@ export default function PreMissionStoryPhase({
     const [backgroundImage, setBackgroundImage] = useState<string | undefined>();
     const [bgOpacity, setBgOpacity] = useState(1);
     const [isApplyingGroupVote, setIsApplyingGroupVote] = useState(false);
+    const [storyViewportMode, setStoryViewportMode] = useState<StoryViewportLayoutMode>(() =>
+        typeof window !== 'undefined' && window.innerHeight < STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX
+            ? 'laptop'
+            : 'desktop',
+    );
 
     const phrases = preMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
@@ -77,6 +84,10 @@ export default function PreMissionStoryPhase({
     const advancePhrase = useCallback(() => {
         setPhraseIndex((i) => Math.min(i + 1, phrases.length));
     }, [phrases.length]);
+
+    const handleStoryViewportModeChange = useCallback((mode: StoryViewportLayoutMode) => {
+        setStoryViewportMode(mode);
+    }, []);
 
     // Ensure we only send a grant-equipment message once per phrase index.
     const lastGrantIndexRef = useRef<number | null>(null);
@@ -221,30 +232,51 @@ export default function PreMissionStoryPhase({
     }
 
     const contentJustify = isDialogue(currentPhrase) ? 'end' : 'center';
+    const showingDialogue = isDialogue(currentPhrase);
+    const dialogueLayoutDensity = storyViewportMode === 'laptop' ? 'laptop' : 'desktop';
+    const dialogueLaptopRow = showingDialogue && storyViewportMode === 'laptop';
+
+    const phrasePanel = (
+        <StoryPhraseBottomPanel
+            phrase={currentPhrase}
+            players={players}
+            playingPlayerIds={playingPlayerIds}
+            allPlayerIds={allPlayerIds}
+            playerId={playerId}
+            amSpectator={amSpectator}
+            groupVoteVotes={groupVoteVotes}
+            isApplyingGroupVote={isApplyingGroupVote}
+            onAdvance={advancePhrase}
+            onChoose={handleChoice}
+            onGroupVote={handleGroupVote}
+            onGroupVoteNext={handleGroupVoteNext}
+            dialogueDensity={dialogueLayoutDensity}
+        />
+    );
+
+    const phrasePanelWrapClassName =
+        'shrink-0 py-2 sm:py-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
 
     return (
         <PreMissionStoryLayout
             backgroundImage={backgroundImage}
             bgOpacity={bgOpacity}
             contentJustify={contentJustify}
+            onStoryViewportModeChange={handleStoryViewportModeChange}
         >
-            {isDialogue(currentPhrase) && <DialoguePortraitRow phrase={currentPhrase} />}
-            <div className="shrink-0 py-4 sm:py-6 flex flex-col gap-4 w-full min-w-0 max-w-full justify-center items-stretch">
-                <StoryPhraseBottomPanel
-                    phrase={currentPhrase}
-                    players={players}
-                    playingPlayerIds={playingPlayerIds}
-                    allPlayerIds={allPlayerIds}
-                    playerId={playerId}
-                    amSpectator={amSpectator}
-                    groupVoteVotes={groupVoteVotes}
-                    isApplyingGroupVote={isApplyingGroupVote}
-                    onAdvance={advancePhrase}
-                    onChoose={handleChoice}
-                    onGroupVote={handleGroupVote}
-                    onGroupVoteNext={handleGroupVoteNext}
-                />
-            </div>
+            {dialogueLaptopRow ? (
+                <div className="flex flex-row flex-1 min-h-0 items-stretch gap-2 sm:gap-3 w-full py-1">
+                    <DialoguePortraitSidebar phrase={currentPhrase} />
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">{phrasePanel}</div>
+                </div>
+            ) : showingDialogue ? (
+                <>
+                    <DialoguePortraitRow phrase={currentPhrase} />
+                    <div className={phrasePanelWrapClassName}>{phrasePanel}</div>
+                </>
+            ) : (
+                <div className={phrasePanelWrapClassName}>{phrasePanel}</div>
+            )}
         </PreMissionStoryLayout>
     );
 }

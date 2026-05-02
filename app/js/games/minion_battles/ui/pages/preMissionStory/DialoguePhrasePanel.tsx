@@ -1,20 +1,29 @@
 import React from 'react';
 import type { DialoguePhrase } from '../../../storylines/storyTypes';
 import { getNpc } from '../../../constants/npcs';
-import VNTextBox from '../../components/VNTextBox';
+import VNTextBox, { type VNTextBoxDensity } from '../../components/VNTextBox';
 import StoryTextEffect from '../../components/StoryTextEffect';
 
 interface DialoguePhrasePanelProps {
     phrase: DialoguePhrase;
     onAdvance: () => void;
+    density?: VNTextBoxDensity;
+    /** When the speaker has no NPC entry (e.g. post-mission narrator). */
+    speakerNameFallback?: string;
 }
 
-export default function DialoguePhrasePanel({ phrase, onAdvance }: DialoguePhrasePanelProps) {
+export default function DialoguePhrasePanel({
+    phrase,
+    onAdvance,
+    density = 'desktop',
+    speakerNameFallback = 'Unknown',
+}: DialoguePhrasePanelProps) {
     const isTitleEffect = phrase.textEffect === 'title_bounce';
 
     return (
         <VNTextBox
-            title={getNpc(phrase.speakerId)?.name ?? 'Unknown'}
+            density={density}
+            title={getNpc(phrase.speakerId)?.name ?? speakerNameFallback}
             titleColor={getNpc(phrase.speakerId)?.color ?? '#ffffff'}
             actions={
                 <button

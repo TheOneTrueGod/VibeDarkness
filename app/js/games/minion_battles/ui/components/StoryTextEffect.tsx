@@ -17,7 +17,7 @@ function TitleBounce({ text }: { text: string }) {
             {characters.map((char, i) => (
                 <span
                     key={`${i}-${char}`}
-                    className="inline-block text-[3rem] md:text-[4rem] font-bold text-purple-400 animate-story-title-bounce"
+                    className="inline-block text-3xl sm:text-4xl md:text-5xl font-bold text-purple-400 animate-story-title-bounce"
                     style={{ animationDelay: `${i * 0.08}s` }}
                 >
                     {char === ' ' ? '\u00A0' : char}

@@ -8,7 +8,6 @@ import { flushSync } from 'react-dom';
 import type { MissionResearchRewardEntry, PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
-import { getNpc } from '../../constants/npcs';
 import type {
     PostMissionStoryDef,
     DialoguePhrase,
@@ -26,9 +25,11 @@ import ResourcePill, { campaignResourceGains } from '../../../../components/Reso
 import ResearchRewardTinyChip from '../../../../components/ResearchRewardTinyChip';
 import { getResearchNode } from '../../../../researchTrees/list';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
-import VNTextBox from '../components/VNTextBox';
-import CharacterPortrait from '../components/CharacterPortrait';
-import StoryTextEffect from '../components/StoryTextEffect';
+import PreMissionStoryLayout, { type StoryViewportLayoutMode } from './preMissionStory/PreMissionStoryLayout';
+import DialoguePortraitRow from './preMissionStory/DialoguePortraitRow';
+import DialoguePortraitSidebar from './preMissionStory/DialoguePortraitSidebar';
+import DialoguePhrasePanel from './preMissionStory/DialoguePhrasePanel';
+import { STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX } from './preMissionStory/storyViewportConstants';
 
 function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePhrase {
     return !!phrase && phrase.type === 'dialogue';
@@ -114,7 +115,16 @@ export default function PostMissionStoryPhase({
     const [bgOpacity, setBgOpacity] = useState(1);
     /** After a reward choice, hide the VN UI so the victory modal does not sit over changing/disabled options. */
     const [phantomPostChoiceStep, setPhantomPostChoiceStep] = useState(false);
+    const [storyViewportMode, setStoryViewportMode] = useState<StoryViewportLayoutMode>(() =>
+        typeof window !== 'undefined' && window.innerHeight < STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX
+            ? 'laptop'
+            : 'desktop',
+    );
     const hasCompletedRef = useRef(false);
+
+    const handleStoryViewportModeChange = useCallback((mode: StoryViewportLayoutMode) => {
+        setStoryViewportMode(mode);
+    }, []);
 
     const phrases: PostMissionPhrase[] = postMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
@@ -283,105 +293,52 @@ export default function PostMissionStoryPhase({
         return null;
     }
 
-    const showBackground = isDialogue(currentPhrase) && currentPhrase.backgroundImage;
-    const isTitleEffect = isDialogue(currentPhrase) && currentPhrase.textEffect === 'title_bounce';
     /** Choice phases use vertical centering + scroll; dialogue stays bottom-aligned (VN layout). */
     const centerChoiceInViewport = isChoice(currentPhrase);
+    const dialoguePhrase: DialoguePhrase | null = isDialogue(currentPhrase) ? currentPhrase : null;
+    const showingDialogue = dialoguePhrase != null;
+    const dialogueLayoutDensity = storyViewportMode === 'laptop' ? 'laptop' : 'desktop';
+    const dialogueLaptopRow = showingDialogue && storyViewportMode === 'laptop';
+    const layerBackground =
+        dialoguePhrase?.backgroundImage != null ? backgroundImage : undefined;
+
+    const dialoguePanel =
+        dialoguePhrase != null ? (
+            <DialoguePhrasePanel
+                phrase={dialoguePhrase}
+                onAdvance={advancePhrase}
+                density={dialogueLayoutDensity}
+                speakerNameFallback="Narrator"
+            />
+        ) : null;
+
+    const phrasePanelWrapClassName =
+        'shrink-0 py-2 sm:py-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
 
     return (
-        <div className="w-full h-full flex flex-col overflow-hidden bg-black relative">
-            {backgroundImage && showBackground && (
+        <PreMissionStoryLayout
+            backgroundImage={layerBackground}
+            bgOpacity={bgOpacity}
+            contentJustify={centerChoiceInViewport ? 'center' : 'end'}
+            onStoryViewportModeChange={handleStoryViewportModeChange}
+        >
+            {dialogueLaptopRow ? (
+                <div className="flex flex-row flex-1 min-h-0 items-stretch gap-2 sm:gap-3 w-full py-1">
+                    <DialoguePortraitSidebar phrase={dialoguePhrase} />
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">{dialoguePanel}</div>
+                </div>
+            ) : showingDialogue ? (
+                <>
+                    <DialoguePortraitRow phrase={dialoguePhrase} />
+                    <div className={phrasePanelWrapClassName}>{dialoguePanel}</div>
+                </>
+            ) : (
                 <div
-                    className="absolute inset-0 bg-cover bg-center transition-opacity duration-500 z-0"
-                    style={{ backgroundImage: `url(${backgroundImage})`, opacity: bgOpacity }}
-                />
-            )}
-            <div
-                className={`relative z-10 flex min-h-0 flex-1 flex-col items-center ${
-                    centerChoiceInViewport ? 'justify-center' : 'justify-end'
-                }`}
-            >
-                <div
-                    className={`mx-auto flex w-full max-w-[1200px] flex-col px-6 min-h-0 ${
-                        centerChoiceInViewport
-                            ? 'flex-1 overflow-y-auto overflow-x-hidden py-6'
-                            : 'flex-1 justify-end'
+                    className={`flex flex-col gap-4 pb-6 ${phrasePanelWrapClassName} ${
+                        centerChoiceInViewport ? 'my-auto min-h-0 overflow-y-auto overflow-x-hidden' : ''
                     }`}
                 >
-                    {isDialogue(currentPhrase) && (
-                        <div className="flex shrink-0 justify-between gap-4 pt-4 pb-0 h-[140px] items-end">
-                            <div className="flex gap-2 items-end">
-                                {(currentPhrase.portraits?.left ??
-                                    (currentPhrase.speakerId ? [currentPhrase.speakerId] : []))
-                                    .slice(0, 2)
-                                    .map((npcId) => {
-                                        const npc = getNpc(npcId);
-                                        const isActive = currentPhrase.speakerId === npcId;
-                                        return npc?.portrait ? (
-                                            <CharacterPortrait
-                                                key={npcId}
-                                                picture={npc.portrait}
-                                                size="large"
-                                                className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
-                                            />
-                                        ) : (
-                                            <div
-                                                key={npcId}
-                                                className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
-                                                style={{ backgroundColor: npc?.color ?? '#333' }}
-                                            />
-                                        );
-                                    })}
-                            </div>
-                            <div className="flex gap-2 items-end">
-                                {(currentPhrase.portraits?.right ?? []).slice(0, 2).map((npcId) => {
-                                    const npc = getNpc(npcId);
-                                    const isActive = currentPhrase.speakerId === npcId;
-                                    return npc?.portrait ? (
-                                        <CharacterPortrait
-                                            key={npcId}
-                                            picture={npc.portrait}
-                                            size="small"
-                                            className={`border-2 flex-shrink-0 ${isActive ? 'border-primary shadow-lg' : 'border-border-custom opacity-70'}`}
-                                        />
-                                    ) : (
-                                        <div
-                                            key={npcId}
-                                            className="rounded-lg border-2 border-border-custom w-24 h-24 shrink-0 opacity-70"
-                                            style={{ backgroundColor: npc?.color ?? '#333' }}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    <div
-                        className={`flex flex-col gap-4 pb-6 ${
-                            centerChoiceInViewport ? 'my-auto min-h-0 w-full' : 'shrink-0'
-                        }`}
-                    >
-                        {isDialogue(currentPhrase) ? (
-                            <VNTextBox
-                                title={getNpc(currentPhrase.speakerId)?.name ?? 'Narrator'}
-                                titleColor={getNpc(currentPhrase.speakerId)?.color ?? '#ffffff'}
-                                actions={
-                                    <button
-                                        type="button"
-                                        onClick={advancePhrase}
-                                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
-                                    >
-                                        Next
-                                    </button>
-                                }
-                            >
-                                {isTitleEffect ? (
-                                    <StoryTextEffect effect="title_bounce" text={currentPhrase.text} />
-                                ) : (
-                                    <p className="mb-0">{currentPhrase.text}</p>
-                                )}
-                            </VNTextBox>
-                        ) : isChoice(currentPhrase) ? (
+                    {isChoice(currentPhrase) ? (
                             amSpectator ? (
                                 <div className="shrink-0 pb-6">
                                     <p className="text-muted mb-4">Spectators do not receive rewards.</p>
@@ -464,10 +421,9 @@ export default function PostMissionStoryPhase({
                                     </div>
                                 </>
                             )
-                        ) : null}
-                    </div>
+                    ) : null}
                 </div>
-            </div>
-        </div>
+            )}
+        </PreMissionStoryLayout>
     );
 }
