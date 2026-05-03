@@ -11,6 +11,7 @@ import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { SPECTATOR_ID } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { computeSynchash } from '../../../utils/synchash';
+import { debugLog } from '../../../debugLog';
 import { GameEngine, CHECKPOINT_INTERVAL } from './GameEngine';
 import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
@@ -221,6 +222,15 @@ export class BattleSession {
                 gameTick: o.gameTick,
                 order: o.order as unknown as Record<string, unknown>,
             }));
+            debugLog('sync tracking', 'log', 'engine checkpoint event → saveCheckpoint', {
+                gameTick,
+                pendingSerializedOrders: ordersFormatted.length,
+                orderSummary: ordersFormatted.map((o) => ({
+                    gameTick: o.gameTick,
+                    unitId: (o.order as { unitId?: string }).unitId,
+                    abilityId: (o.order as { abilityId?: string }).abilityId,
+                })),
+            });
             void this.syncBridge?.saveCheckpoint(gameTick, stateForHash, ordersFormatted);
         });
 
@@ -277,6 +287,11 @@ export class BattleSession {
 
     /** Replace simulation from a full serialized snapshot (host resync / reconnect). */
     loadFromSnapshot(gameState: SerializedGameState): void {
+        const raw = gameState as unknown as Record<string, unknown>;
+        debugLog('sync tracking', 'warn', 'BattleSession.loadFromSnapshot', {
+            gameTick: raw.gameTick ?? raw.game_tick,
+            snapshotIndex: raw.snapshotIndex,
+        });
         this.load(this.players, this.characterSelections, gameState as unknown as Record<string, unknown>);
     }
 
@@ -304,6 +319,15 @@ export class BattleSession {
     applyRemoteOrders(orders: Array<{ gameTick: number; order: Record<string, unknown> }>): void {
         const eng = this.engine;
         if (!eng) return;
+        debugLog('sync tracking', 'info', 'BattleSession.applyRemoteOrders', {
+            engineTickBefore: eng.gameTick,
+            count: orders.length,
+            queuePlan: orders.map((o) => ({
+                atTick: o.gameTick,
+                unitId: (o.order as { unitId?: string }).unitId,
+                abilityId: (o.order as { abilityId?: string }).abilityId,
+            })),
+        });
         for (const { gameTick: atTick, order } of orders) {
             eng.queueOrder(atTick, order as unknown as BattleOrder);
         }
@@ -333,6 +357,14 @@ export class BattleSession {
         const orderRecord: Record<string, unknown> = JSON.parse(JSON.stringify(order));
 
         await this.syncBridge?.submitOrder(checkpointGameTick, atTick, orderRecord);
+
+        debugLog('sync tracking', 'info', 'BattleSession.submitPlayerOrder: submitOrder resolved → post-submit checkpoint', {
+            checkpointGameTick,
+            atTick,
+            engineTick: engine.gameTick,
+            unitId: order.unitId,
+            abilityId: order.abilityId,
+        });
 
         const ordersFormatted = engine.pendingOrders.map((o) => ({
             gameTick: o.gameTick,
@@ -370,6 +402,10 @@ export class BattleSession {
             gameTick: o.gameTick,
             order: o.order as unknown as Record<string, unknown>,
         }));
+        debugLog('sync tracking', 'info', 'BattleSession.skipTurn → saveCheckpoint', {
+            gameTick: engine.gameTick,
+            pendingOrders: ordersFormatted.length,
+        });
         void this.syncBridge?.saveCheckpoint(
             engine.gameTick,
             engine.toJSON() as unknown as Record<string, unknown>,

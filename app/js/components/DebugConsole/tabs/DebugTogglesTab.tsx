@@ -1,7 +1,14 @@
 /**
  * Debug toggles — persisted client flags (localStorage). Add new rows as checkboxes; layout is two columns.
  */
-import React, { useSyncExternalStore } from 'react';
+import React, { useCallback, useSyncExternalStore } from 'react';
+import {
+    DEBUG_TYPES,
+    DEBUG_LOG_THRESHOLD_LABELS,
+    DEBUG_TYPE_LABELS,
+    type DebugLogThreshold,
+    debugLogState,
+} from '../../../debugLog';
 import {
     getShowAllResearchTrees,
     setShowAllResearchTrees,
@@ -12,12 +19,25 @@ interface DebugTogglesTabProps {
     isActive: boolean;
 }
 
+const THRESHOLD_OPTIONS = (
+    Object.keys(DEBUG_LOG_THRESHOLD_LABELS) as DebugLogThreshold[]
+).map((value) => ({ value, label: DEBUG_LOG_THRESHOLD_LABELS[value] }));
+
 export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
     const showAllResearchTrees = useSyncExternalStore(
         subscribeShowAllResearchTrees,
         getShowAllResearchTrees,
         getShowAllResearchTrees,
     );
+
+    const subscribeDebugLog = useCallback((onStoreChange: () => void) => debugLogState.subscribe(onStoreChange), []);
+
+    const getDebugLogSnapshot = useCallback(
+        () => DEBUG_TYPES.map((t) => `${t}:${debugLogState.getThreshold(t)}`).join('|'),
+        [],
+    );
+
+    useSyncExternalStore(subscribeDebugLog, getDebugLogSnapshot, getDebugLogSnapshot);
 
     if (!isActive) return null;
 
@@ -36,6 +56,32 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                     />
                     <span className="leading-snug">Show all research trees</span>
                 </label>
+            </div>
+
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mt-8 mb-2">Debug logging</h3>
+            <p className="text-xs text-muted mb-3 max-w-xl">
+                Print up to the chosen severity: only that level and more severe messages appear in the console (e.g.&nbsp;&quot;Warn
+                and above&quot; hides log and info).
+            </p>
+            <div className="flex flex-col gap-3 max-w-lg">
+                {DEBUG_TYPES.map((type) => (
+                    <label key={type} className="flex flex-col gap-1">
+                        <span className="text-xs text-muted">{DEBUG_TYPE_LABELS[type]}</span>
+                        <select
+                            className="rounded border border-border-custom bg-surface px-2 py-1.5 text-sm text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            value={debugLogState.getThreshold(type)}
+                            onChange={(e) => {
+                                debugLogState.setThreshold(type, e.target.value as DebugLogThreshold);
+                            }}
+                        >
+                            {THRESHOLD_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                ))}
             </div>
         </div>
     );

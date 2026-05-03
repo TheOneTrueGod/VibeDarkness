@@ -1,8 +1,7 @@
 import { LobbyClient } from "../../LobbyClient";
 import { GameStatePayload } from "../../types";
 import { EngineSnapshot } from "../GameSyncContext";
-
-const ORDER_POLL_DEBUG = true;
+import { debugLog } from "../../debugLog";
 
 export type FetchFullStateResult = {
   gameState: GameStatePayload;
@@ -48,7 +47,7 @@ export abstract class GameSyncContextController {
           ?? (payload?.game as Record<string, unknown> | undefined)?.game_phase
           ?? null;
 
-        this.logOrderPoll('fetchFullStateDone', {
+        debugLog('sync tracking', 'info', 'fetchFullStateDone (controller)', {
           phase,
           gameId: payload?.gameId ?? null,
           gameTick:
@@ -62,9 +61,7 @@ export abstract class GameSyncContextController {
       })
       .catch((err) => {
         console.error('Failed to fetch full game state:', err);
-        this.logOrderPoll('fetchFullStateError', {
-          err: err,
-        });
+        debugLog('sync tracking', 'error', 'fetchFullState failed (controller)', err);
         throw err;
       })
       .finally(() => {
@@ -83,10 +80,5 @@ export abstract class GameSyncContextController {
   public dispose(): void {
     this.minimalStateInFlight = false;
     this.fullStateInFlight = false;
-  }
-
-  protected logOrderPoll(event: string, details: Record<string, unknown> = {}): void {
-    if (!ORDER_POLL_DEBUG) return;
-    console.debug(`[GameSync] ${event}`, details);
   }
 }

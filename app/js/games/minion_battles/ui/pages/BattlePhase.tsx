@@ -27,6 +27,7 @@ import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
 import { useGameSyncOptional } from '../../../../contexts/GameSyncContext';
 import type { BattleCallbacks } from '../../../../contexts/GameSyncContext';
+import { debugLog } from '../../../../debugLog';
 import { computeSynchash } from '../../../../utils/synchash';
 
 declare global {
@@ -322,10 +323,23 @@ export default function BattlePhase({
 
         const callbacks: BattleCallbacks = {
             onFullResync: (gameState: SerializedGameState) => {
+                const raw = gameState as unknown as Record<string, unknown>;
+                debugLog('sync tracking', 'warn', 'full resync → loadFromSnapshot', {
+                    gameTick: raw.gameTick ?? raw.game_tick,
+                    snapshotIndex: raw.snapshotIndex,
+                });
                 sessionRef.current?.loadFromSnapshot(gameState);
             },
             getEngineSnapshot: () => sessionRef.current?.getSnapshot() ?? null,
             onOrdersReceived: (orders) => {
+                debugLog('sync tracking', 'info', 'orders delivered to session (queue + resume)', {
+                    count: orders.length,
+                    entries: orders.map((o) => ({
+                        gameTick: o.gameTick,
+                        unitId: (o.order as { unitId?: string }).unitId,
+                        abilityId: (o.order as { abilityId?: string }).abilityId,
+                    })),
+                });
                 sessionRef.current?.applyRemoteOrders(orders);
             },
         };
@@ -362,7 +376,7 @@ export default function BattlePhase({
         });
         if (!needsReplay) return;
 
-        console.debug('[BattlePhase] Replaying waiting-for-orders after full-state sync', {
+        debugLog('sync tracking', 'log', 'replaying waiting-for-orders UI after full-state sync', {
             fromSyncStatus: prevSyncStatus,
             toSyncStatus: currentSyncStatus,
             gameTick: engine.gameTick,

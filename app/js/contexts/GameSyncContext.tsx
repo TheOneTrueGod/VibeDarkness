@@ -19,6 +19,7 @@ import { HostGameSyncContextController } from './SyncContextControllers/HostGame
 import { ClientGameSyncContextController } from './SyncContextControllers/ClientGameSyncContextController';
 import { LobbyClient } from '../LobbyClient';
 import { normalizeWaitingForOrdersFromJSON, SerializedGameState } from '../games/minion_battles/game/types';
+import { debugLog } from '../debugLog';
 
 /** Must match GameEngine.CHECKPOINT_INTERVAL */
 const CHECKPOINT_INTERVAL = 10;
@@ -26,12 +27,6 @@ const CHECKPOINT_INTERVAL = 10;
 export type SyncStatus = 'loading' | 'synced' | 'resyncing' | 'waiting_for_host';
 
 export const WAITING_FOR_HOST_THRESHOLD = 10;
-const ORDER_POLL_DEBUG = true;
-
-function logOrderPoll(event: string, details: Record<string, unknown> = {}): void {
-  if (!ORDER_POLL_DEBUG) return;
-  console.debug(`[GameSync] ${event}`, details);
-}
 
 function gameTickFromState(state: Record<string, unknown>): number {
   const t = state.gameTick ?? state.game_tick;
@@ -247,6 +242,7 @@ export function GameSyncProvider({
   }, [lobbyClient, playerId]);
 
   const requestResync = useCallback(() => {
+    debugLog('sync tracking', 'info', 'requestResync: next poll will force full state fetch');
     forceResyncRef.current = true;
   }, []);
 
@@ -264,8 +260,13 @@ export function GameSyncProvider({
       waitingForOrdersSynchashRef.current = synchash;
       try {
         await lobbyClient.saveGameStateSnapshot(lobbyId, gameId, tick, state, orders, synchash);
-        console.log("saved checkpoint at gameTick", tick, "with synchash", synchash);
+        debugLog('sync tracking', 'info', 'checkpoint saved', {
+          gameTick: tick,
+          synchash,
+          orderCount: orders.length,
+        });
       } catch (err) {
+        debugLog('sync tracking', 'error', 'checkpoint save failed', err);
         console.error('Failed to save checkpoint:', err);
       }
       return synchash;
@@ -343,8 +344,13 @@ export function GameSyncProvider({
         }
       }
 
-      logOrderPoll('battle_orders_applied_from_minimal', {
-        receivedOrders: pendingRemoteOrders.length,
+      debugLog('sync tracking', 'info', 'orders applied from minimal poll', {
+        count: pendingRemoteOrders.length,
+        entries: pendingRemoteOrders.map((o) => ({
+          gameTick: o.gameTick,
+          unitId: (o.order as { unitId?: string }).unitId,
+          abilityId: (o.order as { abilityId?: string }).abilityId,
+        })),
       });
     },
     [],
@@ -368,10 +374,11 @@ export function GameSyncProvider({
           !isWaitingForRemotePlayerOrder(stateForFilter, playerId) &&
           minimalResult.orders.every((o) => Number(o.gameTick) <= engineTick)
         ) {
-          logOrderPoll('host_stale_merged_orders_replay', {
+          debugLog('sync tracking', 'error', 'host stale merged orders replay (would double-apply)', {
             checkpointGameTick: snapshot.gameTick,
             snapTick: engineTick,
             orderCount: minimalResult.orders.length,
+            serverOrderTicks: minimalResult.orders.map((o) => o.gameTick),
           });
           throw new Error('stale merged orders');
         }
@@ -392,6 +399,13 @@ export function GameSyncProvider({
         console.error('submitOrder: order.unitId must be a string');
         throw new Error('submitOrder: order.unitId must be a string');
       }
+
+      debugLog('sync tracking', 'info', 'submitOrder POST', {
+        checkpointGameTick,
+        atTick,
+        unitId,
+        abilityId: order.abilityId,
+      });
 
       await lobbyClient.saveGameOrders(lobbyId, gameId, checkpointGameTick, atTick, order);
 
@@ -429,12 +443,18 @@ export function GameSyncProvider({
           }
         })();
       });
+      debugLog('sync tracking', 'log', 'submitOrder pipeline finished (orders applied)', {
+        checkpointGameTick,
+        atTick,
+        unitId,
+      });
     },
     [applyBattleOrdersFromMinimalResult, fetchMinimalBattleSnapshot, gameId, lobbyId, lobbyClient],
   );
 
   const registerBattleCallbacks = useCallback((callbacks: BattleCallbacks | null) => {
     battleCallbacksRef.current = callbacks;
+    debugLog('sync tracking', 'info', callbacks == null ? 'battle callbacks cleared' : 'battle callbacks registered');
     if (callbacks == null) {
       appliedRemoteOrdersRef.current.clear();
       waitingForOrdersSynchashRef.current = null;
@@ -452,9 +472,11 @@ export function GameSyncProvider({
 
   const doFullStateFetch = useCallback(
     async (desyncContext?: DesyncContext) => {
-      logOrderPoll('fetchFullStateStart', {
+      debugLog('sync tracking', 'info', 'fetchFullState start', {
         reason: desyncContext?.reason ?? 'normal',
         hasDesyncContext: desyncContext != null,
+        serverTick: desyncContext?.serverTick,
+        serverHash: desyncContext?.serverHash,
       });
 
       setSyncStatus((prev) => (prev === 'loading' ? 'loading' : 'resyncing'));
@@ -470,7 +492,7 @@ export function GameSyncProvider({
             && live != null
             && serverBattleTick < live.gameTick
           ) {
-            logOrderPoll('host_full_fetch_skipped_stale_battle_blob', {
+            debugLog('sync tracking', 'warn', 'host skipped full fetch (server battle blob older than live engine)', {
               reason: desyncContext?.reason ?? 'normal',
               serverBattleTick,
               localEngineTick: live.gameTick,
@@ -491,7 +513,7 @@ export function GameSyncProvider({
 
           if (desyncContext) {
             const serverState = (gs?.game) ?? gs;
-            console.warn('Desync: full resync triggered', {
+            debugLog('sync tracking', 'warn', 'full resync applied after desync', {
               reason: desyncContext.reason,
               serverTick: desyncContext.serverTick,
               serverHash: desyncContext.serverHash,
@@ -502,7 +524,7 @@ export function GameSyncProvider({
         })
         .catch((err) => {
           console.error('Failed to fetch full game state:', err);
-          logOrderPoll('fetchFullStateError', {
+          debugLog('sync tracking', 'error', 'fetchFullState failed', {
             reason: desyncContext?.reason ?? 'normal',
           });
           setSyncStatus('synced');
@@ -527,26 +549,30 @@ export function GameSyncProvider({
 
         const minimalResult = await fetchMinimalBattleSnapshot(checkpointGameTick);
         if (!minimalResult) {
-          logOrderPoll('minimalPollNoResult', { checkpointGameTick });
+          debugLog('sync tracking', 'log', 'minimal poll: no result', { checkpointGameTick });
           return;
         }
 
         const serverTick = minimalResult.gameTick ?? -1;
         const serverHash = minimalResult.synchash ?? null;
         const { pendingRemoteOrders, engineTick } = computePendingBattleOrders(minimalResult, snapshot);
-        logOrderPoll('minimalPolled', {
+        debugLog('sync tracking', 'log', 'minimal poll snapshot', {
           checkpointGameTick,
           serverTick,
           engineTick,
+          clientSynchash: liveSnap.synchash ?? snapshot.synchash,
+          serverSynchash: serverHash,
           serverOrders: minimalResult.orders.length,
           pendingRemoteOrders: pendingRemoteOrders.length,
           waitingUnitIds: extractWaitingUnitIds(liveSnap.state ?? snapshot.state),
         });
 
         if (!isHost && serverTick < 0) {
-          console.info(
-            '[GameSync] UI: Waiting for host — snapshot not available',
-            'Minimal battle state poll returned no valid server game tick (gameTick missing or < 0), so the lobby has no host battle snapshot yet; orders stay disabled until the host publishes checkpoint state.',
+          debugLog(
+            'sync tracking',
+            'info',
+            'non-host waiting for host battle snapshot',
+            '(no server gameTick yet; orders disabled until host checkpoint)',
             { checkpointGameTick, serverTick: minimalResult.gameTick },
           );
           setCanSubmitOrders(false);
@@ -562,12 +588,12 @@ export function GameSyncProvider({
             setCanSubmitOrders(true);
             consecutiveWaitCountRef.current = 0;
             setSyncStatus('synced');
-            logOrderPoll('non_host_orders_received', {
+            debugLog('sync tracking', 'info', 'non-host received remote orders via minimal poll', {
               checkpointGameTick,
               receivedOrders: pendingRemoteOrders.length,
             });
           } else {
-            logOrderPoll('host_orders_received', {
+            debugLog('sync tracking', 'log', 'host received orders via minimal poll', {
               checkpointGameTick,
               receivedOrders: pendingRemoteOrders.length,
             });
@@ -578,7 +604,7 @@ export function GameSyncProvider({
         try {
           applyBattleOrdersFromMinimalResult(minimalResult, snapshot);
         } catch (e) {
-          logOrderPoll('minimalPollStaleOrApplyError', {
+          debugLog('sync tracking', 'error', 'minimal poll stale/apply error', {
             checkpointGameTick,
             error: e instanceof Error ? e.message : String(e),
           });
@@ -592,7 +618,7 @@ export function GameSyncProvider({
         if (Number(serverTick) === engineTick) {
           const clientSynchash = liveSnap.synchash ?? snapshot.synchash ?? null;
           if (serverHash !== null && clientSynchash === null) {
-            logOrderPoll('non_host_synchash_pending', {
+            debugLog('sync tracking', 'log', 'non-host synchash pending (client hash not ready)', {
               checkpointGameTick,
               serverTick,
               engineTick,
@@ -601,7 +627,7 @@ export function GameSyncProvider({
           }
           if (serverHash !== null && clientSynchash !== null) {
             if (serverHash !== clientSynchash) {
-              console.warn('Synchash mismatch vs server minimal state', {
+              debugLog('sync tracking', 'warn', 'synchash mismatch vs server minimal state — requesting full resync', {
                 serverGameTick: Number(serverTick),
                 clientGameTick: engineTick,
                 serverHash,
@@ -626,7 +652,7 @@ export function GameSyncProvider({
               && minimalResult.orders.length === 0
             )
           ) {
-            logOrderPoll('non_host_hash_aligned_not_waiting', {
+            debugLog('sync tracking', 'log', 'non-host hash aligned; not blocked on remote order', {
               checkpointGameTick,
               serverTick,
               engineTick,
@@ -646,7 +672,7 @@ export function GameSyncProvider({
             serverTick,
             serverHash,
           });
-          logOrderPoll('non_host_client_fell_behind_resync', {
+          debugLog('sync tracking', 'warn', 'non-host client tick behind server — full resync', {
             checkpointGameTick,
             serverTick,
             engineTick,
@@ -664,7 +690,7 @@ export function GameSyncProvider({
           consecutiveWaitCountRef.current = 0;
         }
       } catch (err) {
-        logOrderPoll('minimalPollError', {
+        debugLog('sync tracking', 'warn', 'minimal poll error', {
           checkpointGameTick,
           error: err instanceof Error ? err.message : 'unknown',
         });
@@ -691,6 +717,7 @@ export function GameSyncProvider({
       const out: PollMessagePayload[] = [];
       for (const msg of messages) {
         if (msg.type === MessageType.GAME_PHASE_CHANGED) {
+          debugLog('sync tracking', 'info', 'GAME_PHASE_CHANGED message — forcing full state fetch');
           forceResyncRef.current = true;
         }
         out.push(msg as PollMessagePayload);
@@ -721,8 +748,14 @@ export function GameSyncProvider({
       // Host engine is canonical during battle; reloading the lobby game blob can replace
       // live state with an older async checkpoint or a bad fallback (see getGameStateData).
       if (isHost && battleCallbacksRef.current != null) {
+        debugLog(
+          'sync tracking',
+          'log',
+          'tab visible again: skipping forceResync (host mid-battle; engine is canonical)',
+        );
         return;
       }
+      debugLog('sync tracking', 'log', 'tab visible again: forcing full state fetch');
       forceResyncRef.current = true;
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
@@ -745,6 +778,7 @@ export function GameSyncProvider({
         }
 
         if (forceResyncRef.current && !syncContextControllerRef.current.isFullStateInFlight) {
+          debugLog('sync tracking', 'log', 'poll: processing forced full state fetch');
           forceResyncRef.current = false;
           await doFullStateFetch();
           return;
@@ -797,7 +831,10 @@ export function GameSyncProvider({
           }
 
           if (consecutiveWaitCountRef.current >= WAITING_FOR_HOST_THRESHOLD) {
-            console.warn('[GameSync] Waiting for host threshold reached, resyncing');
+            debugLog('sync tracking', 'warn', 'waiting_for_host_threshold reached — full resync', {
+              checkpointWaitCount: consecutiveWaitCountRef.current,
+              engineTick: snap.gameTick,
+            });
             await doFullStateFetch({
               currentState: snap.state,
               reason: 'waiting_for_host_threshold',
@@ -819,6 +856,15 @@ export function GameSyncProvider({
 
           const checkpointGameTick =
             Math.floor(snap.gameTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+          debugLog('sync tracking', 'log', 'battle minimal poll triggered', {
+            checkpointGameTick,
+            engineTick: snap.gameTick,
+            isHost,
+            waitingOnRemotePlayerOrder,
+            waitingOnSubmittedOrderAck,
+            pendingAckCount: pendingOrderAcksRef.current.length,
+            appliedRemoteKeys: appliedRemoteOrdersRef.current.size,
+          });
           await runMinimalBattlePoll(checkpointGameTick, snap);
         }
       })();
@@ -826,7 +872,7 @@ export function GameSyncProvider({
 
     const id = window.setInterval(pollTick, 500);
     return () => window.clearInterval(id);
-  }, [doFullStateFetch, fetchMessagesBatch, runMinimalBattlePoll, playerId]);
+  }, [doFullStateFetch, fetchMessagesBatch, runMinimalBattlePoll, playerId, isHost]);
   
   const value: GameSyncContextValue = {
     gameState,

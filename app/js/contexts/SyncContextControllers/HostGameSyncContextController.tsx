@@ -1,4 +1,5 @@
 import { EngineSnapshot, extractWaitingUnitIds, isWaitingForRemotePlayerOrder, remoteOrdersToApply } from "../GameSyncContext";
+import { debugLog } from "../../debugLog";
 import { FetchMinimalStateResult, GameSyncContextController } from "./GameSyncContextController";
 
 export class HostGameSyncContextController extends GameSyncContextController {
@@ -30,7 +31,7 @@ export class HostGameSyncContextController extends GameSyncContextController {
           && !isWaitingForRemotePlayerOrder(previousState.state, this.playerId)
           && result.orders.every((o) => Number(o.gameTick) <= snapTick);
         if (staleMergedOrdersReplay) {
-          this.logOrderPoll('host_stale_merged_orders_replay', {
+          debugLog('sync tracking', 'error', 'host stale merged orders (controller minimal path)', {
             checkpointGameTick,
             snapTick,
             orderCount: result.orders.length,
@@ -45,7 +46,7 @@ export class HostGameSyncContextController extends GameSyncContextController {
         };
       })
     .catch((reason) => {
-      this.logOrderPoll('minimalBattlePollError(Host)', {
+      debugLog('sync tracking', 'warn', 'Host fetchMinimalState error', {
         checkpointGameTick,
         error: reason instanceof Error ? reason.message : reason ?? 'unknown',
       });
