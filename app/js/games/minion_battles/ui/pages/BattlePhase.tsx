@@ -129,6 +129,7 @@ export default function BattlePhase({
     const [, forceRender] = useState(0);
     const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [storyPauseActive, setStoryPauseActive] = useState(false);
+    const [teamworkBurstKey, setTeamworkBurstKey] = useState(0);
     const prevSyncStatusRef = useRef<string | null>(null);
 
     const isMyTurn = activeLocalWaiter != null;
@@ -232,6 +233,10 @@ export default function BattlePhase({
             setWaitingForOrders(info);
             setIsPaused(true);
             setStoryPauseActive(engine.storyPauseActive);
+
+            if (info.teamworkCancelledOwnerIds?.includes(playerId)) {
+                setTeamworkBurstKey((k) => k + 1);
+            }
 
             const active = engine.getActiveOrderWaiterForPlayer(playerId);
             setActiveLocalWaiter(active);
@@ -619,6 +624,7 @@ export default function BattlePhase({
                                   ]?.name ?? 'Player'
                                 : undefined
                         }
+                        teamworkBurstKey={teamworkBurstKey}
                     />
                 </div>
             </div>

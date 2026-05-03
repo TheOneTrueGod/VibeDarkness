@@ -3,6 +3,7 @@ import {
     AbilityPhase,
     activeTimingIds,
     buildPrimaryTimelineSegments,
+    elapsedIsInCoopCooldown,
     enteredTimingIds,
     exitedTimingIds,
     getTotalAbilityDuration,
@@ -109,13 +110,38 @@ describe('buildPrimaryTimelineSegments (first-listed wins on overlap)', () => {
 });
 
 describe('normalizeAbilityTimingsToIntervals (mixed)', () => {
-    it('places legacy rows after cursor updated by prior explicit intervals', () => {
+    it('places legacy rows after cursor then applies coop tail split on recovery', () => {
         const entries = [
             { id: 'a', start: 0, end: 1, abilityPhase: AbilityPhase.Active },
             { duration: 0.5, abilityPhase: AbilityPhase.Cooldown },
         ];
         const out = normalizeAbilityTimingsToIntervals(entries);
-        expect(out[1].start).toBe(1);
-        expect(out[1].end).toBe(1.5);
+        expect(out[0]).toMatchObject({ start: 0, end: 1, abilityPhase: AbilityPhase.Active });
+        expect(getTotalAbilityDurationFromIntervals(out)).toBe(1.5);
+        expect(out.some((i) => i.abilityPhase === AbilityPhase.CoopCooldown)).toBe(true);
+        expect(out.find((i) => i.start === 1 && i.end === 1.25)?.abilityPhase).toBe(AbilityPhase.Cooldown);
+        expect(out.find((i) => i.start === 1.25 && i.end === 1.5)?.abilityPhase).toBe(AbilityPhase.CoopCooldown);
+    });
+});
+
+describe('coop tail split + elapsedIsInCoopCooldown', () => {
+    it('elapsedIsInCoopCooldown respects earliest-declared winner on overlap', () => {
+        const intervals = normalizeAbilityTimingsToIntervals([
+            { id: 'w', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
+            { id: 'x', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
+            { id: 'y', start: 0.3, end: 1.6, abilityPhase: AbilityPhase.Cooldown },
+        ]);
+        expect(elapsedIsInCoopCooldown(1.4, intervals)).toBe(true);
+        expect(elapsedIsInCoopCooldown(0.5, intervals)).toBe(false);
+    });
+
+    it('timeline exposes coopCooldown phase id on terminal tail', () => {
+        const intervals = normalizeAbilityTimingsToIntervals([
+            { id: 'w', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
+            { id: 'x', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
+            { id: 'y', start: 0.3, end: 1.6, abilityPhase: AbilityPhase.Cooldown },
+        ]);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        expect(merged.some((s) => s.phaseId === 'coopCooldown')).toBe(true);
     });
 });

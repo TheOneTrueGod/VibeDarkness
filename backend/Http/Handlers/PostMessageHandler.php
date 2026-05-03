@@ -112,6 +112,10 @@ class PostMessageHandler
                 return ['success' => false, 'error' => 'characterId required'];
             }
             $portraitId = isset($payload['portraitId']) ? (string) $payload['portraitId'] : '';
+            $characterDisplayName = isset($payload['characterDisplayName']) ? trim((string) $payload['characterDisplayName']) : '';
+            if (strlen($characterDisplayName) > 64) {
+                $characterDisplayName = substr($characterDisplayName, 0, 64);
+            }
             $lobby = $manager->getLobby($lobbyId);
             if ($lobby === null) {
                 http_response_code(404);
@@ -139,6 +143,18 @@ class PostMessageHandler
                 $characterPortraitIds[$playerId] = $portraitId;
                 $updates['characterPortraitIds'] = $characterPortraitIds;
             }
+
+            $displayNames = $gameState['characterDisplayNames'] ?? $gameState['character_display_names'] ?? [];
+            if (!is_array($displayNames)) {
+                $displayNames = [];
+            }
+            if ($characterDisplayName !== '') {
+                $displayNames[$playerId] = $characterDisplayName;
+            } else {
+                unset($displayNames[$playerId]);
+            }
+            $updates['characterDisplayNames'] = $displayNames;
+
             $manager->updateGameState($lobbyId, $gameId, $lobby->getHostId(), $updates);
 
             // Broadcast selection message

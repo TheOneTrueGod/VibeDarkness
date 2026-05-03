@@ -38,6 +38,9 @@ export interface MinionBattlesState {
     /** Map of playerId -> characterId for character selections */
     characterSelections?: Record<string, string>;
     character_selections?: Record<string, string>;
+    /** Per-player combatant display names (campaign character names) for battles. */
+    characterDisplayNames?: Record<string, string>;
+    character_display_names?: Record<string, string>;
     /** Story choice results: playerId -> choiceId -> optionId (option id from choice phrase). */
     playerStoryChoices?: Record<string, Record<string, string>>;
     /** Derived or stored: playerId -> item IDs equipped from story (e.g. from playerStoryChoices). */

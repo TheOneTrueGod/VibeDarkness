@@ -167,7 +167,7 @@ export default function CharacterSelectPhase({
     }, [myCharacters, campaignId, missionId, missionTraitFilter]);
 
     const handleSelectCharacter = useCallback(
-        async (characterId: string, portraitId: string) => {
+        async (characterId: string, portraitId: string, characterDisplayName?: string) => {
             const overridePath = `characterSelections.${playerId}`;
             setLocalOverride?.(overridePath, characterId);
 
@@ -175,6 +175,9 @@ export default function CharacterSelectPhase({
                 await api.sendMessage(MessageType.CHARACTER_SELECT, {
                     characterId,
                     portraitId,
+                    ...(typeof characterDisplayName === 'string' && characterDisplayName.trim() !== ''
+                        ? { characterDisplayName: characterDisplayName.trim() }
+                        : {}),
                 });
             } catch (error) {
                 removeLocalOverride?.(overridePath);
@@ -185,9 +188,9 @@ export default function CharacterSelectPhase({
     );
 
     const handleCreateCharacter = useCallback(
-        (characterId: string, portraitId: string) => {
+        (characterId: string, portraitId: string, characterDisplayName?: string) => {
             setCreatorOpen(false);
-            handleSelectCharacter(characterId, portraitId);
+            handleSelectCharacter(characterId, portraitId, characterDisplayName);
             setEditorForceEditable(true);
             setEditorOpen(true);
         },
@@ -349,11 +352,25 @@ export default function CharacterSelectPhase({
     );
 
     const handleEditorSaved = useCallback(() => {
-        api.getMyCharacters().then((list) => {
-            const chars = (list as CampaignCharacterData[]).map((d) => fromCampaignCharacterData(d));
-            setMyCharacters(chars);
-        }).catch(() => {});
-    }, [api]);
+        void api
+            .getMyCharacters()
+            .then((list) => {
+                const chars = (list as CampaignCharacterData[]).map((d) => fromCampaignCharacterData(d));
+                setMyCharacters(chars);
+                const sel = characterSelections[playerId];
+                if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return;
+                const updated = chars.find((c) => c.id === sel);
+                if (!updated) return;
+                const port = getPortrait(updated.portraitId);
+                const displayName = updated.name || (port?.name ?? 'Character');
+                void api.sendMessage(MessageType.CHARACTER_SELECT, {
+                    characterId: updated.id,
+                    portraitId: updated.portraitId,
+                    characterDisplayName: displayName,
+                });
+            })
+            .catch(() => {});
+    }, [api, characterSelections, playerId]);
 
     return (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
@@ -653,7 +670,7 @@ interface CampaignCharacterCardProps {
     isMySelection: boolean;
     playerSelections: Record<string, string>;
     players: Record<string, PlayerState>;
-    onSelect: (characterId: string, portraitId: string) => void;
+    onSelect: (characterId: string, portraitId: string, characterDisplayName?: string) => void;
     onDelete: (characterId: string) => void;
 }
 
@@ -695,7 +712,7 @@ function CampaignCharacterCard({
                 }
                 bg-surface
             `}
-            onClick={() => canUse && onSelect(character.id, character.portraitId)}
+            onClick={() => canUse && onSelect(character.id, character.portraitId, displayName)}
             title={canUse ? displayName : `${displayName} — ${disallowReason ?? 'Not available'}`}
         >
             <button

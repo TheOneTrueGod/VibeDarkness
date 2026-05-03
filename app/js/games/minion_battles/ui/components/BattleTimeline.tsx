@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import type { PlayerState } from '../../../../types';
 import type { GameEngine } from '../../game/GameEngine';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -41,7 +42,13 @@ export type TimelinePanelHover =
       }
     | null;
 
-/** Light gray background line with half-second ticks and time labels for a timeline row. */
+/** Track height tall enough that timeline tick labels fit inside overflow-hidden rails. */
+const TIMELINE_TRACK_HEIGHT_CLASS = 'h-[3.5rem]';
+
+/**
+ * Half-second ticks and time labels below the axis so numbers are not clipped by the row.
+ * Horizontal line sits in the upper third; labels sit in padded space along the bottom.
+ */
 function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
     if (windowSeconds <= 0) {
         return null;
@@ -52,30 +59,50 @@ function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
         ticks.push(t);
     }
     const lastTick = ticks[ticks.length - 1] ?? 0;
+    const axisTopPercent = 36;
 
     return (
-        <div className="pointer-events-none absolute inset-0 flex items-center overflow-visible" aria-hidden>
-            {/* Full-width light gray line */}
-            <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-gray-600" />
-            {/* Half-second ticks and labels — edge ticks align inward so labels are not half outside the bar */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+            <div
+                className="absolute left-0 right-0 h-px bg-gray-600"
+                style={{ top: `${axisTopPercent}%` }}
+            />
             {ticks.map((t) => {
                 const leftPercent = (t / windowSeconds) * 100;
                 const atStart = Math.abs(t) < 1e-6;
                 const atEnd = Math.abs(t - lastTick) < 1e-6 && !atStart;
+
+                const leftCss = atStart ? '0%' : atEnd ? '100%' : `${leftPercent}%`;
+                let tickTf = 'translate(-50%, -1px)';
+                if (atStart) tickTf = 'translateY(-1px)';
+                if (atEnd) tickTf = 'translate(-100%, -1px)';
+
+                let labelTf = 'translateX(-50%)';
+                if (atStart) labelTf = 'none';
+                if (atEnd) labelTf = 'translateX(-100%)';
+
+                const tickStyle: React.CSSProperties = {
+                    left: leftCss,
+                    top: `${axisTopPercent}%`,
+                    transform: tickTf,
+                };
+                const labelStyle: React.CSSProperties = {
+                    left: leftCss,
+                    bottom: 4,
+                    transform: labelTf,
+                };
+
                 return (
-                    <div
-                        key={t}
-                        className={
-                            atStart
-                                ? 'absolute top-1/2 left-0 flex translate-x-0 flex-col items-start'
-                                : atEnd
-                                  ? 'absolute top-1/2 left-full flex -translate-x-full flex-col items-end'
-                                  : 'absolute top-1/2 flex -translate-x-1/2 flex-col items-center'
-                        }
-                        style={atStart || atEnd ? undefined : { left: `${leftPercent}%` }}
-                    >
-                        <div className="h-1.5 w-px -translate-y-1/2 bg-gray-500" />
-                        <span className="mt-0.5 whitespace-nowrap text-[10px] text-gray-500">{t}</span>
+                    <div key={t}>
+                        <div className="absolute flex w-0 flex-col items-center" style={tickStyle}>
+                            <div className="h-2 w-px bg-gray-500" />
+                        </div>
+                        <span
+                            className="absolute text-[10px] leading-snug whitespace-nowrap text-gray-500"
+                            style={labelStyle}
+                        >
+                            {t}
+                        </span>
                     </div>
                 );
             })}
@@ -185,7 +212,7 @@ function renderEnemyTimelineTrack(
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
     return (
-        <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
+        <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
             <TimelineTimeRuler windowSeconds={windowSeconds} />
             <div className="absolute inset-0 overflow-hidden rounded-md">
                 {markers.map((marker, idx) => {
@@ -356,7 +383,7 @@ function renderPlayerTimelineTrack(
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
     return (
-        <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
+        <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
             <TimelineTimeRuler windowSeconds={windowSeconds} />
             {hasTimeline && (
                 <>
@@ -408,6 +435,8 @@ function renderPlayerUnitTimelineUnified(
     previewAbility: AbilityStatic | null | undefined,
     previewOrderUnitId: string | null | undefined,
     compact: boolean,
+    /** When global rail is expanded, toggles this row between expanded (timeline + hp bar) and compact strip. */
+    toggleRowContractOrExpand: (() => void) | null,
     hover: TimelinePanelHover,
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
@@ -465,7 +494,7 @@ function renderPlayerUnitTimelineUnified(
                   setHover,
               )
             : (
-                  <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
+                  <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
                       <TimelineTimeRuler windowSeconds={windowSeconds} />
                   </div>
               );
@@ -494,6 +523,17 @@ function renderPlayerUnitTimelineUnified(
                     <span className="shrink-0 text-[10px] text-gray-400">
                         ({unit.hp}/{unit.maxHp})
                     </span>
+                    {toggleRowContractOrExpand != null && (
+                        <button
+                            type="button"
+                            className="flex shrink-0 items-center justify-center rounded p-0.5 text-primary hover:bg-dark-700/90"
+                            onClick={toggleRowContractOrExpand}
+                            aria-label="Expand unit row"
+                            title="Expand"
+                        >
+                            <Maximize2 className="h-3.5 w-3.5" aria-hidden strokeWidth={2} />
+                        </button>
+                    )}
                 </div>
             </div>
         );
@@ -501,11 +541,24 @@ function renderPlayerUnitTimelineUnified(
 
     return (
         <div key={unit.id} className="flex min-w-0 flex-col gap-1 border-b border-dark-700/40 pb-2 last:border-b-0">
-            <div className="flex min-w-0 items-center gap-2">
-                {iconEl}
-                <span className="min-w-0 truncate text-xs font-medium text-gray-100" title={unit.name}>
-                    {unit.name}
-                </span>
+            <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                    {iconEl}
+                    <span className="min-w-0 truncate text-xs font-medium text-gray-100" title={unit.name}>
+                        {unit.name}
+                    </span>
+                </div>
+                {toggleRowContractOrExpand != null && (
+                    <button
+                        type="button"
+                        className="flex shrink-0 items-center justify-center rounded p-0.5 text-primary hover:bg-dark-700/90"
+                        onClick={toggleRowContractOrExpand}
+                        aria-label="Contract unit row"
+                        title="Contract"
+                    >
+                        <Minimize2 className="h-3.5 w-3.5" aria-hidden strokeWidth={2} />
+                    </button>
+                )}
             </div>
             <div className="flex min-w-0 items-center gap-2 pl-0">
                 <span className="w-11 shrink-0 text-right text-[10px] text-gray-400">
@@ -559,7 +612,7 @@ function renderPlayerRow(
         );
 
         const emptyTrack = (
-            <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
+            <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
                 <TimelineTimeRuler windowSeconds={windowSeconds} />
             </div>
         );
@@ -624,7 +677,7 @@ function renderPlayerRow(
                   setHover,
               )
             : (
-                  <div className="relative h-10 overflow-hidden rounded-md bg-dark-800/80">
+                  <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
                       <TimelineTimeRuler windowSeconds={windowSeconds} />
                   </div>
               );
@@ -679,6 +732,19 @@ export default function BattleTimeline({
             return false;
         }
     });
+    /** When the rail is in expanded mode (`railCompact === false`), each unit row can collapse to the compact strip. */
+    const [railCollapsedUnitIds, setRailCollapsedUnitIds] = useState<Record<string, true>>({});
+    const toggleRailCollapsedUnitId = useCallback((unitId: string) => {
+        setRailCollapsedUnitIds((prev) => {
+            const next = { ...prev };
+            if (unitId in next) {
+                delete next[unitId];
+            } else {
+                next[unitId] = true;
+            }
+            return next;
+        });
+    }, []);
 
     const handlePanelPointerLeave = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         const next = e.relatedTarget as Node | null;
@@ -743,6 +809,9 @@ export default function BattleTimeline({
                         onClick={() => {
                             setRailCompact((c) => {
                                 const next = !c;
+                                if (next) {
+                                    setRailCollapsedUnitIds({});
+                                }
                                 try {
                                     localStorage.setItem(RAIL_COMPACT_STORAGE_KEY, next ? '1' : '0');
                                 } catch {
@@ -781,8 +850,13 @@ export default function BattleTimeline({
                                         </div>
                                     ) : (
                                         <div className="flex flex-col gap-2">
-                                            {units.map((unit) =>
-                                                renderPlayerUnitTimelineUnified(
+                                            {units.map((unit) => {
+                                                const compactThisUnit =
+                                                    railCompact || !!railCollapsedUnitIds[unit.id];
+                                                const rowToggle = railCompact
+                                                    ? null
+                                                    : () => toggleRailCollapsedUnitId(unit.id);
+                                                return renderPlayerUnitTimelineUnified(
                                                     engine,
                                                     unit,
                                                     playerId,
@@ -791,11 +865,12 @@ export default function BattleTimeline({
                                                     localPlayerId,
                                                     previewAbility,
                                                     previewOrderUnitId,
-                                                    railCompact,
+                                                    compactThisUnit,
+                                                    rowToggle,
                                                     panelHover,
                                                     setPanelHover,
-                                                ),
-                                            )}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>

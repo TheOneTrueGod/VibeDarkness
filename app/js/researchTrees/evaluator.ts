@@ -1,7 +1,9 @@
 import type { AccountState, CampaignResources } from '../types';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
+import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { getCoreFromEquipment } from '../games/minion_battles/character_defs/items';
 import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect } from './types';
+import { RESEARCH_TREES } from './list';
 
 export interface ResearchContext {
     account: AccountState;
@@ -188,5 +190,41 @@ export function applyResearchEffects(tree: ResearchTreeDef, ctx: ResearchContext
     }
 
     return { equipment, extraEquippedItemIds };
+}
+
+/**
+ * Applies all trees' deterministic equipment mutations (matches Character Editor layered research effects).
+ * Use when building battle deck item lists from persisted equipment plus `researchTrees`.
+ */
+export function mergeBattleEquipmentIdsFromResearch(
+    equipmentIds: string[],
+    researchTrees: Record<string, string[]> | undefined,
+): { equipmentIds: string[]; extraEquippedItemIds: string[] } {
+    const trees = researchTrees ?? {};
+    let equipment = [...equipmentIds];
+    const extraEquippedItemIds: string[] = [];
+    const dummyAccount = { id: 0, name: '', role: 'user' as const, fire: 0, water: 0, earth: 0, air: 0 };
+    for (const tree of RESEARCH_TREES) {
+        const character = fromCampaignCharacterData({
+            id: '__research_merge',
+            equipment,
+            knowledge: {},
+            traits: [],
+            portraitId: '',
+            battleChipDetails: {},
+            campaignId: '',
+            missionId: '',
+            researchTrees: trees,
+        });
+        const ctx: ResearchContext = {
+            account: dummyAccount as AccountState,
+            character,
+            campaignResources: {},
+        };
+        const applied = applyResearchEffects(tree, ctx);
+        equipment = applied.equipment;
+        extraEquippedItemIds.push(...applied.extraEquippedItemIds);
+    }
+    return { equipmentIds: equipment, extraEquippedItemIds };
 }
 

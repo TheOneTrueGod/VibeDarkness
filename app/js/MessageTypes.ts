@@ -54,7 +54,10 @@ const MessageSchema: Record<string, SchemaDef> = Object.freeze({
     [MessageType.PONG]: { required: [], optional: [] },
     [MessageType.LOBBY_UPDATE]: { required: ['players'], optional: [] },
     [MessageType.HOST_CHANGED]: { required: ['newHostId'], optional: [] },
-    [MessageType.CHARACTER_SELECT]: { required: ['playerId', 'characterId'], optional: ['portraitId'] },
+    [MessageType.CHARACTER_SELECT]: {
+        required: ['playerId', 'characterId'],
+        optional: ['portraitId', 'characterDisplayName'],
+    },
     [MessageType.CHARACTER_SELECT_READY]: { required: [], optional: [] },
     [MessageType.GAME_PHASE_CHANGED]: { required: ['gamePhase'], optional: [] },
     [MessageType.BATTLE_ORDERS_READY]: { required: ['snapshotIndex'], optional: [] },

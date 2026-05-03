@@ -18,6 +18,8 @@ interface TurnIndicatorProps {
     state: TurnIndicatorState;
     /** Ally player name when state is 'ally_turn'. */
     allyName?: string;
+    /** Increment to play a one-shot “Teamwork” burst above the plaque (coop cooldown sync). */
+    teamworkBurstKey?: number;
 }
 
 const BLINK_DURATION_MS = 220;
@@ -31,13 +33,25 @@ const LEFT_PLAQUE_CLIP = 'polygon(0% 50%, 18% 0%, 100% 0%, 100% 100%, 18% 100%)'
 /** Right endcap with a pointed outer edge and flat inner edge. */
 const RIGHT_PLAQUE_CLIP = 'polygon(0% 0%, 82% 0%, 100% 50%, 82% 100%, 0% 100%)';
 
-export default function TurnIndicator({ state, allyName = 'Player' }: TurnIndicatorProps) {
+export default function TurnIndicator({
+    state,
+    allyName = 'Player',
+    teamworkBurstKey = 0,
+}: TurnIndicatorProps) {
     const [phase, setPhase] = useState<'open' | 'closing' | 'closed' | 'opening'>(() =>
         state === 'playing' ? 'closed' : 'open',
     );
     const [displayState, setDisplayState] = useState<TurnIndicatorState>(state);
     const prevStateRef = useRef(state);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [teamworkVisible, setTeamworkVisible] = useState(false);
+
+    useEffect(() => {
+        if (teamworkBurstKey <= 0) return;
+        setTeamworkVisible(true);
+        const t = window.setTimeout(() => setTeamworkVisible(false), 1100);
+        return () => window.clearTimeout(t);
+    }, [teamworkBurstKey]);
 
     useEffect(() => {
         const prev = prevStateRef.current;
@@ -131,7 +145,40 @@ export default function TurnIndicator({ state, allyName = 'Player' }: TurnIndica
     } as const;
 
     return (
-        <div className="w-full flex items-center justify-center gap-0 shrink-0 py-1">
+        <div className="relative w-full shrink-0 py-1">
+            {teamworkVisible && teamworkBurstKey > 0 && (
+                <div
+                    key={teamworkBurstKey}
+                    className="pointer-events-none absolute bottom-full left-1/2 z-[80] flex -translate-x-1/2 justify-center pb-1"
+                    aria-hidden
+                >
+                    <span
+                        className="teamwork-burst-text whitespace-nowrap bg-gradient-to-b from-amber-200 via-yellow-300 to-amber-500 bg-clip-text text-3xl font-black uppercase tracking-[0.2em] text-transparent drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]"
+                        style={{
+                            animation: 'teamworkArc 1.1s ease-out forwards',
+                        }}
+                    >
+                        Teamwork
+                    </span>
+                    <style>{`
+                        @keyframes teamworkArc {
+                            0% {
+                                opacity: 0;
+                                transform: translateY(10px) scale(0.35) rotate(-4deg);
+                            }
+                            12% {
+                                opacity: 1;
+                                transform: translateY(0) scale(1.08) rotate(2deg);
+                            }
+                            100% {
+                                opacity: 0;
+                                transform: translateY(-52px) scale(1.02) rotate(6deg);
+                            }
+                        }
+                    `}</style>
+                </div>
+            )}
+            <div className="flex w-full items-center justify-center gap-0">
             {/* Left line */}
             <div
                 className={`flex-1 h-1 min-w-[8px] ${lineGradientLeft}`}
@@ -221,6 +268,7 @@ export default function TurnIndicator({ state, allyName = 'Player' }: TurnIndica
                 className={`flex-1 h-1 min-w-[8px] ${lineGradientRight}`}
                 style={{ maxWidth: '40%' }}
             />
+            </div>
         </div>
     );
 }

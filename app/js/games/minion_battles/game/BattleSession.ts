@@ -167,13 +167,21 @@ export class BattleSession {
             const portraitIds = (initRecord?.characterPortraitIds ?? initRecord?.character_portrait_ids) as
                 | Record<string, string>
                 | undefined;
+            const displayNamesRaw =
+                (initRecord?.characterDisplayNames ?? initRecord?.character_display_names) as
+                    | Record<string, string>
+                    | undefined;
             const playerUnits = Object.entries(selections)
                 .filter(([, charId]) => charId !== SPECTATOR_ID)
-                .map(([pid]) => ({
-                    playerId: pid,
-                    name: players[pid]?.name ?? 'Unknown',
-                    portraitId: portraitIds?.[pid],
-                }));
+                .map(([pid]) => {
+                    const dn = displayNamesRaw?.[pid]?.trim();
+                    const fallback = players[pid]?.name ?? 'Unknown';
+                    return {
+                        playerId: pid,
+                        name: dn && dn !== '' ? dn : fallback,
+                        portraitId: portraitIds?.[pid],
+                    };
+                });
             const equippedItemsByPlayer = (initRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
             const playerResearchTreesByPlayer =
                 (initRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};

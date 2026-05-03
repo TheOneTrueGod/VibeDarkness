@@ -21,7 +21,12 @@ import { Unit } from './units/Unit';
 import { Projectile } from './projectiles/Projectile';
 import { Effect } from './effects/Effect';
 import { getAbility } from '../abilities/AbilityRegistry';
-import { getTotalAbilityDurationForCast } from '../abilities/abilityTimings';
+import {
+    elapsedIsInCoopCooldown,
+    getTotalAbilityDurationForCast,
+    normalizeAbilityTimingsToIntervals,
+    resolveAbilityTimingEntries,
+} from '../abilities/abilityTimings';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
 import { AbilityEventType } from '../abilities/Ability';
@@ -104,7 +109,10 @@ export class GameEngine implements EngineContext {
      * Parallel order pause detected at end of a tick; committed at the **start** of the next
      * `fixedUpdate` (before `gameTick` / `gameTime` advance) so every unit's `update` ran on the prior tick.
      */
-    private deferredOrderPauseWaiters: OrderWaiter[] | null = null;
+    private deferredOrderPause: { waiters: OrderWaiter[]; naturalCompletionUnitIds: readonly string[] } | null = null;
+
+    /** Units whose casts ended by duration this tick (cleared each normal tick before `processActiveAbilities`). */
+    private naturalAbilityCompletionUnitIdsThisTick = new Set<string>();
 
     // -- Callbacks (engine wiring, not serialized) --
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
@@ -406,7 +414,7 @@ export class GameEngine implements EngineContext {
         this.storyPauseReason = reason;
         this.storyPauseEndsAt = this.gameTime + durationSeconds;
         this.waitingForOrders = null;
-        this.deferredOrderPauseWaiters = null;
+        this.deferredOrderPause = null;
         this.isPaused = false;
         for (const unit of this.units) {
             if (!unit.isPlayerControlled() || !unit.isAlive()) continue;
@@ -535,7 +543,7 @@ export class GameEngine implements EngineContext {
 
     /** Clear deferred pause and wall-clock catch-up so a loaded battle does not burst-simulate on first paint. */
     clearDeferredOrderPauseAndAccumulator(): void {
-        this.deferredOrderPauseWaiters = null;
+        this.deferredOrderPause = null;
         this.accumulator = 0;
     }
 
@@ -677,11 +685,71 @@ export class GameEngine implements EngineContext {
         if (this.state.levelEventManager.isTerminal) return;
 
         // Commit order pause at tick boundary (after all units updated on the prior completed tick).
-        if (this.deferredOrderPauseWaiters != null && this.deferredOrderPauseWaiters.length > 0) {
-            const waiters = this.deferredOrderPauseWaiters;
-            this.deferredOrderPauseWaiters = null;
+        if (this.deferredOrderPause != null && this.deferredOrderPause.waiters.length > 0) {
+            const { waiters: initialWaiters, naturalCompletionUnitIds } = this.deferredOrderPause;
+            this.deferredOrderPause = null;
             const atTick = this.gameTick + 1;
-            this.waitingForOrders = { waiters, atTick };
+
+            const naturalSet = new Set(naturalCompletionUnitIds);
+            const hadNaturalWaiter = initialWaiters.some((w) => naturalSet.has(w.unitId));
+
+            let teamworkCancelledOwnerIds: string[] | undefined;
+            let waiters = [...initialWaiters];
+
+            if (hadNaturalWaiter) {
+                const initialWaiterUnitIds = new Set(initialWaiters.map((w) => w.unitId));
+                const triggerTeamIds = new Set<string>();
+                for (const w of initialWaiters) {
+                    if (!naturalSet.has(w.unitId)) continue;
+                    const u = this.getUnit(w.unitId);
+                    if (u) triggerTeamIds.add(u.teamId);
+                }
+
+                const cancelledOwners = new Set<string>();
+                for (const unit of this.units) {
+                    if (!unit.active || !unit.isAlive()) continue;
+                    if (!unit.isPlayerControlled()) continue;
+                    if (initialWaiterUnitIds.has(unit.id)) continue;
+                    if (!triggerTeamIds.has(unit.teamId)) continue;
+                    for (const active of [...unit.activeAbilities]) {
+                        const ability = getAbility(active.abilityId);
+                        if (!ability) continue;
+                        const entries = resolveAbilityTimingEntries(ability, unit, this);
+                        const intervals = normalizeAbilityTimingsToIntervals(entries);
+                        const elapsed = Math.max(0, this.gameTime - active.startTime);
+                        if (elapsedIsInCoopCooldown(elapsed, intervals)) {
+                            this.cancelActiveAbility(unit.id, active.abilityId);
+                            cancelledOwners.add(unit.ownerId);
+                        }
+                    }
+                }
+
+                if (cancelledOwners.size > 0) {
+                    teamworkCancelledOwnerIds = [...cancelledOwners].sort();
+                }
+
+                const mergedIds = new Set(waiters.map((w) => w.unitId));
+                const extras: OrderWaiter[] = [];
+                for (const unit of this.units) {
+                    if (!unit.active || !unit.isAlive()) continue;
+                    if (!this.shouldPauseForOrders(unit)) continue;
+                    if (mergedIds.has(unit.id)) continue;
+                    mergedIds.add(unit.id);
+                    extras.push({ unitId: unit.id, ownerId: unit.ownerId });
+                }
+                extras.sort((a, b) =>
+                    a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
+                );
+                waiters = [...waiters, ...extras].sort((a, b) =>
+                    a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
+                );
+            }
+
+            this.waitingForOrders = {
+                waiters,
+                atTick,
+                ...(teamworkCancelledOwnerIds !== undefined ? { teamworkCancelledOwnerIds } : {}),
+            };
             this.isPaused = true;
             this.snapshotIndex++;
             this.onWaitingForOrders?.(this.waitingForOrders);
@@ -692,6 +760,7 @@ export class GameEngine implements EngineContext {
 
         this.gameTime += dt;
         this.gameTick++;
+        this.naturalAbilityCompletionUnitIdsThisTick.clear();
 
         const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
         this.processRoundProgressMilestones(roundTime);
@@ -786,7 +855,11 @@ export class GameEngine implements EngineContext {
         const waiters = this.collectParallelWaiters();
         if (waiters.length > 0) {
             this.state.levelEventManager.runVictoryChecks();
-            this.deferredOrderPauseWaiters = waiters;
+            this.deferredOrderPause = {
+                waiters,
+                naturalCompletionUnitIds: [...this.naturalAbilityCompletionUnitIdsThisTick],
+            };
+            this.naturalAbilityCompletionUnitIdsThisTick.clear();
         }
     }
 
@@ -911,7 +984,7 @@ export class GameEngine implements EngineContext {
         const unitIds = batch.waiters.map((w) => w.unitId).sort();
         this.waitingForOrders = null;
         this.isPaused = false;
-        this.deferredOrderPauseWaiters = null;
+        this.deferredOrderPause = null;
 
         this.eventBus.emit('turn_end', { unitIds });
 
@@ -1048,6 +1121,7 @@ export class GameEngine implements EngineContext {
                         currentTime: elapsed,
                     });
                 }
+                this.naturalAbilityCompletionUnitIdsThisTick.add(unit.id);
                 unit.activeAbilities.splice(completedIndex, 1);
             }
         }
@@ -1366,7 +1440,12 @@ export class GameEngine implements EngineContext {
             projectiles: this.state.projectileManager.toJSON(),
             effects: this.state.effectManager.toJSON(),
             cards: cardData.cards as Record<string, import('./types').SerializedCardInstance[]>,
-            waitingForOrders: this.waitingForOrders,
+            waitingForOrders: this.waitingForOrders
+                ? {
+                      waiters: this.waitingForOrders.waiters,
+                      atTick: this.waitingForOrders.atTick,
+                  }
+                : null,
             orders: this.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
             specialTiles: this.state.specialTileManager.toJSON() as unknown as import('./types').SerializedSpecialTile[],
             aiControllerId: this.aiControllerId,
@@ -1469,7 +1548,7 @@ export class GameEngine implements EngineContext {
         engine.appliedRoundStartRecovery = roundTime > 0;
         engine.appliedMidRoundRecovery = roundTime >= ROUND_DURATION / 2;
 
-        engine.deferredOrderPauseWaiters = null;
+        engine.deferredOrderPause = null;
         if (engine.waitingForOrders != null) {
             engine.isPaused = true;
         }
@@ -1479,7 +1558,7 @@ export class GameEngine implements EngineContext {
 
     destroy(): void {
         this.stop();
-        this.deferredOrderPauseWaiters = null;
+        this.deferredOrderPause = null;
         this.synchashUpdateSeq++;
         this.terrainManager?.setStoneDamagedEmitter(undefined);
         for (const unit of this.units) {

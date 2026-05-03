@@ -29,6 +29,11 @@ export interface WaitingForOrders {
     waiters: OrderWaiter[];
     /** Tick at which batch orders apply (usually `gameTick + 1` at pause time). */
     atTick: number;
+    /**
+     * Ephemeral: owners of player units whose casts were ended early by coop cooldown sync.
+     * Omitted from checkpoints; used only for live UI (e.g. Teamwork burst).
+     */
+    teamworkCancelledOwnerIds?: string[];
 }
 
 /** Normalize checkpoint `waitingForOrders` (current shape or legacy `{ unitId, ownerId }`). */

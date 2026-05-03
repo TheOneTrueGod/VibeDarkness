@@ -622,7 +622,7 @@ class LobbyManager
         if (is_file($basePathFile)) {
             $baseData = json_decode((string) file_get_contents($basePathFile), true);
             if (is_array($baseData)) {
-                foreach (['gamePhase', 'game_phase', 'selectedMissionId', 'selected_mission_id', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'characterSelectReadyPlayerIds', 'character_select_ready_player_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds', 'groupVoteVotes', 'groupVoteApplied'] as $key) {
+                            foreach (['gamePhase', 'game_phase', 'selectedMissionId', 'selected_mission_id', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'characterDisplayNames', 'character_display_names', 'characterSelectReadyPlayerIds', 'character_select_ready_player_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds', 'groupVoteVotes', 'groupVoteApplied'] as $key) {
                     if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
                         $result[$key] = $baseData[$key];
                     }
@@ -759,6 +759,16 @@ class LobbyManager
                     if (in_array('001', $equipment, true) && !in_array('013', $equipment, true)) {
                         $equipment = array_values(array_filter($equipment, static fn (string $id): bool => $id !== '001'));
                         $equipment[] = '013';
+                    }
+                }
+                $stickSword = $trees['stick_sword'] ?? [];
+                $stickSword = is_array($stickSword) ? $stickSword : [];
+                $hasCraftSword = in_array('craft_sword', $stickSword, true);
+                if ($hasCraftSword && in_array('002', $equipment, true)) {
+                    // Stick & Sword: Craft Sword replaces stick (002) with crafted sword (015); mirrors researchTrees evaluator.
+                    $equipment = array_values(array_filter($equipment, static fn (string $id): bool => $id !== '002'));
+                    if (!in_array('015', $equipment, true)) {
+                        $equipment[] = '015';
                     }
                 }
 

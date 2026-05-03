@@ -35,6 +35,7 @@ import {
     applyTrainingResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
+import { mergeBattleEquipmentIdsFromResearch } from '../../../researchTrees/evaluator';
 import { Ammo } from '../resources/Ammo';
 
 const AMMO_ABILITIES = new Set(['0105', '0112', '0203', '0204', '0205']);
@@ -111,9 +112,14 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         const worldH = grid ? grid.worldHeight : this.worldHeight;
         const playerSpacing = worldH / (playerCount + 1);
         const spawnPoints = this.playerSpawnPoints;
+        const researchByPlayer = params.playerResearchTreesByPlayer ?? {};
         for (let i = 0; i < playerCount; i++) {
             const pu = params.playerUnits[i];
-            const equippedIds = params.equippedItemsByPlayer?.[pu.playerId] ?? [];
+            const mergedEquip = mergeBattleEquipmentIdsFromResearch(
+                params.equippedItemsByPlayer?.[pu.playerId] ?? [],
+                researchByPlayer[pu.playerId],
+            );
+            const equippedIds = [...mergedEquip.equipmentIds, ...mergedEquip.extraEquippedItemIds];
             // Abilities and cards come only from equipment (e.g. core + weapon/utility items).
             const abilities: string[] = [];
             for (const itemId of equippedIds) {
@@ -154,7 +160,6 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 spawnY = sp.row * cellSize + cellSize / 2;
             }
 
-            const researchByPlayer = params.playerResearchTreesByPlayer ?? {};
             const getResearchNodes = (treeId: string) =>
                 researchByPlayer[pu.playerId]?.[treeId] ?? [];
             const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);

@@ -7,18 +7,23 @@
     "earth": 6,
     "air": 9,
     "recentLobbies": [
+        "CA06D3",
+        "1F38AC",
+        "5D43D6",
+        "9BD85D",
+        "D9A46C",
+        "B6661F",
+        "87879C",
         "2FD24B",
         "656C3F",
-        "4E310E",
-        "7FFF9E",
-        "526DC6",
-        "D7B947"
+        "4E310E"
     ],
     "campaignIds": [
         "b20ed5832a01070a"
     ],
     "characterIds": [
-        "char_2c1428630628ad7e"
+        "char_2c1428630628ad7e",
+        "char_4772664f84459de9"
     ],
     "inventoryItemIds": [],
     "knowledge": [],

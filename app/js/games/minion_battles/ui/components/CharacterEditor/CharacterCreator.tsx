@@ -13,7 +13,7 @@ interface CharacterCreatorProps {
     campaignId: string;
     missionId: string;
     initialPortraitId?: string;
-    onCreate: (characterId: string, portraitId: string) => void;
+    onCreate: (characterId: string, portraitId: string, characterDisplayName: string) => void;
     onClose: () => void;
     createCharacter: (payload: {
         portraitId: string;
@@ -77,7 +77,7 @@ export default function CharacterCreator({
                 name: getRandomCharacterName(),
                 equipment: getDefaultEquipmentForCampaign(campaignId),
             });
-            onCreate(char.id, char.portraitId);
+            onCreate(char.id, char.portraitId, char.name ?? getRandomCharacterName());
             onClose();
         } catch (e) {
             console.error('Failed to create character:', e);

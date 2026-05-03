@@ -136,7 +136,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		const note = this.getChargeNote(caster, active);
 		if (!note) return;
 
-		if (activeTimingIds(currentTime, this.abilityTimings).has('windup')) return;
+		if (activeTimingIds(currentTime, this.getAbilityTimingIntervals()).has('windup')) return;
 
 		if (note.lungeOriginX === undefined) {
 			note.lungeOriginX = caster.x;
@@ -253,6 +253,9 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			eng, caster, segment.fromX, segment.fromY, segment.toX, segment.toY, capsuleRadius,
 		);
 
+		/** Blocking uses attack direction vs shield arc; centroid flips sides once overlaps — use approaching side. */
+		const blockAngleSource = this.getDirectionalBlockAttackSource(caster, note, segment);
+
 		for (const unit of hitUnits) {
 			if (note.hitTargetIds.includes(unit.id)) continue;
 			if (unit.hasIFrames(eng.gameTime)) continue;
@@ -261,8 +264,8 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 				engine: eng,
 				gameTime: eng.gameTime,
 				eventBus: eng.eventBus,
-				attackerX: caster.x,
-				attackerY: caster.y,
+				attackerX: blockAngleSource.x,
+				attackerY: blockAngleSource.y,
 				attackerId: caster.id,
 				abilityId: this.config.id,
 				damage: this.config.damage,
@@ -287,5 +290,42 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 				effectRadius: caster.radius * 2,
 			}));
 		}
+	}
+
+	/**
+	 * World point used for directional block checks (angle from defender toward "incoming").
+	 * Prefer a point behind the charger along motion so the blocked arc stays stable through overlap/passthrough.
+	 */
+	private getDirectionalBlockAttackSource(
+		caster: Unit,
+		note: ChargeNote,
+		segment: { fromX: number; fromY: number; toX: number; toY: number },
+	): { x: number; y: number } {
+		const lookbackPx = Math.max(caster.radius * 6, 120);
+		let nx: number | undefined;
+		let ny: number | undefined;
+		if (note.chargeDirX !== undefined && note.chargeDirY !== undefined) {
+			const mag = Math.hypot(note.chargeDirX, note.chargeDirY);
+			if (mag > 1e-6) {
+				nx = note.chargeDirX / mag;
+				ny = note.chargeDirY / mag;
+			}
+		}
+		if (nx === undefined || ny === undefined) {
+			const dx = segment.toX - segment.fromX;
+			const dy = segment.toY - segment.fromY;
+			const mag = Math.hypot(dx, dy);
+			if (mag > 1e-6) {
+				nx = dx / mag;
+				ny = dy / mag;
+			}
+		}
+		if (nx !== undefined && ny !== undefined) {
+			return {
+				x: caster.x - nx * lookbackPx,
+				y: caster.y - ny * lookbackPx,
+			};
+		}
+		return { x: caster.x, y: caster.y };
 	}
 }

@@ -40,6 +40,9 @@ export interface MinionBattlesGameStatePayload {
     selected_mission_id?: string;
     characterSelections?: Record<string, string>;
     character_selections?: Record<string, string>;
+    /** In-battle unit label: player's chosen character display name by player ID (camelCase/snake_case both). */
+    characterDisplayNames?: Record<string, string>;
+    character_display_names?: Record<string, string>;
     storyReadyPlayerIds?: string[];
     characterSelectReadyPlayerIds?: string[];
     character_select_ready_player_ids?: string[];

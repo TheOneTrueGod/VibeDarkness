@@ -9,6 +9,7 @@ export enum AbilityPhase {
     Windup = 'windup',
     Active = 'active',
     Cooldown = 'cooldown',
+    CoopCooldown = 'coopCooldown',
     Iframe = 'iframe',
     Juggernaut = 'juggernaut',
 }
@@ -101,7 +102,87 @@ export function normalizeAbilityTimingsToIntervals(entries: AbilityTimingEntry[]
             cursor += e.duration;
         }
     }
-    return out;
+    return applyCoopTailSplit(out);
+}
+
+const COOP_TAIL_SPLIT_EPS = 1e-6;
+
+function isTailBoundaryEffectPhase(phase: AbilityPhase): boolean {
+    return (
+        phase === AbilityPhase.Active || phase === AbilityPhase.Juggernaut || phase === AbilityPhase.Iframe
+    );
+}
+
+/**
+ * Second half of the terminal tail (after the last Active/Juggernaut/Iframe segment) becomes
+ * {@link AbilityPhase.CoopCooldown} so coop sync can trim casts without changing total duration.
+ */
+export function applyCoopTailSplit(intervals: AbilityTimingInterval[]): AbilityTimingInterval[] {
+    if (intervals.length === 0) return intervals;
+    const T = getTotalAbilityDurationFromIntervals(intervals);
+    let tailStart = -Infinity;
+    for (const it of intervals) {
+        if (isTailBoundaryEffectPhase(it.abilityPhase)) {
+            tailStart = Math.max(tailStart, it.end);
+        }
+    }
+    if (tailStart === -Infinity || T - tailStart <= COOP_TAIL_SPLIT_EPS) {
+        return intervals;
+    }
+    const mid = tailStart + (T - tailStart) / 2;
+    const result: AbilityTimingInterval[] = [];
+
+    for (const it of intervals) {
+        if (it.end <= tailStart + COOP_TAIL_SPLIT_EPS) {
+            result.push({ ...it });
+            continue;
+        }
+        if (it.start >= T - COOP_TAIL_SPLIT_EPS) {
+            continue;
+        }
+
+        // [it.start, it.end) clipped to [0, tailStart)
+        if (it.start < tailStart - COOP_TAIL_SPLIT_EPS) {
+            const headEnd = Math.min(it.end, tailStart);
+            if (it.start + COOP_TAIL_SPLIT_EPS < headEnd) {
+                const headOnly = it.end <= tailStart + COOP_TAIL_SPLIT_EPS;
+                result.push({
+                    ...it,
+                    end: headEnd,
+                    id: headOnly ? it.id : `${it.id}_head`,
+                });
+            }
+        }
+
+        // Overlap [tailStart, mid) — keep original phase
+        const s1 = Math.max(it.start, tailStart);
+        const e1 = Math.min(it.end, mid);
+        if (s1 + COOP_TAIL_SPLIT_EPS < e1) {
+            const isWhole = Math.abs(it.start - s1) < COOP_TAIL_SPLIT_EPS && Math.abs(it.end - e1) < COOP_TAIL_SPLIT_EPS;
+            result.push({
+                id: isWhole ? it.id : `${it.id}_tailA`,
+                start: s1,
+                end: e1,
+                abilityPhase: it.abilityPhase,
+                timelineLabel: it.timelineLabel,
+                timelineDescription: it.timelineDescription,
+            });
+        }
+
+        // Overlap [mid, T) — coop cooldown segment(s)
+        const s2 = Math.max(it.start, mid);
+        const e2 = Math.min(it.end, T);
+        if (s2 + COOP_TAIL_SPLIT_EPS < e2) {
+            result.push({
+                id: `${it.id}_cc_${s2}_${e2}`,
+                start: s2,
+                end: e2,
+                abilityPhase: AbilityPhase.CoopCooldown,
+            });
+        }
+    }
+
+    return result;
 }
 
 export function getTotalAbilityDurationFromIntervals(intervals: AbilityTimingInterval[]): number {
@@ -150,7 +231,7 @@ export function exitedTimingIds(
     return out;
 }
 
-export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown';
+export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown';
 
 export interface PrimaryTimelineSegment {
     start: number;
@@ -173,6 +254,8 @@ function abilityPhaseToTimelinePhaseId(phase: AbilityPhase): BattleTimelinePhase
             return 'iFrame';
         case AbilityPhase.Cooldown:
             return 'cooldown';
+        case AbilityPhase.CoopCooldown:
+            return 'coopCooldown';
     }
 }
 
@@ -188,6 +271,8 @@ function defaultTimelineLabel(phase: AbilityPhase): string {
             return 'iFrame';
         case AbilityPhase.Juggernaut:
             return 'Juggernaut';
+        case AbilityPhase.CoopCooldown:
+            return 'Team cooldown';
         default:
             return 'Active';
     }
@@ -205,6 +290,8 @@ function defaultTimelineDescription(phase: AbilityPhase): string {
             return 'Invincibility frames.';
         case AbilityPhase.Juggernaut:
             return 'Strong defensive stance.';
+        case AbilityPhase.CoopCooldown:
+            return 'An ally taking their turn can end this recovery early.';
         default:
             return 'The ability is active.';
     }
@@ -373,6 +460,28 @@ export const ABILITY_PHASE_COLORS: Record<AbilityPhase, string> = {
     [AbilityPhase.Windup]: '#f97316', // orange
     [AbilityPhase.Active]: '#ef4444', // red
     [AbilityPhase.Cooldown]: '#eab308', // yellow
+    [AbilityPhase.CoopCooldown]: '#facc15', // brighter yellow (timeline / ring)
     [AbilityPhase.Iframe]: '#ffffff', // white
     [AbilityPhase.Juggernaut]: '#d1d5db', // light gray
 };
+
+/** Earliest-declared covering interval at `elapsed` wins (same as timeline merge). */
+export function getCoveringAbilityPhaseAtElapsed(
+    elapsed: number,
+    intervals: AbilityTimingInterval[],
+): AbilityPhase | null {
+    let bestIdx = Number.POSITIVE_INFINITY;
+    let best: AbilityPhase | null = null;
+    for (let i = 0; i < intervals.length; i++) {
+        const it = intervals[i];
+        if (it.start <= elapsed && elapsed < it.end && i < bestIdx) {
+            bestIdx = i;
+            best = it.abilityPhase;
+        }
+    }
+    return best;
+}
+
+export function elapsedIsInCoopCooldown(elapsed: number, intervals: AbilityTimingInterval[]): boolean {
+    return getCoveringAbilityPhaseAtElapsed(elapsed, intervals) === AbilityPhase.CoopCooldown;
+}
