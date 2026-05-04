@@ -130,4 +130,16 @@ describe('remoteOrdersToApply', () => {
         });
         expect(pending).toHaveLength(0);
     });
+
+    it('includes same-tick local-owner order when submitAckKeys matches (solo/host POST echo)', () => {
+        const state = { units: [{ id: 'u1', ownerId: 'p1' }] };
+        const pending = remoteOrdersToApply([order(4, 'u1')], 4, null, {
+            localPlayerId: 'p1',
+            state,
+            appliedKeys: new Set(),
+            submitAckKeys: new Set(['4:u1']),
+        });
+        expect(pending).toHaveLength(1);
+        expect((pending[0]!.order as { unitId: string }).unitId).toBe('u1');
+    });
 });

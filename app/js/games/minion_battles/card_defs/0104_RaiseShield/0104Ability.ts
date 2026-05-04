@@ -19,8 +19,8 @@ import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses'
 import { areEnemies } from '../../game/teams';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}04`;
-const DURATION = 1;
-const COOLDOWN_TIME = 1;
+const DURATION = 1.3;
+const COOLDOWN_TIME = 0.2;
 const MOVEMENT_PENALTY = 0.1;
 const SHIELD_ARC_DEG = 120;
 const SHIELD_ARC_RAD = (SHIELD_ARC_DEG * Math.PI) / 180;
@@ -127,8 +127,10 @@ export const RaiseShieldAbility: AbilityStatic = {
         gr: IAbilityPreviewGraphics,
         caster: Unit,
         activeAbility: { startTime: number; targets: ResolvedTarget[] },
-        _gameTime: number,
+        gameTime: number,
     ): void {
+        const elapsed = gameTime - activeAbility.startTime;
+        if (elapsed < 0 || elapsed >= DURATION) return;
         const pos = activeAbility.targets[0]?.position;
         if (!pos) return;
         const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);

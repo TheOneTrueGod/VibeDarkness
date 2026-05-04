@@ -146,6 +146,8 @@ type RemoteOrderFilterOpts = {
   appliedKeys: Set<string>;
   /** Tick+unit already present on the engine from the last snapshot; do not treat as remote-only. */
   localPendingOrderKeys?: ReadonlySet<string>;
+  /** Tick+unit for an in-flight submitOrder; GET /minimal must still apply (host/solo POST echo). */
+  submitAckKeys?: ReadonlySet<string>;
 };
 
 /**
@@ -162,11 +164,17 @@ export function remoteOrdersToApply(
     const uid = (o.order as { unitId?: string }).unitId;
     if (typeof uid !== 'string') return false;
 
-    if (opts != null && opts.appliedKeys.has(appliedRemoteOrderKey(t, uid))) {
+    const key = appliedRemoteOrderKey(t, uid);
+
+    if (opts != null && opts.appliedKeys.has(key)) {
       return false;
     }
 
-    if (opts?.localPendingOrderKeys?.has(appliedRemoteOrderKey(t, uid))) {
+    if (opts?.submitAckKeys?.has(key)) {
+      return true;
+    }
+
+    if (opts?.localPendingOrderKeys?.has(key)) {
       return false;
     }
 
@@ -371,6 +379,10 @@ export function GameSyncProvider({
       const waitingUnitIds = extractWaitingUnitIds(liveForTick.state ?? snapshot.state);
       const stateForFilter = liveForTick.state ?? snapshot.state;
       const localPendingOrderKeys = collectSerializedPendingOrderKeys(stateForFilter);
+      const submitAckKeys = new Set<string>();
+      for (const h of pendingOrderAcksRef.current) {
+        submitAckKeys.add(appliedRemoteOrderKey(h.atTick, h.unitId));
+      }
       const pendingRemoteOrders = remoteOrdersToApply(
         minimalResult.orders,
         engineTick,
@@ -380,6 +392,7 @@ export function GameSyncProvider({
           state: stateForFilter,
           appliedKeys: appliedRemoteOrdersRef.current,
           localPendingOrderKeys,
+          submitAckKeys,
         },
       );
       return { pendingRemoteOrders, engineTick, waitingUnitIds, stateForFilter };
