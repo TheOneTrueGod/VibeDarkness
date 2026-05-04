@@ -1494,6 +1494,35 @@ export class GameEngine implements EngineContext {
 
         engine.synchash = typeof data.synchash === 'string' ? data.synchash : null;
 
+        // Restore units (direct push, bypasses addUnit jitter since state is serialized)
+        engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus);
+
+        // Some checkpoints only list a subset of parallel waiters (e.g. host order already saved).
+        // Without merging, we would clear pause while another human's unit still owes an order,
+        // the host would not run GET /minimal, and remote orders would never apply.
+        if (engine.waitingForOrders) {
+            const { waiters, atTick } = engine.waitingForOrders;
+            const waiterUnitIds = new Set(waiters.map((w) => w.unitId));
+            const extra: OrderWaiter[] = [];
+            for (const unit of engine.units) {
+                if (!unit.active || !unit.isAlive()) continue;
+                if (!unit.isPlayerControlled() || !unit.canAct()) continue;
+                if (waiterUnitIds.has(unit.id)) continue;
+                if (!engine.hasPendingOrderForUnit(unit.id, atTick)) {
+                    extra.push({ unitId: unit.id, ownerId: unit.ownerId });
+                }
+            }
+            if (extra.length > 0) {
+                extra.sort((a, b) =>
+                    a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
+                );
+                const merged = [...waiters, ...extra].sort((a, b) =>
+                    a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
+                );
+                engine.waitingForOrders = { waiters: merged, atTick };
+            }
+        }
+
         // If every waiter already has a pending order at the batch tick, clear pause.
         if (engine.waitingForOrders) {
             const { waiters, atTick } = engine.waitingForOrders;
@@ -1502,9 +1531,6 @@ export class GameEngine implements EngineContext {
                 engine.isPaused = false;
             }
         }
-
-        // Restore units (direct push, bypasses addUnit jitter since state is serialized)
-        engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus);
 
         // Restore projectiles
         engine.state.projectileManager.restoreFromJSON(data.projectiles);

@@ -30,6 +30,7 @@ Ask for each ability:
 
 **Hooks in this codebase**
 
+- **Enemy hitbox telegraph** — For **enemy** abilities whose `renderActivePreview` shows a **non-line** projected hit area, use `previewHelpers` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`, or the same pattern): faint red outer stroke, a more saturated red fill that **grows from the shape’s geometric center** until it matches the final footprint, outer stroke **fully red from `prefireTime` through any short linger** while the strike is still readable (e.g. melee flash). **Do not** change **line / thick-capsule** previews that already encode timing (e.g. slime `EnemyArcherShot` aim lines, `ChargeAttack` lunge capsule). If the correct centering, linger, or geometry for the telegraph is ambiguous, **ask the player**.
 - **`abilityTimings`** — Defines phase colours and the battle timeline; keep intervals truthful so rings match what the sim does at each second.
 - **Damage feedback** — `GameRenderer` subscribes to `damage_taken` on the event bus and runs a brief **hit flash** on the damaged unit (`game/GameRenderer.ts`). Flows that apply damage through normal paths get this largely “for free.”
 - **Battle effects** — Particle bursts, glows, etc. via the effects system (`game/effects/Effect.ts`, defs in `game/effectDef.ts`), typically spawned from ability logic or helpers with `engine.addEffect(...)` where appropriate.

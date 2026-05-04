@@ -747,8 +747,9 @@ export default function BattleTimeline({
     }, []);
 
     const handlePanelPointerLeave = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-        const next = e.relatedTarget as Node | null;
-        if (next && e.currentTarget.contains(next)) {
+        // relatedTarget is EventTarget | null — can be Window or other non-Node targets; contains() requires a Node.
+        const next = e.relatedTarget;
+        if (next instanceof Node && e.currentTarget.contains(next)) {
             return;
         }
         setPanelHover(null);

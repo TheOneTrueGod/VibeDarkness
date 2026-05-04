@@ -120,4 +120,29 @@ describe('Reconnect / resync during order pause', () => {
 
         restored.destroy();
     });
+
+    it('fromJSON merges missing parallel waiters when checkpoint lists only units that already queued', () => {
+        const engine = createTwoPlayerEngine();
+        advanceUntilOrderPause(engine);
+        const snap = engine.toJSON() as SerializedGameState;
+        const atTick = snap.waitingForOrders!.atTick;
+        snap.orders = [
+            {
+                gameTick: atTick,
+                order: makeWaitOrder('unit_p1', 6, 5),
+            },
+        ];
+        snap.waitingForOrders = {
+            waiters: [{ unitId: 'unit_p1', ownerId: 'p1' }],
+            atTick,
+        };
+        engine.destroy();
+
+        const restored = GameEngine.fromJSON(snap, 'p1', null);
+        expect(restored.isPaused).toBe(true);
+        expect(restored.waitingForOrders).not.toBeNull();
+        expect(restored.waitingForOrders!.waiters.map((w) => w.unitId).sort()).toEqual(['unit_p1', 'unit_p2']);
+        expect(restored.getActiveOrderWaiterForPlayer('p2')?.unitId).toBe('unit_p2');
+        restored.destroy();
+    });
 });

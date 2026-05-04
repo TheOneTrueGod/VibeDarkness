@@ -5,16 +5,22 @@
  */
 
 import { AbilityState } from '../../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import type {
+    AbilityStatic,
+    AbilityStateEntry,
+    AttackBlockedInfo,
+    IAbilityPreviewGraphics,
+} from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
-import type { ResolvedTarget } from '../../../game/types';
+import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { asCardDefId, type CardDef } from '../../types';
 import { Effect } from '../../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../../abilities/targetHelpers';
+import { drawEnemyConvexQuadHitboxTelegraph } from '../../../abilities/previewHelpers';
 import { areEnemies } from '../../../game/teams';
 import type { EventBus } from '../../../game/EventBus';
 
@@ -30,6 +36,8 @@ const KNOCKBACK_AIR_TIME = 0.25;
 const KNOCKBACK_SLIDE_TIME = 0.15;
 /** Square side length (px) for hitbox and preview. */
 const BOX_SIZE = 44;
+/** Match brief active phase after prefire so the outline stays fully red through impact. */
+const CLAW_PREVIEW_HOLD_RED = 0.12;
 
 function getMinRange(_caster: Unit): number {
     return BASE_MIN_RANGE;
@@ -207,6 +215,23 @@ export const AlphaWolfClawAbility: AbilityStatic = {
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
         // Melee blocked: no additional behaviour.
+    },
+
+    renderActivePreview(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        activeAbility: ActiveAbility,
+        gameTime: number,
+    ): void {
+        const elapsed = gameTime - activeAbility.startTime;
+        const pos = getPixelTargetPosition(activeAbility.targets, 0);
+        if (!pos) return;
+        const minR = getMinRange(caster);
+        const maxR = getMaxRange(caster);
+        const { corners, centerX, centerY } = getSquareInFront(caster, pos, minR, maxR);
+        drawEnemyConvexQuadHitboxTelegraph(gr, corners, centerX, centerY, elapsed, PREFIRE_TIME, {
+            holdFullRedUntilOffset: CLAW_PREVIEW_HOLD_RED,
+        });
     },
 
     renderTargetingPreview(

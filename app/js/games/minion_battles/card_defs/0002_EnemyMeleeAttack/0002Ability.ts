@@ -15,7 +15,7 @@ import { areEnemies } from '../../game/teams';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getDirectionFromTo, pointInCone } from '../../abilities/targetHelpers';
-import { drawConeSlice } from '../../abilities/previewHelpers';
+import { drawEnemyConeHitboxTelegraph } from '../../abilities/previewHelpers';
 import type { EventBus } from '../../game/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}02`;
@@ -153,11 +153,10 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
         const minR = getMinRadius(caster);
         const maxR = getMaxRadius(caster);
         const flash = elapsed >= PREFIRE_TIME && elapsed < PREFIRE_TIME + FLASH_DURATION;
-        drawConeSlice(gr, caster.x, caster.y, angle, halfRad, minR, maxR, {
-            fillColor: RED,
-            fillAlpha: flash ? 0.5 : 0.2,
-            strokeColor: RED,
-            strokeAlpha: flash ? 0.9 : 0.45,
+        drawEnemyConeHitboxTelegraph(gr, caster.x, caster.y, angle, halfRad, minR, maxR, elapsed, PREFIRE_TIME, {
+            color: RED,
+            holdFullRedUntilOffset: FLASH_DURATION,
+            flashFillBoost: flash ? 0.35 : 0,
         });
     },
 

@@ -11,7 +11,7 @@ import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';
 import { Effect } from '../../game/effects/Effect';
 import { tryDamageOrBlock } from '../blockingHelpers';
 import { applyChargingBlockKnockback } from '../effectHelpers';
-import { createUnitTargetPreview } from '../previewHelpers';
+import { createUnitTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
 
 export interface ChargeNote {
@@ -41,6 +41,7 @@ export interface ChargeAttackConfig {
 	aiMaxRange: number;
 	capsuleRadiusMultiplier: number;
 	knockbackOnBlock: number;
+	/** Active cast capsule tint; width is unused (preview thickness follows `capsuleRadiusMultiplier`). */
 	preview: { color: number; width: number };
 	effectType: string;
 	effectDuration: number;
@@ -189,13 +190,19 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		const endX = ox + ux * lineLen;
 		const endY = oy + uy * lineLen;
 
-		gr.moveTo(ox, oy);
-		gr.lineTo(endX, endY);
-		gr.stroke({
-			color: this.config.preview.color,
-			width: this.config.preview.width,
-			alpha: 0.3,
-		});
+		const capsuleThickness = caster.radius * this.config.capsuleRadiusMultiplier;
+		const c = this.config.preview.color;
+		drawChargeCapsuleTimingTelegraph(
+			gr,
+			ox,
+			oy,
+			endX,
+			endY,
+			capsuleThickness,
+			elapsed,
+			this.windupEnd,
+			c,
+		);
 	}
 
 	onAttackBlocked(engine: unknown, defender: Unit, attackInfo: AttackBlockedInfo): void {

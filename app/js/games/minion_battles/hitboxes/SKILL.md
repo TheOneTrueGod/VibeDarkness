@@ -27,6 +27,10 @@ NOT handled (check these yourself after the call):
 
 **`renderTargetingPreview`** — Draws a thick rectangle from caster to the clamped mouse position for the targeting overlay.
 
+**Line / capsule previews** — These shapes already support clear **wind-up timing** in `renderActivePreview` (e.g. aim lines that tighten, `ChargeAttack`’s shrinking capsule). **Do not** replace that pattern with the generic area telegraph.
+
+**Non-line enemy hit previews** — When an enemy shows a **cone, quad, circle, or other filled region** in `renderActivePreview`, use the shared helpers in `abilities/previewHelpers.ts` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`, etc.) so timing matches project conventions. If the hitbox type does not map cleanly to those helpers, confirm the intended telegraph with the player.
+
 ## Usage Patterns
 
 See existing abilities for reference implementations:

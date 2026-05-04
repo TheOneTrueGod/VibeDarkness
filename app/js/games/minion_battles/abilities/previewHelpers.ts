@@ -63,6 +63,141 @@ export function drawClampedLine(
 }
 
 /**
+ * Filled pill shape along a world segment — same cross-section as {@link ThickLineHitbox.renderTargetingPreview}
+ * (`lineThickness` = full width perpendicular to the segment; matches thick-line hit checks).
+ */
+export function drawThickLineSegmentCapsule(
+    gr: IAbilityPreviewGraphics,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    lineThickness: number,
+    style: {
+        fillColor: number;
+        fillAlpha: number;
+        strokeColor: number;
+        strokeAlpha: number;
+        strokeWidth: number;
+    },
+): void {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 1e-6) return;
+    const half = lineThickness / 2;
+    const perpX = (-dy / len) * half;
+    const perpY = (dx / len) * half;
+    gr.moveTo(x0 + perpX, y0 + perpY);
+    gr.lineTo(x0 - perpX, y0 - perpY);
+    gr.lineTo(x1 - perpX, y1 - perpY);
+    gr.lineTo(x1 + perpX, y1 + perpY);
+    gr.lineTo(x0 + perpX, y0 + perpY);
+    gr.fill({ color: style.fillColor, alpha: style.fillAlpha });
+    gr.stroke({ color: style.strokeColor, width: style.strokeWidth, alpha: style.strokeAlpha });
+}
+
+/** Multiply RGB channels for a darker preview stroke. */
+function dimPreviewColor(color: number, factor: number): number {
+    const r = Math.min(255, Math.round(((color >> 16) & 0xff) * factor));
+    const g = Math.min(255, Math.round(((color >> 8) & 0xff) * factor));
+    const b = Math.min(255, Math.round((color & 0xff) * factor));
+    return (r << 16) | (g << 8) | b;
+}
+
+/** Inner timing stroke: between full tint and outer dim — readable but calmer than base colour. */
+const CHARGE_TIMING_INNER_DIM = 0.78;
+
+/**
+ * Charge-style capsule telegraph: soft fill, outer border uses the dimmed hue with alpha ramp,
+ * inner timing ring is **stroke only**, stretched along the segment from the caster toward the far end as `elapsed` approaches `prefireTime`.
+ */
+export function drawChargeCapsuleTimingTelegraph(
+    gr: IAbilityPreviewGraphics,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    lineThickness: number,
+    elapsed: number,
+    prefireTime: number,
+    color: number,
+    style?: {
+        fillAlpha?: number;
+        /** Outer stroke alpha at cast start (should be slightly above `fillAlpha`). */
+        outerStrokeAlphaStart?: number;
+        outerStrokeAlphaEnd?: number;
+        innerStrokeWidth?: number;
+        outerStrokeWidth?: number;
+    },
+): void {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 1e-6) return;
+
+    const half = lineThickness / 2;
+    const perpX = (-dy / len) * half;
+    const perpY = (dx / len) * half;
+
+    const corners = [
+        { x: x0 + perpX, y: y0 + perpY },
+        { x: x0 - perpX, y: y0 - perpY },
+        { x: x1 - perpX, y: y1 - perpY },
+        { x: x1 + perpX, y: y1 + perpY },
+    ];
+
+    const fillAlpha = style?.fillAlpha ?? 0.28;
+    const outerStart = style?.outerStrokeAlphaStart ?? fillAlpha + 0.1;
+    const outerEnd = style?.outerStrokeAlphaEnd ?? 0.88;
+    const innerW = style?.innerStrokeWidth ?? 2;
+    const outerW = style?.outerStrokeWidth ?? 2;
+
+    const expandT = prefireTime > 0 ? Math.min(1, elapsed / prefireTime) : 1;
+    const outerStrokeAlpha = outerStart + (outerEnd - outerStart) * expandT;
+
+    const fillC = corners[0]!;
+    gr.moveTo(fillC.x, fillC.y);
+    for (let i = 1; i < 4; i++) {
+        const p = corners[i]!;
+        gr.lineTo(p.x, p.y);
+    }
+    gr.lineTo(fillC.x, fillC.y);
+    gr.fill({ color, alpha: fillAlpha });
+
+    const o0 = corners[0]!;
+    gr.moveTo(o0.x, o0.y);
+    for (let i = 1; i < 4; i++) {
+        const p = corners[i]!;
+        gr.lineTo(p.x, p.y);
+    }
+    gr.lineTo(o0.x, o0.y);
+    const borderDim = dimPreviewColor(color, 0.52);
+    gr.stroke({ color: borderDim, width: outerW, alpha: outerStrokeAlpha });
+
+    if (expandT > 1e-4) {
+        const fx = x0 + expandT * (x1 - x0);
+        const fy = y0 + expandT * (y1 - y0);
+        const nearLx = x0 + perpX;
+        const nearLy = y0 + perpY;
+        const nearRx = x0 - perpX;
+        const nearRy = y0 - perpY;
+        const farLx = fx + perpX;
+        const farLy = fy + perpY;
+        const farRx = fx - perpX;
+        const farRy = fy - perpY;
+
+        gr.moveTo(nearLx, nearLy);
+        gr.lineTo(farLx, farLy);
+        gr.lineTo(farRx, farRy);
+        gr.lineTo(nearRx, nearRy);
+        gr.lineTo(nearLx, nearLy);
+        const timingColor = dimPreviewColor(color, CHARGE_TIMING_INNER_DIM);
+        gr.stroke({ color: timingColor, width: innerW, alpha: 0.92 });
+    }
+}
+
+/**
  * Draw range rings (min optional, max required) around a center point.
  */
 export function drawRangeRings(
@@ -312,13 +447,22 @@ export function drawConeSlice(
     halfAngleRad: number,
     minR: number,
     maxR: number,
-    options: { fillColor?: number; fillAlpha?: number; strokeColor?: number; strokeAlpha?: number; strokeWidth?: number },
+    options: {
+        fillColor?: number;
+        fillAlpha?: number;
+        strokeColor?: number;
+        strokeAlpha?: number;
+        strokeWidth?: number;
+        /** When true, only fill is drawn (no outline). */
+        omitStroke?: boolean;
+    } = {},
 ): void {
     const fillColor = options.fillColor ?? 0xff0000;
     const fillAlpha = options.fillAlpha ?? 0.2;
     const strokeColor = options.strokeColor ?? 0xff0000;
     const strokeAlpha = options.strokeAlpha ?? 0.45;
     const strokeWidth = options.strokeWidth ?? 2;
+    const omitStroke = options.omitStroke ?? false;
     const startAngle = angleRad - halfAngleRad;
     const endAngle = angleRad + halfAngleRad;
     gr.moveTo(centerX + Math.cos(startAngle) * maxR, centerY + Math.sin(startAngle) * maxR);
@@ -327,7 +471,131 @@ export function drawConeSlice(
     gr.lineTo(centerX + Math.cos(startAngle) * minR, centerY + Math.sin(startAngle) * minR);
     gr.lineTo(centerX + Math.cos(startAngle) * maxR, centerY + Math.sin(startAngle) * maxR);
     gr.fill({ color: fillColor, alpha: fillAlpha });
-    gr.stroke({ color: strokeColor, width: strokeWidth, alpha: strokeAlpha });
+    if (!omitStroke && strokeWidth > 0) {
+        gr.stroke({ color: strokeColor, width: strokeWidth, alpha: strokeAlpha });
+    }
+}
+
+/** Faint red for enemy projected-hitbox outline before the strike. */
+const ENEMY_HITBOX_TELEGRAPH_BORDER_FAINT = 0.14;
+
+/**
+ * Progress 0→1 from cast start to `prefireTime` (expanding inner shape); stays at 1 after.
+ */
+export function enemyHitboxTelegraphExpandT(elapsed: number, prefireTime: number): number {
+    if (prefireTime <= 0) return 1;
+    return Math.min(1, elapsed / prefireTime);
+}
+
+/**
+ * Outer border alpha: faint early, ramps to 1 at `prefireTime`, stays 1 until `holdFullRedUntil`,
+ * then eases back to a readable faint outline for any remaining cast time.
+ */
+export function enemyHitboxTelegraphBorderAlpha(
+    elapsed: number,
+    prefireTime: number,
+    holdFullRedUntil: number,
+): number {
+    if (prefireTime <= 0) return 1;
+    if (elapsed < prefireTime) {
+        const t = elapsed / prefireTime;
+        return ENEMY_HITBOX_TELEGRAPH_BORDER_FAINT + (1 - ENEMY_HITBOX_TELEGRAPH_BORDER_FAINT) * t;
+    }
+    if (elapsed < holdFullRedUntil) return 1;
+    return 0.22;
+}
+
+export interface EnemyConeTelegraphOptions {
+    /** Color for fills and strokes (default red). */
+    color?: number;
+    /** Seconds after prefire where the border stays fully red (e.g. impact flash). */
+    holdFullRedUntilOffset?: number;
+    /** Extra fill alpha on the full-size slice during the hold window (melee “flash”). */
+    flashFillBoost?: number;
+}
+
+/**
+ * Enemy cone / annular-sector telegraph: faint full outline, vibrant fill expanding from the
+ * middle radius to the final ring, border alpha hits 1 when damage fires, then stays red until
+ * `holdFullRedUntilOffset` after prefire.
+ */
+export function drawEnemyConeHitboxTelegraph(
+    gr: IAbilityPreviewGraphics,
+    centerX: number,
+    centerY: number,
+    angleRad: number,
+    halfAngleRad: number,
+    minR: number,
+    maxR: number,
+    elapsed: number,
+    prefireTime: number,
+    options?: EnemyConeTelegraphOptions,
+): void {
+    const color = options?.color ?? 0xff0000;
+    const holdEnd = prefireTime + (options?.holdFullRedUntilOffset ?? 0);
+    const expandT = enemyHitboxTelegraphExpandT(elapsed, prefireTime);
+    const borderA = enemyHitboxTelegraphBorderAlpha(elapsed, prefireTime, holdEnd);
+    const midR = (minR + maxR) / 2;
+    const innerE = midR + (minR - midR) * expandT;
+    const outerE = midR + (maxR - midR) * expandT;
+
+    drawConeSlice(gr, centerX, centerY, angleRad, halfAngleRad, innerE, outerE, {
+        fillColor: color,
+        fillAlpha: ENEMY_HITBOX_TELEGRAPH_EXPAND_FILL,
+        strokeColor: color,
+        strokeAlpha: 0,
+        omitStroke: true,
+    });
+
+    const inHold = elapsed >= prefireTime && elapsed < holdEnd;
+    const flashBoost = inHold ? (options?.flashFillBoost ?? 0) : 0;
+    drawConeSlice(gr, centerX, centerY, angleRad, halfAngleRad, minR, maxR, {
+        fillColor: color,
+        fillAlpha: 0.08 + flashBoost,
+        strokeColor: color,
+        strokeAlpha: borderA,
+        strokeWidth: 2,
+    });
+}
+
+/**
+ * Convex quad telegraph (e.g. hitbox in world space): expand from center to final corners,
+ * same border rules as {@link drawEnemyConeHitboxTelegraph}.
+ */
+export function drawEnemyConvexQuadHitboxTelegraph(
+    gr: IAbilityPreviewGraphics,
+    corners: readonly { x: number; y: number }[],
+    centerX: number,
+    centerY: number,
+    elapsed: number,
+    prefireTime: number,
+    options?: { color?: number; holdFullRedUntilOffset?: number },
+): void {
+    if (corners.length < 4) return;
+    const color = options?.color ?? 0xff0000;
+    const holdEnd = prefireTime + (options?.holdFullRedUntilOffset ?? 0);
+    const expandT = enemyHitboxTelegraphExpandT(elapsed, prefireTime);
+    const borderA = enemyHitboxTelegraphBorderAlpha(elapsed, prefireTime, holdEnd);
+
+    const ex = corners.map((c) => ({
+        x: centerX + (c.x - centerX) * expandT,
+        y: centerY + (c.y - centerY) * expandT,
+    }));
+
+    gr.moveTo(ex[0]!.x, ex[0]!.y);
+    for (let i = 1; i < ex.length; i++) {
+        gr.lineTo(ex[i]!.x, ex[i]!.y);
+    }
+    gr.lineTo(ex[0]!.x, ex[0]!.y);
+    gr.fill({ color: color, alpha: ENEMY_HITBOX_TELEGRAPH_EXPAND_FILL });
+
+    gr.moveTo(corners[0]!.x, corners[0]!.y);
+    for (let i = 1; i < corners.length; i++) {
+        gr.lineTo(corners[i]!.x, corners[i]!.y);
+    }
+    gr.lineTo(corners[0]!.x, corners[0]!.y);
+    gr.fill({ color: color, alpha: 0.1 });
+    gr.stroke({ color: color, width: 2, alpha: borderA });
 }
 
 /** Options for createUnitTargetPreview. */

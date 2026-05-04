@@ -125,6 +125,8 @@ export const EnemyArcherShotAbility: AbilityStatic = {
         const { dirX: ux, dirY: uy, dist } = getDirectionFromTo(caster.x, caster.y, target.x, target.y);
         if (dist === 0) return;
         const lineLen = Math.min(MAX_DISTANCE, dist);
+        const aimEndX = caster.x + ux * lineLen;
+        const aimEndY = caster.y + uy * lineLen;
 
         if (elapsed < LOCK_TIME) {
             const progress = elapsed / LOCK_TIME;
@@ -137,7 +139,7 @@ export const EnemyArcherShotAbility: AbilityStatic = {
             const sideAlpha = 0.2 + 0.8 * progress;
 
             gr.moveTo(caster.x, caster.y);
-            gr.lineTo(caster.x + ux * lineLen, caster.y + uy * lineLen);
+            gr.lineTo(aimEndX, aimEndY);
             gr.stroke({ color: RED, width: 3, alpha: mainAlpha });
 
             const leftX = cos * ux + sin * uy;
@@ -153,8 +155,15 @@ export const EnemyArcherShotAbility: AbilityStatic = {
             gr.stroke({ color: RED, width: 2, alpha: sideAlpha });
         } else if (elapsed < PREFIRE_TIME) {
             gr.moveTo(caster.x, caster.y);
-            gr.lineTo(caster.x + ux * lineLen, caster.y + uy * lineLen);
+            gr.lineTo(aimEndX, aimEndY);
             gr.stroke({ color: RED, width: 3, alpha: 1 });
+        }
+
+        if (elapsed < PREFIRE_TIME) {
+            gr.circle(aimEndX, aimEndY, 7);
+            gr.stroke({ color: RED, width: 2, alpha: 0.85 });
+            gr.circle(aimEndX, aimEndY, 2.5);
+            gr.fill({ color: RED, alpha: 0.95 });
         }
     },
 };
