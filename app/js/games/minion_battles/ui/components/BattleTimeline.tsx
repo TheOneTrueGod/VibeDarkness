@@ -824,7 +824,7 @@ export default function BattleTimeline({
                         {railCompact ? 'Expanded' : 'Compact'}
                     </button>
                 </div>
-                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-2 py-2">
+                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-2 py-2 [scrollbar-gutter:stable]">
                     <div className="flex min-w-0 flex-col gap-3">
                         {renderEnemyRow(engine, windowSeconds, 'rail', setPanelHover)}
                         <hr
