@@ -764,6 +764,8 @@ export class GameRenderer {
                 if (hpBg) hpBg.visible = false;
                 if (hpFill) hpFill.visible = false;
                 if (characterSprite) characterSprite.visible = false;
+                const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
+                if (darkTint) darkTint.visible = false;
                 if (label) label.visible = false;
                 if (glow) glow.visible = false;
                 if (playerRing) playerRing.visible = false;
@@ -783,6 +785,8 @@ export class GameRenderer {
                 if (hpBg) hpBg.visible = true;
                 if (hpFill) hpFill.visible = true;
                 if (characterSprite) characterSprite.visible = true;
+                const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
+                if (darkTint) darkTint.visible = true;
                 if (label) label.visible = !characterSprite;
                 if (glow) glow.visible = true;
                 if (playerRing) playerRing.visible = true;

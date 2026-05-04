@@ -5,7 +5,7 @@ import type { GameEngine } from '../../game/GameEngine';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
-import { PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/unitDef';
+import { isDarkCreatureCharacterId, PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/unitDef';
 import { getPortrait } from '../../character_defs/portraits';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
 import { TimelineHoverFlyout } from './TimelineHoverFlyout';
@@ -184,9 +184,16 @@ function UnitRailIcon({
     }
     const iconUrl = ENEMY_CHARACTER_ICONS[unit.characterId];
     if (iconUrl) {
+        const dark = isDarkCreatureCharacterId(unit.characterId);
         return (
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-dark-600 bg-dark-800">
+            <div className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-dark-600 bg-dark-800">
                 <img src={iconUrl} alt="" className="h-full w-full object-contain" title={unit.name} />
+                {dark ? (
+                    <div
+                        className="pointer-events-none absolute inset-0 mix-blend-multiply bg-[#9966cc]/20"
+                        aria-hidden
+                    />
+                ) : null}
             </div>
         );
     }
@@ -222,6 +229,7 @@ function renderEnemyTimelineTrack(
                     const endPercent = (marker.endFromNow / windowSeconds) * 100;
 
                     const iconUrl = ENEMY_CHARACTER_ICONS[marker.unit.characterId];
+                    const markerDark = isDarkCreatureCharacterId(marker.unit.characterId);
                     const nameInitial = marker.unit.name?.[0]?.toUpperCase() ?? '?';
                     const rowKey = `enemy:${marker.unit.id}:${idx}`;
 
@@ -257,7 +265,12 @@ function renderEnemyTimelineTrack(
                                 onPointerEnter={onMarkerEnter}
                             >
                                 {iconUrl ? (
-                                    <img src={iconUrl} alt="" className="h-full w-full object-contain" />
+                                    <span className="relative block h-full w-full">
+                                        <img src={iconUrl} alt="" className="h-full w-full object-contain" />
+                                        {markerDark ? (
+                                            <span className="pointer-events-none absolute inset-0 mix-blend-multiply bg-[#9966cc]/20" />
+                                        ) : null}
+                                    </span>
                                 ) : (
                                     <span className="text-[10px] font-bold text-white">{nameInitial}</span>
                                 )}

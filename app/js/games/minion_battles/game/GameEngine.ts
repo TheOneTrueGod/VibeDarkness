@@ -38,6 +38,7 @@ import { isTileDefendPoint } from './specialTiles/SpecialTile';
 import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from './units/unitAI';
 import type { AIContext, AILightSource } from './units/unitAI';
 import { getLightGrid, type LightSource } from './LightGrid';
+import { DarkCreatureIconDeathEffect } from './deathEffects/DarkCreatureIconDeathEffect';
 import { getDeathEffectDef } from './units/unit_defs/unitDef';
 import type { CardDefId } from '../card_defs';
 import type { EngineContext } from './EngineContext';
@@ -374,11 +375,14 @@ export class GameEngine implements EngineContext {
             }
             const deathEffectDef = getDeathEffectDef(unit.characterId);
             if (!deathEffectDef) return;
-            const effect = new deathEffectDef.type({
-                image: deathEffectDef.image,
-                count: deathEffectDef.count,
-            });
-            effect.doEffect(this, unit);
+            if (deathEffectDef.kind === 'particleBurst') {
+                new deathEffectDef.type({
+                    image: deathEffectDef.image,
+                    count: deathEffectDef.count,
+                }).doEffect(this, unit);
+            } else {
+                new DarkCreatureIconDeathEffect(deathEffectDef.particleCount).doEffect(this, unit);
+            }
         });
 
         this.eventBus.on('round_end', (data) => {
@@ -444,6 +448,7 @@ export class GameEngine implements EngineContext {
                 duration: STORY_DURATION_SECONDS,
                 effectType: 'AlphaWolfStoryRemnant',
                 effectData: {
+                    remnantCharacterKey: 'alpha_wolf',
                     shakeFrequencyHz: 3.5,
                     shakeAmplitudePx: 4,
                 },

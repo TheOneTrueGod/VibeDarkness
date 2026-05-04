@@ -7,9 +7,12 @@ import { Container, Graphics, Sprite, Text, TextStyle, type Texture } from 'pixi
 import type { Unit } from '../Unit';
 import type { TeamId } from '../../teams';
 import { areEnemies } from '../../teams';
-import type { EffectImageKey } from '../../effectImages';
-import { ParticleExplosion } from '../../deathEffects/ParticleExplosion';
-import { darkCreatureDissolutionDeathEffect } from '../../deathEffects/darkCreatureDissolutionDef';
+import {
+    darkCreatureDissolutionDeathEffect,
+    darkCreatureIconFlashDeathEffect,
+    type DarkCreatureDissolutionDeathEffectDef,
+} from '../../deathEffects/darkCreatureDissolutionDef';
+import { DARK_CREATURE_CORRUPTION_TINT, DARK_CREATURE_ICON_TINT_ALPHA } from '../../deathEffects/darkCreatureVisualConstants';
 import { getPortrait } from '../../../character_defs/portraits';
 import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
 
@@ -20,7 +23,7 @@ const ENEMY_GLOW_COLOR = 0xef4444; // red-500
 /** Glow radius around units. */
 const GLOW_RADIUS = 6;
 /** Scale of character sprite relative to hitbox diameter (1 = same size). */
-const CHARACTER_SPRITE_SCALE = 0.85;
+export const CHARACTER_SPRITE_SCALE = 0.85;
 
 /** Context passed to unit def when creating a visual. */
 export interface IUnitRenderContext {
@@ -38,8 +41,7 @@ export interface IUnitDef {
     createVisual(unit: Unit, context: IUnitRenderContext): Container;
 }
 
-export type UnitDeathEffectDef =
-    | { type: typeof ParticleExplosion; image: EffectImageKey; count: number };
+export type UnitDeathEffectDef = DarkCreatureDissolutionDeathEffectDef;
 
 /** Single runtime ID for all player-controlled battle units. */
 export type PlayerUnitDefId = 'player';
@@ -111,7 +113,7 @@ const UNIT_DEFS: Record<
         stamina: 1,
         perceptionRange: 400,
         creatureType: 'dark_creature',
-        deathEffect: darkCreatureDissolutionDeathEffect(8),
+        deathEffect: darkCreatureIconFlashDeathEffect(10),
         uiDescription: 'Stays back and harasses with ranged attacks.',
     },
     dark_wolf: {
@@ -123,7 +125,7 @@ const UNIT_DEFS: Record<
         stamina: 1,
         perceptionRange: 300,
         creatureType: 'dark_creature',
-        deathEffect: darkCreatureDissolutionDeathEffect(8),
+        deathEffect: darkCreatureIconFlashDeathEffect(10),
         uiDescription: 'Fast predator that lunges in for a quick bite.',
     },
     alpha_wolf: {
@@ -134,6 +136,7 @@ const UNIT_DEFS: Record<
         size: 'Extra Large',
         stamina: 2,
         perceptionRange: 350,
+        creatureType: 'dark_creature',
         deathEffect: darkCreatureDissolutionDeathEffect(12),
         uiDescription: 'Pack leader with heavy claws and howling support.',
     },
@@ -149,6 +152,36 @@ const UNIT_DEFS: Record<
         uiDescription: 'Tough charger that bowls through the front line.',
     },
 };
+
+function unitIsDarkCreature(unit: Unit): boolean {
+    return UNIT_DEFS[unit.characterId as UnitDefId]?.creatureType === 'dark_creature';
+}
+
+/** True when this character uses dark-creature presentation (tint, quick death flash, etc.). */
+export function isDarkCreatureCharacterId(characterId: string): boolean {
+    return UNIT_DEFS[characterId as UnitDefId]?.creatureType === 'dark_creature';
+}
+
+function ensureDarkCreatureIconTint(visual: Container, unit: Unit, characterTexture: Texture): void {
+    if (!unitIsDarkCreature(unit)) return;
+    const charSprite = visual.children.find((c) => c.label === 'characterSprite') as Sprite | undefined;
+    if (!charSprite) return;
+    let tint = visual.children.find((c) => c.label === 'darkCreatureIconTint') as Sprite | undefined;
+    if (!tint) {
+        tint = new Sprite(characterTexture);
+        tint.label = 'darkCreatureIconTint';
+        tint.anchor.set(0.5, 0.5);
+        tint.blendMode = 'multiply';
+        tint.tint = DARK_CREATURE_CORRUPTION_TINT;
+        tint.alpha = DARK_CREATURE_ICON_TINT_ALPHA;
+        const insertAt = visual.getChildIndex(charSprite) + 1;
+        visual.addChildAt(tint, insertAt);
+    } else {
+        tint.texture = characterTexture;
+    }
+    tint.width = charSprite.width;
+    tint.height = charSprite.height;
+}
 
 /** Token fill behind the portrait sprite; portrait may override. */
 export function resolvePlayerBodyColor(portraitId: string | undefined): number {
@@ -228,6 +261,7 @@ class DefaultUnitDef implements IUnitDef {
             charSprite.height = spriteSize;
             charSprite.label = 'characterSprite';
             container.addChild(charSprite);
+            ensureDarkCreatureIconTint(container, unit, characterTexture);
         }
 
         // Character initial label (hidden when character sprite is shown)
@@ -379,6 +413,7 @@ export function ensureUnitCharacterSprite(visual: Container, unit: Unit, texture
     }
     charSprite.width = spriteSize;
     charSprite.height = spriteSize;
+    ensureDarkCreatureIconTint(visual, unit, texture);
 }
 
 /** If a texture is now available for this unit's character sprite key, attach/update the sprite and hide the letter label. */

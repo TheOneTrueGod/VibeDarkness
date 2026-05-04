@@ -7,6 +7,11 @@ import { Container, FillGradient, Graphics, Sprite, Text, TextStyle, Texture, ty
 import type { Effect } from './effects/Effect';
 import type { EffectImageKey } from './effectImages';
 import { damageAmountToDisplayFontSize } from './effects/damageNumberFontSize';
+import {
+    DARK_CREATURE_CORRUPTION_TINT,
+    DARK_CREATURE_ICON_TINT_ALPHA,
+} from './deathEffects/darkCreatureVisualConstants';
+import { CHARACTER_SPRITE_SCALE } from './units/unit_defs/unitDef';
 
 /** Effect definition: responsible for drawing one effect type. */
 export interface IEffectDef {
@@ -496,26 +501,111 @@ const particleImageEffectDef: IEffectDef = {
     },
 };
 
-/** Alpha wolf story remnant: dark wolf icon that slowly shakes in place. */
+/** Alpha wolf story remnant: boss icon with corruption tint, slowly shakes in place. */
 const alphaWolfStoryRemnantEffectDef: IEffectDef = {
-    createVisual(_effect: Effect, context: IEffectRenderContext): Container {
-        const texture = context.getCharacterTexture?.('dark_wolf') ?? Texture.EMPTY;
-        const sprite = new Sprite(texture);
-        sprite.anchor.set(0.5, 0.5);
-        sprite.width = 42;
-        sprite.height = 42;
-        sprite.label = 'storyRemnant';
-        return sprite;
+    createVisual(effect: Effect, context: IEffectRenderContext): Container {
+        const data = effect.effectData as { remnantCharacterKey?: string };
+        const key = data.remnantCharacterKey ?? 'alpha_wolf';
+        const texture = context.getCharacterTexture?.(key) ?? Texture.EMPTY;
+        const root = new Container();
+        root.label = 'storyRemnantRoot';
+        const base = new Sprite(texture);
+        base.anchor.set(0.5, 0.5);
+        base.width = 42;
+        base.height = 42;
+        base.label = 'storyRemnantBase';
+        const tint = new Sprite(texture);
+        tint.anchor.set(0.5, 0.5);
+        tint.width = 42;
+        tint.height = 42;
+        tint.blendMode = 'multiply';
+        tint.tint = DARK_CREATURE_CORRUPTION_TINT;
+        tint.alpha = DARK_CREATURE_ICON_TINT_ALPHA;
+        tint.label = 'storyRemnantTint';
+        root.addChild(base, tint);
+        return root;
     },
     updateVisual(visual: Container, effect: Effect, context: IEffectRenderContext): void {
-        const sprite = visual as Sprite;
-        const tex = context.getCharacterTexture?.('dark_wolf');
-        if (tex && sprite.texture !== tex) sprite.texture = tex;
-        const data = effect.effectData as { shakeFrequencyHz?: number; shakeAmplitudePx?: number };
+        const data = effect.effectData as { remnantCharacterKey?: string; shakeFrequencyHz?: number; shakeAmplitudePx?: number };
+        const key = data.remnantCharacterKey ?? 'alpha_wolf';
+        const tex = context.getCharacterTexture?.(key);
+        const base = visual.children.find((c) => c.label === 'storyRemnantBase') as Sprite | undefined;
+        const tint = visual.children.find((c) => c.label === 'storyRemnantTint') as Sprite | undefined;
+        if (tex && base && base.texture !== tex) {
+            base.texture = tex;
+            if (tint) tint.texture = tex;
+        }
         const hz = data.shakeFrequencyHz ?? 3.5;
         const amp = data.shakeAmplitudePx ?? 4;
-        sprite.x = Math.sin(effect.elapsed * Math.PI * 2 * hz) * amp;
-        sprite.alpha = Math.max(0, 1 - Math.max(0, effect.progress - 0.9) / 0.1);
+        visual.x = Math.sin(effect.elapsed * Math.PI * 2 * hz) * amp;
+        visual.alpha = Math.max(0, 1 - Math.max(0, effect.progress - 0.9) / 0.1);
+    },
+};
+
+/** Quick dark-creature death: tinted icon, lateral shake, top-to-bottom wipe, particles spawned in Effect.update. */
+const darkCreatureIconDeathEffectDef: IEffectDef = {
+    createVisual(effect: Effect, context: IEffectRenderContext): Container {
+        const data = effect.effectData as { characterSpriteKey?: string; displayRadius?: number };
+        const key = data.characterSpriteKey ?? 'dark_wolf';
+        const tex = context.getCharacterTexture?.(key) ?? Texture.EMPTY;
+        const radius = data.displayRadius ?? 14;
+        const spriteSize = radius * 2 * CHARACTER_SPRITE_SCALE;
+
+        const root = new Container();
+        const shake = new Container();
+        shake.label = 'darkCreatureDeathShake';
+        const masked = new Container();
+        masked.label = 'darkCreatureDeathMasked';
+        const base = new Sprite(tex);
+        base.anchor.set(0.5, 0.5);
+        base.width = spriteSize;
+        base.height = spriteSize;
+        base.label = 'deathIconBase';
+        const tint = new Sprite(tex);
+        tint.anchor.set(0.5, 0.5);
+        tint.width = spriteSize;
+        tint.height = spriteSize;
+        tint.blendMode = 'multiply';
+        tint.tint = DARK_CREATURE_CORRUPTION_TINT;
+        tint.alpha = DARK_CREATURE_ICON_TINT_ALPHA;
+        tint.label = 'deathIconTint';
+        masked.addChild(base, tint);
+        const maskG = new Graphics();
+        maskG.label = 'darkCreatureDeathMask';
+        masked.mask = maskG;
+        shake.addChild(masked, maskG);
+        root.addChild(shake);
+        return root;
+    },
+    updateVisual(visual: Container, effect: Effect, context: IEffectRenderContext): void {
+        const data = effect.effectData as { characterSpriteKey?: string; displayRadius?: number };
+        const key = data.characterSpriteKey ?? 'dark_wolf';
+        const tex = context.getCharacterTexture?.(key);
+        const shake = visual.children.find((c) => c.label === 'darkCreatureDeathShake') as Container | undefined;
+        if (!shake) return;
+        const masked = shake.children.find((c) => c.label === 'darkCreatureDeathMasked') as Container | undefined;
+        const maskG = shake.children.find((c) => c.label === 'darkCreatureDeathMask') as Graphics | undefined;
+        const base = masked?.children.find((c) => c.label === 'deathIconBase') as Sprite | undefined;
+        const tintSpr = masked?.children.find((c) => c.label === 'deathIconTint') as Sprite | undefined;
+        if (tex && base && base.texture !== tex) {
+            base.texture = tex;
+            if (tintSpr) tintSpr.texture = tex;
+        }
+        const p = effect.progress;
+        const hz = 26;
+        shake.x = Math.sin(effect.elapsed * Math.PI * 2 * hz) * 2.8;
+        if (masked) masked.alpha = 1 - p * 0.15;
+        const radius = data.displayRadius ?? 14;
+        const fallbackSize = radius * 2 * CHARACTER_SPRITE_SCALE;
+        const h = base?.height ?? fallbackSize;
+        const w = base?.width ?? fallbackSize;
+        if (maskG) {
+            maskG.clear();
+            const top = -h / 2 + h * p;
+            const visH = Math.max(0.5, h * (1 - p));
+            maskG.rect(-w / 2, top, w, visH);
+            maskG.fill({ color: 0xffffff });
+        }
     },
 };
 
@@ -624,6 +714,7 @@ const effectDefRegistry: Record<string, IEffectDef> = {
     Pulse: pulseEffectDef,
     HowlShockwave: howlShockwaveEffectDef,
     AlphaWolfStoryRemnant: alphaWolfStoryRemnantEffectDef,
+    DarkCreatureIconDeath: darkCreatureIconDeathEffectDef,
     AlphaWolfStoryController: alphaWolfStoryControllerEffectDef,
     StoryHomingParticle: storyHomingParticleEffectDef,
     bite: biteEffectDef,

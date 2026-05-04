@@ -8,6 +8,10 @@
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { computeDamageNumberWorldPosition, type DamageNumberMotionData } from './damageNumberMotion';
 import type { Unit } from '../units/Unit';
+import {
+    spawnDarkBlobParticle,
+    type DarkBlobParticleSpawnContext,
+} from '../deathEffects/spawnDarkBlobParticle';
 
 export class Effect extends GameObject {
     /** Total duration in seconds. */
@@ -60,6 +64,32 @@ export class Effect extends GameObject {
         if (!this.active) return;
         this.elapsed += dt;
 
+        if (this.effectType === 'DarkCreatureIconDeath') {
+            const ctx = engine as DarkBlobParticleSpawnContext;
+            const data = this.effectData as {
+                particleBudget: number;
+                particleSpawned: number;
+                particleAccum: number;
+                displayRadius?: number;
+            };
+            const rate = data.particleBudget / this.duration;
+            data.particleAccum += rate * dt;
+            const r = data.displayRadius != null && data.displayRadius > 0 ? data.displayRadius : 12;
+            while (data.particleSpawned < data.particleBudget && data.particleAccum >= 1) {
+                data.particleAccum -= 1;
+                data.particleSpawned += 1;
+                const ox = (ctx.generateRandomInteger(-1000, 1000) / 1000) * r * 0.35;
+                const oy = (ctx.generateRandomInteger(-1000, 1000) / 1000) * r * 0.35;
+                const vx = (ctx.generateRandomInteger(-800, 800) / 1000) * 55;
+                const vy = -150 - (ctx.generateRandomInteger(0, 1000) / 1000) * 120;
+                spawnDarkBlobParticle(ctx, this.x + ox, this.y + oy, {
+                    vx,
+                    vy,
+                    scale: 0.55 + (ctx.generateRandomInteger(0, 1000) / 1000) * 0.45,
+                });
+            }
+        }
+
         if (this.effectType === 'AlphaWolfStoryController') {
             const ctx = engine as {
                 addEffect(e: Effect): void;
@@ -74,7 +104,7 @@ export class Effect extends GameObject {
             };
             const radialPhase = this.elapsed <= 1;
             const homingPhase = this.elapsed > 1 && this.elapsed <= 3;
-            const playerTargets = ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
+            const homingTargets = ctx.units.filter((u) => u.isAlive());
 
             if (radialPhase) {
                 const total = (data.radialRatePerSecond ?? 24) * dt + (data.radialRemainder ?? 0);
@@ -97,13 +127,13 @@ export class Effect extends GameObject {
                 }
             }
 
-            if (homingPhase && playerTargets.length > 0) {
+            if (homingPhase && homingTargets.length > 0) {
                 const total = (data.homingRatePerSecond ?? 20) * dt + (data.homingRemainder ?? 0);
                 const spawnCount = Math.floor(total);
                 data.homingRemainder = total - spawnCount;
                 for (let i = 0; i < spawnCount; i++) {
-                    const idx = ctx.generateRandomInteger(0, playerTargets.length - 1);
-                    const target = playerTargets[idx];
+                    const idx = ctx.generateRandomInteger(0, homingTargets.length - 1);
+                    const target = homingTargets[idx];
                     if (!target) continue;
                     const spawnAngle = (ctx.generateRandomInteger(0, 6283) / 1000) * 2 * Math.PI;
                     const spawnRadius = 16 + (ctx.generateRandomInteger(0, 1000) / 1000) * 20;
