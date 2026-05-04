@@ -2,11 +2,55 @@
  * Unit tests for {@link remoteOrdersToApply} (order filtering + appliedKeys dedupe).
  */
 import { describe, it, expect } from 'vitest';
-import { remoteOrdersToApply } from './GameSyncContext';
+import {
+    collectSerializedPendingOrderKeys,
+    minimalPollCheckpointGameTick,
+    remoteOrdersToApply,
+} from './GameSyncContext';
 
 function order(tick: number, unitId: string) {
     return { gameTick: tick, order: { unitId, abilityId: 'wait', targets: [] } };
 }
+
+describe('minimalPollCheckpointGameTick', () => {
+    it('uses engine bucket only when parallel atTick is missing', () => {
+        expect(minimalPollCheckpointGameTick(99, undefined, 10)).toBe(90);
+        expect(minimalPollCheckpointGameTick(100, undefined, 10)).toBe(100);
+    });
+
+    it('uses max bucket when parallel batch is in the next checkpoint window', () => {
+        expect(minimalPollCheckpointGameTick(99, 100, 10)).toBe(100);
+        expect(minimalPollCheckpointGameTick(90, 100, 10)).toBe(100);
+    });
+
+    it('does not downgrade when parallel atTick stays in same window as engine', () => {
+        expect(minimalPollCheckpointGameTick(95, 99, 10)).toBe(90);
+        expect(minimalPollCheckpointGameTick(100, 104, 10)).toBe(100);
+    });
+});
+
+describe('collectSerializedPendingOrderKeys', () => {
+    it('omits parallel-batch waiter tick+unit pairs so minimal poll can replay them', () => {
+        const state = {
+            gameTick: 19,
+            waitingForOrders: {
+                waiters: [
+                    { unitId: 'unit_a', ownerId: 'p1' },
+                    { unitId: 'unit_b', ownerId: 'p2' },
+                ],
+                atTick: 20,
+            },
+            orders: [
+                { gameTick: 5, order: { unitId: 'enemy', abilityId: 'wait', targets: [] } },
+                { gameTick: 20, order: { unitId: 'unit_a', abilityId: 'wait', targets: [] } },
+            ],
+        };
+        const keys = collectSerializedPendingOrderKeys(state);
+        expect(keys.has('20:unit_a')).toBe(false);
+        expect(keys.has('20:unit_b')).toBe(false);
+        expect(keys.has('5:enemy')).toBe(true);
+    });
+});
 
 describe('remoteOrdersToApply', () => {
     it('drops orders whose tick+unitId appear in appliedKeys', () => {
@@ -59,5 +103,31 @@ describe('remoteOrdersToApply', () => {
             appliedKeys: new Set(),
         });
         expect(pending.map((o) => (o.order as { unitId: string }).unitId).sort()).toEqual(['unit_a', 'unit_b']);
+    });
+
+    it('includes same-tick server order when unit is missing from state (owner lookup null)', () => {
+        const state = { units: [{ id: 'unit_a', ownerId: 'p1' }] };
+        const serverOrders = [order(10, 'unit_missing')];
+        const pending = remoteOrdersToApply(serverOrders, 10, ['unit_a'], {
+            localPlayerId: 'p1',
+            state,
+            appliedKeys: new Set(),
+        });
+        expect(pending).toHaveLength(1);
+        expect((pending[0]!.order as { unitId: string }).unitId).toBe('unit_missing');
+    });
+
+    it('drops server order when same tick+unit is already in serialized engine orders', () => {
+        const state = {
+            units: [{ id: 'u1', ownerId: 'p1' }],
+            orders: [{ gameTick: 20, order: { unitId: 'u1', abilityId: 'wait', targets: [] } }],
+        };
+        const pending = remoteOrdersToApply([order(20, 'u1')], 20, null, {
+            localPlayerId: 'p1',
+            state,
+            appliedKeys: new Set(),
+            localPendingOrderKeys: new Set(['20:u1']),
+        });
+        expect(pending).toHaveLength(0);
     });
 });

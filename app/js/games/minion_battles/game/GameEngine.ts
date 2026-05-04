@@ -1523,6 +1523,22 @@ export class GameEngine implements EngineContext {
             }
         }
 
+        // Parallel orders must be queued at waitingForOrders.atTick. Only the canonical deferred-
+        // pause shape (atTick === gameTick + 1) is normalized: older checkpoints sometimes store
+        // waiter rows at `gameTick` instead of `atTick`. Never rewrite when `atTick` drifts further
+        // ahead — that would bump legitimate intermediate ticks and stall or corrupt the timeline.
+        if (engine.waitingForOrders && engine.waitingForOrders.atTick === engine.gameTick + 1) {
+            const { waiters, atTick } = engine.waitingForOrders;
+            const waiterIds = new Set(waiters.map((w) => w.unitId));
+            for (const entry of engine.pendingOrders) {
+                const uid = entry.order.unitId;
+                if (!waiterIds.has(uid)) continue;
+                if (entry.gameTick === engine.gameTick && entry.gameTick < atTick) {
+                    entry.gameTick = atTick;
+                }
+            }
+        }
+
         // If every waiter already has a pending order at the batch tick, clear pause.
         if (engine.waitingForOrders) {
             const { waiters, atTick } = engine.waitingForOrders;

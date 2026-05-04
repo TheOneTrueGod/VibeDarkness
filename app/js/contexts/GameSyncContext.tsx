@@ -24,6 +24,26 @@ import { debugLog } from '../debugLog';
 /** Must match GameEngine.CHECKPOINT_INTERVAL */
 const CHECKPOINT_INTERVAL = 10;
 
+/**
+ * Server `mergeOrdersInCheckpointWindow` merges files with tick in
+ * [floor(c/interval)*interval, floor(c/interval)*interval + interval).
+ * SaveGameOrders uses floor(atTick/interval)*interval for the filename; when the engine is still
+ * in the prior window (e.g. gameTick 99 vs parallel batch atTick 100), polling with the engine
+ * bucket alone skips `game_*_100.json` and never sees the remote order.
+ */
+export function minimalPollCheckpointGameTick(
+  gameTick: number,
+  parallelBatchAtTick: number | undefined,
+  interval: number = CHECKPOINT_INTERVAL,
+): number {
+  const engineBucket = Math.floor(gameTick / interval) * interval;
+  if (typeof parallelBatchAtTick !== 'number' || !Number.isFinite(parallelBatchAtTick)) {
+    return engineBucket;
+  }
+  const batchBucket = Math.floor(parallelBatchAtTick / interval) * interval;
+  return Math.max(engineBucket, batchBucket);
+}
+
 export type SyncStatus = 'loading' | 'synced' | 'resyncing' | 'waiting_for_host';
 
 export const WAITING_FOR_HOST_THRESHOLD = 10;
@@ -73,6 +93,41 @@ function appliedRemoteOrderKey(gameTick: number, unitId: string): string {
   return `${gameTick}:${unitId}`;
 }
 
+/**
+ * Keys for orders already in the serialized engine snapshot (`orders`), to avoid double-applying
+ * from GET /minimal merge — except parallel-batch waiter rows at `waitingForOrders.atTick`,
+ * which can disagree with runnable `pendingOrders` after coop/checkpoint quirks; those must stay
+ * eligible for minimal-poll replay (see logs: tick 180 order filtered while engine at 179).
+ */
+export function collectSerializedPendingOrderKeys(state: Record<string, unknown>): Set<string> {
+  const keys = new Set<string>();
+  const raw = state.orders;
+  if (!Array.isArray(raw)) return keys;
+
+  const norm = normalizeWaitingForOrdersFromJSON(state.waitingForOrders, gameTickFromState(state));
+  const skipKeys = new Set<string>();
+  if (norm != null) {
+    for (const w of norm.waiters) {
+      skipKeys.add(appliedRemoteOrderKey(norm.atTick, w.unitId));
+    }
+  }
+
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const rec = entry as Record<string, unknown>;
+    const t = Number(rec.gameTick);
+    const ord = rec.order;
+    const uid =
+      ord && typeof ord === 'object' ? (ord as { unitId?: unknown }).unitId : undefined;
+    if (Number.isFinite(t) && typeof uid === 'string') {
+      const key = appliedRemoteOrderKey(t, uid);
+      if (skipKeys.has(key)) continue;
+      keys.add(key);
+    }
+  }
+  return keys;
+}
+
 function markAppliedRemoteOrders(
   orders: Array<{ gameTick: number; order: Record<string, unknown> }>,
   applied: Set<string>,
@@ -89,6 +144,8 @@ type RemoteOrderFilterOpts = {
   localPlayerId: string;
   state: Record<string, unknown>;
   appliedKeys: Set<string>;
+  /** Tick+unit already present on the engine from the last snapshot; do not treat as remote-only. */
+  localPendingOrderKeys?: ReadonlySet<string>;
 };
 
 /**
@@ -109,6 +166,10 @@ export function remoteOrdersToApply(
       return false;
     }
 
+    if (opts?.localPendingOrderKeys?.has(appliedRemoteOrderKey(t, uid))) {
+      return false;
+    }
+
     if (t > engineTick) return true;
     if (t < engineTick) return false;
 
@@ -117,6 +178,10 @@ export function remoteOrdersToApply(
     if (opts != null) {
       const owner = getUnitOwnerIdFromState(opts.state, uid);
       if (owner != null && owner !== opts.localPlayerId) {
+        return true;
+      }
+      // Merged checkpoint orders for a unit not in `units` shape (or legacy rows) must not be dropped at same tick.
+      if (owner === null) {
         return true;
       }
     }
@@ -305,6 +370,7 @@ export function GameSyncProvider({
       const engineTick = Number(liveForTick.gameTick ?? snapshot.gameTick);
       const waitingUnitIds = extractWaitingUnitIds(liveForTick.state ?? snapshot.state);
       const stateForFilter = liveForTick.state ?? snapshot.state;
+      const localPendingOrderKeys = collectSerializedPendingOrderKeys(stateForFilter);
       const pendingRemoteOrders = remoteOrdersToApply(
         minimalResult.orders,
         engineTick,
@@ -313,6 +379,7 @@ export function GameSyncProvider({
           localPlayerId: playerId,
           state: stateForFilter,
           appliedKeys: appliedRemoteOrdersRef.current,
+          localPendingOrderKeys,
         },
       );
       return { pendingRemoteOrders, engineTick, waitingUnitIds, stateForFilter };
@@ -500,16 +567,17 @@ export function GameSyncProvider({
             setSyncStatus('synced');
             setCanSubmitOrders(true);
             consecutiveWaitCountRef.current = 0;
+            appliedRemoteOrdersRef.current.clear();
             return;
           }
+
+          consecutiveWaitCountRef.current = 0;
+          appliedRemoteOrdersRef.current.clear();
 
           setGameState(gs);
           battleCallbacksRef.current?.onFullResync?.(gs.game as unknown as SerializedGameState);
           setSyncStatus('synced');
           setCanSubmitOrders(true);
-
-          consecutiveWaitCountRef.current = 0;
-          appliedRemoteOrdersRef.current.clear();
 
           if (desyncContext) {
             const serverState = (gs?.game) ?? gs;
@@ -854,8 +922,12 @@ export function GameSyncProvider({
             return;
           }
 
-          const checkpointGameTick =
-            Math.floor(snap.gameTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+          const parallelAtTick = snap.waitingForOrders?.atTick;
+          const checkpointGameTick = minimalPollCheckpointGameTick(
+            snap.gameTick,
+            parallelAtTick,
+            CHECKPOINT_INTERVAL,
+          );
           debugLog('sync tracking', 'log', 'battle minimal poll triggered', {
             checkpointGameTick,
             engineTick: snap.gameTick,
