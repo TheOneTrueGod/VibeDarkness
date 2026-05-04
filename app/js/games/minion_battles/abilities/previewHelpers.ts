@@ -479,6 +479,9 @@ export function drawConeSlice(
 /** Faint red for enemy projected-hitbox outline before the strike. */
 const ENEMY_HITBOX_TELEGRAPH_BORDER_FAINT = 0.14;
 
+/** Alpha for the expanding inner fill (cone / quad) before it reaches full footprint. */
+const ENEMY_HITBOX_TELEGRAPH_EXPAND_FILL = 0.38;
+
 /**
  * Progress 0→1 from cast start to `prefireTime` (expanding inner shape); stays at 1 after.
  */
