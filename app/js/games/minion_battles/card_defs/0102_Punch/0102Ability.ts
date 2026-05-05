@@ -26,6 +26,12 @@ import { getTrainingPunchResearchState, type TrainingPunchResearchState } from '
 import { DescriptiveValue, getApproxIntegerIncrease } from '../../../../researchTrees/descriptiveValue';
 import { STUNNED_BUFF_TYPE } from '../../buffs/StunnedBuff';
 import { TRAINING_NODE_CHARGING_PUNCH, TRAINING_NODE_STRONG_PUNCH, TRAINING_TREE_ID } from '../../../../researchTrees/trees/training';
+import {
+    createChargeUpConfig,
+    getMeleeAnimationOffset,
+    spawnMeleeChargeUpEffect,
+    type MeleeAnimationProfile,
+} from '../../abilities/meleeAnimationProfile';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
 const PREFIRE_TIME = 0.2;
@@ -96,7 +102,32 @@ interface PunchPlan {
 
 type PunchCastPayload = {
     movementLockUntil: number;
+    meleeAnimationProfile: MeleeAnimationProfile;
 };
+
+const PUNCH_SLIDE_START = 0.1;
+const PUNCH_IMPACT_TIME = 0.2;
+const PUNCH_SLIDE_BACK_END = 0.3;
+const PUNCH_FORWARD_SLIDE_DISTANCE = 8;
+const PUNCH_BACKWARD_SLIDE_DISTANCE = 4;
+
+function createPunchMeleeAnimationProfile(caster: Unit, research: TrainingPunchResearchState): MeleeAnimationProfile {
+    return {
+        slide: {
+            startTime: PUNCH_SLIDE_START,
+            impactTime: PUNCH_IMPACT_TIME,
+            backstepEndTime: PUNCH_SLIDE_BACK_END,
+            forwardDistance: PUNCH_FORWARD_SLIDE_DISTANCE,
+            backwardDistance: PUNCH_BACKWARD_SLIDE_DISTANCE,
+        },
+        chargeUp: createChargeUpConfig(research.hasChargingPunch ? 'high' : 'low', {
+            startTime: 0.04,
+            endTime: 0.1,
+            radius: caster.radius,
+            color: research.hasChargingPunch ? 0xfacc15 : 0xd6b570,
+        }),
+    };
+}
 
 function buildPunchPlan(research: TrainingPunchResearchState): PunchPlan {
     if (research.hasDoublePunch) {
@@ -326,8 +357,10 @@ export const PunchAbility: AbilityStatic = {
     beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
         const eng = engine as GameEngineLike;
         const plan = buildPunchPlan(getOwnerPunchResearch(eng, caster));
-        const payload: PunchCastPayload = { movementLockUntil: plan.movementLockUntil };
+        const meleeAnimationProfile = createPunchMeleeAnimationProfile(caster, plan.research);
+        const payload: PunchCastPayload = { movementLockUntil: plan.movementLockUntil, meleeAnimationProfile };
         active.castPayload = payload;
+        spawnMeleeChargeUpEffect(eng, caster, meleeAnimationProfile);
     },
     getAbilityStatesForActive(currentTime: number, active: ActiveAbility): AbilityStateEntry[] {
         const payload = active.castPayload as PunchCastPayload | undefined;
@@ -336,6 +369,11 @@ export const PunchAbility: AbilityStatic = {
             return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
         }
         return [];
+    },
+    getCasterRenderOffset(caster: Unit, activeAbility: ActiveAbility, gameTime: number): { x: number; y: number } | null {
+        const payload = activeAbility.castPayload as PunchCastPayload | undefined;
+        if (!payload?.meleeAnimationProfile) return null;
+        return getMeleeAnimationOffset(caster, activeAbility, gameTime, payload.meleeAnimationProfile);
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {

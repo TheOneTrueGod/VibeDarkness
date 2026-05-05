@@ -17,6 +17,13 @@ Use when working on:
 
 Characters are **player-created** and **reusable across games**. They are not static constants. Each character is stored on the server in its own file and is owned by an account. Players have a list of character IDs on their account; character data is not stored on the lobby Player object.
 
+### Main weapon (campaign identity)
+
+Each character has exactly one **main weapon** in the campaign sense: the focal piece of gear that started as the player’s **rock**, **stick**, or **shield** choice in the first-mission flow. Later, characters created outside that flow should still get a main weapon via a different selection step, but the term means the same thing everywhere (story, inventory, meta progression).
+
+- **Purpose**: Narrative branching, inventory / character-sheet presentation, research and quest rewards that “upgrade” or transform the weapon over time—not the primary driver of in-battle card mechanics unless a feature explicitly links them.
+- **Implementation sketch** (when wiring data/UI): Persist a stable field on campaign character data (e.g. `mainWeaponKind` and later a tier or cosmetic/transform id); show a dedicated row or slot on character and inventory screens (“Main weapon: …”); gate or flavor story choices with templates that resolve to the current main-weapon label. Keep battle spawning and ability decks orthogonal unless intentionally connected.
+
 ## Backend
 
 - **Storage**: Characters live in `storage/characters/` as JSON files named by character ID.

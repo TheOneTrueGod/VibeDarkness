@@ -731,8 +731,18 @@ export class GameRenderer {
                 this.unitVisuals.set(unit.id, visual);
                 this.gameContainer.addChild(visual);
             }
-            visual.x = unit.x;
-            visual.y = unit.y;
+            let renderOffsetX = 0;
+            let renderOffsetY = 0;
+            for (const activeAbility of unit.activeAbilities) {
+                const ability = getAbility(activeAbility.abilityId);
+                if (!ability?.getCasterRenderOffset) continue;
+                const offset = ability.getCasterRenderOffset(unit, activeAbility, engine.gameTime, engine);
+                if (!offset) continue;
+                renderOffsetX += offset.x;
+                renderOffsetY += offset.y;
+            }
+            visual.x = unit.x + renderOffsetX;
+            visual.y = unit.y + renderOffsetY;
             visual.visible = unit.active;
 
             const col = Math.floor(unit.x / cellSize);

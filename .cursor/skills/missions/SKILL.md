@@ -40,6 +40,10 @@ For reusable terrain, use **map segments** from the storylines folder. See the *
 - Mission registration: `app/js/games/minion_battles/storylines/index.ts` (MISSION_MAP)
 - Storyline flow: `app/js/games/minion_battles/storylines/WorldOfDarkness/WorldOfDarkness.ts` (edges)
 
+## Main weapon (narrative / meta)
+
+Missions and quest copy can reference a character’s **main weapon** (rock / stick / shield lineage, with future transforms) for flavor and gated choices. That concept is defined in the **campaign-characters** skill. Do not assume the main weapon maps 1:1 to battle loadout unless a mission explicitly implements that.
+
 ## Campaign resources and research costs
 
 - Mission rewards and story choices should treat campaign `resources` as the base earned pool.

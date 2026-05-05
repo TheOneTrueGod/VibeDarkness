@@ -42,6 +42,36 @@ const defaultEffectDef: IEffectDef = {
     },
 };
 
+interface RingPulseSpec {
+    delay: number;
+    startRadius: number;
+    endRadius: number;
+    width: number;
+    opacityMul: number;
+}
+
+function getStaggeredProgress(progress: number, delay: number): number {
+    return progress <= delay ? 0 : Math.min(1, (progress - delay) / (1 - delay));
+}
+
+function drawRingBursts(
+    g: Graphics,
+    progress: number,
+    colors: number[],
+    rings: RingPulseSpec[],
+    getAlpha: (effectiveProgress: number, ring: RingPulseSpec) => number,
+): void {
+    for (let i = 0; i < rings.length; i++) {
+        const ring = rings[i]!;
+        const effectiveProgress = getStaggeredProgress(progress, ring.delay);
+        const radius = ring.startRadius + (ring.endRadius - ring.startRadius) * effectiveProgress;
+        const alpha = Math.max(0, getAlpha(effectiveProgress, ring));
+        const color = colors[i] ?? colors[colors.length - 1] ?? 0xffffff;
+        g.circle(0, 0, radius);
+        g.stroke({ color, width: ring.width, alpha });
+    }
+}
+
 /** Punch effect: 9-pointed star with left-to-right gradient fill, black border, grows over duration. */
 const punchEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
@@ -688,21 +718,52 @@ const howlShockwaveEffectDef: IEffectDef = {
         const progress = effect.progress;
         const data = (effect.effectData ?? {}) as { colors?: number[] };
         const colors = data.colors ?? [0xc4a574, 0x8b6914, 0x3d2914];
-        const rings = [
-            { delay: 0, growth: 100, width: 4, opacityMul: 1 },
-            { delay: 0.06, growth: 88, width: 3, opacityMul: 0.85 },
-            { delay: 0.12, growth: 76, width: 2, opacityMul: 0.7 },
+        const rings: RingPulseSpec[] = [
+            { delay: 0, startRadius: 12, endRadius: 112, width: 4, opacityMul: 1 },
+            { delay: 0.06, startRadius: 12, endRadius: 100, width: 3, opacityMul: 0.85 },
+            { delay: 0.12, startRadius: 12, endRadius: 88, width: 2, opacityMul: 0.7 },
         ];
-        for (let i = 0; i < rings.length; i++) {
-            const r = rings[i]!;
-            const effectiveProgress =
-                progress <= r.delay ? 0 : Math.min(1, (progress - r.delay) / (1 - r.delay));
-            const radius = 12 + effectiveProgress * r.growth;
-            const alpha = Math.max(0, 0.92 * r.opacityMul * (1 - effectiveProgress * 1.05));
-            const color = colors[i] ?? 0x5d4e37;
-            g.circle(0, 0, radius);
-            g.stroke({ color, width: r.width, alpha });
-        }
+        drawRingBursts(g, progress, colors, rings, (effectiveProgress, ring) =>
+            0.92 * ring.opacityMul * (1 - effectiveProgress * 1.05),
+        );
+    },
+};
+
+/** Charge-up rings that shrink toward the unit and fade in without reaching full opacity. */
+const chargeUpEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const progress = effect.progress;
+        const data = (effect.effectData ?? {}) as {
+            profile?: {
+                maxAlpha?: number;
+                pulses?: Array<{
+                    startRadius?: number;
+                    endRadius?: number;
+                    width?: number;
+                    color?: number;
+                    startAt?: number;
+                }>;
+            };
+        };
+        const profile = data.profile;
+        const rings: RingPulseSpec[] = (profile?.pulses ?? []).map((pulse) => ({
+            delay: Math.max(0, Math.min(0.95, pulse.startAt ?? 0)),
+            startRadius: pulse.startRadius ?? 18,
+            endRadius: pulse.endRadius ?? 12,
+            width: pulse.width ?? 2,
+            opacityMul: 1,
+        }));
+        if (rings.length === 0) return;
+        const colors = (profile?.pulses ?? []).map((pulse) => pulse.color ?? 0xd9b56d);
+        const maxAlpha = Math.max(0.05, Math.min(0.95, profile?.maxAlpha ?? 0.35));
+        drawRingBursts(g, progress, colors, rings, (effectiveProgress) =>
+            maxAlpha * Math.pow(effectiveProgress, 0.8),
+        );
     },
 };
 
@@ -713,6 +774,7 @@ const effectDefRegistry: Record<string, IEffectDef> = {
     ConeFlash: coneFlashEffectDef,
     Pulse: pulseEffectDef,
     HowlShockwave: howlShockwaveEffectDef,
+    ChargeUpEffect: chargeUpEffectDef,
     AlphaWolfStoryRemnant: alphaWolfStoryRemnantEffectDef,
     DarkCreatureIconDeath: darkCreatureIconDeathEffectDef,
     AlphaWolfStoryController: alphaWolfStoryControllerEffectDef,

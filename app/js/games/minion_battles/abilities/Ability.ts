@@ -23,6 +23,11 @@ export interface IAbilityPreviewGraphics {
     stroke(options: { color: number; width: number; alpha?: number }): void;
 }
 
+export interface AbilityRenderOffset {
+    x: number;
+    y: number;
+}
+
 /** Resource cost for using an ability. */
 export interface ResourceCost {
     resourceId: string;
@@ -223,6 +228,17 @@ export interface AbilityStatic {
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void;
+
+    /**
+     * Optional. Returns a visual-only world-space offset for the caster while this cast is active.
+     * This does not mutate simulation position, collision, or pathing.
+     */
+    getCasterRenderOffset?(
+        caster: Unit,
+        activeAbility: ActiveAbility,
+        gameTime: number,
+        gameState?: unknown,
+    ): AbilityRenderOffset | null;
 
     /**
      * Optional. If provided, player-targeting range is validated (min/max distance).

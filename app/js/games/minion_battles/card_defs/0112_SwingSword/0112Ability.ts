@@ -10,7 +10,7 @@ import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPrevi
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { Unit } from '../../game/units/Unit';
 import type { TargetDef } from '../../abilities/targeting';
-import type { ResolvedTarget } from '../../game/types';
+import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import { asCardDefId, type CardDef } from '../types';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
 import type { Effect } from '../../game/effects/Effect';
@@ -25,6 +25,12 @@ import {
     STICK_SWORD_TREE_ID,
     STICK_SWORD_NODE_EXTRA_TARGET,
 } from '../../../../researchTrees/trees/stick_sword';
+import {
+    createChargeUpConfig,
+    getMeleeAnimationOffset,
+    spawnMeleeChargeUpEffect,
+    type MeleeAnimationProfile,
+} from '../../abilities/meleeAnimationProfile';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}12`;
 const PREFIRE_TIME = 0.2;
@@ -45,6 +51,25 @@ const WITH_RESEARCH_MAX_TARGETS = 3;
 /** Line thickness for hitbox and preview (px) — same family as Laser Sword. */
 const LINE_THICKNESS = 36;
 const SWING_LENGTH = 80;
+const SWING_SWORD_MELEE_ANIMATION: MeleeAnimationProfile = {
+    slide: {
+        startTime: 0.1,
+        impactTime: 0.2,
+        backstepEndTime: 0.3,
+        forwardDistance: 9,
+        backwardDistance: 4,
+    },
+    chargeUp: createChargeUpConfig('medium', {
+        startTime: 0.04,
+        endTime: 0.1,
+        radius: DEFAULT_UNIT_RADIUS,
+        color: 0xb7c5d8,
+    }),
+};
+
+type SwingSwordCastPayload = {
+    meleeAnimationProfile: MeleeAnimationProfile;
+};
 
 function getMinRange(_caster: Unit): number {
     return BASE_MIN_RANGE;
@@ -155,6 +180,32 @@ export const SwingSwordAbility: AbilityStatic = {
             return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
         }
         return [];
+    },
+    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
+        const eng = engine as GameEngineLike;
+        const meleeAnimationProfile: MeleeAnimationProfile = {
+            ...SWING_SWORD_MELEE_ANIMATION,
+            chargeUp: SWING_SWORD_MELEE_ANIMATION.chargeUp
+                ? { ...SWING_SWORD_MELEE_ANIMATION.chargeUp }
+                : undefined,
+        };
+        if (meleeAnimationProfile.chargeUp) {
+            meleeAnimationProfile.chargeUp = {
+                ...meleeAnimationProfile.chargeUp,
+                pulses: meleeAnimationProfile.chargeUp.pulses.map((pulse) => ({ ...pulse })),
+            };
+            for (const pulse of meleeAnimationProfile.chargeUp.pulses) {
+                pulse.startRadius += caster.radius - DEFAULT_UNIT_RADIUS;
+                pulse.endRadius += caster.radius - DEFAULT_UNIT_RADIUS;
+            }
+        }
+        active.castPayload = { meleeAnimationProfile } as SwingSwordCastPayload;
+        spawnMeleeChargeUpEffect(eng, caster, meleeAnimationProfile);
+    },
+    getCasterRenderOffset(caster: Unit, activeAbility: ActiveAbility, gameTime: number): { x: number; y: number } | null {
+        const payload = activeAbility.castPayload as SwingSwordCastPayload | undefined;
+        if (!payload?.meleeAnimationProfile) return null;
+        return getMeleeAnimationOffset(caster, activeAbility, gameTime, payload.meleeAnimationProfile);
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
