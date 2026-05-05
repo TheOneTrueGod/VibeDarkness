@@ -18,7 +18,7 @@ import { createCrystalLightEffect } from '../../abilities/effectHelpers';
 import { getDirectionFromTo } from '../../abilities/targetHelpers';
 import { pointInCone } from '../../abilities/targetHelpers';
 import { Effect } from '../../game/effects/Effect';
-import { StunnedBuff } from '../../buffs/StunnedBuff';
+import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
 import { areEnemies } from '../../game/teams';
 import type { EventBus } from '../../game/EventBus';
 import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
@@ -129,9 +129,10 @@ function executeShiningBlockRetaliation(engine: GameEngineLike, defender: Unit, 
     for (const { unit } of toHit) {
         const modifiedDamage = getModifiedAbilityDamage(defender, RETALIATION_DAMAGE);
         unit.takeDamage(modifiedDamage, defender.id, engine.eventBus);
-        const stun = new StunnedBuff(STUN_DURATION);
-        unit.addBuff(stun, engine.gameTime, engine.roundNumber);
-        unit.interruptAllAbilities();
+        const stunResult = tryApplyHardCcStun(unit, STUN_DURATION, engine.gameTime, engine.roundNumber);
+        if (stunResult.outcome === 'applied') {
+            unit.interruptAllAbilities();
+        }
     }
 
     const centerAngle = Math.atan2(dirY, dirX);

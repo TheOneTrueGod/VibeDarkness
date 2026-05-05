@@ -83,10 +83,30 @@ function TimelineAbilityPreviewCard({ ability }: { ability: AbilityStatic }) {
     );
 }
 
+export interface TimelineHoverFlyoutProps {
+    unit: Unit;
+    ability: AbilityStatic;
+    /** Timeline phase strip (player rows): label/description from the hovered segment. */
+    phaseLabel?: string;
+    phaseDescription?: string;
+}
+
 /** Unit summary + hand-style ability card; hangs off the right of the battle timeline panel. */
-export function TimelineHoverFlyout({ unit, ability }: { unit: Unit; ability: AbilityStatic }) {
+export function TimelineHoverFlyout({ unit, ability, phaseLabel, phaseDescription }: TimelineHoverFlyoutProps) {
+    const showPhase = !!(phaseLabel?.trim() || phaseDescription?.trim());
+
     return (
         <div className="flex flex-col items-start gap-2">
+            {showPhase && (
+                <div className="w-[220px] rounded-lg border border-primary/35 bg-dark-800/95 px-3 py-2 shadow-lg ring-1 ring-black/40">
+                    {phaseLabel?.trim() ? (
+                        <div className="text-sm font-semibold text-gray-100">{phaseLabel.trim()}</div>
+                    ) : null}
+                    {phaseDescription?.trim() ? (
+                        <div className="mt-1 text-[11px] leading-snug text-gray-300">{phaseDescription.trim()}</div>
+                    ) : null}
+                </div>
+            )}
             <TimelineUnitCard unit={unit} />
             <TimelineAbilityPreviewCard ability={ability} />
         </div>

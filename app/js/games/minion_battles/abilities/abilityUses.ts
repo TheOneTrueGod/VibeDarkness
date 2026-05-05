@@ -182,6 +182,20 @@ export function addRecoveryChargeToUnitAbilities(
 }
 
 /**
+ * Round-start stamina surge: grant the same stamina charge amount to every ability that can accept it
+ * (not pooled or randomly split across abilities).
+ */
+export function applyStaminaSurgeToUnit(unit: Unit, surgeAmount: number): void {
+    if (surgeAmount <= 0) return;
+    const abilityIds = getAbilityIdsEligibleForRecovery(unit);
+    for (const abilityId of abilityIds) {
+        if (!canAbilityReceiveRecoveryCharge(unit, abilityId, 'staminaCharge')) continue;
+        applyRecoveryChargeToAbility(unit, abilityId, 'staminaCharge', surgeAmount);
+    }
+    syncNestedCardAbilityState(unit);
+}
+
+/**
  * Prefer abilities tagged `priority` when several can accept the same recovery charge.
  */
 function pickRecoveryChargeRecipientIndex(

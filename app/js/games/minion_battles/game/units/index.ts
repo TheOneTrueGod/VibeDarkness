@@ -21,6 +21,7 @@ import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import type { UnitTag } from './unitTag';
 import type { UnitCombatSettings } from './Unit';
 import { generateGameObjectId } from '../GameObject';
+import { applyCombatCrowdControlProfile } from './combatCcSpawn';
 
 export type UnitFactoryConfig = {
     id?: string;
@@ -55,7 +56,7 @@ export function createPlayerUnit(
     const stamina = getDefaultStamina(PLAYER_CHARACTER_ID);
     const radius = resolvePlayerUnitRadius(config.portraitId);
 
-    return new Unit({
+    const unit = new Unit({
         id: config.id ?? idSource?.allocateObjectId?.('unit') ?? generateGameObjectId('unit'),
         x: config.x,
         y: config.y,
@@ -72,6 +73,8 @@ export function createPlayerUnit(
         stamina,
         combatSettings: config.combatSettings,
     });
+    applyCombatCrowdControlProfile(unit);
+    return unit;
 }
 
 /**
@@ -124,5 +127,6 @@ export function createUnitFromSpawnConfig(
         unit.tags = [...config.unitTags];
     }
 
+    applyCombatCrowdControlProfile(unit);
     return unit;
 }

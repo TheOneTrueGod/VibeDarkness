@@ -6,6 +6,7 @@
  */
 
 import { Unit } from './Unit';
+import { applyCombatCrowdControlProfile } from './combatCcSpawn';
 import type { AISettings } from './Unit';
 import type { TeamId } from '../teams';
 import type { EventBus } from '../EventBus';
@@ -27,5 +28,6 @@ export function createGenericEnemy(config: {
         ...config,
         ownerId: 'ai',
     });
+    applyCombatCrowdControlProfile(unit);
     return unit;
 }

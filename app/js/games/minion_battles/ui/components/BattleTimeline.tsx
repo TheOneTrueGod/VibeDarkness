@@ -8,7 +8,7 @@ import type { Unit } from '../../game/units/Unit';
 import { isDarkCreatureCharacterId, PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/unitDef';
 import { getPortrait } from '../../character_defs/portraits';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
-import { TimelineHoverFlyout } from './TimelineHoverFlyout';
+import { TimelineHoverFlyout, type TimelineHoverFlyoutProps } from './TimelineHoverFlyout';
 import slimeIcon from '../../assets/characters/slime.svg';
 import swordwomanIcon from '../../assets/characters/swordwoman.svg';
 import wolfHeadIcon from '../../assets/characters/dark_animals/wolf-head.svg';
@@ -39,6 +39,9 @@ export type TimelinePanelHover =
           segmentIndex: number;
           unit: Unit;
           ability: AbilityStatic;
+          /** Present when hovering a player timeline phase segment (see TimelineHoverFlyout). */
+          phaseLabel?: string;
+          phaseDescription?: string;
       }
     | null;
 
@@ -420,6 +423,8 @@ function renderPlayerTimelineTrack(
                                         segmentIndex: idx,
                                         unit,
                                         ability: displayAbility,
+                                        phaseLabel: seg.label,
+                                        phaseDescription: seg.description,
                                     })
                                 }
                             />
@@ -778,15 +783,23 @@ export default function BattleTimeline({
         return entries;
     }, [players, localPlayerId]);
 
-    const flyout =
-        panelHover && (
+    const flyout = (() => {
+        if (!panelHover) return null;
+        const flyoutProps: TimelineHoverFlyoutProps = {
+            unit: panelHover.unit,
+            ability: panelHover.ability,
+            phaseLabel: panelHover.phaseLabel,
+            phaseDescription: panelHover.phaseDescription,
+        };
+        return (
             <div
                 className="pointer-events-none absolute top-1/2 left-full z-[200] ml-5 -translate-y-1/2"
                 aria-hidden
             >
-                <TimelineHoverFlyout unit={panelHover.unit} ability={panelHover.ability} />
+                <TimelineHoverFlyout {...flyoutProps} />
             </div>
         );
+    })();
 
     const stripBody = (
         <>

@@ -1,14 +1,16 @@
 import React from 'react';
 import { BossBackground } from './BossBackground';
 import { BossArcadeHpBar } from './BossArcadeHpBar';
-import { BossPoisePlaceholderBar } from './BossPoisePlaceholderBar';
+import { BossCcArmourRow } from './BossCcArmourRow';
 
 export type BossHudSlice = {
     name: string;
     hp: number;
     maxHp: number;
-    poiseHp: number;
-    maxPoiseHp: number;
+    effectiveHardCcThreshold: number;
+    hardCcArmourConsumed: number;
+    hardCcArmourEventSerial: number;
+    lastHardCcEventKind: 'absorbed' | 'landed' | null;
 } | null;
 
 type BossFightHudProps = {
@@ -27,7 +29,12 @@ export default function BossFightHud({ boss }: BossFightHudProps) {
         >
             <BossBackground>
                 <BossArcadeHpBar hp={boss.hp} maxHp={boss.maxHp} />
-                <BossPoisePlaceholderBar poiseHp={boss.poiseHp} maxPoiseHp={boss.maxPoiseHp} />
+                <BossCcArmourRow
+                    effectiveHardCcThreshold={boss.effectiveHardCcThreshold}
+                    hardCcArmourConsumed={boss.hardCcArmourConsumed}
+                    hardCcArmourEventSerial={boss.hardCcArmourEventSerial}
+                    lastHardCcEventKind={boss.lastHardCcEventKind}
+                />
                 <p className="mt-2 text-center text-xs font-bold uppercase tracking-[0.2em] text-gray-300 sm:text-sm">
                     {boss.name}
                 </p>

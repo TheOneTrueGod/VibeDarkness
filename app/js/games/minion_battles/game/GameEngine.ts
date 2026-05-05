@@ -46,6 +46,7 @@ import { GameState } from './GameState';
 import { computeSynchash } from '../../../utils/synchash';
 import {
     addRecoveryChargeToUnitAbilities,
+    applyStaminaSurgeToUnit,
     canUseAbilityNow,
     consumeAbilityUse,
     ensureAbilityRuntimeState,
@@ -67,8 +68,8 @@ export { MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/CardManager';
 
 /** Seconds of game time per round. */
 const ROUND_DURATION = 10;
-/** Number of stamina charges granted by each round-start recovery. */
-export const ROUND_STAMINA_RECOVERY = 4;
+/** Matches default player stamina in unit defs; each ability receives this many stamina charges per surge unless overridden by unit stamina. */
+export const DEFAULT_PLAYER_ROUND_STAMINA_SURGE = 3;
 const CHARGED_ROCKS_NODE_ID = 'charged_rocks';
 const CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND = 1;
 
@@ -1351,11 +1352,15 @@ export class GameEngine implements EngineContext {
     private handleRoundEnd(_roundNumber: number): void {
         this.state.cardManager.clearAbilityUses();
         this.state.effectManager.handleRoundEndTorchDecay(this.roundNumber);
+        for (const unit of this.units) {
+            if (!unit.isAlive()) continue;
+            unit.tickHardCcChainDecayAtRoundEnd();
+        }
     }
 
     /**
      * Round timer milestones (same cadence as UI round progress: 0% and 50%).
-     * Stamina recovery runs at round start; bleed ticks at both milestones.
+     * Stamina surge runs at round start; bleed ticks at both milestones.
      */
     private processRoundProgressMilestones(roundTime: number): void {
         const milestoneCtx = {
@@ -1380,17 +1385,12 @@ export class GameEngine implements EngineContext {
         }
     }
 
-    /** Stamina Pulse: each unit grants staminaCharge to all of its abilities. */
+    /** Stamina surge at round start: each eligible ability receives `unit.stamina` stamina charges. */
     private applyStaminaPulse(): void {
         for (const unit of this.units) {
             if (!unit.isAlive()) continue;
-            addRecoveryChargeToUnitAbilities(
-                unit,
-                'staminaCharge',
-                Math.max(0, unit.stamina * ROUND_STAMINA_RECOVERY),
-                (min, max) => this.generateRandomInteger(min, max),
-            );
-            syncNestedCardAbilityState(unit);
+            const surge = Math.max(0, Math.floor(unit.stamina));
+            applyStaminaSurgeToUnit(unit, surge);
         }
     }
 

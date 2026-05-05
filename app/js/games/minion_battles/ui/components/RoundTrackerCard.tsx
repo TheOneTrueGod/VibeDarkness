@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ROUND_STAMINA_RECOVERY } from '../../game/GameEngine';
+import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../game/GameEngine';
 
 interface RoundTrackerCardProps {
     roundNumber: number;
@@ -34,7 +34,9 @@ export default function RoundTrackerCard({
                     className="absolute left-full ml-3 top-1/2 -translate-y-1/2 w-64 bg-black/95 border border-dark-600 rounded-lg px-3 py-2 shadow-lg pointer-events-none z-20 text-gray-200 text-xs"
                     role="tooltip"
                 >
-                    At the start of each round, recover <span className="text-yellow-400 font-semibold">{ROUND_STAMINA_RECOVERY}</span> stamina.
+                    At the start of each round, a stamina surge restores{' '}
+                    <span className="text-yellow-400 font-semibold">{DEFAULT_PLAYER_ROUND_STAMINA_SURGE}</span> stamina to{' '}
+                    <span className="text-yellow-400 font-semibold">each</span> of your abilities (before research bonuses).
                 </div>
             )}
             <div className="relative">

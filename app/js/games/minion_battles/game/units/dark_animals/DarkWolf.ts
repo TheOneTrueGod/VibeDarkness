@@ -4,6 +4,7 @@
  */
 
 import { Unit } from '../Unit';
+import { applyCombatCrowdControlProfile } from '../combatCcSpawn';
 import type { TeamId } from '../../teams';
 import type { EventBus } from '../../EventBus';
 import { DEFAULT_UNIT_RADIUS } from '../unit_defs/unitConstants';
@@ -38,5 +39,6 @@ export function createDarkWolfUnit(
         characterId: 'dark_wolf',
         radius: config.radius ?? DARK_WOLF_RADIUS,
     });
+    applyCombatCrowdControlProfile(unit);
     return unit;
 }

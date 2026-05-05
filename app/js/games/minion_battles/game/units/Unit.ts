@@ -28,6 +28,7 @@ import type { RecoveryChargeType } from '../../abilities/abilityUses';
 import type { UnitTag } from './unitTag';
 import { parseUnitTagsFromJSON } from './unitTag';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
+import type { CcResistKey } from '../../crowdControl/ccTypes';
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -112,7 +113,7 @@ export class Unit extends GameObject {
     resources: Resource[] = [];
     /** Ability runtime state (uses and recharge charges) keyed by ability id. */
     abilityRuntime: Record<string, UnitAbilityRuntimeState> = {};
-    /** Stamina stat; granted as stamina charges to all abilities on cadence triggers. */
+    /** Stamina stat: round-start surge grants this many stamina charges to each eligible ability. */
     stamina: number = 1;
 
     /** Movement state: grid path, optional target unit, and pathfinding tick. */
@@ -164,10 +165,43 @@ export class Unit extends GameObject {
      */
     darknessDamageProcCount: number = 0;
 
-    /** Current Poise HP. When 0 or below, knockback is applied. */
+    /**
+     * Knockback stability pool (legacy field name `poiseHp`). Depleted by knockback attempts;
+     * unrelated to hard CC armour — see {@link Unit.applyKnockback}.
+     */
     poiseHp: number = 0;
-    /** Maximum Poise HP. Units with 0 have no poise (knockback always applies). */
+    /** Maximum knockback stability. Units with 0 skip the stability gate (knockback always applies). */
     maxPoiseHp: number = 0;
+
+    /** Per-type CC duration resist; specific entry overrides `ALL`. Values 0–1 (fraction reduced). */
+    ccDurationResistPct: Partial<Record<CcResistKey, number>> = {};
+    /** Flat seconds removed after percent scaling; specific overrides `ALL`. */
+    ccDurationFlatSec: Partial<Record<CcResistKey, number>> = {};
+    /** Baseline hard CC threshold floor (absorbed hits before one lands). Boss default often 2. */
+    hardCcArmourFloor: number = 0;
+    /** Extra hard CC threshold from chain resist; decays per round toward 0. */
+    bonusHardCcArmour: number = 0;
+    /** Qualifying absorbed hard CC attempts since the last stun that actually applied. */
+    hardCcArmourConsumed: number = 0;
+    /** When > 0, successful hard CCs add stacking bonus per {@link Unit.chainCcStackNextIncrement}. */
+    chainCcResist: number = 0;
+    /** Apply one decay step to {@link Unit.bonusHardCcArmour} every N round ends. */
+    chainCcDecayRounds: number = 1;
+    /**
+     * Next addend when a hard CC successfully lands and {@link Unit.chainCcResist} is active
+     * (successive values 1, 2, 3, ...). Serialized for checkpoint determinism.
+     */
+    chainCcStackNextIncrement: number = 1;
+    /** Counts round ends toward {@link Unit.chainCcDecayRounds} for bonus decay. */
+    chainCcDecayRoundCounter: number = 0;
+    /** Placeholder for future soft CC gate (matches hard CC pattern). */
+    softCcArmourFloor: number = 0;
+    /** Placeholder for future soft CC bonus pool. */
+    bonusSoftCcArmour: number = 0;
+    /** Bumps when a hard CC is absorbed or lands (for boss HUD animation). */
+    hardCcArmourEventSerial: number = 0;
+    lastHardCcEventGameTime: number = -1;
+    lastHardCcEventKind: 'absorbed' | 'landed' | null = null;
 
     /** Active knockback state; unit cannot move while set. */
     knockback: KnockbackState | null = null;
@@ -333,16 +367,42 @@ export class Unit extends GameObject {
         this.pathInvalidated = true;
     }
 
+    getEffectiveHardCcThreshold(): number {
+        return this.hardCcArmourFloor + this.bonusHardCcArmour;
+    }
+
+    /** After a hard CC actually applies a debuff: stack chain bonus, then caller resets fill. */
+    onSuccessfulHardCcLand(): void {
+        if (this.chainCcResist > 0) {
+            this.bonusHardCcArmour += this.chainCcStackNextIncrement;
+            this.chainCcStackNextIncrement += 1;
+        }
+    }
+
+    recordHardCcArmourEvent(kind: 'absorbed' | 'landed', gameTime: number): void {
+        this.hardCcArmourEventSerial += 1;
+        this.lastHardCcEventKind = kind;
+        this.lastHardCcEventGameTime = gameTime;
+    }
+
     /**
-     * Attempt to apply knockback to this unit. Poise is consumed first; if the unit
-     * has no Poise HP left (or has no max poise), knockback is applied.
-     * When knockback is applied, onApplied is called so the caller can interrupt the unit
-     * (e.g. cancel and refund any ability in progress).
-     * @param poiseDamage Amount of Poise HP to subtract (0 = no poise check).
-     * @param params Knockback vector, times, and source.
-     * @param _eventBus Event bus (unused).
-     * @param onApplied Called when knockback is successfully applied; use to interrupt the unit.
-     * @returns true if knockback was applied, false if resisted by poise.
+     * Decay {@link Unit.bonusHardCcArmour} at round boundaries (host + replicas).
+     * One step per tick when the decay period elapses; effective threshold never below {@link Unit.hardCcArmourFloor}.
+     */
+    tickHardCcChainDecayAtRoundEnd(): void {
+        if (this.chainCcDecayRounds <= 0) return;
+        this.chainCcDecayRoundCounter += 1;
+        if (this.chainCcDecayRoundCounter < this.chainCcDecayRounds) return;
+        this.chainCcDecayRoundCounter = 0;
+        if (this.bonusHardCcArmour > 0) {
+            this.bonusHardCcArmour = Math.max(0, this.bonusHardCcArmour - 1);
+        }
+    }
+
+    /**
+     * Attempt to apply physical knockback. This uses **knockback stability** (`poiseHp` / `maxPoiseHp` only) —
+     * not hard CC armour, stun resistance, or chain CC. Do not conflate with crowd control protection.
+     * When stability blocks knockback, poise is reduced; when knockback applies, the unit is launched.
      */
     applyKnockback(
         poiseDamage: number,
@@ -689,6 +749,20 @@ export class Unit extends GameObject {
             darknessDamageProcCount: this.darknessDamageProcCount,
             poiseHp: this.poiseHp,
             maxPoiseHp: this.maxPoiseHp,
+            ccDurationResistPct: { ...this.ccDurationResistPct },
+            ccDurationFlatSec: { ...this.ccDurationFlatSec },
+            hardCcArmourFloor: this.hardCcArmourFloor,
+            bonusHardCcArmour: this.bonusHardCcArmour,
+            hardCcArmourConsumed: this.hardCcArmourConsumed,
+            chainCcResist: this.chainCcResist,
+            chainCcDecayRounds: this.chainCcDecayRounds,
+            chainCcStackNextIncrement: this.chainCcStackNextIncrement,
+            chainCcDecayRoundCounter: this.chainCcDecayRoundCounter,
+            softCcArmourFloor: this.softCcArmourFloor,
+            bonusSoftCcArmour: this.bonusSoftCcArmour,
+            hardCcArmourEventSerial: this.hardCcArmourEventSerial,
+            lastHardCcEventGameTime: this.lastHardCcEventGameTime,
+            lastHardCcEventKind: this.lastHardCcEventKind,
             knockback: this.knockback ? {
                 knockbackVector: { ...this.knockback.knockbackVector },
                 knockbackAirTime: this.knockback.knockbackAirTime,
@@ -771,6 +845,21 @@ export class Unit extends GameObject {
         unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;
         unit.poiseHp = (data.poiseHp as number) ?? 0;
         unit.maxPoiseHp = (data.maxPoiseHp as number) ?? 0;
+        unit.ccDurationResistPct = { ...(data.ccDurationResistPct as Partial<Record<CcResistKey, number>> | undefined) };
+        unit.ccDurationFlatSec = { ...(data.ccDurationFlatSec as Partial<Record<CcResistKey, number>> | undefined) };
+        unit.hardCcArmourFloor = (data.hardCcArmourFloor as number | undefined) ?? 0;
+        unit.bonusHardCcArmour = (data.bonusHardCcArmour as number | undefined) ?? 0;
+        unit.hardCcArmourConsumed = (data.hardCcArmourConsumed as number | undefined) ?? 0;
+        unit.chainCcResist = (data.chainCcResist as number | undefined) ?? 0;
+        unit.chainCcDecayRounds = (data.chainCcDecayRounds as number | undefined) ?? 1;
+        unit.chainCcStackNextIncrement = (data.chainCcStackNextIncrement as number | undefined) ?? 1;
+        unit.chainCcDecayRoundCounter = (data.chainCcDecayRoundCounter as number | undefined) ?? 0;
+        unit.softCcArmourFloor = (data.softCcArmourFloor as number | undefined) ?? 0;
+        unit.bonusSoftCcArmour = (data.bonusSoftCcArmour as number | undefined) ?? 0;
+        unit.hardCcArmourEventSerial = (data.hardCcArmourEventSerial as number | undefined) ?? 0;
+        unit.lastHardCcEventGameTime = (data.lastHardCcEventGameTime as number | undefined) ?? -1;
+        const ev = data.lastHardCcEventKind;
+        unit.lastHardCcEventKind = ev === 'absorbed' || ev === 'landed' ? ev : null;
         unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));
         unit.darknessDamageProcCount = Math.max(0, Math.floor((data.darknessDamageProcCount as number) ?? 0));
         const kb = data.knockback as KnockbackState | null;

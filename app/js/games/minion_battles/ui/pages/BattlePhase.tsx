@@ -402,16 +402,20 @@ export default function BattlePhase({
                 name: b.name,
                 hp: b.hp,
                 maxHp: b.maxHp,
-                poiseHp: b.poiseHp,
-                maxPoiseHp: b.maxPoiseHp,
+                effectiveHardCcThreshold: b.getEffectiveHardCcThreshold(),
+                hardCcArmourConsumed: b.hardCcArmourConsumed,
+                hardCcArmourEventSerial: b.hardCcArmourEventSerial,
+                lastHardCcEventKind: b.lastHardCcEventKind,
             };
             setBossHud((prev) =>
                 prev &&
                 prev.name === next.name &&
                 prev.hp === next.hp &&
                 prev.maxHp === next.maxHp &&
-                prev.poiseHp === next.poiseHp &&
-                prev.maxPoiseHp === next.maxPoiseHp
+                prev.effectiveHardCcThreshold === next.effectiveHardCcThreshold &&
+                prev.hardCcArmourConsumed === next.hardCcArmourConsumed &&
+                prev.hardCcArmourEventSerial === next.hardCcArmourEventSerial &&
+                prev.lastHardCcEventKind === next.lastHardCcEventKind
                     ? prev
                     : next,
             );

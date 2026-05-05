@@ -53,6 +53,13 @@ export function getUnlockedMissionIds(
         }
     }
 
+    // `cave_respite` was inserted after `light_empowered`; keep `monster` unlocked for campaigns that
+    // already had an Alpha Wolf victory, and allow the optional story mission for backfill.
+    if (storyline.id === 'world_of_darkness' && hasVictoryResult('monster', missionResults)) {
+        unlocked.add('monster');
+        unlocked.add('cave_respite');
+    }
+
     return unlocked;
 }
 

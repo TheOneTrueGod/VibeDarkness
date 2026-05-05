@@ -15,6 +15,16 @@ import {
 import { DARK_CREATURE_CORRUPTION_TINT, DARK_CREATURE_ICON_TINT_ALPHA } from '../../deathEffects/darkCreatureVisualConstants';
 import { getPortrait } from '../../../character_defs/portraits';
 import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
+import type { CcResistKey } from '../../../crowdControl/ccTypes';
+
+/** Optional crowd-control tuning merged onto units at spawn (see `applyCombatCrowdControlProfile`). */
+export type UnitCombatCcDef = {
+    ccDurationResistPct?: Partial<Record<CcResistKey, number>>;
+    ccDurationFlatSec?: Partial<Record<CcResistKey, number>>;
+    hardCcArmourFloor?: number;
+    chainCcResist?: number;
+    chainCcDecayRounds?: number;
+};
 
 /** Color for allied unit glows. */
 const ALLY_GLOW_COLOR = 0x22c55e; // green-500
@@ -82,6 +92,7 @@ const UNIT_DEFS: Record<
         creatureType?: CreatureType;
         /** Short flavor text for battle UI (e.g. timeline hover). */
         uiDescription?: string;
+        combatCc?: UnitCombatCcDef;
     }
 > = {
     // All player units: baseline stats; portrait defs may override body color and size on the token.
@@ -90,7 +101,7 @@ const UNIT_DEFS: Record<
         hp: 50,
         speed: 90,
         size: 'Medium',
-        stamina: 1,
+        stamina: 3,
         uiDescription: 'Adventurer — stats and abilities from equipment and research.',
     },
     // Enemies
@@ -139,6 +150,9 @@ const UNIT_DEFS: Record<
         creatureType: 'dark_creature',
         deathEffect: darkCreatureDissolutionDeathEffect(12),
         uiDescription: 'Pack leader with heavy claws and howling support.',
+        combatCc: {
+            ccDurationResistPct: { ALL: 0.5 },
+        },
     },
     boar: {
         bodyColor: 0x4a3728,
@@ -152,6 +166,11 @@ const UNIT_DEFS: Record<
         uiDescription: 'Tough charger that bowls through the front line.',
     },
 };
+
+/** Optional CC spawn data for a character id (undefined when none). */
+export function getUnitCombatCcDef(characterId: string): UnitCombatCcDef | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.combatCc;
+}
 
 function unitIsDarkCreature(unit: Unit): boolean {
     return UNIT_DEFS[unit.characterId as UnitDefId]?.creatureType === 'dark_creature';

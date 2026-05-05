@@ -2,7 +2,7 @@ import { grantRecoveryChargeToRandomAbility } from '../abilityUses';
 import { getAbility } from '../AbilityRegistry';
 import { getDirectionFromTo } from '../targetHelpers';
 import type { AbilityEventType, AbilityStatic, AttackBlockedInfo } from '../Ability';
-import { StunnedBuff } from '../../buffs/StunnedBuff';
+import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
 import type { GameEngine } from '../../game/GameEngine';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
@@ -188,7 +188,7 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
         case 'applyStunnedToPrimaryTarget': {
             const target = context.primaryTarget;
             if (!target) return;
-            target.addBuff(new StunnedBuff(effect.duration), context.engine.gameTime, context.engine.roundNumber);
+            tryApplyHardCcStun(target, effect.duration, context.engine.gameTime, context.engine.roundNumber);
             return;
         }
         case 'interruptPrimaryTargetAbilities':

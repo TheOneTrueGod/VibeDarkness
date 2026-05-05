@@ -319,6 +319,12 @@ export default function MinionBattlesGame({
                             | Record<string, string[]>
                             | undefined
                     }
+                    playerResearchTreesByPlayer={
+                        ((lastGameStateFromServer ?? raw) as Record<string, unknown>)
+                            .playerResearchTreesByPlayer as
+                            | Record<string, Record<string, string[]>>
+                            | undefined
+                    }
                     onComplete={(rewards) => {
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;

@@ -10,9 +10,9 @@ export interface TimelinePhaseSegmentProps {
     widthPercent: number;
     /** Human-readable phase name. */
     label: string;
-    /** Short description for tooltip. */
+    /** Short description (shown in panel flyout on hover, not inline). */
     description: string;
-    /** When true, segment and its tooltip stack above siblings. */
+    /** When true, segment stacks above siblings for hover emphasis. */
     isHighlighted: boolean;
     onPointerEnter: () => void;
 }
@@ -66,6 +66,8 @@ export function TimelinePhaseSegment({
 
     const style = PHASE_STYLE[phase];
 
+    const titleText = description ? `${label} — ${description}` : label;
+
     return (
         <div
             className="group absolute top-1/2 flex -translate-y-1/2 cursor-default items-center"
@@ -76,6 +78,7 @@ export function TimelinePhaseSegment({
                 zIndex: isHighlighted ? 50 : 10,
             }}
             onPointerEnter={onPointerEnter}
+            title={titleText}
         >
             <div className="flex w-full flex-col items-stretch justify-center">
                 <div
@@ -86,13 +89,6 @@ export function TimelinePhaseSegment({
                         style.colorClass,
                     ].join(' ')}
                 />
-            </div>
-            <div
-                className="pointer-events-none absolute bottom-full left-1/2 mb-1 max-w-[min(280px,70vw)] -translate-x-1/2 rounded border border-border-custom bg-dark-900/95 px-2 py-1 text-xs text-gray-100 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
-                style={{ zIndex: isHighlighted ? 70 : 60 }}
-            >
-                <div className="font-semibold">{label}</div>
-                {description && <div className="text-[11px] text-gray-300">{description}</div>}
             </div>
         </div>
     );

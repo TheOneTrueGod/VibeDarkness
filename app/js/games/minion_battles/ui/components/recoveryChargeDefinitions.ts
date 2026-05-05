@@ -20,7 +20,7 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
         Icon: Footprints,
         iconClassName: 'text-dark-900 opacity-90',
         strokeWidth: 2.25,
-        rowExplanation: 'Stamina charges — distributed from the round timer; fill bars to recover uses.',
+        rowExplanation: 'Stamina charges — gained from round-start surge and other effects; fill bars to recover uses.',
     },
     lightCharge: {
         fillClass: 'bg-yellow-300',

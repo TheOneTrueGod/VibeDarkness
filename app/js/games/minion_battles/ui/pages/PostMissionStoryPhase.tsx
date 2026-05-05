@@ -97,6 +97,8 @@ interface PostMissionStoryPhaseProps {
     postMissionStory: PostMissionStoryDef;
     /** Current equipment per player (from server); used to show item from first choice. */
     playerEquipmentByPlayer?: Record<string, string[]>;
+    /** Per-player research node ids by tree (lobby game state); used for `cave_respite` post-mission options. */
+    playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     onComplete: (rewards: MissionRewards) => void;
 }
 
@@ -108,6 +110,7 @@ export default function PostMissionStoryPhase({
     characterSelections = {},
     postMissionStory,
     playerEquipmentByPlayer = {},
+    playerResearchTreesByPlayer = {},
     onComplete,
 }: PostMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
@@ -138,9 +141,10 @@ export default function PostMissionStoryPhase({
             choiceId: currentPhrase.choiceId,
             resolverId: currentPhrase.resolverId,
             equippedItemIds: playerEquipmentByPlayer[playerId] ?? [],
+            playerResearchTrees: playerResearchTreesByPlayer[playerId],
         });
         return computed ?? currentPhrase.options;
-    }, [currentPhrase, missionId, playerId, playerEquipmentByPlayer]);
+    }, [currentPhrase, missionId, playerId, playerEquipmentByPlayer, playerResearchTreesByPlayer]);
 
     useEffect(() => {
         if (currentPhrase && isDialogue(currentPhrase) && currentPhrase.backgroundImage) {

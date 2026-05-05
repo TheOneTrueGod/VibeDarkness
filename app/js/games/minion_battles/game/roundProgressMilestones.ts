@@ -1,7 +1,7 @@
 /**
  * Effects tied to the round progress bar cadence (0% and 50% of the round timer).
  *
- * Stamina recovery and roundCharge recovery fire at round start; bleed ticks at both milestones.
+ * Stamina surge and roundCharge recovery fire at round start; bleed ticks at both milestones.
  */
 
 import type { Unit } from './units/Unit';
