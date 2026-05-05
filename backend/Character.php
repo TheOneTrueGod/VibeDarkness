@@ -24,6 +24,8 @@ class Character
     private string $missionId;
     /** @var array<string, string[]> */
     private array $researchTrees;
+    /** Unix timestamp when this character last started a mission (playable unit). 0 = never. */
+    private int $lastUsed;
 
     public function __construct(
         string $id,
@@ -36,7 +38,8 @@ class Character
         array $battleChipDetails = [],
         string $campaignId = '',
         string $missionId = '',
-        array $researchTrees = []
+        array $researchTrees = [],
+        int $lastUsed = 0
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -49,6 +52,7 @@ class Character
         $this->campaignId = $campaignId;
         $this->missionId = $missionId;
         $this->researchTrees = self::normalizeResearchTrees($researchTrees);
+        $this->lastUsed = max(0, $lastUsed);
     }
 
     public function getId(): string
@@ -111,6 +115,11 @@ class Character
         return $this->researchTrees;
     }
 
+    public function getLastUsed(): int
+    {
+        return $this->lastUsed;
+    }
+
     /** @param array<string, string[]> $researchTrees */
     public function setResearchTrees(array $researchTrees): void
     {
@@ -132,6 +141,7 @@ class Character
             'campaignId' => $this->campaignId,
             'missionId' => $this->missionId,
             'researchTrees' => $this->researchTrees,
+            'lastUsed' => $this->lastUsed,
         ];
     }
 
@@ -153,7 +163,8 @@ class Character
             is_array($battleChipDetails) ? $battleChipDetails : [],
             (string) ($data['campaignId'] ?? ''),
             (string) ($data['missionId'] ?? ''),
-            is_array($researchTrees) ? $researchTrees : []
+            is_array($researchTrees) ? $researchTrees : [],
+            (int) ($data['lastUsed'] ?? 0)
         );
     }
 

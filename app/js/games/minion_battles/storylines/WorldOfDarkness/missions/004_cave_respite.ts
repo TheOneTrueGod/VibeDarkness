@@ -25,7 +25,20 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: 'You settle in and share another meal while it lasts. The quiet feels borrowed. How do you want to spend this time?',
+            text: 'You settle in and share another meal while it lasts. The quiet feels borrowed—enough room to sharpen body and gear alike.',
+            portraitSide: 'left',
+            backgroundImage: STORY_BACKGROUNDS.campfire,
+        },
+        {
+            type: 'choice',
+            choiceId: 'cave_respite_punch_choice',
+            resolverId: 'cave_respite',
+            options: [],
+        },
+        {
+            type: 'dialogue',
+            speakerId: '1',
+            text: 'Hands steadied, your thoughts turn to what you carry. What upgrade will serve you next?',
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },

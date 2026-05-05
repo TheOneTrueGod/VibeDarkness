@@ -1,7 +1,7 @@
 /**
  * Character Select Phase - React component
  * Shows "Create Character" card (top left) and list of player's campaign characters.
- * Characters sorted by whether they can be used on the current campaign/mission.
+ * Characters sorted by server `lastUsed` (most recent mission first), then mission eligibility.
  * Disallow reason shown diagonally on cards when they cannot be used.
  */
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
@@ -74,6 +74,14 @@ export default function CharacterSelectPhase({
     /** Optimistic: true after API succeeds, before next poll confirms. Keeps button disabled. */
     const [optimisticAmReady, setOptimisticAmReady] = useState(false);
 
+    const didAutoOpenCreatorForMissionRef = useRef(false);
+    const autoSelectAttemptedForMissionRef = useRef(false);
+
+    useEffect(() => {
+        didAutoOpenCreatorForMissionRef.current = false;
+        autoSelectAttemptedForMissionRef.current = false;
+    }, [missionId]);
+
     useEffect(() => {
         if (!isAdmin && activeTab === 'players') {
             setActiveTab('characters');
@@ -123,6 +131,15 @@ export default function CharacterSelectPhase({
         };
     }, [api]);
 
+    useEffect(() => {
+        if (charactersLoading) return;
+        if (myCharacters.length > 0) return;
+        if (activeTab === 'players' || editorOpen) return;
+        if (didAutoOpenCreatorForMissionRef.current) return;
+        didAutoOpenCreatorForMissionRef.current = true;
+        setCreatorOpen(true);
+    }, [charactersLoading, myCharacters.length, activeTab, editorOpen]);
+
     const mySelection = characterSelections[playerId] ?? null;
     const allPlayerIds = Object.keys(players);
     const allSelected = allPlayerIds.length > 0 && allPlayerIds.every((pid) => pid in characterSelections);
@@ -158,6 +175,9 @@ export default function CharacterSelectPhase({
 
     const sortedCharacters = useMemo(() => {
         return [...myCharacters].sort((a, b) => {
+            if (b.lastUsed !== a.lastUsed) {
+                return b.lastUsed - a.lastUsed;
+            }
             const aOk = a.canBeUsedOnMission(campaignId, missionId, missionTraitFilter);
             const bOk = b.canBeUsedOnMission(campaignId, missionId, missionTraitFilter);
             if (aOk && !bOk) return -1;
@@ -182,10 +202,44 @@ export default function CharacterSelectPhase({
             } catch (error) {
                 removeLocalOverride?.(overridePath);
                 console.error('Failed to select character:', error);
+                throw error;
             }
         },
         [api, playerId, setLocalOverride, removeLocalOverride],
     );
+
+    useEffect(() => {
+        if (charactersLoading) return;
+        if (autoSelectAttemptedForMissionRef.current) return;
+        if (myCharacters.length === 0) return;
+        if (mySelection != null) return;
+        if (activeTab === 'players' || editorOpen || creatorOpen) return;
+
+        const chosen =
+            sortedCharacters.find((c) =>
+                c.canBeUsedOnMission(campaignId, missionId, missionTraitFilter),
+            ) ?? sortedCharacters[0];
+        if (chosen == null) return;
+
+        autoSelectAttemptedForMissionRef.current = true;
+        const portrait = getPortrait(chosen.portraitId);
+        const displayName = chosen.name || (portrait?.name ?? 'Character');
+        void handleSelectCharacter(chosen.id, chosen.portraitId, displayName).catch(() => {
+            autoSelectAttemptedForMissionRef.current = false;
+        });
+    }, [
+        charactersLoading,
+        myCharacters,
+        sortedCharacters,
+        mySelection,
+        activeTab,
+        editorOpen,
+        creatorOpen,
+        campaignId,
+        missionId,
+        missionTraitFilter,
+        handleSelectCharacter,
+    ]);
 
     const handleCreateCharacter = useCallback(
         (characterId: string, portraitId: string, characterDisplayName?: string) => {
@@ -429,6 +483,9 @@ export default function CharacterSelectPhase({
                         }}
                         editMode={isAdmin || editorForceEditable}
                         inventoryItems={isAdmin ? ALL_PLAYER_ITEMS : user?.inventoryItemIds ?? []}
+                        showInventoryPanel={
+                            (isAdmin ? ALL_PLAYER_ITEMS : user?.inventoryItemIds ?? []).length > 0
+                        }
                         account={user}
                         campaign={campaign}
                         equippedItemsDisplay="list"

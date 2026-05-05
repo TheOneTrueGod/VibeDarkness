@@ -18,6 +18,7 @@ export interface CampaignCharacterPayload {
     campaignId: string;
     missionId: string;
     researchTrees?: Record<string, string[]>;
+    lastUsed?: number;
 }
 
 /** Payload to create a campaign character. */

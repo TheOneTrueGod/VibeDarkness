@@ -174,7 +174,7 @@ export default function CampaignHomeScreen({
     }, [tabSlug, visibleTabs, defaultTab, navigate]);
     const [campaign, setCampaign] = useState<CampaignState | null>(null);
     const [campaignLoading, setCampaignLoading] = useState(false);
-    const [creatingCampaign, setCreatingCampaign] = useState(false);
+    const [bootstrappingCampaign, setBootstrappingCampaign] = useState(false);
     const [selectingMission, setSelectingMission] = useState(false);
     const [resettingStorylineId, setResettingStorylineId] = useState<string | null>(null);
     const [lobbyCode, setLobbyCode] = useState('');
@@ -208,16 +208,39 @@ export default function CampaignHomeScreen({
         };
     }, [hasCampaign, primaryCampaignId, lobbyClient]);
 
-    const handleCreateFirstCampaign = useCallback(async () => {
-        setCreatingCampaign(true);
-        try {
-            const newCampaign = await lobbyClient.createCampaign();
-            await refetchUser();
-            setCampaign(newCampaign);
-        } finally {
-            setCreatingCampaign(false);
+    /** Legacy accounts without campaigns: create one silently once (sessionStorage avoids Strict Mode double-create). */
+    useEffect(() => {
+        if (user == null || hasCampaign) {
+            return;
         }
-    }, [lobbyClient, refetchUser]);
+        const key = `campaignBootstrap:${user.id}`;
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key)) {
+                return;
+            }
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem(key, '1');
+            }
+        } catch {
+            /* unavailable storage — still attempt one create; rare duplicate risk in Strict Mode */
+        }
+        setBootstrappingCampaign(true);
+        lobbyClient
+            .createCampaign()
+            .then(() => refetchUser())
+            .catch(() => {
+                try {
+                    if (typeof sessionStorage !== 'undefined') {
+                        sessionStorage.removeItem(key);
+                    }
+                } catch {
+                    /* ignore */
+                }
+            })
+            .finally(() => {
+                setBootstrappingCampaign(false);
+            });
+    }, [user, hasCampaign, lobbyClient, refetchUser]);
 
     // Active lobbies for Join tab (lobbies that had a get-state call in the last 10 minutes)
     useEffect(() => {
@@ -322,16 +345,9 @@ export default function CampaignHomeScreen({
                     Minion Battles
                 </h1>
 
-                {!hasCampaign && (
-                    <div className="bg-surface rounded-lg p-6 mb-6 text-center">
-                        <p className="text-muted mb-4">Start your journey with a new campaign.</p>
-                        <button
-                            className="px-6 py-3 bg-primary text-secondary font-semibold rounded hover:bg-primary-hover transition-all disabled:opacity-50"
-                            onClick={handleCreateFirstCampaign}
-                            disabled={creatingCampaign}
-                        >
-                            {creatingCampaign ? 'Creating…' : 'Create your first campaign'}
-                        </button>
+                {!hasCampaign && bootstrappingCampaign && (
+                    <div className="bg-surface rounded-lg p-6 mb-6 text-center text-muted">
+                        Preparing your campaign…
                     </div>
                 )}
 

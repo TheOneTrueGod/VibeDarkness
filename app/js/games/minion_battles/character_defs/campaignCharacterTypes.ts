@@ -40,6 +40,8 @@ export interface CampaignCharacterData {
     campaignId: string;
     missionId: string;
     researchTrees?: Record<string, string[]>;
+    /** Unix seconds; server sets when this character starts a mission as a playable unit. */
+    lastUsed?: number;
 }
 
 /** One-word reason a character cannot be used on a mission. */

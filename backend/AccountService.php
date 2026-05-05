@@ -66,6 +66,9 @@ class AccountService
             $resources['earth'],
             $resources['air']
         );
+        $campaignManager = CampaignManager::getInstance();
+        $campaign = $campaignManager->createCampaign((string) $id);
+        $account->addCampaignId($campaign->getId());
         $this->storage->save($account);
         return $account;
     }

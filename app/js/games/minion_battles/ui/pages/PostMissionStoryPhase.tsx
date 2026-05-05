@@ -124,6 +124,21 @@ export default function PostMissionStoryPhase({
             : 'desktop',
     );
     const hasCompletedRef = useRef(false);
+    /** When post-mission story has multiple choice phrases, collect grants before final `onComplete`. */
+    const accumulatedResearchIdsRef = useRef<string[]>([]);
+    const accumulatedResearchEntriesRef = useRef<MissionResearchRewardEntry[]>([]);
+    const firstEquipItemRef = useRef<string | undefined>(undefined);
+    const accumulatedResourceDeltaRef = useRef<Partial<Record<'food' | 'metal' | 'crystals', number>>>({});
+
+    useEffect(() => {
+        accumulatedResearchIdsRef.current = [];
+        accumulatedResearchEntriesRef.current = [];
+        firstEquipItemRef.current = undefined;
+        accumulatedResourceDeltaRef.current = {};
+        setPhraseIndex(0);
+        setPhantomPostChoiceStep(false);
+        hasCompletedRef.current = false;
+    }, [missionId]);
 
     const handleStoryViewportModeChange = useCallback((mode: StoryViewportLayoutMode) => {
         setStoryViewportMode(mode);
@@ -251,38 +266,64 @@ export default function PostMissionStoryPhase({
                 console.error('Failed to send story choice:', error);
             }
 
+            const action = option?.action;
+
+            if (resolvedOption?.researchReward) {
+                accumulatedResearchIdsRef.current.push(resolvedOption.researchReward.rewardId);
+                accumulatedResearchEntriesRef.current.push({
+                    treeId: resolvedOption.researchReward.treeId,
+                    nodeId: resolvedOption.researchReward.nodeId,
+                });
+            }
+
+            if (action?.type === 'equip_item' && action.itemId && firstEquipItemRef.current === undefined) {
+                firstEquipItemRef.current = action.itemId;
+            }
+
+            if (isGrantResources(action) && action) {
+                const acc = accumulatedResourceDeltaRef.current;
+                if (action.food != null) acc.food = (acc.food ?? 0) + action.food;
+                if (action.metal != null) acc.metal = (acc.metal ?? 0) + action.metal;
+                if (action.crystals != null) acc.crystals = (acc.crystals ?? 0) + action.crystals;
+            }
+
+            const morePhrasesRemain = phraseIndex < phrases.length - 1;
+            if (morePhrasesRemain) {
+                setPhraseIndex((i) => i + 1);
+                return;
+            }
+
             // Phantom “last step”: paint an empty frame before completing so nothing remains behind the victory modal.
             flushSync(() => {
                 setPhantomPostChoiceStep(true);
             });
 
-            const action = option?.action;
+            const resourceDeltaFlat = accumulatedResourceDeltaRef.current;
             const resourceDelta =
-                isGrantResources(action) && action
+                Object.keys(resourceDeltaFlat).length > 0
                     ? {
-                          ...(action.food != null && { food: action.food }),
-                          ...(action.metal != null && { metal: action.metal }),
-                          ...(action.crystals != null && { crystals: action.crystals }),
+                          ...(resourceDeltaFlat.food != null && { food: resourceDeltaFlat.food }),
+                          ...(resourceDeltaFlat.metal != null && { metal: resourceDeltaFlat.metal }),
+                          ...(resourceDeltaFlat.crystals != null && { crystals: resourceDeltaFlat.crystals }),
                       }
                     : undefined;
-
-            const itemFromFirstChoice =
-                action?.type === 'equip_item' && action.itemId ? action.itemId : undefined;
 
             if (hasCompletedRef.current) return;
             hasCompletedRef.current = true;
             onComplete({
-                resourceDelta: resourceDelta ?? undefined,
-                itemFromFirstChoice,
-                researchRewardIds: resolvedOption?.researchReward
-                    ? [resolvedOption.researchReward.rewardId]
-                    : undefined,
-                researchRewards: resolvedOption?.researchReward
-                    ? [{ treeId: resolvedOption.researchReward.treeId, nodeId: resolvedOption.researchReward.nodeId }]
-                    : undefined,
+                resourceDelta,
+                itemFromFirstChoice: firstEquipItemRef.current,
+                researchRewardIds:
+                    accumulatedResearchIdsRef.current.length > 0
+                        ? accumulatedResearchIdsRef.current
+                        : undefined,
+                researchRewards:
+                    accumulatedResearchEntriesRef.current.length > 0
+                        ? accumulatedResearchEntriesRef.current
+                        : undefined,
             });
         },
-        [api, playerId, playerEquipmentByPlayer, onComplete]
+        [api, phraseIndex, phrases.length, playerId, playerEquipmentByPlayer, onComplete]
     );
 
     if (phantomPostChoiceStep) {

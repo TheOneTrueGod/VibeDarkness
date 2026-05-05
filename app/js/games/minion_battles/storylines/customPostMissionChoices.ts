@@ -50,7 +50,7 @@ function hasResearched(trees: Record<string, string[]> | undefined, treeId: stri
     return (trees?.[treeId] ?? []).includes(nodeId);
 }
 
-/** Training punch picks for `light_empowered` post-mission and `cave_respite` fallback. */
+/** Training punch picks for mission 4 (`cave_respite_punch_choice`), before weapon/research options. */
 function getLightEmpoweredPunchChoiceRows(): ChoicePhrase['options'] {
     const grantPunch = (nodeId: string): StoryChoiceAction => ({
         type: 'grant_research_to_player',
@@ -93,6 +93,24 @@ function getLightEmpoweredPunchChoiceRows(): ChoicePhrase['options'] {
     ];
 }
 
+/** When no weapon-branch research applies for `cave_respite_research_choice` (punch already chosen earlier). */
+function getCaveRespiteResearchFallbackRows(): ChoicePhrase['options'] {
+    return [
+        {
+            id: TRAINING_NODE_CORE,
+            label: 'Core Training',
+            loreTitle: 'The Still Ember',
+            loreDescription:
+                'No relic—only breath, stance, and the quiet refusal to break when the dark presses close.',
+            action: {
+                type: 'grant_research_to_player',
+                treeId: TRAINING_TREE_ID,
+                nodeId: TRAINING_NODE_CORE,
+            },
+        },
+    ];
+}
+
 export function getComputedPostMissionChoiceOptions(params: {
     missionId: string;
     choiceId: string;
@@ -103,15 +121,14 @@ export function getComputedPostMissionChoiceOptions(params: {
 }): ChoicePhrase['options'] | null {
     const { missionId, choiceId, resolverId, equippedItemIds, playerResearchTrees } = params;
 
-    if (resolverId === 'light_empowered') {
-        if (missionId !== 'light_empowered' || choiceId !== 'light_empowered_cave_choice') {
+    if (resolverId === 'cave_respite') {
+        if (missionId !== 'cave_respite') {
             return null;
         }
-        return getLightEmpoweredPunchChoiceRows();
-    }
-
-    if (resolverId === 'cave_respite') {
-        if (missionId !== 'cave_respite' || choiceId !== 'cave_respite_research_choice') {
+        if (choiceId === 'cave_respite_punch_choice') {
+            return getLightEmpoweredPunchChoiceRows();
+        }
+        if (choiceId !== 'cave_respite_research_choice') {
             return null;
         }
         const trees = playerResearchTrees ?? {};
@@ -191,7 +208,7 @@ export function getComputedPostMissionChoiceOptions(params: {
             ];
         }
 
-        return getLightEmpoweredPunchChoiceRows();
+        return getCaveRespiteResearchFallbackRows();
     }
 
     if (resolverId !== 'towards_the_light') {

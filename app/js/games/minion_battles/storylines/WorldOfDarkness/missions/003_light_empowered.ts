@@ -181,19 +181,6 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "What would you like to do with this moment of respite?",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'choice',
-            choiceId: 'light_empowered_cave_choice',
-            resolverId: 'light_empowered',
-            options: [],
-        },
     ],
 };
 

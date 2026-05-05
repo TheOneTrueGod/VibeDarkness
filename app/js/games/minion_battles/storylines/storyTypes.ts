@@ -69,7 +69,7 @@ export type StoryChoiceAction =
     | StoryChoiceActionGrantResearchConditional;
 
 /** Registry of mission-specific resolvers for equipment-dependent post-mission options. */
-export const POST_MISSION_CHOICE_RESOLVER_IDS = ['towards_the_light', 'light_empowered', 'cave_respite'] as const;
+export const POST_MISSION_CHOICE_RESOLVER_IDS = ['towards_the_light', 'cave_respite'] as const;
 export type PostMissionChoiceResolverId = (typeof POST_MISSION_CHOICE_RESOLVER_IDS)[number];
 
 /** One row in a choice phrase (pre- or post-mission). */

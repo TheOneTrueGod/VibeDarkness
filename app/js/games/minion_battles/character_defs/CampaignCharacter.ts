@@ -30,6 +30,8 @@ export class CampaignCharacter {
     readonly campaignId: string;
     readonly missionId: string;
     readonly researchTrees: Record<string, string[]>;
+    /** Unix seconds; 0 if never used in a mission (per server). */
+    readonly lastUsed: number;
 
     constructor(data: CampaignCharacterData) {
         this.id = data.id;
@@ -48,6 +50,10 @@ export class CampaignCharacter {
         this.missionId = typeof data.missionId === 'string' ? data.missionId : '';
         this.researchTrees =
             data.researchTrees && typeof data.researchTrees === 'object' ? (data.researchTrees as Record<string, string[]>) : {};
+        this.lastUsed =
+            typeof data.lastUsed === 'number' && Number.isFinite(data.lastUsed) && data.lastUsed > 0
+                ? Math.floor(data.lastUsed)
+                : 0;
     }
 
     /**
@@ -133,6 +139,7 @@ export class CampaignCharacter {
             campaignId: this.campaignId,
             missionId: this.missionId,
             researchTrees: this.researchTrees,
+            lastUsed: this.lastUsed,
         };
     }
 }

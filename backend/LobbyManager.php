@@ -830,8 +830,42 @@ class LobbyManager
         }
 
         $newState = array_merge($currentState, $updates);
+        $this->touchLastUsedWhenMissionStarts($currentState, $newState);
         $this->persistGameState($lobbyId, $gameId, $newState);
         return true;
+    }
+
+    /**
+     * When leaving character select into an active mission phase, set each selected hero's persisted {@see Character::getLastUsed()} timestamp.
+     */
+    private function touchLastUsedWhenMissionStarts(array $previousState, array $mergedState): void
+    {
+        $prevPhase = $previousState['gamePhase'] ?? $previousState['game_phase'] ?? '';
+        $newPhase = $mergedState['gamePhase'] ?? $mergedState['game_phase'] ?? '';
+        if ($prevPhase !== 'character_select') {
+            return;
+        }
+        /** @var list<string> $missionStartedPhases */
+        $missionStartedPhases = ['pre_mission_story', 'battle', 'post_mission_story'];
+        if (!in_array($newPhase, $missionStartedPhases, true)) {
+            return;
+        }
+
+        $selections = $mergedState['characterSelections'] ?? $mergedState['character_selections'] ?? [];
+        if (!is_array($selections) || $selections === []) {
+            return;
+        }
+
+        $ts = time();
+        $characterManager = CharacterManager::getInstance();
+        foreach ($selections as $characterId) {
+            if (!is_string($characterId) || $characterId === '' || $characterId === 'spectator' || $characterId === 'control_enemy_alpha_wolf') {
+                continue;
+            }
+            if ($characterManager->getCharacter($characterId) !== null) {
+                $characterManager->updateCharacter($characterId, ['lastUsed' => $ts]);
+            }
+        }
     }
 
     /**
