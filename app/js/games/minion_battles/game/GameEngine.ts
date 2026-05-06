@@ -61,6 +61,14 @@ import { CantDieBuff } from '../buffs/CantDieBuff';
 import { BEDROCK_SCAVENGER_PASSIVE_ID, countStoneTilesInTremorsense, getBedrockScavengerRoundStartArmour } from '../abilities/earthCoreMeleePassives';
 import { grantEarthCoreArmourFromSource } from '../abilities/earthCoreArmour';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
+import { createGenericEnemy } from './units/GenericEnemy';
+import { getDefaultHp, getDefaultSpeed } from './units/unit_defs/unitDef';
+import {
+    processLanternitePulseMilestone,
+    removeLanterniteTorchEffects,
+    LANTERNITE_CHARACTER_ID,
+    LANTERNITE_RESPAWN_DELAY_SEC,
+} from './lanternite/lanternitePulse';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -106,6 +114,9 @@ export class GameEngine implements EngineContext {
 
     /** Monotonic id suffix for new GameObjects created while this engine is authoritative. */
     private objectIdSeq = 1;
+
+    /** Pending Lanternite respawns (Spore rebirth). */
+    private lanterniteRespawns: Array<{ atGameTime: number; x: number; y: number }> = [];
 
     /**
      * Parallel order pause detected at end of a tick; committed at the **start** of the next
@@ -370,6 +381,14 @@ export class GameEngine implements EngineContext {
         this.eventBus.on('unit_died', (data) => {
             const unit = this.getUnit(data.unitId);
             if (!unit) return;
+            if (unit.characterId === LANTERNITE_CHARACTER_ID) {
+                removeLanterniteTorchEffects(unit.id, this.effects);
+                this.lanterniteRespawns.push({
+                    atGameTime: this.gameTime + LANTERNITE_RESPAWN_DELAY_SEC,
+                    x: unit.x,
+                    y: unit.y,
+                });
+            }
             if (unit.characterId === 'alpha_wolf') {
                 this.startAlphaWolfStoryDeathSequence(unit);
                 return;
@@ -808,6 +827,8 @@ export class GameEngine implements EngineContext {
             this.state.projectileManager.update(dt);
         }
         this.state.effectManager.update(dt);
+        this.processEphemeralUnitExpiry();
+        this.drainLanterniteRespawns();
         this.state.unitManager.cleanupInactive();
         this.state.projectileManager.cleanupInactive();
         this.state.effectManager.cleanupInactive();
@@ -1377,12 +1398,63 @@ export class GameEngine implements EngineContext {
         if (!this.appliedRoundStartRecovery) {
             this.eventBus.emit('round_start', { roundNumber: this.roundNumber });
             onRoundProgressMilestone('round_start', milestoneCtx);
+            processLanternitePulseMilestone('round_start', {
+                units: this.units,
+                lightLevelEnabled: this.lightLevelEnabled,
+                eventBus: this.eventBus,
+                addEffect: (e) => this.addEffect(e),
+                effects: this.effects,
+            });
             this.appliedRoundStartRecovery = true;
         }
         if (!this.appliedMidRoundRecovery && roundTime >= ROUND_DURATION / 2) {
             onRoundProgressMilestone('round_half', milestoneCtx);
+            processLanternitePulseMilestone('round_half', {
+                units: this.units,
+                lightLevelEnabled: this.lightLevelEnabled,
+                eventBus: this.eventBus,
+                addEffect: (e) => this.addEffect(e),
+                effects: this.effects,
+            });
             this.appliedMidRoundRecovery = true;
         }
+    }
+
+    private processEphemeralUnitExpiry(): void {
+        for (const u of this.units) {
+            if (!u.isAlive() || !u.active) continue;
+            const deadline = u.ephemeralDespawnAtGameTime;
+            if (deadline == null || this.gameTime < deadline) continue;
+            u.hp = 0;
+            u.active = false;
+            this.eventBus.emit('unit_died', { unitId: u.id, killerUnitId: null });
+        }
+    }
+
+    private drainLanterniteRespawns(): void {
+        const keep: typeof this.lanterniteRespawns = [];
+        for (const job of this.lanterniteRespawns) {
+            if (this.gameTime < job.atGameTime) {
+                keep.push(job);
+                continue;
+            }
+            const replacement = createGenericEnemy(
+                {
+                    id: this.allocateObjectId('unit'),
+                    x: job.x,
+                    y: job.y,
+                    hp: getDefaultHp(LANTERNITE_CHARACTER_ID),
+                    speed: getDefaultSpeed(LANTERNITE_CHARACTER_ID),
+                    teamId: 'player',
+                    characterId: LANTERNITE_CHARACTER_ID,
+                    name: 'Lanternite',
+                    abilities: [],
+                },
+                this.eventBus,
+            );
+            this.addUnit(replacement);
+        }
+        this.lanterniteRespawns = keep;
     }
 
     /** Stamina surge at round start: each eligible ability receives `unit.stamina` stamina charges. */

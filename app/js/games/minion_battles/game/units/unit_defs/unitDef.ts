@@ -62,7 +62,11 @@ export type EnemyUnitId =
     | 'enemy_ranged'
     | 'dark_wolf'
     | 'alpha_wolf'
-    | 'boar';
+    | 'boar'
+    | 'thornbinder'
+    | 'husk_artillery'
+    | 'huskling'
+    | 'lanternite';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
 /**
@@ -164,6 +168,55 @@ const UNIT_DEFS: Record<
         perceptionRange: 280,
         deathEffect: darkCreatureDissolutionDeathEffect(10),
         uiDescription: 'Tough charger that bowls through the front line.',
+    },
+    thornbinder: {
+        bodyColor: 0x3d2c4a,
+        characterSpriteKey: 'enemy_ranged',
+        hp: 26,
+        speed: 42,
+        size: 'Medium',
+        stamina: 1,
+        perceptionRange: 380,
+        creatureType: 'dark_creature',
+        deathEffect: darkCreatureIconFlashDeathEffect(10),
+        uiDescription:
+            'Zone controller — slams bramble into the ground, slowing foes. Weakens in bright light (Light Hate).',
+    },
+    husk_artillery: {
+        bodyColor: 0x5c4d3f,
+        characterSpriteKey: 'enemy_ranged',
+        hp: 48,
+        speed: 35,
+        size: 'Large',
+        stamina: 1,
+        perceptionRange: 420,
+        creatureType: 'dark_creature',
+        deathEffect: darkCreatureDissolutionDeathEffect(11),
+        uiDescription:
+            'Summoner — launches seed pods that hatch short-lived husks. Channels are telegraphed; weakens in bright light.',
+    },
+    huskling: {
+        bodyColor: 0x6b5344,
+        characterSpriteKey: 'enemy_melee',
+        hp: 6,
+        speed: 88,
+        size: 'Extra Small',
+        stamina: 1,
+        perceptionRange: 220,
+        creatureType: 'dark_creature',
+        deathEffect: darkCreatureIconFlashDeathEffect(8),
+        uiDescription: 'Ephemeral husk spawned by artillery — reckless melee punches.',
+    },
+    lanternite: {
+        bodyColor: 0x34d399,
+        hp: 20,
+        speed: 70,
+        size: 'Small',
+        stamina: 1,
+        perceptionRange: 260,
+        creatureType: 'beast',
+        uiDescription:
+            'Ally Lanternite — pulses light twice each round (Soul Sap), attaching glow to the nearest player. Respawns quickly if lost.',
     },
 };
 

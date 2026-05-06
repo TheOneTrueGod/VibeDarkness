@@ -29,6 +29,8 @@ import type { UnitTag } from './unitTag';
 import { parseUnitTagsFromJSON } from './unitTag';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import type { CcResistKey } from '../../crowdControl/ccTypes';
+import { getBrambleMovementMultiplier } from '../brambleSlow';
+import type { Effect } from '../effects/Effect';
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -211,6 +213,11 @@ export class Unit extends GameObject {
     /** Per-unit combat tuning values (optional, serialized). */
     combatSettings: UnitCombatSettings | undefined;
 
+    /**
+     * When non-null, unit dies when {@link GameEngine.gameTime} reaches this value (husks, etc.).
+     */
+    ephemeralDespawnAtGameTime: number | null = null;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -235,6 +242,7 @@ export class Unit extends GameObject {
         stamina?: number;
         /** Optional per-unit combat tuning values. */
         combatSettings?: UnitCombatSettings;
+        ephemeralDespawnAtGameTime?: number | null;
     }) {
         super(config.id ?? generateGameObjectId('unit'), config.x, config.y);
         this.hp = config.hp;
@@ -253,6 +261,7 @@ export class Unit extends GameObject {
         this.poiseHp = this.maxPoiseHp;
         this.stamina = config.stamina ?? 1;
         this.combatSettings = config.combatSettings;
+        this.ephemeralDespawnAtGameTime = config.ephemeralDespawnAtGameTime ?? null;
     }
 
     /** Attach a resource and subscribe its event listeners. */
@@ -510,8 +519,12 @@ export class Unit extends GameObject {
         const targetX = centerX + jitterX;
         const targetY = centerY + jitterY;
 
-        // Compute effective speed: base × ability penalties × terrain modifier
+        // Compute effective speed: base × ability penalties × terrain modifier × bramble patches
         let effectiveSpeed = this.getEffectiveSpeed(gameTime);
+        const fx = (engine as { effects?: Effect[] }).effects;
+        if (fx && fx.length > 0) {
+            effectiveSpeed *= getBrambleMovementMultiplier(this.x, this.y, fx);
+        }
         if (terrainManager) {
             effectiveSpeed *= terrainManager.getSpeedMultiplier(this.x, this.y);
         }
@@ -784,6 +797,9 @@ export class Unit extends GameObject {
             stamina: this.stamina,
             buffs: this.buffs.map((b) => b.toJSON()),
             combatSettings: this.combatSettings,
+            ...(this.ephemeralDespawnAtGameTime != null
+                ? { ephemeralDespawnAtGameTime: this.ephemeralDespawnAtGameTime }
+                : {}),
             ...(this.tags.length > 0 ? { tags: [...this.tags] } : {}),
         };
     }
@@ -816,6 +832,9 @@ export class Unit extends GameObject {
             combatSettings: data.combatSettings as UnitCombatSettings | undefined,
         });
         unit.active = data.active as boolean;
+        if (data.ephemeralDespawnAtGameTime != null) {
+            unit.ephemeralDespawnAtGameTime = data.ephemeralDespawnAtGameTime as number;
+        }
 
         // Restore movement
         const movementData = data.movement as {

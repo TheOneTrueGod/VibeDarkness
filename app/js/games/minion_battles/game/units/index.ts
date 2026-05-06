@@ -97,6 +97,9 @@ export function createUnitFromSpawnConfig(
         unitAITreeId?: string;
         stamina?: number;
         unitTags?: UnitTag[];
+        combatSettings?: UnitCombatSettings;
+        /** Absolute gameTime after which this unit despawns (ephemeral summons). */
+        ephemeralDespawnAtGameTime?: number | null;
     },
     _eventBus: EventBus,
     idSource?: Pick<EngineContext, 'allocateObjectId'>,
@@ -117,6 +120,8 @@ export function createUnitFromSpawnConfig(
         radius: config.radius ?? getDefaultRadius(config.characterId, DEFAULT_UNIT_RADIUS),
         unitAITreeId: config.unitAITreeId,
         stamina: config.stamina ?? getDefaultStamina(config.characterId),
+        combatSettings: config.combatSettings,
+        ephemeralDespawnAtGameTime: config.ephemeralDespawnAtGameTime,
     });
 
     if (config.aiSettings) {

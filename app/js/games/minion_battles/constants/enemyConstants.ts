@@ -65,3 +65,33 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     radius: 26,
     unitTags: [UnitTag.Boss],
 };
+
+/** Thornbinder crawler — bramble AoE zoning; Light Hate. */
+export const ENEMY_THORNBINDER: EnemySpawnDef = {
+    characterId: 'thornbinder',
+    name: 'Thornbinder',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['0008'],
+    aiSettings: { minRange: 80, maxRange: 320 },
+};
+
+/** Husk Artillery summoner — seed pods hatch husklings; Light Hate. */
+export const ENEMY_HUSK_ARTILLERY: EnemySpawnDef = {
+    characterId: 'husk_artillery',
+    name: 'Husk Artillery',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['0009'],
+    aiSettings: { minRange: 140, maxRange: 480 },
+};
+
+/** Ally Lanternite — engine handles pulses / Soul Sap / torch (no combat abilities). */
+export const ALLY_LANTERNITE: EnemySpawnDef = {
+    characterId: 'lanternite',
+    name: 'Lanternite',
+    position: { x: 0, y: 0 },
+    teamId: 'player',
+    abilities: [],
+    aiSettings: { minRange: 0, maxRange: 200 },
+};

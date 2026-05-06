@@ -210,7 +210,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             const unit = createUnitFromSpawnConfig(
                 {
                     ...spawn,
-                    hp: Math.round(stats.hp * enemyHealthMult),
+                    hp: Math.round(stats.hp * (spawn.teamId === 'enemy' ? enemyHealthMult : 1)),
                     speed: stats.speed,
                     x: spawn.position.x,
                     y: spawn.position.y,

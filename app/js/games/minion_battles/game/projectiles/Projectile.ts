@@ -43,6 +43,15 @@ export class Projectile extends GameObject {
     /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
     modifiers: ProjectileModifierId[];
 
+    /**
+     * When true, does not collide with units; travels until max distance then expires
+     * (e.g. seed pods that only spawn on landing).
+     */
+    passThroughEnemies: boolean;
+
+    /** Optional summons metadata (seed pods). */
+    summonSeedWeak?: boolean;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -57,6 +66,8 @@ export class Projectile extends GameObject {
         trailType?: 'bullet';
         projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife';
         modifiers?: ProjectileModifierId[];
+        passThroughEnemies?: boolean;
+        summonSeedWeak?: boolean;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -69,6 +80,8 @@ export class Projectile extends GameObject {
         this.trailType = config.trailType;
         this.projectileType = config.projectileType ?? 'default';
         this.modifiers = config.modifiers ?? [];
+        this.passThroughEnemies = config.passThroughEnemies ?? false;
+        this.summonSeedWeak = config.summonSeedWeak;
     }
 
     update(dt: number, engine: unknown): void {
@@ -160,6 +173,7 @@ export class Projectile extends GameObject {
      */
     checkCollision(units: Unit[], eventBus: EventBus, gameTime: number, engine?: unknown): Unit | null {
         if (!this.active) return null;
+        if (this.passThroughEnemies) return null;
 
         for (const unit of units) {
             if (!unit.isAlive()) continue;
@@ -259,6 +273,8 @@ export class Projectile extends GameObject {
             trailType: this.trailType,
             projectileType: this.projectileType,
             modifiers: this.modifiers,
+            passThroughEnemies: this.passThroughEnemies,
+            ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
         };
     }
 
@@ -283,6 +299,8 @@ export class Projectile extends GameObject {
         proj.projectileType =
             (data.projectileType as 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | undefined) ??
             'default';
+        proj.passThroughEnemies = (data.passThroughEnemies as boolean | undefined) ?? false;
+        if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;
         return proj;
     }
 

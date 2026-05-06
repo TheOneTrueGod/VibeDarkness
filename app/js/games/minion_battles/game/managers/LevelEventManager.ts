@@ -10,6 +10,7 @@ import type {
     LevelEventVictoryCheck,
     VictoryCondition,
     LevelEventContinuousSpawn,
+    EnemySpawnDef,
 } from '../../storylines/types';
 import { getEdgePositions } from '../../storylines/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../units/index';
@@ -20,8 +21,20 @@ import {
     ENEMY_DARK_WOLF,
     ENEMY_ALPHA_WOLF,
     ENEMY_BOAR,
+    ENEMY_THORNBINDER,
+    ENEMY_HUSK_ARTILLERY,
     getEnemyHealthMultiplier,
 } from '../../constants/enemyConstants';
+
+const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
+    enemy_melee: ENEMY_MELEE,
+    enemy_ranged: ENEMY_RANGED,
+    dark_wolf: ENEMY_DARK_WOLF,
+    alpha_wolf: ENEMY_ALPHA_WOLF,
+    boar: ENEMY_BOAR,
+    thornbinder: ENEMY_THORNBINDER,
+    husk_artillery: ENEMY_HUSK_ARTILLERY,
+};
 import { getLightGrid } from '../LightGrid';
 
 const ROUND_DURATION = 10;
@@ -126,13 +139,6 @@ export class LevelEventManager {
         const width = grid.width;
         const height = grid.height;
         const cellSize = grid.cellSize;
-        const baseDefs = {
-            enemy_melee: ENEMY_MELEE,
-            enemy_ranged: ENEMY_RANGED,
-            dark_wolf: ENEMY_DARK_WOLF,
-            alpha_wolf: ENEMY_ALPHA_WOLF,
-            boar: ENEMY_BOAR,
-        };
         const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
 
@@ -149,9 +155,9 @@ export class LevelEventManager {
             }
         }
 
-        const edgeEntries: { base: typeof ENEMY_MELEE; entry: LevelEventSpawnWave['spawns'][number]; count: number }[] = [];
+        const edgeEntries: { base: EnemySpawnDef; entry: LevelEventSpawnWave['spawns'][number]; count: number }[] = [];
         const otherEntries: {
-            base: typeof ENEMY_MELEE;
+            base: EnemySpawnDef;
             entry: LevelEventSpawnWave['spawns'][number];
             behaviour: 'edgeOfMap' | 'darkness' | 'anywhere';
             count: number;
@@ -159,8 +165,8 @@ export class LevelEventManager {
 
         for (const entry of evt.spawns) {
             const cid = entry.characterId;
-            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf' && cid !== 'alpha_wolf' && cid !== 'boar') continue;
-            const base = baseDefs[cid];
+            const base = BASE_SPAWN_DEFS[cid];
+            if (!base) continue;
             const behaviour = entry.spawnBehaviour ?? 'edgeOfMap';
             const count = Math.max(0, entry.spawnCount ?? 1);
             if (count <= 0) continue;
@@ -191,7 +197,7 @@ export class LevelEventManager {
                         x: pos.x,
                         y: pos.y,
                         ownerId: 'ai' as const,
-                        hp: Math.round(stats.hp * enemyHealthMult),
+                        hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
                         speed: stats.speed,
                         unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                     };
@@ -294,7 +300,7 @@ export class LevelEventManager {
                     x: pos.x,
                     y: pos.y,
                     ownerId: 'ai' as const,
-                    hp: Math.round(stats.hp * enemyHealthMult),
+                    hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
                     speed: stats.speed,
                     unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
@@ -322,13 +328,6 @@ export class LevelEventManager {
         const width = grid.width;
         const height = grid.height;
         const cellSize = grid.cellSize;
-        const baseDefs = {
-            enemy_melee: ENEMY_MELEE,
-            enemy_ranged: ENEMY_RANGED,
-            dark_wolf: ENEMY_DARK_WOLF,
-            alpha_wolf: ENEMY_ALPHA_WOLF,
-            boar: ENEMY_BOAR,
-        };
         const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
 
@@ -396,8 +395,8 @@ export class LevelEventManager {
 
         for (const entry of evt.spawns) {
             const cid = entry.characterId;
-            if (cid !== 'enemy_melee' && cid !== 'enemy_ranged' && cid !== 'dark_wolf' && cid !== 'alpha_wolf' && cid !== 'boar') continue;
-            const base = baseDefs[cid];
+            const base = BASE_SPAWN_DEFS[cid];
+            if (!base) continue;
             const behaviour = (entry.spawnBehaviour ?? 'darkness') as 'darkness' | 'anywhere';
             const count = Math.max(0, entry.spawnCount ?? 1);
             if (count <= 0) continue;
@@ -424,7 +423,7 @@ export class LevelEventManager {
                     x: pos.x,
                     y: pos.y,
                     ownerId: 'ai' as const,
-                    hp: Math.round(stats.hp * enemyHealthMult),
+                    hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
                     speed: stats.speed,
                     unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };

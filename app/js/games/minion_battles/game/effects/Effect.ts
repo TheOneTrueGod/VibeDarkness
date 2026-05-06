@@ -64,6 +64,26 @@ export class Effect extends GameObject {
         if (!this.active) return;
         this.elapsed += dt;
 
+        if (this.effectType === 'BramblePatch') {
+            const engTime = engine as { gameTime?: number };
+            const expiresAt = (this.effectData as { expiresAtGameTime?: number }).expiresAtGameTime;
+            if (expiresAt != null && engTime.gameTime != null && engTime.gameTime >= expiresAt) {
+                this.active = false;
+                return;
+            }
+        }
+
+        if (this.effectType === 'Torch') {
+            const data = this.effectData as { followUnitId?: string };
+            if (data.followUnitId) {
+                const u = (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(data.followUnitId);
+                if (u?.isAlive()) {
+                    this.x = u.x;
+                    this.y = u.y;
+                }
+            }
+        }
+
         if (this.effectType === 'DarkCreatureIconDeath') {
             const ctx = engine as DarkBlobParticleSpawnContext;
             const data = this.effectData as {
