@@ -9,7 +9,12 @@ import type { TeamId } from '../game/teams';
 import type { AISettings } from '../game/units/Unit';
 import type { UnitTag } from '../game/units/unitTag';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
-import type { InBattleStoryDef, PostMissionStoryDef, PreMissionStoryDef } from './storyTypes';
+import type {
+    InBattleStoryDef,
+    PostMissionStoryDef,
+    PreMissionStoryDef,
+    StoryChoiceOptionRow,
+} from './storyTypes';
 
 /** Trigger for level events: at round, after round (checks start), or after seconds. */
 export type LevelEventTrigger =
@@ -212,6 +217,14 @@ export interface PlayerSpawnPoint {
 /** AI controller ID. Default is 'legacy' when omitted. */
 export type AIControllerId = 'legacy' | 'defensePoints' | 'stateBased' | 'alphaWolfBoss';
 
+/** Inputs for missions that compute post-mission choice rows at runtime (equipment / research). */
+export interface PostMissionChoiceResolveParams {
+    choiceId: string;
+    equippedItemIds: readonly string[];
+    /** Local campaign character research (tree id → researched node ids). */
+    playerResearchTrees?: Record<string, string[]>;
+}
+
 /** Full battle configuration for a mission. */
 export interface MissionBattleConfig {
     /** Mission ID (matches selectedMissionId in game state). */
@@ -246,6 +259,13 @@ export interface MissionBattleConfig {
     gatherPartyBackgroundImage?: string;
     /** Optional post-mission story (after victory, before victory screen). */
     postMissionStory?: PostMissionStoryDef;
+    /**
+     * When a post-mission `choice` phrase uses empty or placeholder `options`, the client calls this
+     * to build the rows (equipment- or research-dependent rewards). Omit when all options are static.
+     */
+    getPostMissionChoiceOptions?: (
+        params: PostMissionChoiceResolveParams
+    ) => StoryChoiceOptionRow[] | null;
     /**
      * If true, this mission skips the battle phase entirely.
      * Host advances directly into post_mission_story (when present).

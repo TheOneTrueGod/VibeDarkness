@@ -13,6 +13,9 @@ import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { rocksItem } from '../../../character_defs/items/hands/001_rocks';
+import { torchItem } from '../../../character_defs/items/hands/002_torch';
+import { potShieldItem } from '../../../character_defs/items/hands/003_pot_shield';
 
 // Grid: 30 columns × 22 rows (40px cells)
 const COLS = 30;
@@ -189,12 +192,12 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
             type: 'choice',
             choiceId: 'dark_awakening_weapon',
             options: [
-                { id: 'rocks', label: 'Grab some nearby rocks', action: { type: 'equip_item', itemId: '001' } },
-                { id: 'torch', label: 'Grab a thick branch', action: { type: 'equip_item', itemId: '002' } },
+                { id: 'rocks', label: 'Grab some nearby rocks', action: { type: 'equip_item', itemId: rocksItem.id } },
+                { id: 'torch', label: 'Grab a thick branch', action: { type: 'equip_item', itemId: torchItem.id } },
                 {
                     id: 'pot_shield',
                     label: 'Pick up the lid of a pot from the campfire',
-                    action: { type: 'equip_item', itemId: '003' },
+                    action: { type: 'equip_item', itemId: potShieldItem.id },
                 },
             ],
         },

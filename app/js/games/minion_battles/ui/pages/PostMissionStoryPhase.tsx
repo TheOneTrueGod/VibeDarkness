@@ -18,7 +18,7 @@ import type {
     StoryChoiceActionGrantResearchToPlayer,
     StoryChoiceActionGrantResources,
 } from '../../storylines/storyTypes';
-import { getComputedPostMissionChoiceOptions } from '../../storylines/customPostMissionChoices';
+import { MISSION_MAP } from '../../storylines';
 import { getItemDef } from '../../character_defs/items';
 import { SPECTATOR_ID } from '../../state';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
@@ -97,7 +97,7 @@ interface PostMissionStoryPhaseProps {
     postMissionStory: PostMissionStoryDef;
     /** Current equipment per player (from server); used to show item from first choice. */
     playerEquipmentByPlayer?: Record<string, string[]>;
-    /** Per-player research node ids by tree (lobby game state); used for `cave_respite` post-mission options. */
+    /** Per-player research node ids by tree (lobby game state); used when a mission computes post-mission research options. */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     onComplete: (rewards: MissionRewards) => void;
 }
@@ -151,10 +151,9 @@ export default function PostMissionStoryPhase({
 
     const postMissionChoiceOptions = useMemo((): ChoicePhrase['options'] => {
         if (!currentPhrase || currentPhrase.type !== 'choice') return [];
-        const computed = getComputedPostMissionChoiceOptions({
-            missionId,
+        const missionDef = MISSION_MAP[missionId];
+        const computed = missionDef?.getPostMissionChoiceOptions?.({
             choiceId: currentPhrase.choiceId,
-            resolverId: currentPhrase.resolverId,
             equippedItemIds: playerEquipmentByPlayer[playerId] ?? [],
             playerResearchTrees: playerResearchTreesByPlayer[playerId],
         });

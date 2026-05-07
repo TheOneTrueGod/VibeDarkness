@@ -7,6 +7,10 @@ import type { PostMissionStoryDef } from '../../storyTypes';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { coreEarthItem } from '../../../character_defs/items/core/017_core_earth';
+import { coreAirItem } from '../../../character_defs/items/core/018_core_air';
+import { coreChargedItem } from '../../../character_defs/items/core/019_core_charged';
+import { coreBlinkItem } from '../../../character_defs/items/core/020_core_blink';
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
@@ -42,22 +46,22 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
                 {
                     id: 'earth_core',
                     label: 'The Earth Core',
-                    action: { type: 'equip_item', itemId: '017' },
+                    action: { type: 'equip_item', itemId: coreEarthItem.id },
                 },
                 {
                     id: 'air_core',
                     label: 'The Air Core',
-                    action: { type: 'equip_item', itemId: '018' },
+                    action: { type: 'equip_item', itemId: coreAirItem.id },
                 },
                 {
                     id: 'charged_core',
                     label: 'The Charged Core',
-                    action: { type: 'equip_item', itemId: '019' },
+                    action: { type: 'equip_item', itemId: coreChargedItem.id },
                 },
                 {
                     id: 'blink_core',
                     label: 'The Blink Core',
-                    action: { type: 'equip_item', itemId: '020' },
+                    action: { type: 'equip_item', itemId: coreBlinkItem.id },
                 },
             ],
         },

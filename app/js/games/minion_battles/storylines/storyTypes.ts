@@ -68,10 +68,6 @@ export type StoryChoiceAction =
     | StoryChoiceActionGrantResearchToPlayer
     | StoryChoiceActionGrantResearchConditional;
 
-/** Registry of mission-specific resolvers for equipment-dependent post-mission options. */
-export const POST_MISSION_CHOICE_RESOLVER_IDS = ['towards_the_light', 'cave_respite'] as const;
-export type PostMissionChoiceResolverId = (typeof POST_MISSION_CHOICE_RESOLVER_IDS)[number];
-
 /** One row in a choice phrase (pre- or post-mission). */
 export interface StoryChoiceOptionRow {
     id: string;
@@ -90,10 +86,9 @@ export interface ChoicePhrase {
     type: 'choice';
     choiceId: string;
     /**
-     * When set, the client replaces `options` with the result of `getComputedPostMissionChoiceOptions`
-     * (see customPostMissionChoices.ts). Static `options` may be an empty placeholder.
+     * For dynamic rewards, use an empty or placeholder `options` array and implement
+     * `MissionBattleConfig.getPostMissionChoiceOptions` on the mission def (see `types.ts`).
      */
-    resolverId?: PostMissionChoiceResolverId;
     options: StoryChoiceOptionRow[];
 }
 

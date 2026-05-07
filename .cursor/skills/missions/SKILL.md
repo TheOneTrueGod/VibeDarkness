@@ -40,6 +40,12 @@ For reusable terrain, use **map segments** from the storylines folder. See the *
 - Mission registration: `app/js/games/minion_battles/storylines/index.ts` (MISSION_MAP)
 - Storyline flow: `app/js/games/minion_battles/storylines/WorldOfDarkness/WorldOfDarkness.ts` (edges)
 
+## Post-mission choice options (dynamic rewards)
+
+- **Ownership:** The **mission definition** (`MissionBattleConfig` / class extending `BaseMissionDef`) owns runtime post-mission choice rows when rewards depend on loadout or research.
+- **Mechanics:** Implement optional `getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams)` on that mission class (see `types.ts`). The post-mission story phrase can use an **empty `options` array** as a placeholder; the client merges in the computed rows from the mission def (see `PostMissionStoryPhase.tsx`).
+- **Colocation:** Keep the helper logic in the **same mission file** unless it becomes large enough to split—then add a helper module under that campaign’s `missions/` folder (e.g. `WorldOfDarkness/missions/`) rather than a shared “choices hub” file.
+
 ## Main weapon (narrative / meta)
 
 Missions and quest copy can reference a character’s **main weapon** (rock / stick / shield lineage, with future transforms) for flavor and gated choices. That concept is defined in the **campaign-characters** skill. Do not assume the main weapon maps 1:1 to battle loadout unless a mission explicitly implements that.
