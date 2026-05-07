@@ -4,13 +4,16 @@
  */
 
 import type { EngineContext } from '../EngineContext';
+import type { Unit } from '../units/Unit';
 import type {
     LevelEvent,
     LevelEventSpawnWave,
     LevelEventVictoryCheck,
     VictoryCondition,
     LevelEventContinuousSpawn,
+    LevelEventProximitySpawn,
     EnemySpawnDef,
+    SpawnWaveEntry,
 } from '../../storylines/types';
 import { getEdgePositions } from '../../storylines/edgeSpawns';
 import { createUnitFromSpawnConfig } from '../units/index';
@@ -23,6 +26,7 @@ import {
     ENEMY_BOAR,
     ENEMY_THORNBINDER,
     ENEMY_HUSK_ARTILLERY,
+    ALLY_LANTERNITE,
     getEnemyHealthMultiplier,
 } from '../../constants/enemyConstants';
 
@@ -34,6 +38,7 @@ const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
     boar: ENEMY_BOAR,
     thornbinder: ENEMY_THORNBINDER,
     husk_artillery: ENEMY_HUSK_ARTILLERY,
+    lanternite: ALLY_LANTERNITE,
 };
 import { getLightGrid } from '../LightGrid';
 
@@ -106,6 +111,8 @@ export class LevelEventManager {
                 this.processSpawnWaveEvent(i, evt);
             } else if (evt.type === 'continuousSpawn') {
                 this.processContinuousSpawnEvent(i, evt);
+            } else if (evt.type === 'proximitySpawn') {
+                this.processProximitySpawnEvent(i, evt);
             } else if (evt.type === 'victoryCheck') {
                 if (this.ctx.roundNumber >= evt.trigger.afterRound && this.ctx.gameTick % 10 === 0) {
                     this.runVictoryCheck(i, evt);
@@ -114,23 +121,22 @@ export class LevelEventManager {
         }
     }
 
-    private processSpawnWaveEvent(i: number, evt: LevelEventSpawnWave): void {
-        if (this.firedEventIndices.has(i)) return;
-
-        let shouldFire = false;
-        if ('atRound' in evt.trigger) {
-            shouldFire = this.ctx.roundNumber >= evt.trigger.atRound;
-        } else if ('afterSeconds' in evt.trigger) {
-            shouldFire = this.ctx.gameTime >= evt.trigger.afterSeconds;
+    /** Optional Lantern ecology fields from mission spawn / wave entries. */
+    private applyLanterniteEcologySpawnFields(unit: Unit, entry: SpawnWaveEntry | EnemySpawnDef): void {
+        if ('lanterniteNestOwnerUnitId' in entry && entry.lanterniteNestOwnerUnitId != null) {
+            unit.lanterniteNestOwnerUnitId = entry.lanterniteNestOwnerUnitId;
         }
-        if (!shouldFire) return;
+        if ('lanternPatrolFarWorld' in entry && entry.lanternPatrolFarWorld != null) {
+            unit.lanternPatrolFarWorld = { ...entry.lanternPatrolFarWorld };
+        }
+        if ('lanternPatrolLeg' in entry && (entry.lanternPatrolLeg === 'toFar' || entry.lanternPatrolLeg === 'toNest')) {
+            unit.lanternPatrolLeg = entry.lanternPatrolLeg;
+        }
+    }
 
-        this.firedEventIndices.add(i);
-        if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
-
+    private executeSpawnWaveSpawns(spawns: SpawnWaveEntry[]): void {
         const terrainManager = this.ctx.terrainManager;
         if (!terrainManager) {
-             
             console.error('spawnWave: terrainManager is null; skipping spawn wave.');
             return;
         }
@@ -145,25 +151,24 @@ export class LevelEventManager {
         const occupiedCells = new Set<string>();
 
         let lightGrid: number[][] | null = null;
-        const needsDarkness = evt.spawns.some((entry) => (entry.spawnBehaviour ?? 'edgeOfMap') === 'darkness');
+        const needsDarkness = spawns.some((entry) => (entry.spawnBehaviour ?? 'edgeOfMap') === 'darkness');
         if (needsDarkness) {
             if (!this.ctx.lightLevelEnabled) {
-                 
                 console.error('spawnWave: spawnBehaviour "darkness" requested but light system is disabled; skipping darkness spawns.');
             } else {
                 lightGrid = getLightGrid(this.ctx.globalLightLevel, width, height, this.ctx.getAllLightSources());
             }
         }
 
-        const edgeEntries: { base: EnemySpawnDef; entry: LevelEventSpawnWave['spawns'][number]; count: number }[] = [];
+        const edgeEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
         const otherEntries: {
             base: EnemySpawnDef;
-            entry: LevelEventSpawnWave['spawns'][number];
+            entry: SpawnWaveEntry;
             behaviour: 'edgeOfMap' | 'darkness' | 'anywhere';
             count: number;
         }[] = [];
 
-        for (const entry of evt.spawns) {
+        for (const entry of spawns) {
             const cid = entry.characterId;
             const base = BASE_SPAWN_DEFS[cid];
             if (!base) continue;
@@ -202,6 +207,7 @@ export class LevelEventManager {
                         unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                     };
                     const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
+                    this.applyLanterniteEcologySpawnFields(unit, entry);
                     this.ctx.addUnit(unit);
                 }
             }
@@ -248,10 +254,10 @@ export class LevelEventManager {
 
         const chooseRandomIndices = (availableCount: number, needed: number): number[] => {
             const indices: number[] = [];
-            for (let i = 0; i < availableCount; i++) indices.push(i);
+            for (let j = 0; j < availableCount; j++) indices.push(j);
             const result: number[] = [];
             const count = Math.min(needed, availableCount);
-            for (let i = 0; i < count; i++) {
+            for (let j = 0; j < count; j++) {
                 const pickIndex = this.ctx.generateRandomInteger(0, indices.length - 1);
                 const [chosen] = indices.splice(pickIndex, 1);
                 result.push(chosen);
@@ -261,14 +267,12 @@ export class LevelEventManager {
 
         for (const { base, entry, behaviour, count } of otherEntries) {
             if (behaviour === 'darkness' && (!this.ctx.lightLevelEnabled || !lightGrid)) {
-                 
                 console.error('spawnWave: spawnBehaviour "darkness" has no valid light grid; skipping this spawn entry.');
                 continue;
             }
 
             const candidates = collectCandidateTiles(behaviour === 'darkness' ? 'darkness' : 'anywhere', entry.spawnTarget);
             if (candidates.length === 0) {
-                 
                 console.error(
                     `spawnWave: no valid tiles for behaviour "${behaviour}"` +
                         (entry.spawnTarget ? ` near (${entry.spawnTarget.x}, ${entry.spawnTarget.y})` : '') +
@@ -279,7 +283,6 @@ export class LevelEventManager {
 
             const spawnAttempts = Math.min(count, candidates.length);
             if (spawnAttempts < count) {
-                 
                 console.error(
                     `spawnWave: requested ${count} spawns for behaviour "${behaviour}" but only found ${candidates.length} valid tiles.`,
                 );
@@ -287,7 +290,7 @@ export class LevelEventManager {
 
             const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);
             for (const idx of chosenIndices) {
-                const cell = candidates[idx];
+                const cell = candidates[idx]!;
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);
@@ -305,9 +308,73 @@ export class LevelEventManager {
                     unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
                 const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
+                this.applyLanterniteEcologySpawnFields(unit, entry);
                 this.ctx.addUnit(unit);
             }
         }
+    }
+
+    private processProximitySpawnEvent(i: number, evt: LevelEventProximitySpawn): void {
+        const once = evt.fireOnce !== false;
+        if (once && this.firedEventIndices.has(i)) return;
+
+        const r = evt.trigger.radiusPx;
+        const r2 = r * r;
+        const cx = evt.trigger.centerWorldX;
+        const cy = evt.trigger.centerWorldY;
+        const anyNear = this.ctx.units.some((u) => {
+            if (!u.isPlayerControlled() || !u.isAlive()) return false;
+            const dx = u.x - cx;
+            const dy = u.y - cy;
+            return dx * dx + dy * dy <= r2;
+        });
+        if (!anyNear) return;
+
+        if (once) this.firedEventIndices.add(i);
+        if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
+
+        if (evt.spawnWaveEntries?.length) {
+            this.executeSpawnWaveSpawns(evt.spawnWaveEntries);
+        }
+
+        const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
+        const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
+        for (const def of evt.extraEnemySpawns ?? []) {
+            const stats = resolveEnemySpawnStats(def);
+            const unit = createUnitFromSpawnConfig(
+                {
+                    ...def,
+                    x: def.position.x,
+                    y: def.position.y,
+                    ownerId: 'ai',
+                    hp: Math.round(stats.hp * (def.teamId === 'enemy' ? enemyHealthMult : 1)),
+                    speed: stats.speed,
+                },
+                this.ctx.eventBus,
+                this.ctx,
+            );
+            this.applyLanterniteEcologySpawnFields(unit, def);
+            this.ctx.addUnit(unit);
+        }
+
+        if (evt.revealObjectiveIds?.length) this.ctx.revealBattleObjectives(evt.revealObjectiveIds);
+    }
+
+    private processSpawnWaveEvent(i: number, evt: LevelEventSpawnWave): void {
+        if (this.firedEventIndices.has(i)) return;
+
+        let shouldFire = false;
+        if ('atRound' in evt.trigger) {
+            shouldFire = this.ctx.roundNumber >= evt.trigger.atRound;
+        } else if ('afterSeconds' in evt.trigger) {
+            shouldFire = this.ctx.gameTime >= evt.trigger.afterSeconds;
+        }
+        if (!shouldFire) return;
+
+        this.firedEventIndices.add(i);
+        if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
+
+        this.executeSpawnWaveSpawns(evt.spawns);
     }
 
     private processContinuousSpawnEvent(i: number, evt: LevelEventContinuousSpawn): void {

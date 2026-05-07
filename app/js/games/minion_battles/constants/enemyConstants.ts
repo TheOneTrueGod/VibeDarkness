@@ -86,12 +86,23 @@ export const ENEMY_HUSK_ARTILLERY: EnemySpawnDef = {
     aiSettings: { minRange: 140, maxRange: 480 },
 };
 
-/** Ally Lanternite — engine handles pulses / Soul Sap / torch (no combat abilities). */
+/** Wild Lanternite ally — pulses / Soul Sap / torch; usually patrols from a nest. */
 export const ALLY_LANTERNITE: EnemySpawnDef = {
     characterId: 'lanternite',
     name: 'Lanternite',
     position: { x: 0, y: 0 },
-    teamId: 'player',
+    teamId: 'allied',
     abilities: [],
-    aiSettings: { minRange: 0, maxRange: 200 },
+    aiSettings: { minRange: 0, maxRange: 600 },
+};
+
+/** Nest object — spawns timed Lanternites; stays put (lanterniteNest mission field required). */
+export const ALLY_LANTERNITE_NEST: EnemySpawnDef = {
+    characterId: 'lanternite_nest',
+    name: 'Lanternite Nest',
+    position: { x: 0, y: 0 },
+    teamId: 'allied',
+    abilities: [],
+    aiSettings: { minRange: 0, maxRange: 0 },
+    unitAITreeId: 'lanterniteNestIdle',
 };

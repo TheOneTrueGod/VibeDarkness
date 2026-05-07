@@ -6,6 +6,8 @@ import type { UnitAITree } from './types';
 import { DEFAULT_AI_TREE } from './default';
 import { ALPHA_WOLF_BOSS_AI_TREE } from './alphaWolfBoss';
 import { AGGRO_WANDER_AI_TREE } from './aggroWander';
+import { LANTERNITE_PATROL_AI_TREE } from './lanternitePatrol/index';
+import { LANTERNITE_NEST_IDLE_TREE } from './lanterniteNestIdle/index';
 
 export type { AIContext, AILightSource, UnitAITree, AINode, AIEdgeCondition, AINodeId } from './types';
 export { isNodeInTree } from './types';
@@ -41,11 +43,16 @@ export type { AlphaWolfBossNodeId, AlphaWolfBossAITreeContext } from './alphaWol
 export { AGGRO_WANDER_AI_TREE } from './aggroWander';
 export type { AggroWanderNodeId, AggroWanderAITreeContext } from './aggroWander';
 
+export { LANTERNITE_PATROL_AI_TREE } from './lanternitePatrol/index';
+export type { LanternitePatrolAITreeContext } from './lanternitePatrol/context';
+
 /** Registry: tree ID -> tree. */
 const TREE_REGISTRY: Record<string, UnitAITree> = {
     default: DEFAULT_AI_TREE,
     alphaWolfBoss: ALPHA_WOLF_BOSS_AI_TREE,
     aggroWander: AGGRO_WANDER_AI_TREE,
+    lanternitePatrol: LANTERNITE_PATROL_AI_TREE,
+    lanterniteNestIdle: LANTERNITE_NEST_IDLE_TREE,
 };
 
 export function getUnitAITree(treeId: string): UnitAITree | null {

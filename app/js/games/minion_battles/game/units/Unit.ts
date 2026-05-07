@@ -31,6 +31,7 @@ import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import type { CcResistKey } from '../../crowdControl/ccTypes';
 import { getBrambleMovementMultiplier } from '../brambleSlow';
 import type { Effect } from '../effects/Effect';
+import type { LanterniteNestMissionConfig } from '../../storylines/types';
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -217,6 +218,20 @@ export class Unit extends GameObject {
      * When non-null, unit dies when {@link GameEngine.gameTime} reaches this value (husks, etc.).
      */
     ephemeralDespawnAtGameTime: number | null = null;
+
+    /** Set on Lanternites from a nest; skips global Lanternite corpse respawn. */
+    lanterniteNestOwnerUnitId: string | null = null;
+
+    /** Fixed far endpoint for nest-spawn Lanternite patrol legs. */
+    lanternPatrolFarWorld: { x: number; y: number } | null = null;
+
+    lanternPatrolLeg: 'toFar' | 'toNest' = 'toFar';
+
+    /** Runtime config for `lanternite_nest`. */
+    lanterniteNestConfig: LanterniteNestMissionConfig | null = null;
+
+    /** Spawn pacing + bookkeeping for Lanternites created by this nest. */
+    lanterniteNestSpawnState: { spawnedIds: string[]; nextSpawnAtGameTime: number } | null = null;
 
     constructor(config: {
         id?: string;
@@ -801,6 +816,20 @@ export class Unit extends GameObject {
                 ? { ephemeralDespawnAtGameTime: this.ephemeralDespawnAtGameTime }
                 : {}),
             ...(this.tags.length > 0 ? { tags: [...this.tags] } : {}),
+            ...(this.lanterniteNestOwnerUnitId != null ? { lanterniteNestOwnerUnitId: this.lanterniteNestOwnerUnitId } : {}),
+            ...(this.lanternPatrolFarWorld != null ? { lanternPatrolFarWorld: { ...this.lanternPatrolFarWorld } } : {}),
+            ...(this.lanternPatrolLeg !== 'toFar' ? { lanternPatrolLeg: this.lanternPatrolLeg } : {}),
+            ...(this.lanterniteNestConfig != null
+                ? { lanterniteNestConfig: JSON.parse(JSON.stringify(this.lanterniteNestConfig)) as LanterniteNestMissionConfig }
+                : {}),
+            ...(this.lanterniteNestSpawnState != null
+                ? {
+                      lanterniteNestSpawnState: {
+                          spawnedIds: [...this.lanterniteNestSpawnState.spawnedIds],
+                          nextSpawnAtGameTime: this.lanterniteNestSpawnState.nextSpawnAtGameTime,
+                      },
+                  }
+                : {}),
         };
     }
 
@@ -834,6 +863,28 @@ export class Unit extends GameObject {
         unit.active = data.active as boolean;
         if (data.ephemeralDespawnAtGameTime != null) {
             unit.ephemeralDespawnAtGameTime = data.ephemeralDespawnAtGameTime as number;
+        }
+        if (data.lanterniteNestOwnerUnitId != null) {
+            unit.lanterniteNestOwnerUnitId = data.lanterniteNestOwnerUnitId as string;
+        }
+        if (data.lanternPatrolFarWorld != null) {
+            const w = data.lanternPatrolFarWorld as { x?: number; y?: number };
+            if (typeof w.x === 'number' && typeof w.y === 'number') unit.lanternPatrolFarWorld = { x: w.x, y: w.y };
+        }
+        if (data.lanternPatrolLeg === 'toNest' || data.lanternPatrolLeg === 'toFar') {
+            unit.lanternPatrolLeg = data.lanternPatrolLeg;
+        }
+        if (data.lanterniteNestConfig != null) {
+            unit.lanterniteNestConfig = data.lanterniteNestConfig as LanterniteNestMissionConfig;
+        }
+        if (data.lanterniteNestSpawnState != null) {
+            const s = data.lanterniteNestSpawnState as { spawnedIds?: unknown; nextSpawnAtGameTime?: number };
+            const ids = Array.isArray(s.spawnedIds)
+                ? (s.spawnedIds as unknown[]).filter((x): x is string => typeof x === 'string')
+                : [];
+            if (typeof s.nextSpawnAtGameTime === 'number') {
+                unit.lanterniteNestSpawnState = { spawnedIds: ids, nextSpawnAtGameTime: s.nextSpawnAtGameTime };
+            }
         }
 
         // Restore movement

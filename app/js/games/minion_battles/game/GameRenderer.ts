@@ -69,6 +69,10 @@ const WOLF_HEAD_SVG_URL = new URL('../assets/characters/dark_animals/wolf-head.s
 const WOLF_HOWL_SVG_URL = new URL('../assets/characters/dark_animals/wolf-howl.svg', import.meta.url).href;
 /** Boar character sprite. */
 const BOAR_SVG_URL = new URL('../assets/characters/dark_animals/boar.svg', import.meta.url).href;
+/** Lanternite character sprite (venus flytrap motif). */
+const LANTERNITE_SVG_URL = new URL('../assets/characters/lanternite.svg', import.meta.url).href;
+/** Lanternite nest character sprite (bud motif). */
+const LANTERNITE_NEST_SVG_URL = new URL('../assets/characters/lanternite_nest.svg', import.meta.url).href;
 
 export class GameRenderer {
     app: Application;
@@ -114,6 +118,10 @@ export class GameRenderer {
     private wolfHowlTexture: Texture | null = null;
     /** Cached texture for boar character sprite. */
     private boarTexture: Texture | null = null;
+    /** Cached texture for lanternite character sprite. */
+    private lanterniteTexture: Texture | null = null;
+    /** Cached texture for lanternite nest character sprite. */
+    private lanterniteNestTexture: Texture | null = null;
     /** Preloaded player portrait textures (portrait ID → texture). */
     private playerPortraitTextures: Map<string, Texture> = new Map();
     /** Cached texture for Campfire. */
@@ -260,6 +268,12 @@ export class GameRenderer {
         });
         await load('boar SVG', BOAR_SVG_URL, (t) => {
             this.boarTexture = t;
+        });
+        await load('lanternite SVG', LANTERNITE_SVG_URL, (t) => {
+            this.lanterniteTexture = t;
+        });
+        await load('lanternite_nest SVG', LANTERNITE_NEST_SVG_URL, (t) => {
+            this.lanterniteNestTexture = t;
         });
 
         const campfireDef = getSpecialTileDef('Campfire');
@@ -712,6 +726,8 @@ export class GameRenderer {
                 if (characterId === 'dark_wolf') return this.wolfHeadTexture;
                 if (characterId === 'alpha_wolf') return this.wolfHowlTexture;
                 if (characterId === 'boar') return this.boarTexture;
+                if (characterId === 'lanternite') return this.lanterniteTexture;
+                if (characterId === 'lanternite_nest') return this.lanterniteNestTexture;
                 return null;
             },
             getPlayerPortraitTexture: (portraitId: string) => this.playerPortraitTextures.get(portraitId) ?? null,

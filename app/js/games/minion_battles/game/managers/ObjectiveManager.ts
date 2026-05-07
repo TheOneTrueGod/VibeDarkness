@@ -62,7 +62,8 @@ export class ObjectiveManager {
             this.snapshotImport = null;
         } else {
             for (const d of defs) {
-                if (!d.requiresCompletedId) this.revealedIds.add(d.id);
+                const hiddenInitially = d.revealedInitially === false;
+                if (!d.requiresCompletedId && !hiddenInitially) this.revealedIds.add(d.id);
             }
         }
         this.syncRevealedFromPrerequisites();
@@ -94,6 +95,18 @@ export class ObjectiveManager {
             });
         }
         return rows;
+    }
+
+    /** Reveal hidden objectives mid-battle (e.g. LAN quest defend phase). Public for LevelEventManager. */
+    revealObjectiveIds(ids: readonly string[]): void {
+        let changed = false;
+        for (const id of ids) {
+            if (!this.defById.has(id)) continue;
+            if (this.revealedIds.has(id)) continue;
+            this.revealedIds.add(id);
+            changed = true;
+        }
+        if (changed) this.syncRevealedFromPrerequisites();
     }
 
     /** Run after level events; respects story pause like other mission logic. */

@@ -76,6 +76,7 @@ import {
     LANTERNITE_CHARACTER_ID,
     LANTERNITE_RESPAWN_DELAY_SEC,
 } from './lanternite/lanternitePulse';
+import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -399,11 +400,13 @@ export class GameEngine implements EngineContext {
             if (!unit) return;
             if (unit.characterId === LANTERNITE_CHARACTER_ID) {
                 removeLanterniteTorchEffects(unit.id, this.effects);
-                this.lanterniteRespawns.push({
-                    atGameTime: this.gameTime + LANTERNITE_RESPAWN_DELAY_SEC,
-                    x: unit.x,
-                    y: unit.y,
-                });
+                if (unit.lanterniteNestOwnerUnitId == null) {
+                    this.lanterniteRespawns.push({
+                        atGameTime: this.gameTime + LANTERNITE_RESPAWN_DELAY_SEC,
+                        x: unit.x,
+                        y: unit.y,
+                    });
+                }
             }
             if (unit.characterId === 'alpha_wolf') {
                 this.startAlphaWolfStoryDeathSequence(unit);
@@ -902,6 +905,13 @@ export class GameEngine implements EngineContext {
         }
         this.state.effectManager.update(dt);
         this.processEphemeralUnitExpiry();
+        processLanterniteNests({
+            gameTime: this.gameTime,
+            units: this.units,
+            eventBus: this.eventBus,
+            addUnit: (u) => this.addUnit(u),
+            idSource: this,
+        });
         this.drainLanterniteRespawns();
         this.state.unitManager.cleanupInactive();
         this.state.projectileManager.cleanupInactive();
@@ -1526,7 +1536,7 @@ export class GameEngine implements EngineContext {
                     y: job.y,
                     hp: getDefaultHp(LANTERNITE_CHARACTER_ID),
                     speed: getDefaultSpeed(LANTERNITE_CHARACTER_ID),
-                    teamId: 'player',
+                    teamId: 'allied',
                     characterId: LANTERNITE_CHARACTER_ID,
                     name: 'Lanternite',
                     abilities: [],

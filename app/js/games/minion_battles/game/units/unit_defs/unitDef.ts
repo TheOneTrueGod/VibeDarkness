@@ -66,7 +66,8 @@ export type EnemyUnitId =
     | 'thornbinder'
     | 'husk_artillery'
     | 'huskling'
-    | 'lanternite';
+    | 'lanternite'
+    | 'lanternite_nest';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
 /**
@@ -209,6 +210,7 @@ const UNIT_DEFS: Record<
     },
     lanternite: {
         bodyColor: 0x34d399,
+        characterSpriteKey: 'lanternite',
         hp: 20,
         speed: 70,
         size: 'Small',
@@ -216,7 +218,20 @@ const UNIT_DEFS: Record<
         perceptionRange: 260,
         creatureType: 'beast',
         uiDescription:
-            'Ally Lanternite — pulses light twice each round (Soul Sap), attaching glow to the nearest player. Respawns quickly if lost.',
+            'Lantern-bearing creature — pulses light twice each round (Soul Sap) and wanders patrol routes beside its nest.',
+    },
+    lanternite_nest: {
+        bodyColor: 0x065f46,
+        characterSpriteKey: 'lanternite_nest',
+        hp: 120,
+        speed: 0,
+        radius: 28,
+        size: 'Large',
+        stamina: 1,
+        perceptionRange: 0,
+        creatureType: 'beast',
+        uiDescription:
+            'Living nursery — births lantern scouts on a rhythm; needs protection when stirred.',
     },
 };
 

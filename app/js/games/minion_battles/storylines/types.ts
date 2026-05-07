@@ -34,7 +34,7 @@ export interface SpawnTarget {
 
 /** Single enemy entry in a spawn wave (position is computed at spawn time). */
 export interface SpawnWaveEntry {
-    characterId: 'enemy_melee' | 'enemy_ranged' | 'dark_wolf' | 'alpha_wolf' | 'boar';
+    characterId: string;
     name?: string;
     /** Override unit-def baseline HP when set. */
     hp?: number;
@@ -54,6 +54,10 @@ export interface SpawnWaveEntry {
     unitAITreeId?: string;
     /** Tags applied to each spawned unit (e.g. boss HUD). */
     unitTags?: UnitTag[];
+    /** Passed through to spawned Lanternites (waves / proximity). */
+    lanterniteNestOwnerUnitId?: string;
+    lanternPatrolFarWorld?: { x: number; y: number };
+    lanternPatrolLeg?: 'toFar' | 'toNest';
 }
 
 /** Victory condition: eliminate all enemy units. */
@@ -91,10 +95,32 @@ export interface BattleObjectiveDef {
     id: string;
     /** Player-facing line in the objectives list. */
     label: string;
+    /**
+     * When false (default true), stays hidden until `revealObjective` / proximity bundle reveals this id.
+     */
+    revealedInitially?: boolean;
     /** If set, hidden in UI until that objective id is completed. */
     requiresCompletedId?: string;
     toComplete: VictoryCondition;
     onComplete?: ObjectiveOnCompleteEffect[];
+}
+
+/** When creatures enter a world-circle, run bundled effects once (fire-once keyed by level event index). */
+export interface LevelEventProximitySpawn extends LevelEventBase {
+    type: 'proximitySpawn';
+    trigger: {
+        centerWorldX: number;
+        centerWorldY: number;
+        radiusPx: number;
+    };
+    /** If false, retriggers whenever the zone clears and re-enters (default true). */
+    fireOnce?: boolean;
+    /** Same shape as spawn wave entries (thornbinder, wolves, slimes, etc.). */
+    spawnWaveEntries?: SpawnWaveEntry[];
+    /** Extra units spawned at exact positions (e.g. bonus lanternites beside a nest). */
+    extraEnemySpawns?: EnemySpawnDef[];
+    /** Reveal objectives that declare `revealedInitially: false`. */
+    revealObjectiveIds?: string[];
 }
 
 /** Base fields shared by all level events. */
@@ -143,7 +169,21 @@ export interface LevelEventContinuousSpawn extends LevelEventBase {
 export type LevelEvent =
     | LevelEventSpawnWave
     | LevelEventVictoryCheck
-    | LevelEventContinuousSpawn;
+    | LevelEventContinuousSpawn
+    | LevelEventProximitySpawn;
+
+/** Patrol endpoint for Lanternites spawned from a {@link lanterniteNest} nest. */
+export type LanternitePatrolDestination =
+    | { kind: 'nestUnit'; unitId: string }
+    | { kind: 'world'; x: number; y: number };
+
+/** Optional nest behaviour merged onto a spawned `lanternite_nest` unit after creation. */
+export interface LanterniteNestMissionConfig {
+    maxLanternites: number;
+    /** Seconds between spawn attempts while below max alive children. */
+    spawnIntervalSec: number;
+    patrolDestination: LanternitePatrolDestination;
+}
 
 /** Config for a single enemy spawn. */
 export interface EnemySpawnDef {
@@ -169,6 +209,14 @@ export interface EnemySpawnDef {
     unitAITreeId?: string;
     /** Tags on the spawned unit (see `UnitTag` enum). */
     unitTags?: UnitTag[];
+    /** Stable checkpoint id when set (e.g. nests referenced by Lanternite patrol). */
+    unitId?: string;
+    /** When spawning a `lanternite_nest`, wires spawn pacing and patrol corridor for Lanternites from this nest. */
+    lanterniteNest?: LanterniteNestMissionConfig;
+    /** Optional Lanternite ecology wiring beyond nest auto-spawns (e.g. proximity reinforcements). */
+    lanterniteNestOwnerUnitId?: string;
+    lanternPatrolFarWorld?: { x: number; y: number };
+    lanternPatrolLeg?: 'toFar' | 'toNest';
 }
 
 /** Tags that can be applied to special tile placements (e.g. destructible). */

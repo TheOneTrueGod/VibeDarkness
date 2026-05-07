@@ -48,6 +48,9 @@ export interface EngineContext {
 
     getAllLightSources(): LightSource[];
 
+    /** Reveal battle objectives that declare `revealedInitially: false`. */
+    revealBattleObjectives(ids: readonly string[]): void;
+
     /** When implemented (full engine), allocates unique ids for new gameplay objects for this battle instance. */
     allocateObjectId?(prefix?: string): string;
 }

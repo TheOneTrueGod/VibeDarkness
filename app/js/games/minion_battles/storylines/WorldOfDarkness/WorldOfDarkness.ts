@@ -10,5 +10,6 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
+        { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'ember_threshold' },
     ],
 };

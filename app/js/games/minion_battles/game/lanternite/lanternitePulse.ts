@@ -1,12 +1,14 @@
 /**
- * Lanternite ally — two light pulses per round (round start + midpoint), Soul Sap, torch attached to nearest player.
+ * Lanternite — two light pulses per round (round start + midpoint), Soul Sap, torch follows the creature.
  */
 
 import type { Unit } from '../units/Unit';
 import { Effect } from '../effects/Effect';
 import type { EventBus } from '../EventBus';
+import type { LanterniteNestMissionConfig } from '../../storylines/types';
 
 export const LANTERNITE_CHARACTER_ID = 'lanternite';
+export const LANTERNITE_NEST_CHARACTER_ID = 'lanternite_nest';
 export const LANTERNITE_SOUL_SAP_MAX_HP_FRACTION = 0.07;
 export const LANTERNITE_RESPAWN_DELAY_SEC = 3;
 export const LANTERNITE_TORCH_LIGHT = 12;
@@ -20,22 +22,6 @@ function killUnit(unit: Unit, eventBus: EventBus): void {
         unitId: unit.id,
         killerUnitId: null,
     });
-}
-
-function findClosestPlayerControlled(units: readonly Unit[], from: Unit): Unit | null {
-    let best: Unit | null = null;
-    let bestD = Infinity;
-    for (const u of units) {
-        if (!u.isPlayerControlled() || !u.isAlive()) continue;
-        const dx = u.x - from.x;
-        const dy = u.y - from.y;
-        const d = dx * dx + dy * dy;
-        if (d < bestD) {
-            bestD = d;
-            best = u;
-        }
-    }
-    return best;
 }
 
 function applySoulSap(lanternite: Unit, eventBus: EventBus): void {
@@ -60,7 +46,6 @@ export function removeLanterniteTorchEffects(ownerLanternUnitId: string, effects
 
 function upsertLanternTorch(args: {
     lanternite: Unit;
-    attachTarget: Unit;
     addEffect: (e: Effect) => void;
     effects: Effect[];
 }): void {
@@ -71,14 +56,14 @@ function upsertLanternTorch(args: {
     args.addEffect(
         new Effect({
             id: torchId,
-            x: args.attachTarget.x,
-            y: args.attachTarget.y,
+            x: args.lanternite.x,
+            y: args.lanternite.y,
             duration: 999_999,
             effectType: 'Torch',
             effectData: {
                 lightAmount: LANTERNITE_TORCH_LIGHT,
                 radius: LANTERNITE_TORCH_RADIUS_TILES,
-                followUnitId: args.attachTarget.id,
+                followUnitId: args.lanternite.id,
                 lanternOwnerUnitId: args.lanternite.id,
             },
         }),
@@ -98,8 +83,6 @@ export function processLanternitePulseMilestone(
 ): void {
     for (const lantern of ctx.units) {
         if (!lantern.isAlive() || lantern.characterId !== LANTERNITE_CHARACTER_ID) continue;
-        const nearest = findClosestPlayerControlled(ctx.units, lantern);
-        if (!nearest) continue;
         applySoulSap(lantern, ctx.eventBus);
         if (!lantern.isAlive()) {
             removeLanterniteTorchEffects(lantern.id, ctx.effects);
@@ -108,10 +91,23 @@ export function processLanternitePulseMilestone(
         if (ctx.lightLevelEnabled) {
             upsertLanternTorch({
                 lanternite: lantern,
-                attachTarget: nearest,
                 addEffect: ctx.addEffect,
                 effects: ctx.effects,
             });
         }
     }
+}
+
+/** Initialise nest spawn pacing after the engine clock is ready. */
+export function prepareLanterniteNestForMissionStart(unit: Unit, gameTime: number): void {
+    if (unit.characterId !== LANTERNITE_NEST_CHARACTER_ID || !unit.lanterniteNestConfig) return;
+    const iv = Math.max(0.5, unit.lanterniteNestConfig.spawnIntervalSec);
+    unit.lanterniteNestSpawnState = {
+        spawnedIds: [],
+        nextSpawnAtGameTime: gameTime + iv,
+    };
+}
+
+export function hydrateLanterniteNestFromMissionDef(unit: Unit, cfg: LanterniteNestMissionConfig): void {
+    unit.lanterniteNestConfig = cfg;
 }

@@ -12,6 +12,7 @@ import { LIGHT_EMPOWERED } from './WorldOfDarkness/missions/003_light_empowered'
 import { CAVE_RESPITE } from './WorldOfDarkness/missions/004_cave_respite';
 import { MONSTER } from './WorldOfDarkness/missions/005_monster';
 import { CORE_AWAKENING } from './WorldOfDarkness/missions/006_core_awakening';
+import { EMBER_THRESHOLD } from './WorldOfDarkness/missions/007_ember_threshold';
 import { LAST_HOLDOUT } from './BunkerAtTheEnd/missions/last_holdout';
 
 /** Default mission when missionId is unknown (e.g. fallback in BattlePhase). */
@@ -29,6 +30,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     cave_respite: CAVE_RESPITE,
     monster: MONSTER,
     core_awakening: CORE_AWAKENING,
+    ember_threshold: EMBER_THRESHOLD,
     last_holdout: LAST_HOLDOUT,
 };
 

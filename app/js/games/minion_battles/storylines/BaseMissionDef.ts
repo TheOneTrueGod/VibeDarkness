@@ -37,6 +37,11 @@ import {
 } from '../abilities/abilityUses';
 import { mergeBattleEquipmentIdsFromResearch } from '../../../researchTrees/evaluator';
 import { Ammo } from '../resources/Ammo';
+import {
+    hydrateLanterniteNestFromMissionDef,
+    prepareLanterniteNestForMissionStart,
+    LANTERNITE_NEST_CHARACTER_ID,
+} from '../game/lanternite/lanternitePulse';
 
 const AMMO_ABILITIES = new Set(['0105', '0112', '0203', '0204', '0205']);
 
@@ -210,6 +215,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             const unit = createUnitFromSpawnConfig(
                 {
                     ...spawn,
+                    ...(spawn.unitId ? { id: spawn.unitId } : {}),
                     hp: Math.round(stats.hp * (spawn.teamId === 'enemy' ? enemyHealthMult : 1)),
                     speed: stats.speed,
                     x: spawn.position.x,
@@ -219,9 +225,27 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 params.eventBus,
                 engine,
             );
+            if (spawn.lanterniteNest != null && spawn.characterId === LANTERNITE_NEST_CHARACTER_ID) {
+                hydrateLanterniteNestFromMissionDef(unit, spawn.lanterniteNest);
+            }
+            if (spawn.lanterniteNestOwnerUnitId != null) {
+                unit.lanterniteNestOwnerUnitId = spawn.lanterniteNestOwnerUnitId;
+            }
+            if (spawn.lanternPatrolFarWorld != null) {
+                unit.lanternPatrolFarWorld = { ...spawn.lanternPatrolFarWorld };
+            }
+            if (spawn.lanternPatrolLeg === 'toFar' || spawn.lanternPatrolLeg === 'toNest') {
+                unit.lanternPatrolLeg = spawn.lanternPatrolLeg;
+            }
             initializeAbilityRuntimeForUnit(unit);
             attachAmmoIfNeeded(engine, unit);
             engine.addUnit(unit);
+        }
+
+        for (const u of engine.units) {
+            if (u.characterId === LANTERNITE_NEST_CHARACTER_ID && u.lanterniteNestConfig != null) {
+                prepareLanterniteNestForMissionStart(u, engine.gameTime);
+            }
         }
 
         // Add special tiles (Campfire, Crystal, etc.) — maxHp, emitsLight, protectRadius, defendPoint from placement
