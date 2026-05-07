@@ -17,6 +17,12 @@ import type { RecoveryChargeType } from '../../abilities/abilityUses';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
 
+/** True when the primary input is not mouse-like (e.g. touch-first). Avoids maxTouchPoints on hybrid desktops. */
+function getUsesMobileCardLayout(): boolean {
+    if (typeof window === 'undefined') return false;
+    return !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+}
+
 interface PulseParticle {
     id: string;
     startMs: number;
@@ -65,7 +71,7 @@ export default function CardHand({
     gameState,
 }: CardHandProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
-    const [isMobile, setIsMobile] = useState(false);
+    const [isMobile, setIsMobile] = useState(getUsesMobileCardLayout);
     const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
     const [animationNow, setAnimationNow] = useState<number>(() => performance.now());
     const [pulseParticles, setPulseParticles] = useState<PulseParticle[]>([]);
@@ -78,9 +84,12 @@ export default function CardHand({
         Record<string, { currentUses: number; charges: Partial<Record<RecoveryChargeType, number>> }>
     >({});
 
-    // Detect mobile via touch support
     useEffect(() => {
-        setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+        const sync = () => setIsMobile(!mq.matches);
+        sync();
+        mq.addEventListener('change', sync);
+        return () => mq.removeEventListener('change', sync);
     }, []);
 
     const handCards = useMemo(() => {
