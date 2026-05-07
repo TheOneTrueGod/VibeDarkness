@@ -71,4 +71,25 @@ export default tseslint.config(
             'no-async-promise-executor': 'warn',
         },
     },
+    {
+        // Forbid Math.random() in sim-critical Minion Battles code so randomness flows
+        // through the engine RNG (deterministic across host/clients). Cosmetic-only
+        // randomness in card_defs/** and renderer paths remains allowed.
+        files: [
+            'app/js/games/minion_battles/game/**/*.{ts,tsx}',
+            'app/js/games/minion_battles/abilities/**/*.{ts,tsx}',
+            'app/js/games/minion_battles/units/**/*.{ts,tsx}',
+            'app/js/games/minion_battles/storylines/**/*.{ts,tsx}',
+            'app/js/games/minion_battles/buffs/**/*.{ts,tsx}',
+        ],
+        rules: {
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector: "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+                    message: 'Math.random() is forbidden in sim-critical code; use engine.generateRandomInteger or engine.generateRandomNumber.',
+                },
+            ],
+        },
+    },
 );

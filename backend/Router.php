@@ -16,11 +16,15 @@ use App\Http\Handlers\LoginHandler;
 use App\Http\Handlers\LogoutHandler;
 use App\Http\Handlers\SetLobbyStateHandler;
 use App\Http\Handlers\UpdateGameStateHandler;
-use App\Http\Handlers\SaveGameStateSnapshotHandler;
-use App\Http\Handlers\GetGameStateSnapshotHandler;
-use App\Http\Handlers\GetGameMinimalStateHandler;
-use App\Http\Handlers\SaveGameOrdersHandler;
-use App\Http\Handlers\GetGameOrdersHandler;
+use App\Http\Handlers\Battle\AppendFingerprintsHandler;
+use App\Http\Handlers\Battle\AppendOrderHandler;
+use App\Http\Handlers\Battle\GetFingerprintsRangeHandler;
+use App\Http\Handlers\Battle\GetHeartbeatHandler;
+use App\Http\Handlers\Battle\GetInitialStateHandler;
+use App\Http\Handlers\Battle\GetOrdersRangeHandler;
+use App\Http\Handlers\Battle\GetSnapshotHandler;
+use App\Http\Handlers\Battle\SaveInitialStateHandler;
+use App\Http\Handlers\Battle\SaveSnapshotHandler;
 use App\Http\Handlers\ResetGameToInitialSnapshotHandler;
 use App\Http\Handlers\NotFoundHandler;
 use App\Http\Handlers\PostMessageHandler;
@@ -80,13 +84,16 @@ class Router
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/state$#', GetLobbyStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/state$#', SetLobbyStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/state$#', UpdateGameStateHandler::class],
-            ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/snapshots$#', SaveGameStateSnapshotHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/reset-to-initial-snapshot$#', ResetGameToInitialSnapshotHandler::class],
-            ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/snapshots/(\d+)$#', GetGameStateSnapshotHandler::class],
-            ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/snapshots$#', GetGameStateSnapshotHandler::class],
-            ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/minimal$#', GetGameMinimalStateHandler::class],
-            ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders/(\d+)$#', SaveGameOrdersHandler::class],
-            ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders/(\d+)$#', GetGameOrdersHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders$#', AppendOrderHandler::class],
+            ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders$#', GetOrdersRangeHandler::class],
+            ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/heartbeat$#', GetHeartbeatHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/snapshot$#', SaveSnapshotHandler::class],
+            ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/snapshot$#', GetSnapshotHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/initial-state$#', SaveInitialStateHandler::class],
+            ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/initial-state$#', GetInitialStateHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/fingerprints$#', AppendFingerprintsHandler::class],
+            ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/fingerprints$#', GetFingerprintsRangeHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/messages$#', GetMessagesHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/messages$#', PostMessageHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/join$#', JoinLobbyHandler::class],

@@ -106,8 +106,8 @@ export interface SerializedGameState {
     continuousSpawnLastSpawnedAt?: Record<string, number>;
     /** Player research trees available during battle logic (playerId -> treeId -> researched node ids). */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
-    /** Host-computed state hash from last snapshot (optional; restored on load for sync). */
-    synchash?: string;
+    /** Deterministic fingerprint captured at battle initialization. */
+    initialFingerprint?: string;
     /** Runtime terrain mutations (rock durability/state transitions). */
     terrainStoneMutations?: SerializedStoneTileMutation[];
     /** True while a cinematic/gameplay-freeze sequence is active (e.g. boss death story beat). */

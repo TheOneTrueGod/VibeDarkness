@@ -43,7 +43,7 @@ function createTwoPlayerEngine(): {
 } {
     resetGameObjectIdCounter(1);
     const engine = new GameEngine();
-    engine.prepareForNewGame({ localPlayerId: 'p1' });
+    engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
 
     const startCol = 5;
     const startRow = 5;
@@ -267,6 +267,23 @@ describe('Two-player order turns', () => {
         stepEngine(engine, 300);
         expect(engine.waitingForOrders).not.toBeNull();
 
+        engine.destroy();
+    });
+
+    it('past-due queueOrder snaps to current gameTick (late multiplayer delivery)', () => {
+        const { engine } = createTwoPlayerEngine();
+        engine.gameTick = 42;
+        engine.queueOrder(10, makeWaitOrder('unit_p1', 6, 5));
+        expect(engine.pendingOrders.some((o) => o.gameTick === 42)).toBe(true);
+        engine.destroy();
+    });
+
+    it('hasPendingOrderForUnit satisfies batch.atTick using clamped-later rows', () => {
+        const { engine } = createTwoPlayerEngine();
+        engine.gameTick = 100;
+        engine.queueOrder(10, makeWaitOrder('unit_p2', 9, 5));
+        expect(engine.hasPendingOrderForUnit('unit_p2', 10)).toBe(true);
+        expect(engine.hasPendingOrderForUnit('unit_p2', 101)).toBe(false);
         engine.destroy();
     });
 });

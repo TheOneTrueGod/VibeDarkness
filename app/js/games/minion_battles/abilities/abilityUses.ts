@@ -140,16 +140,9 @@ export function addRecoveryChargeToUnitAbilities(
     unit: Unit,
     chargeType: RecoveryChargeType,
     amount: number,
-    generateRandomInteger?: (min: number, max: number) => number,
+    generateRandomInteger: (min: number, max: number) => number,
 ): string[] {
     if (amount <= 0) return [];
-    const pickRandomInteger =
-        generateRandomInteger ??
-        ((min: number, max: number): number => {
-            if (max < min) return min;
-            const span = max - min + 1;
-            return min + Math.floor(Math.random() * span);
-        });
 
     const notedAbilities = getAbilityIdsEligibleForRecovery(unit)
         .map((abilityId) => ({
@@ -164,7 +157,7 @@ export function addRecoveryChargeToUnitAbilities(
 
     for (let count = 1; count <= amount; count++) {
         if (notedAbilities.length === 0) break;
-        const idx = pickRecoveryChargeRecipientIndex(notedAbilities, pickRandomInteger);
+        const idx = pickRecoveryChargeRecipientIndex(notedAbilities, generateRandomInteger);
         const selected = notedAbilities[idx];
         if (!selected) break;
         const changed = applyRecoveryChargeToAbility(unit, selected.abilityId, chargeType, 1);

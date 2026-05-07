@@ -127,12 +127,20 @@ export const ClawAbility: AbilityStatic = {
             };
             if (isMoving && dirResult && dirResult.dist > 0) {
                 const baseAngle = Math.atan2(-dirResult.dirY, -dirResult.dirX);
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
                 const angleVariance = (Math.random() - 0.5) * 0.6;
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
                 const speed = 30 + Math.random() * 20;
                 effectData.vx = Math.cos(baseAngle + angleVariance) * speed;
                 effectData.vy = Math.sin(baseAngle + angleVariance) * speed;
             } else if (!isMoving) {
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
                 const angle = Math.random() * Math.PI * 2;
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
                 const speed = 30 + Math.random() * 20;
                 effectData.vx = Math.cos(angle) * speed;
                 effectData.vy = Math.sin(angle) * speed;

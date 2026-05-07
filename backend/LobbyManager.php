@@ -463,6 +463,20 @@ class LobbyManager
     }
 
     /**
+     * Ensure the merged Minion Battles game JSON has a deterministic battle seed once the
+     * lobby first leaves character_select. The seed is a 32-bit unsigned value generated
+     * server-side and shared by all peers so deterministic init (RNG, spawn picks, etc.)
+     * matches across host and clients. Idempotent: only assigns when missing/null.
+     */
+    private function ensureBattleSeed(array &$gameState): void
+    {
+        $existing = $gameState['battleSeed'] ?? null;
+        if ($existing === null) {
+            $gameState['battleSeed'] = random_int(0, 0xFFFFFFFF);
+        }
+    }
+
+    /**
      * Admin-only: remove all battle checkpoint files and strip engine runtime fields from the
      * persisted game JSON. Keeps lobby/story payload (mission votes, character selections, story
      * choices, equipment maps, etc.) as after pre-mission story; sets gamePhase to battle so
@@ -473,19 +487,8 @@ class LobbyManager
     public function resetMinionBattleMissionAfterStory(string $lobbyId, string $gameId): ?array
     {
         $basePath = $this->getStoragePath() . '/' . $lobbyId;
-        $checkpointDir = $basePath . '/game_' . $gameId;
-        if (is_dir($checkpointDir)) {
-            foreach (scandir($checkpointDir) ?: [] as $file) {
-                if ($file === '.' || $file === '..') {
-                    continue;
-                }
-                $full = $checkpointDir . '/' . $file;
-                if (is_file($full)) {
-                    unlink($full);
-                }
-            }
-            @rmdir($checkpointDir);
-        }
+        $storage = new BattleStorage();
+        $storage->clearGameStorage($lobbyId, $gameId);
 
         $path = $basePath . '/game_' . $gameId . '.json';
         if (!is_file($path)) {
@@ -511,6 +514,9 @@ class LobbyManager
 
         $data['gamePhase'] = 'battle';
         unset($data['game_phase']);
+
+        // Phase is now non-character_select; preserve existing seed if present, otherwise mint one.
+        $this->ensureBattleSeed($data);
 
         $this->persistGameState($lobbyId, $gameId, $data);
 
@@ -831,6 +837,15 @@ class LobbyManager
 
         $newState = array_merge($currentState, $updates);
         $this->touchLastUsedWhenMissionStarts($currentState, $newState);
+
+        // Seed deterministic battleSeed the first time the lobby leaves character_select
+        // (entering pre_mission_story, battle, post_mission_story, etc.). Idempotent: re-entries
+        // keep the same seed so all peers share it for deterministic init.
+        $mergedPhase = $newState['gamePhase'] ?? $newState['game_phase'] ?? '';
+        if ($mergedPhase !== '' && $mergedPhase !== 'character_select') {
+            $this->ensureBattleSeed($newState);
+        }
+
         $this->persistGameState($lobbyId, $gameId, $newState);
         return true;
     }

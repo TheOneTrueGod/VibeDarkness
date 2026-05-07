@@ -52,8 +52,8 @@ export function buildTinyBattleEngine(opts: BuildTinyBattleEngineOpts): GameEngi
     const engine = new GameEngine();
     engine.prepareForNewGame({
         localPlayerId: opts.localPlayerId,
+        randomSeed: 1,
         terrainManager,
-        isHost: true,
         aiControllerId: null,
     });
     engine.setMissionLightConfig(false, 0);

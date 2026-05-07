@@ -13,7 +13,7 @@ import { DARK_AWAKENING } from '../../storylines/WorldOfDarkness/missions/001_da
 function makeCheckpointSnapshot(overrides: Partial<Record<string, unknown>> = {}) {
     resetGameObjectIdCounter(1);
     const engine = new GameEngine();
-    engine.prepareForNewGame({ localPlayerId: 'p1' });
+    engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
     DARK_AWAKENING.initializeGameState(engine, {
         playerUnits: [{ playerId: 'p1', name: 'Host', portraitId: 'warrior' }],
         localPlayerId: 'p1',

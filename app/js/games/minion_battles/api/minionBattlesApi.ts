@@ -132,4 +132,16 @@ export class MinionBattlesApi {
     setCurrentPlayerId(): void {
         this.lobbyClient.setCurrentPlayerId(this._playerId);
     }
+
+    getLobbyClient(): LobbyClient {
+        return this.lobbyClient;
+    }
+
+    getLobbyId(): string {
+        return this.lobbyId;
+    }
+
+    getGameId(): string {
+        return this.gameId;
+    }
 }

@@ -13,6 +13,7 @@ import { CardManager } from './managers/CardManager';
 import { SpecialTileManager } from './managers/SpecialTileManager';
 import { LevelEventManager } from './managers/LevelEventManager';
 import { ObjectiveManager } from './managers/ObjectiveManager';
+import { fingerprintInitial, FingerprintRing, type Fingerprint64 } from './Fingerprint';
 
 export class GameState {
     readonly eventBus = new EventBus();
@@ -28,8 +29,10 @@ export class GameState {
     storyPauseActive = false;
     storyPauseReason: string | null = null;
     storyPauseEndsAt: number | null = null;
-    /** Hash of serialized state at current tick; from server on load, recomputed after each sim tick while unpaused. */
-    synchash: string | null = null;
+    /** Runtime deterministic fingerprint, incrementally mixed during simulation events. */
+    runtimeFingerprint: Fingerprint64 = fingerprintInitial();
+    /** Ring buffer of recent per-tick fingerprints for sync diagnostics/recovery. */
+    runtimeFingerprintRing = new FingerprintRing();
 
     readonly unitManager: UnitManager;
     readonly projectileManager: ProjectileManager;

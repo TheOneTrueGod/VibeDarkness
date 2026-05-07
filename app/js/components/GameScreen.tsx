@@ -156,7 +156,6 @@ export default function GameScreen({
 
     const isLoading = gameSync?.syncStatus === 'loading';
     const isResyncing = gameSync?.syncStatus === 'resyncing';
-    const showWaitingForHost = gameSync?.syncStatus === 'waiting_for_host';
 
     // Only show resyncing overlay during battle; pre-battle phases use GameSyncContext's unified
     // poll loop (full state on a phase-based cadence) and don't need to block the whole screen
@@ -370,26 +369,6 @@ export default function GameScreen({
                                 <p className="p-5 text-danger">{gameLoadError}</p>
                             ) : GameComp ? (
                                 <>
-                                    {showWaitingForHost && (
-                                        <div className="absolute left-1/2 bottom-[calc(12rem+80px)] -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-2 bg-surface-light rounded-lg border border-warning text-sm text-warning">
-                                            <div className="h-4 w-4 flex-shrink-0 border-2 border-warning border-t-transparent rounded-full animate-spin" />
-                                            <div className="flex flex-col items-start gap-0.5 min-w-0">
-                                                <span className="font-medium">Waiting for host</span>
-                                                {gameSync?.waitingForHostReason ? (
-                                                    <span className="text-xs text-warning/80 font-normal leading-snug max-w-[14rem]">
-                                                        {gameSync.waitingForHostReason}
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => gameSync?.requestResync()}
-                                                className="ml-1 px-2 py-1 rounded border border-warning bg-warning/10 hover:bg-warning/20 text-warning text-xs font-medium transition-colors"
-                                            >
-                                                Resync
-                                            </button>
-                                        </div>
-                                    )}
                                     <GameComp
                                         lobbyClient={lobbyClient}
                                         lobbyId={lobby.id}

@@ -74,11 +74,12 @@ export function getRandomConeAngle(
     maxOffsetRad: number,
 ): number {
     const eng = engine as GameEngineLikeForGuns;
+    if (typeof eng?.generateRandomInteger !== 'function') {
+        throw new Error('getRandomConeAngle requires an engine exposing generateRandomInteger');
+    }
     const minInt = 0;
     const maxInt = 10000;
-    const n = typeof eng.generateRandomInteger === 'function'
-        ? eng.generateRandomInteger(minInt, maxInt)
-        : Math.floor(Math.random() * (maxInt - minInt + 1)) + minInt;
+    const n = eng.generateRandomInteger(minInt, maxInt);
     const t = n / (maxInt - minInt);
     const offset = (t * 2 - 1) * maxOffsetRad;
     return centerAngle + offset;
@@ -103,9 +104,10 @@ export function getRandomSpeedFactor(
     maxFactor: number,
 ): number {
     const eng = engine as GameEngineLikeForGuns;
-    const n = typeof eng.generateRandomInteger === 'function'
-        ? eng.generateRandomInteger(0, 1000)
-        : Math.floor(Math.random() * 1001);
+    if (typeof eng?.generateRandomInteger !== 'function') {
+        throw new Error('getRandomSpeedFactor requires an engine exposing generateRandomInteger');
+    }
+    const n = eng.generateRandomInteger(0, 1000);
     const t = n / 1000;
     return minFactor + t * (maxFactor - minFactor);
 }

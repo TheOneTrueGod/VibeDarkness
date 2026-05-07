@@ -1,6 +1,7 @@
 /**
  * Shared frontend types for lobby, players, and API payloads
  */
+import type { BattleOrder } from './games/minion_battles/game/types';
 
 export interface LobbyState {
     id: string;
@@ -108,6 +109,24 @@ export interface MinimalStateResult {
     gameTick: number | null;
     synchash: string | null;
     orders: Array<{ gameTick: number; order: Record<string, unknown> }>;
+}
+
+export interface HeartbeatResponse {
+    hostTick: number | null;
+    hostFingerprint: string | null;
+    ordersTipTick: number | null;
+    /** Monotonic-ish count of order rows — advances when append wins even if atTick repeats. */
+    ordersRecordCount?: number | null;
+    pausedAtTick: number | null;
+    expectingFromPlayerIds: string[] | null;
+    initialFingerprint: string | null;
+}
+
+export interface BattleOrderRecord {
+    atTick: number;
+    playerId: string;
+    order: BattleOrder;
+    idHash: string;
 }
 
 /** Chat message payload used when adding a message from poll (matches ChatManager.addMessage) */

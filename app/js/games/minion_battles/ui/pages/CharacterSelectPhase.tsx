@@ -18,6 +18,7 @@ import { ALL_PLAYER_ITEMS } from '../../character_defs/items';
 import CharacterCreator from '../components/CharacterEditor/CharacterCreator';
 import CharacterEditor from '../components/CharacterEditor/CharacterEditor';
 import AdminPlayersPanel from '../components/AdminPlayersPanel';
+import ReplayUi from '../../replay/ReplayUi';
 import { useUser } from '../../../../contexts/UserContext';
 
 interface CharacterSelectPhaseProps {
@@ -68,7 +69,7 @@ export default function CharacterSelectPhase({
     const [createCardRef, setCreateCardRef] = useState<HTMLDivElement | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
     const [editorForceEditable, setEditorForceEditable] = useState(false);
-    const [activeTab, setActiveTab] = useState<'characters' | 'players'>('characters');
+    const [activeTab, setActiveTab] = useState<'characters' | 'players' | 'replay'>('characters');
     const [campaign, setCampaign] = useState<import('../../../../types').CampaignState | null>(null);
     const [setReadyLoading, setSetReadyLoading] = useState(false);
     /** Optimistic: true after API succeeds, before next poll confirms. Keeps button disabled. */
@@ -83,10 +84,10 @@ export default function CharacterSelectPhase({
     }, [missionId]);
 
     useEffect(() => {
-        if (!isAdmin && activeTab === 'players') {
+        if (!isAdmin && (activeTab === 'players' || activeTab === 'replay')) {
             setActiveTab('characters');
         }
-        if (activeTab === 'players') {
+        if (activeTab === 'players' || activeTab === 'replay') {
             setEditorOpen(false);
             setCreatorOpen(false);
         }
@@ -464,12 +465,29 @@ export default function CharacterSelectPhase({
                             Players
                         </button>
                     )}
+                    {isAdmin && (
+                        <button
+                            type="button"
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                                activeTab === 'replay'
+                                    ? 'border-primary bg-surface-light text-white'
+                                    : 'border-border-custom bg-surface text-muted hover:text-white hover:border-primary'
+                            }`}
+                            onClick={() => setActiveTab('replay')}
+                        >
+                            Replay
+                        </button>
+                    )}
                 </div>
             )}
 
             {activeTab === 'players' && isAdmin ? (
                 <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
                     <AdminPlayersPanel api={api} players={players} />
+                </div>
+            ) : activeTab === 'replay' && isAdmin ? (
+                <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
+                    <ReplayUi />
                 </div>
             ) : editorOpen && characterToEdit ? (
                 <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">

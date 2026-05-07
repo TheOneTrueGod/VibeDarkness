@@ -53,6 +53,15 @@ export interface MinionBattlesGameStatePayload {
     game_tick?: number;
     synchash?: string;
     waitingForOrders?: unknown;
+    /**
+     * Server-generated 32-bit unsigned battle seed.
+     * Minted once when the lobby first leaves `character_select` (entering
+     * pre_mission_story / battle / post_mission_story) and persisted in the
+     * lobby's game JSON thereafter. All peers (host + clients) read the same
+     * value so deterministic battle init (RNG, spawn picks, etc.) agrees.
+     * Absent while the lobby is still in `character_select`.
+     */
+    battleSeed?: number;
 }
 
 /** Full game blob from polling (may include arbitrary extra keys from the server). */

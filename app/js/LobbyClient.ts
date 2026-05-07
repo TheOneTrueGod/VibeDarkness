@@ -3,7 +3,8 @@
  * Handles HTTP API calls for lobby management
  */
 
-import type { CampaignResourceKey } from './types';
+import type { CampaignResourceKey, BattleOrderRecord, HeartbeatResponse } from './types';
+import type { BattleOrder, SerializedGameState } from './games/minion_battles/game/types';
 
 /** Campaign character as returned from API (serializable). */
 export interface CampaignCharacterPayload {
@@ -471,28 +472,135 @@ export class LobbyClient {
 
     // ---- Battle Phase: Checkpoints (game_<id>_<gameTick>.json) & Orders ----
 
-    /** Save a checkpoint at the given game tick (state + orders). Host only. */
-    async saveGameStateSnapshot(
+    async appendBattleOrder(
         lobbyId: string,
         gameId: string,
-        gameTick: number,
-        state: Record<string, unknown>,
-        orders: Array<{ gameTick: number; order: Record<string, unknown> }> = [],
-        synchash: string | null,
-    ): Promise<void> {
-        const body: Record<string, unknown> = {
-            playerId: this._currentPlayerId ?? '',
-            gameTick,
-            state,
-            orders,
+        body: { playerId: string; atTick: number; order: BattleOrder; idHash?: string },
+    ): Promise<{ accepted: boolean; idHash: string }> {
+        const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/orders`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        }) as unknown as { appended?: boolean; idHash?: string };
+        return {
+            accepted: data.appended === true,
+            idHash: data.idHash ?? body.idHash ?? '',
         };
-        if (synchash != null) {
-            body.synchash = synchash;
+    }
+
+    async getBattleOrdersRange(
+        lobbyId: string,
+        gameId: string,
+        params: { playerId: string; sinceTick?: number; untilTick?: number },
+    ): Promise<{ orders: BattleOrderRecord[] }> {
+        const query = new URLSearchParams({ playerId: params.playerId });
+        if (params.sinceTick !== undefined) {
+            query.set('sinceTick', String(params.sinceTick));
         }
-        await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshots`, {
+        if (params.untilTick !== undefined) {
+            query.set('untilTick', String(params.untilTick));
+        }
+        const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/orders?${query}`) as unknown as {
+            orders?: BattleOrderRecord[];
+        };
+        return { orders: data.orders ?? [] };
+    }
+
+    async getBattleHeartbeat(lobbyId: string, gameId: string, playerId: string): Promise<HeartbeatResponse> {
+        const query = new URLSearchParams({ playerId });
+        const data = await this.request(
+            `/api/lobbies/${lobbyId}/games/${gameId}/heartbeat?${query}`
+        ) as unknown as HeartbeatResponse;
+        return {
+            hostTick: data.hostTick ?? null,
+            hostFingerprint: data.hostFingerprint ?? null,
+            ordersTipTick: data.ordersTipTick ?? null,
+            ordersRecordCount: data.ordersRecordCount ?? null,
+            pausedAtTick: data.pausedAtTick ?? null,
+            expectingFromPlayerIds: data.expectingFromPlayerIds ?? null,
+            initialFingerprint: data.initialFingerprint ?? null,
+        };
+    }
+
+    async saveBattleSnapshot(
+        lobbyId: string,
+        gameId: string,
+        body: { playerId: string; tick: number; state: SerializedGameState },
+    ): Promise<void> {
+        await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshot`, {
             method: 'POST',
             body: JSON.stringify(body),
         });
+    }
+
+    async getBattleSnapshot(
+        lobbyId: string,
+        gameId: string,
+        params: { playerId: string; atTick?: number },
+    ): Promise<{ tick: number; state: SerializedGameState } | null> {
+        const query = new URLSearchParams({ playerId: params.playerId });
+        if (params.atTick !== undefined) {
+            query.set('atTick', String(params.atTick));
+        }
+        const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshot?${query}`) as unknown as {
+            snapshot?: { tick: number; state: SerializedGameState } | null;
+        };
+        return data.snapshot ?? null;
+    }
+
+    async saveBattleInitialState(
+        lobbyId: string,
+        gameId: string,
+        body: { playerId: string; state: SerializedGameState; initialFingerprint: string },
+    ): Promise<void> {
+        await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/initial-state`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+    }
+
+    async getBattleInitialState(
+        lobbyId: string,
+        gameId: string,
+        playerId: string,
+    ): Promise<{ state: SerializedGameState; initialFingerprint: string } | null> {
+        const query = new URLSearchParams({ playerId });
+        const data = await this.request(
+            `/api/lobbies/${lobbyId}/games/${gameId}/initial-state?${query}`,
+        ) as unknown as {
+            initialState?: { state: SerializedGameState; initialFingerprint: string } | null;
+        };
+        return data.initialState ?? null;
+    }
+
+    async appendBattleFingerprints(
+        lobbyId: string,
+        gameId: string,
+        body: { playerId: string; records: Array<{ tick: number; fp: string }> },
+    ): Promise<{ appended: number }> {
+        const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/fingerprints`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        }) as unknown as { appended?: number };
+        return { appended: data.appended ?? 0 };
+    }
+
+    async getBattleFingerprintsRange(
+        lobbyId: string,
+        gameId: string,
+        params: { playerId: string; fromTick: number; toTick: number },
+    ): Promise<{ records: Array<{ tick: number; fp: string }> }> {
+        const query = new URLSearchParams({
+            playerId: params.playerId,
+            fromTick: String(params.fromTick),
+            toTick: String(params.toTick),
+        });
+        const data = await this.request(
+            `/api/lobbies/${lobbyId}/games/${gameId}/fingerprints?${query}`,
+        ) as unknown as {
+            fingerprints?: Array<{ tick: number; fp: string }>;
+            records?: Array<{ tick: number; fp: string }>;
+        };
+        return { records: data.records ?? data.fingerprints ?? [] };
     }
 
     /**
@@ -506,89 +614,9 @@ export class LobbyClient {
         });
     }
 
-    /** Get a checkpoint by game tick, or latest if gameTick is undefined. */
-    async getGameStateSnapshot(
-        lobbyId: string,
-        gameId: string,
-        gameTick?: number,
-    ): Promise<{ gameTick: number; state: Record<string, unknown>; orders: Array<{ gameTick: number; order: Record<string, unknown> }> } | null> {
-        const endpoint = gameTick !== undefined
-            ? `/api/lobbies/${lobbyId}/games/${gameId}/snapshots/${gameTick}`
-            : `/api/lobbies/${lobbyId}/games/${gameId}/snapshots`;
-        const params = new URLSearchParams({ playerId: this._currentPlayerId ?? '' });
-        const data = await this.request(`${endpoint}?${params}`) as unknown as {
-            snapshot: { gameTick: number; state: Record<string, unknown>; orders: Array<{ gameTick: number; order: Record<string, unknown> }> } | null;
-            gameTick: number | null;
-        };
-        if (!data.snapshot) return null;
-        return {
-            gameTick: data.snapshot.gameTick ?? data.gameTick ?? 0,
-            state: data.snapshot.state ?? {},
-            orders: data.snapshot.orders ?? [],
-        };
-    }
-
-    /** Add an order to a checkpoint file (atTick = tick when order is applied). */
-    async saveGameOrders(
-        lobbyId: string,
-        gameId: string,
-        checkpointGameTick: number,
-        atTick: number,
-        order: Record<string, unknown>,
-    ): Promise<void> {
-        await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/orders/${checkpointGameTick}`, {
-            method: 'POST',
-            body: JSON.stringify({
-                playerId: this._currentPlayerId ?? '',
-                atTick,
-                order,
-            }),
-        });
-    }
-
-    /** Get minimal sync state (gameTick, synchash, orders) for the latest or specified checkpoint. */
-    async getGameMinimalState(
-        lobbyId: string,
-        gameId: string,
-        checkpointGameTick?: number,
-    ): Promise<{ gameTick: number | null; synchash: string | null; orders: Array<{ gameTick: number; order: Record<string, unknown> }> }> {
-        const params = new URLSearchParams({ playerId: this._currentPlayerId ?? '' });
-        if (checkpointGameTick !== undefined) {
-            params.set('checkpointGameTick', String(checkpointGameTick));
-        }
-        const data = await this.request(
-            `/api/lobbies/${lobbyId}/games/${gameId}/minimal?${params}`,
-        ) as unknown as { gameTick: number | null; synchash: string | null; orders: Array<{ gameTick: number; order: Record<string, unknown> }> };
-        return {
-            gameTick: data.gameTick ?? null,
-            synchash: data.synchash ?? null,
-            orders: data.orders ?? [],
-        };
-    }
-
-    /** Get orders (and optional state) for a checkpoint. */
-    async getGameOrders(
-        lobbyId: string,
-        gameId: string,
-        checkpointGameTick: number,
-    ): Promise<{ orders: Array<{ gameTick: number; order: Record<string, unknown> }>; state: Record<string, unknown> | null; gameTick: number } | null> {
-        const params = new URLSearchParams({ playerId: this._currentPlayerId ?? '' });
-        const data = await this.request(
-            `/api/lobbies/${lobbyId}/games/${gameId}/orders/${checkpointGameTick}?${params}`,
-        ) as unknown as { orders: Array<{ gameTick: number; order: Record<string, unknown> }> | null; state: Record<string, unknown> | null; gameTick: number };
-        if (data.orders == null) return null;
-        return {
-            orders: data.orders,
-            state: data.state ?? null,
-            gameTick: data.gameTick ?? checkpointGameTick,
-        };
-    }
-
     // ---- Player ID tracking (set by the app after join) ----
 
-    private _currentPlayerId: string | null = null;
-
-    setCurrentPlayerId(playerId: string): void {
-        this._currentPlayerId = playerId;
+    setCurrentPlayerId(_playerId: string): void {
+        // Legacy no-op shim kept during migration while call sites are still present.
     }
 }

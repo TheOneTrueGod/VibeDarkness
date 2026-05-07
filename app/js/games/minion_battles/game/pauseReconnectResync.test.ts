@@ -13,7 +13,7 @@ const FIXED_DT = 1 / 60;
 function createTwoPlayerEngine(): GameEngine {
     resetGameObjectIdCounter(1);
     const engine = new GameEngine();
-    engine.prepareForNewGame({ localPlayerId: 'p1' });
+    engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
     const startCol = 5;
     const startRow = 5;
     engine.addUnit(

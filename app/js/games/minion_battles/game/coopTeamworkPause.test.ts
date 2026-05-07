@@ -20,7 +20,7 @@ describe('Coop cooldown teamwork pause', () => {
     it('toJSON omits teamworkCancelledOwnerIds from waitingForOrders', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         engine.waitingForOrders = {
             waiters: [{ unitId: 'a', ownerId: 'p1' }],
             atTick: 3,
@@ -34,7 +34,7 @@ describe('Coop cooldown teamwork pause', () => {
     it('committing deferred pause cancels ally coop tail, expands waiters, and sets teamwork owners', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         const col = 6;
         const row = 6;
         const unitP1 = new Unit({

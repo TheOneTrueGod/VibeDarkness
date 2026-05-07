@@ -12,6 +12,7 @@ import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
 import type { OrderWaiter, WaitingForOrders, BattleOrder, ResolvedTarget } from '../../game/types';
 import { BattleSession } from '../../game/BattleSession';
+import { BattleNet } from '../../game/BattleNet';
 import { resolveClick, validateAndResolveTarget } from '../../abilities/targeting';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
@@ -25,9 +26,6 @@ import BossFightHud from '../components/boss/BossFightHud';
 import type { BossHudSlice } from '../components/boss/BossFightHud';
 import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
-import { useGameSyncOptional } from '../../../../contexts/GameSyncContext';
-import type { BattleCallbacks } from '../../../../contexts/GameSyncContext';
-import { debugLog } from '../../../../debugLog';
 import { computeSynchash } from '../../../../utils/synchash';
 
 declare global {
@@ -88,10 +86,11 @@ export default function BattlePhase({
     onDefeat,
     onEmittedChatMessage,
 }: BattlePhaseProps) {
-    const gameSync = useGameSyncOptional();
-    const canSubmitOrders = gameSync?.canSubmitOrders ?? true;
+    const canSubmitOrders = true;
 
     const sessionRef = useRef<BattleSession | null>(null);
+    const netRef = useRef<BattleNet | null>(null);
+    const initialHeartbeatCheckedRef = useRef(false);
 
     // UI state
     const [roundNumber, setRoundNumber] = useState(1);
@@ -131,7 +130,9 @@ export default function BattlePhase({
     const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [storyPauseActive, setStoryPauseActive] = useState(false);
     const [teamworkBurstKey, setTeamworkBurstKey] = useState(0);
-    const prevSyncStatusRef = useRef<string | null>(null);
+    const [netSyncStatus, setNetSyncStatus] = useState<'synced' | 'waiting_for_host' | 'resyncing' | 'failed'>(
+        'waiting_for_host',
+    );
 
     const isMyTurn = activeLocalWaiter != null;
     const canUseOrderUi = isMyTurn && canSubmitOrders && !storyPauseActive;
@@ -260,6 +261,8 @@ export default function BattlePhase({
     // BattleSession lifecycle (mount load + UI subscription)
     // ========================================================================
     useEffect(() => {
+        let effectAlive = true;
+
         const session = new BattleSession({
             api,
             missionId,
@@ -295,10 +298,79 @@ export default function BattlePhase({
             }
         });
 
-        session.updateLobbyContext(players, characterSelections);
-        session.load(players, characterSelections, initialGameState ?? undefined);
+        const runLoad = async () => {
+            const battleSeed = typeof initialGameState?.battleSeed === 'number' ? initialGameState.battleSeed : null;
+            if (battleSeed == null) {
+                console.error('[BattlePhase] battleSeed missing from game payload; cannot initialize deterministic battle');
+                setNetSyncStatus('failed');
+                return;
+            }
+
+            session.updateLobbyContext(players, characterSelections);
+            await session.load({
+                players,
+                characterSelections,
+                battleSeed,
+                initialSnapshot: (initialGameState as SerializedGameState | null | undefined) ?? undefined,
+            });
+
+            // Stale async run (e.g. React Strict Mode remount): effect cleaned up while `session.load`
+            // was in flight — do not create BattleNet or only the newest effect's cleanup will stop().
+            if (!effectAlive) {
+                return;
+            }
+
+            const net = new BattleNet({
+                api: api.getLobbyClient(),
+                session,
+                isHost,
+                lobbyId: api.getLobbyId(),
+                gameId: api.getGameId(),
+                playerId,
+            });
+            netRef.current = net;
+            session.setNetAdapter(net);
+            const unsubs: Array<() => void> = [];
+            unsubs.push(net.on('sync-status', (status) => setNetSyncStatus(status)));
+            if (!isHost) {
+                unsubs.push(
+                    net.on('heartbeat', (heartbeat) => {
+                        if (initialHeartbeatCheckedRef.current) return;
+                        if (heartbeat.initialFingerprint == null) return;
+                        initialHeartbeatCheckedRef.current = true;
+                        void session.compareInitialFingerprintWithHeartbeat(heartbeat.initialFingerprint);
+                    }),
+                );
+            }
+            net.start();
+
+            // Register teardown as soon as polling starts. Previously this ran only after
+            // `saveInitialState()` (async); leaving the battle during that window skipped
+            // `net.stop()` and heartbeats continued after unmount.
+            const prevCleanup = cleanupRef.current;
+            cleanupRef.current = () => {
+                for (const unsubNet of unsubs) {
+                    unsubNet();
+                }
+                net.stop();
+                session.setNetAdapter(null);
+                netRef.current = null;
+                prevCleanup();
+            };
+
+            if (isHost) {
+                await net.saveInitialState();
+            }
+        };
+
+        const cleanupRef = {
+            current: () => {},
+        };
+        void runLoad();
 
         return () => {
+            effectAlive = false;
+            cleanupRef.current();
             unsub();
             session.destroy();
             sessionRef.current = null;
@@ -306,84 +378,6 @@ export default function BattlePhase({
         // Intentionally mount once: same pattern as previous loadGameState([]).
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    useEffect(() => {
-        sessionRef.current?.setSyncBridge(
-            gameSync
-                ? {
-                      saveCheckpoint: gameSync.saveCheckpoint,
-                      submitOrder: gameSync.submitOrder,
-                  }
-                : null,
-        );
-    }, [gameSync]);
-
-    useEffect(() => {
-        if (!gameSync) return;
-
-        const callbacks: BattleCallbacks = {
-            onFullResync: (gameState: SerializedGameState) => {
-                const raw = gameState as unknown as Record<string, unknown>;
-                debugLog('sync tracking', 'warn', 'full resync → loadFromSnapshot', {
-                    gameTick: raw.gameTick ?? raw.game_tick,
-                    snapshotIndex: raw.snapshotIndex,
-                });
-                sessionRef.current?.loadFromSnapshot(gameState);
-            },
-            getEngineSnapshot: () => sessionRef.current?.getSnapshot() ?? null,
-            onOrdersReceived: (orders) => {
-                debugLog('sync tracking', 'info', 'orders delivered to session (queue + resume)', {
-                    count: orders.length,
-                    entries: orders.map((o) => ({
-                        gameTick: o.gameTick,
-                        unitId: (o.order as { unitId?: string }).unitId,
-                        abilityId: (o.order as { abilityId?: string }).abilityId,
-                    })),
-                });
-                sessionRef.current?.applyRemoteOrders(orders);
-            },
-        };
-        gameSync.registerBattleCallbacks(callbacks);
-        return () => {
-            gameSync.registerBattleCallbacks(null);
-        };
-    }, [gameSync]);
-
-    useEffect(() => {
-        const skipHandler = () => {
-            sessionRef.current?.skipTurn();
-        };
-        gameSync?.registerSkipTurnHandler?.(isHost ? skipHandler : null);
-        return () => {
-            gameSync?.registerSkipTurnHandler?.(null);
-        };
-    }, [gameSync, isHost]);
-
-    useEffect(() => {
-        const currentSyncStatus = gameSync?.syncStatus ?? null;
-        const prevSyncStatus = prevSyncStatusRef.current;
-        prevSyncStatusRef.current = currentSyncStatus;
-
-        if (currentSyncStatus !== 'synced') return;
-        if (prevSyncStatus !== 'resyncing' && prevSyncStatus !== 'loading') return;
-
-        const engine = sessionRef.current?.getEngine();
-        const waiting = engine?.waitingForOrders;
-        if (!engine || !waiting) return;
-        const needsReplay = waiting.waiters.some((w) => {
-            const unit = engine.getUnit(w.unitId);
-            return unit != null && engine.shouldPauseForOrders(unit);
-        });
-        if (!needsReplay) return;
-
-        debugLog('sync tracking', 'log', 'replaying waiting-for-orders UI after full-state sync', {
-            fromSyncStatus: prevSyncStatus,
-            toSyncStatus: currentSyncStatus,
-            gameTick: engine.gameTick,
-            waitingForOrders: waiting,
-        });
-        sessionRef.current?.replayWaitingForOrdersAfterSync();
-    }, [gameSync?.syncStatus, gameSync?.gameState]);
 
     useEffect(() => {
         const tick = () => {
@@ -610,6 +604,15 @@ export default function BattlePhase({
 
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="relative flex min-h-0 flex-1 flex-col">
+                        {netSyncStatus !== 'synced' && (
+                            <div className="pointer-events-none absolute left-3 top-3 z-20 rounded bg-dark-900/80 px-2 py-1 text-xs text-gray-200">
+                                {netSyncStatus === 'resyncing'
+                                    ? 'Resyncing battle...'
+                                    : netSyncStatus === 'failed'
+                                      ? 'Battle sync failed'
+                                      : 'Waiting for host sync...'}
+                            </div>
+                        )}
                         <BattleCanvas
                             engine={engine}
                             camera={camera}

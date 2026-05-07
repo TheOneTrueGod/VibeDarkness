@@ -40,7 +40,7 @@ describe('GameEngine', () => {
     ] as const)('spawns %i player unit(s) when game started with %i player(s)', (expectedCount, playerUnits) => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         const equippedByPlayer: Record<string, string[]> = {};
         playerUnits.forEach((pu) => {
             equippedByPlayer[pu.playerId] = ['004'];
@@ -69,7 +69,7 @@ describe('GameEngine', () => {
             { gameTick: 331, order: { unitId: 'unit_1', abilityId: 'wait', targets: [] } },
         ];
 
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         DARK_AWAKENING.initializeGameState(engine, {
             playerUnits: [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }],
             localPlayerId: 'p1',
@@ -106,7 +106,7 @@ describe('GameEngine', () => {
     it('restores units with same ids and positions', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         DARK_AWAKENING.initializeGameState(engine, {
             playerUnits: [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }],
             localPlayerId: 'p1',
@@ -130,7 +130,7 @@ describe('GameEngine', () => {
 
     it('emits round_start once when round begins', () => {
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
 
         const emittedRoundStarts: number[] = [];
         engine.eventBus.on('round_start', (data) => {
@@ -147,7 +147,7 @@ describe('GameEngine', () => {
 
     it('emits nearby_stone_damaged through engine helper', () => {
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
 
         const emitted: Array<{ unitId: string; sourceUnitId: string | null; causedBySelfOrAlly: boolean }> = [];
         engine.eventBus.on('nearby_stone_damaged', (data) => {
@@ -179,7 +179,7 @@ describe('GameEngine', () => {
 
     it('applies resonance gains from round_start and nearby_stone_damaged events', () => {
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         DARK_AWAKENING.initializeGameState(engine, {
             playerUnits: [{ playerId: 'p1', name: 'P1', portraitId: 'warrior' }],
             localPlayerId: 'p1',
@@ -225,7 +225,7 @@ describe('GameEngine', () => {
         const grid = TerrainGrid.createFilledTerrain(8, 8, CELL_SIZE, TerrainType.Grass);
         const terrainManager = new TerrainManager(grid);
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1', terrainManager });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1, terrainManager });
         const unit = new Unit({
             id: 'unit_bedrock',
             x: 4 * CELL_SIZE + (CELL_SIZE / 2),
@@ -252,7 +252,7 @@ describe('GameEngine', () => {
 
     it('grants one lightCharge at round_start when charged_rocks is researched', () => {
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         engine.setPlayerResearchTreesByPlayer({
             p1: {
                 crystal_rocks: ['charged_rocks'],
@@ -293,7 +293,7 @@ describe('GameEngine', () => {
         const terrainManager = new TerrainManager(grid);
 
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1', terrainManager });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1, terrainManager });
 
         const emitted: Array<{ previousState: string; state: string }> = [];
         engine.eventBus.on('terrain_stone_damaged', (event) => {
@@ -324,7 +324,7 @@ describe('GameEngine', () => {
         const terrainManager = new TerrainManager(grid);
 
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1', terrainManager });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1, terrainManager });
 
         terrainManager.createOrMarkRock(2, 1);
         terrainManager.damageRock(1, 1); // natural -> cracked
@@ -344,6 +344,32 @@ describe('GameEngine', () => {
         expect(restoredGrid.get(2, 1)).toBe(TerrainType.Dirt);
 
         restored.destroy();
+        engine.destroy();
+    });
+
+    it('computeInitialFingerprint is deterministic for same seeded setup', () => {
+        const a = new GameEngine();
+        const b = new GameEngine();
+        a.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 123 });
+        b.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 123 });
+        const fpA = a.computeInitialFingerprint();
+        const fpB = b.computeInitialFingerprint();
+        expect(fpA).toBe(fpB);
+        a.destroy();
+        b.destroy();
+    });
+
+    it('fires tick-complete callback with runtime fingerprint hex each tick', () => {
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 42 });
+        const calls: Array<{ tick: number; fp: string }> = [];
+        engine.setOnTickComplete((tick, fp) => {
+            calls.push({ tick, fp });
+        });
+        engine.stepSimulationFixedTicks(2);
+        expect(calls.length).toBeGreaterThanOrEqual(1);
+        expect(calls[0]?.tick).toBe(1);
+        expect(calls[0]?.fp).toMatch(/^[0-9a-f]{16}$/);
         engine.destroy();
     });
 });

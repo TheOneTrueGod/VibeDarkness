@@ -16,7 +16,7 @@ describe('ObjectiveManager', () => {
         const grid = new TerrainGrid(20, 20, CELL_SIZE, TerrainType.Grass);
         const tm = new TerrainManager(grid);
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1', terrainManager: tm });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1, terrainManager: tm });
 
         const boar = createUnitFromSpawnConfig(
             {
@@ -65,7 +65,7 @@ describe('ObjectiveManager', () => {
     it('round-trips objective state in engine JSON', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
-        engine.prepareForNewGame({ localPlayerId: 'p1' });
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         engine.registerBattleObjectives([
             { id: 'a', label: 'A', toComplete: { type: 'eliminateAllEnemies' } },
         ]);

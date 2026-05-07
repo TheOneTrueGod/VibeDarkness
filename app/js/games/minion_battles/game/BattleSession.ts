@@ -4,19 +4,19 @@
  */
 import type { PlayerState } from '../../../types';
 import type { MessageEntry } from '../../../components/Chat';
-import type { EngineSnapshot } from '../../../contexts/GameSyncContext';
 import { MessageType } from '../../../MessageTypes';
 import type { MinionBattlesApi } from '../api/minionBattlesApi';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { SPECTATOR_ID } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
-import { computeSynchash } from '../../../utils/synchash';
 import { debugLog } from '../../../debugLog';
-import { GameEngine, CHECKPOINT_INTERVAL } from './GameEngine';
+import { GameEngine } from './GameEngine';
 import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
 import { Camera } from './Camera';
-import type { BattleOrder, OrderAtTick, SerializedGameState, WaitingForOrders } from './types';
+import { fingerprintToHex } from './Fingerprint';
+import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
+import type { BattleNet, BattleSessionHandle } from './BattleNet';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -28,14 +28,11 @@ export interface BattleSessionConfig {
     onEmittedChatMessage?: (entry: MessageEntry) => void;
 }
 
-/** Network bridge from GameSyncContext (checkpoint + order file APIs). */
-export interface BattleSessionSyncBridge {
-    saveCheckpoint: (
-        gameTick: number,
-        state: Record<string, unknown>,
-        orders: Array<{ gameTick: number; order: Record<string, unknown> }>,
-    ) => Promise<string | null>;
-    submitOrder: (checkpointGameTick: number, atTick: number, order: Record<string, unknown>) => Promise<void>;
+export interface BattleSessionLoadArgs {
+    players: Record<string, PlayerState>;
+    characterSelections: Record<string, string>;
+    battleSeed: number;
+    initialSnapshot?: SerializedGameState;
 }
 
 export type BattleSessionEvent =
@@ -43,7 +40,7 @@ export type BattleSessionEvent =
           type: 'waiting_for_orders';
           engine: GameEngine;
           info: WaitingForOrders;
-          source: 'engine_callback' | 'post_full_state_sync';
+          source: 'engine_callback';
       }
     | { type: 'round_number'; roundNumber: number }
     | { type: 'round_progress'; progress: number }
@@ -52,13 +49,25 @@ export type BattleSessionEvent =
 
 export type BattleSessionListener = (event: BattleSessionEvent) => void;
 
-export class BattleSession {
+type EngineSnapshot = {
+    gameTick: number;
+    state: Record<string, unknown>;
+    waitingForOrders: {
+        waiters: Array<{ unitId: string; ownerId: string }>;
+        atTick: number;
+    } | null;
+    synchash: string | null;
+};
+
+export class BattleSession implements BattleSessionHandle {
     private engine: GameEngine | null = null;
     private camera: Camera | null = null;
     private renderer: GameRenderer | null = null;
     private players: Record<string, PlayerState> = {};
     private characterSelections: Record<string, string> = {};
-    private syncBridge: BattleSessionSyncBridge | null = null;
+    private netAdapter: BattleNet | null = null;
+    private initialFingerprint: string | null = null;
+    private initialSerializedState: SerializedGameState | null = null;
     private readonly listeners = new Set<BattleSessionListener>();
 
     constructor(private readonly config: BattleSessionConfig) {}
@@ -69,8 +78,8 @@ export class BattleSession {
         this.characterSelections = characterSelections;
     }
 
-    setSyncBridge(sync: BattleSessionSyncBridge | null): void {
-        this.syncBridge = sync;
+    setNetAdapter(net: BattleNet | null): void {
+        this.netAdapter = net;
     }
 
     subscribe(listener: BattleSessionListener): () => void {
@@ -96,113 +105,44 @@ export class BattleSession {
         return this.renderer;
     }
 
-    /**
-     * Load from checkpoint JSON or initialize a new mission run.
-     * Pass `init` from the server (may include units/gameTick or lobby-only fields).
-     */
-    load(players: Record<string, PlayerState>, characterSelections: Record<string, string>, init: Record<string, unknown> | null | undefined): void {
-        this.updateLobbyContext(players, characterSelections);
-        this.teardownEngineAndRendererOnly();
-
-        const { api, playerId, isHost, missionId, onVictory, onDefeat, onEmittedChatMessage } = this.config;
-        api.setCurrentPlayerId();
-
-        let renderer = this.renderer;
-        if (!renderer) {
-            renderer = new GameRenderer();
-            this.renderer = renderer;
-        }
-
-        const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-        const terrainGrid = mission.createTerrain();
-        const terrainManager = new TerrainManager(terrainGrid);
-        const worldWidth = terrainGrid.worldWidth;
-        const worldHeight = terrainGrid.worldHeight;
-
-        const camera = new Camera(800, 600, worldWidth, worldHeight);
-        this.camera = camera;
-        renderer.setTerrain(terrainGrid);
-        renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-
-        const initRecord = init as Record<string, unknown> | null | undefined;
-        const hasSnapshot =
-            initRecord &&
-            Array.isArray(initRecord.units) &&
-            (initRecord.units as unknown[]).length > 0 &&
-            typeof (initRecord.gameTick ?? initRecord.game_tick) === 'number';
-
-        let engine: GameEngine;
-        if (hasSnapshot && initRecord) {
-            engine = GameEngine.fromJSON(initRecord as unknown as SerializedGameState, playerId, terrainManager);
-            engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-            if (mission.levelEvents && mission.levelEvents.length > 0) {
-                engine.setLevelEvents(mission.levelEvents);
+    private applyPlayerPortraitOverrides(engine: GameEngine, portraitIds: Record<string, string> | undefined): void {
+        if (!portraitIds) return;
+        for (const unit of engine.units) {
+            if (unit.characterId === PLAYER_CHARACTER_ID && unit.isPlayerControlled() && portraitIds[unit.ownerId]) {
+                unit.portraitId = portraitIds[unit.ownerId];
             }
-            const snapshotPortraitIds = (initRecord.characterPortraitIds ?? initRecord.character_portrait_ids) as
-                | Record<string, string>
-                | undefined;
-            if (snapshotPortraitIds) {
-                for (const unit of engine.units) {
-                    if (
-                        unit.characterId === PLAYER_CHARACTER_ID &&
-                        unit.isPlayerControlled() &&
-                        snapshotPortraitIds[unit.ownerId]
-                    ) {
-                        unit.portraitId = snapshotPortraitIds[unit.ownerId];
-                    }
-                }
-            }
-        } else {
-            engine = new GameEngine();
-            engine.prepareForNewGame({
-                localPlayerId: playerId,
-                terrainManager,
-                isHost,
-                aiControllerId: mission.aiController,
-            });
-            engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-            const selections =
-                Object.keys(characterSelections).length > 0
-                    ? characterSelections
-                    : ((initRecord?.characterSelections ?? initRecord?.character_selections) as Record<string, string>) ?? {};
-            const portraitIds = (initRecord?.characterPortraitIds ?? initRecord?.character_portrait_ids) as
-                | Record<string, string>
-                | undefined;
-            const displayNamesRaw =
-                (initRecord?.characterDisplayNames ?? initRecord?.character_display_names) as
-                    | Record<string, string>
-                    | undefined;
-            const playerUnits = Object.entries(selections)
-                .filter(([, charId]) => charId !== SPECTATOR_ID)
-                .map(([pid]) => {
-                    const dn = displayNamesRaw?.[pid]?.trim();
-                    const fallback = players[pid]?.name ?? 'Unknown';
-                    return {
-                        playerId: pid,
-                        name: dn && dn !== '' ? dn : fallback,
-                        portraitId: portraitIds?.[pid],
-                    };
-                });
-            const equippedItemsByPlayer = (initRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
-            const playerResearchTreesByPlayer =
-                (initRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
-            mission.initializeGameState(engine, {
-                playerUnits,
-                characterSelections: selections,
-                localPlayerId: playerId,
-                eventBus: engine.eventBus,
-                terrainManager,
-                equippedItemsByPlayer,
-                playerResearchTreesByPlayer,
-            });
-            engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
-            engine.synchash = typeof initRecord?.synchash === 'string' ? initRecord.synchash : null;
         }
+    }
 
+    private bindEngineCallbacks(engine: GameEngine): void {
+        const { api, isHost, onEmittedChatMessage } = this.config;
+        engine.setOnCheckpoint((gameTick, state) => {
+            if (isHost) {
+                void this.netAdapter?.saveSnapshotOnPause(gameTick, state);
+            }
+        });
+        engine.setOnTickComplete((gameTick, fingerprintHex) => {
+            if (!isHost) return;
+            this.netAdapter?.queueFingerprint(gameTick, fingerprintHex);
+        });
+        engine.setOnEmitMessage((text, npcId) => {
+            if (!isHost) return;
+            const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {
+                if (res.chatEntry) onEmittedChatMessage?.(res.chatEntry as MessageEntry);
+            };
+            if (npcId) {
+                api.sendMessage(MessageType.NPC_CHAT, { npcId, message: text }).then(onSent).catch(() => {});
+            } else {
+                api.sendMessage(MessageType.CHAT, { message: text }).then(onSent).catch(() => {});
+            }
+        });
+    }
+
+    private finalizeEngine(engine: GameEngine): void {
+        const mission = MISSION_MAP[this.config.missionId] ?? DARK_AWAKENING;
+        const { onVictory, onDefeat } = this.config;
         engine.registerBattleObjectives(mission.battleObjectives ?? []);
-
         this.engine = engine;
-
         this.emit({ type: 'round_number', roundNumber: engine.roundNumber });
         this.emit({ type: 'round_progress', progress: engine.roundProgress });
         this.emit({ type: 'pause_state', paused: !!engine.waitingForOrders, waitingForOrders: engine.waitingForOrders });
@@ -215,74 +155,107 @@ export class BattleSession {
                 source: 'engine_callback',
             });
         });
-
-        engine.setOnCheckpoint((gameTick, state, orders) => {
-            const stateForHash = state as unknown as Record<string, unknown>;
-            const ordersFormatted = (orders as OrderAtTick[]).map((o) => ({
-                gameTick: o.gameTick,
-                order: o.order as unknown as Record<string, unknown>,
-            }));
-            debugLog('sync tracking', 'log', 'engine checkpoint event → saveCheckpoint', {
-                gameTick,
-                pendingSerializedOrders: ordersFormatted.length,
-                orderSummary: ordersFormatted.map((o) => ({
-                    gameTick: o.gameTick,
-                    unitId: (o.order as { unitId?: string }).unitId,
-                    abilityId: (o.order as { abilityId?: string }).abilityId,
-                })),
-            });
-            void this.syncBridge?.saveCheckpoint(gameTick, stateForHash, ordersFormatted);
-        });
-
+        this.bindEngineCallbacks(engine);
         engine.setOnRoundEnd((rn) => {
             this.emit({ type: 'round_number', roundNumber: rn + 1 });
             this.emit({ type: 'card_state', engine });
         });
-
         engine.setOnStateChanged(() => {
             this.emit({ type: 'round_progress', progress: engine.roundProgress });
             this.emit({ type: 'round_number', roundNumber: engine.roundNumber });
         });
-
-        engine.setOnEmitMessage((text, npcId) => {
-            if (!isHost) return;
-            const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {
-                if (res.chatEntry) onEmittedChatMessage?.(res.chatEntry as MessageEntry);
-            };
-            if (npcId) {
-                api.sendMessage(MessageType.NPC_CHAT, { npcId, message: text }).then(onSent).catch(() => {});
-            } else {
-                api.sendMessage(MessageType.CHAT, { message: text }).then(onSent).catch(() => {});
-            }
-        });
-
         if (onVictory) {
             engine.setOnVictory(onVictory);
         }
         if (onDefeat) {
             engine.setOnDefeat(onDefeat);
         }
-
         const myUnit = engine.getLocalPlayerUnit();
-        if (myUnit) {
-            camera.snapTo(myUnit.x, myUnit.y, myUnit.radius);
+        if (myUnit && this.camera) {
+            this.camera.snapTo(myUnit.x, myUnit.y, myUnit.radius);
         }
-
         this.emit({ type: 'card_state', engine });
-
         if (!engine.waitingForOrders) {
             engine.isPaused = false;
         }
-
         engine.clearDeferredOrderPauseAndAccumulator();
         engine.start();
+    }
 
-        if (engine.synchash == null) {
-            void computeSynchash(engine.toJSON() as unknown as Record<string, unknown>).then((h) => {
-                if (this.engine !== engine) return;
-                engine.synchash = h;
-            });
+    /**
+     * Deterministic load: always initialize from mission + seed.
+     * Optional initial snapshot is used only for metadata and mismatch fallback.
+     */
+    async load({ players, characterSelections, battleSeed, initialSnapshot }: BattleSessionLoadArgs): Promise<void> {
+        this.updateLobbyContext(players, characterSelections);
+        this.teardownEngineAndRendererOnly();
+        const { api, playerId, missionId } = this.config;
+        api.setCurrentPlayerId();
+        let renderer = this.renderer;
+        if (!renderer) {
+            renderer = new GameRenderer();
+            this.renderer = renderer;
         }
+        const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
+        const terrainGrid = mission.createTerrain();
+        const terrainManager = new TerrainManager(terrainGrid);
+        const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
+        this.camera = camera;
+        renderer.setTerrain(terrainGrid);
+        renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
+
+        const snapshotRecord = (initialSnapshot ?? null) as Record<string, unknown> | null;
+        const selections =
+            Object.keys(characterSelections).length > 0
+                ? characterSelections
+                : ((snapshotRecord?.characterSelections ?? snapshotRecord?.character_selections) as Record<string, string>) ?? {};
+        const portraitIds = (snapshotRecord?.characterPortraitIds ?? snapshotRecord?.character_portrait_ids) as
+            | Record<string, string>
+            | undefined;
+        const displayNamesRaw =
+            (snapshotRecord?.characterDisplayNames ?? snapshotRecord?.character_display_names) as
+                | Record<string, string>
+                | undefined;
+        const playerUnits = Object.entries(selections)
+            .filter(([, charId]) => charId !== SPECTATOR_ID)
+            .map(([pid]) => {
+                const dn = displayNamesRaw?.[pid]?.trim();
+                const fallback = players[pid]?.name ?? 'Unknown';
+                return {
+                    playerId: pid,
+                    name: dn && dn !== '' ? dn : fallback,
+                    portraitId: portraitIds?.[pid],
+                };
+            });
+        const equippedItemsByPlayer = (snapshotRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
+        const playerResearchTreesByPlayer =
+            (snapshotRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
+
+        const engine = new GameEngine();
+        engine.prepareForNewGame({
+            localPlayerId: playerId,
+            randomSeed: battleSeed,
+            terrainManager,
+            aiControllerId: mission.aiController,
+        });
+        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
+        if (mission.levelEvents && mission.levelEvents.length > 0) {
+            engine.setLevelEvents(mission.levelEvents);
+        }
+        mission.initializeGameState(engine, {
+            playerUnits,
+            characterSelections: selections,
+            localPlayerId: playerId,
+            eventBus: engine.eventBus,
+            terrainManager,
+            equippedItemsByPlayer,
+            playerResearchTreesByPlayer,
+        });
+        engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
+        this.applyPlayerPortraitOverrides(engine, portraitIds);
+        this.initialFingerprint = engine.computeInitialFingerprint();
+        this.initialSerializedState = engine.toJSON();
+        this.finalizeEngine(engine);
     }
 
     /** Replace simulation from a full serialized snapshot (host resync / reconnect). */
@@ -292,12 +265,86 @@ export class BattleSession {
             gameTick: raw.gameTick ?? raw.game_tick,
             snapshotIndex: raw.snapshotIndex,
         });
-        this.load(this.players, this.characterSelections, gameState as unknown as Record<string, unknown>);
+        this.teardownEngineAndRendererOnly();
+        const { api, playerId, missionId } = this.config;
+        api.setCurrentPlayerId();
+        let renderer = this.renderer;
+        if (!renderer) {
+            renderer = new GameRenderer();
+            this.renderer = renderer;
+        }
+        const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
+        const terrainGrid = mission.createTerrain();
+        const terrainManager = new TerrainManager(terrainGrid);
+        const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
+        this.camera = camera;
+        renderer.setTerrain(terrainGrid);
+        renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
+        const engine = GameEngine.fromJSON(gameState, playerId, terrainManager);
+        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
+        if (mission.levelEvents && mission.levelEvents.length > 0) {
+            engine.setLevelEvents(mission.levelEvents);
+        }
+        const snapshotPortraitIds = (raw.characterPortraitIds ?? raw.character_portrait_ids) as
+            | Record<string, string>
+            | undefined;
+        this.applyPlayerPortraitOverrides(engine, snapshotPortraitIds);
+        this.finalizeEngine(engine);
     }
 
     /** Same as {@link load} for a new or reconnecting battle with optional lobby payload. */
     loadFreshMission(init: Record<string, unknown> | null | undefined): void {
-        this.load(this.players, this.characterSelections, init);
+        const battleSeed = typeof init?.battleSeed === 'number' ? init.battleSeed : 1;
+        void this.load({
+            players: this.players,
+            characterSelections: this.characterSelections,
+            battleSeed,
+            initialSnapshot: (init as SerializedGameState | undefined) ?? undefined,
+        });
+    }
+
+    async compareInitialFingerprintWithHeartbeat(headFingerprint: string | null): Promise<boolean> {
+        if (headFingerprint == null) return false;
+        if (!this.initialFingerprint || headFingerprint === this.initialFingerprint) return false;
+        const initialState = await this.netAdapter?.getBattleInitialState();
+        if (!initialState?.state) return false;
+        this.loadFromSnapshot(initialState.state);
+        return true;
+    }
+
+    getEngineTick(): number {
+        return this.engine?.gameTick ?? 0;
+    }
+
+    getLatestFingerprint(): { tick: number; fp: string } | null {
+        const latest = this.engine?.state.runtimeFingerprintRing.latest();
+        if (!latest) return null;
+        return { tick: latest.tick, fp: fingerprintToHex(latest.fp) };
+    }
+
+    getFingerprintRange(from: number, to: number): Array<{ tick: number; fp: string }> {
+        return (this.engine?.state.runtimeFingerprintRing.range(from, to) ?? []).map((entry) => ({
+            tick: entry.tick,
+            fp: fingerprintToHex(entry.fp),
+        }));
+    }
+
+    getInitialFingerprint(): string {
+        return this.initialFingerprint ?? '';
+    }
+
+    getSerializedSnapshot(): SerializedGameState {
+        if (!this.engine) {
+            throw new Error('BattleSession.getSerializedSnapshot called before load');
+        }
+        return this.engine.toJSON();
+    }
+
+    getSerializedInitialState(): SerializedGameState {
+        if (this.initialSerializedState) {
+            return this.initialSerializedState;
+        }
+        return this.getSerializedSnapshot();
     }
 
     /** Snapshot for GameSyncContext polling / hash verification. */
@@ -311,24 +358,27 @@ export class BattleSession {
             waitingForOrders: w
                 ? { waiters: w.waiters.map((x) => ({ unitId: x.unitId, ownerId: x.ownerId })), atTick: w.atTick }
                 : null,
-            synchash: eng.synchash,
+            synchash: eng.getRuntimeFingerprintHex(),
         };
     }
 
     /** Apply orders delivered from the server for non-host (or late host) clients. */
-    applyRemoteOrders(orders: Array<{ gameTick: number; order: Record<string, unknown> }>): void {
+    applyRemoteOrders(orders: Array<{ gameTick?: number; atTick?: number; order: Record<string, unknown> }>): void {
         const eng = this.engine;
         if (!eng) return;
         debugLog('sync tracking', 'info', 'BattleSession.applyRemoteOrders', {
             engineTickBefore: eng.gameTick,
             count: orders.length,
             queuePlan: orders.map((o) => ({
-                atTick: o.gameTick,
+                atTick: o.atTick ?? o.gameTick,
                 unitId: (o.order as { unitId?: string }).unitId,
                 abilityId: (o.order as { abilityId?: string }).abilityId,
             })),
         });
-        for (const { gameTick: atTick, order } of orders) {
+        for (const rec of orders) {
+            const atTick = rec.atTick ?? rec.gameTick;
+            if (typeof atTick !== 'number') continue;
+            const order = rec.order;
             eng.queueOrder(atTick, order as unknown as BattleOrder);
         }
         eng.tryResumeParallel();
@@ -343,8 +393,7 @@ export class BattleSession {
     /**
      * Local player submits an order at the current pause point.
      * Caller clears movement preview; session validates against the live engine.
-     * Does not advance the engine until {@link BattleSessionSyncBridge.submitOrder} completes
-     * (POST + GET /minimal apply path — same as remote order delivery).
+     * Does not advance the engine until BattleNet submit resolves.
      */
     async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
         const engine = this.engine;
@@ -353,26 +402,7 @@ export class BattleSession {
         if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;
 
         const atTick = batch.atTick;
-        const checkpointGameTick = Math.floor(atTick / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
-        const orderRecord: Record<string, unknown> = JSON.parse(JSON.stringify(order));
-
-        await this.syncBridge?.submitOrder(checkpointGameTick, atTick, orderRecord);
-
-        debugLog('sync tracking', 'info', 'BattleSession.submitPlayerOrder: submitOrder resolved → post-submit checkpoint', {
-            checkpointGameTick,
-            atTick,
-            engineTick: engine.gameTick,
-            unitId: order.unitId,
-            abilityId: order.abilityId,
-        });
-
-        const ordersFormatted = engine.pendingOrders.map((o) => ({
-            gameTick: o.gameTick,
-            order: o.order as unknown as Record<string, unknown>,
-        }));
-        void this.syncBridge?.saveCheckpoint(engine.gameTick, engine.toJSON() as unknown as Record<string, unknown>, ordersFormatted);
-
-        this.config.api.sendMessage('battle_orders_ready', { snapshotIndex: engine.snapshotIndex }).catch(() => {});
+        await this.netAdapter?.submitOrder(order, atTick);
     }
 
     /** Host: force a wait order and persist checkpoint (skip turn). */
@@ -398,38 +428,19 @@ export class BattleSession {
             waitingForOrders: engine.waitingForOrders,
         });
         this.emit({ type: 'card_state', engine });
-        const ordersFormatted = engine.pendingOrders.map((o) => ({
-            gameTick: o.gameTick,
-            order: o.order as unknown as Record<string, unknown>,
-        }));
-        debugLog('sync tracking', 'info', 'BattleSession.skipTurn → saveCheckpoint', {
-            gameTick: engine.gameTick,
-            pendingOrders: ordersFormatted.length,
-        });
-        void this.syncBridge?.saveCheckpoint(
-            engine.gameTick,
-            engine.toJSON() as unknown as Record<string, unknown>,
-            ordersFormatted,
-        );
-    }
-
-    /** Re-emit waiting-for-orders UI after a full-state sync (same tick). */
-    replayWaitingForOrdersAfterSync(): void {
-        const engine = this.engine;
-        const waiting = engine?.waitingForOrders;
-        if (!waiting) return;
-        const stillPaused = waiting.waiters.some((w) => {
-            const unit = engine.getUnit(w.unitId);
-            return unit != null && engine.shouldPauseForOrders(unit);
-        });
-        if (!stillPaused) return;
-        this.emit({
-            type: 'waiting_for_orders',
-            engine,
-            info: waiting,
-            source: 'post_full_state_sync',
-        });
-        this.emit({ type: 'pause_state', paused: true, waitingForOrders: waiting });
+        for (const waiter of batch.waiters) {
+            if (waiter.ownerId !== this.config.playerId) continue;
+            const unit = engine.getUnit(waiter.unitId);
+            if (!unit?.isPlayerControlled()) continue;
+            void this.netAdapter?.submitOrder(
+                {
+                    unitId: waiter.unitId,
+                    abilityId: 'wait',
+                    targets: [],
+                },
+                atTick,
+            );
+        }
     }
 
     private teardownEngineAndRendererOnly(): void {
@@ -449,6 +460,8 @@ export class BattleSession {
         this.renderer?.destroy();
         this.renderer = null;
         this.listeners.clear();
-        this.syncBridge = null;
+        this.netAdapter = null;
+        this.initialFingerprint = null;
+        this.initialSerializedState = null;
     }
 }

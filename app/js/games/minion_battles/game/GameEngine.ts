@@ -43,7 +43,14 @@ import { getDeathEffectDef } from './units/unit_defs/unitDef';
 import type { CardDefId } from '../card_defs';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
-import { computeSynchash } from '../../../utils/synchash';
+import {
+    FingerprintEvent,
+    fingerprintFromHex,
+    fingerprintInitial,
+    fingerprintToHex,
+    mix,
+    type Fingerprint64,
+} from './Fingerprint';
 import {
     addRecoveryChargeToUnitAbilities,
     applyStaminaSurgeToUnit,
@@ -110,7 +117,6 @@ export class GameEngine implements EngineContext {
     private lastTimestamp = 0;
     private animFrameId = 0;
     private running = false;
-    private synchashUpdateSeq = 0;
 
     /** Monotonic id suffix for new GameObjects created while this engine is authoritative. */
     private objectIdSeq = 1;
@@ -132,6 +138,7 @@ export class GameEngine implements EngineContext {
     private onRoundEnd: ((roundNumber: number) => void) | null = null;
     private onStateChanged: EngineStateCallback | null = null;
     private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
+    private onTickComplete: ((gameTick: number, fingerprintHex: string) => void) | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
 
@@ -209,11 +216,11 @@ export class GameEngine implements EngineContext {
         this.state.storyPauseEndsAt = v;
     }
 
-    get synchash(): string | null {
-        return this.state.synchash;
+    get runtimeFingerprint(): Fingerprint64 {
+        return this.state.runtimeFingerprint;
     }
-    set synchash(v: string | null) {
-        this.state.synchash = v;
+    set runtimeFingerprint(v: Fingerprint64) {
+        this.state.runtimeFingerprint = [v[0] >>> 0, v[1] >>> 0];
     }
 
     get terrainManager(): TerrainManager | null {
@@ -276,15 +283,24 @@ export class GameEngine implements EngineContext {
         this.state.cardManager.playerResearchTreesByPlayer = value;
     }
 
-    addUnit(unit: Unit): void { this.state.unitManager.addUnit(unit); }
+    addUnit(unit: Unit): void {
+        this.state.unitManager.addUnit(unit);
+        this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(unit.id), Math.floor(unit.x), Math.floor(unit.y));
+    }
     getUnit(id: string): Unit | undefined { return this.state.unitManager.getUnit(id); }
     getUnits(): Unit[] { return this.state.unitManager.getUnits(); }
     getLocalPlayerUnit(): Unit | undefined { return this.state.unitManager.getLocalPlayerUnit(this.localPlayerId); }
     getAllies(caster: Unit): Unit[] { return this.state.unitManager.getAllies(caster); }
 
-    addProjectile(projectile: Projectile): void { this.state.projectileManager.addProjectile(projectile); }
+    addProjectile(projectile: Projectile): void {
+        this.state.projectileManager.addProjectile(projectile);
+        this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(projectile.id), Math.floor(projectile.x), Math.floor(projectile.y));
+    }
 
-    addEffect(effect: Effect): void { this.state.effectManager.addEffect(effect); }
+    addEffect(effect: Effect): void {
+        this.state.effectManager.addEffect(effect);
+        this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(effect.id), Math.floor(effect.x), Math.floor(effect.y));
+    }
 
     addSpecialTile(tile: SpecialTile): void { this.state.specialTileManager.addSpecialTile(tile); }
     damageSpecialTile(tileId: string, amount: number): boolean { return this.state.specialTileManager.damageSpecialTile(tileId, amount); }
@@ -431,6 +447,23 @@ export class GameEngine implements EngineContext {
                 grantEarthCoreArmourFromSource(unit, 'bedrock_scavenger', armourGain, 3);
             }
         });
+        this.eventBus.on('damage_taken', (data) => {
+            this.mixRuntimeFingerprint(FingerprintEvent.DAMAGE, this.hashString32(data.unitId), Math.floor(data.amount));
+        });
+        this.eventBus.on('unit_died', (data) => {
+            this.mixRuntimeFingerprint(
+                FingerprintEvent.DEATH,
+                this.hashString32(data.unitId),
+                this.hashString32(data.killerUnitId ?? ''),
+            );
+        });
+        this.eventBus.on('projectile_hit', (data) => {
+            this.mixRuntimeFingerprint(
+                FingerprintEvent.PROJECTILE_HIT,
+                this.hashString32(data.projectileId),
+                this.hashString32(data.targetUnitId),
+            );
+        });
     }
 
     private startStoryPause(reason: string, durationSeconds: number): void {
@@ -491,7 +524,12 @@ export class GameEngine implements EngineContext {
         );
     }
 
-    prepareForNewGame(config: { localPlayerId: string; terrainManager?: TerrainManager | null; isHost?: boolean; aiControllerId?: string | null }): void {
+    prepareForNewGame(config: {
+        localPlayerId: string;
+        randomSeed: number;
+        terrainManager?: TerrainManager | null;
+        aiControllerId?: string | null;
+    }): void {
         this.registerCoreEventListeners();
         this.localPlayerId = config.localPlayerId;
         this.terrainManager = config.terrainManager ?? null;
@@ -501,9 +539,9 @@ export class GameEngine implements EngineContext {
         this.aiControllerId = config.aiControllerId ?? null;
         this.state.levelEventManager.resetTerminalState();
         this.resetObjectIdSequence(1);
-        if (config.isHost) {
-            this.randomSeed = this.generateHostSeed();
-        }
+        this.randomSeed = config.randomSeed >>> 0;
+        this.runtimeFingerprint = fingerprintInitial();
+        this.state.runtimeFingerprintRing.clear();
         this.appliedRoundStartRecovery = false;
         this.appliedMidRoundRecovery = false;
     }
@@ -529,21 +567,17 @@ export class GameEngine implements EngineContext {
         this.onCheckpoint = cb;
     }
 
+    setOnTickComplete(cb: (gameTick: number, fingerprintHex: string) => void): void {
+        this.onTickComplete = cb;
+    }
+
     // ========================================================================
     // RNG
     // ========================================================================
 
-    private generateHostSeed(): number {
-        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-            const arr = new Uint32Array(1);
-            crypto.getRandomValues(arr);
-            return arr[0] >>> 0;
-        }
-        return (Date.now() & 0x7fffffff) || 1;
-    }
-
     generateRandomNumber(): number {
         this.randomSeed = ((this.randomSeed * 1103515245 + 12345) >>> 0);
+        this.mixRuntimeFingerprint(FingerprintEvent.RNG, this.randomSeed);
         return this.randomSeed & 0x7fffffff;
     }
 
@@ -706,6 +740,47 @@ export class GameEngine implements EngineContext {
         this.animFrameId = requestAnimationFrame((ts) => this.loop(ts));
     }
 
+    private hashString32(input: string): number {
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < input.length; i++) {
+            h ^= input.charCodeAt(i) & 0xff;
+            h = Math.imul(h, 16777619) >>> 0;
+        }
+        return h >>> 0;
+    }
+
+    private mixRuntimeFingerprint(tag: number, ...payload: number[]): void {
+        this.runtimeFingerprint = mix(this.runtimeFingerprint, tag, ...payload.map((v) => v >>> 0));
+    }
+
+    getRuntimeFingerprintHex(): string {
+        return fingerprintToHex(this.runtimeFingerprint);
+    }
+
+    computeInitialFingerprint(): string {
+        let fp = fingerprintInitial();
+        fp = mix(
+            fp,
+            FingerprintEvent.TICK_END,
+            this.randomSeed >>> 0,
+            this.roundNumber >>> 0,
+            this.gameTick >>> 0,
+            this.snapshotIndex >>> 0,
+        );
+        const sortedUnits = [...this.units].sort((a, b) => a.id.localeCompare(b.id));
+        for (const unit of sortedUnits) {
+            fp = mix(
+                fp,
+                FingerprintEvent.SPAWN,
+                this.hashString32(unit.id),
+                Math.floor(unit.x),
+                Math.floor(unit.y),
+                Math.floor(unit.hp),
+            );
+        }
+        return fingerprintToHex(fp);
+    }
+
     private fixedUpdate(dt: number): void {
         if (this.state.levelEventManager.isTerminal) return;
 
@@ -779,7 +854,6 @@ export class GameEngine implements EngineContext {
             this.snapshotIndex++;
             this.onWaitingForOrders?.(this.waitingForOrders);
             this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
-            this.scheduleSynchashUpdate();
             return;
         }
 
@@ -832,21 +906,20 @@ export class GameEngine implements EngineContext {
         this.state.unitManager.cleanupInactive();
         this.state.projectileManager.cleanupInactive();
         this.state.effectManager.cleanupInactive();
+        this.mixRuntimeFingerprint(
+            FingerprintEvent.EFFECT_TICK,
+            this.effects.length >>> 0,
+            this.projectiles.length >>> 0,
+            this.units.length >>> 0,
+        );
         if (!this.storyPauseActive) {
             this.state.levelEventManager.runDefeatCheck();
         } else if (this.storyPauseEndsAt != null && this.gameTime >= this.storyPauseEndsAt) {
             this.endStoryPause();
         }
-        this.scheduleSynchashUpdate();
-    }
-
-    private scheduleSynchashUpdate(): void {
-        const seq = ++this.synchashUpdateSeq;
-        const state = this.toJSON() as unknown as Record<string, unknown>;
-        void computeSynchash(state).then((h) => {
-            if (seq !== this.synchashUpdateSeq) return;
-            this.synchash = h;
-        });
+        this.mixRuntimeFingerprint(FingerprintEvent.TICK_END, this.gameTick >>> 0, Math.floor(this.gameTime * 1000));
+        this.state.runtimeFingerprintRing.push(this.gameTick, this.runtimeFingerprint);
+        this.onTickComplete?.(this.gameTick, this.getRuntimeFingerprintHex());
     }
 
     /** Per-tick unit processing: movement, pathfinding retriggering, AI, deferred order pause. */
@@ -895,11 +968,12 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     /**
-     * Returns true if there is already a pending order for `unitId` at `atTick`
-     * (defaults to next tick when omitted).
+     * Returns true if `unitId` has a queued order scheduled at or after `earliestTickInclusive`.
+     * Omit the second arg to detect any order at the current simulation tick onward (covers
+     * late-network queueOrder snaps where the row lands on `gameTick` past the nominal batch tick).
      */
-    hasPendingOrderForUnit(unitId: string, atTick: number = this.gameTick + 1): boolean {
-        return this.pendingOrders.some((o) => o.gameTick === atTick && o.order.unitId === unitId);
+    hasPendingOrderForUnit(unitId: string, earliestTickInclusive = this.gameTick): boolean {
+        return this.pendingOrders.some((o) => o.gameTick >= earliestTickInclusive && o.order.unitId === unitId);
     }
 
     /**
@@ -965,10 +1039,11 @@ export class GameEngine implements EngineContext {
     }
 
     queueOrder(atTick: number, order: BattleOrder): void {
-        const entry: OrderAtTick = { gameTick: atTick, order };
+        const effectiveTick = atTick < this.gameTick ? this.gameTick : atTick;
+        const entry: OrderAtTick = { gameTick: effectiveTick, order };
         this.pendingOrders.push(entry);
 
-        if (atTick === this.gameTick) {
+        if (effectiveTick === this.gameTick) {
             this.applyOrderLogic(order);
         }
     }
@@ -976,6 +1051,12 @@ export class GameEngine implements EngineContext {
     private applyOrderLogic(order: BattleOrder): void {
         const unit = this.getUnit(order.unitId);
         if (!unit || !unit.isAlive()) return;
+        this.mixRuntimeFingerprint(
+            FingerprintEvent.ORDER_APPLIED,
+            this.hashString32(order.unitId),
+            this.hashString32(order.abilityId),
+            this.gameTick >>> 0,
+        );
 
         unit.waitMinEndTime = null;
         unit.waitMaxEndTime = null;
@@ -1509,6 +1590,7 @@ export class GameEngine implements EngineContext {
         const cardData = this.state.cardManager.toJSON();
         return {
             randomSeed: this.randomSeed,
+            initialFingerprint: this.computeInitialFingerprint(),
             gameTime: this.gameTime,
             gameTick: this.gameTick,
             roundNumber: this.roundNumber,
@@ -1569,7 +1651,12 @@ export class GameEngine implements EngineContext {
             order: { ...o.order, targets: (o.order.targets ?? []).map((t) => ({ ...t })) },
         }));
 
-        engine.synchash = typeof data.synchash === 'string' ? data.synchash : null;
+        engine.runtimeFingerprint = typeof data.initialFingerprint === 'string'
+            ? fingerprintFromHex(data.initialFingerprint)
+            : fingerprintInitial();
+        if (engine.gameTick > 0) {
+            engine.state.runtimeFingerprintRing.push(engine.gameTick, engine.runtimeFingerprint);
+        }
 
         // Restore units (direct push, bypasses addUnit jitter since state is serialized)
         engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus);
@@ -1678,7 +1765,6 @@ export class GameEngine implements EngineContext {
     destroy(): void {
         this.stop();
         this.deferredOrderPause = null;
-        this.synchashUpdateSeq++;
         this.terrainManager?.setStoneDamagedEmitter(undefined);
         for (const unit of this.units) {
             unit.detachAllResources(this.eventBus);

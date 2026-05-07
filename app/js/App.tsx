@@ -541,11 +541,11 @@ function AppInner() {
 
     const handleLeaveLobby = useCallback(async () => {
         if (!currentLobby || !currentPlayer) return;
-        try {
-            await lobbyClient.leaveLobby(currentLobby.id, currentPlayer.id);
-        } catch (error) {
-            console.error('Error leaving lobby:', error);
-        }
+        const lobbyId = currentLobby.id;
+        const playerId = currentPlayer.id;
+
+        // Drop game UI immediately so battle heartbeat (BattleNet) and lobby sync unmount;
+        // previously we awaited leaveLobby first, so Minion Battles kept polling /heartbeat.
         setCurrentLobby(null);
         setCurrentPlayer(null);
         setCurrentAccount(null);
@@ -567,6 +567,16 @@ function AppInner() {
         setScreen('lobby');
         refetchUser();
         showToast('Left the lobby', 'info');
+
+        try {
+            await lobbyClient.leaveLobby(lobbyId, playerId);
+        } catch (error) {
+            console.error('Error leaving lobby:', error);
+            showToast(
+                'Could not confirm leave with server. Refresh or rejoin if something looks wrong.',
+                'error'
+            );
+        }
     }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, role]);
 
     // ==================== Chat and canvas handlers ====================
@@ -829,7 +839,6 @@ function DebugConsoleInGame({
 }) {
     const gameSync = useGameSyncOptional();
     const gameState = gameSync?.gameState ?? null;
-    const skipCurrentTurn = gameSync?.skipCurrentTurn ?? null;
     const isHost = currentPlayer?.isHost ?? false;
     const effectivePageState = gameSync?.gameState?.lobbyState ?? 'home';
     const effectiveGameType = gameSync?.gameState?.gameType ?? null;
@@ -844,7 +853,7 @@ function DebugConsoleInGame({
             playerName={user?.name ?? null}
             isAdmin={role === 'admin'}
             inBattle={inBattle}
-            skipCurrentTurn={skipCurrentTurn}
+            skipCurrentTurn={null}
             isHost={isHost}
             fetchPlayerData={async () => {
                 const u = await lobbyClient.getMe();

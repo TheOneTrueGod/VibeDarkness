@@ -1,5 +1,5 @@
 /**
- * BattleSession sync bridge: submitPlayerOrder awaits submitOrder before saveCheckpoint.
+ * BattleSession order submission path: submitPlayerOrder delegates to BattleNet.
  */
 import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest';
 
@@ -30,7 +30,7 @@ function makeApiStub(): MinionBattlesApi {
     } as unknown as MinionBattlesApi;
 }
 
-function mountSessionAtLocalPlayerTurn(): { session: BattleSession; unitId: string } {
+async function mountSessionAtLocalPlayerTurn(): Promise<{ session: BattleSession; unitId: string }> {
     const session = new BattleSession({
         api: makeApiStub(),
         missionId: 'dark_awakening',
@@ -43,7 +43,11 @@ function mountSessionAtLocalPlayerTurn(): { session: BattleSession; unitId: stri
     };
     const characterSelections = { p1: 'warrior', p2: 'ranger' };
 
-    session.load(players, characterSelections, null);
+    await session.load({
+        players,
+        characterSelections,
+        battleSeed: 1,
+    });
     const live = session.getEngine()!;
     live.stop();
 
@@ -67,38 +71,44 @@ function makeWaitOrder(unitId: string, moveCol: number, moveRow: number): Battle
     };
 }
 
-describe('BattleSession submitPlayerOrder + sync bridge', () => {
-    it('awaits submitOrder before calling saveCheckpoint (submit resolves after ack)', async () => {
-        const { session, unitId } = mountSessionAtLocalPlayerTurn();
-        const unit = session.getEngine()!.getUnit(unitId);
+describe('BattleSession submitPlayerOrder + BattleNet', () => {
+    it('awaits BattleNet submitOrder at the current pause tick', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const engine = session.getEngine()!;
+        const unit = engine.getUnit(unitId);
         if (!unit) throw new Error('missing unit');
+        const atTick = engine.waitingForOrders?.atTick;
+        if (typeof atTick !== 'number') throw new Error('expected waitingForOrders.atTick');
         const col = Math.floor(unit.x / 40);
         const row = Math.floor(unit.y / 40);
 
-        let releaseSubmit: (() => void) | null = null;
-        const submitOrder = vi.fn(
+        let releaseNetSubmit: (() => void) | null = null;
+        const netSubmitOrder = vi.fn(
             () =>
                 new Promise<void>((resolve) => {
-                    releaseSubmit = resolve;
+                    releaseNetSubmit = resolve;
                 }),
         );
-        const saveCheckpoint = vi.fn().mockResolvedValue(null);
-
-        session.setSyncBridge({ saveCheckpoint, submitOrder });
+        session.setNetAdapter({
+            submitOrder: netSubmitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
 
         const order = makeWaitOrder(unitId, col + 1, row);
         const done = session.submitPlayerOrder(order, { canSubmitOrders: true });
 
-        expect(submitOrder).toHaveBeenCalledTimes(1);
-        expect(saveCheckpoint).not.toHaveBeenCalled();
+        expect(netSubmitOrder).toHaveBeenCalledTimes(1);
+        expect(netSubmitOrder).toHaveBeenCalledWith(order, atTick);
 
-        releaseSubmit!();
+        let finished = false;
+        void done.then(() => {
+            finished = true;
+        });
+        await Promise.resolve();
+        expect(finished).toBe(false);
+
+        releaseNetSubmit!();
         await done;
-
-        expect(saveCheckpoint).toHaveBeenCalled();
-        const submitMs = submitOrder.mock.invocationCallOrder[0];
-        const checkpointMs = saveCheckpoint.mock.invocationCallOrder[0];
-        expect(checkpointMs).toBeGreaterThan(submitMs);
+        expect(finished).toBe(true);
 
         session.destroy();
     });

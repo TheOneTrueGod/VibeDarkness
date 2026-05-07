@@ -78,6 +78,12 @@ php -S localhost:8000 index.php
 
 This builds the frontend to `dist/` and the PHP server serves both the API and the built frontend at `http://localhost:8000`.
 
+After deploying the battle storage refactor, run this one-time cleanup to remove legacy in-mission checkpoint directories:
+
+```bash
+php backend/scripts/migrate_battle_storage.php
+```
+
 ## Usage
 
 ### Creating a Lobby
