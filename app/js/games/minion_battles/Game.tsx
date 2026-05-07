@@ -366,6 +366,7 @@ export default function MinionBattlesGame({
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     preMissionStory={preMissionStory}
+                    gatherPartyBackgroundImage={missionDef?.gatherPartyBackgroundImage}
                     storyReadyPlayerIds={storyReadyPlayerIds}
                     playerEquipmentByPlayer={
                         (lastGameStateFromServer ?? raw).playerEquipmentByPlayer as

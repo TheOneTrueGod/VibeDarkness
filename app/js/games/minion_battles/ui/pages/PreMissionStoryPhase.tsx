@@ -7,6 +7,7 @@ import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
 import type { PreMissionStoryDef } from '../../storylines/storyTypes';
+import { STORY_BACKGROUNDS } from '../../assets/story';
 import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
 import PreMissionStoryEndScreen from './preMissionStory/PreMissionStoryEndScreen';
@@ -27,8 +28,10 @@ interface PreMissionStoryPhaseProps {
     /** Character selections; spectators (SPECTATOR_ID) don't vote or get choices. */
     characterSelections?: Record<string, string>;
     preMissionStory: PreMissionStoryDef;
-    /** Player IDs that have reached the final "start game" card (synced from server). */
+    /** Player IDs that have reached the gather-party / end-of-story step (synced from server). */
     storyReadyPlayerIds: string[];
+    /** Mission override for gather-party backdrop; defaults to bundled `STORY_BACKGROUNDS.gatherParty`. */
+    gatherPartyBackgroundImage?: string;
     /** Current equipment per player (from server); used to compute replaceItemIds when equipping. */
     playerEquipmentByPlayer?: Record<string, string[]>;
     /** Votes per group vote (voteId -> playerId -> optionId); synced from server. */
@@ -47,6 +50,7 @@ export default function PreMissionStoryPhase({
     characterSelections = {},
     preMissionStory,
     storyReadyPlayerIds,
+    gatherPartyBackgroundImage: gatherPartyBackgroundImageProp,
     playerEquipmentByPlayer,
     groupVoteVotes = {},
     onPhaseChange,
@@ -139,6 +143,28 @@ export default function PreMissionStoryPhase({
         }
     }, [api, onPhaseChange, onBattleStartStatusChange]);
 
+    const allPlayerIds = Object.keys(players);
+    /** Playing players (non-spectators); used for single-player shortcut. */
+    const playingPlayerIds = allPlayerIds.filter((id) => (characterSelections[id] ?? '') !== SPECTATOR_ID);
+    const singlePlayer = allPlayerIds.length <= 1;
+    /** All players (including spectators) must reach the end before the host auto-starts battle. */
+    const allReady =
+        allPlayerIds.length > 0 &&
+        (singlePlayer || allPlayerIds.every((id) => storyReadyPlayerIds.includes(id)));
+
+    const hostAutoBattleRef = useRef(false);
+    useEffect(() => {
+        if (!isHost || !allReady) return;
+        if (hostAutoBattleRef.current) return;
+        hostAutoBattleRef.current = true;
+        void handleStartGame();
+    }, [isHost, allReady, handleStartGame]);
+
+    const gatherPartyBackdrop =
+        gatherPartyBackgroundImageProp !== undefined && gatherPartyBackgroundImageProp !== ''
+            ? gatherPartyBackgroundImageProp
+            : STORY_BACKGROUNDS.gatherParty;
+
     const handleChoice = useCallback(
         async (choiceId: string, optionId: string, option?: { action?: { type: string; itemId?: string } }) => {
             try {
@@ -206,23 +232,12 @@ export default function PreMissionStoryPhase({
         }
     }, [currentPhrase, players, playerId, isHost, api, phraseIndex, advancePhrase]);
 
-    const allPlayerIds = Object.keys(players);
-    /** Playing players (non-spectators); used for single-player shortcut. */
-    const playingPlayerIds = allPlayerIds.filter((id) => (characterSelections[id] ?? '') !== SPECTATOR_ID);
-    const singlePlayer = allPlayerIds.length <= 1;
-    /** All players (including spectators) must reach the end before host can start. */
-    const allReady =
-        allPlayerIds.length > 0 &&
-        (singlePlayer || allPlayerIds.every((id) => storyReadyPlayerIds.includes(id)));
-    const hostCanStart = isHost && allReady;
-
     if (isEnd) {
         return (
             <PreMissionStoryEndScreen
-                isHost={isHost}
-                hostCanStart={hostCanStart}
+                backgroundImage={gatherPartyBackdrop}
+                allReady={allReady}
                 singlePlayer={singlePlayer}
-                onStartGame={handleStartGame}
             />
         );
     }

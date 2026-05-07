@@ -239,6 +239,11 @@ export interface MissionBattleConfig {
     playerSpawnPoints?: PlayerSpawnPoint[];
     /** Optional pre-mission story (visual novel segment before battle). */
     preMissionStory?: PreMissionStoryDef;
+    /**
+     * Optional background image URL for the “gather your party” wait screen (after the last story step).
+     * When omitted, the client uses the default bundled art (`assets/story/gather_party.png`).
+     */
+    gatherPartyBackgroundImage?: string;
     /** Optional post-mission story (after victory, before victory screen). */
     postMissionStory?: PostMissionStoryDef;
     /**
