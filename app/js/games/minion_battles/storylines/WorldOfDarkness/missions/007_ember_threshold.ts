@@ -19,7 +19,11 @@ import {
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { MAP_SEGMENT_50_50_CRYSTAL_CAVE } from '../MapSegments/50_50_crystal_cave';
+import {
+    CAVE_CAMPFIRE,
+    crystalSpecialTilesAt,
+    MAP_SEGMENT_50_50_CRYSTAL_CAVE,
+} from '../MapSegments/50_50_crystal_cave';
 import { MAP_SEGMENT_49_51_WEST_GLADE, LANTERN_NEST_FOCUS } from '../MapSegments/49_51_west_glade';
 import {
     MAP_SEGMENT_50_51_SOUTH_GATE,
@@ -28,6 +32,7 @@ import {
 
 const COLS = 44;
 const ROWS = 44;
+/** East half of the map starts at column 22 (quadrant grid: west | east). */
 const CAVE_ORIGIN_COL = 22;
 const BOTTOM_SEGMENT_ROW_OFFSET = 22;
 const WORLD_WIDTH = COLS * CELL_SIZE;
@@ -37,22 +42,18 @@ const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
 const T = TerrainType.ThickGrass;
 
-function buildTopHalf(): TerrainType[][] {
-    const cave = MAP_SEGMENT_50_50_CRYSTAL_CAVE;
+/** 22×22 northwest quadrant: wilds pad with vertical seam touching the crystal cave. */
+function buildTopLeftWildsQuadrant(): TerrainType[][] {
     const rows: TerrainType[][] = [];
     for (let r = 0; r < 22; r++) {
         const row: TerrainType[] = [];
-        for (let c = 0; c < COLS; c++) {
-            if (c < CAVE_ORIGIN_COL) {
-                const seamCol = c === CAVE_ORIGIN_COL - 1;
-                if (seamCol) {
-                    row.push(r >= 8 && r <= 17 ? _ : R);
-                } else {
-                    const edge = r === 0 || r === 21 || c === 0;
-                    row.push(edge ? R : r % 3 === 0 && c % 4 === 0 ? T : _);
-                }
+        for (let c = 0; c < 22; c++) {
+            const seamWithCave = c === 21;
+            if (seamWithCave) {
+                row.push(r >= 8 && r <= 17 ? _ : R);
             } else {
-                row.push(cave[r]![c - CAVE_ORIGIN_COL] ?? _);
+                const edge = r === 0 || r === 21 || c === 0;
+                row.push(edge ? R : r % 3 === 0 && c % 4 === 0 ? T : _);
             }
         }
         rows.push(row);
@@ -60,11 +61,20 @@ function buildTopHalf(): TerrainType[][] {
     return rows;
 }
 
+/**
+ * Four 22×22 quadrants stitched as stitchTerrain expects (tiles are segments, not pre-merged strips):
+ * [ wilds pad | crystal cave ]
+ * [ west glade | south gate ]
+ */
 function createTerrain(): TerrainGrid {
-    const top = buildTopHalf();
-    const bottom = stitchTerrain([[MAP_SEGMENT_49_51_WEST_GLADE, MAP_SEGMENT_50_51_SOUTH_GATE]], _);
-    const merged = stitchTerrain([[top], [bottom]], _);
-    return TerrainGrid.createTerrainFromArray(COLS, ROWS, CELL_SIZE, merged, _);
+    const stitched = stitchTerrain(
+        [
+            [buildTopLeftWildsQuadrant(), MAP_SEGMENT_50_50_CRYSTAL_CAVE],
+            [MAP_SEGMENT_49_51_WEST_GLADE, MAP_SEGMENT_50_51_SOUTH_GATE],
+        ],
+        _,
+    );
+    return TerrainGrid.createTerrainFromArray(COLS, ROWS, CELL_SIZE, stitched, _);
 }
 
 function gridToWorld(col: number, row: number): { x: number; y: number } {
@@ -85,6 +95,34 @@ const NEST_WORLD = gridToWorld(
 
 const PATROL_NEAR_COL = CAVE_ORIGIN_COL + PATROL_DRAW_POINT.col;
 const PATROL_NEAR_ROW = BOTTOM_SEGMENT_ROW_OFFSET + PATROL_DRAW_POINT.row;
+
+/** Crystal-cave segment (NE top quadrant) → global grid. */
+const CAVE_SEGMENT_ORIGIN_ROW = 0;
+
+function caveGlobalCol(localCol: number): number {
+    return CAVE_ORIGIN_COL + localCol;
+}
+function caveGlobalRow(localRow: number): number {
+    return CAVE_SEGMENT_ORIGIN_ROW + localRow;
+}
+
+/** South-gate segment → global grid (east column band, bottom half). */
+function southGateGlobalCol(localCol: number): number {
+    return CAVE_ORIGIN_COL + localCol;
+}
+function southGateGlobalRow(localRow: number): number {
+    return BOTTOM_SEGMENT_ROW_OFFSET + localRow;
+}
+
+/** Corridor crystals — south_gate local, anchored in PATROL_DRAW_POINT. */
+const PATROL_LC = PATROL_DRAW_POINT.col;
+const PATROL_LR = PATROL_DRAW_POINT.row;
+const CRYSTAL_A = { lc: PATROL_LC, lr: PATROL_LR - 2 } as const;
+const CRYSTAL_B = { lc: PATROL_LC + 3, lr: PATROL_LR } as const;
+
+/** Campfire on cave floor (shared POI with missions 2–3; segment-local in `CAVE_CAMPFIRE`). */
+const CAVE_FLOOR_CAMPFIRE_COL = caveGlobalCol(CAVE_CAMPFIRE.col);
+const CAVE_FLOOR_CAMPFIRE_ROW = caveGlobalRow(CAVE_CAMPFIRE.row);
 
 /** Thornbinder guarding the choke between corridors. */
 const THORNBINDER_AMBUSH = gridToWorld(30, BOTTOM_SEGMENT_ROW_OFFSET + 5);
@@ -249,27 +287,31 @@ export class EmberThresholdMission extends BaseMissionDef {
     gatherPartyBackgroundImage = STORY_BACKGROUNDS.campfire;
     playerSpawnPoints: PlayerSpawnPoint[] = [{ col: 41, row: 12 }];
 
+    lightLevelEnabled = true;
+    globalLightLevel = -20;
+
     specialTiles: SpecialTilePlacement[] = [
+        ...crystalSpecialTilesAt(CAVE_ORIGIN_COL, CAVE_SEGMENT_ORIGIN_ROW),
         {
             defId: 'Crystal',
-            col: PATROL_NEAR_COL,
-            row: PATROL_NEAR_ROW - 2,
+            col: southGateGlobalCol(CRYSTAL_A.lc),
+            row: southGateGlobalRow(CRYSTAL_A.lr),
             hp: 1,
             emitsLight: { lightAmount: 12, radius: 3.5 },
         },
         {
             defId: 'Crystal',
-            col: PATROL_NEAR_COL + 3,
-            row: PATROL_NEAR_ROW + 1,
+            col: southGateGlobalCol(CRYSTAL_B.lc),
+            row: southGateGlobalRow(CRYSTAL_B.lr),
             hp: 1,
             emitsLight: { lightAmount: 10, radius: 3 },
         },
         {
             defId: 'Campfire',
-            col: PATROL_NEAR_COL - 4,
-            row: PATROL_NEAR_ROW + 2,
+            col: CAVE_FLOOR_CAMPFIRE_COL,
+            row: CAVE_FLOOR_CAMPFIRE_ROW,
             hp: 3,
-            emitsLight: { lightAmount: 9, radius: 6 },
+            emitsLight: { lightAmount: 15, radius: 6 },
         },
     ];
 
@@ -286,7 +328,7 @@ export class EmberThresholdMission extends BaseMissionDef {
             hp: 4,
             maxHp: 4,
             defendPoint: false,
-            emitsLight: { lightAmount: 6, radius: 4 },
+            emitsLight: { lightAmount: 10, radius: 4 },
         });
     }
 }

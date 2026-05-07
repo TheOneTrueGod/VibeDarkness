@@ -1,6 +1,6 @@
 ---
 name: missions
-description: Create and edit campaign missions in Minion Battles. Use when adding missions, mission structure, objectives, or storyline flow.
+description: Create and edit campaign missions in Minion Battles. Use when adding missions, mission structure, objectives, storyline flow, or terrain stitched from segments (TerrainGrid/stitchTerrain).
 ---
 
 # Missions
@@ -30,7 +30,16 @@ This convention helps order missions and identify their sequence in a campaign.
 
 ## Map segments
 
-For reusable terrain, use **map segments** from the storylines folder. See the **map-segments** skill (in `storylines/`) for how map segments work, how to create them, and how to compose missions from segments.
+For reusable terrain, use **map segments** from the storylines folder.
+
+## Terrain grids and `stitchTerrain`
+
+- **Compose** maps with `stitchTerrain` and `TerrainGrid.createTerrainFromArray` as documented in **`map-segments`** (`.cursor/skills/map-segments/SKILL.md`).
+- **`stitchTerrain` takes a matrix of segments:** each inner cell is `TerrainType[][]`. Match the nesting to the layout (horizontal strip, vertical stack, or 2×2 quadrants)—do not flatten or nest in a way that turns “one stitched row” into “many phantom tile columns”.
+- **Global vs segment-local coords:** player spawns, objectives, enemies, `specialTiles`, and scripted tile adds use **global** grid indices; derive them from each segment’s **origin** in the stitched map plus segment-local POIs.
+- **Darkness:** if the mission should show the default overworld/cave darkness overlay, set `lightLevelEnabled` / `globalLightLevel` like other missions in the same campaign folder—do not rely on implicit defaults.
+
+For segment file layout, POI exports, and anti-patterns, read **map-segments** end-to-end before editing complex maps.
 
 ## Key types and locations
 

@@ -147,10 +147,10 @@ export default function PreMissionStoryPhase({
     /** Playing players (non-spectators); used for single-player shortcut. */
     const playingPlayerIds = allPlayerIds.filter((id) => (characterSelections[id] ?? '') !== SPECTATOR_ID);
     const singlePlayer = allPlayerIds.length <= 1;
-    /** All players (including spectators) must reach the end before the host auto-starts battle. */
+    /** Every lobby player must report STORY_READY (end of pre-mission story) before the host auto-starts battle. */
     const allReady =
         allPlayerIds.length > 0 &&
-        (singlePlayer || allPlayerIds.every((id) => storyReadyPlayerIds.includes(id)));
+        allPlayerIds.every((id) => storyReadyPlayerIds.includes(id));
 
     const hostAutoBattleRef = useRef(false);
     useEffect(() => {
@@ -233,6 +233,10 @@ export default function PreMissionStoryPhase({
     }, [currentPhrase, players, playerId, isHost, api, phraseIndex, advancePhrase]);
 
     if (isEnd) {
+        // Solo: no gather-party splash; host auto-starts once STORY_READY is recorded (existing effect below).
+        if (singlePlayer) {
+            return <div className="w-full h-full min-h-full bg-black" aria-hidden />;
+        }
         return (
             <PreMissionStoryEndScreen
                 backgroundImage={gatherPartyBackdrop}
