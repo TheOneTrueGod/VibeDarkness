@@ -140,6 +140,8 @@ export class EmberThresholdMission extends BaseMissionDef {
     static readonly missionId = 'ember_threshold';
     static readonly nameStr = 'Ember at the Threshold';
 
+    campaignId = 'world_of_darkness';
+
     battleObjectives: BattleObjectiveDef[] = [
         {
             id: 'reach_patrol',
