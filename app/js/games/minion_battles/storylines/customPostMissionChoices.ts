@@ -261,12 +261,6 @@ export function getComputedPostMissionChoiceOptions(params: {
         metalAction = disabledPlaceholderAction();
     }
 
-    const trainingAction: StoryChoiceAction = {
-        type: 'grant_research_to_player',
-        treeId: TRAINING_TREE_ID,
-        nodeId: TRAINING_NODE_CORE,
-    };
-
     return [
         {
             id: 'crystal_track',
@@ -285,14 +279,6 @@ export function getComputedPostMissionChoiceOptions(params: {
                 'Salvage edge from scrap and nerve; let the next thrown thing carry your conviction.',
             disabledLabel: metalDisabledLabel,
             action: metalAction,
-        },
-        {
-            id: 'training_track',
-            label: 'Core Training',
-            loreTitle: 'The Still Ember',
-            loreDescription:
-                'No relic—only breath, stance, and the quiet refusal to break when the dark presses close.',
-            action: trainingAction,
         },
     ];
 }

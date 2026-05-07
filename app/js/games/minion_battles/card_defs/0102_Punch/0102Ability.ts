@@ -1,10 +1,10 @@
 /**
  * Punch - Warrior melee ability.
  *
- * Targets a point within range 50 + caster size (distance capped if farther).
- * Thick-line hitbox from caster to capped point; hits the closest enemy in the line.
- * Wind up 0.2s (no move), then plays a punch effect travelling along the full line
- * and deals damage to the closest enemy in the line (if any).
+ * Targets a point within max range (base + caster radius); aim is clamped to that cap.
+ * Thick-line hitbox from caster to the capped point; hits the closest enemy in the line.
+ * Wind up 0.2s, melee slide on the caster, then on impact: punch VFX from the apparent
+ * leading edge of the caster to the struck unit, or a stationary impact at max range on miss.
  */
 
 import { AbilityEventType, AbilityState } from '../../abilities/Ability';
@@ -108,8 +108,8 @@ type PunchCastPayload = {
 const PUNCH_SLIDE_START = 0.1;
 const PUNCH_IMPACT_TIME = 0.2;
 const PUNCH_SLIDE_BACK_END = 0.3;
-const PUNCH_FORWARD_SLIDE_DISTANCE = 8;
-const PUNCH_BACKWARD_SLIDE_DISTANCE = 4;
+const PUNCH_FORWARD_SLIDE_DISTANCE = 12;
+const PUNCH_BACKWARD_SLIDE_DISTANCE = 0;
 
 function createPunchMeleeAnimationProfile(caster: Unit, research: TrainingPunchResearchState): MeleeAnimationProfile {
     return {
@@ -122,7 +122,7 @@ function createPunchMeleeAnimationProfile(caster: Unit, research: TrainingPunchR
         },
         chargeUp: createChargeUpConfig(research.hasChargingPunch ? 'high' : 'low', {
             startTime: 0.04,
-            endTime: 0.1,
+            endTime: PUNCH_SLIDE_START,
             radius: caster.radius,
             color: research.hasChargingPunch ? 0xfacc15 : 0xd6b570,
         }),
@@ -183,7 +183,34 @@ function getPunchBaseDamageForTarget(research: TrainingPunchResearchState, targe
     return damage;
 }
 
-function tryStrikeTarget(engine: GameEngineLike, caster: Unit, plan: PunchPlan, targetIndex: number, targets: ResolvedTarget[]): void {
+function spawnPunchTravelEffect(
+    engine: GameEngineLike,
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+): void {
+    engine.addEffect(
+        new Effect({
+            x: endX,
+            y: endY,
+            duration: PUNCH_EFFECT_DURATION,
+            effectType: 'punch',
+            startX,
+            startY,
+        }),
+    );
+}
+
+function tryStrikeTarget(
+    engine: GameEngineLike,
+    caster: Unit,
+    plan: PunchPlan,
+    targetIndex: number,
+    targets: ResolvedTarget[],
+    active: ActiveAbility | undefined,
+    strikeTime: number,
+): void {
     const targetPos = getPixelTargetPosition(targets, targetIndex);
     if (!targetPos) return;
 
@@ -199,26 +226,48 @@ function tryStrikeTarget(engine: GameEngineLike, caster: Unit, plan: PunchPlan, 
         LINE_THICKNESS,
     );
 
-    const { dirX: dX, dirY: dY } = getDirectionFromTo(caster.x, caster.y, endX, endY);
-    const effectStartX = caster.x + dX * (caster.radius * 0.5);
-    const effectStartY = caster.y + dY * (caster.radius * 0.5);
-    engine.addEffect(
-        new Effect({
-            x: endX,
-            y: endY,
-            duration: PUNCH_EFFECT_DURATION,
-            effectType: 'punch',
-            startX: effectStartX,
-            startY: effectStartY,
-        }),
-    );
+    const { dirX: lineDirX, dirY: lineDirY } = getDirectionFromTo(caster.x, caster.y, endX, endY);
+
+    const payload = active?.castPayload as PunchCastPayload | undefined;
+    const profile = payload?.meleeAnimationProfile;
+    const strikeGameTime = active != null ? active.startTime + strikeTime : engine.gameTime;
+    const slide =
+        profile != null && active != null
+            ? getMeleeAnimationOffset(caster, active, strikeGameTime, profile)
+            : null;
+    const apparentX = caster.x + (slide?.x ?? 0);
+    const apparentY = caster.y + (slide?.y ?? 0);
+
+    if (hitUnits.length > 0) {
+        hitUnits.sort((a, b) => {
+            const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
+            const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
+            return da - db;
+        });
+    }
+
+    const primaryTarget = hitUnits.length > 0 ? hitUnits[0] : undefined;
+    const showHitVfx = primaryTarget != null && primaryTarget.isAlive();
+
+    if (showHitVfx && primaryTarget) {
+        const toward = getDirectionFromTo(apparentX, apparentY, primaryTarget.x, primaryTarget.y);
+        const leadX = toward.dist > 1e-6 ? toward.dirX : lineDirX;
+        const leadY = toward.dist > 1e-6 ? toward.dirY : lineDirY;
+        const effectStartX = apparentX + leadX * caster.radius;
+        const effectStartY = apparentY + leadY * caster.radius;
+        spawnPunchTravelEffect(engine, effectStartX, effectStartY, primaryTarget.x, primaryTarget.y);
+    } else {
+        engine.addEffect(
+            new Effect({
+                x: endX,
+                y: endY,
+                duration: PUNCH_EFFECT_DURATION,
+                effectType: 'punch',
+            }),
+        );
+    }
 
     if (hitUnits.length === 0) return;
-    hitUnits.sort((a, b) => {
-        const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
-        const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
-        return da - db;
-    });
 
     const targetUnit = hitUnits[0]!;
     if (!targetUnit.isAlive() || targetUnit.hasIFrames(engine.gameTime)) return;
@@ -376,7 +425,14 @@ export const PunchAbility: AbilityStatic = {
         return getMeleeAnimationOffset(caster, activeAbility, gameTime, payload.meleeAnimationProfile);
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+    doCardEffect(
+        engine: unknown,
+        caster: Unit,
+        targets: ResolvedTarget[],
+        prevTime: number,
+        currentTime: number,
+        active?: ActiveAbility,
+    ): void {
         const pos = getPixelTargetPosition(targets, 0);
         const eng = engine as GameEngineLike;
         const plan = buildPunchPlan(getOwnerPunchResearch(eng, caster));
@@ -385,7 +441,7 @@ export const PunchAbility: AbilityStatic = {
         if (!pos) return;
         for (const strike of plan.strikeTimes) {
             if (prevTime < strike.time && currentTime >= strike.time) {
-                tryStrikeTarget(eng, caster, plan, strike.targetIndex, targets);
+                tryStrikeTarget(eng, caster, plan, strike.targetIndex, targets, active, strike.time);
             }
         }
     },

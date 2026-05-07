@@ -47,8 +47,8 @@ const SWING_BAT_MELEE_ANIMATION: MeleeAnimationProfile = {
         startTime: 0.1,
         impactTime: 0.2,
         backstepEndTime: 0.3,
-        forwardDistance: 10,
-        backwardDistance: 5,
+        forwardDistance: 16,
+        backwardDistance: 0,
     },
     chargeUp: createChargeUpConfig('high', {
         startTime: 0.04,
