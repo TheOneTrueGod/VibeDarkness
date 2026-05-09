@@ -29,6 +29,8 @@ interface TurnIndicatorProps {
     teamworkBurstKey?: number;
     /** Non-host: compact warning over the marker when host is behind on accepting orders. */
     hostCatchupPopover?: HostCatchupPopoverProps | null;
+    /** Local multiplayer: orders waiting to POST vs waiting for server range confirmation. */
+    orderPipeline?: { queued: number; sending: number } | null;
 }
 
 const BLINK_DURATION_MS = 220;
@@ -47,6 +49,7 @@ export default function TurnIndicator({
     allyName = 'Player',
     teamworkBurstKey = 0,
     hostCatchupPopover = null,
+    orderPipeline = null,
 }: TurnIndicatorProps) {
     const [phase, setPhase] = useState<'open' | 'closing' | 'closed' | 'opening'>(() =>
         state === 'playing' ? 'closed' : 'open',
@@ -192,6 +195,29 @@ export default function TurnIndicator({
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+            {orderPipeline != null && (orderPipeline.queued > 0 || orderPipeline.sending > 0) && (
+                <div
+                    className="flex justify-end gap-1.5 px-2 pb-0.5"
+                    aria-label="Order sync status"
+                >
+                    {orderPipeline.queued > 0 && (
+                        <span
+                            className="rounded border border-slate-500/50 bg-slate-900/90 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300"
+                            title="Queued on device until the host timeline allows POST"
+                        >
+                            Queued {orderPipeline.queued}
+                        </span>
+                    )}
+                    {orderPipeline.sending > 0 && (
+                        <span
+                            className="rounded border border-cyan-600/45 bg-cyan-950/85 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-cyan-100/95"
+                            title="Sent to server; awaiting confirmation on next sync"
+                        >
+                            Sent {orderPipeline.sending}
+                        </span>
+                    )}
                 </div>
             )}
             {teamworkVisible && teamworkBurstKey > 0 && (

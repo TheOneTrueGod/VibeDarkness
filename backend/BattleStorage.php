@@ -158,8 +158,10 @@ final class BattleStorage
     /**
      * Returns order records whose atTick is within the inclusive
      * [sinceTick, untilTick] range. Either bound may be null to mean
-     * unbounded. Result is sorted by atTick ascending; ties resolve to
-     * file order (i.e. insertion order).
+     * unbounded. Rows sharing the same (atTick, order.unitId) are
+     * compacted to the last line in the file (newest append). Result is
+     * sorted by atTick ascending, then unitId ascending, then playerId
+     * ascending.
      *
      * @return list<array{atTick:int,playerId:string,order:array,idHash:string,ts:int}>
      */
@@ -202,16 +204,43 @@ final class BattleStorage
             fclose($fh);
         }
 
-        usort($items, static function (array $a, array $b): int {
-            $at = (int) ($a['rec']['atTick'] ?? 0);
-            $bt = (int) ($b['rec']['atTick'] ?? 0);
+        /** @var array<string, array{idx:int,rec:array}> $bestByKey */
+        $bestByKey = [];
+        foreach ($items as $e) {
+            $rec = $e['rec'];
+            $tick = (int) ($rec['atTick'] ?? 0);
+            $order = $rec['order'] ?? null;
+            $unitId = is_array($order) && isset($order['unitId'])
+                ? (string) $order['unitId']
+                : '';
+            $key = $tick . "\0" . $unitId;
+            if (!isset($bestByKey[$key]) || $e['idx'] > $bestByKey[$key]['idx']) {
+                $bestByKey[$key] = $e;
+            }
+        }
+
+        $deduped = array_values($bestByKey);
+        usort($deduped, static function (array $a, array $b): int {
+            $ra = $a['rec'];
+            $rb = $b['rec'];
+            $at = (int) ($ra['atTick'] ?? 0);
+            $bt = (int) ($rb['atTick'] ?? 0);
             if ($at !== $bt) {
                 return $at <=> $bt;
             }
-            return $a['idx'] <=> $b['idx'];
+            $oa = $ra['order'] ?? null;
+            $ob = $rb['order'] ?? null;
+            $ua = is_array($oa) && isset($oa['unitId']) ? (string) $oa['unitId'] : '';
+            $ub = is_array($ob) && isset($ob['unitId']) ? (string) $ob['unitId'] : '';
+            if ($ua !== $ub) {
+                return $ua <=> $ub;
+            }
+            $pa = (string) ($ra['playerId'] ?? '');
+            $pb = (string) ($rb['playerId'] ?? '');
+            return $pa <=> $pb;
         });
 
-        return array_map(static fn(array $e): array => $e['rec'], $items);
+        return array_map(static fn(array $e): array => $e['rec'], $deduped);
     }
 
     /**
@@ -357,9 +386,72 @@ final class BattleStorage
     // ------------------------------------------------------------------
 
     /**
+     * Resolves which player owns a unit for append-order validation.
+     * Prefer `waitingForOrders.waiters` (canonical while paused); otherwise
+     * scan `state['units']` for a matching `id` and return its `ownerId`.
+     */
+    /**
+     * @param int|null $requestedAtTick When set, `waitingForOrders.waiters` is only consulted if
+     *                                   that block's `atTick` matches — otherwise the snapshot waiters
+     *                                   may be from an older pause while the host has advanced.
+     */
+    public static function resolveUnitOwnerIdFromState(array $state, string $unitId, ?int $requestedAtTick = null): ?string
+    {
+        $wfo = $state['waitingForOrders'] ?? null;
+        $wfoAtTick = null;
+        if (is_array($wfo) && isset($wfo['atTick'])) {
+            $raw = $wfo['atTick'];
+            if (is_int($raw) || is_float($raw) || (is_string($raw) && is_numeric($raw))) {
+                $wfoAtTick = (int) $raw;
+            }
+        }
+        $waitersApply =
+            is_array($wfo)
+            && is_array($wfo['waiters'] ?? null)
+            && ($requestedAtTick === null || $wfoAtTick === $requestedAtTick);
+        if ($waitersApply) {
+            $waiters = $wfo['waiters'];
+            foreach ($waiters as $w) {
+                if (!is_array($w)) {
+                    continue;
+                }
+                $wid = $w['unitId'] ?? null;
+                if (!is_string($wid) || $wid !== $unitId) {
+                    continue;
+                }
+                $oid = $w['ownerId'] ?? null;
+                return is_string($oid) && $oid !== '' ? $oid : null;
+            }
+        }
+
+        $units = $state['units'] ?? null;
+        if (!is_array($units)) {
+            return null;
+        }
+        foreach ($units as $u) {
+            if (!is_array($u)) {
+                continue;
+            }
+            $id = $u['id'] ?? null;
+            if (!is_string($id) || $id !== $unitId) {
+                continue;
+            }
+            $oid = $u['ownerId'] ?? null;
+            return is_string($oid) && $oid !== '' ? $oid : null;
+        }
+
+        return null;
+    }
+
+    /**
      * Atomically write `snapshots/<tick>.json` with payload
      * `{ tick, state }`. Atomicity is guaranteed by writing to a
      * sibling `.tmp` file and then renaming.
+     *
+     * Quiescence invariant: at engine pause the authoritative checkpoint
+     * fingerprint tick is `pauseAtTick - 1` or `pauseAtTick`. Snapshot and
+     * fingerprint streams may temporarily diverge by one tick while async
+     * writes land (see {@see \App\Http\Handlers\Battle\AppendOrderHandler} `maxAllowedTick` slack).
      */
     public function saveSnapshot(string $lobbyId, string $gameId, int $tick, array $state): void
     {
@@ -380,6 +472,43 @@ final class BattleStorage
             throw new RuntimeException('saveSnapshot: failed to encode payload');
         }
         $this->atomicWrite($path, $encoded);
+        $this->pruneOldSnapshots($lobbyId, $gameId, 20);
+    }
+
+    /**
+     * Keep only the newest `$keepLastN` snapshot files by numeric tick;
+     * deletes older ticks under `snapshots/`.
+     */
+    public function pruneOldSnapshots(string $lobbyId, string $gameId, int $keepLastN = 20): void
+    {
+        if ($keepLastN < 0) {
+            throw new InvalidArgumentException('pruneOldSnapshots: keepLastN must be >= 0');
+        }
+        $dir = $this->getGameDir($lobbyId, $gameId) . '/snapshots';
+        if (!is_dir($dir)) {
+            return;
+        }
+        $ticks = [];
+        foreach (scandir($dir) ?: [] as $file) {
+            if (!is_string($file)) {
+                continue;
+            }
+            if (!str_ends_with($file, '.json')) {
+                continue;
+            }
+            $name = substr($file, 0, -5);
+            if ($name === '' || !ctype_digit($name)) {
+                continue;
+            }
+            $ticks[] = (int) $name;
+        }
+        if (count($ticks) <= $keepLastN) {
+            return;
+        }
+        rsort($ticks, SORT_NUMERIC);
+        foreach (array_slice($ticks, $keepLastN) as $oldTick) {
+            @unlink($dir . '/' . $oldTick . '.json');
+        }
     }
 
     /**
@@ -514,6 +643,10 @@ final class BattleStorage
      * under LOCK_EX. Returns the number of records actually
      * appended (records with bad shape are skipped).
      *
+     * Same quiescence note as {@see saveSnapshot}: fingerprint tick vs
+     * snapshot may lag or lead by one tick briefly during concurrent writes;
+     * {@see \App\Http\Handlers\Battle\AppendOrderHandler} compensates via `maxAllowedTick`.
+     *
      * @param list<array{tick:int|numeric-string,fp:string}> $records
      */
     public function appendFingerprints(string $lobbyId, string $gameId, array $records): int
@@ -564,8 +697,11 @@ final class BattleStorage
     /**
      * Return `{tick, fp}` records whose tick is in the inclusive
      * [fromTick, toTick] range. Either bound may be null to mean
-     * unbounded. Records are returned in file order (which is
-     * append order, i.e. tick-ascending under normal usage).
+     * unbounded.
+     *
+     * Canonicalization rule: if multiple lines share the same tick,
+     * the last line in file order wins. Output is sorted by tick
+     * ascending with one record per tick.
      *
      * @return list<array{tick:int,fp:string}>
      */
@@ -583,10 +719,13 @@ final class BattleStorage
         if ($fh === false) {
             return [];
         }
-        $out = [];
+        /** @var array<int, array{tick:int,fp:string,idx:int}> $bestByTick */
+        $bestByTick = [];
         try {
             @flock($fh, LOCK_SH);
+            $idx = 0;
             while (($line = fgets($fh)) !== false) {
+                $lineIdx = $idx++;
                 $line = trim($line);
                 if ($line === '') {
                     continue;
@@ -609,13 +748,23 @@ final class BattleStorage
                 if ($toTick !== null && $tick > $toTick) {
                     continue;
                 }
-                $out[] = ['tick' => $tick, 'fp' => $fp];
+                $current = $bestByTick[$tick] ?? null;
+                if ($current === null || $lineIdx >= $current['idx']) {
+                    $bestByTick[$tick] = ['tick' => $tick, 'fp' => $fp, 'idx' => $lineIdx];
+                }
             }
             @flock($fh, LOCK_UN);
         } finally {
             fclose($fh);
         }
-        return $out;
+        if (count($bestByTick) === 0) {
+            return [];
+        }
+        ksort($bestByTick, SORT_NUMERIC);
+        return array_values(array_map(
+            static fn(array $rec): array => ['tick' => $rec['tick'], 'fp' => $rec['fp']],
+            $bestByTick
+        ));
     }
 
     /**

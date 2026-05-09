@@ -13,7 +13,7 @@ Whenever you finish a command where **files have been created, saved, or deleted
    - If the project has a lint script: run `npm run lint` and fix any reported errors.
    - If there is no lint script: run the editor linter (e.g. ReadLints) on changed files and fix any reported errors.
 
-2. **Run the test suite**: `npm run test` (Vitest)
+2. **Run the test suite**: `npm run test` (Vitest) — skip when **Skills only — no Vitest** (below) applies.
 
 3. **If all tests pass**:
    - Return your normal response to the user
@@ -31,3 +31,11 @@ Whenever you finish a command where **files have been created, saved, or deleted
 - Skip this hook if **no files** were created, saved, or deleted during the command
 - Skip for purely informational or exploratory requests (e.g. "what does X do?", "explain Y")
 - Skip when the only modified files are planning documents (e.g. files under `Plans/` or standalone plan/design markdown docs) and no code/runtime/config files changed
+
+### Skills only — no Vitest
+
+If the **only** files you created, saved, or deleted in that command are under **`.cursor/skills/`** (e.g. editing `SKILL.md`):
+
+- **Do not** run `npm run test` (Vitest).
+- **Do not** append `All (#) tests have passed` or the red tests-failed footer (the suite was not run).
+- **`npm run lint`**: optional; skip it when nothing outside `.cursor/skills/` changed.

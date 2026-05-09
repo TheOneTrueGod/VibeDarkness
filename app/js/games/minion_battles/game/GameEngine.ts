@@ -325,6 +325,11 @@ export class GameEngine implements EngineContext {
     getBattleObjectiveRows(): { id: string; label: string; completed: boolean }[] {
         return this.state.objectiveManager.getDisplayRows();
     }
+
+    revealBattleObjectives(ids: readonly string[]): void {
+        this.state.objectiveManager.revealObjectiveIds(ids);
+    }
+
     setOnEmitMessage(cb: (text: string, npcId?: string) => void): void {
         this.state.levelEventManager.setOnEmitMessage(cb);
         this.state.objectiveManager.setOnEmitMessage(cb);
@@ -1050,8 +1055,20 @@ export class GameEngine implements EngineContext {
 
     queueOrder(atTick: number, order: BattleOrder): void {
         const effectiveTick = atTick < this.gameTick ? this.gameTick : atTick;
+        this.pendingOrders = this.pendingOrders.filter(
+            (o) => !(o.gameTick === effectiveTick && o.order.unitId === order.unitId),
+        );
         const entry: OrderAtTick = { gameTick: effectiveTick, order };
         this.pendingOrders.push(entry);
+        this.pendingOrders.sort((a, b) => {
+            if (a.gameTick !== b.gameTick) return a.gameTick - b.gameTick;
+            const ua = a.order.unitId;
+            const ub = b.order.unitId;
+            if (ua !== ub) return ua < ub ? -1 : ua > ub ? 1 : 0;
+            const aa = a.order.abilityId;
+            const ab = b.order.abilityId;
+            return aa < ab ? -1 : aa > ab ? 1 : 0;
+        });
 
         if (effectiveTick === this.gameTick) {
             this.applyOrderLogic(order);

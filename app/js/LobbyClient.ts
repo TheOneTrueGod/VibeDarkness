@@ -544,6 +544,7 @@ export class LobbyClient {
             `/api/lobbies/${lobbyId}/games/${gameId}/heartbeat?${query}`
         ) as unknown as HeartbeatResponse;
         return {
+            heartbeatSeq: data.heartbeatSeq ?? null,
             hostTick: data.hostTick ?? null,
             hostFingerprint: data.hostFingerprint ?? null,
             ordersTipTick: data.ordersTipTick ?? null,
@@ -557,7 +558,7 @@ export class LobbyClient {
     async saveBattleSnapshot(
         lobbyId: string,
         gameId: string,
-        body: { playerId: string; tick: number; state: SerializedGameState },
+        body: { playerId: string; tick: number; state: SerializedGameState; checkpointFingerprint?: string },
     ): Promise<void> {
         await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshot`, {
             method: 'POST',

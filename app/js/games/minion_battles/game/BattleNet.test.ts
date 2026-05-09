@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { LobbyClient } from '../../../LobbyClient';
 import type { BattleOrder, SerializedGameState } from './types';
-import { BattleNet, type BattleSessionHandle } from './BattleNet';
+import { BattleNet, BATTLE_NET_T2_RESYNC_POLLS, type BattleSessionHandle } from './BattleNet';
 
 function makeOrder(id: string): BattleOrder {
     return {
@@ -40,6 +40,7 @@ function makeApi(overrides: Record<string, unknown> = {}): LobbyClient {
             pausedAtTick: null,
             expectingFromPlayerIds: null,
             initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
         })),
         saveBattleInitialState: vi.fn(async () => {}),
         getBattleInitialState: vi.fn(async () => ({
@@ -233,7 +234,7 @@ describe('BattleNet', () => {
         expect(requestResyncSpy).toHaveBeenCalledWith('hash-mismatch');
     });
 
-    it('emits waiting_for_host when ahead of host tick but local agrees through host tick on first poll', async () => {
+    it('emits synced when ahead of host on early polls (T1 quiet window)', async () => {
         const api = makeApi({
             getBattleHeartbeat: vi.fn(async () => ({
                 hostTick: 80,
@@ -269,7 +270,7 @@ describe('BattleNet', () => {
         await net.pollOnce();
 
         expect(requestResyncSpy).not.toHaveBeenCalled();
-        expect(status).toHaveBeenCalledWith('waiting_for_host');
+        expect(status).toHaveBeenCalledWith('synced');
     });
 
     it('requests ahead-of-host resync after repeated polls ahead with unchanged server heartbeat tail and matching ring', async () => {
@@ -303,10 +304,9 @@ describe('BattleNet', () => {
         });
         const requestResyncSpy = vi.spyOn(net, 'requestResync');
 
-        await net.pollOnce();
-        await net.pollOnce();
-        await net.pollOnce();
-        await net.pollOnce();
+        for (let i = 0; i <= BATTLE_NET_T2_RESYNC_POLLS; i++) {
+            await net.pollOnce();
+        }
 
         expect(requestResyncSpy).toHaveBeenCalledTimes(1);
         expect(requestResyncSpy).toHaveBeenCalledWith('ahead-of-host');
@@ -882,9 +882,11 @@ describe('BattleNet', () => {
         expect(resync).toHaveBeenCalledWith('tick-in-past');
     });
 
-    it('host saveSnapshotOnPause publishes checkpoint fingerprint for heartbeat alignment', async () => {
-        const appendBattleFingerprints = vi.fn(async () => ({ appended: 1 }));
+    it('host saveSnapshotOnPause sends checkpointFingerprint with snapshot (server appends fingerprints)', async () => {
+        const saveBattleSnapshot = vi.fn(async () => {});
+        const appendBattleFingerprints = vi.fn(async () => ({ appended: 0 }));
         const api = makeApi({
+            saveBattleSnapshot,
             appendBattleFingerprints,
             getBattleHeartbeat: vi.fn(async () => ({
                 hostTick: 0,
@@ -910,19 +912,26 @@ describe('BattleNet', () => {
         await net.saveSnapshotOnPause(25, { gameTick: 25, initialFingerprint: 'checkpoint_fp' } as SerializedGameState);
         await net.pollOnce();
 
-        expect(appendBattleFingerprints).toHaveBeenCalled();
-        const payload = appendBattleFingerprints.mock.calls[0]?.[2] as { records?: Array<{ tick: number; fp: string }> };
-        expect(payload.records).toContainEqual({ tick: 25, fp: 'checkpoint_fp' });
+        expect(saveBattleSnapshot).toHaveBeenCalledWith(
+            'l1',
+            'g1',
+            expect.objectContaining({
+                tick: 25,
+                checkpointFingerprint: 'checkpoint_fp',
+            }),
+        );
+        expect(appendBattleFingerprints).not.toHaveBeenCalled();
     });
 
     it('saveSnapshotOnPause skips checkpoint fingerprint when engine advanced past pause tick', async () => {
         const appendBattleFingerprints = vi.fn(async () => ({ appended: 0 }));
         let engineTick = 25;
+        const saveBattleSnapshot = vi.fn(async () => {
+            engineTick = 30;
+        });
         const api = makeApi({
             appendBattleFingerprints,
-            saveBattleSnapshot: vi.fn(async () => {
-                engineTick = 30;
-            }),
+            saveBattleSnapshot,
         });
         const net = new BattleNet({
             api,
@@ -937,6 +946,73 @@ describe('BattleNet', () => {
 
         await net.saveSnapshotOnPause(25, { gameTick: 25, initialFingerprint: 'checkpoint_fp' } as SerializedGameState);
 
+        expect(saveBattleSnapshot).toHaveBeenCalledWith(
+            'l1',
+            'g1',
+            expect.objectContaining({
+                tick: 25,
+                checkpointFingerprint: 'checkpoint_fp',
+            }),
+        );
         expect(appendBattleFingerprints).not.toHaveBeenCalled();
+    });
+
+    it('getOrderSyncSummary reports sending until server range includes the order', async () => {
+        let idHashFromAppend = '';
+        const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => {
+            idHashFromAppend = body.idHash ?? '';
+            return { accepted: true, idHash: idHashFromAppend };
+        });
+        const order = makeOrder('sync');
+        const rangeMock = vi.fn(async () => ({
+            orders: [{ atTick: 1, playerId: 'p1', idHash: idHashFromAppend, order }],
+        }));
+        const api = makeApi({
+            appendBattleOrder,
+            getBattleOrdersRange: rangeMock,
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 0,
+                hostFingerprint: 'aaaaaaaaaaaaaaaa',
+                ordersTipTick: 1,
+                pausedAtTick: null,
+                expectingFromPlayerIds: null,
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: 0,
+            })),
+        });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 0,
+                getLatestFingerprint: () => ({ tick: 0, fp: 'aaaaaaaaaaaaaaaa' }),
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+
+        await net.submitOrder(order, 1);
+        expect(net.getOrderSyncSummary()).toEqual({ queued: 0, sending: 1 });
+
+        await net.pollOnce();
+        expect(net.getOrderSyncSummary()).toEqual({ queued: 0, sending: 0 });
+        expect(rangeMock).toHaveBeenCalled();
+    });
+
+    it('getOrderSyncSummary reports queued when order is deferred for host tick', async () => {
+        const appendBattleOrder = vi.fn();
+        const net = new BattleNet({
+            api: makeApi({ appendBattleOrder }),
+            session: makeSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+
+        await net.submitOrder(makeOrder('d'), 3);
+        expect(appendBattleOrder).not.toHaveBeenCalled();
+        expect(net.getOrderSyncSummary()).toEqual({ queued: 1, sending: 0 });
     });
 });

@@ -39,10 +39,26 @@ class SaveSnapshotHandler
             return ['success' => false, 'error' => 'Only the host can save snapshots'];
         }
 
+        $checkpointFingerprint = '';
+        if (isset($data['checkpointFingerprint']) && is_string($data['checkpointFingerprint'])
+            && $data['checkpointFingerprint'] !== ''
+        ) {
+            $checkpointFingerprint = $data['checkpointFingerprint'];
+        }
+
+        if (!array_key_exists('engineSchemaVersion', $state)) {
+            $state['engineSchemaVersion'] = 1;
+        }
+
         try {
             $tick = (int) $tickRaw;
             $storage = new BattleStorage();
             $storage->saveSnapshot($lobbyId, $gameId, $tick, $state);
+            if ($checkpointFingerprint !== '') {
+                $storage->appendFingerprints($lobbyId, $gameId, [
+                    ['tick' => $tick, 'fp' => $checkpointFingerprint],
+                ]);
+            }
         } catch (InvalidArgumentException $e) {
             http_response_code(400);
             return ['success' => false, 'error' => $e->getMessage()];

@@ -22,11 +22,13 @@ import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
+import BattleSyncStatus from '../components/BattleSyncStatus';
 import BossFightHud from '../components/boss/BossFightHud';
 import type { BossHudSlice } from '../components/boss/BossFightHud';
 import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
 import { computeSynchash } from '../../../../utils/synchash';
+import { BATTLE_NET_T1_WAITING_POLLS } from '../../game/BattleNet';
 
 declare global {
     interface Window {
@@ -141,11 +143,22 @@ export default function BattlePhase({
     const [hostCatchupHostTick, setHostCatchupHostTick] = useState(0);
     const [hostCatchupTargetTick, setHostCatchupTargetTick] = useState<number | null>(null);
     const [hostCatchupStuckHeartbeats, setHostCatchupStuckHeartbeats] = useState(0);
+    const [fallingBehindHost, setFallingBehindHost] = useState(false);
+    const [ticksBehindHost, setTicksBehindHost] = useState(0);
+    const [orderPipeline, setOrderPipeline] = useState<{ queued: number; sending: number }>({
+        queued: 0,
+        sending: 0,
+    });
 
-    const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = 5;
+    const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_T1_WAITING_POLLS;
 
     const isMyTurn = activeLocalWaiter != null;
-    const canUseOrderUi = isMyTurn && canSubmitOrders && !storyPauseActive && !waitingForHostCatchup;
+    const canUseOrderUi =
+        isMyTurn &&
+        canSubmitOrders &&
+        !storyPauseActive &&
+        !waitingForHostCatchup &&
+        (isHost || !fallingBehindHost);
 
     const showHostCatchupPopover =
         !isHost &&
@@ -368,16 +381,31 @@ export default function BattlePhase({
             if (!effectAlive) {
                 return;
             }
+            const bumpOrderPipeline = () => setOrderPipeline(net.getOrderSyncSummary());
             const unsubs: Array<() => void> = [];
-            unsubs.push(net.on('sync-status', (status) => setNetSyncStatus(status)));
+            unsubs.push(
+                net.on('sync-status', (status) => {
+                    setNetSyncStatus(status);
+                    bumpOrderPipeline();
+                }),
+            );
             unsubs.push(
                 net.on('host-catchup-wait', (payload) => {
                     setWaitingForHostCatchup(payload.blocking);
                     setHostCatchupHostTick(payload.hostTick);
                     setHostCatchupTargetTick(payload.targetTick);
                     setHostCatchupStuckHeartbeats(payload.stuckHeartbeats);
+                    bumpOrderPipeline();
                 }),
             );
+            unsubs.push(
+                net.on('falling-behind', (payload) => {
+                    setFallingBehindHost(payload.active);
+                    setTicksBehindHost(payload.ticksBehind);
+                }),
+            );
+            unsubs.push(net.on('heartbeat', bumpOrderPipeline));
+            unsubs.push(net.on('orders-applied', bumpOrderPipeline));
             if (!isHost) {
                 unsubs.push(
                     net.on('heartbeat', (heartbeat) => {
@@ -389,6 +417,7 @@ export default function BattlePhase({
                 );
             }
             net.start();
+            bumpOrderPipeline();
 
             // Register teardown as soon as polling starts. Previously this ran only after
             // `saveInitialState()` (async); leaving the battle during that window skipped
@@ -657,17 +686,13 @@ export default function BattlePhase({
 
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="relative flex min-h-0 flex-1 flex-col">
-                        {(netSyncStatus === 'resyncing' ||
-                            netSyncStatus === 'failed' ||
-                            (!isHost && netSyncStatus !== 'synced' && isPaused)) && (
-                            <div className="pointer-events-none absolute left-3 top-3 z-20 rounded bg-dark-900/80 px-2 py-1 text-xs text-gray-200">
-                                {netSyncStatus === 'resyncing'
-                                    ? 'Resyncing battle...'
-                                    : netSyncStatus === 'failed'
-                                      ? 'Battle sync failed'
-                                      : 'Waiting for host sync...'}
-                            </div>
-                        )}
+                        <BattleSyncStatus
+                            isHost={isHost}
+                            isPaused={isPaused}
+                            syncStatus={netSyncStatus}
+                            fallingBehindHost={fallingBehindHost}
+                            ticksBehindHost={ticksBehindHost}
+                        />
                         <BattleCanvas
                             engine={engine}
                             camera={camera}
@@ -711,6 +736,7 @@ export default function BattlePhase({
                                   }
                                 : null
                         }
+                        orderPipeline={orderPipeline}
                     />
                 </div>
             </div>

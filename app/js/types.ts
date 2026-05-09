@@ -112,6 +112,8 @@ export interface MinimalStateResult {
 }
 
 export interface HeartbeatResponse {
+    /** Server storage activity stamp (max mtime of snapshots, orders, fingerprints). */
+    heartbeatSeq?: number | null;
     hostTick: number | null;
     hostFingerprint: string | null;
     ordersTipTick: number | null;

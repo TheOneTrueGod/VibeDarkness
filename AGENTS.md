@@ -161,3 +161,5 @@ php -S localhost:8000 index.php  # Serves both API and built frontend
 ```
 
 Frontend source is TypeScript/TSX in `app/js/`; Vite bundles output to `dist/`.
+
+**Lobby / battle sync logs:** `storage/lobbies/<lobbyId>/lobby_log.jsonl` — severity floors are **log** (most verbose) → **info** → **warn** → **error** → **critical** → **off**. General client lines use `VITE_LOBBY_LOG_THRESHOLD` (unset = off). Battle-sync lines use `VITE_LOBBY_LOG_BATTLE_SYNC` (unset = **info**) and `LOBBY_LOG_BATTLE_SYNC` on PHP for `AppendOrderHandler` (same default). See `.env.example`.

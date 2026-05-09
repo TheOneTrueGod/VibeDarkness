@@ -10,6 +10,7 @@ import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { SPECTATOR_ID } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { debugLog } from '../../../debugLog';
+import { logToLobbyLog } from '../../../lobbyLog';
 import { GameEngine } from './GameEngine';
 import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
@@ -191,7 +192,7 @@ export class BattleSession implements BattleSessionHandle {
     async load({ players, characterSelections, battleSeed, initialSnapshot }: BattleSessionLoadArgs): Promise<void> {
         this.updateLobbyContext(players, characterSelections);
         this.teardownEngineAndRendererOnly();
-        const { api, playerId, missionId } = this.config;
+        const { api, playerId, missionId, isHost } = this.config;
         api.setCurrentPlayerId();
         let renderer = this.renderer;
         if (!renderer) {
@@ -258,6 +259,26 @@ export class BattleSession implements BattleSessionHandle {
         this.initialFingerprint = engine.computeInitialFingerprint();
         this.initialSerializedState = engine.toJSON();
         this.finalizeEngine(engine);
+        if (isHost && typeof api.getLobbyClient === 'function') {
+            const selectionKeys = Object.keys(selections).sort();
+            void logToLobbyLog({
+                lobbyClient: api.getLobbyClient(),
+                lobbyId: api.getLobbyId(),
+                playerId,
+                tick: 0,
+                severity: 'info',
+                gameId: api.getGameId(),
+                gamePhase: 'battle',
+                message: 'battle initial fingerprint inputs',
+                context: {
+                    missionId,
+                    battleSeed,
+                    initialFingerprint: this.initialFingerprint,
+                    characterSelectionsOrdered: selectionKeys.map((id) => [id, selections[id]]),
+                    equippedItemsByPlayer,
+                },
+            });
+        }
     }
 
     /** Replace simulation from a full serialized snapshot (host resync / reconnect). */

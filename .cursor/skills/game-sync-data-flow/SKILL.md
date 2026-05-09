@@ -53,6 +53,10 @@ Same as host for local turn. When waiting on another player, minimal state polli
 | `backend/Http/Handlers/SaveGameStateSnapshotHandler.php` | Saves checkpoint snapshots |
 | `backend/Http/Handlers/SaveGameOrdersHandler.php` | Saves orders; preserves synchash |
 
+## Checkpoint / fingerprint skew
+
+At pause, the authoritative checkpoint fingerprint tick is `pauseAtTick - 1` or `pauseAtTick`. Snapshot files and `fingerprints.jsonl` may briefly diverge by one tick while async writes land; the server uses `maxAllowedTick = max(hostTick + 1, pauseAtTick)` in `AppendOrderHandler` so legitimate orders are not rejected during that window. See `BattleStorage::saveSnapshot` docblock.
+
 ## API and Types
 
 See `GameSyncContext.tsx` for the full context API and the `BattleCallbacks` type.

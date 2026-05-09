@@ -10,6 +10,8 @@ class GetInitialStateHandler
 {
     public static function handle(LobbyManager $manager, AccountService $accountService, array $matches): array
     {
+        header('Cache-Control: no-store, no-cache, must-revalidate');
+
         $lobbyId = $matches[1];
         $gameId = $matches[2];
         $playerId = isset($_GET['playerId']) ? (string) $_GET['playerId'] : '';
