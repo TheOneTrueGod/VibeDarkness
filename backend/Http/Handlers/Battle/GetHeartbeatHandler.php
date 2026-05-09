@@ -8,6 +8,7 @@ use App\LobbyManager;
 
 /**
  * `hostTick` — last fully completed sim tick (matches {@see BattleStorage::resolveLastCompletedTickAndFingerprint}).
+ * `hostPaused` — `paused` flag from the fingerprints.jsonl row for that tick (story/deferred/general pause signal).
  * `pausedAtTick` — when non-null, alias of `orderBatchAtTick` (parallel batch = `waitingForOrders.atTick`).
  */
 class GetHeartbeatHandler
@@ -70,6 +71,14 @@ class GetHeartbeatHandler
         $hostTick = $resolved['lastCompleted'];
         $hostFingerprint = $resolved['fingerprint'];
 
+        $hostPaused = false;
+        if ($hostTick !== null && $hostTick >= 0 && is_string($hostFingerprint)) {
+            $row = $storage->getFingerprintsRange($lobbyId, $gameId, $hostTick, $hostTick);
+            if ($row !== []) {
+                $hostPaused = (bool) $row[0]['paused'];
+            }
+        }
+
         /** While paused for parallel orders (`expectingFromPlayerIds` nonempty), expose batch tick matching {@see AppendOrderHandler} pause clamp. */
         $orderBatchAtTick = null;
         $pausedAtTick = null;
@@ -87,6 +96,7 @@ class GetHeartbeatHandler
             'heartbeatSeq' => $heartbeatSeq,
             'hostTick' => $hostTick,
             'hostFingerprint' => $hostFingerprint,
+            'hostPaused' => $hostPaused,
             'ordersTipTick' => $ordersTipTick >= 0 ? $ordersTipTick : null,
             'ordersRecordCount' => $ordersRecordCount,
             'orderBatchAtTick' => $orderBatchAtTick,

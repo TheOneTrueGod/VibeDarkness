@@ -197,7 +197,7 @@ describe('FingerprintRing', () => {
         }
         expect(ring.size()).toBe(3);
         expect(ring.getAt(2)).toEqual([20, 200]);
-        expect(ring.latest()).toEqual({ tick: 3, fp: [30, 300] });
+        expect(ring.latest()).toEqual({ tick: 3, fp: [30, 300], paused: false });
         expect(ring.getAt(99)).toBeNull();
     });
 
@@ -215,7 +215,7 @@ describe('FingerprintRing', () => {
         expect(ring.getAt(3)).toEqual([3, 3]);
         expect(ring.getAt(4)).toEqual([4, 4]);
         expect(ring.getAt(5)).toEqual([5, 5]);
-        expect(ring.latest()).toEqual({ tick: 5, fp: [5, 5] });
+        expect(ring.latest()).toEqual({ tick: 5, fp: [5, 5], paused: false });
     });
 
     it('range returns inclusive bounds in oldest-to-newest order', () => {
@@ -237,7 +237,7 @@ describe('FingerprintRing', () => {
 
         expect(ring.range(0, 9)).toEqual([]);
         expect(ring.range(13, 20)).toEqual([]);
-        expect(ring.range(11, 11)).toEqual([{ tick: 11, fp: [2, 2] }]);
+        expect(ring.range(11, 11)).toEqual([{ tick: 11, fp: [2, 2], paused: false }]);
         expect(ring.range(5, 11).map((e) => e.tick)).toEqual([10, 11]);
         expect(ring.range(5, 100).map((e) => e.tick)).toEqual([10, 11, 12]);
     });
@@ -264,11 +264,11 @@ describe('FingerprintRing', () => {
     it('latest reflects the most recent push even after eviction', () => {
         const ring = new FingerprintRing(2);
         ring.push(100, [1, 2]);
-        expect(ring.latest()).toEqual({ tick: 100, fp: [1, 2] });
+        expect(ring.latest()).toEqual({ tick: 100, fp: [1, 2], paused: false });
         ring.push(101, [3, 4]);
-        expect(ring.latest()).toEqual({ tick: 101, fp: [3, 4] });
+        expect(ring.latest()).toEqual({ tick: 101, fp: [3, 4], paused: false });
         ring.push(102, [5, 6]);
-        expect(ring.latest()).toEqual({ tick: 102, fp: [5, 6] });
+        expect(ring.latest()).toEqual({ tick: 102, fp: [5, 6], paused: false });
         expect(ring.size()).toBe(2);
         expect(ring.getAt(100)).toBeNull();
     });
@@ -283,7 +283,7 @@ describe('FingerprintRing', () => {
         expect(ring.getAt(1)).toBeNull();
         expect(ring.getCapacity()).toBe(4);
         ring.push(3, [3, 3]);
-        expect(ring.latest()).toEqual({ tick: 3, fp: [3, 3] });
+        expect(ring.latest()).toEqual({ tick: 3, fp: [3, 3], paused: false });
     });
 
     it('preserves unsigned half values when reading back', () => {

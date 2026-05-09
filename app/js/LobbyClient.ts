@@ -553,6 +553,7 @@ export class LobbyClient {
             heartbeatSeq: data.heartbeatSeq ?? null,
             hostTick: data.hostTick ?? null,
             hostFingerprint: data.hostFingerprint ?? null,
+            hostPaused: typeof data.hostPaused === 'boolean' ? data.hostPaused : false,
             ordersTipTick: data.ordersTipTick ?? null,
             ordersRecordCount: data.ordersRecordCount ?? null,
             orderBatchAtTick: typeof data.orderBatchAtTick === 'number' ? data.orderBatchAtTick : null,

@@ -23,6 +23,7 @@ import CardHand from '../components/CardHand';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
 import BattleSyncStatus from '../components/BattleSyncStatus';
+import BattleHostAnchorBanner from '../components/BattleHostAnchorBanner';
 import BossFightHud from '../components/boss/BossFightHud';
 import type { BossHudSlice } from '../components/boss/BossFightHud';
 import { UnitTag } from '../../game/units/unitTag';
@@ -148,6 +149,8 @@ export default function BattlePhase({
     const [hostCatchupStuckHeartbeats, setHostCatchupStuckHeartbeats] = useState(0);
     const [fallingBehindHost, setFallingBehindHost] = useState(false);
     const [ticksBehindHost, setTicksBehindHost] = useState(0);
+    const [hostAnchorWaitPhase, setHostAnchorWaitPhase] = useState<'idle' | 'waiting_ui' | 'forcing_resync'>('idle');
+    const [blockingHostPausePlane, setBlockingHostPausePlane] = useState(false);
     const [orderPipeline, setOrderPipeline] = useState<{ queued: number; sending: number }>({
         queued: 0,
         sending: 0,
@@ -162,6 +165,7 @@ export default function BattlePhase({
         canSubmitOrders &&
         !storyPauseActive &&
         !waitingForHostCatchup &&
+        !blockingHostPausePlane &&
         (isHost || !fallingBehindHost);
 
     const showHostCatchupPopover =
@@ -429,6 +433,16 @@ export default function BattlePhase({
                 net.on('falling-behind', (payload) => {
                     setFallingBehindHost(payload.active);
                     setTicksBehindHost(payload.ticksBehind);
+                }),
+            );
+            unsubs.push(
+                net.on('host-anchor-wait', (payload) => {
+                    setHostAnchorWaitPhase((prev) => (prev === payload.phase ? prev : payload.phase));
+                }),
+            );
+            unsubs.push(
+                net.on('blocking-host-pause-plane', (payload) => {
+                    setBlockingHostPausePlane((prev) => (prev === payload.blocking ? prev : payload.blocking));
                 }),
             );
             unsubs.push(net.on('heartbeat', bumpOrderPipeline));
@@ -744,6 +758,7 @@ export default function BattlePhase({
                             onCanvasRightClick={handleCanvasRightClick}
                             onCanvasMouseMove={handleCanvasMouseMove}
                         />
+                        {!isHost && <BattleHostAnchorBanner phase={hostAnchorWaitPhase} />}
                     </div>
 
                     <TurnIndicator

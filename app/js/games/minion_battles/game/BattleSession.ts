@@ -324,30 +324,6 @@ export class BattleSession implements BattleSessionHandle {
         // Replacing the engine calls destroy() on the previous instance, which stops its rAF loop.
         // BattlePhase only calls startEngine() once on mount; async resync paths must restart here.
         this.startEngine();
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Debug-Session-Id': '62239e',
-            },
-            body: JSON.stringify({
-                sessionId: '62239e',
-                runId: 'pre-fix',
-                hypothesisId: 'E',
-                location: 'BattleSession.ts:loadFromSnapshot',
-                message: 'after finalizeEngine + startEngine',
-                data: {
-                    gameTick: engine.gameTick,
-                    isPaused: engine.isPaused,
-                    hasWaitingForOrders: engine.waitingForOrders != null,
-                    waitingAtTick: engine.waitingForOrders?.atTick ?? null,
-                    ringLatestTick: engine.state.runtimeFingerprintRing.latest()?.tick ?? null,
-                },
-                timestamp: Date.now(),
-            }),
-        }).catch(() => {});
-        // #endregion
     }
 
     /** Same as {@link load} for a new or reconnecting battle with optional lobby payload. */
@@ -384,23 +360,25 @@ export class BattleSession implements BattleSessionHandle {
         return this.engine?.waitingForOrders ?? null;
     }
 
-    getLatestFingerprint(): { tick: number; fp: string } | null {
+    /** `paused`: end-of-tick pause flag mirrored to host fingerprints.jsonl (see `GameEngine` tick end). */
+    getLatestFingerprint(): { tick: number; fp: string; paused: boolean } | null {
         const latest = this.engine?.state.runtimeFingerprintRing.latest();
         if (!latest) return null;
         const fp = fingerprintToHex(latest.fp);
         if (!this.forceNextFingerprintMismatch) {
-            return { tick: latest.tick, fp };
+            return { tick: latest.tick, fp, paused: latest.paused };
         }
         this.forceNextFingerprintMismatch = false;
         // Deliberately return a different hash for one compare cycle only.
         const forced = fp === 'ffffffffffffffff' ? '0000000000000000' : 'ffffffffffffffff';
-        return { tick: latest.tick, fp: forced };
+        return { tick: latest.tick, fp: forced, paused: latest.paused };
     }
 
-    getFingerprintRange(from: number, to: number): Array<{ tick: number; fp: string }> {
+    getFingerprintRange(from: number, to: number): Array<{ tick: number; fp: string; paused: boolean }> {
         return (this.engine?.state.runtimeFingerprintRing.range(from, to) ?? []).map((entry) => ({
             tick: entry.tick,
             fp: fingerprintToHex(entry.fp),
+            paused: entry.paused,
         }));
     }
 
@@ -452,7 +430,9 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     /** Apply orders delivered from the server for non-host (or late host) clients. */
-    applyRemoteOrders(orders: Array<{ gameTick?: number; atTick?: number; order: Record<string, unknown> }>): void {
+    applyRemoteOrders(
+        orders: Array<{ gameTick?: number; atTick?: number; order: BattleOrder | Record<string, unknown> }>,
+    ): void {
         const eng = this.engine;
         if (!eng) return;
         debugLog('sync tracking', 'info', 'BattleSession.applyRemoteOrders', {

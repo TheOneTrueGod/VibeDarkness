@@ -117,6 +117,8 @@ export interface HeartbeatResponse {
     /** Wire name for authoritative last completed simulation tick (= human-facing `serverTick`). */
     hostTick: number | null;
     hostFingerprint: string | null;
+    /** `paused` from fingerprints.jsonl for `hostTick` (false when unknown / no row). */
+    hostPaused?: boolean | null;
     ordersTipTick: number | null;
     /** Monotonic-ish count of order rows — advances when append wins even if atTick repeats. */
     ordersRecordCount?: number | null;

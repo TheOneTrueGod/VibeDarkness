@@ -14,7 +14,7 @@ function makeOrder(id: string): BattleOrder {
 function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessionHandle {
     return {
         getEngineTick: () => 0,
-        getLatestFingerprint: () => ({ tick: 0, fp: 'aaaaaaaaaaaaaaaa' }),
+        getLatestFingerprint: () => ({ tick: 0, fp: 'aaaaaaaaaaaaaaaa', paused: false }),
         getFingerprintRange: () => [],
         getInitialFingerprint: () => '0011223344556677',
         getSerializedSnapshot: () => ({ gameTick: 0 } as SerializedGameState),
@@ -43,6 +43,7 @@ function makeApi(overrides: Record<string, unknown> = {}): LobbyClient {
         getBattleHeartbeat: vi.fn(async () => ({
             hostTick: 0,
             hostFingerprint: 'aaaaaaaaaaaaaaaa',
+            hostPaused: false,
             ordersTipTick: 0,
             orderBatchAtTick: null,
             pausedAtTick: null,
@@ -129,7 +130,7 @@ describe('BattleNet', () => {
         });
         const session = makeSession({
             getEngineTick: () => 100,
-            getLatestFingerprint: () => ({ tick: 100, fp: 'abcdefabcdefabcd' }),
+            getLatestFingerprint: () => ({ tick: 100, fp: 'abcdefabcdefabcd', paused: false }),
         });
         const net = new BattleNet({
             api,
@@ -152,6 +153,7 @@ describe('BattleNet', () => {
             getBattleHeartbeat: vi.fn(async () => ({
                 hostTick: 42,
                 hostFingerprint: 'fp42matchfp42match',
+                hostPaused: true,
                 ordersTipTick: 0,
                 orderBatchAtTick: 43,
                 pausedAtTick: 43,
@@ -162,7 +164,7 @@ describe('BattleNet', () => {
         });
         const session = makeSession({
             getEngineTick: () => 42,
-            getLatestFingerprint: () => ({ tick: 42, fp: 'fp42matchfp42match' }),
+            getLatestFingerprint: () => ({ tick: 42, fp: 'fp42matchfp42match', paused: true }),
             isPausedForOrderSync: () => true,
         });
         const net = new BattleNet({
@@ -194,7 +196,7 @@ describe('BattleNet', () => {
         });
         const session = makeSession({
             getEngineTick: () => 100,
-            getLatestFingerprint: () => ({ tick: 100, fp: '0000000000000000' }),
+            getLatestFingerprint: () => ({ tick: 100, fp: '0000000000000000', paused: false }),
         });
         const net = new BattleNet({
             api,
@@ -258,7 +260,7 @@ describe('BattleNet', () => {
             isPausedForOrderSync: () => false,
             getFingerprintRange: vi.fn((from: number, to: number) => {
                 if (from <= 100 && to >= 100) {
-                    return [{ tick: 100, fp: 'localfp000000000' }];
+                    return [{ tick: 100, fp: 'localfp000000000', paused: false }];
                 }
                 return [];
             }),
@@ -294,7 +296,7 @@ describe('BattleNet', () => {
             isPausedForOrderSync: () => false,
             getFingerprintRange: vi.fn((from: number, to: number) => {
                 if (from <= 80 && to >= 80) {
-                    return [{ tick: 80, fp: 'aaaaaaaaaaaaaaaa' }];
+                    return [{ tick: 80, fp: 'aaaaaaaaaaaaaaaa', paused: false }];
                 }
                 return [];
             }),
@@ -333,7 +335,7 @@ describe('BattleNet', () => {
             isPausedForOrderSync: () => false,
             getFingerprintRange: vi.fn((from: number, to: number) => {
                 if (from <= 80 && to >= 80) {
-                    return [{ tick: 80, fp: 'aaaaaaaaaaaaaaaa' }];
+                    return [{ tick: 80, fp: 'aaaaaaaaaaaaaaaa', paused: false }];
                 }
                 return [];
             }),
@@ -354,6 +356,49 @@ describe('BattleNet', () => {
 
         expect(requestResyncSpy).toHaveBeenCalledTimes(1);
         expect(requestResyncSpy).toHaveBeenCalledWith('ahead-of-host');
+    });
+
+    it('does not emit synced when non-host is order-paused ahead of host tail with matching fingerprint and host not paused', async () => {
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 100,
+                hostFingerprint: 'aaaaaaaaaaaaaaaa',
+                hostPaused: false,
+                ordersTipTick: 100,
+                pausedAtTick: null,
+                expectingFromPlayerIds: null,
+                initialFingerprint: '0011223344556677',
+            })),
+        });
+        const session = makeSession({
+            getEngineTick: () => 105,
+            isPausedForOrderSync: () => true,
+            getWaitingForOrdersBatch: () => ({
+                waiters: [{ unitId: 'u1', ownerId: 'p1' }],
+                atTick: 106,
+            }),
+            getFingerprintRange: vi.fn((from: number, to: number) => {
+                if (from <= 100 && to >= 100) {
+                    return [{ tick: 100, fp: 'aaaaaaaaaaaaaaaa', paused: false }];
+                }
+                return [];
+            }),
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const status = vi.fn();
+        net.on('sync-status', status);
+
+        await net.pollOnce();
+
+        expect(status).toHaveBeenCalledWith('waiting_for_host');
+        expect(status).not.toHaveBeenCalledWith('synced');
     });
 
     it('does not emit waiting_for_host for host clients when local engine is ahead', async () => {
@@ -431,7 +476,7 @@ describe('BattleNet', () => {
         });
         const session = makeSession({
             getEngineTick: () => 50,
-            getLatestFingerprint: () => ({ tick: 50, fp: 'fp50' }),
+            getLatestFingerprint: () => ({ tick: 50, fp: 'fp50', paused: false }),
             applyRemoteOrders,
         });
         const net = new BattleNet({
@@ -534,7 +579,7 @@ describe('BattleNet', () => {
                 { tick: 50, fp: 'local50' },
                 { tick: 100, fp: 'local100' },
             ],
-            getLatestFingerprint: () => ({ tick: 100, fp: 'host100' }),
+            getLatestFingerprint: () => ({ tick: 100, fp: 'host100', paused: false }),
             loadFromSnapshot,
             applyRemoteOrders,
         });
@@ -586,8 +631,8 @@ describe('BattleNet', () => {
         });
         const session = makeSession({
             getEngineTick: () => 1,
-            getFingerprintRange: () => [{ tick: 1, fp: 'local1' }],
-            getLatestFingerprint: () => ({ tick: 1, fp: 'aligned1' }),
+            getFingerprintRange: () => [{ tick: 1, fp: 'local1', paused: false }],
+            getLatestFingerprint: () => ({ tick: 1, fp: 'aligned1', paused: false }),
             loadFromSnapshot,
             applyRemoteOrders,
         });
@@ -639,8 +684,8 @@ describe('BattleNet', () => {
         });
         const session = makeSession({
             getEngineTick: () => 100,
-            getFingerprintRange: () => [{ tick: 75, fp: 'local75' }],
-            getLatestFingerprint: () => ({ tick: 100, fp: 'host100' }),
+            getFingerprintRange: () => [{ tick: 75, fp: 'local75', paused: false }],
+            getLatestFingerprint: () => ({ tick: 100, fp: 'host100', paused: false }),
             loadFromSnapshot,
             applyRemoteOrders,
         });
@@ -690,7 +735,7 @@ describe('BattleNet', () => {
             getBattleFingerprintsRange: vi.fn(async () => ({ records: [{ tick: 12, fp: 'host12' }] })),
         });
         const session = makeSession({
-            getLatestFingerprint: () => ({ tick: 12, fp: 'aligned12' }),
+            getLatestFingerprint: () => ({ tick: 12, fp: 'aligned12', paused: false }),
             loadFromSnapshot,
             applyRemoteOrders,
         });
@@ -784,7 +829,7 @@ describe('BattleNet', () => {
         const session = makeSession({
             getEngineTick: () => 100,
             applyRemoteOrders,
-            getLatestFingerprint: () => ({ tick: 100, fp: 'fp100' }),
+            getLatestFingerprint: () => ({ tick: 100, fp: 'fp100', paused: false }),
             isPausedForOrderSync: () => true,
         });
         const net = new BattleNet({
@@ -836,7 +881,7 @@ describe('BattleNet', () => {
         const session = makeSession({
             getEngineTick: () => 1,
             /** Must match heartbeat `hostTick`/`hostFingerprint` or poll triggers hash-mismatch recovery. */
-            getLatestFingerprint: () => ({ tick: 1, fp: 'fp1' }),
+            getLatestFingerprint: () => ({ tick: 1, fp: 'fp1', paused: false }),
             applyRemoteOrders: vi.fn(),
             isPausedForOrderSync: () => true,
         });
@@ -880,7 +925,7 @@ describe('BattleNet', () => {
         });
         const session = makeSession({
             getEngineTick: () => 100,
-            getLatestFingerprint: () => ({ tick: 90, fp: 'fp90' }),
+            getLatestFingerprint: () => ({ tick: 90, fp: 'fp90', paused: false }),
             applyRemoteOrders,
             loadFromSnapshot: vi.fn(),
         });
@@ -1018,7 +1063,7 @@ describe('BattleNet', () => {
             api,
             session: makeSession({
                 getEngineTick: () => 25,
-                getLatestFingerprint: () => ({ tick: 0, fp: 'fp0' }),
+                getLatestFingerprint: () => ({ tick: 0, fp: 'fp0', paused: false }),
             }),
             isHost: true,
             lobbyId: 'l1',
@@ -1101,7 +1146,7 @@ describe('BattleNet', () => {
             api,
             session: makeSession({
                 getEngineTick: () => 0,
-                getLatestFingerprint: () => ({ tick: 0, fp: 'aaaaaaaaaaaaaaaa' }),
+                getLatestFingerprint: () => ({ tick: 0, fp: 'aaaaaaaaaaaaaaaa', paused: false }),
             }),
             isHost: false,
             lobbyId: 'l1',

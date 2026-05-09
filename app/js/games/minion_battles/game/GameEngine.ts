@@ -943,12 +943,12 @@ export class GameEngine implements EngineContext {
             this.endStoryPause();
         }
         this.mixRuntimeFingerprint(FingerprintEvent.TICK_END, this.gameTick >>> 0, Math.floor(this.gameTime * 1000));
-        this.state.runtimeFingerprintRing.push(this.gameTick, this.runtimeFingerprint);
         const paused =
             this.isPaused ||
             this.waitingForOrders != null ||
             this.deferredOrderPause != null ||
             this.storyPauseActive;
+        this.state.runtimeFingerprintRing.push(this.gameTick, this.runtimeFingerprint, paused);
         this.onTickComplete?.(this.gameTick, this.getRuntimeFingerprintHex(), paused);
     }
 
@@ -1699,7 +1699,12 @@ export class GameEngine implements EngineContext {
             ? fingerprintFromHex(data.initialFingerprint)
             : fingerprintInitial();
         if (engine.gameTick > 0) {
-            engine.state.runtimeFingerprintRing.push(engine.gameTick, engine.runtimeFingerprint);
+            const pausedRestore =
+                engine.isPaused ||
+                engine.waitingForOrders != null ||
+                engine.deferredOrderPause != null ||
+                engine.storyPauseActive;
+            engine.state.runtimeFingerprintRing.push(engine.gameTick, engine.runtimeFingerprint, pausedRestore);
         }
 
         // Restore units (direct push, bypasses addUnit jitter since state is serialized)

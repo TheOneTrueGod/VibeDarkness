@@ -140,11 +140,14 @@ export function fingerprintEquals(a: Fingerprint64, b: Fingerprint64): boolean {
  * - `getAt` and `range` are O(N) with N bounded by `capacity` (default 600 =
  *   10 seconds at 60 Hz), which is fine for this use case.
  */
+export type FingerprintRingEntry = { tick: number; fp: Fingerprint64; paused: boolean };
+
 export class FingerprintRing {
     private readonly capacity: number;
     private readonly ticks: number[];
     private readonly his: number[];
     private readonly los: number[];
+    private readonly pausedFlags: boolean[];
     /** Index where the next push will write. */
     private head = 0;
     /** Number of valid entries currently stored (<= capacity). */
@@ -160,14 +163,16 @@ export class FingerprintRing {
         this.ticks = new Array<number>(capacity).fill(0);
         this.his = new Array<number>(capacity).fill(0);
         this.los = new Array<number>(capacity).fill(0);
+        this.pausedFlags = new Array<boolean>(capacity).fill(false);
     }
 
     /** Append a fingerprint for a given tick, evicting the oldest entry if full. */
-    push(tick: number, fp: Fingerprint64): void {
+    push(tick: number, fp: Fingerprint64, paused = false): void {
         const idx = this.head;
         this.ticks[idx] = tick;
         this.his[idx] = fp[0] >>> 0;
         this.los[idx] = fp[1] >>> 0;
+        this.pausedFlags[idx] = paused;
         this.head = (this.head + 1) % this.capacity;
         if (this.count < this.capacity) {
             this.count++;
@@ -180,23 +185,33 @@ export class FingerprintRing {
     }
 
     /** Look up the fingerprint stored at a specific tick, or `null` if not present. */
-    getAt(tick: number): Fingerprint64 | null {
+    getAt(tick: number): FingerprintRingEntry['fp'] | null {
+        const entry = this.getEntryAt(tick);
+        return entry ? entry.fp : null;
+    }
+
+    /** Fingerprint plus pause flag persisted for that completed tick (`GameEngine.onTickComplete` semantics). */
+    getEntryAt(tick: number): FingerprintRingEntry | null {
         const start = this.oldestIndex();
         for (let i = 0; i < this.count; i++) {
             const idx = (start + i) % this.capacity;
             if (this.ticks[idx] === tick) {
-                return [this.his[idx] >>> 0, this.los[idx] >>> 0];
+                return {
+                    tick,
+                    fp: [this.his[idx] >>> 0, this.los[idx] >>> 0],
+                    paused: this.pausedFlags[idx],
+                };
             }
         }
         return null;
     }
 
     /**
-     * Return all `(tick, fp)` entries with `fromTick <= tick <= toTick`,
+     * Return all `(tick, fp, paused)` entries with `fromTick <= tick <= toTick`,
      * ordered oldest to newest. Bounds are inclusive.
      */
-    range(fromTick: number, toTick: number): Array<{ tick: number; fp: Fingerprint64 }> {
-        const out: Array<{ tick: number; fp: Fingerprint64 }> = [];
+    range(fromTick: number, toTick: number): Array<FingerprintRingEntry> {
+        const out: Array<FingerprintRingEntry> = [];
         if (fromTick > toTick) {
             return out;
         }
@@ -205,14 +220,18 @@ export class FingerprintRing {
             const idx = (start + i) % this.capacity;
             const t = this.ticks[idx];
             if (t >= fromTick && t <= toTick) {
-                out.push({ tick: t, fp: [this.his[idx] >>> 0, this.los[idx] >>> 0] });
+                out.push({
+                    tick: t,
+                    fp: [this.his[idx] >>> 0, this.los[idx] >>> 0],
+                    paused: this.pausedFlags[idx],
+                });
             }
         }
         return out;
     }
 
     /** Most recently pushed entry, or `null` if the ring is empty. */
-    latest(): { tick: number; fp: Fingerprint64 } | null {
+    latest(): FingerprintRingEntry | null {
         if (this.count === 0) {
             return null;
         }
@@ -220,6 +239,7 @@ export class FingerprintRing {
         return {
             tick: this.ticks[idx],
             fp: [this.his[idx] >>> 0, this.los[idx] >>> 0],
+            paused: this.pausedFlags[idx],
         };
     }
 

@@ -23,6 +23,7 @@ All lobby game-state and message polling is centralized in `GameSyncContext` (`a
 | **`serverTick`** | Authoritative **last fully completed** simulation tick on the PHP battle store — exposed on the heartbeat as **`hostTick`** (after the same clamp as order append). Same index as the **verification fingerprint** (`fingerprints.jsonl` tail at steady state). **Not** the parallel order-batch tick. UI may label this “Host tick” / “Server tick”. |
 | **`clientTick`** | This browser’s **last fully completed** tick: `BattleSession.getEngineTick()` / `engine.gameTick`. When synced after a checkpoint/heartbeat pause, **`clientTick === serverTick`**; drift drives behind-host / resync UX. Debug bridge exposes **`clientTick`** (+ legacy **`engineTick`**). |
 | **`hostTick`** (JSON) | Wire field = **`serverTick`**. Derived via **`BattleStorage::resolveLastCompletedTickAndFingerprint`**, shared by **`AppendOrderHandler`** and **`GetHeartbeatHandler`**. |
+| **`hostPaused`** (JSON) | **`paused`** from the fingerprints.jsonl row for **`hostTick`** (end-of-tick pause flag on host: parallel wait, **`isPaused`**, deferred-order pause, story pause). **`orderBatchAtTick`** carries the parallel batch **`waitingForOrders.atTick`**. Non-host clients compare **`hostPaused`** with the local ring pause at **`hostTick`**. **`false`** when there is no row. |
 | **`orderBatchAtTick`** (JSON) | Present when paused for **`waitingForOrders`**: **`waitingForOrders.atTick`** (orders POST with this **`atTick`**). Nullable when sim is advancing. Legacy alias: **`pausedAtTick`** duplicates this when paused — **not** the snapshot envelope **`tick`**. |
 
 Checkpoint JSON still stores **`tick`** (= envelope / last completed at save). Do not confuse envelope **`tick`** with **`waitingForOrders.atTick`**.
@@ -62,7 +63,7 @@ Same as host for local turn. When waiting on another player, minimal state polli
 | `app/js/LobbyClient.ts` | HTTP API (`getBattleHeartbeat`, orders, checkpoints) |
 | `app/js/utils/synchash.ts` | Client synchash |
 | `backend/BattleStorage.php` | **`resolveLastCompletedTickAndFingerprint`** + snapshots / fingerprints |
-| `backend/Http/Handlers/Battle/GetHeartbeatHandler.php` | Heartbeat (**`hostTick`**, **`orderBatchAtTick`**) |
+| `backend/Http/Handlers/Battle/GetHeartbeatHandler.php` | Heartbeat (**`hostTick`**, **`hostPaused`**, **`orderBatchAtTick`**) |
 | `backend/Http/Handlers/Battle/AppendOrderHandler.php` | Order windows vs last completed vs batch **`atTick`** |
 | `backend/GameCheckpointFiles.php` | Server-side checkpoint storage and synchash |
 | `backend/Http/Handlers/SaveGameStateSnapshotHandler.php` | Saves checkpoint snapshots |

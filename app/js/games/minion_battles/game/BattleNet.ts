@@ -4,8 +4,8 @@ import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types
 
 export interface BattleSessionHandle {
     getEngineTick(): number;
-    getLatestFingerprint(): { tick: number; fp: string } | null;
-    getFingerprintRange(from: number, to: number): Array<{ tick: number; fp: string }>;
+    getLatestFingerprint(): { tick: number; fp: string; paused: boolean } | null;
+    getFingerprintRange(from: number, to: number): Array<{ tick: number; fp: string; paused: boolean }>;
     getInitialFingerprint(): string;
     getSerializedSnapshot(): SerializedGameState;
     getSerializedInitialState(): SerializedGameState;
@@ -16,7 +16,9 @@ export interface BattleSessionHandle {
     } | null;
     startEngine(): void;
     loadFromSnapshot(state: SerializedGameState): void;
-    applyRemoteOrders(orders: Array<{ atTick: number; order: BattleOrder }>): void;
+    applyRemoteOrders(
+        orders: Array<{ gameTick?: number; atTick?: number; order: BattleOrder | Record<string, unknown> }>,
+    ): void;
     /**
      * True while the engine holds a parallel player order batch (`GameEngine.waitingForOrders`).
      * Distinct from BattleNet HTTP deferral (`deferredLocalOrders`).
@@ -30,11 +32,16 @@ type BattleNetEventMap = {
     'sync-status': 'synced' | 'waiting_for_host' | 'resyncing' | 'failed';
     /** Optional human-readable sync detail shown in Battle UI while recovering. */
     'sync-details': string | null;
+    /** Non-host: stuck waiting for host to advance past anchor tick (wall-clock gated UX + resync). */
+    'host-anchor-wait': { phase: 'idle' | 'waiting_ui' | 'forcing_resync'; elapsedMs: number };
+    /** Non-host: cannot submit parallel orders until host pause plane aligns (pause-ahead desync prevention). */
+    'blocking-host-pause-plane': { blocking: boolean };
     /** Non-host: local simulation is behind the server's completed tick. */
     'falling-behind': { active: boolean; ticksBehind: number };
     heartbeat: {
         hostTick: number;
         hostFingerprint: string | null;
+        hostPaused: boolean;
         ordersTipTick: number;
         ordersRecordCount: number | null;
         orderBatchAtTick: number | null;
@@ -97,6 +104,7 @@ interface BattleApi {
         expectingFromPlayerIds: string[] | null;
         initialFingerprint: string | null;
         heartbeatSeq?: number | null;
+        hostPaused?: boolean | null;
     }>;
     saveBattleInitialState(
         lobbyId: string,
@@ -162,6 +170,11 @@ export const BATTLE_NET_T1_WAITING_POLLS = 3;
 /** Same situation: initiate resync after this many polls. */
 export const BATTLE_NET_T2_RESYNC_POLLS = 10;
 
+/** Anchor tick stuck (`hostPaused` + host tail equals last proven sync tick): show bottom-centre "waiting for host". */
+export const HOST_ANCHOR_WAIT_SHOW_MS = 2000;
+/** Same situation: suspected failure — force hard resync. */
+export const HOST_ANCHOR_RESYNC_MS = 10_000;
+
 /** Host completed tick minus local engine tick — above this, treat as catching up; lock order UI. */
 export const BATTLE_NET_BEHIND_HOST_TICKS_THRESHOLD = 10;
 export const BATTLE_NET_MAX_DEFERRED_ORDERS = 32;
@@ -188,6 +201,8 @@ export class BattleNet {
     private readonly listeners: { [K in keyof BattleNetEventMap]: Set<Listener<K>> } = {
         'sync-status': new Set(),
         'sync-details': new Set(),
+        'host-anchor-wait': new Set(),
+        'blocking-host-pause-plane': new Set(),
         'falling-behind': new Set(),
         heartbeat: new Set(),
         'orders-applied': new Set(),
@@ -228,6 +243,16 @@ export class BattleNet {
     private lastPollServerTailKey: string | null = null;
     /** Non-host: consecutive polls where we're ahead, agree through host tick, and tail unchanged. */
     private aheadWithUnchangedServerTailStreak = 0;
+    /**
+     * Non-host: last authoritative host completed tick proved aligned (`engineTick===hostTail` fingerprint match or
+     * successful appendBattleOrder acceptance). Used to detect "host paused on same tail" stall after optimistic play.
+     */
+    private previouslySyncedAtTick: number | null = null;
+    /** Non-host: wall-clock start when {@link shouldTrackHostAnchorWallWait} stays true across polls. */
+    private hostAnchorWaitStartedAtMs: number | null = null;
+    /** Dedup repeated `requestResync` kicks while stall condition remains true across polls before recovery arms. */
+    private hostAnchorResyncEmittedForCurrentStall = false;
+
     /**
      * Dedupes opt-in lobby_log lines when deferred orders cannot flush (`atTick > hostTick + 1`).
      */
@@ -628,9 +653,10 @@ export class BattleNet {
             const orderBatchFromRaw = hbRaw.orderBatchAtTick ?? hbRaw.pausedAtTick;
             const orderBatchAtTick =
                 typeof orderBatchFromRaw === 'number' && !Number.isNaN(orderBatchFromRaw) ? orderBatchFromRaw : null;
-            const hb = {
+            const hb: BattleNetEventMap['heartbeat'] = {
                 hostTick: hbRaw.hostTick ?? 0,
                 hostFingerprint: hbRaw.hostFingerprint ?? null,
+                hostPaused: hbRaw.hostPaused === true,
                 ordersTipTick: hbRaw.ordersTipTick ?? -1,
                 ordersRecordCount,
                 orderBatchAtTick,
@@ -686,44 +712,18 @@ export class BattleNet {
             }
 
             if (engineTick === hb.hostTick) {
-                const local = this.session.getLatestFingerprint();
-                if (local?.tick === engineTick && hb.hostFingerprint && local.fp === hb.hostFingerprint) {
-                    if (!this.isHost) {
-                        this.resetNonHostAheadStreak();
-                    }
-                    this.setSyncStatus('synced');
-                } else if (hb.hostFingerprint != null && !this.isHost) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Debug-Session-Id': '62239e',
-                        },
-                        body: JSON.stringify({
-                            sessionId: '62239e',
-                            runId: 'pre-fix',
-                            hypothesisId: 'A',
-                            location: 'BattleNet.ts:pollOnce',
-                            message: 'equal-tick fingerprint branch before requestResync',
-                            data: {
-                                engineTick,
-                                localRingTick: local?.tick ?? null,
-                                localFpTail: local?.fp?.slice(0, 8) ?? null,
-                                hostFpTail: hb.hostFingerprint?.slice(0, 8) ?? null,
-                                ringTickMatchesEngine: local?.tick === engineTick,
-                                fpMatches: local != null && local.fp === hb.hostFingerprint,
-                                isPausedForOrderSync: this.session.isPausedForOrderSync(),
-                                isRecovering: this.isRecovering,
-                            },
-                            timestamp: Date.now(),
-                        }),
-                    }).catch(() => {});
-                    // #endregion
-                    this.requestResync('hash-mismatch');
-                }
+                this.reconcileFingerprintsEqualHostTick(engineTick, hb);
             } else if (!this.isHost && engineTick > hb.hostTick) {
-                this.handleNonHostAheadOfHostTail(hb);
+                this.reconcileNonHostAheadOfHostTail(engineTick, hb);
+            }
+
+            if (!this.isHost) {
+                if (engineTick < hb.hostTick) {
+                    this.clearHostAnchorWaitState();
+                    this.emitBlockingHostPausePlane(false);
+                } else {
+                    this.refreshHostAnchorWaitAndBlocking(engineTick, hb);
+                }
             }
 
             if (this.isHost) {
@@ -927,6 +927,15 @@ export class BattleNet {
         this.appliedOrderIdHashes.add(res.idHash || idHash);
         if (res.accepted) {
             this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== idHash);
+            if (!this.isHost) {
+                const t =
+                    typeof res.hostTick === 'number' && !Number.isNaN(res.hostTick)
+                        ? res.hostTick
+                        : this.latestHeartbeatHostTick;
+                this.previouslySyncedAtTick = t;
+                this.hostAnchorWaitStartedAtMs = null;
+                this.hostAnchorResyncEmittedForCurrentStall = false;
+            }
             logToLobbyLog({
                 lobbyClient: this.api as unknown as LobbyClient,
                 lobbyId: this.lobbyId,
@@ -1356,6 +1365,9 @@ export class BattleNet {
         this.lastOrderFetchSince = 0;
         this.lastSeenOrdersRecordCount = 0;
         this.deferredFlushBlockedLogKey = null;
+        this.previouslySyncedAtTick = null;
+        this.clearHostAnchorWaitState();
+        this.emitBlockingHostPausePlane(false);
         this.emitHostCatchupWaitState();
     }
 
@@ -1364,20 +1376,174 @@ export class BattleNet {
         this.aheadWithUnchangedServerTailStreak = 0;
     }
 
-    /** Non-host: `engineTick` is past the server-reported completed tick — compare local ring at that tick. */
-    private handleNonHostAheadOfHostTail(hb: { hostTick: number; hostFingerprint: string | null }): void {
-        if (this.session.isPausedForOrderSync()) {
-            const hostTailFp = hb.hostFingerprint;
-            if (hostTailFp != null) {
-                const localAtHostTick = this.session.getFingerprintRange(hb.hostTick, hb.hostTick)[0]?.fp;
-                if (localAtHostTick != null && localAtHostTick === hostTailFp) {
-                    this.resetNonHostAheadStreak();
-                    this.setSyncStatus('synced');
-                    return;
-                }
+    private clearHostAnchorWaitState(): void {
+        this.hostAnchorWaitStartedAtMs = null;
+        this.hostAnchorResyncEmittedForCurrentStall = false;
+        this.emit('host-anchor-wait', { phase: 'idle', elapsedMs: 0 });
+    }
+
+    private notePreviouslySyncedAnchorTick(hostAlignedTick: number): void {
+        this.previouslySyncedAtTick = hostAlignedTick;
+        this.clearHostAnchorWaitState();
+    }
+
+    private computeBlockingNonHostPausePlane(engineTick: number, hb: BattleNetEventMap['heartbeat']): boolean {
+        const localBatch = this.session.getWaitingForOrdersBatch();
+        if (localBatch == null) {
+            return false;
+        }
+        const hostParallel = hb.orderBatchAtTick;
+        if (hostParallel != null && hostParallel !== localBatch.atTick) {
+            return true;
+        }
+        return engineTick > hb.hostTick;
+    }
+
+    private emitBlockingHostPausePlane(blocking: boolean): void {
+        this.emit('blocking-host-pause-plane', { blocking });
+    }
+
+    private shouldTrackHostAnchorWallWait(engineTick: number, hb: BattleNetEventMap['heartbeat']): boolean {
+        const anchor = this.previouslySyncedAtTick;
+        if (anchor == null) {
+            return false;
+        }
+        if (hb.hostTick !== anchor) {
+            return false;
+        }
+        if (!hb.hostPaused) {
+            return false;
+        }
+        const hasOutboundOrderAckWait =
+            this.deferredLocalOrders.length > 0 || this.ourOrdersAwaitingServerRange.size > 0;
+        const optimisticParallelAhead =
+            this.session.isPausedForOrderSync() && engineTick > hb.hostTick;
+        return hasOutboundOrderAckWait || optimisticParallelAhead;
+    }
+
+    /** Non-host-only: heartbeat-driven wall clock for “host stalled on anchor tick”; bottom-centre UX + hard resync. */
+    private refreshHostAnchorWaitAndBlocking(engineTick: number, hb: BattleNetEventMap['heartbeat']): void {
+        const blockingPause = this.computeBlockingNonHostPausePlane(engineTick, hb);
+        this.emitBlockingHostPausePlane(blockingPause);
+
+        if (!this.shouldTrackHostAnchorWallWait(engineTick, hb)) {
+            if (this.hostAnchorWaitStartedAtMs != null) {
+                this.clearHostAnchorWaitState();
             }
+            return;
+        }
+
+        const now = Date.now();
+        if (this.hostAnchorWaitStartedAtMs == null) {
+            this.hostAnchorWaitStartedAtMs = now;
+        }
+        const elapsedMs = Math.max(0, now - this.hostAnchorWaitStartedAtMs);
+
+        let phase: BattleNetEventMap['host-anchor-wait']['phase'] = 'idle';
+        if (elapsedMs >= HOST_ANCHOR_WAIT_SHOW_MS) {
+            phase = 'waiting_ui';
+        }
+
+        if (elapsedMs >= HOST_ANCHOR_RESYNC_MS && !this.hostAnchorResyncEmittedForCurrentStall && !this.isRecovering) {
+            this.hostAnchorResyncEmittedForCurrentStall = true;
+            phase = 'forcing_resync';
+            logToLobbyLogBattleSync({
+                lobbyClient: this.api as unknown as LobbyClient,
+                lobbyId: this.lobbyId,
+                playerId: this.playerId,
+                tick: engineTick,
+                severity: 'warn',
+                gameId: this.gameId,
+                message:
+                    'host anchor wait exceeded threshold; suspected stall after optimistic pause — forcing resync',
+                context: {
+                    elapsedMs,
+                    previouslySyncedAtTick: this.previouslySyncedAtTick,
+                    hostPaused: hb.hostPaused,
+                    hostTick: hb.hostTick,
+                    orderBatchAtTick: hb.orderBatchAtTick,
+                    engineTick,
+                    deferredCount: this.deferredLocalOrders.length,
+                    outboundAckWaitCount: this.ourOrdersAwaitingServerRange.size,
+                    waitingBatch: this.session.getWaitingForOrdersBatch(),
+                },
+            });
+            this.requestResync('host-stuck-after-submit');
+        }
+
+        this.emit('host-anchor-wait', { phase, elapsedMs });
+    }
+
+    /** Host + non-host — last completed matches server tail. */
+    private reconcileFingerprintsEqualHostTick(engineTick: number, hb: BattleNetEventMap['heartbeat']): void {
+        const local = this.session.getLatestFingerprint();
+        if (
+            local != null &&
+            local.tick === engineTick &&
+            hb.hostFingerprint &&
+            local.fp === hb.hostFingerprint &&
+            local.paused === hb.hostPaused
+        ) {
+            if (!this.isHost) {
+                this.resetNonHostAheadStreak();
+                this.notePreviouslySyncedAnchorTick(hb.hostTick);
+            }
+            this.setSyncStatus('synced');
+            return;
+        }
+        if (
+            local != null &&
+            local.tick === engineTick &&
+            hb.hostFingerprint &&
+            local.fp === hb.hostFingerprint &&
+            local.paused !== hb.hostPaused &&
+            !this.isHost
+        ) {
+            logToLobbyLogBattleSync({
+                lobbyClient: this.api as unknown as LobbyClient,
+                lobbyId: this.lobbyId,
+                playerId: this.playerId,
+                tick: engineTick,
+                severity: 'warn',
+                gameId: this.gameId,
+                message: 'equal-tick fingerprint match but paused flag mismatched vs heartbeat hostPaused',
+                context: {
+                    engineTick,
+                    localPausedRing: local.paused,
+                    hostPaused: hb.hostPaused,
+                    hostFingerprintTail: hb.hostFingerprint?.slice(0, 12),
+                },
+            });
+            this.requestResync('pause-flag-equal-tick-mismatch');
+            return;
+        }
+        if (!this.isHost && hb.hostFingerprint != null) {
+            this.requestResync('hash-mismatch');
+        }
+    }
+
+    /** Non-host: local sim past server completed tail — align finger/pause tails; never claim `synced` when optimistically paused ahead. */
+    private reconcileNonHostAheadOfHostTail(engineTick: number, hb: BattleNetEventMap['heartbeat']): void {
+        const localOrderPause = this.session.isPausedForOrderSync();
+
+        if (hb.hostPaused && engineTick > hb.hostTick && !localOrderPause) {
+            logToLobbyLogBattleSync({
+                lobbyClient: this.api as unknown as LobbyClient,
+                lobbyId: this.lobbyId,
+                playerId: this.playerId,
+                tick: engineTick,
+                severity: 'warn',
+                gameId: this.gameId,
+                message: 'non-host advancing while host heartbeat reports paused at lower completed tick — resync',
+                context: {
+                    engineTick,
+                    hostTick: hb.hostTick,
+                    hostPaused: hb.hostPaused,
+                    orderBatchAtTick: hb.orderBatchAtTick,
+                },
+            });
             this.resetNonHostAheadStreak();
-            this.setSyncStatus('waiting_for_host');
+            this.requestResync('pause-plane-host-paused-client-running');
             return;
         }
 
@@ -1388,40 +1554,45 @@ export class BattleNet {
             return;
         }
 
-        const range = this.session.getFingerprintRange(hb.hostTick, hb.hostTick);
-        const localAtHostTick = range[0]?.fp;
+        const localRow = this.session.getFingerprintRange(hb.hostTick, hb.hostTick)[0];
 
-        if (localAtHostTick != null && localAtHostTick !== hostTailFp) {
+        if (localRow != null && localRow.fp !== hostTailFp) {
             this.resetNonHostAheadStreak();
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Debug-Session-Id': '62239e',
-                },
-                body: JSON.stringify({
-                    sessionId: '62239e',
-                    runId: 'pre-fix',
-                    hypothesisId: 'B',
-                    location: 'BattleNet.ts:handleNonHostAheadOfHostTail',
-                    message: 'ahead-of-host tail fp mismatch -> requestResync',
-                    data: {
-                        engineTick: this.session.getEngineTick(),
-                        hbHostTick: hb.hostTick,
-                        localAtHostTickTail: localAtHostTick?.slice(0, 8),
-                        hostTailFpTail: hostTailFp?.slice(0, 8),
-                        isPausedForOrderSync: this.session.isPausedForOrderSync(),
-                    },
-                    timestamp: Date.now(),
-                }),
-            }).catch(() => {});
-            // #endregion
             this.requestResync('hash-mismatch');
             return;
         }
 
-        if (localAtHostTick == null) {
+        if (localRow != null && localRow.paused !== hb.hostPaused) {
+            logToLobbyLogBattleSync({
+                lobbyClient: this.api as unknown as LobbyClient,
+                lobbyId: this.lobbyId,
+                playerId: this.playerId,
+                tick: engineTick,
+                severity: 'warn',
+                gameId: this.gameId,
+                message: 'ahead-of-host: fingerprint-row paused disagrees with heartbeat hostPaused at host tail',
+                context: {
+                    engineTick,
+                    hostTick: hb.hostTick,
+                    localPausedTail: localRow.paused,
+                    hostPausedHb: hb.hostPaused,
+                    fpTail: hostTailFp.slice(0, 12),
+                },
+            });
+            this.resetNonHostAheadStreak();
+            this.requestResync('pause-flag-tail-mismatch');
+            return;
+        }
+
+        if (localRow == null) {
+            this.resetNonHostAheadStreak();
+            this.setSyncStatus('waiting_for_host');
+            return;
+        }
+
+        const localFpAtTail = localRow.fp;
+
+        if (localOrderPause) {
             this.resetNonHostAheadStreak();
             this.setSyncStatus('waiting_for_host');
             return;
@@ -1431,7 +1602,7 @@ export class BattleNet {
         const unchanged =
             this.lastPollServerTailKey !== null &&
             this.lastPollServerTailKey === tailKey &&
-            localAtHostTick === hostTailFp;
+            localFpAtTail === hostTailFp;
 
         if (unchanged) {
             this.aheadWithUnchangedServerTailStreak += 1;
@@ -1506,12 +1677,19 @@ export class BattleNet {
     private isFingerprintAlignedWithHeartbeat(heartbeat: {
         hostTick: number | null;
         hostFingerprint: string | null;
+        hostPaused?: boolean | null;
     }): boolean {
         const local = this.session.getLatestFingerprint();
         if (!local || heartbeat.hostTick == null || heartbeat.hostFingerprint == null) {
             return false;
         }
-        return local.tick === heartbeat.hostTick && local.fp === heartbeat.hostFingerprint;
+        if (local.tick !== heartbeat.hostTick || local.fp !== heartbeat.hostFingerprint) {
+            return false;
+        }
+        if (heartbeat.hostPaused != null && local.paused !== heartbeat.hostPaused) {
+            return false;
+        }
+        return true;
     }
 
     private sleep(ms: number): Promise<void> {
@@ -1673,30 +1851,6 @@ export class BattleNet {
             return;
         }
 
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Debug-Session-Id': '62239e',
-            },
-            body: JSON.stringify({
-                sessionId: '62239e',
-                runId: 'pre-fix',
-                hypothesisId: 'C',
-                location: 'BattleNet.ts:runDesyncRecovery:entry',
-                message: 'desync recovery started',
-                data: {
-                    reason,
-                    engineTickBefore: this.session.getEngineTick(),
-                    isPausedForOrderSync: this.session.isPausedForOrderSync(),
-                    lastBootstrapSnapshotTick: this.lastBootstrapSnapshotTick,
-                },
-                timestamp: Date.now(),
-            }),
-        }).catch(() => {});
-        // #endregion
-
         this.isRecovering = true;
         this.setSyncStatus('resyncing');
         this.resetLocalOptimisticOrdersOnResync();
@@ -1809,30 +1963,6 @@ export class BattleNet {
             console.error(`[BattleNet] recovery error for "${reason}"`, error);
             this.setSyncStatus('failed');
         } finally {
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Debug-Session-Id': '62239e',
-                },
-                body: JSON.stringify({
-                    sessionId: '62239e',
-                    runId: 'pre-fix',
-                    hypothesisId: 'D',
-                    location: 'BattleNet.ts:runDesyncRecovery:finally',
-                    message: 'desync recovery finally',
-                    data: {
-                        reason,
-                        syncStatus: this.currentSyncStatus,
-                        engineTickAfter: this.session.getEngineTick(),
-                        isPausedForOrderSync: this.session.isPausedForOrderSync(),
-                        waitingBatchAtTick: this.session.getWaitingForOrdersBatch()?.atTick ?? null,
-                    },
-                    timestamp: Date.now(),
-                }),
-            }).catch(() => {});
-            // #endregion
             this.isRecovering = false;
         }
     }
