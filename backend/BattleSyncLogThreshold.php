@@ -3,20 +3,13 @@
 namespace App;
 
 /**
- * Floors for battle-sync lobby_log lines (client `VITE_LOBBY_LOG_BATTLE_SYNC`, server `LOBBY_LOG_BATTLE_SYNC`).
+ * Floors for battle-sync lobby_log lines (client `global_constants.js`, server `global_constants.php`).
  *
  * Noise / verbosity (most → least): log, info, warn, error, critical. `off` disables.
- * Unset env defaults to `info` (second most noisy).
+ * Empty / invalid `LOBBY_LOG_BATTLE_SYNC` constant defaults to `info`.
  */
 final class BattleSyncLogThreshold
 {
-    /**
-     * Hard override for server battle-sync lobby logging.
-     * Set to one of: log, info, warn, error, critical, off.
-     * Keep as `log` while investigating sync/order issues.
-     */
-    private const OVERRIDE_FLOOR = 'log';
-
     /** @var array<string, int> */
     private const RANK = [
         'log' => 0,
@@ -28,7 +21,7 @@ final class BattleSyncLogThreshold
 
     public static function shouldLogBattleSyncEvent(string $eventSeverity): bool
     {
-        $floor = self::floorFromEnv();
+        $floor = self::floorFromGlobalConstant();
         if ($floor === 'off') {
             return false;
         }
@@ -38,18 +31,13 @@ final class BattleSyncLogThreshold
         return $eventRank >= $floorRank;
     }
 
-    private static function floorFromEnv(): string
+    private static function floorFromGlobalConstant(): string
     {
-        $override = strtolower(trim((string) self::OVERRIDE_FLOOR));
-        if ($override === 'off' || isset(self::RANK[$override])) {
-            return $override;
-        }
-
-        $raw = getenv('LOBBY_LOG_BATTLE_SYNC');
-        if ($raw === false || $raw === '') {
+        $raw = defined('LOBBY_LOG_BATTLE_SYNC') ? (string) constant('LOBBY_LOG_BATTLE_SYNC') : '';
+        if ($raw === '') {
             return 'info';
         }
-        $s = strtolower(trim((string) $raw));
+        $s = strtolower(trim($raw));
         if ($s === 'off') {
             return 'off';
         }

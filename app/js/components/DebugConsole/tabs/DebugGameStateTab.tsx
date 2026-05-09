@@ -20,6 +20,7 @@ interface DebugGameStateTabProps {
 type DebugWindow = {
     __minionBattlesDebugGameTick?: number;
     __minionBattlesDebugSynchash?: string;
+    __minionBattlesDebugLogLocalStateToLobby?: () => Promise<void>;
 };
 
 export default function DebugGameStateTab({
@@ -32,6 +33,8 @@ export default function DebugGameStateTab({
     const [liveSynchash, setLiveSynchash] = useState<string | null>(null);
     const [syncBridge, setSyncBridge] = useState<Record<string, unknown> | null>(null);
     const [copyDone, setCopyDone] = useState(false);
+    const [logLocalBusy, setLogLocalBusy] = useState(false);
+    const [logLocalDone, setLogLocalDone] = useState(false);
 
     useEffect(() => {
         if (!isActive) return;
@@ -92,26 +95,62 @@ export default function DebugGameStateTab({
         }
     }, [displayGameState]);
 
+    const canLogLocalBattle =
+        inBattle && battleOrdersDebug != null && battleOrdersDebug.gameId != null;
+
+    const logLocalStateToLobby = useCallback(async () => {
+        if (!canLogLocalBattle) return;
+        const w = window as unknown as DebugWindow;
+        const fn = w.__minionBattlesDebugLogLocalStateToLobby;
+        if (!fn) return;
+        setLogLocalBusy(true);
+        try {
+            await fn();
+            setLogLocalDone(true);
+            window.setTimeout(() => setLogLocalDone(false), 1500);
+        } finally {
+            setLogLocalBusy(false);
+        }
+    }, [canLogLocalBattle]);
+
     if (!isActive) return null;
+
+    const utilityBtnClass =
+        'px-2 py-1 text-xs bg-surface-light text-white border border-border-custom rounded hover:bg-border-custom transition-colors disabled:opacity-40';
 
     return (
         <div className="flex flex-col gap-2">
-            <DebugHeartbeatSyncPanel
-                isActive={isActive}
-                inBattle={inBattle}
-                battleOrdersDebug={battleOrdersDebug}
-                syncBridge={syncBridge}
-            />
-            <div className="flex items-center gap-2 shrink-0">
+            <div
+                className="flex flex-wrap items-center gap-2 shrink-0 pb-1 border-b border-border-custom/60"
+                role="group"
+                aria-label="Game state utilities"
+            >
+                {canLogLocalBattle && (
+                    <button
+                        type="button"
+                        title="Logs live engine JSON to lobby_log (critical) and POSTs snapshot if host"
+                        className={utilityBtnClass}
+                        disabled={logLocalBusy}
+                        onClick={() => void logLocalStateToLobby()}
+                    >
+                        {logLocalDone ? 'Logged' : logLocalBusy ? '…' : 'Log local state'}
+                    </button>
+                )}
                 <button
                     type="button"
-                    className="px-2 py-1 text-xs bg-surface-light text-white border border-border-custom rounded hover:bg-border-custom transition-colors disabled:opacity-40"
+                    className={utilityBtnClass}
                     disabled={displayGameState == null}
                     onClick={() => void copyGameState()}
                 >
                     {copyDone ? 'Copied' : 'Copy'}
                 </button>
             </div>
+            <DebugHeartbeatSyncPanel
+                isActive={isActive}
+                inBattle={inBattle}
+                battleOrdersDebug={battleOrdersDebug}
+                syncBridge={syncBridge}
+            />
             <DebugJsonBlock value={displayGameState} emptyText="No game state yet." />
         </div>
     );

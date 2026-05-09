@@ -324,6 +324,30 @@ export class BattleSession implements BattleSessionHandle {
         // Replacing the engine calls destroy() on the previous instance, which stops its rAF loop.
         // BattlePhase only calls startEngine() once on mount; async resync paths must restart here.
         this.startEngine();
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Debug-Session-Id': '62239e',
+            },
+            body: JSON.stringify({
+                sessionId: '62239e',
+                runId: 'pre-fix',
+                hypothesisId: 'E',
+                location: 'BattleSession.ts:loadFromSnapshot',
+                message: 'after finalizeEngine + startEngine',
+                data: {
+                    gameTick: engine.gameTick,
+                    isPaused: engine.isPaused,
+                    hasWaitingForOrders: engine.waitingForOrders != null,
+                    waitingAtTick: engine.waitingForOrders?.atTick ?? null,
+                    ringLatestTick: engine.state.runtimeFingerprintRing.latest()?.tick ?? null,
+                },
+                timestamp: Date.now(),
+            }),
+        }).catch(() => {});
+        // #endregion
     }
 
     /** Same as {@link load} for a new or reconnecting battle with optional lobby payload. */

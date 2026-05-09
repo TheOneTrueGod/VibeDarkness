@@ -1,5 +1,5 @@
 ---
-description: Run lint (fix errors), then test suite after file create/save/delete; fix failures up to 2 times
+description: Run lint (fix errors), then Vitest (--changed scope, then full suite) after file create/save/delete; fix failures up to 2 times
 alwaysApply: true
 ---
 
@@ -13,7 +13,9 @@ Whenever you finish a command where **files have been created, saved, or deleted
    - If the project has a lint script: run `npm run lint` and fix any reported errors.
    - If there is no lint script: run the editor linter (e.g. ReadLints) on changed files and fix any reported errors.
 
-2. **Run the test suite**: `npm run test` (Vitest) — skip when **Skills only — no Vitest** (below) applies.
+2. **Run tests in two passes** (Vitest) — skip when **Skills only — no Vitest** (below) applies.
+   - **Pass A (scoped — change set):** `npx vitest run --changed` runs tests Vitest associates with git **uncommitted** changes (staged and unstaged), i.e. the usual “this edit batch” before commit. If the working tree is **clean** (changes were already committed), run `npx vitest run --changed HEAD~1` instead so Pass A still targets tests affected by the **latest commit**.
+   - **Pass B (full suite):** `npm run test` (`npx vitest run`).
 
 3. **If all tests pass**:
    - Return your normal response to the user
@@ -21,7 +23,7 @@ Whenever you finish a command where **files have been created, saved, or deleted
 
 4. **If any tests fail**:
    - Attempt to fix the failing tests
-   - Re-run `npm run test`
+   - Re-run **Pass A then Pass B** (scoped `npx vitest run --changed` or `… --changed HEAD~1` when appropriate, then `npm run test`)
    - Repeat up to **2 fix attempts** total
    - If tests pass after a fix: return with `All (#) tests have passed` as above
    - If tests still fail after 2 attempts: stop fixing, return to the user with your response and at the end say in **red text**: `<span style="color: red">(#) tests failed</span>` (replace # with the failure count). Use this exact phrasing so the failure is clearly visible.
@@ -36,6 +38,6 @@ Whenever you finish a command where **files have been created, saved, or deleted
 
 If the **only** files you created, saved, or deleted in that command are under **`.cursor/skills/`** (e.g. editing `SKILL.md`):
 
-- **Do not** run `npm run test` (Vitest).
+- **Do not** run Vitest (neither `--changed` / scoped nor `npm run test`).
 - **Do not** append `All (#) tests have passed` or the red tests-failed footer (the suite was not run).
 - **`npm run lint`**: optional; skip it when nothing outside `.cursor/skills/` changed.

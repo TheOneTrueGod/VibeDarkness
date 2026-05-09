@@ -58,6 +58,8 @@ declare global {
          * Battle Actions debug button sets this one-shot flag; BattlePhase consumes and clears it.
          */
         __minionBattlesDebugTriggerDesyncRequested?: boolean;
+        /** Debug Console → BattleNet: lobby_log (critical) + host snapshot POST from live engine. */
+        __minionBattlesDebugLogLocalStateToLobby?: () => Promise<void>;
     }
 }
 
@@ -228,6 +230,24 @@ export default function BattlePhase({
             window.__minionBattlesDebugGameState = undefined;
             window.__minionBattlesDebugSynchash = undefined;
             window.__minionBattlesDebugTriggerDesyncRequested = undefined;
+        };
+    }, []);
+
+    useEffect(() => {
+        window.__minionBattlesDebugLogLocalStateToLobby = async () => {
+            const net = netRef.current;
+            if (!net) {
+                console.warn('[BattlePhase] debug log local state: BattleNet not ready');
+                return;
+            }
+            try {
+                await net.debugLogLocalStateAndSubmitSnapshot();
+            } catch (e) {
+                console.error('[BattlePhase] debugLogLocalStateAndSubmitSnapshot failed:', e);
+            }
+        };
+        return () => {
+            window.__minionBattlesDebugLogLocalStateToLobby = undefined;
         };
     }, []);
 

@@ -91,6 +91,8 @@ interface BattleApi {
         hostFingerprint: string | null;
         ordersTipTick: number | null;
         ordersRecordCount?: number | null;
+        /** Parallel order batch tick when paused; legacy alias for some payloads: {@link pausedAtTick}. */
+        orderBatchAtTick?: number | null;
         pausedAtTick: number | null;
         expectingFromPlayerIds: string[] | null;
         initialFingerprint: string | null;
@@ -565,6 +567,52 @@ export class BattleNet {
         this.lastSnapshotTick = tick;
     }
 
+    /**
+     * Debug: serializes the live engine via {@link BattleSessionHandle.getSerializedSnapshot}, logs it to
+     * `lobby_log.jsonl` at **critical** severity, then (host only) POSTs the same payload through
+     * `saveBattleSnapshot` — not React/debug-buffered lobby state.
+     */
+    async debugLogLocalStateAndSubmitSnapshot(): Promise<void> {
+        const state = this.session.getSerializedSnapshot();
+        const tick = state.gameTick;
+        const checkpointFp =
+            typeof state.initialFingerprint === 'string' && state.initialFingerprint !== ''
+                ? state.initialFingerprint
+                : undefined;
+
+        logToLobbyLog({
+            lobbyClient: this.api as unknown as LobbyClient,
+            lobbyId: this.lobbyId,
+            playerId: this.playerId,
+            tick,
+            severity: 'critical',
+            gameId: this.gameId,
+            gamePhase: 'battle',
+            message: 'debug: local serialized game state',
+            context: {
+                isHost: this.isHost,
+                serializedGameState: state,
+            },
+        });
+
+        if (!this.isHost) {
+            return;
+        }
+
+        await this.api.saveBattleSnapshot(this.lobbyId, this.gameId, {
+            playerId: this.playerId,
+            tick,
+            state,
+            ...(checkpointFp != null ? { checkpointFingerprint: checkpointFp } : {}),
+        });
+        const engineNow = this.session.getEngineTick();
+        if (engineNow > tick) {
+            this.lastSnapshotTick = tick;
+            return;
+        }
+        this.lastSnapshotTick = tick;
+    }
+
     async pollOnce(): Promise<void> {
         if (this.isPolling || this.isRecovering) {
             return;
@@ -645,6 +693,33 @@ export class BattleNet {
                     }
                     this.setSyncStatus('synced');
                 } else if (hb.hostFingerprint != null && !this.isHost) {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Debug-Session-Id': '62239e',
+                        },
+                        body: JSON.stringify({
+                            sessionId: '62239e',
+                            runId: 'pre-fix',
+                            hypothesisId: 'A',
+                            location: 'BattleNet.ts:pollOnce',
+                            message: 'equal-tick fingerprint branch before requestResync',
+                            data: {
+                                engineTick,
+                                localRingTick: local?.tick ?? null,
+                                localFpTail: local?.fp?.slice(0, 8) ?? null,
+                                hostFpTail: hb.hostFingerprint?.slice(0, 8) ?? null,
+                                ringTickMatchesEngine: local?.tick === engineTick,
+                                fpMatches: local != null && local.fp === hb.hostFingerprint,
+                                isPausedForOrderSync: this.session.isPausedForOrderSync(),
+                                isRecovering: this.isRecovering,
+                            },
+                            timestamp: Date.now(),
+                        }),
+                    }).catch(() => {});
+                    // #endregion
                     this.requestResync('hash-mismatch');
                 }
             } else if (!this.isHost && engineTick > hb.hostTick) {
@@ -1318,6 +1393,30 @@ export class BattleNet {
 
         if (localAtHostTick != null && localAtHostTick !== hostTailFp) {
             this.resetNonHostAheadStreak();
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Debug-Session-Id': '62239e',
+                },
+                body: JSON.stringify({
+                    sessionId: '62239e',
+                    runId: 'pre-fix',
+                    hypothesisId: 'B',
+                    location: 'BattleNet.ts:handleNonHostAheadOfHostTail',
+                    message: 'ahead-of-host tail fp mismatch -> requestResync',
+                    data: {
+                        engineTick: this.session.getEngineTick(),
+                        hbHostTick: hb.hostTick,
+                        localAtHostTickTail: localAtHostTick?.slice(0, 8),
+                        hostTailFpTail: hostTailFp?.slice(0, 8),
+                        isPausedForOrderSync: this.session.isPausedForOrderSync(),
+                    },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => {});
+            // #endregion
             this.requestResync('hash-mismatch');
             return;
         }
@@ -1574,6 +1673,30 @@ export class BattleNet {
             return;
         }
 
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Debug-Session-Id': '62239e',
+            },
+            body: JSON.stringify({
+                sessionId: '62239e',
+                runId: 'pre-fix',
+                hypothesisId: 'C',
+                location: 'BattleNet.ts:runDesyncRecovery:entry',
+                message: 'desync recovery started',
+                data: {
+                    reason,
+                    engineTickBefore: this.session.getEngineTick(),
+                    isPausedForOrderSync: this.session.isPausedForOrderSync(),
+                    lastBootstrapSnapshotTick: this.lastBootstrapSnapshotTick,
+                },
+                timestamp: Date.now(),
+            }),
+        }).catch(() => {});
+        // #endregion
+
         this.isRecovering = true;
         this.setSyncStatus('resyncing');
         this.resetLocalOptimisticOrdersOnResync();
@@ -1686,6 +1809,30 @@ export class BattleNet {
             console.error(`[BattleNet] recovery error for "${reason}"`, error);
             this.setSyncStatus('failed');
         } finally {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/aa1759c4-a4e0-469f-a40f-d09da4d3e99a', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Debug-Session-Id': '62239e',
+                },
+                body: JSON.stringify({
+                    sessionId: '62239e',
+                    runId: 'pre-fix',
+                    hypothesisId: 'D',
+                    location: 'BattleNet.ts:runDesyncRecovery:finally',
+                    message: 'desync recovery finally',
+                    data: {
+                        reason,
+                        syncStatus: this.currentSyncStatus,
+                        engineTickAfter: this.session.getEngineTick(),
+                        isPausedForOrderSync: this.session.isPausedForOrderSync(),
+                        waitingBatchAtTick: this.session.getWaitingForOrdersBatch()?.atTick ?? null,
+                    },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => {});
+            // #endregion
             this.isRecovering = false;
         }
     }

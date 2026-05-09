@@ -33,8 +33,8 @@ Tail or search this file alongside battle files when diagnosing sync/order issue
 
 - **`logToLobbyLog` (client)** is gated by **`VITE_LOBBY_LOG_THRESHOLD`**; when **unset**, the default is **`off`** — no client POSTs from that path.
 - **Severity floors** (noise: most → least): **`log`** → **`info`** → **`warn`** → **`error`** → **`critical`**; **`off`** disables. A line is recorded only if **line severity ≥ floor**.
-- **`logToLobbyLogBattleSync` (client)** uses **`VITE_LOBBY_LOG_BATTLE_SYNC`** (same tokens; legacy **`true`** / **`1`** = floor **`log`**). **Unset defaults to `info`** (second most noisy).
-- **Server** (`AppendOrderHandler`) uses **`LOBBY_LOG_BATTLE_SYNC`** with the **same** semantics (unset → **`info`**; **`off`** silences server battle-append logs). PHP does not read Vite’s `.env` automatically — set **`LOBBY_LOG_BATTLE_SYNC`** in the PHP process environment.
+- **`logToLobbyLogBattleSync` (client)** reads **`LOBBY_LOG_BATTLE_SYNC`** from **`global_constants.js`** (same tokens; legacy **`true`** / **`1`** = floor **`log`**). **Empty constant defaults to `info`** (second most noisy).
+- **Server** (`AppendOrderHandler`) reads **`LOBBY_LOG_BATTLE_SYNC`** from **`global_constants.php`** (Composer autoload) with the **same** semantics (**`off`** silences server battle-append logs; empty / invalid → **`info`**).
 
 If **both** general and battle-sync floors are **`off`**, you may still see **no** file until a line is written server-side; with server floor **`off`**, nothing is written there either.
 

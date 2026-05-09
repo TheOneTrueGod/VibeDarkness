@@ -4,6 +4,7 @@
     "module": "ESNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "strict": true,
+    "allowJs": true,
     "noEmitOnError": true,
     "skipLibCheck": true,
     "outDir": "dist",
@@ -15,5 +16,5 @@
     "noEmit": true,
     "isolatedModules": true
   },
-  "include": ["app/js/**/*.ts", "app/js/**/*.tsx", "vite-env.d.ts"]
+  "include": ["app/js/**/*.ts", "app/js/**/*.tsx", "vite-env.d.ts", "global_constants.js"]
 }

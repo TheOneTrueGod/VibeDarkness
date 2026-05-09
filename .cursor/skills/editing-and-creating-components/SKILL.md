@@ -63,5 +63,5 @@ When adding or editing **tooltips, hover boxes, popovers, or any floating help U
 ## After edits
 
 - Run `npx tsc` and fix any issues it finds.
-- Run **`npm run lint`** and **`npm run test`** when your changes affect behaviour, types, or shared utilities (Vitest covers the repo).
+- Run **`npm run lint`**, then Vitest **twice** when changes affect behaviour, types, or shared utilities: **`npx vitest run --changed`** first (use **`npx vitest run --changed HEAD~1`** if nothing is uncommitted vs `HEAD`), then **`npm run test`** for the full suite.
 
