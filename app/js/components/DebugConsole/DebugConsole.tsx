@@ -2,9 +2,9 @@
  * Debug console - press tilde (~) three times to enable, once to disable.
  * Shows game state JSON, player account JSON, and characters in a collapsible panel.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { GameStatePayload, CampaignState } from '../../types';
-import type { CampaignCharacterPayload } from '../../LobbyClient';
+import type { CampaignCharacterPayload, LobbyClient } from '../../LobbyClient';
 import DebugBattleActionsTab from './tabs/DebugBattleActionsTab';
 import DebugGameStateTab from './tabs/DebugGameStateTab';
 import DebugOrdersTab from './tabs/DebugOrdersTab';
@@ -42,6 +42,13 @@ export interface DebugConsoleProps {
     fetchCampaignData: () => Promise<CampaignState | null>;
     fetchCharactersList: () => Promise<CampaignCharacterPayload[]>;
     getCharacter: (characterId: string) => Promise<CampaignCharacterPayload>;
+    /** Minion Battles lobby: enables live orders.jsonl + sync-bridge debug. */
+    battleOrdersDebug?: {
+        lobbyClient: LobbyClient;
+        lobbyId: string;
+        gameId: string | null;
+        playerId: string;
+    } | null;
 }
 
 interface MouseDebugInfo {
@@ -72,6 +79,7 @@ export default function DebugConsole({
     fetchCampaignData,
     fetchCharactersList,
     getCharacter,
+    battleOrdersDebug = null,
 }: DebugConsoleProps) {
     const { debugPauseMode, setDebugPauseMode, advanceOneDebugTick } = useDebugSettings();
     const [debugMode, setDebugMode] = useState(false);
@@ -153,13 +161,17 @@ export default function DebugConsole({
                 ? 'left-0 top-1/2 -translate-y-1/2 rounded-r-lg'
                 : 'right-0 top-1/2 -translate-y-1/2 rounded-l-lg';
 
-    const content = useMemo(() => {
-        return (
+    const debugTabs = (
             <>
                 <DebugBattleActionsTab isActive={activeTab === 'battle-actions'} inBattle={inBattle} isAdmin={isAdmin} isHost={isHost} skipCurrentTurn={skipCurrentTurn} />
                 <DebugGameStateTab isActive={activeTab === 'game-state'} gameState={gameState} />
                 <DebugUnitsTab isActive={activeTab === 'units'} inBattle={inBattle} gameState={gameState} />
-                <DebugOrdersTab isActive={activeTab === 'orders'} inBattle={inBattle} gameState={gameState} />
+                <DebugOrdersTab
+                    isActive={activeTab === 'orders'}
+                    inBattle={inBattle}
+                    gameState={gameState}
+                    battleOrdersDebug={battleOrdersDebug}
+                />
                 <DebugPlayerDataTab isActive={activeTab === 'player-data'} fetchPlayerData={fetchPlayerData} />
                 <DebugCampaignDataTab isActive={activeTab === 'campaign-data'} fetchCampaignData={fetchCampaignData} />
                 <DebugCharactersTab
@@ -170,8 +182,7 @@ export default function DebugConsole({
                 />
                 <DebugTogglesTab isActive={activeTab === 'debug-toggles'} />
             </>
-        );
-    }, [activeTab, fetchCampaignData, fetchCharactersList, fetchPlayerData, getCharacter, gameState, inBattle, isAdmin, isHost, skipCurrentTurn]);
+    );
 
     if (!debugMode) return null;
 
@@ -295,7 +306,7 @@ export default function DebugConsole({
                         </DebugTabButton>
                     </div>
 
-                    <div className="flex-1 overflow-auto p-3 min-h-0">{content}</div>
+                    <div className="flex-1 overflow-auto p-3 min-h-0">{debugTabs}</div>
                 </div>
             )}
         </div>

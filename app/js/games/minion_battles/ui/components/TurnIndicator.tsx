@@ -13,6 +13,13 @@ import React, { useState, useEffect, useRef } from 'react';
 
 export type TurnIndicatorState = 'your_turn' | 'ally_turn' | 'playing';
 
+export interface HostCatchupPopoverProps {
+    hostTick: number;
+    targetTick: number | null;
+    stuckHeartbeats: number;
+    onForceResync: () => void;
+}
+
 interface TurnIndicatorProps {
     /** Current turn state. */
     state: TurnIndicatorState;
@@ -20,6 +27,8 @@ interface TurnIndicatorProps {
     allyName?: string;
     /** Increment to play a one-shot “Teamwork” burst above the plaque (coop cooldown sync). */
     teamworkBurstKey?: number;
+    /** Non-host: compact warning over the marker when host is behind on accepting orders. */
+    hostCatchupPopover?: HostCatchupPopoverProps | null;
 }
 
 const BLINK_DURATION_MS = 220;
@@ -37,14 +46,23 @@ export default function TurnIndicator({
     state,
     allyName = 'Player',
     teamworkBurstKey = 0,
+    hostCatchupPopover = null,
 }: TurnIndicatorProps) {
     const [phase, setPhase] = useState<'open' | 'closing' | 'closed' | 'opening'>(() =>
         state === 'playing' ? 'closed' : 'open',
     );
+    const phaseRef = useRef(phase);
+    phaseRef.current = phase;
     const [displayState, setDisplayState] = useState<TurnIndicatorState>(state);
     const prevStateRef = useRef(state);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [teamworkVisible, setTeamworkVisible] = useState(false);
+    const clearTimer = () => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+    };
 
     useEffect(() => {
         if (teamworkBurstKey <= 0) return;
@@ -59,14 +77,9 @@ export default function TurnIndicator({
 
         if (state === prev) return;
 
-        const clearTimer = () => {
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-                timeoutRef.current = null;
-            }
-        };
+        const currentPhase = phaseRef.current;
 
-        if (phase === 'open') {
+        if (currentPhase === 'open') {
             setPhase('closing');
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
@@ -81,14 +94,14 @@ export default function TurnIndicator({
                     }, BLINK_DURATION_MS);
                 }
             }, BLINK_DURATION_MS);
-        } else if (phase === 'closed' && state !== 'playing') {
+        } else if (currentPhase === 'closed' && state !== 'playing') {
             setDisplayState(state);
             setPhase('opening');
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
                 setPhase('open');
             }, BLINK_DURATION_MS);
-        } else if (phase === 'closing' || phase === 'opening') {
+        } else if (currentPhase === 'closing' || currentPhase === 'opening') {
             // State changed mid-animation: cancel the blink and jump to the correct state
             clearTimer();
             setDisplayState(state);
@@ -98,8 +111,9 @@ export default function TurnIndicator({
                 setPhase('open');
             }
         }
-        return clearTimer;
-    }, [state, phase]);
+    }, [state]);
+
+    useEffect(() => clearTimer, []);
 
     const isExpanded = phase === 'open' || phase === 'opening';
     const isCollapsed = phase === 'closing' || phase === 'closed';
@@ -146,6 +160,40 @@ export default function TurnIndicator({
 
     return (
         <div className="relative w-full shrink-0 py-1">
+            {hostCatchupPopover && (
+                <div
+                    className="pointer-events-auto absolute left-1/2 bottom-full z-[70] mb-1 w-[min(17rem,calc(100vw-1.5rem))] -translate-x-1/2 rounded-md border border-amber-500/55 bg-amber-950/95 px-2.5 py-2 text-amber-50 shadow-lg backdrop-blur-[2px]"
+                    role="status"
+                >
+                    <div className="flex items-start gap-2">
+                        <div
+                            className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-amber-400/90 border-t-transparent"
+                            aria-hidden
+                        />
+                        <div className="min-w-0 flex-1">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-200/95">
+                                Waiting for host
+                            </div>
+                            <div className="mt-0.5 text-[10px] leading-snug text-amber-100/90">
+                                Host tick {hostCatchupPopover.hostTick}
+                                {hostCatchupPopover.targetTick != null
+                                    ? ` · deferred tick ${hostCatchupPopover.targetTick}`
+                                    : ''}
+                                {hostCatchupPopover.stuckHeartbeats > 0
+                                    ? ` · ${hostCatchupPopover.stuckHeartbeats} hb`
+                                    : ''}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={hostCatchupPopover.onForceResync}
+                                className="mt-1.5 w-full rounded border border-amber-600/70 bg-amber-900/80 px-2 py-1 text-[10px] font-medium text-amber-100 hover:bg-amber-800/90"
+                            >
+                                Force Resync
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {teamworkVisible && teamworkBurstKey > 0 && (
                 <div
                     key={teamworkBurstKey}

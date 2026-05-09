@@ -619,8 +619,10 @@ final class BattleStorage
     }
 
     /**
-     * Return the last well-formed `{tick, fp}` line from
-     * `fingerprints.jsonl`, or null if the file is missing or empty.
+     * Return the `{tick, fp}` record with the greatest tick in `fingerprints.jsonl`
+     * (append order). When several lines share that tick, the last one in file order wins.
+     * This ignores out-of-order checkpoint replays that re-append an older tick after
+     * the stream has already advanced.
      *
      * @return array{tick:int,fp:string}|null
      */
@@ -634,6 +636,7 @@ final class BattleStorage
         if ($fh === false) {
             return null;
         }
+        $maxTick = null;
         $latest = null;
         try {
             @flock($fh, LOCK_SH);
@@ -653,7 +656,13 @@ final class BattleStorage
                 if (!is_string($fp)) {
                     continue;
                 }
-                $latest = ['tick' => (int) $rec['tick'], 'fp' => $fp];
+                $tick = (int) $rec['tick'];
+                if ($maxTick === null || $tick > $maxTick) {
+                    $maxTick = $tick;
+                    $latest = ['tick' => $tick, 'fp' => $fp];
+                } elseif ($tick === $maxTick) {
+                    $latest = ['tick' => $tick, 'fp' => $fp];
+                }
             }
             @flock($fh, LOCK_UN);
         } finally {

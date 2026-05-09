@@ -2,6 +2,14 @@ import React from 'react';
 import { useDebugSettings } from '../../../contexts/DebugSettingsContext';
 import DebugOnOffButton from '../DebugOnOffButton';
 
+const DEBUG_TRIGGER_DESYNC_FLAG = '__minionBattlesDebugTriggerDesyncRequested';
+
+declare global {
+    interface Window {
+        __minionBattlesDebugTriggerDesyncRequested?: boolean;
+    }
+}
+
 interface DebugBattleActionsTabProps {
     isActive: boolean;
     inBattle: boolean;
@@ -30,6 +38,18 @@ export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isH
                     <span className="text-[11px] text-muted">Host only: applies a wait order for the current unit.</span>
                 </div>
             )}
+            <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    className="px-3 py-2 bg-warning text-secondary text-xs font-medium rounded hover:bg-warning/80 transition-colors"
+                    onClick={() => {
+                        window[DEBUG_TRIGGER_DESYNC_FLAG] = true;
+                    }}
+                >
+                    Trigger desync
+                </button>
+                <span className="text-[11px] text-muted">One-shot: forces the next host/client hash compare to mismatch.</span>
+            </div>
             <div className="flex items-center gap-2">
                 <span>Darkness layer</span>
                 <DebugOnOffButton

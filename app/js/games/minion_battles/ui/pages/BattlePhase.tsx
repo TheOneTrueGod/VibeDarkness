@@ -52,6 +52,10 @@ declare global {
         __minionBattlesDebugGameState?: Record<string, unknown> | null;
         /** Client synchash of live engine state (Game State debug tab). */
         __minionBattlesDebugSynchash?: string;
+        /**
+         * Battle Actions debug button sets this one-shot flag; BattlePhase consumes and clears it.
+         */
+        __minionBattlesDebugTriggerDesyncRequested?: boolean;
     }
 }
 
@@ -133,9 +137,21 @@ export default function BattlePhase({
     const [netSyncStatus, setNetSyncStatus] = useState<'synced' | 'waiting_for_host' | 'resyncing' | 'failed'>(
         'waiting_for_host',
     );
+    const [waitingForHostCatchup, setWaitingForHostCatchup] = useState(false);
+    const [hostCatchupHostTick, setHostCatchupHostTick] = useState(0);
+    const [hostCatchupTargetTick, setHostCatchupTargetTick] = useState<number | null>(null);
+    const [hostCatchupStuckHeartbeats, setHostCatchupStuckHeartbeats] = useState(0);
+
+    const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = 5;
 
     const isMyTurn = activeLocalWaiter != null;
-    const canUseOrderUi = isMyTurn && canSubmitOrders && !storyPauseActive;
+    const canUseOrderUi = isMyTurn && canSubmitOrders && !storyPauseActive && !waitingForHostCatchup;
+
+    const showHostCatchupPopover =
+        !isHost &&
+        isPaused &&
+        waitingForHostCatchup &&
+        hostCatchupStuckHeartbeats >= HOST_WAIT_POPOVER_AFTER_HEARTBEATS;
 
     // ========================================================================
     // Debug unit focus/outline bridge (DebugConsole -> Pixi world)
@@ -179,6 +195,10 @@ export default function BattlePhase({
                 }
                 const state = engine.toJSON() as unknown as Record<string, unknown>;
                 window.__minionBattlesDebugGameState = state;
+                if (window.__minionBattlesDebugTriggerDesyncRequested === true) {
+                    sessionRef.current?.triggerDebugDesyncOnce();
+                    window.__minionBattlesDebugTriggerDesyncRequested = false;
+                }
                 const seq = ++hashSeq;
                 void computeSynchash(state).then((h) => {
                     if (seq === hashSeq) {
@@ -192,6 +212,7 @@ export default function BattlePhase({
             window.__minionBattlesDebugGameTick = undefined;
             window.__minionBattlesDebugGameState = undefined;
             window.__minionBattlesDebugSynchash = undefined;
+            window.__minionBattlesDebugTriggerDesyncRequested = undefined;
         };
     }, []);
 
@@ -299,26 +320,7 @@ export default function BattlePhase({
         });
 
         const runLoad = async () => {
-            const battleSeed = typeof initialGameState?.battleSeed === 'number' ? initialGameState.battleSeed : null;
-            if (battleSeed == null) {
-                console.error('[BattlePhase] battleSeed missing from game payload; cannot initialize deterministic battle');
-                setNetSyncStatus('failed');
-                return;
-            }
-
             session.updateLobbyContext(players, characterSelections);
-            await session.load({
-                players,
-                characterSelections,
-                battleSeed,
-                initialSnapshot: (initialGameState as SerializedGameState | null | undefined) ?? undefined,
-            });
-
-            // Stale async run (e.g. React Strict Mode remount): effect cleaned up while `session.load`
-            // was in flight — do not create BattleNet or only the newest effect's cleanup will stop().
-            if (!effectAlive) {
-                return;
-            }
 
             const net = new BattleNet({
                 api: api.getLobbyClient(),
@@ -330,8 +332,52 @@ export default function BattlePhase({
             });
             netRef.current = net;
             session.setNetAdapter(net);
+
+            let bootstrappedFromCheckpoint = false;
+            try {
+                bootstrappedFromCheckpoint = await net.tryBootstrapFromLatestCheckpoint();
+            } catch (err) {
+                console.error('[BattlePhase] tryBootstrapFromLatestCheckpoint failed:', err);
+            }
+
+            if (!effectAlive) {
+                return;
+            }
+
+            if (!bootstrappedFromCheckpoint) {
+                const battleSeed = typeof initialGameState?.battleSeed === 'number' ? initialGameState.battleSeed : null;
+                if (battleSeed == null) {
+                    console.error(
+                        '[BattlePhase] battleSeed missing from game payload; cannot initialize deterministic battle',
+                    );
+                    setNetSyncStatus('failed');
+                    net.stop();
+                    session.setNetAdapter(null);
+                    netRef.current = null;
+                    return;
+                }
+
+                await session.load({
+                    players,
+                    characterSelections,
+                    battleSeed,
+                    initialSnapshot: (initialGameState as SerializedGameState | null | undefined) ?? undefined,
+                });
+            }
+
+            if (!effectAlive) {
+                return;
+            }
             const unsubs: Array<() => void> = [];
             unsubs.push(net.on('sync-status', (status) => setNetSyncStatus(status)));
+            unsubs.push(
+                net.on('host-catchup-wait', (payload) => {
+                    setWaitingForHostCatchup(payload.blocking);
+                    setHostCatchupHostTick(payload.hostTick);
+                    setHostCatchupTargetTick(payload.targetTick);
+                    setHostCatchupStuckHeartbeats(payload.stuckHeartbeats);
+                }),
+            );
             if (!isHost) {
                 unsubs.push(
                     net.on('heartbeat', (heartbeat) => {
@@ -420,6 +466,9 @@ export default function BattlePhase({
     }, []);
 
     const handleSelectCard = useCallback((handIndex: number, ability: AbilityStatic) => {
+        if (!canUseOrderUi) {
+            return;
+        }
         if (selectedCardIndex === handIndex) {
             setSelectedCardIndex(null);
             setSelectedAbility(null);
@@ -430,7 +479,7 @@ export default function BattlePhase({
         setSelectedCardIndex(handIndex);
         setSelectedAbility(ability);
         setCurrentTargets([]);
-    }, [selectedCardIndex]);
+    }, [selectedCardIndex, canUseOrderUi]);
 
     const submitOrder = useCallback((abilityId: string, targets: ResolvedTarget[]) => {
         if (!waitingForOrders || !activeLocalWaiter || !canUseOrderUi) return;
@@ -526,7 +575,7 @@ export default function BattlePhase({
                 return;
             }
             const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key, 10) : 0;
-            if (digit > 0) {
+            if (digit > 0 && canUseOrderUi) {
                 const index = digit - 1;
                 if (index < myAbilityIds.length) {
                     const abilityId = myAbilityIds[index];
@@ -540,7 +589,7 @@ export default function BattlePhase({
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleWait, handleSelectCard, myAbilityIds]);
+    }, [handleWait, handleSelectCard, myAbilityIds, canUseOrderUi]);
 
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number) => {
         const engine = sessionRef.current?.getEngine();
@@ -570,6 +619,10 @@ export default function BattlePhase({
             unit.setMovement(gridPath, undefined, engine.gameTick);
         }
     }, [canUseOrderUi, activeLocalWaiter, waitingForOrders]);
+
+    const handleForceResync = useCallback(() => {
+        netRef.current?.requestResync('manual-force-resync');
+    }, []);
 
     const engine = sessionRef.current?.getEngine() ?? null;
     const renderer = sessionRef.current?.getRenderer() ?? null;
@@ -604,7 +657,9 @@ export default function BattlePhase({
 
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="relative flex min-h-0 flex-1 flex-col">
-                        {netSyncStatus !== 'synced' && (
+                        {(netSyncStatus === 'resyncing' ||
+                            netSyncStatus === 'failed' ||
+                            (!isHost && netSyncStatus !== 'synced' && isPaused)) && (
                             <div className="pointer-events-none absolute left-3 top-3 z-20 rounded bg-dark-900/80 px-2 py-1 text-xs text-gray-200">
                                 {netSyncStatus === 'resyncing'
                                     ? 'Resyncing battle...'
@@ -646,6 +701,16 @@ export default function BattlePhase({
                                 : undefined
                         }
                         teamworkBurstKey={teamworkBurstKey}
+                        hostCatchupPopover={
+                            showHostCatchupPopover
+                                ? {
+                                      hostTick: hostCatchupHostTick,
+                                      targetTick: hostCatchupTargetTick,
+                                      stuckHeartbeats: hostCatchupStuckHeartbeats,
+                                      onForceResync: handleForceResync,
+                                  }
+                                : null
+                        }
                     />
                 </div>
             </div>

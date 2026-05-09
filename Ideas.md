@@ -3,6 +3,10 @@ Chip:  Crystal + Crystal
 Clarence:  Crystal + Crystal
 Voen: metal
 
+Feedback May 7, 2026
+[] Refactor LobbyManager.php.  It's huge and eating up lots of context
+[] Create a skill for working with the debug tab, which gives the AI instructions on what each tab is, and where it lives
+
 Feedback April 30, 2026
 
 Things Gobi liked

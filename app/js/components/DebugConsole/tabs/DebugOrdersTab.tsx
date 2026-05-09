@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GameStatePayload } from '../../../types';
+import type { LobbyClient } from '../../../LobbyClient';
+import type { BattleOrderRecord } from '../../../types';
 import DebugJsonBlock from '../DebugJsonBlock';
 
 interface DebugOrdersTabProps {
     isActive: boolean;
     inBattle: boolean;
     gameState: GameStatePayload | null;
+    /** Live battle order log + sync bridge (when in a Minion Battles lobby). */
+    battleOrdersDebug?: {
+        lobbyClient: LobbyClient;
+        lobbyId: string;
+        gameId: string | null;
+        playerId: string;
+    } | null;
 }
 
 /** Orders list from the synced lobby game payload (checkpoint merge), not a debug-only overlay. */
@@ -43,19 +52,72 @@ function orderUnitId(entry: unknown): string | null {
     return typeof uid === 'string' ? uid : null;
 }
 
-export default function DebugOrdersTab({ isActive, inBattle, gameState }: DebugOrdersTabProps) {
-    const orders = useMemo(() => ordersFromGameState(gameState), [gameState]);
+type SyncBridge = Record<string, unknown> | null;
+
+export default function DebugOrdersTab({
+    isActive,
+    inBattle,
+    gameState,
+    battleOrdersDebug = null,
+}: DebugOrdersTabProps) {
+    const ordersLegacy = useMemo(() => ordersFromGameState(gameState), [gameState]);
     const unitOptions = useMemo(() => unitsFromGameState(gameState), [gameState]);
+
+    const [ordersLive, setOrdersLive] = useState<BattleOrderRecord[]>([]);
+    const [liveError, setLiveError] = useState<string | null>(null);
+    const [syncBridge, setSyncBridge] = useState<SyncBridge>(null);
 
     const [filterUnitId, setFilterUnitId] = useState<string | null>(null);
     const [unitMenuOpen, setUnitMenuOpen] = useState(false);
     const [unitSearch, setUnitSearch] = useState('');
     const unitMenuRef = useRef<HTMLDivElement | null>(null);
 
+    const usesLiveOrders = battleOrdersDebug != null && battleOrdersDebug.gameId != null;
+    const sourceOrders: unknown[] = usesLiveOrders ? ordersLive : ordersLegacy;
+
     const filteredOrders = useMemo(() => {
-        if (filterUnitId == null) return orders;
-        return orders.filter((o) => orderUnitId(o) === filterUnitId);
-    }, [orders, filterUnitId]);
+        if (filterUnitId == null) return sourceOrders;
+        return sourceOrders.filter((o) => orderUnitId(o) === filterUnitId);
+    }, [sourceOrders, filterUnitId]);
+
+    useEffect(() => {
+        if (!isActive || !inBattle || !usesLiveOrders || !battleOrdersDebug) {
+            return;
+        }
+        const { lobbyClient, lobbyId, gameId, playerId } = battleOrdersDebug;
+        let cancelled = false;
+
+        const tick = async () => {
+            const bridge = (
+                window as unknown as {
+                    __minionBattlesSyncDebug?: Record<string, unknown>;
+                }
+            ).__minionBattlesSyncDebug;
+            if (!cancelled) {
+                setSyncBridge(bridge ?? null);
+            }
+            try {
+                const range = await lobbyClient.getBattleOrdersRange(lobbyId, gameId!, {
+                    playerId,
+                });
+                if (!cancelled) {
+                    setOrdersLive(range.orders);
+                    setLiveError(null);
+                }
+            } catch (e) {
+                if (!cancelled) {
+                    setLiveError(e instanceof Error ? e.message : String(e));
+                }
+            }
+        };
+
+        void tick();
+        const id = window.setInterval(() => void tick(), 2000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(id);
+        };
+    }, [battleOrdersDebug, inBattle, isActive, usesLiveOrders]);
 
     useEffect(() => {
         if (!unitMenuOpen) return;
@@ -100,12 +162,24 @@ export default function DebugOrdersTab({ isActive, inBattle, gameState }: DebugO
         setUnitSearch('');
     };
 
+    const ordersSourceLabel = usesLiveOrders
+        ? 'GET …/games/{gameId}/orders (persisted battle log)'
+        : 'gameState.game.orders';
+
     return (
         <div className="flex flex-col gap-2">
             {!inBattle ? (
                 <p className="text-xs text-muted m-0">Orders are only available during battle.</p>
             ) : (
                 <>
+                    {usesLiveOrders && (
+                        <div className="flex flex-col gap-1">
+                            <span className="text-xs font-semibold text-white/85">Battle sync snapshot</span>
+                            {liveError && <p className="text-[11px] text-red-400 m-0">{liveError}</p>}
+                            <DebugJsonBlock value={syncBridge} emptyText="Open battle phase on this client to populate sync debug." />
+                        </div>
+                    )}
+
                     <div className="flex flex-col gap-1 shrink-0">
                         <span className="text-xs text-muted">Unit filter</span>
                         <div ref={unitMenuRef} className="relative max-w-md">
@@ -130,10 +204,7 @@ export default function DebugOrdersTab({ isActive, inBattle, gameState }: DebugO
                                         autoFocus
                                         onMouseDown={(e) => e.stopPropagation()}
                                     />
-                                    <ul
-                                        className="max-h-48 overflow-auto py-1 m-0 list-none"
-                                        role="listbox"
-                                    >
+                                    <ul className="max-h-48 overflow-auto py-1 m-0 list-none" role="listbox">
                                         <li>
                                             <button
                                                 type="button"
@@ -170,12 +241,12 @@ export default function DebugOrdersTab({ isActive, inBattle, gameState }: DebugO
                     </div>
 
                     <div className="text-xs text-muted">
-                        Received orders in <span className="text-white/80">gameState.game.orders</span> — showing{' '}
+                        Orders from <span className="text-white/80">{ordersSourceLabel}</span> — showing{' '}
                         <span className="text-white/90">{filteredOrders.length}</span>
-                        {filterUnitId != null && orders.length !== filteredOrders.length ? (
+                        {filterUnitId != null && sourceOrders.length !== filteredOrders.length ? (
                             <>
                                 {' '}
-                                of <span className="text-white/90">{orders.length}</span>
+                                of <span className="text-white/90">{sourceOrders.length}</span>
                             </>
                         ) : null}{' '}
                         {filteredOrders.length === 1 ? 'entry' : 'entries'}
@@ -183,9 +254,11 @@ export default function DebugOrdersTab({ isActive, inBattle, gameState }: DebugO
                     <DebugJsonBlock
                         value={filteredOrders}
                         emptyText={
-                            filterUnitId != null && orders.length > 0
-                                ? 'No orders for this unit in the current game state.'
-                                : 'No orders in game state yet.'
+                            filterUnitId != null && sourceOrders.length > 0
+                                ? 'No orders for this unit in the current list.'
+                                : usesLiveOrders
+                                  ? 'No rows in persisted orders.jsonl yet.'
+                                  : 'No orders in game state yet.'
                         }
                     />
                 </>

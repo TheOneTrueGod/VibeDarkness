@@ -794,6 +794,7 @@ function AppInner() {
                         currentCampaignId={currentCampaignId}
                         lobbyClient={lobbyClient}
                         currentPlayer={currentPlayer}
+                        lobbyId={currentLobby.id}
                     />
                     </>
                 </GameSyncProvider>
@@ -830,12 +831,14 @@ function DebugConsoleInGame({
     currentCampaignId,
     lobbyClient,
     currentPlayer,
+    lobbyId,
 }: {
     user: AccountState | null;
     role: string | null;
     currentCampaignId: string | null;
     lobbyClient: LobbyClient;
     currentPlayer: PlayerState;
+    lobbyId: string;
 }) {
     const gameSync = useGameSyncOptional();
     const gameState = gameSync?.gameState ?? null;
@@ -855,6 +858,12 @@ function DebugConsoleInGame({
             inBattle={inBattle}
             skipCurrentTurn={null}
             isHost={isHost}
+            battleOrdersDebug={{
+                lobbyClient,
+                lobbyId,
+                gameId: gameState?.gameId ?? null,
+                playerId: currentPlayer.id,
+            }}
             fetchPlayerData={async () => {
                 const u = await lobbyClient.getMe();
                 return u as Record<string, unknown> | null;

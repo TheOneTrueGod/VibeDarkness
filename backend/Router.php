@@ -16,6 +16,7 @@ use App\Http\Handlers\LoginHandler;
 use App\Http\Handlers\LogoutHandler;
 use App\Http\Handlers\SetLobbyStateHandler;
 use App\Http\Handlers\UpdateGameStateHandler;
+use App\Http\Handlers\AppendLobbyLogHandler;
 use App\Http\Handlers\Battle\AppendFingerprintsHandler;
 use App\Http\Handlers\Battle\AppendOrderHandler;
 use App\Http\Handlers\Battle\GetFingerprintsRangeHandler;
@@ -82,6 +83,7 @@ class Router
             ['GET', '#^/api/lobbies$#', ListLobbiesHandler::class],
             ['POST', '#^/api/lobbies$#', CreateLobbyHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/state$#', GetLobbyStateHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/lobby-log$#', AppendLobbyLogHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/state$#', SetLobbyStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/state$#', UpdateGameStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/reset-to-initial-snapshot$#', ResetGameToInitialSnapshotHandler::class],

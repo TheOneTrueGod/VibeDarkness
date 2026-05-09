@@ -470,20 +470,53 @@ export class LobbyClient {
         return (data.gameState as Record<string, unknown>) ?? {};
     }
 
+    async appendLobbyLog(
+        lobbyId: string,
+        body: {
+            playerId: string;
+            severity?: string;
+            tick: number | null;
+            message: string;
+            context?: Record<string, unknown>;
+            gameId?: string;
+            gamePhase?: string;
+        },
+    ): Promise<void> {
+        await this.request(`/api/lobbies/${lobbyId}/lobby-log`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+    }
+
     // ---- Battle Phase: Checkpoints (game_<id>_<gameTick>.json) & Orders ----
 
     async appendBattleOrder(
         lobbyId: string,
         gameId: string,
         body: { playerId: string; atTick: number; order: BattleOrder; idHash?: string },
-    ): Promise<{ accepted: boolean; idHash: string }> {
+    ): Promise<{
+        accepted: boolean;
+        idHash: string;
+        rejectedReason?: string;
+        maxAllowedTick?: number;
+        minAllowedTick?: number;
+    }> {
         const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/orders`, {
             method: 'POST',
             body: JSON.stringify(body),
-        }) as unknown as { appended?: boolean; idHash?: string };
+        }) as unknown as {
+            appended?: boolean;
+            idHash?: string;
+            rejectedReason?: string;
+            maxAllowedTick?: number;
+            minAllowedTick?: number;
+        };
         return {
             accepted: data.appended === true,
             idHash: data.idHash ?? body.idHash ?? '',
+            rejectedReason: typeof data.rejectedReason === 'string' ? data.rejectedReason : undefined,
+            maxAllowedTick: typeof data.maxAllowedTick === 'number' ? data.maxAllowedTick : undefined,
+            minAllowedTick: typeof data.minAllowedTick === 'number' ? data.minAllowedTick : undefined,
         };
     }
 

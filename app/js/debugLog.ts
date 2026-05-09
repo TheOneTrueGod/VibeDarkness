@@ -3,11 +3,12 @@
  * Threshold is a floor: messages at that severity or higher are printed.
  */
 
-export const DEBUG_TYPES = ['sync tracking'] as const;
+export const DEBUG_TYPES = ['sync tracking', 'lobby log'] as const;
 export type DebugType = (typeof DEBUG_TYPES)[number];
 
 export const DEBUG_TYPE_LABELS: Record<DebugType, string> = {
     'sync tracking': 'Sync tracking',
+    'lobby log': 'Lobby log',
 };
 
 /** Ordered low → high. A threshold of `warn` prints warn, error, and critical only. */
@@ -38,6 +39,7 @@ const STORAGE_KEY = 'vibedarkness.debugLog.thresholds';
 
 const DEFAULT_THRESHOLDS: Record<DebugType, DebugLogThreshold> = {
     'sync tracking': 'info',
+    'lobby log': 'warn',
 };
 
 function parseStored(raw: string | null): Partial<Record<DebugType, DebugLogThreshold>> {

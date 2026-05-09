@@ -68,6 +68,8 @@ export class BattleSession implements BattleSessionHandle {
     private netAdapter: BattleNet | null = null;
     private initialFingerprint: string | null = null;
     private initialSerializedState: SerializedGameState | null = null;
+    /** Debug-only one-shot: force the next heartbeat fingerprint comparison to mismatch. */
+    private forceNextFingerprintMismatch = false;
     private readonly listeners = new Set<BattleSessionListener>();
 
     constructor(private readonly config: BattleSessionConfig) {}
@@ -306,20 +308,33 @@ export class BattleSession implements BattleSessionHandle {
     async compareInitialFingerprintWithHeartbeat(headFingerprint: string | null): Promise<boolean> {
         if (headFingerprint == null) return false;
         if (!this.initialFingerprint || headFingerprint === this.initialFingerprint) return false;
-        const initialState = await this.netAdapter?.getBattleInitialState();
-        if (!initialState?.state) return false;
-        this.loadFromSnapshot(initialState.state);
-        return true;
+        return (await this.netAdapter?.recoverFromLobbyInitialFingerprintMismatch()) ?? false;
+    }
+
+    /** Debug helper used by Battle Actions tab to intentionally trigger one desync recovery. */
+    triggerDebugDesyncOnce(): void {
+        this.forceNextFingerprintMismatch = true;
     }
 
     getEngineTick(): number {
         return this.engine?.gameTick ?? 0;
     }
 
+    isPausedForOrderSync(): boolean {
+        return this.engine?.waitingForOrders != null;
+    }
+
     getLatestFingerprint(): { tick: number; fp: string } | null {
         const latest = this.engine?.state.runtimeFingerprintRing.latest();
         if (!latest) return null;
-        return { tick: latest.tick, fp: fingerprintToHex(latest.fp) };
+        const fp = fingerprintToHex(latest.fp);
+        if (!this.forceNextFingerprintMismatch) {
+            return { tick: latest.tick, fp };
+        }
+        this.forceNextFingerprintMismatch = false;
+        // Deliberately return a different hash for one compare cycle only.
+        const forced = fp === 'ffffffffffffffff' ? '0000000000000000' : 'ffffffffffffffff';
+        return { tick: latest.tick, fp: forced };
     }
 
     getFingerprintRange(from: number, to: number): Array<{ tick: number; fp: string }> {
