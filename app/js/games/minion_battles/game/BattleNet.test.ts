@@ -19,6 +19,11 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         getInitialFingerprint: () => '0011223344556677',
         getSerializedSnapshot: () => ({ gameTick: 0 } as SerializedGameState),
         getSerializedInitialState: () => ({ gameTick: 0 } as SerializedGameState),
+        getPayloadForPersistedInitialStateOrNull: () => ({
+            state: { gameTick: 0 } as SerializedGameState,
+            initialFingerprint: '0011223344556677',
+        }),
+        startEngine: () => {},
         loadFromSnapshot: () => {},
         applyRemoteOrders: () => {},
         isPausedForOrderSync: () => false,
@@ -28,6 +33,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
 
 function makeApi(overrides: Record<string, unknown> = {}): LobbyClient {
     const api = {
+        appendLobbyLog: vi.fn(async () => ({ success: true })),
         appendBattleOrder: vi.fn(async (_lobbyId: string, _gameId: string, body: { idHash?: string }) => ({
             accepted: true,
             idHash: body.idHash ?? 'idhash',
@@ -509,9 +515,59 @@ describe('BattleNet', () => {
         expect((api as unknown as { getBattleSnapshot: ReturnType<typeof vi.fn> }).getBattleSnapshot).toHaveBeenCalledWith(
             'l1',
             'g1',
-            { playerId: 'p1', atTick: 49 },
+            { playerId: 'p1' },
         );
         expect(applyRemoteOrders).toHaveBeenCalledWith([{ atTick: 50, order: makeOrder('r1') }]);
+    });
+
+    it('recovery first tries latest snapshot before targeted mismatch lookup', async () => {
+        const loadFromSnapshot = vi.fn();
+        const applyRemoteOrders = vi.fn();
+        const getBattleSnapshot = vi.fn(async () => ({
+            tick: 1,
+            state: { gameTick: 1, initialFingerprint: '0011223344556677' } as SerializedGameState,
+        }));
+        const api = makeApi({
+            getBattleFingerprintsRange: vi.fn(async () => ({
+                records: [{ tick: 1, fp: 'server1' }],
+            })),
+            getBattleSnapshot,
+            getBattleOrdersRange: vi.fn(async () => ({
+                orders: [{ atTick: 2, playerId: 'p2', idHash: 'z1', order: makeOrder('r1') }],
+            })),
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 1,
+                hostFingerprint: 'aligned1',
+                ordersTipTick: 2,
+                pausedAtTick: null,
+                expectingFromPlayerIds: null,
+                initialFingerprint: '0011223344556677',
+            })),
+        });
+        const session = makeSession({
+            getEngineTick: () => 1,
+            getFingerprintRange: () => [{ tick: 1, fp: 'local1' }],
+            getLatestFingerprint: () => ({ tick: 1, fp: 'aligned1' }),
+            loadFromSnapshot,
+            applyRemoteOrders,
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+
+        await net.requestResync('hash-mismatch');
+        await vi.waitFor(() => {
+            expect(loadFromSnapshot).toHaveBeenCalledTimes(1);
+        });
+
+        expect(getBattleSnapshot).toHaveBeenCalledTimes(1);
+        expect(getBattleSnapshot).toHaveBeenCalledWith('l1', 'g1', { playerId: 'p1' });
+        expect(applyRemoteOrders).toHaveBeenCalledWith([{ atTick: 2, order: makeOrder('r1') }]);
     });
 
     it('falls back to initial-state replay when snapshot is null', async () => {
@@ -841,6 +897,23 @@ describe('BattleNet', () => {
         await net.saveInitialState();
         expect(getBattleInitialState).toHaveBeenCalled();
         expect(saveBattleInitialState).toHaveBeenCalledTimes(1);
+    });
+
+    it('saveInitialState skips POST when session has no tick-0 baseline (e.g. checkpoint-only host)', async () => {
+        const saveBattleInitialState = vi.fn(async () => {});
+        const getBattleInitialState = vi.fn(async () => null);
+        const api = makeApi({ saveBattleInitialState, getBattleInitialState });
+        const net = new BattleNet({
+            api,
+            session: makeSession({ getPayloadForPersistedInitialStateOrNull: () => null }),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+        });
+        await net.saveInitialState();
+        expect(getBattleInitialState).toHaveBeenCalled();
+        expect(saveBattleInitialState).not.toHaveBeenCalled();
     });
 
     it('saveInitialState does not GET or POST for non-host', async () => {

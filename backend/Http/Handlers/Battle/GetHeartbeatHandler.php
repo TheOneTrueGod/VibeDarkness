@@ -63,14 +63,30 @@ class GetHeartbeatHandler
         $expectingData = $storage->getExpectingFromPlayerIdsAt($lobbyId, $gameId);
         $initialState = $storage->getInitialState($lobbyId, $gameId);
 
+        $hostTick = isset($latestFingerprint['tick']) ? (int) $latestFingerprint['tick'] : null;
+        $hostFingerprint = isset($latestFingerprint['fp']) && is_string($latestFingerprint['fp'])
+            ? $latestFingerprint['fp']
+            : null;
+
+        // Keep heartbeat semantics aligned with AppendOrderHandler while paused:
+        // if the newest snapshot is waiting for orders at T, the last completed tick is T-1.
+        $pausedAtTick = isset($expectingData['pausedAtTick']) ? (int) $expectingData['pausedAtTick'] : null;
+        if ($pausedAtTick !== null && $pausedAtTick > 0 && $hostTick !== null && $hostTick >= $pausedAtTick) {
+            $hostTick = $pausedAtTick - 1;
+            $atTickFp = $storage->getFingerprintsRange($lobbyId, $gameId, $hostTick, $hostTick);
+            if (count($atTickFp) > 0 && isset($atTickFp[0]['fp']) && is_string($atTickFp[0]['fp'])) {
+                $hostFingerprint = $atTickFp[0]['fp'];
+            }
+        }
+
         return [
             'success' => true,
             'heartbeatSeq' => $heartbeatSeq,
-            'hostTick' => $latestFingerprint['tick'] ?? null,
-            'hostFingerprint' => $latestFingerprint['fp'] ?? null,
+            'hostTick' => $hostTick,
+            'hostFingerprint' => $hostFingerprint,
             'ordersTipTick' => $ordersTipTick >= 0 ? $ordersTipTick : null,
             'ordersRecordCount' => $ordersRecordCount,
-            'pausedAtTick' => $expectingData['pausedAtTick'] ?? null,
+            'pausedAtTick' => $pausedAtTick,
             'expectingFromPlayerIds' => $expectingData['expectingFromPlayerIds'] ?? [],
             'initialFingerprint' => $initialState['initialFingerprint'] ?? null,
         ];

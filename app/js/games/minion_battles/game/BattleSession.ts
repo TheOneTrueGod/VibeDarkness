@@ -182,7 +182,15 @@ export class BattleSession implements BattleSessionHandle {
             engine.isPaused = false;
         }
         engine.clearDeferredOrderPauseAndAccumulator();
-        engine.start();
+    }
+
+    /** Start the simulation loop (RAF). Call after host has persisted tick-0 initial state when appropriate. Idempotent with GameEngine.start. */
+    startEngine(): void {
+        const eng = this.engine;
+        if (!eng) {
+            return;
+        }
+        eng.start();
     }
 
     /**
@@ -381,6 +389,20 @@ export class BattleSession implements BattleSessionHandle {
             return this.initialSerializedState;
         }
         return this.getSerializedSnapshot();
+    }
+
+    getPayloadForPersistedInitialStateOrNull(): {
+        state: SerializedGameState;
+        initialFingerprint: string;
+    } | null {
+        if (this.initialSerializedState == null) {
+            return null;
+        }
+        const fp = this.initialFingerprint;
+        if (fp == null || fp === '') {
+            return null;
+        }
+        return { state: this.initialSerializedState, initialFingerprint: fp };
     }
 
     /** Snapshot for GameSyncContext polling / hash verification. */

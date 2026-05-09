@@ -640,30 +640,60 @@ final class BattleStorage
 
     /**
      * Append a batch of `{ tick, fp }` records to `fingerprints.jsonl`
-     * under LOCK_EX. Returns the number of records actually
-     * appended (records with bad shape are skipped).
+     * under LOCK_EX with first-writer-wins semantics per tick.
+     *
+     * Rules:
+     * - If tick is new: append.
+     * - If tick exists with same fp: skip (idempotent duplicate).
+     * - If tick exists with different fp: reject (conflict), keep existing canonical fp.
      *
      * Same quiescence note as {@see saveSnapshot}: fingerprint tick vs
      * snapshot may lag or lead by one tick briefly during concurrent writes;
      * {@see \App\Http\Handlers\Battle\AppendOrderHandler} compensates via `maxAllowedTick`.
      *
      * @param list<array{tick:int|numeric-string,fp:string}> $records
+     * @return array{appended:int,duplicates:int,conflicts:int}
      */
-    public function appendFingerprints(string $lobbyId, string $gameId, array $records): int
+    public function appendFingerprints(string $lobbyId, string $gameId, array $records): array
     {
         if (count($records) === 0) {
-            return 0;
+            return ['appended' => 0, 'duplicates' => 0, 'conflicts' => 0];
         }
         $path = $this->getGameDir($lobbyId, $gameId) . '/fingerprints.jsonl';
-        $fh = fopen($path, 'a');
+        $fh = fopen($path, 'c+');
         if ($fh === false) {
             throw new RuntimeException("appendFingerprints: failed to open {$path}");
         }
         $appended = 0;
+        $duplicates = 0;
+        $conflicts = 0;
         try {
             if (!flock($fh, LOCK_EX)) {
                 throw new RuntimeException("appendFingerprints: failed to LOCK_EX {$path}");
             }
+            /** @var array<int, string> $canonicalByTick */
+            $canonicalByTick = [];
+            rewind($fh);
+            while (($line = fgets($fh)) !== false) {
+                $line = trim($line);
+                if ($line === '') {
+                    continue;
+                }
+                $rec = json_decode($line, true);
+                if (!is_array($rec) || !isset($rec['tick']) || !isset($rec['fp'])) {
+                    continue;
+                }
+                $tick = (int) $rec['tick'];
+                $fp = $rec['fp'];
+                if (!is_string($fp) || $fp === '') {
+                    continue;
+                }
+                // First-writer wins for canonical fp per tick.
+                if (!isset($canonicalByTick[$tick])) {
+                    $canonicalByTick[$tick] = $fp;
+                }
+            }
+            fseek($fh, 0, SEEK_END);
             foreach ($records as $rec) {
                 if (!is_array($rec)) {
                     continue;
@@ -676,6 +706,24 @@ final class BattleStorage
                 if (!is_string($fp) || $fp === '') {
                     continue;
                 }
+                if (isset($canonicalByTick[$tick])) {
+                    if ($canonicalByTick[$tick] === $fp) {
+                        $duplicates++;
+                    } else {
+                        $conflicts++;
+                        error_log(
+                            sprintf(
+                                '[BattleStorage] fingerprint conflict lobby=%s game=%s tick=%d existing=%s incoming=%s',
+                                $lobbyId,
+                                $gameId,
+                                $tick,
+                                $canonicalByTick[$tick],
+                                $fp
+                            )
+                        );
+                    }
+                    continue;
+                }
                 $encoded = json_encode(['tick' => $tick, 'fp' => $fp], JSON_UNESCAPED_SLASHES);
                 if ($encoded === false) {
                     continue;
@@ -684,6 +732,7 @@ final class BattleStorage
                     flock($fh, LOCK_UN);
                     throw new RuntimeException("appendFingerprints: failed to write to {$path}");
                 }
+                $canonicalByTick[$tick] = $fp;
                 $appended++;
             }
             fflush($fh);
@@ -691,7 +740,7 @@ final class BattleStorage
         } finally {
             fclose($fh);
         }
-        return $appended;
+        return ['appended' => $appended, 'duplicates' => $duplicates, 'conflicts' => $conflicts];
     }
 
     /**
@@ -700,7 +749,7 @@ final class BattleStorage
      * unbounded.
      *
      * Canonicalization rule: if multiple lines share the same tick,
-     * the last line in file order wins. Output is sorted by tick
+     * the first line in file order wins. Output is sorted by tick
      * ascending with one record per tick.
      *
      * @return list<array{tick:int,fp:string}>
@@ -719,13 +768,11 @@ final class BattleStorage
         if ($fh === false) {
             return [];
         }
-        /** @var array<int, array{tick:int,fp:string,idx:int}> $bestByTick */
+        /** @var array<int, array{tick:int,fp:string}> $bestByTick */
         $bestByTick = [];
         try {
             @flock($fh, LOCK_SH);
-            $idx = 0;
             while (($line = fgets($fh)) !== false) {
-                $lineIdx = $idx++;
                 $line = trim($line);
                 if ($line === '') {
                     continue;
@@ -748,9 +795,8 @@ final class BattleStorage
                 if ($toTick !== null && $tick > $toTick) {
                     continue;
                 }
-                $current = $bestByTick[$tick] ?? null;
-                if ($current === null || $lineIdx >= $current['idx']) {
-                    $bestByTick[$tick] = ['tick' => $tick, 'fp' => $fp, 'idx' => $lineIdx];
+                if (!isset($bestByTick[$tick])) {
+                    $bestByTick[$tick] = ['tick' => $tick, 'fp' => $fp];
                 }
             }
             @flock($fh, LOCK_UN);
@@ -769,7 +815,7 @@ final class BattleStorage
 
     /**
      * Return the `{tick, fp}` record with the greatest tick in `fingerprints.jsonl`
-     * (append order). When several lines share that tick, the last one in file order wins.
+     * (append order). When several lines share that tick, the first one in file order wins.
      * This ignores out-of-order checkpoint replays that re-append an older tick after
      * the stream has already advanced.
      *
@@ -808,8 +854,6 @@ final class BattleStorage
                 $tick = (int) $rec['tick'];
                 if ($maxTick === null || $tick > $maxTick) {
                     $maxTick = $tick;
-                    $latest = ['tick' => $tick, 'fp' => $fp];
-                } elseif ($tick === $maxTick) {
                     $latest = ['tick' => $tick, 'fp' => $fp];
                 }
             }

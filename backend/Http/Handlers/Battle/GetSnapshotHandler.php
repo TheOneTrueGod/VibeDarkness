@@ -27,6 +27,8 @@ class GetSnapshotHandler
 
         $atTick = isset($_GET['atTick']) && $_GET['atTick'] !== '' ? (int) $_GET['atTick'] : null;
         $storage = new BattleStorage();
+        // Match SaveSnapshotHandler: materialize `games/<gameId>/` so reads use the same directory as writes.
+        $storage->getGameDir($lobbyId, $gameId);
         $snapshot = $storage->getSnapshotAtOrBefore($lobbyId, $gameId, $atTick);
 
         return ['success' => true, 'snapshot' => $snapshot];

@@ -39,12 +39,18 @@ class AppendFingerprintsHandler
 
         try {
             $storage = new BattleStorage();
-            $appended = $storage->appendFingerprints($lobbyId, $gameId, $records);
+            $result = $storage->appendFingerprints($lobbyId, $gameId, $records);
         } catch (RuntimeException $e) {
             http_response_code(500);
             return ['success' => false, 'error' => $e->getMessage()];
         }
 
-        return ['success' => true, 'appended' => $appended];
+        return [
+            'success' => true,
+            'appended' => $result['appended'],
+            'duplicates' => $result['duplicates'],
+            'conflicts' => $result['conflicts'],
+            'rejectedReason' => $result['conflicts'] > 0 ? 'conflicting_fingerprint_for_tick' : null,
+        ];
     }
 }

@@ -6,6 +6,7 @@ interface BattleSyncStatusProps {
     isHost: boolean;
     isPaused: boolean;
     syncStatus: SyncStatus;
+    syncDetails?: string | null;
     fallingBehindHost: boolean;
     ticksBehindHost: number;
 }
@@ -20,6 +21,7 @@ export default function BattleSyncStatus({
     isHost,
     isPaused,
     syncStatus,
+    syncDetails = null,
     fallingBehindHost,
     ticksBehindHost,
 }: BattleSyncStatusProps) {
@@ -50,6 +52,14 @@ export default function BattleSyncStatus({
             id: 'waiting',
             text: 'Waiting for host sync...',
             className: 'bg-dark-900/80 text-gray-200',
+        });
+    }
+
+    if (syncDetails != null && syncDetails.trim() !== '') {
+        banners.push({
+            id: 'sync-details',
+            text: syncDetails,
+            className: 'bg-blue-950/85 text-blue-100',
         });
     }
 

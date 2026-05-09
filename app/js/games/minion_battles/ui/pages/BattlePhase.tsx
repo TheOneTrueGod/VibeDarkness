@@ -139,6 +139,7 @@ export default function BattlePhase({
     const [netSyncStatus, setNetSyncStatus] = useState<'synced' | 'waiting_for_host' | 'resyncing' | 'failed'>(
         'waiting_for_host',
     );
+    const [netSyncDetails, setNetSyncDetails] = useState<string | null>(null);
     const [waitingForHostCatchup, setWaitingForHostCatchup] = useState(false);
     const [hostCatchupHostTick, setHostCatchupHostTick] = useState(0);
     const [hostCatchupTargetTick, setHostCatchupTargetTick] = useState<number | null>(null);
@@ -390,6 +391,11 @@ export default function BattlePhase({
                 }),
             );
             unsubs.push(
+                net.on('sync-details', (details) => {
+                    setNetSyncDetails(details);
+                }),
+            );
+            unsubs.push(
                 net.on('host-catchup-wait', (payload) => {
                     setWaitingForHostCatchup(payload.blocking);
                     setHostCatchupHostTick(payload.hostTick);
@@ -416,12 +422,7 @@ export default function BattlePhase({
                     }),
                 );
             }
-            net.start();
-            bumpOrderPipeline();
 
-            // Register teardown as soon as polling starts. Previously this ran only after
-            // `saveInitialState()` (async); leaving the battle during that window skipped
-            // `net.stop()` and heartbeats continued after unmount.
             const prevCleanup = cleanupRef.current;
             cleanupRef.current = () => {
                 for (const unsubNet of unsubs) {
@@ -436,6 +437,9 @@ export default function BattlePhase({
             if (isHost) {
                 await net.saveInitialState();
             }
+            session.startEngine();
+            net.start();
+            bumpOrderPipeline();
         };
 
         const cleanupRef = {
@@ -690,6 +694,7 @@ export default function BattlePhase({
                             isHost={isHost}
                             isPaused={isPaused}
                             syncStatus={netSyncStatus}
+                            syncDetails={netSyncDetails}
                             fallingBehindHost={fallingBehindHost}
                             ticksBehindHost={ticksBehindHost}
                         />

@@ -9,6 +9,12 @@ export interface BattleSessionHandle {
     getInitialFingerprint(): string;
     getSerializedSnapshot(): SerializedGameState;
     getSerializedInitialState(): SerializedGameState;
+    /** Tick-0 baseline for one-time `initial_state.json`; null when restored from checkpoint-only (no in-memory tick 0 blob). */
+    getPayloadForPersistedInitialStateOrNull(): {
+        state: SerializedGameState;
+        initialFingerprint: string;
+    } | null;
+    startEngine(): void;
     loadFromSnapshot(state: SerializedGameState): void;
     applyRemoteOrders(orders: Array<{ atTick: number; order: BattleOrder }>): void;
     /** True while paused for multiplayer order submission (serialized waiters). */
@@ -17,6 +23,8 @@ export interface BattleSessionHandle {
 
 type BattleNetEventMap = {
     'sync-status': 'synced' | 'waiting_for_host' | 'resyncing' | 'failed';
+    /** Optional human-readable sync detail shown in Battle UI while recovering. */
+    'sync-details': string | null;
     /** Non-host: local simulation is behind the server's completed tick. */
     'falling-behind': { active: boolean; ticksBehind: number };
     heartbeat: {
@@ -133,6 +141,8 @@ function stableStringify(value: unknown): string {
 const HEARTBEAT_POLL_INTERVAL_MS = 2000;
 /** Background tabs: slower polling; `visibilitychange` still forces an immediate poll. */
 const HEARTBEAT_POLL_INTERVAL_HIDDEN_MS = 10_000;
+const INITIAL_STATE_RETRY_DELAY_MS = 500;
+const INITIAL_STATE_MAX_RETRIES = 20;
 
 /**
  * Non-host, ahead of host tail, fingerprints agree: show "waiting for host" only after this many
@@ -166,6 +176,7 @@ export class BattleNet {
 
     private readonly listeners: { [K in keyof BattleNetEventMap]: Set<Listener<K>> } = {
         'sync-status': new Set(),
+        'sync-details': new Set(),
         'falling-behind': new Set(),
         heartbeat: new Set(),
         'orders-applied': new Set(),
@@ -187,6 +198,8 @@ export class BattleNet {
     private deferredLocalOrders: Array<{ idHash: string; atTick: number; order: BattleOrder }> = [];
     private pendingFingerprintBatch: Array<{ tick: number; fp: string }> = [];
     private lastSnapshotTick: number | null = null;
+    /** Tick of the snapshot loaded by the most recent latest-checkpoint bootstrap attempt. */
+    private lastBootstrapSnapshotTick: number | null = null;
     private lastOrderFetchSince = 0;
     /** Seen count from heartbeat.ordersRecordCount; detects new rows at same atTick as existing orders. */
     private lastSeenOrdersRecordCount = 0;
@@ -309,6 +322,25 @@ export class BattleNet {
             this.appliedOrderIdHashes.add(idHash);
             this.session.applyRemoteOrders([{ atTick, order }]);
             this.emit('orders-applied', { count: 1, source: 'submit' });
+            logToLobbyLogBattleSync({
+                lobbyClient: this.api as unknown as LobbyClient,
+                lobbyId: this.lobbyId,
+                playerId: this.playerId,
+                tick: atTick,
+                severity: 'info',
+                gameId: this.gameId,
+                message: 'optimistic local order applied before server confirmation',
+                context: {
+                    idHash,
+                    abilityId: order.abilityId,
+                    unitId: order.unitId,
+                    order,
+                    isHost: this.isHost,
+                    latestHeartbeatHostTick: this.latestHeartbeatHostTick,
+                    isPausedForOrderSync: this.session.isPausedForOrderSync(),
+                    queuedDeferredBeforeSubmit: this.deferredLocalOrders.length,
+                },
+            });
         }
         this.ourOrdersAwaitingServerRange.add(idHash);
 
@@ -318,7 +350,7 @@ export class BattleNet {
         if (!this.isHost && atTick > this.latestHeartbeatHostTick + 1) {
             this.deferLocalOrder(idHash, atTick, order);
             if (this.session.isPausedForOrderSync()) {
-                this.emit('sync-status', 'waiting_for_host');
+                this.setSyncStatus('waiting_for_host');
             }
             this.emitHostCatchupWaitState();
             logToLobbyLog({
@@ -349,10 +381,14 @@ export class BattleNet {
         if (existing != null) {
             return;
         }
+        const payload = this.session.getPayloadForPersistedInitialStateOrNull();
+        if (payload == null) {
+            return;
+        }
         await this.api.saveBattleInitialState(this.lobbyId, this.gameId, {
             playerId: this.playerId,
-            state: this.session.getSerializedInitialState(),
-            initialFingerprint: this.session.getInitialFingerprint(),
+            state: payload.state,
+            initialFingerprint: payload.initialFingerprint,
         });
     }
 
@@ -471,7 +507,7 @@ export class BattleNet {
                     if (!this.isHost) {
                         this.resetNonHostAheadStreak();
                     }
-                    this.emit('sync-status', 'synced');
+                    this.setSyncStatus('synced');
                 } else if (hb.hostFingerprint != null && !this.isHost) {
                     this.requestResync('hash-mismatch');
                 }
@@ -623,7 +659,7 @@ export class BattleNet {
         if (allowDeferralOnHostLag && res.rejectedReason === 'tick_ahead_of_host') {
             this.deferLocalOrder(idHash, atTick, order);
             if (this.session.isPausedForOrderSync()) {
-                this.emit('sync-status', 'waiting_for_host');
+                this.setSyncStatus('waiting_for_host');
             }
             this.emitHostCatchupWaitState();
             logToLobbyLog({
@@ -747,14 +783,14 @@ export class BattleNet {
     private handleNonHostAheadOfHostTail(hb: { hostTick: number; hostFingerprint: string | null }): void {
         if (this.session.isPausedForOrderSync()) {
             this.resetNonHostAheadStreak();
-            this.emit('sync-status', 'waiting_for_host');
+            this.setSyncStatus('waiting_for_host');
             return;
         }
 
         const hostTailFp = hb.hostFingerprint;
         if (hostTailFp == null) {
             this.resetNonHostAheadStreak();
-            this.emit('sync-status', 'waiting_for_host');
+            this.setSyncStatus('waiting_for_host');
             return;
         }
 
@@ -769,7 +805,7 @@ export class BattleNet {
 
         if (localAtHostTick == null) {
             this.resetNonHostAheadStreak();
-            this.emit('sync-status', 'waiting_for_host');
+            this.setSyncStatus('waiting_for_host');
             return;
         }
 
@@ -793,11 +829,11 @@ export class BattleNet {
         }
 
         if (this.aheadWithUnchangedServerTailStreak >= BATTLE_NET_T1_WAITING_POLLS) {
-            this.emit('sync-status', 'waiting_for_host');
+            this.setSyncStatus('waiting_for_host');
             return;
         }
 
-        this.emit('sync-status', 'synced');
+        this.setSyncStatus('synced');
     }
 
     private async flushFingerprints(): Promise<void> {
@@ -868,6 +904,25 @@ export class BattleNet {
         return false;
     }
 
+    private sleep(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    private setSyncDetails(message: string | null): void {
+        this.emit('sync-details', message);
+    }
+
+    private setSyncStatus(status: BattleNetEventMap['sync-status'], details: string | null = null): void {
+        this.emit('sync-status', status);
+        this.setSyncDetails(details);
+    }
+
+    private getSnapshotFingerprint(state: SerializedGameState): string | null {
+        return typeof state.initialFingerprint === 'string' && state.initialFingerprint !== ''
+            ? state.initialFingerprint
+            : null;
+    }
+
     /**
      * Loads the newest persisted battle snapshot (`GET snapshot` without atTick),
      * replays queued orders from that checkpoint tick onward, returns true iff a snapshot existed.
@@ -878,8 +933,10 @@ export class BattleNet {
             playerId: this.playerId,
         });
         if (snapshot == null) {
+            this.lastBootstrapSnapshotTick = null;
             return false;
         }
+        this.lastBootstrapSnapshotTick = snapshot.tick;
         this.ourOrdersAwaitingServerRange.clear();
         this.serverRangeConfirmedOurOrderHashes.clear();
         this.session.loadFromSnapshot(snapshot.state);
@@ -894,10 +951,19 @@ export class BattleNet {
      * catch up via the latest persisted checkpoint before falling back to initial snapshot + orders.
      */
     async recoverFromLobbyInitialFingerprintMismatch(): Promise<boolean> {
-        if (await this.tryBootstrapFromLatestCheckpoint()) {
-            return true;
-        }
-        return this.performInitialStateReplay();
+        return this.recoverFromInitialStateMismatchWithRetry();
+    }
+
+    private async applyAuthoritativeStateAndCheckAlignment(
+        state: SerializedGameState,
+        replaySinceTick: number,
+    ): Promise<boolean> {
+        this.ourOrdersAwaitingServerRange.clear();
+        this.serverRangeConfirmedOurOrderHashes.clear();
+        this.session.loadFromSnapshot(state);
+        await this.replayOrdersSince(replaySinceTick);
+        const heartbeat = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
+        return this.isFingerprintAlignedWithHeartbeat(heartbeat);
     }
 
     /** Host-persisted battle start + full order log replay (tick 0 baseline). */
@@ -906,35 +972,102 @@ export class BattleNet {
         if (initial == null) {
             return false;
         }
-        this.ourOrdersAwaitingServerRange.clear();
-        this.serverRangeConfirmedOurOrderHashes.clear();
-        this.session.loadFromSnapshot(initial.state);
-        await this.replayOrdersSince(0);
-        const heartbeat = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
-        return this.isFingerprintAlignedWithHeartbeat(heartbeat);
+        return this.applyAuthoritativeStateAndCheckAlignment(initial.state, 0);
+    }
+
+    /**
+     * Initial-state mismatch healing:
+     * 1) prefer latest server snapshot (authoritative),
+     * 2) when absent, poll initial-state with a short retry loop.
+     */
+    private async recoverFromInitialStateMismatchWithRetry(): Promise<boolean> {
+        const local = this.session.getLatestFingerprint();
+        const localTick = this.session.getEngineTick();
+
+        const latestSnapshot = await this.api.getBattleSnapshot(this.lobbyId, this.gameId, {
+            playerId: this.playerId,
+        });
+        if (latestSnapshot != null) {
+            logToLobbyLogBattleSync({
+                lobbyClient: this.api as unknown as LobbyClient,
+                lobbyId: this.lobbyId,
+                playerId: this.playerId,
+                tick: localTick,
+                severity: 'info',
+                gameId: this.gameId,
+                message: 'initial-state mismatch healed from latest snapshot',
+                context: {
+                    localTick,
+                    localHash: local?.fp ?? null,
+                    initialTick: latestSnapshot.tick,
+                    initialHash: this.getSnapshotFingerprint(latestSnapshot.state),
+                },
+            });
+            return this.applyAuthoritativeStateAndCheckAlignment(latestSnapshot.state, latestSnapshot.tick);
+        }
+
+        for (let attempt = 1; attempt <= INITIAL_STATE_MAX_RETRIES; attempt++) {
+            const initial = await this.api.getBattleInitialState(this.lobbyId, this.gameId, this.playerId);
+            if (initial != null) {
+                logToLobbyLogBattleSync({
+                    lobbyClient: this.api as unknown as LobbyClient,
+                    lobbyId: this.lobbyId,
+                    playerId: this.playerId,
+                    tick: localTick,
+                    severity: 'warn',
+                    gameId: this.gameId,
+                    message: 'initial-state mismatch healed from initial_state.json after snapshot missing',
+                    context: {
+                        localTick,
+                        localHash: local?.fp ?? null,
+                        initialTick:
+                            typeof initial.state.gameTick === 'number'
+                                ? initial.state.gameTick
+                                : null,
+                        initialHash: initial.initialFingerprint,
+                        retryAttempt: attempt,
+                    },
+                });
+                this.setSyncDetails(null);
+                return this.applyAuthoritativeStateAndCheckAlignment(initial.state, 0);
+            }
+
+            this.setSyncDetails('Failed to fetch initial state... retrying');
+            logToLobbyLogBattleSync({
+                lobbyClient: this.api as unknown as LobbyClient,
+                lobbyId: this.lobbyId,
+                playerId: this.playerId,
+                tick: localTick,
+                severity: 'warn',
+                gameId: this.gameId,
+                message: 'initial-state mismatch retry: initial state missing',
+                context: {
+                    localTick,
+                    localHash: local?.fp ?? null,
+                    retryAttempt: attempt,
+                    retryInMs: INITIAL_STATE_RETRY_DELAY_MS,
+                },
+            });
+            await this.sleep(INITIAL_STATE_RETRY_DELAY_MS);
+        }
+
+        return false;
     }
 
     private async runDesyncRecovery(reason: string): Promise<void> {
         if (this.noteRecoveryAttempt(reason)) {
             console.error(`[BattleNet] recovery escalated: too many "${reason}" recoveries in 30s`);
-            this.emit('sync-status', 'failed');
+            this.setSyncStatus('failed');
             return;
         }
 
         this.isRecovering = true;
-        this.emit('sync-status', 'resyncing');
+        this.setSyncStatus('resyncing');
         this.resetLocalOptimisticOrdersOnResync();
         try {
             if (reason === 'initial-state-mismatch') {
-                if (await this.tryBootstrapFromLatestCheckpoint()) {
-                    const hb0 = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
-                    if (this.isFingerprintAlignedWithHeartbeat(hb0)) {
-                        this.emit('sync-status', 'synced');
-                        return;
-                    }
-                }
-                const initialSuccess = await this.performInitialStateReplay();
-                this.emit('sync-status', initialSuccess ? 'synced' : 'failed');
+                const initialSuccess = await this.recoverFromInitialStateMismatchWithRetry();
+                this.setSyncStatus(initialSuccess ? 'synced' : 'failed');
                 return;
             }
 
@@ -968,38 +1101,77 @@ export class BattleNet {
                 }
             }
 
-            const snapshot = await this.api.getBattleSnapshot(this.lobbyId, this.gameId, {
-                playerId: this.playerId,
-                atTick: Math.max(0, firstMismatchTick - 1),
-            });
-
             let synced = false;
-            if (snapshot != null) {
-                this.session.loadFromSnapshot(snapshot.state);
-                await this.replayOrdersSince(snapshot.tick);
+            // Prefer newest authoritative checkpoint first to avoid user-visible replay loops.
+            if (await this.tryBootstrapFromLatestCheckpoint()) {
                 const heartbeat = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
                 synced = this.isFingerprintAlignedWithHeartbeat(heartbeat);
             }
 
             if (!synced) {
-                if (await this.tryBootstrapFromLatestCheckpoint()) {
+                const requestedAtTick = Math.max(0, firstMismatchTick - 1);
+                let snapshot = await this.api.getBattleSnapshot(this.lobbyId, this.gameId, {
+                    playerId: this.playerId,
+                    atTick: requestedAtTick,
+                });
+                // Disk layout only has pause checkpoints (e.g. snapshots/1.json). atTick=0 selects nothing.
+                if (snapshot == null && requestedAtTick === 0) {
+                    snapshot = await this.api.getBattleSnapshot(this.lobbyId, this.gameId, {
+                        playerId: this.playerId,
+                    });
+                }
+                if (snapshot != null) {
+                    this.session.loadFromSnapshot(snapshot.state);
+                    await this.replayOrdersSince(snapshot.tick);
                     const hbLate = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
                     synced = this.isFingerprintAlignedWithHeartbeat(hbLate);
                 }
                 if (!synced) {
+                    const beforeInitialReplayTick = this.session.getEngineTick();
+                    const beforeInitialReplayFingerprint = this.session.getLatestFingerprint();
                     synced = await this.performInitialStateReplay();
+                    const afterInitialReplayTick = this.session.getEngineTick();
+                    const afterInitialReplayFingerprint = this.session.getLatestFingerprint();
+                    // Safety patch: if we're still not aligned and the last attempt left the client on tick 0,
+                    // restore the latest snapshot so the user doesn't appear stuck at the start of the battle.
+                    if (!synced && beforeInitialReplayTick === 0) {
+                        const restoredLatest = await this.tryBootstrapFromLatestCheckpoint();
+                        if (restoredLatest) {
+                            const hbAfterRestore = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
+                            synced = this.isFingerprintAlignedWithHeartbeat(hbAfterRestore);
+                            logToLobbyLogBattleSync({
+                                lobbyClient: this.api as unknown as LobbyClient,
+                                lobbyId: this.lobbyId,
+                                playerId: this.playerId,
+                                tick: beforeInitialReplayTick,
+                                severity: 'warn',
+                                gameId: this.gameId,
+                                message:
+                                    'safety patch: restored latest snapshot after initial-state replay failed alignment (client stuck at tick 0)',
+                                context: {
+                                    localTickBeforeInitialReplay: beforeInitialReplayTick,
+                                    localHashBeforeInitialReplay: beforeInitialReplayFingerprint?.fp ?? null,
+                                    initialStateTick: afterInitialReplayTick,
+                                    initialStateHash: afterInitialReplayFingerprint?.fp ?? null,
+                                    restoredSnapshotTick: this.lastBootstrapSnapshotTick,
+                                    alignedAfterRestore: synced,
+                                    reason,
+                                },
+                            });
+                        }
+                    }
                 }
             }
 
             if (synced) {
-                this.emit('sync-status', 'synced');
+                this.setSyncStatus('synced');
             } else {
                 console.error(`[BattleNet] recovery failed for "${reason}"`);
-                this.emit('sync-status', 'failed');
+                this.setSyncStatus('failed');
             }
         } catch (error) {
             console.error(`[BattleNet] recovery error for "${reason}"`, error);
-            this.emit('sync-status', 'failed');
+            this.setSyncStatus('failed');
         } finally {
             this.isRecovering = false;
         }
