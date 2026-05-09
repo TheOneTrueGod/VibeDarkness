@@ -362,14 +362,15 @@ describe('GameEngine', () => {
     it('fires tick-complete callback with runtime fingerprint hex each tick', () => {
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 42 });
-        const calls: Array<{ tick: number; fp: string }> = [];
-        engine.setOnTickComplete((tick, fp) => {
-            calls.push({ tick, fp });
+        const calls: Array<{ tick: number; fp: string; paused: boolean }> = [];
+        engine.setOnTickComplete((tick, fp, paused) => {
+            calls.push({ tick, fp, paused });
         });
         engine.stepSimulationFixedTicks(2);
         expect(calls.length).toBeGreaterThanOrEqual(1);
         expect(calls[0]?.tick).toBe(1);
         expect(calls[0]?.fp).toMatch(/^[0-9a-f]{16}$/);
+        expect(typeof calls[0]?.paused).toBe('boolean');
         engine.destroy();
     });
 });

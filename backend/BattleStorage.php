@@ -605,7 +605,7 @@ final class BattleStorage
         // Heartbeat relies on fingerprint stream for `hostTick` and `hostFingerprint`.
         // Seed tick 0 at initialization so heartbeat is immediately non-null after create.
         $this->appendFingerprints($lobbyId, $gameId, [
-            ['tick' => 0, 'fp' => $initialFingerprint],
+            ['tick' => 0, 'fp' => $initialFingerprint, 'paused' => false],
         ]);
     }
 
@@ -643,18 +643,44 @@ final class BattleStorage
     // ------------------------------------------------------------------
 
     /**
-     * Append a batch of `{ tick, fp }` records to `fingerprints.jsonl`
+     * Normalizes optional `paused` on fingerprint JSONL rows (legacy rows omit it → false).
+     *
+     * @param array<string, mixed> $rec
+     */
+    private function fingerprintRecordPaused(array $rec): bool
+    {
+        if (!array_key_exists('paused', $rec)) {
+            return false;
+        }
+        $p = $rec['paused'];
+        if (is_bool($p)) {
+            return $p;
+        }
+        if (is_int($p) || is_float($p)) {
+            return ((int) $p) !== 0;
+        }
+        if (is_string($p)) {
+            $lower = strtolower($p);
+
+            return $lower === '1' || $lower === 'true' || $lower === 'yes';
+        }
+
+        return false;
+    }
+
+    /**
+     * Append a batch of `{ tick, fp, paused }` records to `fingerprints.jsonl`
      * under LOCK_EX with first-writer-wins semantics per tick.
      *
      * Rules:
      * - If tick is new: append.
-     * - If tick exists with same fp: skip (idempotent duplicate).
-     * - If tick exists with different fp: reject (conflict), keep existing canonical fp.
+     * - If tick exists with same fp and same paused: skip (idempotent duplicate).
+     * - If tick exists with different fp or different paused: reject (conflict), keep existing canonical row.
      *
      * Snapshot vs fingerprint may race briefly; {@see AppendOrderHandler}/{@see BattleStorage::resolveLastCompletedTickAndFingerprint}
      * clamp last completed against `waitingForOrders.atTick`; `maxAllowedTick` covers late snapshot catch-up.
      *
-     * @param list<array{tick:int|numeric-string,fp:string}> $records
+     * @param list<array{tick:int|numeric-string,fp:string,paused?:bool}> $records
      * @return array{appended:int,duplicates:int,conflicts:int}
      */
     public function appendFingerprints(string $lobbyId, string $gameId, array $records): array
@@ -674,7 +700,7 @@ final class BattleStorage
             if (!flock($fh, LOCK_EX)) {
                 throw new RuntimeException("appendFingerprints: failed to LOCK_EX {$path}");
             }
-            /** @var array<int, string> $canonicalByTick */
+            /** @var array<int, array{fp:string,paused:bool}> $canonicalByTick */
             $canonicalByTick = [];
             rewind($fh);
             while (($line = fgets($fh)) !== false) {
@@ -691,9 +717,12 @@ final class BattleStorage
                 if (!is_string($fp) || $fp === '') {
                     continue;
                 }
-                // First-writer wins for canonical fp per tick.
+                // First-writer wins for canonical (fp, paused) per tick.
                 if (!isset($canonicalByTick[$tick])) {
-                    $canonicalByTick[$tick] = $fp;
+                    $canonicalByTick[$tick] = [
+                        'fp' => $fp,
+                        'paused' => $this->fingerprintRecordPaused($rec),
+                    ];
                 }
             }
             fseek($fh, 0, SEEK_END);
@@ -709,25 +738,32 @@ final class BattleStorage
                 if (!is_string($fp) || $fp === '') {
                     continue;
                 }
+                $paused = $this->fingerprintRecordPaused($rec);
                 if (isset($canonicalByTick[$tick])) {
-                    if ($canonicalByTick[$tick] === $fp) {
+                    $canon = $canonicalByTick[$tick];
+                    if ($canon['fp'] === $fp && $canon['paused'] === $paused) {
                         $duplicates++;
                     } else {
                         $conflicts++;
                         error_log(
                             sprintf(
-                                '[BattleStorage] fingerprint conflict lobby=%s game=%s tick=%d existing=%s incoming=%s',
+                                '[BattleStorage] fingerprint conflict lobby=%s game=%s tick=%d existing=%s/%s incoming=%s/%s',
                                 $lobbyId,
                                 $gameId,
                                 $tick,
-                                $canonicalByTick[$tick],
-                                $fp
+                                $canon['fp'],
+                                $canon['paused'] ? 'paused' : 'running',
+                                $fp,
+                                $paused ? 'paused' : 'running'
                             )
                         );
                     }
                     continue;
                 }
-                $encoded = json_encode(['tick' => $tick, 'fp' => $fp], JSON_UNESCAPED_SLASHES);
+                $encoded = json_encode(
+                    ['tick' => $tick, 'fp' => $fp, 'paused' => $paused],
+                    JSON_UNESCAPED_SLASHES
+                );
                 if ($encoded === false) {
                     continue;
                 }
@@ -735,7 +771,7 @@ final class BattleStorage
                     flock($fh, LOCK_UN);
                     throw new RuntimeException("appendFingerprints: failed to write to {$path}");
                 }
-                $canonicalByTick[$tick] = $fp;
+                $canonicalByTick[$tick] = ['fp' => $fp, 'paused' => $paused];
                 $appended++;
             }
             fflush($fh);
@@ -747,7 +783,7 @@ final class BattleStorage
     }
 
     /**
-     * Return `{tick, fp}` records whose tick is in the inclusive
+     * Return `{tick, fp, paused}` records whose tick is in the inclusive
      * [fromTick, toTick] range. Either bound may be null to mean
      * unbounded.
      *
@@ -755,7 +791,7 @@ final class BattleStorage
      * the first line in file order wins. Output is sorted by tick
      * ascending with one record per tick.
      *
-     * @return list<array{tick:int,fp:string}>
+     * @return list<array{tick:int,fp:string,paused:bool}>
      */
     public function getFingerprintsRange(
         string $lobbyId,
@@ -771,7 +807,7 @@ final class BattleStorage
         if ($fh === false) {
             return [];
         }
-        /** @var array<int, array{tick:int,fp:string}> $bestByTick */
+        /** @var array<int, array{tick:int,fp:string,paused:bool}> $bestByTick */
         $bestByTick = [];
         try {
             @flock($fh, LOCK_SH);
@@ -799,7 +835,11 @@ final class BattleStorage
                     continue;
                 }
                 if (!isset($bestByTick[$tick])) {
-                    $bestByTick[$tick] = ['tick' => $tick, 'fp' => $fp];
+                    $bestByTick[$tick] = [
+                        'tick' => $tick,
+                        'fp' => $fp,
+                        'paused' => $this->fingerprintRecordPaused($rec),
+                    ];
                 }
             }
             @flock($fh, LOCK_UN);
@@ -811,18 +851,22 @@ final class BattleStorage
         }
         ksort($bestByTick, SORT_NUMERIC);
         return array_values(array_map(
-            static fn(array $rec): array => ['tick' => $rec['tick'], 'fp' => $rec['fp']],
+            static fn(array $rec): array => [
+                'tick' => $rec['tick'],
+                'fp' => $rec['fp'],
+                'paused' => $rec['paused'],
+            ],
             $bestByTick
         ));
     }
 
     /**
-     * Return the `{tick, fp}` record with the greatest tick in `fingerprints.jsonl`
+     * Return the `{tick, fp, paused}` record with the greatest tick in `fingerprints.jsonl`
      * (append order). When several lines share that tick, the first one in file order wins.
      * This ignores out-of-order checkpoint replays that re-append an older tick after
      * the stream has already advanced.
      *
-     * @return array{tick:int,fp:string}|null
+     * @return array{tick:int,fp:string,paused:bool}|null
      */
     public function getLatestFingerprint(string $lobbyId, string $gameId): ?array
     {
@@ -857,7 +901,11 @@ final class BattleStorage
                 $tick = (int) $rec['tick'];
                 if ($maxTick === null || $tick > $maxTick) {
                     $maxTick = $tick;
-                    $latest = ['tick' => $tick, 'fp' => $fp];
+                    $latest = [
+                        'tick' => $tick,
+                        'fp' => $fp,
+                        'paused' => $this->fingerprintRecordPaused($rec),
+                    ];
                 }
             }
             @flock($fh, LOCK_UN);

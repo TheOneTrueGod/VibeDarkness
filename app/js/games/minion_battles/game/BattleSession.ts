@@ -124,9 +124,9 @@ export class BattleSession implements BattleSessionHandle {
                 void this.netAdapter?.saveSnapshotOnPause(gameTick, state);
             }
         });
-        engine.setOnTickComplete((gameTick, fingerprintHex) => {
+        engine.setOnTickComplete((gameTick, fingerprintHex, paused) => {
             if (!isHost) return;
-            this.netAdapter?.queueFingerprint(gameTick, fingerprintHex);
+            this.netAdapter?.queueFingerprint(gameTick, fingerprintHex, paused);
         });
         engine.setOnEmitMessage((text, npcId) => {
             if (!isHost) return;

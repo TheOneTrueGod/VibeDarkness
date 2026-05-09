@@ -56,7 +56,7 @@ class SaveSnapshotHandler
             $storage->saveSnapshot($lobbyId, $gameId, $tick, $state);
             if ($checkpointFingerprint !== '') {
                 $storage->appendFingerprints($lobbyId, $gameId, [
-                    ['tick' => $tick, 'fp' => $checkpointFingerprint],
+                    ['tick' => $tick, 'fp' => $checkpointFingerprint, 'paused' => true],
                 ]);
             }
         } catch (InvalidArgumentException $e) {

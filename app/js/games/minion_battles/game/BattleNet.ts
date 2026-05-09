@@ -116,13 +116,13 @@ interface BattleApi {
     appendBattleFingerprints(
         lobbyId: string,
         gameId: string,
-        body: { playerId: string; records: Array<{ tick: number; fp: string }> },
+        body: { playerId: string; records: Array<{ tick: number; fp: string; paused: boolean }> },
     ): Promise<{ appended: number }>;
     getBattleFingerprintsRange(
         lobbyId: string,
         gameId: string,
         params: { playerId: string; fromTick: number; toTick: number },
-    ): Promise<{ records: Array<{ tick: number; fp: string }> }>;
+    ): Promise<{ records: Array<{ tick: number; fp: string; paused: boolean }> }>;
 }
 
 interface BattleNetArgs {
@@ -207,7 +207,7 @@ export class BattleNet {
     /** Our `idHash` values seen in range fetch / replay (server has the row). */
     private readonly serverRangeConfirmedOurOrderHashes = new Set<string>();
     private deferredLocalOrders: Array<{ idHash: string; atTick: number; order: BattleOrder }> = [];
-    private pendingFingerprintBatch: Array<{ tick: number; fp: string }> = [];
+    private pendingFingerprintBatch: Array<{ tick: number; fp: string; paused: boolean }> = [];
     private lastSnapshotTick: number | null = null;
     /** Tick of the snapshot loaded by the most recent latest-checkpoint bootstrap attempt. */
     private lastBootstrapSnapshotTick: number | null = null;
@@ -535,11 +535,11 @@ export class BattleNet {
         void this.runDesyncRecovery(_reason);
     }
 
-    queueFingerprint(tick: number, fp: string): void {
+    queueFingerprint(tick: number, fp: string, paused: boolean): void {
         if (!this.isHost) {
             return;
         }
-        this.pendingFingerprintBatch.push({ tick, fp });
+        this.pendingFingerprintBatch.push({ tick, fp, paused });
     }
 
     async saveSnapshotOnPause(tick: number, state: SerializedGameState): Promise<void> {

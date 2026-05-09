@@ -616,7 +616,7 @@ export class LobbyClient {
     async appendBattleFingerprints(
         lobbyId: string,
         gameId: string,
-        body: { playerId: string; records: Array<{ tick: number; fp: string }> },
+        body: { playerId: string; records: Array<{ tick: number; fp: string; paused: boolean }> },
     ): Promise<{ appended: number }> {
         const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/fingerprints`, {
             method: 'POST',
@@ -629,7 +629,7 @@ export class LobbyClient {
         lobbyId: string,
         gameId: string,
         params: { playerId: string; fromTick: number; toTick: number },
-    ): Promise<{ records: Array<{ tick: number; fp: string }> }> {
+    ): Promise<{ records: Array<{ tick: number; fp: string; paused: boolean }> }> {
         const query = new URLSearchParams({
             playerId: params.playerId,
             fromTick: String(params.fromTick),
@@ -638,10 +638,17 @@ export class LobbyClient {
         const data = await this.request(
             `/api/lobbies/${lobbyId}/games/${gameId}/fingerprints?${query}`,
         ) as unknown as {
-            fingerprints?: Array<{ tick: number; fp: string }>;
-            records?: Array<{ tick: number; fp: string }>;
+            fingerprints?: Array<{ tick: number; fp: string; paused?: boolean }>;
+            records?: Array<{ tick: number; fp: string; paused?: boolean }>;
         };
-        return { records: data.records ?? data.fingerprints ?? [] };
+        const raw = data.records ?? data.fingerprints ?? [];
+        return {
+            records: raw.map((r) => ({
+                tick: r.tick,
+                fp: r.fp,
+                paused: r.paused === true,
+            })),
+        };
     }
 
     /**

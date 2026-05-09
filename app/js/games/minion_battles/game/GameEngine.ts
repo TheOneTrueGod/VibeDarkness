@@ -139,7 +139,7 @@ export class GameEngine implements EngineContext {
     private onRoundEnd: ((roundNumber: number) => void) | null = null;
     private onStateChanged: EngineStateCallback | null = null;
     private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
-    private onTickComplete: ((gameTick: number, fingerprintHex: string) => void) | null = null;
+    private onTickComplete: ((gameTick: number, fingerprintHex: string, paused: boolean) => void) | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
 
@@ -575,7 +575,7 @@ export class GameEngine implements EngineContext {
         this.onCheckpoint = cb;
     }
 
-    setOnTickComplete(cb: (gameTick: number, fingerprintHex: string) => void): void {
+    setOnTickComplete(cb: (gameTick: number, fingerprintHex: string, paused: boolean) => void): void {
         this.onTickComplete = cb;
     }
 
@@ -736,9 +736,12 @@ export class GameEngine implements EngineContext {
 
         let stateChanged = false;
         while (this.accumulator >= FIXED_DT) {
+            const hadWaitingOrders = this.waitingForOrders != null;
             this.fixedUpdate(FIXED_DT);
             this.accumulator -= FIXED_DT;
             stateChanged = true;
+            // Stop draining this frame once we enter a parallel-order pause; remainder stays for later frames.
+            if (this.waitingForOrders != null && !hadWaitingOrders) break;
         }
 
         if (stateChanged) {
@@ -865,6 +868,13 @@ export class GameEngine implements EngineContext {
             return;
         }
 
+        // Parallel order batch (`waitingForOrders`): do not advance gameTick or simulate further until resumed.
+        // Do not key off `isPaused` alone — GameState defaults `isPaused` true before the battle shell clears it,
+        // while headless `stepSimulationFixedTicks` must still run ticks in that window.
+        // `loop()` may drain multiple FIXED_DT steps per rAF; without this guard, a second `fixedUpdate` in the
+        // same frame could run the normal path after the deferred pause branch above committed this pause.
+        if (this.waitingForOrders != null) return;
+
         this.gameTime += dt;
         this.gameTick++;
         this.naturalAbilityCompletionUnitIdsThisTick.clear();
@@ -934,7 +944,12 @@ export class GameEngine implements EngineContext {
         }
         this.mixRuntimeFingerprint(FingerprintEvent.TICK_END, this.gameTick >>> 0, Math.floor(this.gameTime * 1000));
         this.state.runtimeFingerprintRing.push(this.gameTick, this.runtimeFingerprint);
-        this.onTickComplete?.(this.gameTick, this.getRuntimeFingerprintHex());
+        const paused =
+            this.isPaused ||
+            this.waitingForOrders != null ||
+            this.deferredOrderPause != null ||
+            this.storyPauseActive;
+        this.onTickComplete?.(this.gameTick, this.getRuntimeFingerprintHex(), paused);
     }
 
     /** Per-tick unit processing: movement, pathfinding retriggering, AI, deferred order pause. */
@@ -998,6 +1013,8 @@ export class GameEngine implements EngineContext {
      */
     shouldPauseForOrders(unit: Unit): boolean {
         if (!unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive()) return false;
+        // Still resolving a submitted move path — not yet time for a new command slice.
+        if (unit.movement !== null && unit.movement.path.length > 0) return false;
         return !this.hasPendingOrderForUnit(unit.id);
     }
 

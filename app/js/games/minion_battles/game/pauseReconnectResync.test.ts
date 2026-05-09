@@ -67,6 +67,17 @@ function makeWaitOrder(unitId: string, moveCol: number, moveRow: number): Battle
 }
 
 describe('Reconnect / resync during order pause', () => {
+    it('does not advance gameTick when fixedUpdate runs again while paused for parallel orders', () => {
+        const engine = createTwoPlayerEngine();
+        advanceUntilOrderPause(engine);
+        const tickAtPause = engine.gameTick;
+        expect(engine.isPaused).toBe(true);
+        expect(engine.waitingForOrders).not.toBeNull();
+
+        (engine as unknown as { fixedUpdate(dt: number): void }).fixedUpdate(FIXED_DT);
+        expect(engine.gameTick).toBe(tickAtPause);
+    });
+
     it('fromJSON restores full waiter list, atTick, pause, and active waiter resolution', () => {
         const engine = createTwoPlayerEngine();
         advanceUntilOrderPause(engine);
