@@ -16,6 +16,17 @@ All lobby game-state and message polling is centralized in `GameSyncContext` (`a
 | **GameEngine** | Deterministic simulation. Fires checkpoint and waiting-for-orders events. Knows nothing about networking. |
 | **App.tsx** | Passes message polling callback and initial message ID into `GameSyncProvider`. |
 
+## Battle tick glossary (`serverTick`, `clientTick`, wire fields)
+
+| Term | Meaning |
+|------|---------|
+| **`serverTick`** | Authoritative **last fully completed** simulation tick on the PHP battle store — exposed on the heartbeat as **`hostTick`** (after the same clamp as order append). Same index as the **verification fingerprint** (`fingerprints.jsonl` tail at steady state). **Not** the parallel order-batch tick. UI may label this “Host tick” / “Server tick”. |
+| **`clientTick`** | This browser’s **last fully completed** tick: `BattleSession.getEngineTick()` / `engine.gameTick`. When synced after a checkpoint/heartbeat pause, **`clientTick === serverTick`**; drift drives behind-host / resync UX. Debug bridge exposes **`clientTick`** (+ legacy **`engineTick`**). |
+| **`hostTick`** (JSON) | Wire field = **`serverTick`**. Derived via **`BattleStorage::resolveLastCompletedTickAndFingerprint`**, shared by **`AppendOrderHandler`** and **`GetHeartbeatHandler`**. |
+| **`orderBatchAtTick`** (JSON) | Present when paused for **`waitingForOrders`**: **`waitingForOrders.atTick`** (orders POST with this **`atTick`**). Nullable when sim is advancing. Legacy alias: **`pausedAtTick`** duplicates this when paused — **not** the snapshot envelope **`tick`**. |
+
+Checkpoint JSON still stores **`tick`** (= envelope / last completed at save). Do not confuse envelope **`tick`** with **`waitingForOrders.atTick`**.
+
 ## Unified poll loop
 
 - **Lobby messages**: periodically fetches messages (unless in flight), then processes them in App. Game phase changes trigger a full-state refetch.
@@ -47,15 +58,21 @@ Same as host for local turn. When waiting on another player, minimal state polli
 | `app/js/contexts/SyncContextControllers/` | Base, host, and client sync controller logic |
 | `app/js/games/minion_battles/ui/pages/BattlePhase.tsx` | Registers battle callbacks |
 | `app/js/games/minion_battles/game/GameEngine.ts` | Simulation, checkpoint and waiting-for-orders events |
-| `app/js/LobbyClient.ts` | HTTP API client |
+| `app/js/games/minion_battles/game/BattleNet.ts` | Battle heartbeat polling, fingerprint alignment, deferral, recovery |
+| `app/js/LobbyClient.ts` | HTTP API (`getBattleHeartbeat`, orders, checkpoints) |
 | `app/js/utils/synchash.ts` | Client synchash |
+| `backend/BattleStorage.php` | **`resolveLastCompletedTickAndFingerprint`** + snapshots / fingerprints |
+| `backend/Http/Handlers/Battle/GetHeartbeatHandler.php` | Heartbeat (**`hostTick`**, **`orderBatchAtTick`**) |
+| `backend/Http/Handlers/Battle/AppendOrderHandler.php` | Order windows vs last completed vs batch **`atTick`** |
 | `backend/GameCheckpointFiles.php` | Server-side checkpoint storage and synchash |
 | `backend/Http/Handlers/SaveGameStateSnapshotHandler.php` | Saves checkpoint snapshots |
 | `backend/Http/Handlers/SaveGameOrdersHandler.php` | Saves orders; preserves synchash |
 
 ## Checkpoint / fingerprint skew
 
-At pause, the authoritative checkpoint fingerprint tick is `pauseAtTick - 1` or `pauseAtTick`. Snapshot files and `fingerprints.jsonl` may briefly diverge by one tick while async writes land; the server uses `maxAllowedTick = max(hostTick + 1, pauseAtTick)` in `AppendOrderHandler` so legitimate orders are not rejected during that window. See `BattleStorage::saveSnapshot` docblock.
+Fingerprints advance on **completed** ticks. While paused with **`waitingForOrders.atTick` = T**, `resolveLastCompletedTickAndFingerprint` clamps **`hostTick`** to **`min(fpTail, T - 1)`** so **`AppendOrderHandler`**/`heartbeat` never treat the batch **`T`** as already finished.
+
+Snapshot **`state.waitingForOrders`** vs **`fingerprints.jsonl`** can race briefly (`maxAllowedTick = max(lastCompleted + 1, pauseAtTick)` keeps append acceptance stable). Checkpoint **envelope** **`tick`** is last completed **at persist time**, not interchangeable with **`orderBatchAtTick`**. See **`BattleStorage::saveSnapshot`**.
 
 ## API and Types
 

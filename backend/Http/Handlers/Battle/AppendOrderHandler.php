@@ -14,14 +14,9 @@ use Throwable;
 /**
  * HTTP handler: append one client order line to `orders.jsonl`.
  *
- * Quiescence invariant (same narrative as {@see BattleStorage::saveSnapshot} and
- * {@see BattleStorage::appendFingerprints}): when the engine is paused for orders, the authoritative
- * checkpoint fingerprint tick is `pauseAtTick - 1` or `pauseAtTick`. The snapshot file and
- * `fingerprints.jsonl` tail may temporarily disagree by about one tick while async writes land.
- *
- * This handler reads `pauseAtTick` from the newest snapshot's `waitingForOrders`, clamps the
- * fingerprint-derived completed tick against it, and uses `maxAllowedTick` slack so valid batch
- * orders are not spuriously rejected as `tick_in_past` or `tick_ahead_of_host` during that window.
+ * Uses {@see BattleStorage::resolveLastCompletedTickAndFingerprint} (same as heartbeat) for the
+ * authoritative last completed tick vs `waitingForOrders.atTick`. `maxAllowedTick` slack avoids
+ * rejecting valid batch rows while snapshot and fingerprint streams race briefly.
  */
 class AppendOrderHandler
 {
@@ -99,6 +94,18 @@ class AppendOrderHandler
         $clientIdHash =
             isset($data['idHash']) && is_string($data['idHash']) && $data['idHash'] !== '' ? $data['idHash'] : null;
         if (!$manager->isPlayerInLobby($lobbyId, $playerId)) {
+            self::logBattleAppendDiagnostic(
+                $lobbyId,
+                $gameId,
+                $playerId,
+                (int) $atTick,
+                $unitId,
+                $abilityId,
+                false,
+                'player_not_in_lobby',
+                [],
+                $clientIdHash,
+            );
             http_response_code(403);
             return ['success' => false, 'error' => 'Player not in lobby'];
         }
@@ -106,28 +113,13 @@ class AppendOrderHandler
         try {
             $storage = new BattleStorage();
             $requestedAtTick = (int) $atTick;
-            $latestFingerprint = $storage->getLatestFingerprint($lobbyId, $gameId);
-            $hostTick = isset($latestFingerprint['tick']) ? (int) $latestFingerprint['tick'] : -1;
+            $resolved = $storage->resolveLastCompletedTickAndFingerprint($lobbyId, $gameId);
+            $pauseAtTick = $resolved['orderBatchAtTick'];
+
+            $hostTick = $resolved['lastCompleted'] !== null ? (int) $resolved['lastCompleted'] : -1;
+            $hostFingerprint = $resolved['fingerprint'];
             $latestSnapshot = $storage->getSnapshotAtOrBefore($lobbyId, $gameId, null);
-            $pauseAtTick = null;
-            if (is_array($latestSnapshot)) {
-                $state = $latestSnapshot['state'] ?? null;
-                if (is_array($state)) {
-                    $waitingForOrders = $state['waitingForOrders'] ?? null;
-                    if (is_array($waitingForOrders) && isset($waitingForOrders['atTick'])) {
-                        $atTickValue = $waitingForOrders['atTick'];
-                        if (is_int($atTickValue) || is_float($atTickValue) || (is_string($atTickValue) && is_numeric($atTickValue))) {
-                            $pauseAtTick = (int) $atTickValue;
-                        }
-                    }
-                }
-            }
-            // Checkpoint fingerprints can duplicate a tick with a second hash; `getLatestFingerprint`
-            // uses the greatest tick in the file. When paused for orders at T, clamp so `tick_in_past`
-            // cannot reject the batch at T if fp and snapshot momentarily disagree.
-            if ($pauseAtTick !== null && $pauseAtTick > 0 && $hostTick >= 0) {
-                $hostTick = min($hostTick, $pauseAtTick - 1);
-            }
+            $hostTickOut = $hostTick >= 0 ? $hostTick : null;
             // `getLatestFingerprint().tick` is the last completed sim tick. Valid player orders apply on a
             // future tick (typically `atTick === hostTick + 1` while paused for that batch). Orders at or
             // before `hostTick` target a turn the host has already finished — reject stale replays.
@@ -153,8 +145,11 @@ class AppendOrderHandler
                 return [
                     'success' => true,
                     'appended' => false,
+                    'idHash' => $clientIdHash,
                     'rejectedReason' => 'tick_in_past',
                     'minAllowedTick' => $minAllowed,
+                    'hostTick' => $hostTickOut,
+                    'hostFingerprint' => $hostFingerprint,
                 ];
             }
             // When paused for orders atTick T, fingerprints often lag at T−1 until the next tick completes.
@@ -180,8 +175,11 @@ class AppendOrderHandler
                 return [
                     'success' => true,
                     'appended' => false,
+                    'idHash' => $clientIdHash,
                     'rejectedReason' => 'tick_ahead_of_host',
                     'maxAllowedTick' => $maxAllowedTick,
+                    'hostTick' => $hostTickOut,
+                    'hostFingerprint' => $hostFingerprint,
                 ];
             }
 
@@ -205,7 +203,10 @@ class AppendOrderHandler
                         return [
                             'success' => true,
                             'appended' => false,
+                            'idHash' => $clientIdHash,
                             'rejectedReason' => 'unknown_unit',
+                            'hostTick' => $hostTickOut,
+                            'hostFingerprint' => $hostFingerprint,
                         ];
                     }
                     if ($owner !== $playerId) {
@@ -224,7 +225,10 @@ class AppendOrderHandler
                         return [
                             'success' => true,
                             'appended' => false,
+                            'idHash' => $clientIdHash,
                             'rejectedReason' => 'not_unit_owner',
+                            'hostTick' => $hostTickOut,
+                            'hostFingerprint' => $hostFingerprint,
                         ];
                     }
                 }
@@ -265,6 +269,12 @@ class AppendOrderHandler
             return ['success' => false, 'error' => $e->getMessage()];
         }
 
-        return ['success' => true, 'appended' => $appended];
+        return [
+            'success' => true,
+            'appended' => $appended,
+            'idHash' => $clientIdHash,
+            'hostTick' => $hostTickOut,
+            'hostFingerprint' => $hostFingerprint,
+        ];
     }
 }

@@ -114,11 +114,21 @@ export interface MinimalStateResult {
 export interface HeartbeatResponse {
     /** Server storage activity stamp (max mtime of snapshots, orders, fingerprints). */
     heartbeatSeq?: number | null;
+    /** Wire name for authoritative last completed simulation tick (= human-facing `serverTick`). */
     hostTick: number | null;
     hostFingerprint: string | null;
     ordersTipTick: number | null;
     /** Monotonic-ish count of order rows — advances when append wins even if atTick repeats. */
     ordersRecordCount?: number | null;
+    /**
+     * Parallel order batch (`waitingForOrders.atTick`), only while paused waiting on waiters.
+     * Same value as `pausedAtTick` when both are present (backward-compatible alias).
+     */
+    orderBatchAtTick?: number | null;
+    /**
+     * When non-null during a parallel pause, same as `orderBatchAtTick` (batch tick for submitted orders).
+     * Not the checkpoint envelope tick.
+     */
     pausedAtTick: number | null;
     expectingFromPlayerIds: string[] | null;
     initialFingerprint: string | null;

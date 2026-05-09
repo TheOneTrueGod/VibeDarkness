@@ -150,6 +150,7 @@ export default function BattlePhase({
         queued: 0,
         sending: 0,
     });
+    const [hasReceivedInitialHeartbeat, setHasReceivedInitialHeartbeat] = useState(isHost);
 
     const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_T1_WAITING_POLLS;
 
@@ -411,6 +412,11 @@ export default function BattlePhase({
                 }),
             );
             unsubs.push(net.on('heartbeat', bumpOrderPipeline));
+            unsubs.push(
+                net.on('heartbeat', () => {
+                    setHasReceivedInitialHeartbeat(true);
+                }),
+            );
             unsubs.push(net.on('orders-applied', bumpOrderPipeline));
             if (!isHost) {
                 unsubs.push(
@@ -660,6 +666,17 @@ export default function BattlePhase({
     const engine = sessionRef.current?.getEngine() ?? null;
     const renderer = sessionRef.current?.getRenderer() ?? null;
     const camera = sessionRef.current?.getCamera() ?? null;
+
+    if (!isHost && !hasReceivedInitialHeartbeat) {
+        return (
+            <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center space-y-4">
+                    <div className="w-16 h-16 mx-auto border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm text-light-300">You must gather your party before venturing forth.</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!engine || !renderer || !camera) {
         return (

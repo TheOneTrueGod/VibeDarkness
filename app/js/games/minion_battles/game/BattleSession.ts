@@ -353,6 +353,10 @@ export class BattleSession implements BattleSessionHandle {
         return this.engine?.waitingForOrders != null;
     }
 
+    getWaitingForOrdersBatch(): WaitingForOrders | null {
+        return this.engine?.waitingForOrders ?? null;
+    }
+
     getLatestFingerprint(): { tick: number; fp: string } | null {
         const latest = this.engine?.state.runtimeFingerprintRing.latest();
         if (!latest) return null;

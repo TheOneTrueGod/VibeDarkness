@@ -10,6 +10,13 @@ namespace App;
  */
 final class BattleSyncLogThreshold
 {
+    /**
+     * Hard override for server battle-sync lobby logging.
+     * Set to one of: log, info, warn, error, critical, off.
+     * Keep as `log` while investigating sync/order issues.
+     */
+    private const OVERRIDE_FLOOR = 'log';
+
     /** @var array<string, int> */
     private const RANK = [
         'log' => 0,
@@ -33,6 +40,11 @@ final class BattleSyncLogThreshold
 
     private static function floorFromEnv(): string
     {
+        $override = strtolower(trim((string) self::OVERRIDE_FLOOR));
+        if ($override === 'off' || isset(self::RANK[$override])) {
+            return $override;
+        }
+
         $raw = getenv('LOBBY_LOG_BATTLE_SYNC');
         if ($raw === false || $raw === '') {
             return 'info';

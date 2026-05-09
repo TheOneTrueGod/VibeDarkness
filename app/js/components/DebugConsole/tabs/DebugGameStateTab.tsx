@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { GameStatePayload } from '../../../types';
+import type { LobbyClient } from '../../../LobbyClient';
 import DebugJsonBlock from '../DebugJsonBlock';
+import DebugHeartbeatSyncPanel from './DebugHeartbeatSyncPanel';
 
 interface DebugGameStateTabProps {
     isActive: boolean;
     gameState: GameStatePayload | null;
+    inBattle?: boolean;
+    /** When set with a game id, enables BattleNet heartbeat / sync snapshot on this tab. */
+    battleOrdersDebug?: {
+        lobbyClient: LobbyClient;
+        lobbyId: string;
+        gameId: string | null;
+        playerId: string;
+    } | null;
 }
 
 type DebugWindow = {
@@ -12,22 +22,35 @@ type DebugWindow = {
     __minionBattlesDebugSynchash?: string;
 };
 
-export default function DebugGameStateTab({ isActive, gameState }: DebugGameStateTabProps) {
+export default function DebugGameStateTab({
+    isActive,
+    gameState,
+    inBattle = false,
+    battleOrdersDebug = null,
+}: DebugGameStateTabProps) {
     const [liveGameTick, setLiveGameTick] = useState<number | null>(null);
     const [liveSynchash, setLiveSynchash] = useState<string | null>(null);
+    const [syncBridge, setSyncBridge] = useState<Record<string, unknown> | null>(null);
     const [copyDone, setCopyDone] = useState(false);
 
     useEffect(() => {
         if (!isActive) return;
         const id = window.setInterval(() => {
-            const w = window as unknown as DebugWindow;
+            const w = window as unknown as DebugWindow & {
+                __minionBattlesSyncDebug?: Record<string, unknown>;
+            };
             const tick = w.__minionBattlesDebugGameTick;
             setLiveGameTick(typeof tick === 'number' ? tick : null);
             const h = w.__minionBattlesDebugSynchash;
             setLiveSynchash(typeof h === 'string' && h.length > 0 ? h : null);
+            if (inBattle && battleOrdersDebug != null && battleOrdersDebug.gameId != null) {
+                setSyncBridge(w.__minionBattlesSyncDebug ?? null);
+            } else {
+                setSyncBridge(null);
+            }
         }, 100);
         return () => window.clearInterval(id);
-    }, [isActive]);
+    }, [isActive, inBattle, battleOrdersDebug]);
 
     const game = gameState?.game as Record<string, unknown> | undefined;
     const stateTick = game != null ? (game.gameTick ?? game.game_tick) : undefined;
@@ -36,12 +59,10 @@ export default function DebugGameStateTab({ isActive, gameState }: DebugGameStat
 
     /** Prefer live engine hash in battle; otherwise `game.synchash` from synced payload. */
     const syncHashForDisplay =
-        liveSynchash
-        ?? (game != null && typeof game.synchash === 'string' && game.synchash.length > 0
-            ? game.synchash
-            : null);
+        liveSynchash ??
+        (game != null && typeof game.synchash === 'string' && game.synchash.length > 0 ? game.synchash : null);
 
-    /** Shown JSON uses the same tick and synchash as the header so debug output stays consistent. */
+    /** JSON copy uses live tick/synchash from window when present. */
     const displayGameState = useMemo((): GameStatePayload | null => {
         if (!gameState) return null;
         if (game == null) return gameState;
@@ -73,17 +94,14 @@ export default function DebugGameStateTab({ isActive, gameState }: DebugGameStat
 
     if (!isActive) return null;
 
-    const tickDisplay = typeof gameTick === 'number' ? String(gameTick) : '-';
-    const syncHashDisplay = syncHashForDisplay ?? '-';
-
     return (
         <div className="flex flex-col gap-2">
-            <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs w-full max-w-full">
-                <span className="text-muted">gameTick</span>
-                <span className="text-white">{tickDisplay}</span>
-                <span className="text-muted">SyncHash</span>
-                <span className="text-white font-mono text-[10px] break-all leading-tight">{syncHashDisplay}</span>
-            </div>
+            <DebugHeartbeatSyncPanel
+                isActive={isActive}
+                inBattle={inBattle}
+                battleOrdersDebug={battleOrdersDebug}
+                syncBridge={syncBridge}
+            />
             <div className="flex items-center gap-2 shrink-0">
                 <button
                     type="button"

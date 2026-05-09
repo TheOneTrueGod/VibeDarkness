@@ -319,9 +319,8 @@ final class BattleStorage
 
     /**
      * Convenience helper for the heartbeat handler: read the latest
-     * snapshot and derive `pausedAtTick` plus the unique list of
-     * owner IDs the engine is waiting on (from
-     * `state.waitingForOrders.waiters[].ownerId`).
+     * snapshot and derive checkpoint envelope `tick` (`pausedAtTick` in return; **not** the parallel
+     * order batch tick) plus the unique list of owner IDs from `state.waitingForOrders.waiters`.
      *
      * Returns null when there is no snapshot yet, or when the latest
      * snapshot's state has no `waitingForOrders.waiters` (engine is
@@ -335,7 +334,7 @@ final class BattleStorage
      * Task 05 is responsible for filtering against the lobby's player
      * roster if a strict "human players only" list is required.
      *
-     * @return array{pausedAtTick:int,expectingFromPlayerIds:list<string>}|null
+     * @return array{pausedAtTick:int,expectingFromPlayerIds:list<string>}|null `pausedAtTick` = snapshot envelope tick (last completed at save), not `waitingForOrders.atTick`.
      */
     public function getExpectingFromPlayerIdsAt(string $lobbyId, string $gameId): ?array
     {
@@ -603,6 +602,11 @@ final class BattleStorage
             throw new RuntimeException('saveInitialState: failed to encode payload');
         }
         $this->atomicWrite($path, $encoded);
+        // Heartbeat relies on fingerprint stream for `hostTick` and `hostFingerprint`.
+        // Seed tick 0 at initialization so heartbeat is immediately non-null after create.
+        $this->appendFingerprints($lobbyId, $gameId, [
+            ['tick' => 0, 'fp' => $initialFingerprint],
+        ]);
     }
 
     /**
@@ -647,9 +651,8 @@ final class BattleStorage
      * - If tick exists with same fp: skip (idempotent duplicate).
      * - If tick exists with different fp: reject (conflict), keep existing canonical fp.
      *
-     * Same quiescence note as {@see saveSnapshot}: fingerprint tick vs
-     * snapshot may lag or lead by one tick briefly during concurrent writes;
-     * {@see \App\Http\Handlers\Battle\AppendOrderHandler} compensates via `maxAllowedTick`.
+     * Snapshot vs fingerprint may race briefly; {@see AppendOrderHandler}/{@see BattleStorage::resolveLastCompletedTickAndFingerprint}
+     * clamp last completed against `waitingForOrders.atTick`; `maxAllowedTick` covers late snapshot catch-up.
      *
      * @param list<array{tick:int|numeric-string,fp:string}> $records
      * @return array{appended:int,duplicates:int,conflicts:int}
@@ -862,6 +865,64 @@ final class BattleStorage
             fclose($fh);
         }
         return $latest;
+    }
+
+    /**
+     * Single source of truth for last completed simulation tick vs fingerprint tail (same clamp as AppendOrderHandler).
+     *
+     * {@see AppendOrderHandler} and {@see GetHeartbeatHandler} must use this method so heartbeat and append cannot drift.
+     *
+     * - `lastCompleted`: greatest tick confirmed complete after clamp vs `waitingForOrders.atTick` when present,
+     *   or null when there is no fingerprint yet.
+     * - `orderBatchAtTick`: `waitingForOrders.atTick` from the latest snapshot when that block exists with an atTick field;
+     *   callers that only want the batch tick while paused for parallel orders should combine with {@see getExpectingFromPlayerIdsAt}.
+     * - `fingerprint`: canonical hash for `lastCompleted` after clamp (reloaded via range when clamp moves off the fp tail).
+     *
+     * @return array{
+     *   lastCompleted:int|null,
+     *   fingerprint:string|null,
+     *   orderBatchAtTick:int|null
+     * }
+     */
+    public function resolveLastCompletedTickAndFingerprint(string $lobbyId, string $gameId): array
+    {
+        $latestFingerprint = $this->getLatestFingerprint($lobbyId, $gameId);
+        $fpTick = isset($latestFingerprint['tick']) ? (int) $latestFingerprint['tick'] : null;
+        $fp = isset($latestFingerprint['fp']) && is_string($latestFingerprint['fp']) ? $latestFingerprint['fp'] : null;
+
+        $latestSnapshot = $this->getSnapshotAtOrBefore($lobbyId, $gameId, null);
+        $orderBatchAtTick = null;
+        if (is_array($latestSnapshot)) {
+            $state = $latestSnapshot['state'] ?? null;
+            if (is_array($state)) {
+                $waitingForOrders = $state['waitingForOrders'] ?? null;
+                if (is_array($waitingForOrders) && isset($waitingForOrders['atTick'])) {
+                    $raw = $waitingForOrders['atTick'];
+                    if (is_int($raw) || is_float($raw) || (is_string($raw) && is_numeric($raw))) {
+                        $orderBatchAtTick = (int) $raw;
+                    }
+                }
+            }
+        }
+
+        if ($fpTick === null || $fp === null) {
+            return ['lastCompleted' => null, 'fingerprint' => null, 'orderBatchAtTick' => $orderBatchAtTick];
+        }
+
+        $hostTick = $fpTick;
+        if ($orderBatchAtTick !== null && $orderBatchAtTick > 0 && $hostTick >= 0) {
+            $hostTick = min($hostTick, $orderBatchAtTick - 1);
+            $range = $this->getFingerprintsRange($lobbyId, $gameId, $hostTick, $hostTick);
+            if (count($range) > 0 && isset($range[0]['fp']) && is_string($range[0]['fp'])) {
+                $fp = $range[0]['fp'];
+            }
+        }
+
+        return [
+            'lastCompleted' => $hostTick >= 0 ? $hostTick : null,
+            'fingerprint' => $fp,
+            'orderBatchAtTick' => $orderBatchAtTick,
+        ];
     }
 
     // ------------------------------------------------------------------

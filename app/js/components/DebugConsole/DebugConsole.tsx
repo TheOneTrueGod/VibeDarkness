@@ -164,7 +164,12 @@ export default function DebugConsole({
     const debugTabs = (
             <>
                 <DebugBattleActionsTab isActive={activeTab === 'battle-actions'} inBattle={inBattle} isAdmin={isAdmin} isHost={isHost} skipCurrentTurn={skipCurrentTurn} />
-                <DebugGameStateTab isActive={activeTab === 'game-state'} gameState={gameState} />
+                <DebugGameStateTab
+                    isActive={activeTab === 'game-state'}
+                    gameState={gameState}
+                    inBattle={inBattle}
+                    battleOrdersDebug={battleOrdersDebug}
+                />
                 <DebugUnitsTab isActive={activeTab === 'units'} inBattle={inBattle} gameState={gameState} />
                 <DebugOrdersTab
                     isActive={activeTab === 'orders'}

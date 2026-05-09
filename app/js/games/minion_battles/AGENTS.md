@@ -12,6 +12,8 @@
 
 Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this guide as a complete file index**—open the folder or use search; filenames drift in a legacy codebase. Step-by-step workflows for agents live under **`.cursor/skills/`** (e.g. **working-on-minion-battles**, **creating-an-ability**, **editing-card-behaviour**, **working-with-hitboxes**, **game-engine**, **game-sync-data-flow**, **missions**, **modifying-spawn-definitions**, **narrative/narrative-hub**, **writing-style-***).
 
+**Multiplayer ticks:** **`serverTick`** = heartbeat **`hostTick`** = authoritative last completed. **`clientTick`** = local **`gameTick`**. Parallel batch = **`orderBatchAtTick`** / **`pausedAtTick`** on heartbeat ( **`waitingForOrders.atTick`** ). See **`.cursor/skills/game-sync-data-flow/SKILL.md`**.
+
 ### Directory layout
 
 | Directory | Purpose |

@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import SyncStatusCard from './SyncStatusCard';
 
 export type TurnIndicatorState = 'your_turn' | 'ally_turn' | 'playing';
 
@@ -165,7 +166,7 @@ export default function TurnIndicator({
         <div className="relative w-full shrink-0 py-1">
             {hostCatchupPopover && (
                 <div
-                    className="pointer-events-auto absolute left-1/2 bottom-full z-[70] mb-1 w-[min(17rem,calc(100vw-1.5rem))] -translate-x-1/2 rounded-md border border-amber-500/55 bg-amber-950/95 px-2.5 py-2 text-amber-50 shadow-lg backdrop-blur-[2px]"
+                    className="pointer-events-auto absolute left-1/2 bottom-full z-[70] mb-1 w-[min(17rem,calc(100vw-1.5rem))] -translate-x-1/2 backdrop-blur-[2px]"
                     role="status"
                 >
                     <div className="flex items-start gap-2">
@@ -173,27 +174,25 @@ export default function TurnIndicator({
                             className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-amber-400/90 border-t-transparent"
                             aria-hidden
                         />
-                        <div className="min-w-0 flex-1">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-200/95">
-                                Waiting for host
-                            </div>
-                            <div className="mt-0.5 text-[10px] leading-snug text-amber-100/90">
-                                Host tick {hostCatchupPopover.hostTick}
-                                {hostCatchupPopover.targetTick != null
-                                    ? ` · deferred tick ${hostCatchupPopover.targetTick}`
-                                    : ''}
-                                {hostCatchupPopover.stuckHeartbeats > 0
-                                    ? ` · ${hostCatchupPopover.stuckHeartbeats} hb`
-                                    : ''}
-                            </div>
-                            <button
-                                type="button"
-                                onClick={hostCatchupPopover.onForceResync}
-                                className="mt-1.5 w-full rounded border border-amber-600/70 bg-amber-900/80 px-2 py-1 text-[10px] font-medium text-amber-100 hover:bg-amber-800/90"
-                            >
-                                Force Resync
-                            </button>
-                        </div>
+                        <SyncStatusCard
+                            className="min-w-0 flex-1"
+                            title="Waiting for host"
+                            tone="warning"
+                            summary={`Server tick ${hostCatchupPopover.hostTick} (last completed)${
+                                hostCatchupPopover.targetTick != null
+                                    ? ` · deferred order batch ${hostCatchupPopover.targetTick}`
+                                    : ''
+                            }${hostCatchupPopover.stuckHeartbeats > 0 ? ` · ${hostCatchupPopover.stuckHeartbeats} hb` : ''}`}
+                            actions={
+                                <button
+                                    type="button"
+                                    onClick={hostCatchupPopover.onForceResync}
+                                    className="w-full rounded border border-amber-600/70 bg-amber-900/80 px-2 py-1 text-[10px] font-medium text-amber-100 hover:bg-amber-800/90"
+                                >
+                                    Force Resync
+                                </button>
+                            }
+                        />
                     </div>
                 </div>
             )}

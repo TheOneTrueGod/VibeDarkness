@@ -54,12 +54,12 @@ Implementations worth opening during investigation:
 
 - **`app/js/games/minion_battles/game/BattleNet.ts`** — client heartbeat, deferral, resync gates.
 - **`backend/Http/Handlers/Battle/AppendOrderHandler.php`** — order acceptance windows (`tick_in_past`, `tick_ahead_of_host`, ownership).
-- **`backend/Http/Handlers/Battle/GetHeartbeatHandler.php`** — what **`hostTick`** means on the wire.
+- **`backend/Http/Handlers/Battle/GetHeartbeatHandler.php`** — heartbeat JSON: **`hostTick`** / **`hostFingerprint`** = **last completed** via **`BattleStorage::resolveLastCompletedTickAndFingerprint`**. **`orderBatchAtTick`** (and legacy **`pausedAtTick`** alias when paused) = **`waitingForOrders.atTick`** — **not** the snapshot envelope **`tick`** field.
 
 ## Investigation workflow
 
 1. Confirm **`gameId`** (from **`game_<instanceId>.json`**, heartbeat URLs, or `lobby_log.jsonl`).
-2. Under **`games/<gameId>/`** (or legacy path): compare **tail of `fingerprints.jsonl`**, **`orders.jsonl`**, newest **`snapshots/`** snapshot, and **`waitingForOrders`** inside snapshots vs client-reported ticks.
+2. Under **`games/<gameId>/`** (or legacy path): compare **tail of `fingerprints.jsonl`** (last completed fingerprint index vs heartbeat **`hostTick`**), **`orders.jsonl`** (`atTick` vs **`waitingForOrders.atTick`**), newest **`snapshots/`** **`state.waitingForOrders`**, snapshot envelope **`tick`**, vs local **`gameTick`** on the browser.
 3. Correlate with **`lobby_log.jsonl`** around the incident window.
 4. If the symptom is multiplayer-only, reason about **host-canonical** state vs optimistic non-host simulation (game-sync skill).
 

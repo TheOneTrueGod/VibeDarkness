@@ -500,6 +500,8 @@ export class LobbyClient {
         rejectedReason?: string;
         maxAllowedTick?: number;
         minAllowedTick?: number;
+        hostTick?: number;
+        hostFingerprint?: string | null;
     }> {
         const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/orders`, {
             method: 'POST',
@@ -510,6 +512,8 @@ export class LobbyClient {
             rejectedReason?: string;
             maxAllowedTick?: number;
             minAllowedTick?: number;
+            hostTick?: number | null;
+            hostFingerprint?: string | null;
         };
         return {
             accepted: data.appended === true,
@@ -517,6 +521,8 @@ export class LobbyClient {
             rejectedReason: typeof data.rejectedReason === 'string' ? data.rejectedReason : undefined,
             maxAllowedTick: typeof data.maxAllowedTick === 'number' ? data.maxAllowedTick : undefined,
             minAllowedTick: typeof data.minAllowedTick === 'number' ? data.minAllowedTick : undefined,
+            hostTick: typeof data.hostTick === 'number' ? data.hostTick : undefined,
+            hostFingerprint: typeof data.hostFingerprint === 'string' ? data.hostFingerprint : null,
         };
     }
 
@@ -549,6 +555,7 @@ export class LobbyClient {
             hostFingerprint: data.hostFingerprint ?? null,
             ordersTipTick: data.ordersTipTick ?? null,
             ordersRecordCount: data.ordersRecordCount ?? null,
+            orderBatchAtTick: typeof data.orderBatchAtTick === 'number' ? data.orderBatchAtTick : null,
             pausedAtTick: data.pausedAtTick ?? null,
             expectingFromPlayerIds: data.expectingFromPlayerIds ?? null,
             initialFingerprint: data.initialFingerprint ?? null,

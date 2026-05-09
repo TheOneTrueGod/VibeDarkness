@@ -8,7 +8,7 @@ interface DebugOrdersTabProps {
     isActive: boolean;
     inBattle: boolean;
     gameState: GameStatePayload | null;
-    /** Live battle order log + sync bridge (when in a Minion Battles lobby). */
+    /** Live battle order log (when in a Minion Battles lobby). */
     battleOrdersDebug?: {
         lobbyClient: LobbyClient;
         lobbyId: string;
@@ -52,8 +52,6 @@ function orderUnitId(entry: unknown): string | null {
     return typeof uid === 'string' ? uid : null;
 }
 
-type SyncBridge = Record<string, unknown> | null;
-
 export default function DebugOrdersTab({
     isActive,
     inBattle,
@@ -65,7 +63,6 @@ export default function DebugOrdersTab({
 
     const [ordersLive, setOrdersLive] = useState<BattleOrderRecord[]>([]);
     const [liveError, setLiveError] = useState<string | null>(null);
-    const [syncBridge, setSyncBridge] = useState<SyncBridge>(null);
 
     const [filterUnitId, setFilterUnitId] = useState<string | null>(null);
     const [unitMenuOpen, setUnitMenuOpen] = useState(false);
@@ -88,14 +85,6 @@ export default function DebugOrdersTab({
         let cancelled = false;
 
         const tick = async () => {
-            const bridge = (
-                window as unknown as {
-                    __minionBattlesSyncDebug?: Record<string, unknown>;
-                }
-            ).__minionBattlesSyncDebug;
-            if (!cancelled) {
-                setSyncBridge(bridge ?? null);
-            }
             try {
                 const range = await lobbyClient.getBattleOrdersRange(lobbyId, gameId!, {
                     playerId,
@@ -172,12 +161,8 @@ export default function DebugOrdersTab({
                 <p className="text-xs text-muted m-0">Orders are only available during battle.</p>
             ) : (
                 <>
-                    {usesLiveOrders && (
-                        <div className="flex flex-col gap-1">
-                            <span className="text-xs font-semibold text-white/85">Battle sync snapshot</span>
-                            {liveError && <p className="text-[11px] text-red-400 m-0">{liveError}</p>}
-                            <DebugJsonBlock value={syncBridge} emptyText="Open battle phase on this client to populate sync debug." />
-                        </div>
+                    {usesLiveOrders && liveError && (
+                        <p className="text-[11px] text-red-400 m-0">Orders fetch: {liveError}</p>
                     )}
 
                     <div className="flex flex-col gap-1 shrink-0">

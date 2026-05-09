@@ -132,6 +132,14 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 - "Host" means the user that is the host of a particular game
 - "Client" means the user(s) that are the clients of a particular game.  A user cannot be both a client and a host.
 
+### Minion Battles networked ticks (short reference)
+
+- **`serverTick`** — Authoritative **last fully completed** sim tick from battle storage; same as heartbeat JSON **`hostTick`** (PHP `resolveLastCompletedTickAndFingerprint`).
+- **`clientTick`** — Local browser **last completed**: `engine.gameTick` / `BattleSession.getEngineTick()`; when synced, matches **`serverTick`** after pauses.
+- **Order batch** — HTTP field **`orderBatchAtTick`** when paused (legacy **`pausedAtTick`** duplicates it); **`waitingForOrders.atTick`** from snapshot state — **not** the snapshot envelope **`tick`**.
+
+Full semantics, append/heartbeat alignment, and pitfalls: **`.cursor/skills/game-sync-data-flow/SKILL.md`**.
+
 ## Project Skills
 
 Skills are located in the `.cursor/skills` directory.

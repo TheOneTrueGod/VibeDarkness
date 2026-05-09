@@ -6,6 +6,10 @@ use App\AccountService;
 use App\BattleStorage;
 use App\LobbyManager;
 
+/**
+ * `hostTick` — last fully completed sim tick (matches {@see BattleStorage::resolveLastCompletedTickAndFingerprint}).
+ * `pausedAtTick` — when non-null, alias of `orderBatchAtTick` (parallel batch = `waitingForOrders.atTick`).
+ */
 class GetHeartbeatHandler
 {
     public static function handle(LobbyManager $manager, AccountService $accountService, array $matches): array
@@ -57,26 +61,25 @@ class GetHeartbeatHandler
         }
         $heartbeatSeq = max($fpMtime, $ordMtime, $snapMtime);
 
-        $latestFingerprint = $storage->getLatestFingerprint($lobbyId, $gameId);
+        $resolved = $storage->resolveLastCompletedTickAndFingerprint($lobbyId, $gameId);
         $ordersTipTick = $storage->getOrdersTipTick($lobbyId, $gameId);
         $ordersRecordCount = $storage->countOrderRecords($lobbyId, $gameId);
         $expectingData = $storage->getExpectingFromPlayerIdsAt($lobbyId, $gameId);
         $initialState = $storage->getInitialState($lobbyId, $gameId);
 
-        $hostTick = isset($latestFingerprint['tick']) ? (int) $latestFingerprint['tick'] : null;
-        $hostFingerprint = isset($latestFingerprint['fp']) && is_string($latestFingerprint['fp'])
-            ? $latestFingerprint['fp']
-            : null;
+        $hostTick = $resolved['lastCompleted'];
+        $hostFingerprint = $resolved['fingerprint'];
 
-        // Keep heartbeat semantics aligned with AppendOrderHandler while paused:
-        // if the newest snapshot is waiting for orders at T, the last completed tick is T-1.
-        $pausedAtTick = isset($expectingData['pausedAtTick']) ? (int) $expectingData['pausedAtTick'] : null;
-        if ($pausedAtTick !== null && $pausedAtTick > 0 && $hostTick !== null && $hostTick >= $pausedAtTick) {
-            $hostTick = $pausedAtTick - 1;
-            $atTickFp = $storage->getFingerprintsRange($lobbyId, $gameId, $hostTick, $hostTick);
-            if (count($atTickFp) > 0 && isset($atTickFp[0]['fp']) && is_string($atTickFp[0]['fp'])) {
-                $hostFingerprint = $atTickFp[0]['fp'];
-            }
+        /** While paused for parallel orders (`expectingFromPlayerIds` nonempty), expose batch tick matching {@see AppendOrderHandler} pause clamp. */
+        $orderBatchAtTick = null;
+        $pausedAtTick = null;
+        if (
+            $expectingData !== null
+            && $resolved['orderBatchAtTick'] !== null
+            && $resolved['orderBatchAtTick'] > 0
+        ) {
+            $orderBatchAtTick = $resolved['orderBatchAtTick'];
+            $pausedAtTick = $orderBatchAtTick;
         }
 
         return [
@@ -86,8 +89,9 @@ class GetHeartbeatHandler
             'hostFingerprint' => $hostFingerprint,
             'ordersTipTick' => $ordersTipTick >= 0 ? $ordersTipTick : null,
             'ordersRecordCount' => $ordersRecordCount,
+            'orderBatchAtTick' => $orderBatchAtTick,
             'pausedAtTick' => $pausedAtTick,
-            'expectingFromPlayerIds' => $expectingData['expectingFromPlayerIds'] ?? [],
+            'expectingFromPlayerIds' => $expectingData !== null ? $expectingData['expectingFromPlayerIds'] : [],
             'initialFingerprint' => $initialState['initialFingerprint'] ?? null,
         ];
     }
