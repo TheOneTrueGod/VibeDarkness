@@ -321,6 +321,9 @@ export class BattleSession implements BattleSessionHandle {
             | undefined;
         this.applyPlayerPortraitOverrides(engine, snapshotPortraitIds);
         this.finalizeEngine(engine);
+        // Replacing the engine calls destroy() on the previous instance, which stops its rAF loop.
+        // BattlePhase only calls startEngine() once on mount; async resync paths must restart here.
+        this.startEngine();
     }
 
     /** Same as {@link load} for a new or reconnecting battle with optional lobby payload. */
