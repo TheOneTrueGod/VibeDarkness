@@ -59,6 +59,8 @@ Keeps **`hostTick`**, **`hostFingerprint`**, **`orderBatchAtTick`**, **`expectin
 
 Adds **minimal-plan** aliases: **`latestServerGameTick`**, **`latestServerGameHash`**, optional **`gameTick`/`gameHash`** echo (when `gameTick` query param set), **`pendingOrders`** (recent window), **`appliedOrdersAtTick`**.
 
+Also exposes optional **`fingerprintTailTick`** / **`fingerprintTailFingerprint`** (max tick row in `fingerprints.jsonl` before clamp) for diagnostics; **`hostTick`** may trail that tail while the latest snapshot’s **`waitingForOrders.atTick`** lags. **`BattleNet`** tracks **`hostTick|hostFingerprint`** between polls to detect **material** heartbeat changes, and a composite **pause-plane key** (`hostPaused`, **`hostTick`**, fingerprint, **`orderBatchAtTick`**, **`expectingFromPlayerIds`**) between polls: when the local engine runs **ahead** of the clamped server tail while the heartbeat is still **paused**, sync stays **`waiting_for_host`** (no immediate resync); when the pause plane **changes**, **`reconcileNonHostPausePlaneTransition`** re-checks the fingerprint at **`hostTick`** and may **`requestResync('pause-plane-transition-hash-mismatch')`** or return to **`synced`** if the host cleared pause and hashes agree (see **`docs/game-sync-plan.md`** optimistic playahead subsection).
+
 Poll interval: **`HEARTBEAT_POLL_INTERVAL_MS = 500`** (foreground).
 
 ## Checkpoint save

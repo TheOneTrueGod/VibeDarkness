@@ -8,6 +8,7 @@ use App\LobbyManager;
 
 /**
  * `hostTick` — last fully completed sim tick (matches {@see BattleStorage::resolveLastCompletedTickAndFingerprint}).
+ * `fingerprintTailTick` / `fingerprintTailFingerprint` — max tick row in `fingerprints.jsonl` before clamp; may exceed `hostTick` while snapshot catch-up lags.
  * `hostPaused` — `paused` flag from the fingerprints.jsonl row for that tick (story/deferred/general pause signal).
  * `pausedAtTick` — when non-null, alias of `orderBatchAtTick` (parallel batch = `waitingForOrders.atTick`).
  */
@@ -74,6 +75,17 @@ class GetHeartbeatHandler
         $gameTickQuery = isset($_GET['gameTick']) && $_GET['gameTick'] !== '' ? (int) $_GET['gameTick'] : null;
 
         $resolved = $storage->resolveLastCompletedTickAndFingerprint($lobbyId, $gameId);
+        $latestFpRow = $storage->getLatestFingerprint($lobbyId, $gameId);
+        $fingerprintTailTick = null;
+        $fingerprintTailFingerprint = null;
+        if (is_array($latestFpRow)) {
+            if (isset($latestFpRow['tick']) && (is_int($latestFpRow['tick']) || is_float($latestFpRow['tick']) || (is_string($latestFpRow['tick']) && is_numeric($latestFpRow['tick'])))) {
+                $fingerprintTailTick = (int) $latestFpRow['tick'];
+            }
+            if (isset($latestFpRow['fp']) && is_string($latestFpRow['fp'])) {
+                $fingerprintTailFingerprint = $latestFpRow['fp'];
+            }
+        }
         $ordersTipTick = $storage->getOrdersTipTick($lobbyId, $gameId);
         $ordersRecordCount = $storage->countOrderRecords($lobbyId, $gameId);
         $expectingData = $storage->getExpectingFromPlayerIdsAt($lobbyId, $gameId);
@@ -129,6 +141,8 @@ class GetHeartbeatHandler
         return [
             'success' => true,
             'heartbeatSeq' => $heartbeatSeq,
+            'fingerprintTailTick' => $fingerprintTailTick,
+            'fingerprintTailFingerprint' => $fingerprintTailFingerprint,
             'hostTick' => $hostTick,
             'hostFingerprint' => $hostFingerprint,
             'hostPaused' => $hostPaused,

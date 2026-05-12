@@ -3,6 +3,7 @@
 namespace App\Http\Handlers\Battle;
 
 use App\AccountService;
+use App\BattleLobbySyncServerLog;
 use App\BattleStorage;
 use App\LobbyManager;
 use InvalidArgumentException;
@@ -72,6 +73,7 @@ class SaveSnapshotHandler
                 ]);
             }
             $storage->prunePendingOrdersAfterSnapshot($lobbyId, $gameId, $tick);
+            BattleLobbySyncServerLog::logSaveSnapshot($lobbyId, $gameId, $playerId, $tick, $state, $storage);
         } catch (InvalidArgumentException $e) {
             http_response_code(400);
             return ['success' => false, 'error' => $e->getMessage()];

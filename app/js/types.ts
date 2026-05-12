@@ -142,6 +142,12 @@ export interface HeartbeatResponse {
     pausedAtTick: number | null;
     expectingFromPlayerIds: string[] | null;
     initialFingerprint: string | null;
+    /**
+     * Max tick in `fingerprints.jsonl` (unclamped). May exceed `hostTick` while snapshot
+     * `waitingForOrders.atTick` still lags; see `BattleStorage::resolveLastCompletedTickAndFingerprint`.
+     */
+    fingerprintTailTick?: number | null;
+    fingerprintTailFingerprint?: string | null;
 }
 
 export interface BattleOrderRecord {

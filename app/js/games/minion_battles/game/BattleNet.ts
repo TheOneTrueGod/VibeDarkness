@@ -79,6 +79,9 @@ type BattleNetEventMap = {
         latestServerGameHash?: string | null;
         gameTick?: number | null;
         gameHash?: string | null;
+        /** Max tick in `fingerprints.jsonl` (unclamped); optional until server ships tail fields. */
+        fingerprintTailTick: number | null;
+        fingerprintTailFingerprint: string | null;
     };
     'orders-applied': { count: number; source: 'poll' | 'submit' };
     'host-catchup-wait': {
@@ -142,6 +145,8 @@ interface BattleApi {
         initialFingerprint: string | null;
         heartbeatSeq?: number | null;
         hostPaused?: boolean | null;
+        fingerprintTailTick?: number | null;
+        fingerprintTailFingerprint?: string | null;
     }>;
     mergeBattleAppliedOrders(
         lobbyId: string,
@@ -213,6 +218,15 @@ export type BattleNetPollOnceOptions = {
 };
 
 type BattleHeartbeatApiResult = Awaited<ReturnType<BattleApi['getBattleHeartbeat']>>;
+
+/** Non-host: fields derived from heartbeat that define the server “pause plane” for transition detection. */
+type NonHostHbPausePlaneSnap = {
+    hostPaused: boolean;
+    hostTick: number;
+    hostFingerprint: string | null;
+    orderBatchAtTick: number | null;
+    expectingFromPlayerIds: string[] | null;
+};
 
 function battleHeartbeatMinSpacingMs(): number {
     return typeof process !== 'undefined' && process.env.VITEST === 'true' ? 0 : HEARTBEAT_POLL_INTERVAL_MS;
@@ -304,6 +318,10 @@ export class BattleNet {
     private lastPollServerTailKey: string | null = null;
     /** Non-host: consecutive polls where we're ahead, agree through host tick, and tail unchanged. */
     private aheadWithUnchangedServerTailStreak = 0;
+    /** Non-host: last `hostTick|hostFingerprint` when fingerprint was non-null (material identity for optimistic playahead). */
+    private lastHeartbeatMaterialKey: string | null = null;
+    /** Non-host: previous poll's `hostTick|hostFingerprint` differed from the prior stored key. */
+    private lastPollHeartbeatMaterialChanged = false;
     /**
      * Non-host: last authoritative host completed tick proved aligned (`engineTick===hostTail` fingerprint match or
      * successful appendBattleOrder acceptance). Used to detect "host paused on same tail" stall after optimistic play.
@@ -313,6 +331,8 @@ export class BattleNet {
     private hostAnchorWaitStartedAtMs: number | null = null;
     /** Dedup repeated `requestResync` kicks while stall condition remains true across polls before recovery arms. */
     private hostAnchorResyncEmittedForCurrentStall = false;
+    /** Non-host: heartbeat pause plane after the previous poll (for {@link reconcileNonHostPausePlaneTransition}). */
+    private lastNonHostHbPausePlane: NonHostHbPausePlaneSnap | null = null;
 
     /**
      * Dedupes opt-in lobby_log lines when deferred orders cannot flush (`atTick > hostTick + 1`).
@@ -353,6 +373,9 @@ export class BattleNet {
         this.hostCatchupHeartbeatStreak = 0;
         this.lastPollServerTailKey = null;
         this.aheadWithUnchangedServerTailStreak = 0;
+        if (!this.isHost) {
+            this.lastNonHostHbPausePlane = null;
+        }
 
         const scheduleNextPoll = (): void => {
             if (!this.heartbeatPollActive) {
@@ -846,7 +869,31 @@ export class BattleNet {
                     (typeof hbRaw.hostFingerprint === 'string' ? hbRaw.hostFingerprint : null),
                 gameTick: hbRaw.gameTick ?? null,
                 gameHash: hbRaw.gameHash ?? null,
+                fingerprintTailTick:
+                    typeof hbRaw.fingerprintTailTick === 'number' && !Number.isNaN(hbRaw.fingerprintTailTick)
+                        ? hbRaw.fingerprintTailTick
+                        : null,
+                fingerprintTailFingerprint:
+                    typeof hbRaw.fingerprintTailFingerprint === 'string' ? hbRaw.fingerprintTailFingerprint : null,
             };
+            let heartbeatMaterialChanged = false;
+            if (!this.isHost) {
+                const matKey =
+                    hb.hostFingerprint != null && hb.hostFingerprint !== ''
+                        ? `${hb.hostTick}|${hb.hostFingerprint}`
+                        : null;
+                const prevMat = this.lastHeartbeatMaterialKey;
+                heartbeatMaterialChanged = matKey != null && prevMat != null && matKey !== prevMat;
+                if (matKey != null) {
+                    this.lastHeartbeatMaterialKey = matKey;
+                }
+                if (heartbeatMaterialChanged) {
+                    this.resetNonHostAheadStreak();
+                }
+                this.lastPollHeartbeatMaterialChanged = heartbeatMaterialChanged;
+            } else {
+                this.lastPollHeartbeatMaterialChanged = false;
+            }
             this.updateLastSeenHeartbeat(hb.hostTick);
             this.latestHeartbeatPausedAtTick = orderBatchAtTick;
             this.emit('heartbeat', hb);
@@ -887,6 +934,7 @@ export class BattleNet {
                 } else {
                     this.emit('falling-behind', { active: false, ticksBehind: Math.max(0, behind) });
                 }
+                this.reconcileNonHostBehindHostTail(engineTick, hb, heartbeatMaterialChanged);
             }
 
             if (!this.isHost && engineTick < hb.hostTick) {
@@ -906,6 +954,11 @@ export class BattleNet {
                 } else {
                     this.refreshHostAnchorWaitAndBlocking(engineTick, hb);
                 }
+                const prevPlane = this.lastNonHostHbPausePlane;
+                if (prevPlane !== null && this.pausePlaneKeyFromSnap(prevPlane) !== this.pausePlaneKeyFromHb(hb)) {
+                    this.reconcileNonHostPausePlaneTransition(prevPlane, hb, engineTick);
+                }
+                this.lastNonHostHbPausePlane = this.snapshotHbPausePlane(hb);
             }
 
             if (this.isHost) {
@@ -1553,6 +1606,9 @@ export class BattleNet {
         this.lastSeenOrdersRecordCount = 0;
         this.deferredFlushBlockedLogKey = null;
         this.previouslySyncedAtTick = null;
+        this.lastHeartbeatMaterialKey = null;
+        this.lastPollHeartbeatMaterialChanged = false;
+        this.lastNonHostHbPausePlane = null;
         this.clearHostAnchorWaitState();
         this.emitBlockingHostPausePlane(false);
         this.emitHostCatchupWaitState();
@@ -1775,28 +1831,81 @@ export class BattleNet {
         }
     }
 
+    /**
+     * Non-host: local engine tick is behind heartbeat `hostTick` but heartbeat material (`hostTick` + fp) changed —
+     * authoritative storage moved past our sim (host progressed; we did not keep pace or forked).
+     */
+    private reconcileNonHostBehindHostTail(
+        engineTick: number,
+        hb: BattleNetEventMap['heartbeat'],
+        materialChanged: boolean,
+    ): void {
+        if (this.isHost || !materialChanged) {
+            return;
+        }
+        if (engineTick >= hb.hostTick) {
+            return;
+        }
+        if (hb.hostFingerprint == null || hb.hostFingerprint === '') {
+            return;
+        }
+        logToLobbyLogBattleSync({
+            lobbyClient: this.api as unknown as LobbyClient,
+            lobbyId: this.lobbyId,
+            playerId: this.playerId,
+            tick: engineTick,
+            severity: 'warn',
+            gameId: this.gameId,
+            message: 'non-host behind heartbeat tail after hostTick/hostFingerprint material change — resync',
+            context: {
+                engineTick,
+                hostTick: hb.hostTick,
+                hostFingerprintHead: hb.hostFingerprint.slice(0, 12),
+            },
+        });
+        this.requestResync('behind-host-heartbeat-moved');
+    }
+
     /** Non-host: local sim past server completed tail — align finger/pause tails; never claim `synced` when optimistically paused ahead. */
     private reconcileNonHostAheadOfHostTail(engineTick: number, hb: BattleNetEventMap['heartbeat']): void {
         const localOrderPause = this.session.isPausedForOrderSync();
 
         if (hb.hostPaused && engineTick > hb.hostTick && !localOrderPause) {
+            this.resetNonHostAheadStreak();
+            const exp = hb.expectingFromPlayerIds;
+            const parallelClear = Array.isArray(exp) && exp.length === 0;
+            const hostFp = hb.hostFingerprint;
+            if (parallelClear && hostFp != null && hostFp !== '') {
+                const agreeRow = this.session.getFingerprintRange(hb.hostTick, hb.hostTick)[0];
+                if (agreeRow != null && agreeRow.fp === hostFp) {
+                    this.setSyncStatus(
+                        'waiting_for_host',
+                        'Local sim ahead while server tail is clamped; fingerprints agree at completed tick (checkpoint may trail).',
+                    );
+                    return;
+                }
+            }
+            const parallelOpen = Array.isArray(exp) && exp.length > 0;
+            const detail = parallelOpen
+                ? 'Server heartbeat still lists parallel order waiters while local sim advanced (optimistic play-ahead); waiting for pause plane to update.'
+                : 'Server heartbeat still paused below local progress (optimistic play-ahead); waiting for storage to catch up.';
             logToLobbyLogBattleSync({
                 lobbyClient: this.api as unknown as LobbyClient,
                 lobbyId: this.lobbyId,
                 playerId: this.playerId,
                 tick: engineTick,
-                severity: 'warn',
+                severity: 'info',
                 gameId: this.gameId,
-                message: 'non-host advancing while host heartbeat reports paused at lower completed tick — resync',
+                message: 'non-host ahead of clamped server tail — waiting_for_host (not resync)',
                 context: {
                     engineTick,
                     hostTick: hb.hostTick,
                     hostPaused: hb.hostPaused,
                     orderBatchAtTick: hb.orderBatchAtTick,
+                    expectingFromPlayerIds: exp,
                 },
             });
-            this.resetNonHostAheadStreak();
-            this.requestResync('pause-plane-host-paused-client-running');
+            this.setSyncStatus('waiting_for_host', detail);
             return;
         }
 
@@ -1876,6 +1985,88 @@ export class BattleNet {
         }
 
         this.setSyncStatus('synced');
+    }
+
+    private snapshotHbPausePlane(hb: BattleNetEventMap['heartbeat']): NonHostHbPausePlaneSnap {
+        const batchRaw = hb.orderBatchAtTick ?? hb.pausedAtTick;
+        const batch = typeof batchRaw === 'number' && !Number.isNaN(batchRaw) ? batchRaw : null;
+        const exp = hb.expectingFromPlayerIds;
+        return {
+            hostPaused: hb.hostPaused,
+            hostTick: hb.hostTick,
+            hostFingerprint: hb.hostFingerprint,
+            orderBatchAtTick: batch,
+            expectingFromPlayerIds: Array.isArray(exp) ? [...exp].sort() : null,
+        };
+    }
+
+    private pausePlaneKeyFromSnap(s: NonHostHbPausePlaneSnap): string {
+        const expPart = Array.isArray(s.expectingFromPlayerIds) ? s.expectingFromPlayerIds.join(',') : '';
+        const batch = s.orderBatchAtTick ?? '';
+        return `${s.hostPaused ? 1 : 0}|${s.hostTick}|${s.hostFingerprint ?? ''}|${batch}|${expPart}`;
+    }
+
+    private pausePlaneKeyFromHb(hb: BattleNetEventMap['heartbeat']): string {
+        return this.pausePlaneKeyFromSnap(this.snapshotHbPausePlane(hb));
+    }
+
+    /**
+     * Non-host: when heartbeat pause plane changes vs the previous poll, verify fingerprints at the new
+     * completed tail; resync only on mismatch (see `docs/game-sync-plan.md` optimistic play-ahead).
+     */
+    private reconcileNonHostPausePlaneTransition(
+        prev: NonHostHbPausePlaneSnap,
+        curr: BattleNetEventMap['heartbeat'],
+        engineTick: number,
+    ): void {
+        if (this.isHost || this.isRecovering) {
+            return;
+        }
+        if (this.pausePlaneKeyFromSnap(prev) === this.pausePlaneKeyFromHb(curr)) {
+            return;
+        }
+
+        const hostFp = curr.hostFingerprint;
+        if (hostFp == null || hostFp === '') {
+            return;
+        }
+
+        const localRow = this.session.getFingerprintRange(curr.hostTick, curr.hostTick)[0];
+        if (localRow != null && localRow.fp !== hostFp) {
+            logToLobbyLogBattleSync({
+                lobbyClient: this.api as unknown as LobbyClient,
+                lobbyId: this.lobbyId,
+                playerId: this.playerId,
+                tick: engineTick,
+                severity: 'warn',
+                gameId: this.gameId,
+                message: 'pause plane changed — fingerprint mismatch at server completed tail',
+                context: {
+                    engineTick,
+                    hostTick: curr.hostTick,
+                    hostFingerprintHead: hostFp.slice(0, 12),
+                    prevPausePlane: this.pausePlaneKeyFromSnap(prev),
+                    nextPausePlane: this.pausePlaneKeyFromHb(curr),
+                },
+            });
+            this.resetNonHostAheadStreak();
+            this.requestResync('pause-plane-transition-hash-mismatch');
+            return;
+        }
+
+        if (localRow != null && localRow.fp === hostFp) {
+            if (!curr.hostPaused && engineTick >= curr.hostTick) {
+                this.resetNonHostAheadStreak();
+                this.notePreviouslySyncedAnchorTick(curr.hostTick);
+                this.setSyncStatus('synced');
+                return;
+            }
+            this.setSyncStatus(
+                'waiting_for_host',
+                'Heartbeat pause plane updated; still waiting on server-completed tail.',
+            );
+            return;
+        }
     }
 
     private async flushFingerprints(): Promise<void> {
@@ -2371,6 +2562,8 @@ export class BattleNet {
             localFingerprintAtServerTail: localAtServerTail,
             syncStatus: this.currentSyncStatus,
             syncDetails: this.currentSyncDetails,
+            heartbeatMaterialKey: this.lastHeartbeatMaterialKey,
+            heartbeatMaterialChanged: this.lastPollHeartbeatMaterialChanged,
         };
     }
 }

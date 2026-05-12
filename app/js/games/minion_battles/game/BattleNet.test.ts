@@ -1254,7 +1254,7 @@ describe('BattleNet', () => {
         expect(resync).toHaveBeenCalledWith('pause-flag-tail-mismatch');
     });
 
-    it('requests resync pause-plane-host-paused-client-running when host is paused behind but client sim advanced', async () => {
+    it('waiting_for_host (not pause-plane resync) when host heartbeat paused behind but client sim advanced with parallel waiters', async () => {
         const api = makeApi({
             getBattleHeartbeat: vi.fn(async () => ({
                 hostTick: 50,
@@ -1281,8 +1281,224 @@ describe('BattleNet', () => {
             playerId: 'p1',
         });
         const resync = vi.spyOn(net, 'requestResync');
+        const status = vi.fn();
+        net.on('sync-status', status);
         await net.pollOnce();
-        expect(resync).toHaveBeenCalledWith('pause-plane-host-paused-client-running');
+        expect(resync).not.toHaveBeenCalled();
+        expect(status).toHaveBeenCalledWith('waiting_for_host');
+    });
+
+    it('pause plane transition: host unpauses — non-host becomes synced when fingerprint matches completed tail', async () => {
+        const fp50 = 'srv50aaaaaaaaaaa';
+        const hbPaused = {
+            hostTick: 50,
+            hostFingerprint: fp50,
+            hostPaused: true,
+            ordersTipTick: 50,
+            orderBatchAtTick: 51,
+            pausedAtTick: 51,
+            expectingFromPlayerIds: ['p1', 'p2'],
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
+        };
+        const hbRunning = {
+            hostTick: 50,
+            hostFingerprint: fp50,
+            hostPaused: false,
+            ordersTipTick: 50,
+            orderBatchAtTick: null,
+            pausedAtTick: null,
+            expectingFromPlayerIds: null as string[] | null,
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 1,
+        };
+        let hbPoll = 0;
+        const getBattleHeartbeat = vi.fn(async () => {
+            hbPoll += 1;
+            return hbPoll === 1 ? hbPaused : hbRunning;
+        });
+        const api = makeApi({ getBattleHeartbeat });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 60,
+                isPausedForOrderSync: () => false,
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= 50 && to >= 50 ? [{ tick: 50, fp: fp50, paused: false }] : [],
+                getLatestFingerprint: () => ({ tick: 60, fp: 'local60', paused: false }),
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        const status = vi.fn();
+        net.on('sync-status', status);
+        await net.pollOnce();
+        expect(resync).not.toHaveBeenCalled();
+        expect(status).toHaveBeenCalledWith('waiting_for_host');
+        await net.pollOnce();
+        expect(resync).not.toHaveBeenCalled();
+        expect(status).toHaveBeenCalledWith('synced');
+    });
+
+    it('pause plane transition: fingerprint mismatch after pause-plane change triggers resync (still hostPaused)', async () => {
+        const fp50 = 'srv50aaaaaaaaaaa';
+        const hbPausedOpen = {
+            hostTick: 50,
+            hostFingerprint: fp50,
+            hostPaused: true,
+            ordersTipTick: 50,
+            orderBatchAtTick: 51,
+            pausedAtTick: 51,
+            expectingFromPlayerIds: ['p1', 'p2'],
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
+        };
+        const hbPausedStaleFp = {
+            hostTick: 50,
+            hostFingerprint: 'mismatch_server_fp',
+            hostPaused: true,
+            ordersTipTick: 50,
+            orderBatchAtTick: 51,
+            pausedAtTick: 51,
+            expectingFromPlayerIds: [] as string[],
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 1,
+        };
+        let hbPoll = 0;
+        const getBattleHeartbeat = vi.fn(async () => {
+            hbPoll += 1;
+            return hbPoll === 1 ? hbPausedOpen : hbPausedStaleFp;
+        });
+        const api = makeApi({ getBattleHeartbeat });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 60,
+                isPausedForOrderSync: () => false,
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= 50 && to >= 50 ? [{ tick: 50, fp: fp50, paused: false }] : [],
+                getLatestFingerprint: () => ({ tick: 60, fp: 'local60', paused: false }),
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        await net.pollOnce();
+        await net.pollOnce();
+        expect(resync).toHaveBeenCalledWith('pause-plane-transition-hash-mismatch');
+    });
+
+    it('waiting_for_host when clamped pause plane: empty expectingFromPlayerIds, fp matches host tail, client runs ahead', async () => {
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 1,
+                hostFingerprint: 'srv1ffffffffffff',
+                hostPaused: true,
+                ordersTipTick: 1,
+                orderBatchAtTick: 2,
+                pausedAtTick: 2,
+                expectingFromPlayerIds: [],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: 0,
+            })),
+        });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 62,
+                isPausedForOrderSync: () => false,
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= 1 && to >= 1 ? [{ tick: 1, fp: 'srv1ffffffffffff', paused: true }] : [],
+                getLatestFingerprint: () => ({ tick: 62, fp: 'local62', paused: false }),
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        const status = vi.fn();
+        net.on('sync-status', status);
+        await net.pollOnce();
+        expect(resync).not.toHaveBeenCalledWith('pause-plane-host-paused-client-running');
+        expect(status).toHaveBeenCalledWith('waiting_for_host');
+    });
+
+    it('requests resync behind-host-heartbeat-moved when hostTick|hostFingerprint material changes while engine stays behind', async () => {
+        const fp50 = 'srv50aaaaaaaaaaa';
+        const fp55 = 'srv55bbbbbbbbb';
+        const hb1 = {
+            hostTick: 50,
+            hostFingerprint: fp50,
+            hostPaused: false,
+            ordersTipTick: 50,
+            pausedAtTick: null,
+            orderBatchAtTick: null,
+            expectingFromPlayerIds: null as string[] | null,
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
+        };
+        const hb2 = {
+            ...hb1,
+            hostTick: 55,
+            hostFingerprint: fp55,
+            ordersTipTick: 55,
+        };
+        const getBattleHeartbeat = vi.fn().mockResolvedValueOnce(hb1).mockResolvedValue(hb2);
+        const api = makeApi({ getBattleHeartbeat });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 50,
+                getLatestFingerprint: () => ({ tick: 50, fp: fp50, paused: false }),
+                getFingerprintRange: () => [],
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        await net.pollOnce();
+        expect(resync).not.toHaveBeenCalled();
+        await net.pollOnce();
+        expect(resync).toHaveBeenCalledWith('behind-host-heartbeat-moved');
+    });
+
+    it('does not resync behind-host when repeated polls keep same hostTick|hostFingerprint while engine is behind', async () => {
+        const hb = {
+            hostTick: 55,
+            hostFingerprint: 'srv55ccccccccc',
+            hostPaused: false,
+            ordersTipTick: 55,
+            pausedAtTick: null,
+            expectingFromPlayerIds: null as string[] | null,
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
+        };
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => hb),
+        });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 50,
+                getLatestFingerprint: () => ({ tick: 50, fp: 'local50local50', paused: false }),
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        await net.pollOnce();
+        await net.pollOnce();
+        expect(resync).not.toHaveBeenCalledWith('behind-host-heartbeat-moved');
     });
 
     it('host equal-tick storage vs runtime mismatch surfaces waiting_for_host (no client-style hash resync)', async () => {

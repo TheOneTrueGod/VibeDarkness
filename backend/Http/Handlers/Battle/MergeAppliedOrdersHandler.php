@@ -3,6 +3,7 @@
 namespace App\Http\Handlers\Battle;
 
 use App\AccountService;
+use App\BattleLobbySyncServerLog;
 use App\BattleStorage;
 use App\LobbyManager;
 use InvalidArgumentException;
@@ -49,6 +50,7 @@ class MergeAppliedOrdersHandler
         try {
             $storage = new BattleStorage();
             $result = $storage->mergeFinalizedPendingForBatch($lobbyId, $gameId, $batchAtTick);
+            BattleLobbySyncServerLog::logMergeApplied($lobbyId, $gameId, $playerId, $batchAtTick, $storage);
         } catch (InvalidArgumentException $e) {
             http_response_code(400);
             return ['success' => false, 'error' => $e->getMessage()];

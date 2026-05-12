@@ -598,6 +598,9 @@ export class LobbyClient {
             pausedAtTick: data.pausedAtTick ?? null,
             expectingFromPlayerIds: data.expectingFromPlayerIds ?? null,
             initialFingerprint: data.initialFingerprint ?? null,
+            fingerprintTailTick: typeof data.fingerprintTailTick === 'number' ? data.fingerprintTailTick : null,
+            fingerprintTailFingerprint:
+                typeof data.fingerprintTailFingerprint === 'string' ? data.fingerprintTailFingerprint : null,
         };
     }
 

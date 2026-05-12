@@ -162,6 +162,14 @@ After the submit orders call succeeds, there will be a few different possible st
 - The heartbeat loop will at some point (either before or after the above) update to a new tick
 - After both of the above have completed, the heartbeat tick will match the paused game tick, and the heartbeat hash will match the paused game hash.  When this happens, the game state should be updated to "Synched".
 
+#### Heartbeat material change & reconcile (implementation)
+
+- **Material change** on a poll means the pair **`(hostTick, hostFingerprint)`** from the minimal heartbeat **differs** from the previous poll’s pair (when both fingerprints were present). **`heartbeatSeq` alone is not sufficient** (mtime-based noise).
+- When **`localEngineTick < hostTick`** and the material pair **changed**, the client treats storage as having moved **past** the local sim and triggers **recovery / resync** (host advanced; client did not stay aligned).
+- **Optimistic play-ahead vs clamped pause plane:** when **`localEngineTick > hostTick`** and the heartbeat still shows **`hostPaused`** (server completed tail clamped by snapshot `waitingForOrders.atTick`) while the local engine is **not** paused for parallel order sync, **`BattleNet` sets `waiting_for_host`** and **does not** resync immediately — the server pause metadata may lag merges/checkpoints (e.g. spectator host). Heartbeat polling continues.
+- **Pause-plane transition:** the client also tracks a composite key of **`hostPaused`**, **`hostTick`**, **`hostFingerprint`**, **`orderBatchAtTick`**, and **`expectingFromPlayerIds`**. When that key **changes** vs the previous poll, **`BattleNet` re-checks** the local fingerprint ring at the new **`hostTick`** against **`hostFingerprint`**; a **mismatch** triggers **resync** (`pause-plane-transition-hash-mismatch`). When the host **clears pause** and fingerprints **agree**, sync can return to **`synced`**.
+- Optional wire fields **`fingerprintTailTick`** / **`fingerprintTailFingerprint`** expose the **unclamped** max row in `fingerprints.jsonl` for debug; authoritative append / **`hostTick`** semantics stay clamped vs snapshot `waitingForOrders.atTick`.
+
 Nonstandard path to handle;
 - It's possible that the game will finish playing out and reach the pause point 5 - 10 real-world seconds before the host does
 - In this state, the client should be allowed to select orders, but the synching state will remain "Waiting for host".

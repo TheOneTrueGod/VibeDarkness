@@ -145,6 +145,10 @@ export default function DebugHeartbeatSyncPanel({
     const heartbeatExpectingFrom = Array.isArray(heartbeatRecord?.expectingFromPlayerIds)
         ? heartbeatRecord?.expectingFromPlayerIds
         : [];
+    const heartbeatTailTick = readNumber(heartbeatRecord, 'fingerprintTailTick');
+    const heartbeatTailFingerprint = readString(heartbeatRecord, 'fingerprintTailFingerprint');
+    const materialKey = readString(syncBridgeRecord, 'heartbeatMaterialKey');
+    const materialChanged = readBool(syncBridgeRecord, 'heartbeatMaterialChanged');
     const pendingOrdersCount = Array.isArray(heartbeatRecord?.pendingOrders) ? heartbeatRecord.pendingOrders.length : null;
     const appliedAtTickRec = asRecord(heartbeatRecord?.appliedOrdersAtTick);
     const appliedSliceCount = Array.isArray(appliedAtTickRec?.orders) ? appliedAtTickRec.orders.length : null;
@@ -302,6 +306,19 @@ export default function DebugHeartbeatSyncPanel({
 
                     <div className="text-muted">Heartbeat age (ms)</div>
                     <div className="text-white/90">{heartbeatAgeMs ?? '—'}</div>
+                    <div className="text-muted">Material key (hostTick|fp)</div>
+                    <div className="font-mono text-white/90 break-all">{materialKey ?? '—'}</div>
+
+                    <div className="text-muted">Material changed (last poll)</div>
+                    <div className={materialChanged === true ? 'text-amber-300' : 'text-white/90'}>
+                        {materialChanged == null ? '—' : materialChanged ? 'true' : 'false'}
+                    </div>
+                    <div className="text-muted">FP tail tick (unclamped)</div>
+                    <div className="text-white/90">{heartbeatTailTick ?? '—'}</div>
+
+                    <div className="text-muted">FP tail fingerprint</div>
+                    <div className="font-mono text-white/90 break-all">{heartbeatTailFingerprint ?? '—'}</div>
+
                     <div className="text-muted">Initial fingerprint</div>
                     <div className="font-mono text-white/90 break-all">{heartbeatInitialFingerprint ?? '—'}</div>
 
