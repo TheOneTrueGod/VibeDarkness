@@ -88,13 +88,31 @@ This is primarily useful for playback -- we can say "Do a full resync from the f
 
 Also note:  I'd like to experiment with automatically resuming after a resync, vs having the user choose to resume gameplay.  Have a constant to control this behaviour in the global constants.  When triggering a full resync at the start of the game, we always want it to autoplay.  When triggering a full resync during desync checks on a client with the constant enabled, we'll want to keep the "resynching" spinner showing, and add a "continue" button to it when the resync is complete, which will cause the game to either play out or not.  The goal is to indicate to the player that there has been a resync, so it's not unexpected.
 
+## Heartbeat loop (normative)
+
+The minimal-fetch loop polls `GET …/heartbeat` about every **500ms** while the battle tab is in the foreground. **Hidden browser tabs** use a slower interval (see **`HEARTBEAT_POLL_INTERVAL_HIDDEN_MS`** in `global_constants.js`) to reduce idle battery use; restoring the tab should trigger an immediate poll.
+
+Polling must **never stack** overlapping requests for the periodic loop: schedule the next tick only **after** the previous heartbeat completes.
+
+When to poll:
+
+- **Host:** While **paused for parallel player orders** (`waitingForOrders`), **or** while there are **outbound deferred order POSTs** not yet flushed, **or** during **desync recovery**—so pending peer rows and merge outcomes stay visible without spamming requests while the sim runs freely alone.
+- **Client:** While the **simulation would advance** if not blocked, **or** while **paused for parallel orders**, **or** while **deferring POSTs**, **or** during **recovery**—so merges, peer submissions, and “waiting for host” stalls remain observable while the client is paused for orders.
+
+These rules supersede older wording below; they unify “poll while paused for orders”, “poll while catching up”, and the error-path requirement to **keep heartbeat going** during “waiting for host” stalls.
+
+**Debug pause** (devtools / debug-console): pauses simulation for inspection only and **must not run** the periodic minimal-fetch loop until debug pause ends. Recovery and explicit one-shot polls may still run when needed.
+
+### Implementation notes
+
+File-level handshake, endpoints, and field names drift faster than this document—see **[`.cursor/skills/game-sync-data-flow/SKILL.md`](../.cursor/skills/game-sync-data-flow/SKILL.md)** for the current code map (`BattleNet`, `LobbyClient`, PHP handlers).
+
 ## Host Synching Calls
 ### "GET" calls
 Since the host has the authoritative state of the game, its "read" flow should be pretty simple.
 - On page load it does a full resync (this is true for all players)
 - If the game is ready to resume (All units have orders) then it should let the game play out until it reaches the next pause state.
-- While gameplay is paused, it should fetch minimal state repeatedly every 500ms.    Do not queue these up -- wait for the previous call to finish before sending out the next one 500ms later.  This is called the "minimal fetch loop".  This is primarily for the pending orders part of it.  When there are pending orders for every currently waiting unit for the next tick, gameplay should resume.
-- Remember that there is also a "debug pause" which can cause the game state to stay paused at a non-normal tick.  In that situation, don't fetch minimal state.  Debug pause is javascript-side only, and shouldn't trigger a snapshot pause or anything like that.  It should only pause simulation for debug purposes.  Clients and hosts can debug pause independently.
+- Follow the **[Heartbeat loop (normative)](#heartbeat-loop-normative)** rules above for when to poll; when polling, use the minimal fetch cadence described there.
 
 ### "SAVE" calls
 This part is a little more interesting.
@@ -113,7 +131,7 @@ Hosts definitionally can't desync, so we don't need to worry about it.
 - On initial load, the client does a full resync
 - If the game is ready to resume, then it should
 - If the game is not (it should start paused) then leave it paused
-- While the game is loaded & not paused, fetch the minimal state every 500ms.  Do not queue these up -- wait for the previous call to finish before sending out the next one 500ms later.  This is called the "minimal fetch loop".
+- Follow the **[Heartbeat loop (normative)](#heartbeat-loop-normative)** rules (including polling while paused for parallel orders / waiting-for-host stalls). Do not queue overlapping periodic requests.
 - If we get back enough applied orders to resume gameplay, then do so.
 
 ### Optimistic playahead
@@ -148,6 +166,8 @@ Nonstandard path to handle;
 - It's possible that the game will finish playing out and reach the pause point 5 - 10 real-world seconds before the host does
 - In this state, the client should be allowed to select orders, but the synching state will remain "Waiting for host".
 - As long as synching state is "Waiting for host", the client's orders should not be submitted to the server.  They should remain tracked on the client side.  This is because the game may yet become desynched, or something may have gone wrong with the host's connection.
+
+**Current implementation note:** the live UI may temporarily hold both targeting and server POST when the host pause plane blocks (`blocking-host-pause-plane`) or when orders are deferred ahead of the host tick; detailed "select-only / stage-then-submit" behaviour is not fully split yet — see `BattleNet` + `BattlePhase` (`canUseOrderUi`). Server reject reasons are surfaced via `sync-details` where possible.
 
 Error paths to handle;
 - The game will reach a pause point, but the heartbeat loop will never update.

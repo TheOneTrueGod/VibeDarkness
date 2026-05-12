@@ -38,6 +38,10 @@ class SaveInitialStateHandler
             http_response_code(403);
             return ['success' => false, 'error' => 'Only the host can save initial state'];
         }
+        if (!$manager->isBattleRouteForActiveGame($lobbyId, $gameId)) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Lobby game id does not match route'];
+        }
 
         try {
             $storage = new BattleStorage();

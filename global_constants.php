@@ -9,3 +9,6 @@ declare(strict_types=1);
  * Same tokens as LOBBY_LOG_BATTLE_SYNC in global_constants.js: log, info, warn, error, critical, off.
  */
 const LOBBY_LOG_BATTLE_SYNC = 'info';
+
+/** After desync recovery full resync: auto-resume without explicit user continue. */
+const BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC = false;

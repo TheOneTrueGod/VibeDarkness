@@ -137,6 +137,7 @@ backend/MessageTypes           app/js/MessageTypes.ts (message constants)
 - **`serverTick`** — Authoritative **last fully completed** sim tick from battle storage; same as heartbeat JSON **`hostTick`** (PHP `resolveLastCompletedTickAndFingerprint`).
 - **`clientTick`** — Local browser **last completed**: `engine.gameTick` / `BattleSession.getEngineTick()`; when synced, matches **`serverTick`** after pauses.
 - **Order batch** — HTTP field **`orderBatchAtTick`** when paused (legacy **`pausedAtTick`** duplicates it); **`waitingForOrders.atTick`** from snapshot state — **not** the snapshot envelope **`tick`**.
+- **Pending vs applied** — `POST …/orders` → `pending_orders.jsonl`; host `POST …/orders/merge-applied` commits **`applied_orders.jsonl`** when a parallel batch clears (`BattleNet.mergeAppliedOrdersForBatch` ← `GameEngine.tryResumeParallel`).
 
 Full semantics, append/heartbeat alignment, and pitfalls: **`.cursor/skills/game-sync-data-flow/SKILL.md`**.
 

@@ -76,10 +76,11 @@ function runScenario(
     initialState: SerializedGameState,
     mode: 'live' | 'replay',
     replayQueue: CapturedOrder[],
+    expectedLayoutFingerprint: string,
 ): { engine: GameEngine; finalFingerprintHex: string; captured: CapturedOrder[] } {
     resetGameObjectIdCounter(1);
     const engine = GameEngine.fromJSON(initialState, 'p1', null);
-    expect(engine.computeInitialFingerprint()).toBe(initialState.initialFingerprint ?? '');
+    expect(engine.computeInitialFingerprint()).toBe(expectedLayoutFingerprint);
     const captured: CapturedOrder[] = [];
     let replayIdx = 0;
 
@@ -123,18 +124,16 @@ describe('replay round-trip', () => {
         resetGameObjectIdCounter(1);
         const seedEngine = createTwoPlayerEngine();
         const initialState = seedEngine.toJSON() as SerializedGameState;
-        const initialFingerprint = seedEngine.computeInitialFingerprint();
+        const expectedLayoutFingerprint = seedEngine.computeInitialFingerprint();
         seedEngine.destroy();
 
-        expect(initialState.initialFingerprint).toBe(initialFingerprint);
-
-        const live = runScenario(initialState, 'live', []);
+        const live = runScenario(initialState, 'live', [], expectedLayoutFingerprint);
         expect(live.captured.length).toBeGreaterThan(0);
         const finalA = live.finalFingerprintHex;
         const tickA = live.engine.gameTick;
         live.engine.destroy();
 
-        const replay = runScenario(initialState, 'replay', live.captured);
+        const replay = runScenario(initialState, 'replay', live.captured, expectedLayoutFingerprint);
         expect(replay.finalFingerprintHex).toBe(finalA);
         expect(replay.engine.gameTick).toBe(tickA);
         replay.engine.destroy();

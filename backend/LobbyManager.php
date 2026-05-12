@@ -548,7 +548,11 @@ class LobbyManager
         $storageDir = $this->getStoragePath();
         do {
             $id = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
-        } while (isset($this->lobbies[$id]) || (is_dir($storageDir) && file_exists($storageDir . '/' . $id . '.json')));
+        } while (
+            isset($this->lobbies[$id])
+            || is_dir($storageDir . '/' . $id)
+            || is_file($storageDir . '/' . $id . '.json')
+        );
         
         return $id;
     }
@@ -562,13 +566,30 @@ class LobbyManager
         return $path;
     }
 
+    private function lobbyPersistedArtifactExists(string $lobbyId): bool
+    {
+        return is_dir($this->getStoragePath() . '/' . $lobbyId)
+            && is_file($this->getStoragePath() . '/' . $lobbyId . '/lobby_state.json');
+    }
+
+    private function lobbyDir(string $lobbyId): string
+    {
+        $dir = $this->getStoragePath() . '/' . $lobbyId;
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        return $dir;
+    }
+
     /**
      * Persist lobby to shared storage (used for getLobby when not in memory)
      */
     public function persistLobby(Lobby $lobby): void
     {
-        $path = $this->getStoragePath() . '/' . $lobby->getId() . '.json';
-        file_put_contents($path, json_encode($lobby->toArrayForStorage(), JSON_PRETTY_PRINT));
+        $payload = json_encode($lobby->toArrayForStorage(), JSON_PRETTY_PRINT);
+        $lobbyDir = $this->lobbyDir($lobby->getId());
+
+        file_put_contents($lobbyDir . '/lobby_state.json', $payload);
     }
 
     /**
@@ -576,18 +597,39 @@ class LobbyManager
      */
     private function loadLobbyFromStorage(string $lobbyId): ?Lobby
     {
-        $path = $this->getStoragePath() . '/' . $lobbyId . '.json';
+        $path = $this->getStoragePath() . '/' . $lobbyId . '/lobby_state.json';
         if (!is_file($path)) {
             return null;
         }
+
         $json = file_get_contents($path);
+        if ($json === false || $json === '') {
+            return null;
+        }
+
         $data = json_decode($json, true);
         if (!is_array($data)) {
             return null;
         }
+
         $lobby = Lobby::fromArray($data);
         $this->lobbies[$lobbyId] = $lobby;
         return $lobby;
+    }
+
+    /** True when `$gameId` is the lobby's active in-game session id (HTTP guard). */
+    public function lobbyActiveGameMatches(string $lobbyId, string $gameId): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        return $lobby !== null && $lobby->getGameId() === $gameId;
+    }
+
+    public function isBattleRouteForActiveGame(string $lobbyId, string $gameId): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        return $lobby !== null
+            && $lobby->getLobbyState() === 'in_game'
+            && $lobby->getGameId() === $gameId;
     }
 
     /**
@@ -653,45 +695,23 @@ class LobbyManager
     public function getGameStateData(string $lobbyId, string $gameId): ?array
     {
         $basePath = $this->getStoragePath() . '/' . $lobbyId;
-        $checkpointDir = $basePath . '/game_' . $gameId;
-        $prefix = 'game_' . $gameId . '_';
-        $suffix = '.json';
-
-        if (is_dir($checkpointDir)) {
-            $candidates = [];
-            foreach (scandir($checkpointDir) ?: [] as $file) {
-                if (!is_string($file)) {
-                    continue;
-                }
-                if (strpos($file, $prefix) === 0 && substr($file, -strlen($suffix)) === $suffix) {
-                    $tickStr = substr($file, strlen($prefix), -strlen($suffix));
-                    if ($tickStr !== '' && ctype_digit($tickStr)) {
-                        $candidates[] = ['tick' => (int) $tickStr, 'file' => $file];
-                    }
-                }
-            }
-            usort($candidates, static function (array $a, array $b): int {
-                return $b['tick'] <=> $a['tick'];
-            });
-            foreach ($candidates as $entry) {
-                $path = $checkpointDir . '/' . $entry['file'];
-                if (!is_file($path)) {
-                    continue;
-                }
-                $raw = file_get_contents($path);
-                if ($raw === false || $raw === '') {
-                    continue;
-                }
-                $checkpoint = json_decode($raw, true);
-                if (!is_array($checkpoint) || !$this->checkpointEngineStateLooksUsable($checkpoint)) {
-                    continue;
-                }
-
-                return $this->mergeCheckpointPayloadWithLobbyMeta($lobbyId, $gameId, $checkpoint, $entry['tick']);
+        $storage = new BattleStorage();
+        $snap = $storage->getSnapshotAtOrBefore($lobbyId, $gameId, null);
+        if (is_array($snap)) {
+            $tick = (int) ($snap['tick'] ?? 0);
+            $state = $snap['state'] ?? null;
+            if (is_array($state) && $this->checkpointEngineStateLooksUsable(['state' => $state])) {
+                $checkpoint = [
+                    'state' => $state,
+                    'gameTick' => $tick,
+                    'orders' => $state['pendingOrders'] ?? [],
+                    'synchash' => $snap['synchash'] ?? ($state['synchash'] ?? null),
+                ];
+                return $this->mergeCheckpointPayloadWithLobbyMeta($lobbyId, $gameId, $checkpoint, $tick);
             }
         }
 
-        // Fall back to legacy game_<gameId>.json
+        // Fall back to mission payload file (no battle snapshots yet)
         $path = $basePath . '/game_' . $gameId . '.json';
         if (!is_file($path)) {
             return null;

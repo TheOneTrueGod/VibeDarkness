@@ -22,6 +22,7 @@ use App\Http\Handlers\Battle\AppendOrderHandler;
 use App\Http\Handlers\Battle\GetFingerprintsRangeHandler;
 use App\Http\Handlers\Battle\GetHeartbeatHandler;
 use App\Http\Handlers\Battle\GetInitialStateHandler;
+use App\Http\Handlers\Battle\MergeAppliedOrdersHandler;
 use App\Http\Handlers\Battle\GetOrdersRangeHandler;
 use App\Http\Handlers\Battle\GetSnapshotHandler;
 use App\Http\Handlers\Battle\SaveInitialStateHandler;
@@ -87,6 +88,7 @@ class Router
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/state$#', SetLobbyStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/state$#', UpdateGameStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/reset-to-initial-snapshot$#', ResetGameToInitialSnapshotHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders/merge-applied$#', MergeAppliedOrdersHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders$#', AppendOrderHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/orders$#', GetOrdersRangeHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/heartbeat$#', GetHeartbeatHandler::class],

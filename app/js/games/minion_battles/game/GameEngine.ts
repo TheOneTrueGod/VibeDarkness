@@ -13,6 +13,7 @@ import {
     type OrderWaiter,
     type WaitingForOrders,
     type SerializedGameState,
+    type GameEngineFromJSONOpts,
     type BattleOrder,
     type OrderAtTick,
     type ResolvedTarget,
@@ -126,8 +127,8 @@ export class GameEngine implements EngineContext {
     private lanterniteRespawns: Array<{ atGameTime: number; x: number; y: number }> = [];
 
     /**
-     * Parallel order pause detected at end of a tick; committed at the **start** of the next
-     * `fixedUpdate` (before `gameTick` / `gameTime` advance) so every unit's `update` ran on the prior tick.
+     * Parallel order pause scheduled during a tick; committed in the **same** `fixedUpdate` after
+     * `TICK_END` for that tick (see `commitDeferredOrderPauseAfterCompletedTick`).
      */
     private deferredOrderPause: { waiters: OrderWaiter[]; naturalCompletionUnitIds: readonly string[] } | null = null;
 
@@ -140,6 +141,7 @@ export class GameEngine implements EngineContext {
     private onStateChanged: EngineStateCallback | null = null;
     private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
     private onTickComplete: ((gameTick: number, fingerprintHex: string, paused: boolean) => void) | null = null;
+    private onParallelBatchResolved: ((batchAtTick: number) => void | Promise<void>) | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
 
@@ -579,6 +581,15 @@ export class GameEngine implements EngineContext {
         this.onTickComplete = cb;
     }
 
+    setOnParallelBatchResolved(cb: ((batchAtTick: number) => void | Promise<void>) | null): void {
+        this.onParallelBatchResolved = cb;
+    }
+
+    /** True while {@link GameEngine.start} has started the rAF/tick loop and {@link GameEngine.stop} has not torn it down. */
+    get isSimulationLoopRunning(): boolean {
+        return this.running;
+    }
+
     // ========================================================================
     // RNG
     // ========================================================================
@@ -792,81 +803,105 @@ export class GameEngine implements EngineContext {
         return fingerprintToHex(fp);
     }
 
+    /**
+     * Same boolean written with each tick-complete fingerprint row (`runtimeFingerprintRing` / `onTickComplete`).
+     */
+    getFingerprintTailPaused(): boolean {
+        return (
+            this.isPaused ||
+            this.waitingForOrders != null ||
+            this.deferredOrderPause != null ||
+            this.storyPauseActive
+        );
+    }
+
+    /**
+     * If {@link deferredOrderPause} was set during the tick that just completed, commit `waitingForOrders`,
+     * notify UI, and fire `onCheckpoint` — same `fixedUpdate` pass as `TICK_END` for that tick.
+     *
+     * @returns true when a parallel order pause was committed (caller returns from `fixedUpdate` after emitting tick tail).
+     */
+    private commitDeferredOrderPauseAfterCompletedTick(): boolean {
+        if (this.deferredOrderPause == null || this.deferredOrderPause.waiters.length === 0) {
+            return false;
+        }
+        const { waiters: initialWaiters, naturalCompletionUnitIds } = this.deferredOrderPause;
+        this.deferredOrderPause = null;
+        const atTick = this.gameTick + 1;
+
+        const naturalSet = new Set(naturalCompletionUnitIds);
+        const hadNaturalWaiter = initialWaiters.some((w) => naturalSet.has(w.unitId));
+
+        let teamworkCancelledOwnerIds: string[] | undefined;
+        let waiters = [...initialWaiters];
+
+        if (hadNaturalWaiter) {
+            const initialWaiterUnitIds = new Set(initialWaiters.map((w) => w.unitId));
+            const triggerTeamIds = new Set<string>();
+            for (const w of initialWaiters) {
+                if (!naturalSet.has(w.unitId)) continue;
+                const u = this.getUnit(w.unitId);
+                if (u) triggerTeamIds.add(u.teamId);
+            }
+
+            const cancelledOwners = new Set<string>();
+            for (const unit of this.units) {
+                if (!unit.active || !unit.isAlive()) continue;
+                if (!unit.isPlayerControlled()) continue;
+                if (initialWaiterUnitIds.has(unit.id)) continue;
+                if (!triggerTeamIds.has(unit.teamId)) continue;
+                for (const active of [...unit.activeAbilities]) {
+                    const ability = getAbility(active.abilityId);
+                    if (!ability) continue;
+                    const entries = resolveAbilityTimingEntries(ability, unit, this);
+                    const intervals = normalizeAbilityTimingsToIntervals(entries);
+                    const elapsed = Math.max(0, this.gameTime - active.startTime);
+                    if (elapsedIsInCoopCooldown(elapsed, intervals)) {
+                        this.cancelActiveAbility(unit.id, active.abilityId);
+                        cancelledOwners.add(unit.ownerId);
+                    }
+                }
+            }
+
+            if (cancelledOwners.size > 0) {
+                teamworkCancelledOwnerIds = [...cancelledOwners].sort();
+            }
+
+            const mergedIds = new Set(waiters.map((w) => w.unitId));
+            const extras: OrderWaiter[] = [];
+            for (const unit of this.units) {
+                if (!unit.active || !unit.isAlive()) continue;
+                if (!this.shouldPauseForOrders(unit)) continue;
+                if (mergedIds.has(unit.id)) continue;
+                mergedIds.add(unit.id);
+                extras.push({ unitId: unit.id, ownerId: unit.ownerId });
+            }
+            extras.sort((a, b) =>
+                a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
+            );
+            waiters = [...waiters, ...extras].sort((a, b) =>
+                a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
+            );
+        }
+
+        this.waitingForOrders = {
+            waiters,
+            atTick,
+            ...(teamworkCancelledOwnerIds !== undefined ? { teamworkCancelledOwnerIds } : {}),
+        };
+        this.isPaused = true;
+        this.snapshotIndex++;
+        this.onWaitingForOrders?.(this.waitingForOrders);
+        this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
+        return true;
+    }
+
     private fixedUpdate(dt: number): void {
         if (this.state.levelEventManager.isTerminal) return;
 
-        // Commit order pause at tick boundary (after all units updated on the prior completed tick).
-        if (this.deferredOrderPause != null && this.deferredOrderPause.waiters.length > 0) {
-            const { waiters: initialWaiters, naturalCompletionUnitIds } = this.deferredOrderPause;
-            this.deferredOrderPause = null;
-            const atTick = this.gameTick + 1;
-
-            const naturalSet = new Set(naturalCompletionUnitIds);
-            const hadNaturalWaiter = initialWaiters.some((w) => naturalSet.has(w.unitId));
-
-            let teamworkCancelledOwnerIds: string[] | undefined;
-            let waiters = [...initialWaiters];
-
-            if (hadNaturalWaiter) {
-                const initialWaiterUnitIds = new Set(initialWaiters.map((w) => w.unitId));
-                const triggerTeamIds = new Set<string>();
-                for (const w of initialWaiters) {
-                    if (!naturalSet.has(w.unitId)) continue;
-                    const u = this.getUnit(w.unitId);
-                    if (u) triggerTeamIds.add(u.teamId);
-                }
-
-                const cancelledOwners = new Set<string>();
-                for (const unit of this.units) {
-                    if (!unit.active || !unit.isAlive()) continue;
-                    if (!unit.isPlayerControlled()) continue;
-                    if (initialWaiterUnitIds.has(unit.id)) continue;
-                    if (!triggerTeamIds.has(unit.teamId)) continue;
-                    for (const active of [...unit.activeAbilities]) {
-                        const ability = getAbility(active.abilityId);
-                        if (!ability) continue;
-                        const entries = resolveAbilityTimingEntries(ability, unit, this);
-                        const intervals = normalizeAbilityTimingsToIntervals(entries);
-                        const elapsed = Math.max(0, this.gameTime - active.startTime);
-                        if (elapsedIsInCoopCooldown(elapsed, intervals)) {
-                            this.cancelActiveAbility(unit.id, active.abilityId);
-                            cancelledOwners.add(unit.ownerId);
-                        }
-                    }
-                }
-
-                if (cancelledOwners.size > 0) {
-                    teamworkCancelledOwnerIds = [...cancelledOwners].sort();
-                }
-
-                const mergedIds = new Set(waiters.map((w) => w.unitId));
-                const extras: OrderWaiter[] = [];
-                for (const unit of this.units) {
-                    if (!unit.active || !unit.isAlive()) continue;
-                    if (!this.shouldPauseForOrders(unit)) continue;
-                    if (mergedIds.has(unit.id)) continue;
-                    mergedIds.add(unit.id);
-                    extras.push({ unitId: unit.id, ownerId: unit.ownerId });
-                }
-                extras.sort((a, b) =>
-                    a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
-                );
-                waiters = [...waiters, ...extras].sort((a, b) =>
-                    a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
-                );
-            }
-
-            this.waitingForOrders = {
-                waiters,
-                atTick,
-                ...(teamworkCancelledOwnerIds !== undefined ? { teamworkCancelledOwnerIds } : {}),
-            };
-            this.isPaused = true;
-            this.snapshotIndex++;
-            this.onWaitingForOrders?.(this.waitingForOrders);
-            this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
-            return;
-        }
+        // Fingerprint invariant: row for tick N is emitted after TICK_END for tick N; `paused` matches
+        // {@link getFingerprintTailPaused} after any in-frame deferred pause commit.
+        // Plans/end_of_tick_persistence_and_fingerprint_paused.md
 
         // Parallel order batch (`waitingForOrders`): do not advance gameTick or simulate further until resumed.
         // Do not key off `isPaused` alone — GameState defaults `isPaused` true before the battle shell clears it,
@@ -943,6 +978,7 @@ export class GameEngine implements EngineContext {
             this.endStoryPause();
         }
         this.mixRuntimeFingerprint(FingerprintEvent.TICK_END, this.gameTick >>> 0, Math.floor(this.gameTime * 1000));
+        const committedParallelPause = this.commitDeferredOrderPauseAfterCompletedTick();
         const paused =
             this.isPaused ||
             this.waitingForOrders != null ||
@@ -950,6 +986,9 @@ export class GameEngine implements EngineContext {
             this.storyPauseActive;
         this.state.runtimeFingerprintRing.push(this.gameTick, this.runtimeFingerprint, paused);
         this.onTickComplete?.(this.gameTick, this.getRuntimeFingerprintHex(), paused);
+        if (committedParallelPause) {
+            return;
+        }
     }
 
     /** Per-tick unit processing: movement, pathfinding retriggering, AI, deferred order pause. */
@@ -1126,6 +1165,12 @@ export class GameEngine implements EngineContext {
     /**
      * Unpause only when every frozen waiter has a pending order at the batch tick.
      * Invoked after each `applyOrder` / remote `queueOrder` while paused.
+     *
+     * Host: when {@link setOnParallelBatchResolved} returns a Promise (or promise-like result),
+     * clears the pause only after it settles successfully — merge-applied HTTP uses this path.
+     * When the hook returns a non‑thenable (for example undefined with no networked adapter),
+     * the pause clears synchronously so headless/engine-only loops remain deterministic.
+     * Non-host / no hook: clears synchronously.
      */
     tryResumeParallel(): void {
         const batch = this.waitingForOrders;
@@ -1134,13 +1179,54 @@ export class GameEngine implements EngineContext {
         if (!allReady) return;
 
         const unitIds = batch.waiters.map((w) => w.unitId).sort();
-        this.waitingForOrders = null;
-        this.isPaused = false;
-        this.deferredOrderPause = null;
+        const batchAtTick = batch.atTick;
+        const pauseBatch = batch;
+        const cb = this.onParallelBatchResolved;
+        const finalizeResume = (): void => {
+            if (this.waitingForOrders !== pauseBatch) {
+                return;
+            }
+            this.waitingForOrders = null;
+            this.isPaused = false;
+            this.deferredOrderPause = null;
+            this.eventBus.emit('turn_end', { unitIds });
+            this.onStateChanged?.();
+        };
 
-        this.eventBus.emit('turn_end', { unitIds });
+        const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
+            return (
+                !!value &&
+                (typeof value === 'object' || typeof value === 'function') &&
+                typeof (value as PromiseLike<unknown>).then === 'function'
+            );
+        };
 
-        this.onStateChanged?.();
+        if (cb != null) {
+            let hookResult: unknown;
+            try {
+                hookResult = cb(batchAtTick);
+            } catch (err: unknown) {
+                console.error('[GameEngine] onParallelBatchResolved failed', err);
+                return;
+            }
+
+            if (isPromiseLike(hookResult)) {
+                void Promise.resolve(hookResult)
+                    .then(() => {
+                        finalizeResume();
+                    })
+                    .catch((err: unknown) => {
+                        console.error('[GameEngine] onParallelBatchResolved failed', err);
+                        // Stay paused until desync recovery or host retry restores a consistent pause plane.
+                    });
+                return;
+            }
+
+            finalizeResume();
+            return;
+        }
+
+        finalizeResume();
     }
 
     /** @deprecated Use {@link tryResumeParallel}; kept for tests and gradual migration. */
@@ -1634,7 +1720,6 @@ export class GameEngine implements EngineContext {
         const cardData = this.state.cardManager.toJSON();
         return {
             randomSeed: this.randomSeed,
-            initialFingerprint: this.computeInitialFingerprint(),
             gameTime: this.gameTime,
             gameTick: this.gameTick,
             roundNumber: this.roundNumber,
@@ -1664,7 +1749,12 @@ export class GameEngine implements EngineContext {
         };
     }
 
-    static fromJSON(data: SerializedGameState, localPlayerId: string, terrainManager?: TerrainManager | null): GameEngine {
+    static fromJSON(
+        data: SerializedGameState,
+        localPlayerId: string,
+        terrainManager?: TerrainManager | null,
+        opts?: GameEngineFromJSONOpts,
+    ): GameEngine {
         const engine = new GameEngine();
         engine.localPlayerId = localPlayerId;
         engine.terrainManager = terrainManager ?? null;
@@ -1694,18 +1784,6 @@ export class GameEngine implements EngineContext {
             gameTick: o.gameTick,
             order: { ...o.order, targets: (o.order.targets ?? []).map((t) => ({ ...t })) },
         }));
-
-        engine.runtimeFingerprint = typeof data.initialFingerprint === 'string'
-            ? fingerprintFromHex(data.initialFingerprint)
-            : fingerprintInitial();
-        if (engine.gameTick > 0) {
-            const pausedRestore =
-                engine.isPaused ||
-                engine.waitingForOrders != null ||
-                engine.deferredOrderPause != null ||
-                engine.storyPauseActive;
-            engine.state.runtimeFingerprintRing.push(engine.gameTick, engine.runtimeFingerprint, pausedRestore);
-        }
 
         // Restore units (direct push, bypasses addUnit jitter since state is serialized)
         engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus);
@@ -1806,6 +1884,26 @@ export class GameEngine implements EngineContext {
         engine.deferredOrderPause = null;
         if (engine.waitingForOrders != null) {
             engine.isPaused = true;
+        }
+
+        const checkpointHex = opts?.checkpointRuntimeFingerprintHex;
+        const legacyLayoutHex = typeof data.initialFingerprint === 'string' ? data.initialFingerprint : '';
+        if (typeof checkpointHex === 'string' && checkpointHex !== '') {
+            engine.runtimeFingerprint = fingerprintFromHex(checkpointHex);
+        } else if (legacyLayoutHex !== '') {
+            engine.runtimeFingerprint = fingerprintFromHex(legacyLayoutHex);
+        } else if (engine.gameTick === 0) {
+            engine.runtimeFingerprint = fingerprintFromHex(engine.computeInitialFingerprint());
+        } else {
+            engine.runtimeFingerprint = fingerprintInitial();
+        }
+        if (engine.gameTick > 0) {
+            const pausedRestore =
+                engine.isPaused ||
+                engine.waitingForOrders != null ||
+                engine.deferredOrderPause != null ||
+                engine.storyPauseActive;
+            engine.state.runtimeFingerprintRing.push(engine.gameTick, engine.runtimeFingerprint, pausedRestore);
         }
 
         return engine;

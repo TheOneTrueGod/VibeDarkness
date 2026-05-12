@@ -6,19 +6,17 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * BattleStorage owns all per-battle file I/O for the new layout:
+ * BattleStorage owns lobby-scoped battle file I/O (one active mission artifact set per lobby dir):
  *
- *   <storageRoot>/lobbies/<lobbyId>/games/<gameId>/
+ *   <storageRoot>/lobbies/<lobbyId>/
+ *     pending_orders.jsonl
+ *     applied_orders.jsonl
  *     initial_state.json
- *     orders.jsonl
- *     snapshots/<tick>.json
  *     fingerprints.jsonl
+ *     snapshots/<tick>.json
  *
- * Replaces backend/GameCheckpointFiles.php (which uses the legacy
- * `game_<gameId>/game_<gameId>_<tick>.json` layout). The new directory
- * name (`games/<gameId>`, no `game_` prefix) deliberately does not
- * collide with legacy paths so a one-shot migration script can clean
- * up the old layout without disturbing this one.
+ * `$gameId` is validated for path safety; persisted battle files live directly under the lobby directory.
+ * Legacy nested `games/<gameId>/` trees are deleted by {@see BattleStorage::clearBattleArtifacts} only.
  *
  * All multi-step operations on JSONL files use `flock(LOCK_EX)` to
  * serialize concurrent writers, and reads use `flock(LOCK_SH)` so
@@ -41,24 +39,28 @@ final class BattleStorage
     }
 
     /**
-     * Returns the absolute path of the per-game battle directory.
-     * Ensures the directory tree exists (mkdir -p) so callers can
-     * write into it directly. Cheap if the dir already exists.
+     * Returns the lobby directory (<storage>/lobbies/<lobbyId>/) and ensures it exists.
      */
-    public function getGameDir(string $lobbyId, string $gameId): string
+    public function getLobbyDir(string $lobbyId): string
     {
         $this->assertSafeId('lobbyId', $lobbyId);
-        $this->assertSafeId('gameId', $gameId);
-        $dir = $this->storageRoot
-            . '/lobbies/' . $lobbyId
-            . '/games/' . $gameId;
+        $dir = $this->storageRoot . '/lobbies/' . $lobbyId;
         if (!is_dir($dir)) {
             @mkdir($dir, 0755, true);
             if (!is_dir($dir)) {
-                throw new RuntimeException("Failed to create game dir: {$dir}");
+                throw new RuntimeException("Failed to create lobby dir: {$dir}");
             }
         }
         return $dir;
+    }
+
+    /**
+     * Battle artifacts live directly under the lobby directory. `$gameId` is asserted for path safety only.
+     */
+    public function getGameDir(string $lobbyId, string $gameId): string
+    {
+        $this->assertSafeId('gameId', $gameId);
+        return $this->getLobbyDir($lobbyId);
     }
 
     // ------------------------------------------------------------------
@@ -66,20 +68,15 @@ final class BattleStorage
     // ------------------------------------------------------------------
 
     /**
-     * Append an order record to `orders.jsonl`.
+     * Append a record to `pending_orders.jsonl` (server-side pending queue).
      *
-     * Record shape: ['atTick' => int, 'playerId' => string,
-     *                'order' => array, 'idHash' => string, 'ts' => int].
-     * If `idHash` is missing, computes
-     *   sha1(json_encode(order) . '|' . atTick . '|' . playerId)
-     * If `ts` is missing, uses time().
+     * Record shape: pendingLineId, atTick, playerId, order, idHash, ts,
+     * optional finalized (default true), optional basisFingerprint.
+     * Uniqueness for replace: last line wins for (playerId, unitId, atTick).
      *
-     * Holds LOCK_EX over the whole read-then-append cycle to make the
-     * duplicate check race-free. If a record with the same idHash is
-     * already present, returns false and writes nothing. Returns true
-     * if a new line was appended.
+     * @return array{appended:bool,pendingLineId:?string,reusedExisting:bool}
      */
-    public function appendOrder(string $lobbyId, string $gameId, array $orderRecord): bool
+    public function appendOrder(string $lobbyId, string $gameId, array $orderRecord): array
     {
         $atTick = (int) ($orderRecord['atTick'] ?? 0);
         $playerId = (string) ($orderRecord['playerId'] ?? '');
@@ -90,6 +87,10 @@ final class BattleStorage
         if (!is_array($order)) {
             throw new InvalidArgumentException('appendOrder: order must be an array');
         }
+        $unitId = isset($order['unitId']) ? (string) $order['unitId'] : '';
+        if ($unitId === '') {
+            throw new InvalidArgumentException('appendOrder: order.unitId is required');
+        }
         $idHash = $orderRecord['idHash'] ?? null;
         if (!is_string($idHash) || $idHash === '') {
             $orderJson = json_encode($order, JSON_UNESCAPED_SLASHES);
@@ -99,8 +100,17 @@ final class BattleStorage
             $idHash = sha1($orderJson . '|' . $atTick . '|' . $playerId);
         }
         $ts = isset($orderRecord['ts']) ? (int) $orderRecord['ts'] : time();
+        $pendingLineId = $orderRecord['pendingLineId'] ?? null;
+        if (!is_string($pendingLineId) || $pendingLineId === '') {
+            $pendingLineId = bin2hex(random_bytes(12));
+        }
+        $finalized = array_key_exists('finalized', $orderRecord) ? (bool) $orderRecord['finalized'] : true;
+        $basisFingerprint = null;
+        if (isset($orderRecord['basisFingerprint']) && is_string($orderRecord['basisFingerprint']) && $orderRecord['basisFingerprint'] !== '') {
+            $basisFingerprint = $orderRecord['basisFingerprint'];
+        }
 
-        $path = $this->getGameDir($lobbyId, $gameId) . '/orders.jsonl';
+        $path = $this->getGameDir($lobbyId, $gameId) . '/pending_orders.jsonl';
 
         $fh = fopen($path, 'c+');
         if ($fh === false) {
@@ -122,17 +132,29 @@ final class BattleStorage
                     && $existing['idHash'] === $idHash
                 ) {
                     flock($fh, LOCK_UN);
-                    return false;
+
+                    return [
+                        'appended' => false,
+                        'pendingLineId' => isset($existing['pendingLineId']) && is_string($existing['pendingLineId'])
+                            ? $existing['pendingLineId']
+                            : null,
+                        'reusedExisting' => true,
+                    ];
                 }
             }
 
             $record = [
+                'pendingLineId' => $pendingLineId,
                 'atTick' => $atTick,
                 'playerId' => $playerId,
                 'order' => $order,
                 'idHash' => $idHash,
                 'ts' => $ts,
+                'finalized' => $finalized,
             ];
+            if ($basisFingerprint !== null) {
+                $record['basisFingerprint'] = $basisFingerprint;
+            }
             $encoded = json_encode($record, JSON_UNESCAPED_SLASHES);
             if ($encoded === false) {
                 flock($fh, LOCK_UN);
@@ -149,25 +171,246 @@ final class BattleStorage
             }
             fflush($fh);
             flock($fh, LOCK_UN);
-            return true;
+
+            return ['appended' => true, 'pendingLineId' => $pendingLineId, 'reusedExisting' => false];
         } finally {
             fclose($fh);
         }
     }
 
     /**
-     * Returns order records whose atTick is within the inclusive
-     * [sinceTick, untilTick] range. Either bound may be null to mean
-     * unbounded. Rows sharing the same (atTick, order.unitId) are
-     * compacted to the last line in the file (newest append). Result is
-     * sorted by atTick ascending, then unitId ascending, then playerId
-     * ascending.
+     * Move all finalized pending rows matching `batchAtTick` into `applied_orders.jsonl`.
      *
-     * @return list<array{atTick:int,playerId:string,order:array,idHash:string,ts:int}>
+     * @return array{merged:int,appendedHashes:list<string>}
      */
-    public function getOrdersRange(string $lobbyId, string $gameId, ?int $sinceTick, ?int $untilTick): array
+    public function mergeFinalizedPendingForBatch(string $lobbyId, string $gameId, int $batchAtTick): array
     {
-        $path = $this->getGameDir($lobbyId, $gameId) . '/orders.jsonl';
+        $dir = $this->getGameDir($lobbyId, $gameId);
+        $pendingPath = $dir . '/pending_orders.jsonl';
+        $appliedPath = $dir . '/applied_orders.jsonl';
+        $pendingFh = fopen($pendingPath, 'c+');
+        if ($pendingFh === false) {
+            throw new RuntimeException("mergeFinalizedPendingForBatch: cannot open {$pendingPath}");
+        }
+        $merged = 0;
+        $seenHashes = [];
+        try {
+            if (!flock($pendingFh, LOCK_EX)) {
+                throw new RuntimeException("mergeFinalizedPendingForBatch: LOCK_EX failed {$pendingPath}");
+            }
+            rewind($pendingFh);
+            $pendingLinesRaw = '';
+            while (($line = fgets($pendingFh)) !== false) {
+                $pendingLinesRaw .= $line;
+            }
+
+            /** @var list<string> $keptEncoded */
+            $keptEncoded = [];
+            /** @var list<string> $toAppendEncoded */
+            $toAppendEncoded = [];
+            foreach (explode("\n", trim($pendingLinesRaw, "\n")) as $rawLine) {
+                $rawLine = trim($rawLine);
+                if ($rawLine === '') {
+                    continue;
+                }
+                $rec = json_decode($rawLine, true);
+                if (!is_array($rec)) {
+                    $keptEncoded[] = $rawLine;
+
+                    continue;
+                }
+                $atTick = (int) ($rec['atTick'] ?? -1);
+                $finalized = !array_key_exists('finalized', $rec) || (bool) $rec['finalized'];
+                $order = $rec['order'] ?? null;
+                if ($finalized && $atTick === $batchAtTick && is_array($order)) {
+                    $rowHash = isset($rec['idHash']) && is_string($rec['idHash']) ? $rec['idHash'] : '';
+                    if ($rowHash === '') {
+                        continue;
+                    }
+                    $appliedRecord = [
+                        'atTick' => $atTick,
+                        'playerId' => (string) ($rec['playerId'] ?? ''),
+                        'order' => $order,
+                        'idHash' => $rowHash,
+                        'ts' => isset($rec['ts']) ? (int) $rec['ts'] : time(),
+                        'sourcePendingLineId' => $rec['pendingLineId'] ?? null,
+                        'mergedAt' => time(),
+                    ];
+                    $enc = json_encode($appliedRecord, JSON_UNESCAPED_SLASHES);
+                    if ($enc !== false) {
+                        $toAppendEncoded[] = $enc;
+                        $merged++;
+                        $seenHashes[] = $rowHash;
+                    }
+
+                    continue;
+                }
+                $keptEncoded[] = $rawLine;
+            }
+
+            if (count($toAppendEncoded) > 0) {
+                $appliedFh = fopen($appliedPath, 'c+');
+                if ($appliedFh === false) {
+                    flock($pendingFh, LOCK_UN);
+                    throw new RuntimeException("mergeFinalizedPendingForBatch: cannot open {$appliedPath}");
+                }
+                if (!flock($appliedFh, LOCK_EX)) {
+                    fclose($appliedFh);
+                    flock($pendingFh, LOCK_UN);
+                    throw new RuntimeException("mergeFinalizedPendingForBatch: LOCK_EX applied failed");
+                }
+                if (fseek($appliedFh, 0, SEEK_END) !== 0) {
+                    flock($appliedFh, LOCK_UN);
+                    fclose($appliedFh);
+                    flock($pendingFh, LOCK_UN);
+                    throw new RuntimeException('mergeFinalizedPendingForBatch: applied seek failed');
+                }
+                foreach ($toAppendEncoded as $chunk) {
+                    fwrite($appliedFh, $chunk . "\n");
+                }
+                fflush($appliedFh);
+                flock($appliedFh, LOCK_UN);
+                fclose($appliedFh);
+            }
+
+            ftruncate($pendingFh, 0);
+            rewind($pendingFh);
+            foreach ($keptEncoded as $lineEnc) {
+                fwrite($pendingFh, $lineEnc . "\n");
+            }
+            fflush($pendingFh);
+            flock($pendingFh, LOCK_UN);
+        } finally {
+            fclose($pendingFh);
+        }
+
+        return ['merged' => $merged, 'appendedHashes' => $seenHashes];
+    }
+
+    /**
+     * After snapshot for completed tick `$completedSnapshotTick`, prune pending orders:
+     * keep only rows targeting tick `$completedSnapshotTick + 1` whose basisFingerprint matches
+     * authoritative snapshot synchash for `$completedSnapshotTick` when both are present.
+     */
+    public function prunePendingOrdersAfterSnapshot(string $lobbyId, string $gameId, int $completedSnapshotTick): void
+    {
+        $expectedNext = $completedSnapshotTick + 1;
+        $basis = $this->getSnapshotEnvelopeSynchash($lobbyId, $gameId, $completedSnapshotTick);
+        $dir = $this->getGameDir($lobbyId, $gameId);
+        $pendingPath = $dir . '/pending_orders.jsonl';
+        if (!is_file($pendingPath)) {
+            return;
+        }
+
+        $pendingFh = fopen($pendingPath, 'c+');
+        if ($pendingFh === false) {
+            return;
+        }
+        try {
+            if (!flock($pendingFh, LOCK_EX)) {
+                return;
+            }
+            rewind($pendingFh);
+            $blob = '';
+            while (($line = fgets($pendingFh)) !== false) {
+                $blob .= $line;
+            }
+
+            /** @var list<string> $keptLines */
+            $keptLines = [];
+            foreach (explode("\n", trim($blob, "\n")) as $rawLine) {
+                $rawLine = trim($rawLine);
+                if ($rawLine === '') {
+                    continue;
+                }
+                $rec = json_decode($rawLine, true);
+                if (!is_array($rec)) {
+                    continue;
+                }
+                $atTick = (int) ($rec['atTick'] ?? -1);
+                if ($atTick !== $expectedNext) {
+                    continue;
+                }
+                if (
+                    $basis !== null
+                    && isset($rec['basisFingerprint'])
+                    && is_string($rec['basisFingerprint'])
+                    && $rec['basisFingerprint'] !== ''
+                    && $rec['basisFingerprint'] !== $basis
+                ) {
+                    continue;
+                }
+                $keptLines[] = $rawLine;
+            }
+
+            ftruncate($pendingFh, 0);
+            rewind($pendingFh);
+            foreach ($keptLines as $kl) {
+                fwrite($pendingFh, $kl . "\n");
+            }
+            fflush($pendingFh);
+            flock($pendingFh, LOCK_UN);
+        } finally {
+            fclose($pendingFh);
+        }
+    }
+
+    /** Synchash / checkpoint fingerprint persisted on snapshot JSON for a tick (or null). */
+    private function getSnapshotEnvelopeSynchash(string $lobbyId, string $gameId, int $tick): ?string
+    {
+        $decoded = $this->readSnapshotEnvelopeFromDisk($lobbyId, $gameId, $tick);
+        if ($decoded === null) {
+            return null;
+        }
+        foreach (['synchash', 'checkpointFingerprint'] as $k) {
+            if (isset($decoded[$k]) && is_string($decoded[$k]) && $decoded[$k] !== '') {
+                return $decoded[$k];
+            }
+        }
+        $state = $decoded['state'] ?? null;
+        if (!is_array($state)) {
+            return null;
+        }
+        foreach (['synchash', 'initialFingerprint'] as $k) {
+            if (isset($state[$k]) && is_string($state[$k]) && $state[$k] !== '') {
+                return $state[$k];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function readSnapshotEnvelopeFromDisk(string $lobbyId, string $gameId, int $tick): ?array
+    {
+        $dir = $this->getGameDir($lobbyId, $gameId) . '/snapshots';
+        $path = $dir . '/' . $tick . '.json';
+        if (!is_file($path)) {
+            return null;
+        }
+        $raw = @file_get_contents($path);
+        if ($raw === false || $raw === '') {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Read JSONL lines into tick-filtered indexed records.
+     *
+     * @return list<array{idx:int,rec:array<string,mixed>,source:string}>
+     */
+    private function readOrdersJsonlRange(
+        string $path,
+        ?int $sinceTick,
+        ?int $untilTick,
+        string $sourceTag,
+        int $idxOffset
+    ): array {
         if (!is_file($path)) {
             return [];
         }
@@ -175,11 +418,10 @@ final class BattleStorage
         if ($fh === false) {
             return [];
         }
-
         $items = [];
         try {
             @flock($fh, LOCK_SH);
-            $idx = 0;
+            $idx = $idxOffset;
             while (($line = fgets($fh)) !== false) {
                 $i = $idx++;
                 $line = trim($line);
@@ -197,28 +439,44 @@ final class BattleStorage
                 if ($untilTick !== null && $tick > $untilTick) {
                     continue;
                 }
-                $items[] = ['idx' => $i, 'rec' => $rec];
+                $items[] = ['idx' => $i, 'rec' => $rec, 'source' => $sourceTag];
             }
             @flock($fh, LOCK_UN);
         } finally {
             fclose($fh);
         }
 
-        /** @var array<string, array{idx:int,rec:array}> $bestByKey */
+        return $items;
+    }
+
+    /**
+     * Client-side overlay: applied first, then pending overwrites same
+     * (playerId, unitId, atTick); higher file index breaks ties per source then pending wins over applied.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function dedupeOrderOverlay(array $indexedItems): array
+    {
+        /** @var array<string, array{idx:int,priority:int,rec:array<string,mixed>}> $bestByKey */
         $bestByKey = [];
-        foreach ($items as $e) {
+        foreach ($indexedItems as $e) {
             $rec = $e['rec'];
             $tick = (int) ($rec['atTick'] ?? 0);
             $order = $rec['order'] ?? null;
-            $unitId = is_array($order) && isset($order['unitId'])
-                ? (string) $order['unitId']
-                : '';
-            $key = $tick . "\0" . $unitId;
-            if (!isset($bestByKey[$key]) || $e['idx'] > $bestByKey[$key]['idx']) {
-                $bestByKey[$key] = $e;
+            $unitId = is_array($order) && isset($order['unitId']) ? (string) $order['unitId'] : '';
+            $playerId = (string) ($rec['playerId'] ?? '');
+            $key = $tick . "\0" . $playerId . "\0" . $unitId;
+            $priority = ($e['source'] === 'pending') ? 2 : 1;
+            $score = [$priority, $e['idx']];
+            $prev = $bestByKey[$key] ?? null;
+            if (
+                $prev === null
+                || $score[0] > $prev['priority']
+                || ($score[0] === $prev['priority'] && $score[1] > $prev['idx'])
+            ) {
+                $bestByKey[$key] = ['idx' => $e['idx'], 'priority' => $priority, 'rec' => $rec];
             }
         }
-
         $deduped = array_values($bestByKey);
         usort($deduped, static function (array $a, array $b): int {
             $ra = $a['rec'];
@@ -237,6 +495,7 @@ final class BattleStorage
             }
             $pa = (string) ($ra['playerId'] ?? '');
             $pb = (string) ($rb['playerId'] ?? '');
+
             return $pa <=> $pb;
         });
 
@@ -244,75 +503,108 @@ final class BattleStorage
     }
 
     /**
-     * Maximum atTick currently present in `orders.jsonl`, or -1 if
-     * the file is missing or empty.
+     * Orders for wire clients: merge `applied_orders.jsonl` with `pending_orders.jsonl`.
+     *
+     * @return array{applied:list<array<string,mixed>>,pending:list<array<string,mixed>>,orders:list<array<string,mixed>>}
+     */
+    public function getOrdersRangeSplit(string $lobbyId, string $gameId, ?int $sinceTick, ?int $untilTick): array
+    {
+        $dir = $this->getGameDir($lobbyId, $gameId);
+        $appliedIndexed = $this->readOrdersJsonlRange($dir . '/applied_orders.jsonl', $sinceTick, $untilTick, 'applied', 0);
+        $pendingIndexed = $this->readOrdersJsonlRange($dir . '/pending_orders.jsonl', $sinceTick, $untilTick, 'pending', 1_000_000);
+        $applied = $this->dedupeOrderOverlay($appliedIndexed);
+        $pending = $this->dedupeOrderOverlay($pendingIndexed);
+
+        /** @var list<array{idx:int,rec:array<string,mixed>,source:string}> $combined */
+        $combined = [...$appliedIndexed, ...$pendingIndexed];
+        usort($combined, static fn(array $a, array $b): int => $a['idx'] <=> $b['idx']);
+
+        return [
+            'applied' => $applied,
+            'pending' => $pending,
+            'orders' => $this->dedupeOrderOverlay($combined),
+        ];
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    public function getOrdersRange(string $lobbyId, string $gameId, ?int $sinceTick, ?int $untilTick): array
+    {
+        return $this->getOrdersRangeSplit($lobbyId, $gameId, $sinceTick, $untilTick)['orders'];
+    }
+
+    /**
+     * Maximum atTick currently present across pending + applied queues, or -1 when empty.
      */
     public function getOrdersTipTick(string $lobbyId, string $gameId): int
     {
-        $path = $this->getGameDir($lobbyId, $gameId) . '/orders.jsonl';
-        if (!is_file($path)) {
-            return -1;
-        }
-        $fh = fopen($path, 'r');
-        if ($fh === false) {
-            return -1;
-        }
         $max = -1;
-        try {
-            @flock($fh, LOCK_SH);
-            while (($line = fgets($fh)) !== false) {
-                $line = trim($line);
-                if ($line === '') {
-                    continue;
-                }
-                $rec = json_decode($line, true);
-                if (!is_array($rec)) {
-                    continue;
-                }
-                $tick = (int) ($rec['atTick'] ?? -1);
-                if ($tick > $max) {
-                    $max = $tick;
-                }
+        foreach (['/pending_orders.jsonl', '/applied_orders.jsonl'] as $suffix) {
+            $path = $this->getGameDir($lobbyId, $gameId) . $suffix;
+            if (!is_file($path)) {
+                continue;
             }
-            @flock($fh, LOCK_UN);
-        } finally {
-            fclose($fh);
+            $fh = fopen($path, 'r');
+            if ($fh === false) {
+                continue;
+            }
+            try {
+                @flock($fh, LOCK_SH);
+                while (($line = fgets($fh)) !== false) {
+                    $line = trim($line);
+                    if ($line === '') {
+                        continue;
+                    }
+                    $rec = json_decode($line, true);
+                    if (!is_array($rec)) {
+                        continue;
+                    }
+                    $tick = (int) ($rec['atTick'] ?? -1);
+                    if ($tick > $max) {
+                        $max = $tick;
+                    }
+                }
+                @flock($fh, LOCK_UN);
+            } finally {
+                fclose($fh);
+            }
         }
         return $max;
     }
 
     /**
-     * Returns the number of non-empty JSON order lines in orders.jsonl.
-     * Increments strictly per append — used alongside max(atTick) so clients can
-     * detect new peer orders even when multiple rows share the same atTick.
+     * Line count across pending + applied JSONL streams (heartbeat revision counter).
      */
     public function countOrderRecords(string $lobbyId, string $gameId): int
     {
-        $path = $this->getGameDir($lobbyId, $gameId) . '/orders.jsonl';
-        if (!is_file($path)) {
-            return 0;
-        }
-        $fh = fopen($path, 'r');
-        if ($fh === false) {
-            return 0;
-        }
         $n = 0;
-        try {
-            @flock($fh, LOCK_SH);
-            while (($line = fgets($fh)) !== false) {
-                $line = trim($line);
-                if ($line === '') {
-                    continue;
-                }
-                $rec = json_decode($line, true);
-                if (!is_array($rec)) {
-                    continue;
-                }
-                $n++;
+        foreach (['/pending_orders.jsonl', '/applied_orders.jsonl'] as $suffix) {
+            $path = $this->getGameDir($lobbyId, $gameId) . $suffix;
+            if (!is_file($path)) {
+                continue;
             }
-            @flock($fh, LOCK_UN);
-        } finally {
-            fclose($fh);
+            $fh = fopen($path, 'r');
+            if ($fh === false) {
+                continue;
+            }
+            try {
+                @flock($fh, LOCK_SH);
+                while (($line = fgets($fh)) !== false) {
+                    $line = trim($line);
+                    if ($line === '') {
+                        continue;
+                    }
+                    $rec = json_decode($line, true);
+                    if (!is_array($rec)) {
+                        continue;
+                    }
+                    $n++;
+                }
+                @flock($fh, LOCK_UN);
+            } finally {
+                fclose($fh);
+            }
         }
         return $n;
     }
@@ -452,7 +744,11 @@ final class BattleStorage
      * fingerprint streams may temporarily diverge by one tick while async
      * writes land (see {@see \App\Http\Handlers\Battle\AppendOrderHandler} `maxAllowedTick` slack).
      */
-    public function saveSnapshot(string $lobbyId, string $gameId, int $tick, array $state): void
+    /**
+     * @param array<string,mixed> $state
+     * @param null|string $synchash Persisted authoritative fingerprint for completed tick `$tick`.
+     */
+    public function saveSnapshot(string $lobbyId, string $gameId, int $tick, array $state, ?string $synchash = null): void
     {
         if ($tick < 0) {
             throw new InvalidArgumentException("saveSnapshot: tick must be >= 0, got {$tick}");
@@ -466,6 +762,9 @@ final class BattleStorage
         }
         $path = $dir . '/' . $tick . '.json';
         $payload = ['tick' => $tick, 'state' => $state];
+        if ($synchash !== null && $synchash !== '') {
+            $payload['synchash'] = $synchash;
+        }
         $encoded = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
         if ($encoded === false) {
             throw new RuntimeException('saveSnapshot: failed to encode payload');
@@ -566,7 +865,9 @@ final class BattleStorage
         if (!is_array($state)) {
             return null;
         }
-        return ['tick' => $resultTick, 'state' => $state];
+        $syn = isset($decoded['synchash']) && is_string($decoded['synchash']) ? $decoded['synchash'] : null;
+
+        return ['tick' => $resultTick, 'state' => $state, 'synchash' => $syn];
     }
 
     // ------------------------------------------------------------------
@@ -985,13 +1286,27 @@ final class BattleStorage
     {
         $this->assertSafeId('lobbyId', $lobbyId);
         $this->assertSafeId('gameId', $gameId);
-        $dir = $this->storageRoot
-            . '/lobbies/' . $lobbyId
-            . '/games/' . $gameId;
-        if (!is_dir($dir)) {
+        $lobbyDir = $this->storageRoot . '/lobbies/' . $lobbyId;
+        if (!is_dir($lobbyDir)) {
             return;
         }
-        $this->removeTreeRecursively($dir);
+
+        foreach (['pending_orders.jsonl', 'applied_orders.jsonl', 'fingerprints.jsonl', 'initial_state.json'] as $file) {
+            $path = $lobbyDir . '/' . $file;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+        $snapDir = $lobbyDir . '/snapshots';
+        if (is_dir($snapDir)) {
+            $this->removeTreeRecursively($snapDir);
+        }
+
+        // Legacy nested layout cleanup (no backwards compatibility guarantee on disk layout).
+        $legacyNested = $lobbyDir . '/games/' . $gameId;
+        if (is_dir($legacyNested)) {
+            $this->removeTreeRecursively($legacyNested);
+        }
     }
 
     // ------------------------------------------------------------------

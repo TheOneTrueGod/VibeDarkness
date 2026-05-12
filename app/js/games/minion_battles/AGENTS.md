@@ -75,15 +75,12 @@ Server (PHP)
  │
  ▼
 LobbyClient  (app/js/LobbyClient.ts)
- │  HTTP GET — returns raw GameStatePayload / minimal state
+ │  HTTP — lobby state, snapshots, orders (pending + applied), heartbeat
  │
  ▼
 GameSyncContext  (app/js/contexts/GameSyncContext.tsx)
- │  Unified poll loop. Owns all network I/O timing.
- │  Delivers lobby messages to App.tsx callback.
- │  Delivers battle data via registered BattleCallbacks
- │  (onFullResync, onOrdersReceived).
- │  Does NOT deserialize JSON into GameObjects.
+ │  Polls lobby JSON + lobby messages only (non-battle phases / resync hooks).
+ │  Does NOT own battle heartbeat or checkpoint I/O.
  │
  ▼
 App.tsx → Game.tsx  (phase routing, lobby-level React state)
@@ -92,9 +89,7 @@ App.tsx → Game.tsx  (phase routing, lobby-level React state)
  │
  ▼
 BattlePhase  (ui/pages/BattlePhase.tsx)
- │  Owns the GameEngine (via refs). Creates engine on mount
- │  or on full resync via loadGameState().
- │  Registers BattleCallbacks with GameSyncContext.
+ │  Creates BattleSession + createBattleNet(HostBattleNet | ClientBattleNet).
  │  Bridges React UI ↔ engine: targeting state, order submission.
  │
  ▼
@@ -130,15 +125,12 @@ GameEngine applies order at current or next tick
  │  On pause-for-orders, fires onCheckpoint(tick, toJSON(), pendingOrders).
  │
  ▼
-BattlePhase checkpoint handler
- │  Calls gameSync.saveCheckpoint(tick, snapshot, orders).
+BattleSession / BattleNet (host)
+ │  On engine pause: saveBattleSnapshot POST; on parallel batch complete: merge-applied POST
+ │  (pending_orders → applied_orders) then peers poll GET /orders / heartbeat.
  │
  ▼
-GameSyncContext → LobbyClient
- │  POST /api — saves checkpoint + orders on server.
- │
- ▼
-Server stores checkpoint; other clients pick up via next poll.
+LobbyClient POST /api — checkpoints, merge-applied, append pending orders.
 ```
 
 #### Non-host order submission
@@ -147,12 +139,10 @@ Server stores checkpoint; other clients pick up via next poll.
 Non-host player submits order
  │
  ▼
-BattlePhase → GameSyncContext.submitOrders()
- │  POST to server with the order payload.
+BattlePhase → BattleNet.submitOrder → LobbyClient.appendBattleOrder (pending queue).
  │
  ▼
-Host polls minimal state → receives remote orders
- │  GameSyncContext delivers via onOrdersReceived callback.
+Peers poll heartbeat + GET /orders (merged pending+applied) → BattleNet applies remote orders.
  │
  ▼
 BattlePhase calls engine.queueOrder() + engine.resumeAfterOrders()

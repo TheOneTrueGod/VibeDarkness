@@ -4,6 +4,12 @@ import { MessageType } from '../MessageTypes';
 import { LobbyClient } from '../LobbyClient';
 import { debugLog } from '../debugLog';
 
+const FULL_STATE_FETCH_MIN_SPACING_MS = 200;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export type SyncStatus = 'loading' | 'synced' | 'resyncing';
 
 interface GameSyncContextValue {
@@ -49,6 +55,7 @@ export function GameSyncProvider({
   const gameIdRef = useRef<string | null>(gameId);
   gameIdRef.current = gameId;
   const fullStateInFlightRef = useRef(false);
+  const lastFullStateFetchHttpStartedAtMsRef = useRef<number>(0);
 
   useEffect(() => {
     lastMessageIdRef.current = initialLastMessageId ?? null;
@@ -67,6 +74,17 @@ export function GameSyncProvider({
     async () => {
       if (fullStateInFlightRef.current) return;
       fullStateInFlightRef.current = true;
+
+      // Prevent bursts of GET /api/lobbies/:id/state when polling pre-battle phases.
+      const lastStartedAt = lastFullStateFetchHttpStartedAtMsRef.current;
+      if (lastStartedAt > 0) {
+        const elapsed = Date.now() - lastStartedAt;
+        if (elapsed < FULL_STATE_FETCH_MIN_SPACING_MS) {
+          await sleep(FULL_STATE_FETCH_MIN_SPACING_MS - elapsed);
+        }
+      }
+      lastFullStateFetchHttpStartedAtMsRef.current = Date.now();
+
       debugLog('sync tracking', 'info', 'fetchFullState start');
       setSyncStatus((prev) => (prev === 'loading' ? 'loading' : 'resyncing'));
       try {

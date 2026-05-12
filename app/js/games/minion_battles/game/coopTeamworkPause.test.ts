@@ -9,11 +9,11 @@ import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
 
-const FIXED_DT = 1 / 60;
-
-type EngineWithPrivatePause = GameEngine & {
+/** Narrow cast for unit test — fields/methods are private on {@link GameEngine}. */
+type EnginePrivatePauseTest = {
     deferredOrderPause: { waiters: import('./types').OrderWaiter[]; naturalCompletionUnitIds: readonly string[] } | null;
-    fixedUpdate(dt: number): void;
+    commitDeferredOrderPauseAfterCompletedTick(): boolean;
+    waitingForOrders: import('./types').WaitingForOrders | null;
 };
 
 describe('Coop cooldown teamwork pause', () => {
@@ -80,13 +80,15 @@ describe('Coop cooldown teamwork pause', () => {
             },
         ];
 
-        const eng = engine as unknown as EngineWithPrivatePause;
+        const eng = engine as unknown as EnginePrivatePauseTest;
         eng.deferredOrderPause = {
             waiters: [{ unitId: 'unit_p2', ownerId: 'p2' }],
             naturalCompletionUnitIds: ['unit_p2'],
         };
 
-        eng.fixedUpdate(FIXED_DT);
+        // End-of-tick commit path (same as after `TICK_END` inside `fixedUpdate`); inject deferred directly
+        // rather than a full tick — a full `fixedUpdate` would advance `gameTick` and rebuild `deferredOrderPause`.
+        expect(eng.commitDeferredOrderPauseAfterCompletedTick()).toBe(true);
 
         expect(unitP1.activeAbilities.length).toBe(0);
         const w = engine.waitingForOrders!;

@@ -24,13 +24,22 @@ class GetOrdersRangeHandler
             http_response_code(403);
             return ['success' => false, 'error' => 'Player not in lobby'];
         }
+        if (!$manager->isBattleRouteForActiveGame($lobbyId, $gameId)) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Lobby game id does not match route'];
+        }
 
         $sinceTick = isset($_GET['sinceTick']) && $_GET['sinceTick'] !== '' ? (int) $_GET['sinceTick'] : null;
         $untilTick = isset($_GET['untilTick']) && $_GET['untilTick'] !== '' ? (int) $_GET['untilTick'] : null;
 
         $storage = new BattleStorage();
-        $orders = $storage->getOrdersRange($lobbyId, $gameId, $sinceTick, $untilTick);
+        $split = $storage->getOrdersRangeSplit($lobbyId, $gameId, $sinceTick, $untilTick);
 
-        return ['success' => true, 'orders' => $orders];
+        return [
+            'success' => true,
+            'orders' => $split['orders'],
+            'pendingOrders' => $split['pending'],
+            'appliedOrders' => $split['applied'],
+        ];
     }
 }

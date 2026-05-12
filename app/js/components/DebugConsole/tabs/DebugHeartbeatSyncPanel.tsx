@@ -15,7 +15,12 @@ export interface DebugHeartbeatSyncPanelProps {
     syncBridge: Record<string, unknown> | null;
 }
 
-type BattleNetSyncStatus = 'synced' | 'waiting_for_host' | 'resyncing' | 'failed';
+type BattleNetSyncStatus =
+    | 'synced'
+    | 'waiting_for_host'
+    | 'resyncing'
+    | 'failed'
+    | 'synced_pending_ack';
 type DebugSyncDisplayStatus = BattleNetSyncStatus | 'initializing';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -34,16 +39,26 @@ function readString(record: Record<string, unknown> | null, key: string): string
     return typeof value === 'string' ? value : null;
 }
 
+function readBool(record: Record<string, unknown> | null, key: string): boolean | null {
+    if (!record) return null;
+    const value = record[key];
+    return typeof value === 'boolean' ? value : null;
+}
+
 function summarizeSyncState(
     syncStatus: DebugSyncDisplayStatus,
     queued: number,
     sending: number,
     deferredCount: number,
+    storageAligned?: boolean,
 ): string {
     if (syncStatus === 'initializing') {
         return 'Initializing sync; waiting for first heartbeat and fingerprint parity.';
     }
     if (syncStatus === 'synced' && queued === 0 && sending === 0 && deferredCount === 0) {
+        if (storageAligned === false) {
+            return 'BattleNet status is synced, but local fingerprint at the server tail tick does not match heartbeat (or pause disagrees).';
+        }
         return 'Synced and stable; no deferred or pending order backlog.';
     }
     if (syncStatus === 'resyncing') {
@@ -51,6 +66,9 @@ function summarizeSyncState(
     }
     if (syncStatus === 'failed') {
         return 'Sync failed; manual resync likely needed to recover.';
+    }
+    if (syncStatus === 'synced_pending_ack') {
+        return 'Resync succeeded; user must press Continue before order UI unlocks.';
     }
     if (queued > 0 || deferredCount > 0) {
         return 'Deferred queue waiting; host heartbeat has not advanced enough.';
@@ -116,11 +134,6 @@ export default function DebugHeartbeatSyncPanel({
     const debugLastPollAt = readNumber(syncBridgeRecord, 'lastPollAt');
     const hasHeartbeatData = heartbeatRecord != null || debugLastPollAt != null;
     const syncStatus: DebugSyncDisplayStatus = !hasHeartbeatData ? 'initializing' : (syncStatusRaw ?? 'waiting_for_host');
-    const syncTone =
-        syncStatus === 'synced' && queuedOrders === 0 && sendingOrders === 0 && deferredOrderCount === 0
-            ? 'success'
-            : 'warning';
-    const syncSummary = summarizeSyncState(syncStatus, queuedOrders, sendingOrders, deferredOrderCount);
     const heartbeatSeq = readNumber(heartbeatRecord, 'heartbeatSeq');
     const heartbeatHostTick = readNumber(heartbeatRecord, 'hostTick');
     const heartbeatOrdersTipTick = readNumber(heartbeatRecord, 'ordersTipTick');
@@ -132,21 +145,68 @@ export default function DebugHeartbeatSyncPanel({
     const heartbeatExpectingFrom = Array.isArray(heartbeatRecord?.expectingFromPlayerIds)
         ? heartbeatRecord?.expectingFromPlayerIds
         : [];
+    const pendingOrdersCount = Array.isArray(heartbeatRecord?.pendingOrders) ? heartbeatRecord.pendingOrders.length : null;
+    const appliedAtTickRec = asRecord(heartbeatRecord?.appliedOrdersAtTick);
+    const appliedSliceCount = Array.isArray(appliedAtTickRec?.orders) ? appliedAtTickRec.orders.length : null;
     const debugClientTick = readNumber(syncBridgeRecord, 'clientTick') ?? readNumber(syncBridgeRecord, 'engineTick');
     const localLatestFingerprintRecord = asRecord(syncBridgeRecord?.localLatestFingerprint);
     const localLatestFingerprintTick = readNumber(localLatestFingerprintRecord, 'tick');
     const localLatestFingerprint = readString(localLatestFingerprintRecord, 'fp');
+    const hostPausedHb =
+        heartbeatRecord != null && typeof heartbeatRecord.hostPaused === 'boolean'
+            ? heartbeatRecord.hostPaused
+            : null;
+    const localAtServerTail = asRecord(syncBridgeRecord?.localFingerprintAtServerTail);
+    const localTailFp = readString(localAtServerTail, 'fp');
+    const localTailTick = readNumber(localAtServerTail, 'tick');
+    const localTailPaused = readBool(localAtServerTail, 'paused');
+    const effectiveLocalFp =
+        localTailFp ??
+        (localLatestFingerprintTick === heartbeatHostTick ? localLatestFingerprint : null);
+    const effectiveLocalFpTick =
+        localTailTick ??
+        (localLatestFingerprintTick === heartbeatHostTick ? localLatestFingerprintTick : null);
+    const effectiveLocalPaused =
+        localTailPaused ??
+        (localLatestFingerprintTick === heartbeatHostTick
+            ? readBool(localLatestFingerprintRecord, 'paused')
+            : null);
+    const storageAlignedForUi =
+        !hasHeartbeatData ||
+        heartbeatHostFingerprint == null ||
+        (effectiveLocalFp != null &&
+            effectiveLocalFp === heartbeatHostFingerprint &&
+            (hostPausedHb == null || effectiveLocalPaused == null || effectiveLocalPaused === hostPausedHb));
+    const syncTone =
+        syncStatus === 'synced' &&
+        queuedOrders === 0 &&
+        sendingOrders === 0 &&
+        deferredOrderCount === 0 &&
+        storageAlignedForUi
+            ? 'success'
+            : 'warning';
+    const syncSummary = summarizeSyncState(
+        syncStatus,
+        queuedOrders,
+        sendingOrders,
+        deferredOrderCount,
+        storageAlignedForUi,
+    );
     const debugLastOrderFetchSince = readNumber(syncBridgeRecord, 'lastOrderFetchSince');
     const debugLastSeenOrdersRecordCount = readNumber(syncBridgeRecord, 'lastSeenOrdersRecordCount');
     const heartbeatAgeMs = debugLastPollAt != null ? Math.max(0, Date.now() - debugLastPollAt) : null;
     const tickAlign = tickVsHostAligned(debugClientTick, heartbeatHostTick);
     const localVsHostTick = tickAlign.glyph;
-    const localVsHostFp = comparisonGlyph(localLatestFingerprint, heartbeatHostFingerprint);
-    const fpTickAlign = tickVsHostAligned(localLatestFingerprintTick, heartbeatHostTick);
+    const localVsHostFp = comparisonGlyph(effectiveLocalFp, heartbeatHostFingerprint);
+    const fpTickAlign = tickVsHostAligned(effectiveLocalFpTick, heartbeatHostTick);
     const localVsHostFpTick = fpTickAlign.glyph;
     const tickMatch = tickAlign.match;
     const fingerprintMatch = localVsHostFp === '=';
     const fpTickMatch = fpTickAlign.match;
+    const pausedMatch = effectiveLocalPaused != null && hostPausedHb != null && effectiveLocalPaused === hostPausedHb;
+    const localPausedStr = effectiveLocalPaused == null ? '—' : effectiveLocalPaused ? 'true' : 'false';
+    const serverPausedStr = hostPausedHb == null ? '—' : hostPausedHb ? 'true' : 'false';
+    const localVsServerPaused = effectiveLocalPaused == null || hostPausedHb == null ? '—' : pausedMatch ? '=' : '!=';
 
     return (
         <div className="flex flex-col gap-2">
@@ -174,7 +234,7 @@ export default function DebugHeartbeatSyncPanel({
                                 <th className="border-b border-border-custom px-2 py-1 text-left font-semibold"> </th>
                                 <th className="border-b border-border-custom px-2 py-1 text-left font-semibold">Local</th>
                                 <th className="border-b border-border-custom px-2 py-1 text-center font-semibold"> </th>
-                                <th className="border-b border-border-custom px-2 py-1 text-left font-semibold">Host</th>
+                                <th className="border-b border-border-custom px-2 py-1 text-left font-semibold">Server</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -187,7 +247,7 @@ export default function DebugHeartbeatSyncPanel({
                             <tr>
                                 <td className="px-2 py-1 text-muted">Fingerprint</td>
                                 <td className={`px-2 py-1 font-mono break-all ${comparisonTone(fingerprintMatch)}`}>
-                                    {localLatestFingerprint ?? '—'}
+                                    {effectiveLocalFp ?? '—'}
                                 </td>
                                 <td className="px-2 py-1 text-center text-white/80">{localVsHostFp}</td>
                                 <td className={`px-2 py-1 font-mono break-all ${comparisonTone(fingerprintMatch)}`}>
@@ -197,10 +257,28 @@ export default function DebugHeartbeatSyncPanel({
                             <tr>
                                 <td className="px-2 py-1 text-muted">FP tick</td>
                                 <td className={`px-2 py-1 ${comparisonTone(fpTickMatch)}`}>
-                                    {localLatestFingerprintTick ?? '—'}
+                                    {effectiveLocalFpTick ?? '—'}
                                 </td>
                                 <td className="px-2 py-1 text-center text-white/80">{localVsHostFpTick}</td>
                                 <HostTickCompareCell tick={heartbeatHostTick} match={fpTickMatch} />
+                            </tr>
+                            <tr>
+                                <td className="px-2 py-1 text-muted">Paused</td>
+                                <td
+                                    className={`px-2 py-1 ${
+                                        effectiveLocalPaused == null || hostPausedHb == null
+                                            ? 'text-gray-400'
+                                            : comparisonTone(pausedMatch)
+                                    }`}
+                                >
+                                    {localPausedStr}
+                                </td>
+                                <td className="px-2 py-1 text-center text-white/80">{localVsServerPaused}</td>
+                                <td className={`px-2 py-1 text ${
+                                        effectiveLocalPaused == null || hostPausedHb == null
+                                            ? 'text-gray-400'
+                                            : comparisonTone(pausedMatch)
+                                    }`}>{serverPausedStr}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -231,6 +309,11 @@ export default function DebugHeartbeatSyncPanel({
                     <div className="col-span-3 text-white/90">
                         {heartbeatExpectingFrom.length > 0 ? heartbeatExpectingFrom.join(', ') : 'none'}
                     </div>
+
+                    <div className="text-muted">Pending orders (minimal)</div>
+                    <div className="text-white/90">{pendingOrdersCount ?? '—'}</div>
+                    <div className="text-muted">Applied at batch slice</div>
+                    <div className="text-white/90">{appliedSliceCount ?? '—'}</div>
                 </div>
             </div>
 

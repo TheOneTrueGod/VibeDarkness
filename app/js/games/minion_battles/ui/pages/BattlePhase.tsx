@@ -12,7 +12,7 @@ import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
 import type { OrderWaiter, WaitingForOrders, BattleOrder, ResolvedTarget } from '../../game/types';
 import { BattleSession } from '../../game/BattleSession';
-import { BattleNet } from '../../game/BattleNet';
+import { createBattleNet, type BattleNet, type BattleNetSyncTerminalStatus } from '../../game/BattleNet';
 import { resolveClick, validateAndResolveTarget } from '../../abilities/targeting';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
@@ -30,6 +30,7 @@ import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
 import { computeSynchash } from '../../../../utils/synchash';
 import { BATTLE_NET_T1_WAITING_POLLS } from '../../game/BattleNet';
+import { logToLobbyLog } from '../../../../lobbyLog';
 
 declare global {
     interface Window {
@@ -80,6 +81,8 @@ interface BattlePhaseProps {
     onDefeat?: () => void;
     /** Called when host sends an emitted message (NPC or chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: MessageEntry) => void;
+    /** Propagates Minion Battles BattleNet recovery overlay to GameScreen (`GET /heartbeat`-driven resync only). */
+    onBattleNetResyncingChange?: (resyncing: boolean) => void;
 }
 
 export default function BattlePhase({
@@ -94,11 +97,13 @@ export default function BattlePhase({
     onVictory,
     onDefeat,
     onEmittedChatMessage,
+    onBattleNetResyncingChange,
 }: BattlePhaseProps) {
     const canSubmitOrders = true;
 
     const sessionRef = useRef<BattleSession | null>(null);
     const netRef = useRef<BattleNet | null>(null);
+    const prevLobbyHostPlayerIdRef = useRef<string | null>(null);
     const initialHeartbeatCheckedRef = useRef(false);
 
     // UI state
@@ -139,9 +144,7 @@ export default function BattlePhase({
     const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [storyPauseActive, setStoryPauseActive] = useState(false);
     const [teamworkBurstKey, setTeamworkBurstKey] = useState(0);
-    const [netSyncStatus, setNetSyncStatus] = useState<'synced' | 'waiting_for_host' | 'resyncing' | 'failed'>(
-        'waiting_for_host',
-    );
+    const [netSyncStatus, setNetSyncStatus] = useState<BattleNetSyncTerminalStatus>('waiting_for_host');
     const [netSyncDetails, setNetSyncDetails] = useState<string | null>(null);
     const [waitingForHostCatchup, setWaitingForHostCatchup] = useState(false);
     const [hostCatchupHostTick, setHostCatchupHostTick] = useState(0);
@@ -150,6 +153,7 @@ export default function BattlePhase({
     const [fallingBehindHost, setFallingBehindHost] = useState(false);
     const [ticksBehindHost, setTicksBehindHost] = useState(0);
     const [hostAnchorWaitPhase, setHostAnchorWaitPhase] = useState<'idle' | 'waiting_ui' | 'forcing_resync'>('idle');
+    const [hostAnchorWaitElapsedMs, setHostAnchorWaitElapsedMs] = useState(0);
     const [blockingHostPausePlane, setBlockingHostPausePlane] = useState(false);
     const [orderPipeline, setOrderPipeline] = useState<{ queued: number; sending: number }>({
         queued: 0,
@@ -161,6 +165,7 @@ export default function BattlePhase({
 
     const isMyTurn = activeLocalWaiter != null;
     const canUseOrderUi =
+        netSyncStatus !== 'synced_pending_ack' &&
         isMyTurn &&
         canSubmitOrders &&
         !storyPauseActive &&
@@ -173,6 +178,35 @@ export default function BattlePhase({
         isPaused &&
         waitingForHostCatchup &&
         hostCatchupStuckHeartbeats >= HOST_WAIT_POPOVER_AFTER_HEARTBEATS;
+
+    useEffect(() => {
+        onBattleNetResyncingChange?.(netSyncStatus === 'resyncing');
+        return () => {
+            onBattleNetResyncingChange?.(false);
+        };
+    }, [netSyncStatus, onBattleNetResyncingChange]);
+
+    useEffect(() => {
+        const hostEntry = Object.entries(players).find(([, p]) => p.isHost);
+        const nextHostId = hostEntry?.[0] ?? null;
+        const prev = prevLobbyHostPlayerIdRef.current;
+        if (prev !== null && nextHostId !== null && prev !== nextHostId) {
+            const eng = sessionRef.current?.getEngine();
+            logToLobbyLog({
+                lobbyClient: api.getLobbyClient(),
+                lobbyId: api.getLobbyId(),
+                playerId,
+                tick: eng != null ? eng.gameTick : null,
+                severity: 'critical',
+                gameId: api.getGameId(),
+                gamePhase: 'battle',
+                message:
+                    'TODO(host-migration-mid-battle): lobby host player id changed during battle — behaviour undefined',
+                context: { previousHostId: prev, nextHostId },
+            });
+        }
+        prevLobbyHostPlayerIdRef.current = nextHostId;
+    }, [players, api, playerId]);
 
     // ========================================================================
     // Debug unit focus/outline bridge (DebugConsole -> Pixi world)
@@ -361,7 +395,7 @@ export default function BattlePhase({
         const runLoad = async () => {
             session.updateLobbyContext(players, characterSelections);
 
-            const net = new BattleNet({
+            const net = createBattleNet({
                 api: api.getLobbyClient(),
                 session,
                 isHost,
@@ -372,6 +406,15 @@ export default function BattlePhase({
             netRef.current = net;
             session.setNetAdapter(net);
 
+            /** `BattleNet` exists before async work finishes; React Strict Mode can unmount between awaits. */
+            const tearDownNetForAbortedLoad = (): void => {
+                net.stop();
+                session.setNetAdapter(null);
+                if (netRef.current === net) {
+                    netRef.current = null;
+                }
+            };
+
             let bootstrappedFromCheckpoint = false;
             try {
                 bootstrappedFromCheckpoint = await net.tryBootstrapFromLatestCheckpoint();
@@ -380,6 +423,7 @@ export default function BattlePhase({
             }
 
             if (!effectAlive) {
+                tearDownNetForAbortedLoad();
                 return;
             }
 
@@ -405,6 +449,7 @@ export default function BattlePhase({
             }
 
             if (!effectAlive) {
+                tearDownNetForAbortedLoad();
                 return;
             }
             const bumpOrderPipeline = () => setOrderPipeline(net.getOrderSyncSummary());
@@ -438,6 +483,7 @@ export default function BattlePhase({
             unsubs.push(
                 net.on('host-anchor-wait', (payload) => {
                     setHostAnchorWaitPhase((prev) => (prev === payload.phase ? prev : payload.phase));
+                    setHostAnchorWaitElapsedMs(payload.elapsedMs);
                 }),
             );
             unsubs.push(
@@ -748,6 +794,11 @@ export default function BattlePhase({
                             syncDetails={netSyncDetails}
                             fallingBehindHost={fallingBehindHost}
                             ticksBehindHost={ticksBehindHost}
+                            hostAnchorWaitElapsedMs={hostAnchorWaitElapsedMs}
+                            onRequestBattleReload={() =>
+                                netRef.current?.requestResync('user-reload-from-sync-box')
+                            }
+                            onAcknowledgeRecoveryContinue={() => netRef.current?.acknowledgeRecoveryContinue()}
                         />
                         <BattleCanvas
                             engine={engine}

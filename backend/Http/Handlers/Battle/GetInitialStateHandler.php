@@ -24,6 +24,10 @@ class GetInitialStateHandler
             http_response_code(403);
             return ['success' => false, 'error' => 'Player not in lobby'];
         }
+        if (!$manager->isBattleRouteForActiveGame($lobbyId, $gameId)) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Lobby game id does not match route'];
+        }
 
         $storage = new BattleStorage();
         $initialState = $storage->getInitialState($lobbyId, $gameId);

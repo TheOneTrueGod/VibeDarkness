@@ -16,6 +16,7 @@ import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
 import { Camera } from './Camera';
 import { fingerprintToHex } from './Fingerprint';
+import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
 import type { BattleNet, BattleSessionHandle } from './BattleNet';
 
@@ -128,6 +129,21 @@ export class BattleSession implements BattleSessionHandle {
             if (!isHost) return;
             this.netAdapter?.queueFingerprint(gameTick, fingerprintHex, paused);
         });
+        if (isHost) {
+            engine.setOnParallelBatchResolved((batchAtTick) => {
+                const merge = this.netAdapter?.mergeAppliedOrdersForBatch(batchAtTick);
+                if (merge === undefined || merge === null) {
+                    return;
+                }
+                return Promise.resolve(merge).then((ok) => {
+                    if (ok === false) {
+                        throw new Error('merge-applied-failed');
+                    }
+                });
+            });
+        } else {
+            engine.setOnParallelBatchResolved(null);
+        }
         engine.setOnEmitMessage((text, npcId) => {
             if (!isHost) return;
             const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {
@@ -290,7 +306,10 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     /** Replace simulation from a full serialized snapshot (host resync / reconnect). */
-    loadFromSnapshot(gameState: SerializedGameState): void {
+    loadFromSnapshot(
+        gameState: SerializedGameState,
+        opts?: { checkpointRuntimeFingerprintHex?: string | null },
+    ): void {
         const raw = gameState as unknown as Record<string, unknown>;
         debugLog('sync tracking', 'warn', 'BattleSession.loadFromSnapshot', {
             gameTick: raw.gameTick ?? raw.game_tick,
@@ -311,7 +330,7 @@ export class BattleSession implements BattleSessionHandle {
         this.camera = camera;
         renderer.setTerrain(terrainGrid);
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        const engine = GameEngine.fromJSON(gameState, playerId, terrainManager);
+        const engine = GameEngine.fromJSON(gameState, playerId, terrainManager, opts);
         engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         if (mission.levelEvents && mission.levelEvents.length > 0) {
             engine.setLevelEvents(mission.levelEvents);
@@ -352,12 +371,29 @@ export class BattleSession implements BattleSessionHandle {
         return this.engine?.gameTick ?? 0;
     }
 
+    getRuntimeFingerprintHex(): string {
+        return this.engine?.getRuntimeFingerprintHex() ?? '';
+    }
+
+    getFingerprintTailPaused(): boolean {
+        return this.engine?.getFingerprintTailPaused() ?? false;
+    }
+
     isPausedForOrderSync(): boolean {
         return this.engine?.waitingForOrders != null;
     }
 
     getWaitingForOrdersBatch(): WaitingForOrders | null {
         return this.engine?.waitingForOrders ?? null;
+    }
+
+    isDebugSimulationFrozen(): boolean {
+        return debugSettingsSnapshot.debugPauseMode === true;
+    }
+
+    /** True while the battle engine loop is running (`GameEngine.start` … `stop`). */
+    isEngineSimulationRunning(): boolean {
+        return this.engine?.isSimulationLoopRunning ?? false;
     }
 
     /** `paused`: end-of-tick pause flag mirrored to host fingerprints.jsonl (see `GameEngine` tick end). */
@@ -525,11 +561,15 @@ export class BattleSession implements BattleSessionHandle {
 
     /** Full teardown (unmount). */
     destroy(): void {
+        const net = this.netAdapter;
+        this.netAdapter = null;
+        if (net != null && typeof (net as { stop?: () => void }).stop === 'function') {
+            (net as { stop: () => void }).stop();
+        }
         this.teardownEngineAndRendererOnly();
         this.renderer?.destroy();
         this.renderer = null;
         this.listeners.clear();
-        this.netAdapter = null;
         this.initialFingerprint = null;
         this.initialSerializedState = null;
     }

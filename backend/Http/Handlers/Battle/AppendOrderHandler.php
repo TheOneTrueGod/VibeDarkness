@@ -93,6 +93,10 @@ class AppendOrderHandler
         $abilityId = isset($order['abilityId']) && is_string($order['abilityId']) ? $order['abilityId'] : null;
         $clientIdHash =
             isset($data['idHash']) && is_string($data['idHash']) && $data['idHash'] !== '' ? $data['idHash'] : null;
+        if (!$manager->isBattleRouteForActiveGame($lobbyId, $gameId)) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Lobby game id does not match route'];
+        }
         if (!$manager->isPlayerInLobby($lobbyId, $playerId)) {
             self::logBattleAppendDiagnostic(
                 $lobbyId,
@@ -245,7 +249,18 @@ class AppendOrderHandler
             if (isset($data['ts'])) {
                 $record['ts'] = (int) $data['ts'];
             }
-            $appended = $storage->appendOrder($lobbyId, $gameId, $record);
+            if (isset($data['finalized'])) {
+                $record['finalized'] = (bool) $data['finalized'];
+            }
+            if (isset($data['pendingLineId']) && is_string($data['pendingLineId']) && $data['pendingLineId'] !== '') {
+                $record['pendingLineId'] = $data['pendingLineId'];
+            }
+            if ($hostFingerprint !== null && is_string($hostFingerprint) && $hostFingerprint !== '') {
+                $record['basisFingerprint'] = $hostFingerprint;
+            }
+            $appendResult = $storage->appendOrder($lobbyId, $gameId, $record);
+            $appended = $appendResult['appended'];
+            $pendingLineId = $appendResult['pendingLineId'];
             self::logBattleAppendDiagnostic(
                 $lobbyId,
                 $gameId,
@@ -273,6 +288,7 @@ class AppendOrderHandler
             'success' => true,
             'appended' => $appended,
             'idHash' => $clientIdHash,
+            'pendingLineId' => $pendingLineId,
             'hostTick' => $hostTickOut,
             'hostFingerprint' => $hostFingerprint,
         ];

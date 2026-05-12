@@ -24,6 +24,10 @@ class GetFingerprintsRangeHandler
             http_response_code(403);
             return ['success' => false, 'error' => 'Player not in lobby'];
         }
+        if (!$manager->isBattleRouteForActiveGame($lobbyId, $gameId)) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Lobby game id does not match route'];
+        }
 
         $fromTick = isset($_GET['fromTick']) && $_GET['fromTick'] !== '' ? (int) $_GET['fromTick'] : null;
         $toTick = isset($_GET['toTick']) && $_GET['toTick'] !== '' ? (int) $_GET['toTick'] : null;

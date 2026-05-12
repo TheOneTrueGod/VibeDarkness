@@ -106,7 +106,10 @@ export interface SerializedGameState {
     continuousSpawnLastSpawnedAt?: Record<string, number>;
     /** Player research trees available during battle logic (playerId -> treeId -> researched node ids). */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
-    /** Deterministic fingerprint captured at battle initialization. */
+    /**
+     * Legacy layout digest only (older saves). Omitted from fresh `GameEngine.toJSON()` output.
+     * Server checkpoint runtime hash lives on the snapshot envelope as `synchash`.
+     */
     initialFingerprint?: string;
     /** Runtime terrain mutations (rock durability/state transitions). */
     terrainStoneMutations?: SerializedStoneTileMutation[];
@@ -118,6 +121,11 @@ export interface SerializedGameState {
     storyPauseEndsAt?: number | null;
     /** Battle objective completion / reveal state (optional). */
     objectives?: { completedIds: string[]; revealedIds: string[] };
+}
+
+/** Optional args when hydrating {@link GameEngine} from JSON (e.g. server checkpoint `synchash`). */
+export interface GameEngineFromJSONOpts {
+    checkpointRuntimeFingerprintHex?: string | null;
 }
 
 /** Serialized card instance. */

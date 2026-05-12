@@ -67,6 +67,25 @@ function makeWaitOrder(unitId: string, moveCol: number, moveRow: number): Battle
 }
 
 describe('Reconnect / resync during order pause', () => {
+    it('commits deferred parallel pause, checkpoint, and tick-complete in the same fixedUpdate', () => {
+        const engine = createTwoPlayerEngine();
+        const checkpoints: number[] = [];
+        const tickCompletes: Array<{ tick: number; paused: boolean }> = [];
+        engine.setOnCheckpoint((gameTick) => {
+            checkpoints.push(gameTick);
+        });
+        engine.setOnTickComplete((tick, _fp, paused) => {
+            tickCompletes.push({ tick, paused });
+        });
+        advanceUntilOrderPause(engine);
+        expect(checkpoints.length).toBe(1);
+        expect(tickCompletes.length).toBeGreaterThan(0);
+        const last = tickCompletes[tickCompletes.length - 1];
+        expect(last.paused).toBe(true);
+        expect(engine.waitingForOrders).not.toBeNull();
+        engine.destroy();
+    });
+
     it('does not advance gameTick when fixedUpdate runs again while paused for parallel orders', () => {
         const engine = createTwoPlayerEngine();
         advanceUntilOrderPause(engine);

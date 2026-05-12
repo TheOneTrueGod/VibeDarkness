@@ -117,6 +117,14 @@ export interface HeartbeatResponse {
     /** Wire name for authoritative last completed simulation tick (= human-facing `serverTick`). */
     hostTick: number | null;
     hostFingerprint: string | null;
+    /** Doc alias: same as `hostTick` / `hostFingerprint`. */
+    latestServerGameTick?: number | null;
+    latestServerGameHash?: string | null;
+    /** Optional client query echo: hash at `gameTick` when `gameTick` query param set. */
+    gameTick?: number | null;
+    gameHash?: string | null;
+    pendingOrders?: BattleOrderRecord[];
+    appliedOrdersAtTick?: { atTick: number | null; orders: BattleOrderRecord[] };
     /** `paused` from fingerprints.jsonl for `hostTick` (false when unknown / no row). */
     hostPaused?: boolean | null;
     ordersTipTick: number | null;
@@ -141,6 +149,9 @@ export interface BattleOrderRecord {
     playerId: string;
     order: BattleOrder;
     idHash: string;
+    pendingLineId?: string;
+    finalized?: boolean;
+    basisFingerprint?: string;
 }
 
 /** Chat message payload used when adding a message from poll (matches ChatManager.addMessage) */

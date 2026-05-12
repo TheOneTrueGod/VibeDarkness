@@ -34,6 +34,10 @@ class SaveSnapshotHandler
             http_response_code(404);
             return ['success' => false, 'error' => 'Lobby not found'];
         }
+        if (!$manager->isBattleRouteForActiveGame($lobbyId, $gameId)) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Lobby game id does not match route'];
+        }
         if ($lobby->getHostId() !== $playerId) {
             http_response_code(403);
             return ['success' => false, 'error' => 'Only the host can save snapshots'];
@@ -46,6 +50,11 @@ class SaveSnapshotHandler
             $checkpointFingerprint = $data['checkpointFingerprint'];
         }
 
+        $checkpointFingerprintPaused = false;
+        if (array_key_exists('checkpointFingerprintPaused', $data) && is_bool($data['checkpointFingerprintPaused'])) {
+            $checkpointFingerprintPaused = $data['checkpointFingerprintPaused'];
+        }
+
         if (!array_key_exists('engineSchemaVersion', $state)) {
             $state['engineSchemaVersion'] = 1;
         }
@@ -53,12 +62,16 @@ class SaveSnapshotHandler
         try {
             $tick = (int) $tickRaw;
             $storage = new BattleStorage();
-            $storage->saveSnapshot($lobbyId, $gameId, $tick, $state);
+            $syn = $checkpointFingerprint !== '' ? $checkpointFingerprint : null;
+            $storage->saveSnapshot($lobbyId, $gameId, $tick, $state, $syn);
             if ($checkpointFingerprint !== '') {
+                // `paused` is host-authoritative (same predicate as tick-complete `onTickComplete`); see
+                // Plans/end_of_tick_persistence_and_fingerprint_paused.md
                 $storage->appendFingerprints($lobbyId, $gameId, [
-                    ['tick' => $tick, 'fp' => $checkpointFingerprint, 'paused' => true],
+                    ['tick' => $tick, 'fp' => $checkpointFingerprint, 'paused' => $checkpointFingerprintPaused],
                 ]);
             }
+            $storage->prunePendingOrdersAfterSnapshot($lobbyId, $gameId, $tick);
         } catch (InvalidArgumentException $e) {
             http_response_code(400);
             return ['success' => false, 'error' => $e->getMessage()];

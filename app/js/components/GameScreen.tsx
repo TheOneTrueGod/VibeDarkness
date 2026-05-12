@@ -62,6 +62,8 @@ export interface GameComponentProps {
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     /** Called when the game is about to enter battle so the lobby UI can switch immediately. */
     onBattleStartStatusChange?: (starting: boolean) => void;
+    /** BattleNet desync recovery fullscreen overlay (distinct from GameSyncContext lobby poll). */
+    onBattleNetResyncingChange?: (resyncing: boolean) => void;
     /** Active campaign context used by campaign mission UX. */
     currentCampaignId?: string | null;
 }
@@ -154,6 +156,8 @@ export default function GameScreen({
         return new MinionBattlesApi(lobbyClient, lobby.id, effectiveLobbyGameId ?? '', player.id);
     }, [effectiveLobbyGameType, lobbyClient, lobby.id, effectiveLobbyGameId, player.id]);
 
+    const [battleNetResyncing, setBattleNetResyncing] = useState(false);
+
     const isLoading = gameSync?.syncStatus === 'loading';
     const isResyncing = gameSync?.syncStatus === 'resyncing';
 
@@ -161,7 +165,7 @@ export default function GameScreen({
     // poll loop (full state on a phase-based cadence) and don't need to block the whole screen
     const gamePhase = effectiveLobbyGameData?.gamePhase ?? effectiveLobbyGameData?.game_phase;
     const inBattle = gamePhase === 'battle';
-    const showResyncOverlay = isLoading || (isResyncing && inBattle);
+    const showResyncOverlay = isLoading || (isResyncing && inBattle) || (battleNetResyncing && inBattle);
     const showAdminRestartBattle =
         role === 'admin' &&
         inBattle &&
@@ -384,6 +388,7 @@ export default function GameScreen({
                                         onTryAgain={onTryAgain}
                                         onEmittedChatMessage={onEmittedChatMessage}
                                         onBattleStartStatusChange={setBattlePlayerListHidden}
+                                        onBattleNetResyncingChange={setBattleNetResyncing}
                                         currentCampaignId={currentCampaignId}
                                     />
                                     {/* Loading/resyncing overlay: keeps canvas visible, blocks interaction */}
@@ -397,7 +402,11 @@ export default function GameScreen({
                                             <div className="flex flex-col items-center gap-4 px-6 py-6 bg-surface rounded-xl border border-border-custom shadow-xl">
                                                 <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                                                 <p className="text-muted">
-                                                    {isLoading ? 'Loading game state...' : 'Resyncing...'}
+                                                    {isLoading
+                                                        ? 'Loading game state...'
+                                                        : battleNetResyncing && !isLoading
+                                                          ? 'Resyncing battle…'
+                                                          : 'Resyncing...'}
                                                 </p>
                                             </div>
                                         </div>

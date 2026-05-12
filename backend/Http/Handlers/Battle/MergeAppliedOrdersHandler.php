@@ -5,9 +5,15 @@ namespace App\Http\Handlers\Battle;
 use App\AccountService;
 use App\BattleStorage;
 use App\LobbyManager;
+use InvalidArgumentException;
 use RuntimeException;
 
-class AppendFingerprintsHandler
+/**
+ * POST /api/lobbies/{id}/games/{gameId}/orders/merge-applied
+ *
+ * Host-only: moves finalized pending rows for one parallel batch tick into applied_orders.jsonl.
+ */
+class MergeAppliedOrdersHandler
 {
     public static function handle(LobbyManager $manager, AccountService $accountService, array $matches): array
     {
@@ -16,45 +22,41 @@ class AppendFingerprintsHandler
         $data = \getJsonBody();
 
         $playerId = isset($data['playerId']) ? (string) $data['playerId'] : '';
-        $records = $data['records'] ?? null;
+        $batchAtTick = isset($data['batchAtTick']) ? (int) $data['batchAtTick'] : null;
 
-        if ($playerId === '' || !is_array($records)) {
+        if ($playerId === '' || $batchAtTick === null || $batchAtTick < 1) {
             http_response_code(400);
-            return ['success' => false, 'error' => 'playerId and records are required'];
+            return ['success' => false, 'error' => 'playerId and batchAtTick >= 1 are required'];
         }
         if (!$manager->isPlayerInLobby($lobbyId, $playerId)) {
             http_response_code(403);
             return ['success' => false, 'error' => 'Player not in lobby'];
         }
-
         $lobby = $manager->getLobby($lobbyId);
         if ($lobby === null) {
             http_response_code(404);
             return ['success' => false, 'error' => 'Lobby not found'];
         }
-        if ($lobby->getHostId() !== $playerId) {
-            http_response_code(403);
-            return ['success' => false, 'error' => 'Only the host can append fingerprints'];
-        }
         if (!$manager->isBattleRouteForActiveGame($lobbyId, $gameId)) {
             http_response_code(403);
             return ['success' => false, 'error' => 'Lobby game id does not match route'];
         }
+        if ($lobby->getHostId() !== $playerId) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Only the host can merge pending orders'];
+        }
 
         try {
             $storage = new BattleStorage();
-            $result = $storage->appendFingerprints($lobbyId, $gameId, $records);
+            $result = $storage->mergeFinalizedPendingForBatch($lobbyId, $gameId, $batchAtTick);
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            return ['success' => false, 'error' => $e->getMessage()];
         } catch (RuntimeException $e) {
             http_response_code(500);
             return ['success' => false, 'error' => $e->getMessage()];
         }
 
-        return [
-            'success' => true,
-            'appended' => $result['appended'],
-            'duplicates' => $result['duplicates'],
-            'conflicts' => $result['conflicts'],
-            'rejectedReason' => $result['conflicts'] > 0 ? 'conflicting_fingerprint_for_tick' : null,
-        ];
+        return ['success' => true, 'merged' => $result['merged'], 'idHashes' => $result['appendedHashes']];
     }
 }

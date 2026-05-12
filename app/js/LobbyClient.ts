@@ -488,7 +488,7 @@ export class LobbyClient {
         });
     }
 
-    // ---- Battle Phase: Checkpoints (game_<id>_<gameTick>.json) & Orders ----
+    // ---- Battle Phase: Checkpoints (`snapshots/<tick>.json`, `initial_state.json`) & orders ----
 
     async appendBattleOrder(
         lobbyId: string,
@@ -497,6 +497,7 @@ export class LobbyClient {
     ): Promise<{
         accepted: boolean;
         idHash: string;
+        pendingLineId?: string | null;
         rejectedReason?: string;
         maxAllowedTick?: number;
         minAllowedTick?: number;
@@ -509,6 +510,7 @@ export class LobbyClient {
         }) as unknown as {
             appended?: boolean;
             idHash?: string;
+            pendingLineId?: string | null;
             rejectedReason?: string;
             maxAllowedTick?: number;
             minAllowedTick?: number;
@@ -518,6 +520,7 @@ export class LobbyClient {
         return {
             accepted: data.appended === true,
             idHash: data.idHash ?? body.idHash ?? '',
+            pendingLineId: typeof data.pendingLineId === 'string' ? data.pendingLineId : null,
             rejectedReason: typeof data.rejectedReason === 'string' ? data.rejectedReason : undefined,
             maxAllowedTick: typeof data.maxAllowedTick === 'number' ? data.maxAllowedTick : undefined,
             minAllowedTick: typeof data.minAllowedTick === 'number' ? data.minAllowedTick : undefined,
@@ -526,11 +529,26 @@ export class LobbyClient {
         };
     }
 
+    async mergeBattleAppliedOrders(
+        lobbyId: string,
+        gameId: string,
+        body: { playerId: string; batchAtTick: number },
+    ): Promise<{ success: boolean; merged: number }> {
+        const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/orders/merge-applied`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        }) as unknown as {
+            success?: boolean;
+            merged?: number;
+        };
+        return { success: data.success === true, merged: typeof data.merged === 'number' ? data.merged : 0 };
+    }
+
     async getBattleOrdersRange(
         lobbyId: string,
         gameId: string,
         params: { playerId: string; sinceTick?: number; untilTick?: number },
-    ): Promise<{ orders: BattleOrderRecord[] }> {
+    ): Promise<{ orders: BattleOrderRecord[]; pendingOrders?: BattleOrderRecord[]; appliedOrders?: BattleOrderRecord[] }> {
         const query = new URLSearchParams({ playerId: params.playerId });
         if (params.sinceTick !== undefined) {
             query.set('sinceTick', String(params.sinceTick));
@@ -540,12 +558,26 @@ export class LobbyClient {
         }
         const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/orders?${query}`) as unknown as {
             orders?: BattleOrderRecord[];
+            pendingOrders?: BattleOrderRecord[];
+            appliedOrders?: BattleOrderRecord[];
         };
-        return { orders: data.orders ?? [] };
+        return {
+            orders: data.orders ?? [],
+            pendingOrders: data.pendingOrders,
+            appliedOrders: data.appliedOrders,
+        };
     }
 
-    async getBattleHeartbeat(lobbyId: string, gameId: string, playerId: string): Promise<HeartbeatResponse> {
+    async getBattleHeartbeat(
+        lobbyId: string,
+        gameId: string,
+        playerId: string,
+        opts?: { gameTick?: number },
+    ): Promise<HeartbeatResponse> {
         const query = new URLSearchParams({ playerId });
+        if (opts?.gameTick !== undefined) {
+            query.set('gameTick', String(opts.gameTick));
+        }
         const data = await this.request(
             `/api/lobbies/${lobbyId}/games/${gameId}/heartbeat?${query}`
         ) as unknown as HeartbeatResponse;
@@ -553,6 +585,12 @@ export class LobbyClient {
             heartbeatSeq: data.heartbeatSeq ?? null,
             hostTick: data.hostTick ?? null,
             hostFingerprint: data.hostFingerprint ?? null,
+            latestServerGameTick: data.latestServerGameTick ?? null,
+            latestServerGameHash: data.latestServerGameHash ?? null,
+            gameTick: data.gameTick ?? null,
+            gameHash: data.gameHash ?? null,
+            pendingOrders: data.pendingOrders,
+            appliedOrdersAtTick: data.appliedOrdersAtTick,
             hostPaused: typeof data.hostPaused === 'boolean' ? data.hostPaused : false,
             ordersTipTick: data.ordersTipTick ?? null,
             ordersRecordCount: data.ordersRecordCount ?? null,
@@ -566,7 +604,13 @@ export class LobbyClient {
     async saveBattleSnapshot(
         lobbyId: string,
         gameId: string,
-        body: { playerId: string; tick: number; state: SerializedGameState; checkpointFingerprint?: string },
+        body: {
+            playerId: string;
+            tick: number;
+            state: SerializedGameState;
+            checkpointFingerprint?: string;
+            checkpointFingerprintPaused?: boolean;
+        },
     ): Promise<void> {
         await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshot`, {
             method: 'POST',
@@ -578,15 +622,27 @@ export class LobbyClient {
         lobbyId: string,
         gameId: string,
         params: { playerId: string; atTick?: number },
-    ): Promise<{ tick: number; state: SerializedGameState } | null> {
+    ): Promise<{ tick: number; state: SerializedGameState; synchash: string | null } | null> {
         const query = new URLSearchParams({ playerId: params.playerId });
         if (params.atTick !== undefined) {
             query.set('atTick', String(params.atTick));
         }
         const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshot?${query}`) as unknown as {
-            snapshot?: { tick: number; state: SerializedGameState } | null;
+            snapshot?: {
+                tick: number;
+                state: SerializedGameState;
+                synchash?: string | null;
+            } | null;
         };
-        return data.snapshot ?? null;
+        const snap = data.snapshot ?? null;
+        if (snap == null) {
+            return null;
+        }
+        return {
+            tick: snap.tick,
+            state: snap.state,
+            synchash: typeof snap.synchash === 'string' ? snap.synchash : null,
+        };
     }
 
     async saveBattleInitialState(

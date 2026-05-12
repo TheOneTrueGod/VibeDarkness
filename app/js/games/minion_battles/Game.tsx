@@ -28,7 +28,7 @@ function getSelectedMissionId(data: Record<string, unknown>): string | null {
     return typeof missionId === 'string' && missionId.trim() !== '' ? missionId : null;
 }
 
-interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattlesApi'> {
+interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattlesApi' | 'onBattleNetResyncingChange'> {
     lobbyClient: LobbyClient;
     lobbyId: string;
     gameId: string;
@@ -70,6 +70,7 @@ export default function MinionBattlesGame({
     onLeave,
     onEmittedChatMessage,
     onBattleStartStatusChange,
+    onBattleNetResyncingChange,
 }: MinionBattlesGameProps) {
     const api = useMemo(
         () =>
@@ -394,6 +395,7 @@ export default function MinionBattlesGame({
                     initialGameState={battleInitState}
                     onSidebarInfoChange={onSidebarInfoChange}
                     onEmittedChatMessage={onEmittedChatMessage}
+                    onBattleNetResyncingChange={onBattleNetResyncingChange}
                     onVictory={(missionResult) => {
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;

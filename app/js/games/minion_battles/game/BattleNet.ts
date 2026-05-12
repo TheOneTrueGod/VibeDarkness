@@ -1,9 +1,19 @@
 import type { LobbyClient } from '../../../LobbyClient';
+import {
+    HEARTBEAT_POLL_IDLE_MS,
+    HEARTBEAT_POLL_INTERVAL_HIDDEN_MS,
+    HEARTBEAT_POLL_INTERVAL_MS,
+    BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC,
+} from '../../../../../global_constants.js';
 import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../lobbyLog';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
 
 export interface BattleSessionHandle {
     getEngineTick(): number;
+    /** Incremental sim hash at the current engine state (matches tick-complete flush / {@link GameEngine.getRuntimeFingerprintHex}). */
+    getRuntimeFingerprintHex(): string;
+    /** Same `paused` predicate as tick-complete fingerprint rows ({@link GameEngine.getFingerprintTailPaused}). */
+    getFingerprintTailPaused(): boolean;
     getLatestFingerprint(): { tick: number; fp: string; paused: boolean } | null;
     getFingerprintRange(from: number, to: number): Array<{ tick: number; fp: string; paused: boolean }>;
     getInitialFingerprint(): string;
@@ -15,7 +25,10 @@ export interface BattleSessionHandle {
         initialFingerprint: string;
     } | null;
     startEngine(): void;
-    loadFromSnapshot(state: SerializedGameState): void;
+    loadFromSnapshot(
+        state: SerializedGameState,
+        opts?: { checkpointRuntimeFingerprintHex?: string | null },
+    ): void;
     applyRemoteOrders(
         orders: Array<{ gameTick?: number; atTick?: number; order: BattleOrder | Record<string, unknown> }>,
     ): void;
@@ -26,10 +39,21 @@ export interface BattleSessionHandle {
     isPausedForOrderSync(): boolean;
     /** Snapshot of {@link GameEngine.waitingForOrders}; null while the sim is not in that pause. */
     getWaitingForOrdersBatch(): WaitingForOrders | null;
+    /** True while debug pause freezes the deterministic sim (`debugPauseMode`). */
+    isDebugSimulationFrozen(): boolean;
+    /** True while the battle engine loop is running (`GameEngine.start` … `stop`). */
+    isEngineSimulationRunning(): boolean;
 }
 
+export type BattleNetSyncTerminalStatus =
+    | 'synced'
+    | 'waiting_for_host'
+    | 'resyncing'
+    | 'failed'
+    | 'synced_pending_ack';
+
 type BattleNetEventMap = {
-    'sync-status': 'synced' | 'waiting_for_host' | 'resyncing' | 'failed';
+    'sync-status': BattleNetSyncTerminalStatus;
     /** Optional human-readable sync detail shown in Battle UI while recovering. */
     'sync-details': string | null;
     /** Non-host: stuck waiting for host to advance past anchor tick (wall-clock gated UX + resync). */
@@ -49,6 +73,12 @@ type BattleNetEventMap = {
         expectingFromPlayerIds: string[] | null;
         initialFingerprint: string | null;
         heartbeatSeq: number;
+        pendingOrders?: Array<Record<string, unknown>>;
+        appliedOrdersAtTick?: { atTick: number | null; orders: Array<Record<string, unknown>> };
+        latestServerGameTick?: number | null;
+        latestServerGameHash?: string | null;
+        gameTick?: number | null;
+        gameHash?: string | null;
     };
     'orders-applied': { count: number; source: 'poll' | 'submit' };
     'host-catchup-wait': {
@@ -88,14 +118,21 @@ interface BattleApi {
         lobbyId: string,
         gameId: string,
         params: { playerId: string; atTick?: number },
-    ): Promise<{ tick: number; state: SerializedGameState } | null>;
+    ): Promise<{ tick: number; state: SerializedGameState; synchash: string | null } | null>;
     getBattleHeartbeat(
         lobbyId: string,
         gameId: string,
         playerId: string,
+        opts?: { gameTick?: number },
     ): Promise<{
         hostTick: number | null;
         hostFingerprint: string | null;
+        latestServerGameTick?: number | null;
+        latestServerGameHash?: string | null;
+        gameTick?: number | null;
+        gameHash?: string | null;
+        pendingOrders?: Array<Record<string, unknown>>;
+        appliedOrdersAtTick?: { atTick: number | null; orders: Array<Record<string, unknown>> };
         ordersTipTick: number | null;
         ordersRecordCount?: number | null;
         /** Parallel order batch tick when paused; legacy alias for some payloads: {@link pausedAtTick}. */
@@ -106,6 +143,11 @@ interface BattleApi {
         heartbeatSeq?: number | null;
         hostPaused?: boolean | null;
     }>;
+    mergeBattleAppliedOrders(
+        lobbyId: string,
+        gameId: string,
+        body: { playerId: string; batchAtTick: number },
+    ): Promise<{ success: boolean; merged: number }>;
     saveBattleInitialState(
         lobbyId: string,
         gameId: string,
@@ -119,7 +161,14 @@ interface BattleApi {
     saveBattleSnapshot(
         lobbyId: string,
         gameId: string,
-        body: { playerId: string; tick: number; state: SerializedGameState; checkpointFingerprint?: string },
+        body: {
+            playerId: string;
+            tick: number;
+            state: SerializedGameState;
+            checkpointFingerprint?: string;
+            /** Paired with `checkpointFingerprint` for the co-appended `fingerprints.jsonl` row. */
+            checkpointFingerprintPaused?: boolean;
+        },
     ): Promise<void>;
     appendBattleFingerprints(
         lobbyId: string,
@@ -155,10 +204,20 @@ function stableStringify(value: unknown): string {
     return `{${entries.join(',')}}`;
 }
 
-/** Minimum idle time after a poll finishes before the next heartbeat request (foreground tab). */
-const HEARTBEAT_POLL_INTERVAL_MS = 2000;
-/** Background tabs: slower polling; `visibilitychange` still forces an immediate poll. */
-const HEARTBEAT_POLL_INTERVAL_HIDDEN_MS = 10_000;
+export type BattleNetPollOnceOptions = {
+    /**
+     * When true (default false), bypass debug-freeze suppression for heartbeat HTTP and the
+     * minimum spacing between heartbeat GETs (diagnostics only).
+     */
+    forceHttp?: boolean;
+};
+
+type BattleHeartbeatApiResult = Awaited<ReturnType<BattleApi['getBattleHeartbeat']>>;
+
+function battleHeartbeatMinSpacingMs(): number {
+    return typeof process !== 'undefined' && process.env.VITEST === 'true' ? 0 : HEARTBEAT_POLL_INTERVAL_MS;
+}
+
 const INITIAL_STATE_RETRY_DELAY_MS = 500;
 const INITIAL_STATE_MAX_RETRIES = 20;
 
@@ -215,6 +274,8 @@ export class BattleNet {
     private visibilityHandler: (() => void) | null = null;
     private isPolling = false;
     private isRecovering = false;
+    /** Recovery succeeded but UX gate (`BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC=false`) awaits Continue. */
+    private recoveryAwaitingUserAck = false;
 
     private readonly appliedOrderIdHashes = new Set<string>();
     /** Our orders not yet observed in a server `getBattleOrdersRange` response (for UI pipeline). */
@@ -230,7 +291,7 @@ export class BattleNet {
     /** Seen count from heartbeat.ordersRecordCount; detects new rows at same atTick as existing orders. */
     private lastSeenOrdersRecordCount = 0;
     private readonly recoveryAttemptTimesByReason = new Map<string, number[]>();
-    private currentSyncStatus: BattleNetEventMap['sync-status'] = 'waiting_for_host';
+    private currentSyncStatus: BattleNetSyncTerminalStatus = 'waiting_for_host';
     private currentSyncDetails: string | null = null;
     private latestHeartbeatHostTick = 0;
     /** Latest heartbeat parallel order batch (`orderBatchAtTick` / `pausedAtTick` when paused); not last-completed. */
@@ -258,6 +319,11 @@ export class BattleNet {
      */
     private deferredFlushBlockedLogKey: string | null = null;
 
+    /** Wall time of the last battle heartbeat HTTP request start (after min-spacing wait). */
+    private lastBattleHeartbeatHttpStartedAtMs = 0;
+    /** Serializes heartbeat GETs so poll + recovery cannot interleave sub-500ms requests. */
+    private battleHeartbeatHttpChain: Promise<unknown> = Promise.resolve();
+
     constructor(args: BattleNetArgs) {
         this.api = args.api as unknown as BattleApi;
         this.session = args.session;
@@ -269,9 +335,21 @@ export class BattleNet {
 
     start(): void {
         if (this.heartbeatPollActive) {
+            console.warn('[BattleNet] start() ignored — heartbeat poll already active', {
+                lobbyId: this.lobbyId,
+                gameId: this.gameId,
+                playerId: this.playerId,
+                isHost: this.isHost,
+            });
             return;
         }
         this.heartbeatPollActive = true;
+        console.info('[BattleNet] start() — heartbeat poll loop', {
+            lobbyId: this.lobbyId,
+            gameId: this.gameId,
+            playerId: this.playerId,
+            isHost: this.isHost,
+        });
         this.hostCatchupHeartbeatStreak = 0;
         this.lastPollServerTailKey = null;
         this.aheadWithUnchangedServerTailStreak = 0;
@@ -284,10 +362,13 @@ export class BattleNet {
                 if (!this.heartbeatPollActive) {
                     return;
                 }
+                const foregroundMs = this.needsActiveHeartbeatPolling()
+                    ? HEARTBEAT_POLL_INTERVAL_MS
+                    : HEARTBEAT_POLL_IDLE_MS;
                 const delay =
                     typeof document !== 'undefined' && document.visibilityState === 'hidden'
                         ? HEARTBEAT_POLL_INTERVAL_HIDDEN_MS
-                        : HEARTBEAT_POLL_INTERVAL_MS;
+                        : foregroundMs;
                 this.heartbeatPollTimeout = setTimeout(() => {
                     this.heartbeatPollTimeout = null;
                     scheduleNextPoll();
@@ -313,6 +394,13 @@ export class BattleNet {
     }
 
     stop(): void {
+        console.info('[BattleNet] stop() — tearing down heartbeat poll', {
+            lobbyId: this.lobbyId,
+            gameId: this.gameId,
+            playerId: this.playerId,
+            isHost: this.isHost,
+            hadActivePoll: this.heartbeatPollActive,
+        });
         this.heartbeatPollActive = false;
         if (this.heartbeatPollTimeout != null) {
             clearTimeout(this.heartbeatPollTimeout);
@@ -400,6 +488,19 @@ export class BattleNet {
             });
             return;
         }
+        if (this.recoveryAwaitingUserAck) {
+            logToLobbyLogBattleSync({
+                lobbyClient: this.api as unknown as LobbyClient,
+                lobbyId: this.lobbyId,
+                playerId: this.playerId,
+                tick: atTick,
+                severity: 'info',
+                gameId: this.gameId,
+                message: 'submitOrder skipped until user acknowledges post-resync continue',
+                context: { abilityId: order.abilityId, unitId: order.unitId },
+            });
+            return;
+        }
         const idHash = hashOrderId(this.playerId, atTick, order);
         const localEngineTick = this.session.getEngineTick();
         const localLatestFingerprint = this.session.getLatestFingerprint();
@@ -465,7 +566,10 @@ export class BattleNet {
             }
             this.deferLocalOrder(idHash, atTick, order);
             if (isPausedForOrderSync) {
-                this.setSyncStatus('waiting_for_host');
+                this.setSyncStatus(
+                    'waiting_for_host',
+                    'Waiting for host (optimistic playahead). Your order is queued until the host tick catches up.',
+                );
             }
             this.emitHostCatchupWaitState();
             console.info('[BattleNet] immediate submit skipped — order queued deferred', {
@@ -571,15 +675,22 @@ export class BattleNet {
         if (!this.isHost || this.lastSnapshotTick === tick) {
             return;
         }
-        const checkpointFp =
-            typeof state.initialFingerprint === 'string' && state.initialFingerprint !== ''
-                ? state.initialFingerprint
-                : undefined;
+        // Must match {@link GameEngine.getRuntimeFingerprintHex} / tick-complete host flush — not the
+        // layout digest from {@link GameEngine.computeInitialFingerprint}, or snapshot POST can win
+        // {@link BattleStorage::appendFingerprints} first-writer and strand the wrong tail hash on disk.
+        const checkpointFp = this.session.getRuntimeFingerprintHex();
+        const checkpointPayload =
+            typeof checkpointFp === 'string' && checkpointFp !== ''
+                ? {
+                      checkpointFingerprint: checkpointFp,
+                      checkpointFingerprintPaused: this.session.getFingerprintTailPaused(),
+                  }
+                : {};
         await this.api.saveBattleSnapshot(this.lobbyId, this.gameId, {
             playerId: this.playerId,
             tick,
             state,
-            ...(checkpointFp != null ? { checkpointFingerprint: checkpointFp } : {}),
+            ...checkpointPayload,
         });
         const engineNow = this.session.getEngineTick();
         if (engineNow > tick) {
@@ -593,6 +704,53 @@ export class BattleNet {
     }
 
     /**
+     * Host-only: after local parallel batch orders are satisfied, persist pending → applied on the server.
+     * Retries up to three times; returns false on total failure (`requestResync` already armed).
+     */
+    async mergeAppliedOrdersForBatch(batchAtTick: number): Promise<boolean> {
+        if (!this.isHost || !Number.isFinite(batchAtTick) || batchAtTick < 1) {
+            return true;
+        }
+        const maxAttempts = 3;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                const res = await this.api.mergeBattleAppliedOrders(this.lobbyId, this.gameId, {
+                    playerId: this.playerId,
+                    batchAtTick,
+                });
+                if (res.success) {
+                    return true;
+                }
+            } catch (_) {
+                /* retry */
+            }
+            await this.sleep(200 * (attempt + 1));
+        }
+        logToLobbyLog({
+            lobbyClient: this.api as unknown as LobbyClient,
+            lobbyId: this.lobbyId,
+            playerId: this.playerId,
+            tick: batchAtTick,
+            severity: 'error',
+            gameId: this.gameId,
+            message: 'mergeBattleAppliedOrders failed after retries; requesting resync',
+            context: { batchAtTick, attempts: maxAttempts },
+        });
+        this.requestResync('merge-applied-failed');
+        return false;
+    }
+
+    /** Clears the post-recovery "Continue" UX gate (see {@link BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC}). */
+    acknowledgeRecoveryContinue(): void {
+        if (!this.recoveryAwaitingUserAck) {
+            return;
+        }
+        // Clear gate before setSyncStatus so heartbeat's `synced` guard does not no-op the transition.
+        this.recoveryAwaitingUserAck = false;
+        this.setSyncStatus('synced', null);
+    }
+
+    /**
      * Debug: serializes the live engine via {@link BattleSessionHandle.getSerializedSnapshot}, logs it to
      * `lobby_log.jsonl` at **critical** severity, then (host only) POSTs the same payload through
      * `saveBattleSnapshot` — not React/debug-buffered lobby state.
@@ -600,10 +758,14 @@ export class BattleNet {
     async debugLogLocalStateAndSubmitSnapshot(): Promise<void> {
         const state = this.session.getSerializedSnapshot();
         const tick = state.gameTick;
-        const checkpointFp =
-            typeof state.initialFingerprint === 'string' && state.initialFingerprint !== ''
-                ? state.initialFingerprint
-                : undefined;
+        const checkpointFp = this.session.getRuntimeFingerprintHex();
+        const checkpointPayload =
+            typeof checkpointFp === 'string' && checkpointFp !== ''
+                ? {
+                      checkpointFingerprint: checkpointFp,
+                      checkpointFingerprintPaused: this.session.getFingerprintTailPaused(),
+                  }
+                : {};
 
         logToLobbyLog({
             lobbyClient: this.api as unknown as LobbyClient,
@@ -628,7 +790,7 @@ export class BattleNet {
             playerId: this.playerId,
             tick,
             state,
-            ...(checkpointFp != null ? { checkpointFingerprint: checkpointFp } : {}),
+            ...checkpointPayload,
         });
         const engineNow = this.session.getEngineTick();
         if (engineNow > tick) {
@@ -638,13 +800,20 @@ export class BattleNet {
         this.lastSnapshotTick = tick;
     }
 
-    async pollOnce(): Promise<void> {
+    async pollOnce(opts?: BattleNetPollOnceOptions): Promise<void> {
         if (this.isPolling || this.isRecovering) {
             return;
         }
         this.isPolling = true;
         try {
-            const hbRaw = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
+            if (!opts?.forceHttp && this.session.isDebugSimulationFrozen()) {
+                return;
+            }
+
+            const hbRaw = await this.getBattleHeartbeatThrottled({
+                gameTick: this.session.getEngineTick(),
+                bypassThrottle: opts?.forceHttp === true,
+            });
             const ordersRecordCountRaw = hbRaw.ordersRecordCount;
             const ordersRecordCount =
                 typeof ordersRecordCountRaw === 'number' && !Number.isNaN(ordersRecordCountRaw)
@@ -664,6 +833,19 @@ export class BattleNet {
                 expectingFromPlayerIds: hbRaw.expectingFromPlayerIds ?? null,
                 initialFingerprint: hbRaw.initialFingerprint ?? null,
                 heartbeatSeq: typeof hbRaw.heartbeatSeq === 'number' && !Number.isNaN(hbRaw.heartbeatSeq) ? hbRaw.heartbeatSeq : 0,
+                pendingOrders:
+                    hbRaw.pendingOrders ??
+                    ((hbRaw as { minimalPendingOrders?: unknown }).minimalPendingOrders as
+                        | Array<Record<string, unknown>>
+                        | undefined),
+                appliedOrdersAtTick: hbRaw.appliedOrdersAtTick,
+                latestServerGameTick:
+                    hbRaw.latestServerGameTick ?? (typeof hbRaw.hostTick === 'number' ? hbRaw.hostTick : null),
+                latestServerGameHash:
+                    hbRaw.latestServerGameHash ??
+                    (typeof hbRaw.hostFingerprint === 'string' ? hbRaw.hostFingerprint : null),
+                gameTick: hbRaw.gameTick ?? null,
+                gameHash: hbRaw.gameHash ?? null,
             };
             this.updateLastSeenHeartbeat(hb.hostTick);
             this.latestHeartbeatPausedAtTick = orderBatchAtTick;
@@ -958,7 +1140,10 @@ export class BattleNet {
         if (allowDeferralOnHostLag && res.rejectedReason === 'tick_ahead_of_host') {
             this.deferLocalOrder(idHash, atTick, order);
             if (this.session.isPausedForOrderSync()) {
-                this.setSyncStatus('waiting_for_host');
+                this.setSyncStatus(
+                    'waiting_for_host',
+                    'Waiting for host (optimistic playahead). Your order is queued until the host tick catches up.',
+                );
             }
             this.emitHostCatchupWaitState();
             logToLobbyLog({
@@ -1002,6 +1187,7 @@ export class BattleNet {
             return;
         }
         if (res.rejectedReason === 'tick_in_past') {
+            this.emitRejectedOrderSyncDetail(res.rejectedReason);
             this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== idHash);
             logToLobbyLog({
                 lobbyClient: this.api as unknown as LobbyClient,
@@ -1023,6 +1209,7 @@ export class BattleNet {
             return;
         }
         if (res.rejectedReason === 'not_unit_owner' || res.rejectedReason === 'unknown_unit') {
+            this.emitRejectedOrderSyncDetail(res.rejectedReason);
             this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== idHash);
             logToLobbyLog({
                 lobbyClient: this.api as unknown as LobbyClient,
@@ -1298,7 +1485,7 @@ export class BattleNet {
     /**
      * Human-readable snapshot of {@link GameEngine.waitingForOrders} for sync logs.
      * That pause is raised when the tick loop finds player units that can act but still need orders
-     * for the parallel batch (see `GameEngine.collectParallelWaiters` / `fixedUpdate` commit).
+     * for the parallel batch (see `GameEngine.collectParallelWaiters` / `commitDeferredOrderPauseAfterCompletedTick`).
      */
     private engineOrderSyncPauseSummary(): string {
         const b = this.session.getWaitingForOrdersBatch();
@@ -1474,6 +1661,44 @@ export class BattleNet {
         this.emit('host-anchor-wait', { phase, elapsedMs });
     }
 
+    /**
+     * Host-only: fingerprint hash matches storage tail but `paused` disagrees. While paused for parallel
+     * orders, the last-completed tick row on disk often stays `paused: false` (row written at tick end
+     * before the deferred pause bit, or first-writer canonical vs a later ring push) even though the
+     * runtime ring correctly records `paused: true`. Heartbeat `hostPaused` reads that row — do not
+     * leave the host stuck in `waiting_for_host` when batch alignment proves we are in that plane.
+     */
+    private hostPauseFlagMismatchBenignForParallelBatch(
+        engineTick: number,
+        hb: BattleNetEventMap['heartbeat'],
+        local: { tick: number; fp: string; paused: boolean },
+    ): boolean {
+        if (!this.isHost) {
+            return false;
+        }
+        if (local.paused === hb.hostPaused) {
+            return false;
+        }
+        if (!(local.paused && !hb.hostPaused)) {
+            return false;
+        }
+        if (!this.session.isPausedForOrderSync()) {
+            return false;
+        }
+        const batch = this.session.getWaitingForOrdersBatch();
+        if (batch == null || !Number.isFinite(batch.atTick) || batch.atTick <= 0) {
+            return false;
+        }
+        if (engineTick + 1 !== batch.atTick) {
+            return false;
+        }
+        const hbBatch = hb.orderBatchAtTick;
+        if (hbBatch != null && !Number.isNaN(hbBatch) && hbBatch !== batch.atTick) {
+            return false;
+        }
+        return true;
+    }
+
     /** Host + non-host — last completed matches server tail. */
     private reconcileFingerprintsEqualHostTick(engineTick: number, hb: BattleNetEventMap['heartbeat']): void {
         const local = this.session.getLatestFingerprint();
@@ -1488,6 +1713,17 @@ export class BattleNet {
                 this.resetNonHostAheadStreak();
                 this.notePreviouslySyncedAnchorTick(hb.hostTick);
             }
+            this.setSyncStatus('synced');
+            return;
+        }
+        if (
+            local != null &&
+            local.tick === engineTick &&
+            hb.hostFingerprint &&
+            local.fp === hb.hostFingerprint &&
+            local.paused !== hb.hostPaused &&
+            this.hostPauseFlagMismatchBenignForParallelBatch(engineTick, hb, local)
+        ) {
             this.setSyncStatus('synced');
             return;
         }
@@ -1515,6 +1751,23 @@ export class BattleNet {
                 },
             });
             this.requestResync('pause-flag-equal-tick-mismatch');
+            return;
+        }
+        if (
+            this.isHost &&
+            local != null &&
+            local.tick === engineTick &&
+            hb.hostFingerprint &&
+            (local.fp !== hb.hostFingerprint || local.paused !== hb.hostPaused)
+        ) {
+            // Non-host path calls `requestResync` on mismatch; host must not leave a stale `synced` from an
+            // earlier poll when storage tail (fingerprints.jsonl / snapshot synchash) disagrees with the engine.
+            this.setSyncStatus(
+                'waiting_for_host',
+                local.fp !== hb.hostFingerprint
+                    ? 'Host runtime fingerprint does not match server storage tail.'
+                    : 'Host pause flag does not match storage tail vs heartbeat.',
+            );
             return;
         }
         if (!this.isHost && hb.hostFingerprint != null) {
@@ -1696,18 +1949,123 @@ export class BattleNet {
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
+    /**
+     * Ensures at least {@link HEARTBEAT_POLL_INTERVAL_MS} between battle heartbeat GETs across
+     * the poll loop, recovery, and alignment helpers (serialized so concurrent callers cannot bypass).
+     */
+    private getBattleHeartbeatThrottled(opts?: {
+        gameTick?: number;
+        bypassThrottle?: boolean;
+    }): Promise<BattleHeartbeatApiResult> {
+        const pending = this.battleHeartbeatHttpChain.then(async (): Promise<BattleHeartbeatApiResult> => {
+            if (!opts?.bypassThrottle) {
+                const gap = battleHeartbeatMinSpacingMs();
+                if (gap > 0) {
+                    const now = Date.now();
+                    if (this.lastBattleHeartbeatHttpStartedAtMs > 0) {
+                        const elapsed = now - this.lastBattleHeartbeatHttpStartedAtMs;
+                        if (elapsed < gap) {
+                            await this.sleep(gap - elapsed);
+                        }
+                    }
+                    this.lastBattleHeartbeatHttpStartedAtMs = Date.now();
+                }
+            }
+            return this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId, {
+                gameTick: opts?.gameTick,
+            });
+        });
+        this.battleHeartbeatHttpChain = pending.then(
+            () => undefined,
+            () => undefined,
+        );
+        return pending;
+    }
+
     private setSyncDetails(message: string | null): void {
         this.currentSyncDetails = message;
         this.emit('sync-details', message);
     }
 
-    private setSyncStatus(status: BattleNetEventMap['sync-status'], details: string | null = null): void {
+    private setSyncStatus(status: BattleNetSyncTerminalStatus, details: string | null = null): void {
+        // After desync recovery we require explicit Continue (`synced_pending_ack`). Heartbeat
+        // fingerprint reconcile must not emit `synced` / `waiting_for_host` over that gate — it
+        // used to leave `recoveryAwaitingUserAck` true while the UI showed `synced` (no banner).
+        if (
+            this.recoveryAwaitingUserAck &&
+            status !== 'synced_pending_ack' &&
+            status !== 'resyncing' &&
+            status !== 'failed'
+        ) {
+            return;
+        }
+
+        this.recoveryAwaitingUserAck = status === 'synced_pending_ack';
         this.currentSyncStatus = status;
         this.emit('sync-status', status);
         this.setSyncDetails(details);
     }
 
-    private getSnapshotFingerprint(state: SerializedGameState): string | null {
+    private finalizeRecoveryOutcome(synced: boolean, reason: string): void {
+        if (!synced) {
+            this.setSyncStatus('failed');
+            return;
+        }
+        if (BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC || reason === 'initial-state-mismatch') {
+            this.setSyncStatus('synced');
+            return;
+        }
+        this.setSyncStatus(
+            'synced_pending_ack',
+            `Battle state was resynced. Press Continue when you are ready to resume. (${reason})`,
+        );
+    }
+
+    private summarizeOrderRejectReason(reason: string | undefined): string {
+        if (reason == null || reason === '') {
+            return '';
+        }
+        switch (reason) {
+            case 'tick_in_past':
+                return ': order tick already passed on the server';
+            case 'tick_ahead_of_host':
+                return ': order tick was ahead of host';
+            case 'not_unit_owner':
+                return ': you do not control this unit';
+            case 'unknown_unit':
+                return ': unit not found for this battle snapshot';
+            default:
+                return `: ${reason}`;
+        }
+    }
+
+    private emitRejectedOrderSyncDetail(rejectedReason?: string): void {
+        const tail = this.summarizeOrderRejectReason(rejectedReason);
+        const msg = `Desynced: orders rejected by server${tail}. Recovering…`;
+        this.currentSyncDetails = msg;
+        this.emit('sync-details', msg);
+    }
+
+    private needsActiveHeartbeatPolling(): boolean {
+        if (this.isRecovering) {
+            return true;
+        }
+        if (this.session.isPausedForOrderSync()) {
+            return true;
+        }
+        if (this.deferredLocalOrders.length > 0) {
+            return true;
+        }
+        if (this.isHost) {
+            return false;
+        }
+        return this.session.isEngineSimulationRunning();
+    }
+
+    private getSnapshotFingerprint(state: SerializedGameState, envelopeSynchash?: string | null): string | null {
+        if (typeof envelopeSynchash === 'string' && envelopeSynchash !== '') {
+            return envelopeSynchash;
+        }
         return typeof state.initialFingerprint === 'string' && state.initialFingerprint !== ''
             ? state.initialFingerprint
             : null;
@@ -1729,7 +2087,9 @@ export class BattleNet {
         this.lastBootstrapSnapshotTick = snapshot.tick;
         this.ourOrdersAwaitingServerRange.clear();
         this.serverRangeConfirmedOurOrderHashes.clear();
-        this.session.loadFromSnapshot(snapshot.state);
+        this.session.loadFromSnapshot(snapshot.state, {
+            checkpointRuntimeFingerprintHex: snapshot.synchash,
+        });
         await this.replayOrdersSince(snapshot.tick);
         this.lastOrderFetchSince = 0;
         this.lastSeenOrdersRecordCount = 0;
@@ -1747,12 +2107,13 @@ export class BattleNet {
     private async applyAuthoritativeStateAndCheckAlignment(
         state: SerializedGameState,
         replaySinceTick: number,
+        checkpointRuntimeFingerprintHex?: string | null,
     ): Promise<boolean> {
         this.ourOrdersAwaitingServerRange.clear();
         this.serverRangeConfirmedOurOrderHashes.clear();
-        this.session.loadFromSnapshot(state);
+        this.session.loadFromSnapshot(state, { checkpointRuntimeFingerprintHex });
         await this.replayOrdersSince(replaySinceTick);
-        const heartbeat = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
+        const heartbeat = await this.getBattleHeartbeatThrottled();
         return this.isFingerprintAlignedWithHeartbeat(heartbeat);
     }
 
@@ -1762,7 +2123,7 @@ export class BattleNet {
         if (initial == null) {
             return false;
         }
-        return this.applyAuthoritativeStateAndCheckAlignment(initial.state, 0);
+        return this.applyAuthoritativeStateAndCheckAlignment(initial.state, 0, null);
     }
 
     /**
@@ -1790,10 +2151,14 @@ export class BattleNet {
                     localTick,
                     localHash: local?.fp ?? null,
                     initialTick: latestSnapshot.tick,
-                    initialHash: this.getSnapshotFingerprint(latestSnapshot.state),
+                    initialHash: this.getSnapshotFingerprint(latestSnapshot.state, latestSnapshot.synchash),
                 },
             });
-            return this.applyAuthoritativeStateAndCheckAlignment(latestSnapshot.state, latestSnapshot.tick);
+            return this.applyAuthoritativeStateAndCheckAlignment(
+                latestSnapshot.state,
+                latestSnapshot.tick,
+                latestSnapshot.synchash,
+            );
         }
 
         for (let attempt = 1; attempt <= INITIAL_STATE_MAX_RETRIES; attempt++) {
@@ -1819,7 +2184,7 @@ export class BattleNet {
                     },
                 });
                 this.setSyncDetails(null);
-                return this.applyAuthoritativeStateAndCheckAlignment(initial.state, 0);
+                return this.applyAuthoritativeStateAndCheckAlignment(initial.state, 0, null);
             }
 
             this.setSyncDetails('Failed to fetch initial state... retrying');
@@ -1857,7 +2222,7 @@ export class BattleNet {
         try {
             if (reason === 'initial-state-mismatch') {
                 const initialSuccess = await this.recoverFromInitialStateMismatchWithRetry();
-                this.setSyncStatus(initialSuccess ? 'synced' : 'failed');
+                this.finalizeRecoveryOutcome(initialSuccess, reason);
                 return;
             }
 
@@ -1894,7 +2259,7 @@ export class BattleNet {
             let synced = false;
             // Prefer newest authoritative checkpoint first to avoid user-visible replay loops.
             if (await this.tryBootstrapFromLatestCheckpoint()) {
-                const heartbeat = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
+                const heartbeat = await this.getBattleHeartbeatThrottled();
                 synced = this.isFingerprintAlignedWithHeartbeat(heartbeat);
             }
 
@@ -1911,9 +2276,11 @@ export class BattleNet {
                     });
                 }
                 if (snapshot != null) {
-                    this.session.loadFromSnapshot(snapshot.state);
+                    this.session.loadFromSnapshot(snapshot.state, {
+                        checkpointRuntimeFingerprintHex: snapshot.synchash,
+                    });
                     await this.replayOrdersSince(snapshot.tick);
-                    const hbLate = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
+                    const hbLate = await this.getBattleHeartbeatThrottled();
                     synced = this.isFingerprintAlignedWithHeartbeat(hbLate);
                 }
                 if (!synced) {
@@ -1927,7 +2294,7 @@ export class BattleNet {
                     if (!synced && afterInitialReplayTick === 0) {
                         const restoredLatest = await this.tryBootstrapFromLatestCheckpoint();
                         if (restoredLatest) {
-                            const hbAfterRestore = await this.api.getBattleHeartbeat(this.lobbyId, this.gameId, this.playerId);
+                            const hbAfterRestore = await this.getBattleHeartbeatThrottled();
                             synced = this.isFingerprintAlignedWithHeartbeat(hbAfterRestore);
                             logToLobbyLogBattleSync({
                                 lobbyClient: this.api as unknown as LobbyClient,
@@ -1954,10 +2321,10 @@ export class BattleNet {
             }
 
             if (synced) {
-                this.setSyncStatus('synced');
+                this.finalizeRecoveryOutcome(true, reason);
             } else {
                 console.error(`[BattleNet] recovery failed for "${reason}"`);
-                this.setSyncStatus('failed');
+                this.finalizeRecoveryOutcome(false, reason);
             }
         } catch (error) {
             console.error(`[BattleNet] recovery error for "${reason}"`, error);
@@ -1980,6 +2347,11 @@ export class BattleNet {
         const bridge = window as unknown as {
             __minionBattlesSyncDebug?: Record<string, unknown>;
         };
+        const hostTailTick =
+            typeof hb.hostTick === 'number' && !Number.isNaN(hb.hostTick) ? hb.hostTick : null;
+        const localAtServerTail =
+            hostTailTick != null ? this.session.getFingerprintRange(hostTailTick, hostTailTick)[0] ?? null : null;
+
         bridge.__minionBattlesSyncDebug = {
             lobbyId: this.lobbyId,
             gameId: this.gameId,
@@ -1995,8 +2367,28 @@ export class BattleNet {
             engineTick: this.session.getEngineTick(),
             clientTick: this.session.getEngineTick(),
             localLatestFingerprint: this.session.getLatestFingerprint(),
+            /** Ring row at `heartbeat.hostTick` — compare to `hostFingerprint` when engine tick is ahead of tail. */
+            localFingerprintAtServerTail: localAtServerTail,
             syncStatus: this.currentSyncStatus,
             syncDetails: this.currentSyncDetails,
         };
     }
+}
+
+export type BattleNetFactoryArgs = Omit<BattleNetArgs, 'isHost'>;
+
+export class HostBattleNet extends BattleNet {
+    constructor(args: BattleNetFactoryArgs) {
+        super({ ...args, isHost: true });
+    }
+}
+
+export class ClientBattleNet extends BattleNet {
+    constructor(args: BattleNetFactoryArgs) {
+        super({ ...args, isHost: false });
+    }
+}
+
+export function createBattleNet(args: BattleNetFactoryArgs & { isHost: boolean }): BattleNet {
+    return args.isHost ? new HostBattleNet(args) : new ClientBattleNet(args);
 }

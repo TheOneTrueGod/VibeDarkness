@@ -29,6 +29,10 @@ class GetHeartbeatHandler
             http_response_code(403);
             return ['success' => false, 'error' => 'Player not in lobby'];
         }
+        if (!$manager->isBattleRouteForActiveGame($lobbyId, $gameId)) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Lobby game id does not match route'];
+        }
 
         $storage = new BattleStorage();
         $gameDir = $storage->getGameDir($lobbyId, $gameId);
@@ -36,10 +40,15 @@ class GetHeartbeatHandler
             ? @filemtime($gameDir . '/fingerprints.jsonl')
             : 0;
         $fpMtime = $fpMtime !== false ? (int) $fpMtime : 0;
-        $ordMtime = is_file($gameDir . '/orders.jsonl')
-            ? @filemtime($gameDir . '/orders.jsonl')
+        $pendMtime = is_file($gameDir . '/pending_orders.jsonl')
+            ? @filemtime($gameDir . '/pending_orders.jsonl')
             : 0;
-        $ordMtime = $ordMtime !== false ? (int) $ordMtime : 0;
+        $pendMtime = $pendMtime !== false ? (int) $pendMtime : 0;
+        $apMtime = is_file($gameDir . '/applied_orders.jsonl')
+            ? @filemtime($gameDir . '/applied_orders.jsonl')
+            : 0;
+        $apMtime = $apMtime !== false ? (int) $apMtime : 0;
+        $ordMtime = max($pendMtime, $apMtime);
         $snapMtime = 0;
         $snapDir = $gameDir . '/snapshots';
         if (is_dir($snapDir)) {
@@ -61,6 +70,8 @@ class GetHeartbeatHandler
             }
         }
         $heartbeatSeq = max($fpMtime, $ordMtime, $snapMtime);
+
+        $gameTickQuery = isset($_GET['gameTick']) && $_GET['gameTick'] !== '' ? (int) $_GET['gameTick'] : null;
 
         $resolved = $storage->resolveLastCompletedTickAndFingerprint($lobbyId, $gameId);
         $ordersTipTick = $storage->getOrdersTipTick($lobbyId, $gameId);
@@ -91,6 +102,30 @@ class GetHeartbeatHandler
             $pausedAtTick = $orderBatchAtTick;
         }
 
+        $sinceOrders = ($hostTick !== null && $hostTick >= 0) ? max(0, $hostTick - 2) : 0;
+        $orderSplit = $storage->getOrdersRangeSplit($lobbyId, $gameId, $sinceOrders, null);
+
+        $appliedOrdersAtTick = [
+            'atTick' => $orderBatchAtTick,
+            'orders' => [],
+        ];
+        if ($orderBatchAtTick !== null) {
+            foreach ($orderSplit['applied'] as $row) {
+                if ((int) ($row['atTick'] ?? -1) === (int) $orderBatchAtTick) {
+                    $appliedOrdersAtTick['orders'][] = $row;
+                }
+            }
+        }
+
+        $requestedTick = $gameTickQuery;
+        $requestedHash = null;
+        if ($requestedTick !== null && $requestedTick >= 0) {
+            $fpRows = $storage->getFingerprintsRange($lobbyId, $gameId, $requestedTick, $requestedTick);
+            if ($fpRows !== []) {
+                $requestedHash = $fpRows[0]['fp'];
+            }
+        }
+
         return [
             'success' => true,
             'heartbeatSeq' => $heartbeatSeq,
@@ -103,6 +138,12 @@ class GetHeartbeatHandler
             'pausedAtTick' => $pausedAtTick,
             'expectingFromPlayerIds' => $expectingData !== null ? $expectingData['expectingFromPlayerIds'] : [],
             'initialFingerprint' => $initialState['initialFingerprint'] ?? null,
+            'latestServerGameTick' => $hostTick,
+            'latestServerGameHash' => $hostFingerprint,
+            'gameTick' => $requestedTick,
+            'gameHash' => $requestedHash,
+            'pendingOrders' => $orderSplit['pending'],
+            'appliedOrdersAtTick' => $appliedOrdersAtTick,
         ];
     }
 }

@@ -239,6 +239,32 @@ describe('Two-player order turns', () => {
         engine.destroy();
     });
 
+    it('tryResumeParallel defers clearing parallel pause until async hook resolves', async () => {
+        const { engine } = createTwoPlayerEngine();
+
+        advanceUntilOrderPause(engine);
+
+        let release!: () => void;
+        const gate = new Promise<void>((r) => {
+            release = r;
+        });
+        engine.setOnParallelBatchResolved(() => gate);
+
+        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        expect(engine.waitingForOrders).not.toBeNull();
+
+        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+
+        await Promise.resolve();
+        expect(engine.waitingForOrders).not.toBeNull();
+
+        release();
+        await Promise.resolve();
+        expect(engine.waitingForOrders).toBeNull();
+
+        engine.destroy();
+    });
+
     it('handles three consecutive full cycles without errors', () => {
         const { engine, unitP1, unitP2 } = createTwoPlayerEngine();
         let p1Col = 5;
