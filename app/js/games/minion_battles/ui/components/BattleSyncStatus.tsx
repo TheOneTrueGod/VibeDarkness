@@ -1,123 +1,264 @@
 import React from 'react';
+import SyncStatusCard, { type SyncStatusTone } from './SyncStatusCard';
+import {
+    BATTLE_NET_WAITING_HOST_UI_FORCE_RESYNC_POLLS,
+    BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
+    type BattleNetSyncTerminalStatus,
+} from '../../game/BattleNet';
 
-type SyncStatus = 'synced' | 'waiting_for_host' | 'resyncing' | 'failed' | 'synced_pending_ack';
+export type BattleSyncStatusVariant = 'battle' | 'debug';
 
-interface BattleSyncStatusProps {
+export interface BattleSyncStatusProps {
+    variant: BattleSyncStatusVariant;
     isHost: boolean;
+    /** Engine paused for parallel orders (`waitingForOrders`), mirrored from battle UI. */
     isPaused: boolean;
-    syncStatus: SyncStatus;
+    syncStatus: BattleNetSyncTerminalStatus;
     syncDetails?: string | null;
     fallingBehindHost: boolean;
     ticksBehindHost: number;
-    /** Non-host stall waiting on host heartbeat / tick parity (wall clock). */
+    /** Non-host: consecutive heartbeat polls while paused + {@link BattleNetSyncTerminalStatus.waiting_for_host}. */
+    waitingForHostPollStreak: number;
+    /** Non-host deferred-order watchdog streak (blocking + paused). */
+    stuckHeartbeats: number;
+    deferredOrderCount: number;
+    queuedOrders: number;
+    sendingOrders: number;
+    /** Debug: first heartbeat not yet received. */
+    hasHeartbeatData?: boolean;
+    /** Non-host stall (host anchor UX); wall clock for reload affordance. */
     hostAnchorWaitElapsedMs?: number;
     onRequestBattleReload?: () => void;
-    /** After desync recovery when `syncStatus` is `synced_pending_ack`. */
     onAcknowledgeRecoveryContinue?: () => void;
 }
 
-interface BannerSpec {
-    id: string;
-    text: string;
-    className: string;
+type CardModel = {
+    title: string;
+    summary: string;
+    tone: SyncStatusTone;
+    details?: React.ReactNode;
+    busy?: boolean;
+} | null;
+
+function trimDetail(d: string | null | undefined): string | null {
+    if (d == null) return null;
+    const t = d.trim();
+    return t === '' ? null : t;
 }
 
-export default function BattleSyncStatus({
-    isHost,
-    isPaused,
-    syncStatus,
-    syncDetails = null,
-    fallingBehindHost,
-    ticksBehindHost,
-    hostAnchorWaitElapsedMs = 0,
-    onRequestBattleReload,
-    onAcknowledgeRecoveryContinue,
-}: BattleSyncStatusProps) {
-    const banners: BannerSpec[] = [];
-    const stallSec =
-        typeof hostAnchorWaitElapsedMs === 'number' && hostAnchorWaitElapsedMs >= 1000
-            ? Math.floor(hostAnchorWaitElapsedMs / 1000)
-            : 0;
+function debugOrderBacklogLine(p: BattleSyncStatusProps): React.ReactNode {
+    return (
+        <span>
+            Watchdog streak {p.stuckHeartbeats} · deferred {p.deferredOrderCount} · queued {p.queuedOrders} · sending{' '}
+            {p.sendingOrders}
+            {p.variant === 'debug' && typeof p.waitingForHostPollStreak === 'number' ? (
+                <> · paused+wait polls {p.waitingForHostPollStreak}</>
+            ) : null}
+        </span>
+    );
+}
 
-    if (!isHost && fallingBehindHost) {
-        banners.push({
-            id: 'behind-host',
-            text: `Catching up to host... (${ticksBehindHost} ticks behind)`,
-            className: 'bg-amber-900/85 text-amber-100',
-        });
+/** In debug, prefix every card with the backlog line; in battle, optional tail only. */
+function detailsBattleOrDebug(p: BattleSyncStatusProps, tail: string | null): React.ReactNode {
+    if (p.variant === 'debug') {
+        return (
+            <>
+                {debugOrderBacklogLine(p)}
+                {tail ? <span className="mt-1 block opacity-95">{tail}</span> : null}
+            </>
+        );
     }
+    return tail ? <span className="block">{tail}</span> : null;
+}
 
-    if (syncStatus === 'resyncing') {
-        banners.push({
-            id: 'resyncing',
-            text: 'Resyncing battle...',
-            className: 'bg-blue-900/80 text-blue-100',
-        });
-    } else if (syncStatus === 'synced_pending_ack') {
-        banners.push({
-            id: 'synced-pending-ack',
-            text: 'Battle resynced — continue when ready',
-            className: 'bg-emerald-950/90 text-emerald-100',
-        });
-    } else if (syncStatus === 'failed') {
-        banners.push({
-            id: 'failed',
-            text: 'Battle sync failed',
-            className: 'bg-red-900/85 text-red-100',
-        });
-    } else if (!isHost && syncStatus !== 'synced' && isPaused) {
-        banners.push({
-            id: 'waiting',
-            text:
-                stallSec > 0
-                    ? `Waiting for host... (${stallSec}s)`
-                    : 'Waiting for host sync...',
-            className:
-                stallSec >= 20 ? 'border border-red-500/80 bg-red-950/80 text-red-100' : 'bg-dark-900/80 text-gray-200',
-        });
-    }
+function pickSyncCardModel(p: BattleSyncStatusProps): CardModel {
+    const { variant, syncStatus, isHost, isPaused, syncDetails } = p;
+    const detail = trimDetail(syncDetails);
 
-    if (syncDetails != null && syncDetails.trim() !== '') {
-        banners.push({
-            id: 'sync-details',
-            text: syncDetails,
-            className: 'bg-blue-950/85 text-blue-100',
-        });
-    }
-
-    if (banners.length === 0) {
+    if (variant === 'battle' && syncStatus === 'synced') {
         return null;
     }
 
+    if (variant === 'debug' && syncStatus === 'synced') {
+        const backlog = p.queuedOrders > 0 || p.sendingOrders > 0 || p.deferredOrderCount > 0;
+        return {
+            title: 'Sync status · synced',
+            tone: backlog ? 'warning' : 'success',
+            summary: backlog
+                ? 'BattleNet status is synced, but deferred / queued / sending counters are non-zero — worth verifying.'
+                : 'Synced and stable; no deferred or pending order backlog.',
+            details: detailsBattleOrDebug(p, detail),
+        };
+    }
+
+    if (variant === 'debug' && syncStatus === 'waiting_for_host' && p.hasHeartbeatData === false) {
+        return {
+            title: 'Sync status · initializing',
+            tone: 'neutral',
+            summary: 'Initializing sync; waiting for first heartbeat and fingerprint parity.',
+            details: debugOrderBacklogLine(p),
+        };
+    }
+
+    if (syncStatus === 'resyncing') {
+        return {
+            title: 'Resyncing battle',
+            tone: 'info',
+            summary: 'Applying server checkpoints and replaying orders to restore alignment.',
+            details: detailsBattleOrDebug(p, detail),
+            busy: true,
+        };
+    }
+
+    if (syncStatus === 'failed') {
+        return {
+            title: 'Battle sync failed',
+            tone: 'danger',
+            summary: 'Recovery did not succeed. Try reloading battle sync or re-entering the lobby.',
+            details: detailsBattleOrDebug(p, detail),
+        };
+    }
+
+    if (syncStatus === 'synced_pending_ack') {
+        return {
+            title: 'Battle resynced',
+            tone: 'success',
+            summary: 'State matches the server again. Continue when everyone is ready to resume.',
+            details: detailsBattleOrDebug(p, detail),
+        };
+    }
+
+    if (!isHost && p.fallingBehindHost) {
+        return {
+            title: 'Catching up to host',
+            tone: 'warning',
+            summary: `Local simulation is behind the server completed tick (${p.ticksBehindHost} ticks).`,
+            details: detailsBattleOrDebug(p, detail),
+        };
+    }
+
+    if (syncStatus === 'waiting_for_host') {
+        if (isHost) {
+            if (!detail && variant === 'battle') {
+                return null;
+            }
+            if (!detail && variant === 'debug') {
+                return {
+                    title: 'Sync status · waiting_for_host (host)',
+                    tone: 'warning',
+                    summary: 'Host is in waiting_for_host with no detail string; see heartbeat table below.',
+                    details: debugOrderBacklogLine(p),
+                };
+            }
+            return {
+                title: 'Host storage check',
+                tone: 'warning',
+                summary: detail ?? '',
+                details: variant === 'debug' ? debugOrderBacklogLine(p) : undefined,
+            };
+        }
+
+        const streak = p.waitingForHostPollStreak;
+        const showBattleWait =
+            isPaused && streak >= BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS && variant === 'battle';
+
+        if (variant === 'battle' && !showBattleWait) {
+            return null;
+        }
+
+        const summary =
+            detail ??
+            (variant === 'debug' && !isPaused
+                ? 'BattleNet is waiting_for_host while the local engine is not paused for parallel orders.'
+                : 'Waiting for the host timeline and server heartbeat to advance.');
+
+        const nearResync = streak >= BATTLE_NET_WAITING_HOST_UI_FORCE_RESYNC_POLLS;
+        const tone: SyncStatusTone = nearResync ? 'danger' : 'warning';
+
+        return {
+            title: 'Waiting for host',
+            tone,
+            summary,
+            details: detailsBattleOrDebug(p, detail),
+        };
+    }
+
+    if (variant === 'debug') {
+        return {
+            title: `Sync status · ${syncStatus}`,
+            tone: 'neutral',
+            summary: 'Unexpected branch for debug card; check BattleNet and bridge fields.',
+            details: detailsBattleOrDebug(p, detail),
+        };
+    }
+
+    return null;
+}
+
+export default function BattleSyncStatus(props: BattleSyncStatusProps) {
+    const model = pickSyncCardModel(props);
+    if (model == null) {
+        return null;
+    }
+
+    const stallSec =
+        typeof props.hostAnchorWaitElapsedMs === 'number' && props.hostAnchorWaitElapsedMs >= 1000
+            ? Math.floor(props.hostAnchorWaitElapsedMs / 1000)
+            : 0;
+
+    const showReload =
+        props.variant === 'battle' &&
+        !props.isHost &&
+        typeof props.onRequestBattleReload === 'function' &&
+        (stallSec >= 5 || props.waitingForHostPollStreak >= BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS);
+
+    const outerClass =
+        props.variant === 'battle'
+            ? 'pointer-events-none absolute left-3 top-3 z-20 w-[min(26rem,calc(100vw-1.5rem))]'
+            : 'w-full max-w-none';
+
+    const continueBtn =
+        props.syncStatus === 'synced_pending_ack' && typeof props.onAcknowledgeRecoveryContinue === 'function' ? (
+            <div className="pointer-events-auto">
+                <button
+                    type="button"
+                    onClick={props.onAcknowledgeRecoveryContinue}
+                    className="rounded bg-emerald-800 px-2 py-1 text-xs text-emerald-50 hover:bg-emerald-700"
+                >
+                    Continue
+                </button>
+            </div>
+        ) : null;
+
+    const reloadBtn = showReload ? (
+        <div className="pointer-events-auto mt-1.5">
+            <button
+                type="button"
+                onClick={props.onRequestBattleReload}
+                className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-100 hover:bg-slate-700"
+            >
+                Reload battle sync
+            </button>
+        </div>
+    ) : null;
+
+    const actions = continueBtn != null || reloadBtn != null ? (
+        <>
+            {continueBtn}
+            {reloadBtn}
+        </>
+    ) : undefined;
+
     return (
-        <div className="pointer-events-none absolute left-3 top-3 z-20 flex max-w-[26rem] flex-col gap-2">
-            {banners.map((banner) => (
-                <div key={banner.id} className={`rounded px-2 py-1 text-xs ${banner.className}`}>
-                    {banner.text}
-                </div>
-            ))}
-            {syncStatus === 'synced_pending_ack' && typeof onAcknowledgeRecoveryContinue === 'function' && (
-                <div className="pointer-events-auto">
-                    <button
-                        type="button"
-                        onClick={onAcknowledgeRecoveryContinue}
-                        className="rounded bg-emerald-800 px-2 py-1 text-xs text-emerald-50 hover:bg-emerald-700"
-                    >
-                        Continue
-                    </button>
-                </div>
-            )}
-            {!isHost && stallSec >= 5 && typeof onRequestBattleReload === 'function' && (
-                <div className="pointer-events-auto">
-                    <button
-                        type="button"
-                        onClick={onRequestBattleReload}
-                        className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-100 hover:bg-slate-700"
-                    >
-                        Reload battle sync
-                    </button>
-                </div>
-            )}
+        <div className={outerClass}>
+            <SyncStatusCard
+                title={model.title}
+                summary={model.summary}
+                tone={model.tone}
+                details={model.details}
+                busy={model.busy}
+                actions={actions}
+            />
         </div>
     );
 }

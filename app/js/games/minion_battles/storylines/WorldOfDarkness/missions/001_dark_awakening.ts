@@ -131,14 +131,8 @@ const LEVEL_EVENTS: LevelEvent[] = [
         emittedByNpcId: '1',
     },
     {
-        type: 'spawnWave',
-        trigger: { atRound: 4 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 3 }],
-        emittedByNpcId: '1',
-    },
-    {
         type: 'victoryCheck',
-        trigger: { afterRound: 4 },
+        trigger: { afterRound: 3 },
         conditions: [{ type: 'eliminateAllEnemies' }],
         missionResult: 'victory',
     },

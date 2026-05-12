@@ -5,6 +5,7 @@
 
 import type { CampaignResourceKey, BattleOrderRecord, HeartbeatResponse } from './types';
 import type { BattleOrder, SerializedGameState } from './games/minion_battles/game/types';
+import { isBattleHeartbeatTraceEnvOn, traceBattleHeartbeatLine } from './battleHeartbeatTrace';
 
 /** Campaign character as returned from API (serializable). */
 export interface CampaignCharacterPayload {
@@ -578,6 +579,19 @@ export class LobbyClient {
         if (opts?.gameTick !== undefined) {
             query.set('gameTick', String(opts.gameTick));
         }
+        let stack: string | undefined;
+        if (isBattleHeartbeatTraceEnvOn()) {
+            const capture = new Error();
+            stack =
+                typeof capture.stack === 'string' ? capture.stack.split('\n').slice(1, 10).join('\n') : undefined;
+        }
+        traceBattleHeartbeatLine('LobbyClient.getBattleHeartbeat (HTTP)', {
+            lobbyId,
+            gameId,
+            playerId,
+            gameTick: opts?.gameTick ?? null,
+            stack,
+        });
         const data = await this.request(
             `/api/lobbies/${lobbyId}/games/${gameId}/heartbeat?${query}`
         ) as unknown as HeartbeatResponse;

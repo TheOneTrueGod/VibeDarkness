@@ -1,5 +1,5 @@
 import DebugJsonBlock from '../DebugJsonBlock';
-import SyncStatusCard from '../../../games/minion_battles/ui/components/SyncStatusCard';
+import BattleSyncStatus from '../../../games/minion_battles/ui/components/BattleSyncStatus';
 import type { LobbyClient } from '../../../LobbyClient';
 
 export interface DebugHeartbeatSyncPanelProps {
@@ -21,7 +21,6 @@ type BattleNetSyncStatus =
     | 'resyncing'
     | 'failed'
     | 'synced_pending_ack';
-type DebugSyncDisplayStatus = BattleNetSyncStatus | 'initializing';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
     return value != null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
@@ -43,40 +42,6 @@ function readBool(record: Record<string, unknown> | null, key: string): boolean 
     if (!record) return null;
     const value = record[key];
     return typeof value === 'boolean' ? value : null;
-}
-
-function summarizeSyncState(
-    syncStatus: DebugSyncDisplayStatus,
-    queued: number,
-    sending: number,
-    deferredCount: number,
-    storageAligned?: boolean,
-): string {
-    if (syncStatus === 'initializing') {
-        return 'Initializing sync; waiting for first heartbeat and fingerprint parity.';
-    }
-    if (syncStatus === 'synced' && queued === 0 && sending === 0 && deferredCount === 0) {
-        if (storageAligned === false) {
-            return 'BattleNet status is synced, but local fingerprint at the server tail tick does not match heartbeat (or pause disagrees).';
-        }
-        return 'Synced and stable; no deferred or pending order backlog.';
-    }
-    if (syncStatus === 'resyncing') {
-        return 'Resync in progress; state replay running to restore alignment.';
-    }
-    if (syncStatus === 'failed') {
-        return 'Sync failed; manual resync likely needed to recover.';
-    }
-    if (syncStatus === 'synced_pending_ack') {
-        return 'Resync succeeded; user must press Continue before order UI unlocks.';
-    }
-    if (queued > 0 || deferredCount > 0) {
-        return 'Deferred queue waiting; host heartbeat has not advanced enough.';
-    }
-    if (sending > 0) {
-        return 'Orders sent; awaiting range confirmation from server sync.';
-    }
-    return 'Waiting for host synchronization before continuing deterministic order flow.';
 }
 
 function comparisonTone(equal: boolean): string {
@@ -133,7 +98,7 @@ export default function DebugHeartbeatSyncPanel({
     const sendingOrders = readNumber(orderSyncSummary, 'sending') ?? 0;
     const debugLastPollAt = readNumber(syncBridgeRecord, 'lastPollAt');
     const hasHeartbeatData = heartbeatRecord != null || debugLastPollAt != null;
-    const syncStatus: DebugSyncDisplayStatus = !hasHeartbeatData ? 'initializing' : (syncStatusRaw ?? 'waiting_for_host');
+    const syncStatus: BattleNetSyncStatus = !hasHeartbeatData ? 'waiting_for_host' : (syncStatusRaw ?? 'waiting_for_host');
     const heartbeatSeq = readNumber(heartbeatRecord, 'heartbeatSeq');
     const heartbeatHostTick = readNumber(heartbeatRecord, 'hostTick');
     const heartbeatOrdersTipTick = readNumber(heartbeatRecord, 'ordersTipTick');
@@ -175,27 +140,6 @@ export default function DebugHeartbeatSyncPanel({
         (localLatestFingerprintTick === heartbeatHostTick
             ? readBool(localLatestFingerprintRecord, 'paused')
             : null);
-    const storageAlignedForUi =
-        !hasHeartbeatData ||
-        heartbeatHostFingerprint == null ||
-        (effectiveLocalFp != null &&
-            effectiveLocalFp === heartbeatHostFingerprint &&
-            (hostPausedHb == null || effectiveLocalPaused == null || effectiveLocalPaused === hostPausedHb));
-    const syncTone =
-        syncStatus === 'synced' &&
-        queuedOrders === 0 &&
-        sendingOrders === 0 &&
-        deferredOrderCount === 0 &&
-        storageAlignedForUi
-            ? 'success'
-            : 'warning';
-    const syncSummary = summarizeSyncState(
-        syncStatus,
-        queuedOrders,
-        sendingOrders,
-        deferredOrderCount,
-        storageAlignedForUi,
-    );
     const debugLastOrderFetchSince = readNumber(syncBridgeRecord, 'lastOrderFetchSince');
     const debugLastSeenOrdersRecordCount = readNumber(syncBridgeRecord, 'lastSeenOrdersRecordCount');
     const heartbeatAgeMs = debugLastPollAt != null ? Math.max(0, Date.now() - debugLastPollAt) : null;
@@ -216,17 +160,20 @@ export default function DebugHeartbeatSyncPanel({
         <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-white/85">Heartbeat debug</span>
 
-            <SyncStatusCard
-                title={`Sync status${syncStatus != null ? ` · ${syncStatus}` : ''}`}
-                summary={syncSummary}
-                tone={syncTone}
-                details={
-                    <span>
-                        {syncDetails && syncDetails.trim() !== '' ? `${syncDetails} · ` : ''}
-                        Watchdog streak {stuckHeartbeats} · deferred {deferredOrderCount} · queued {queuedOrders} · sending{' '}
-                        {sendingOrders}
-                    </span>
-                }
+            <BattleSyncStatus
+                variant="debug"
+                isHost={readBool(syncBridgeRecord, 'isHost') === true}
+                isPaused={readBool(syncBridgeRecord, 'pausedForOrderSync') ?? false}
+                hasHeartbeatData={hasHeartbeatData}
+                syncStatus={syncStatus}
+                syncDetails={syncDetails}
+                fallingBehindHost={false}
+                ticksBehindHost={0}
+                waitingForHostPollStreak={readNumber(syncBridgeRecord, 'waitingForHostUiPollStreak') ?? 0}
+                stuckHeartbeats={stuckHeartbeats}
+                deferredOrderCount={deferredOrderCount}
+                queuedOrders={queuedOrders}
+                sendingOrders={sendingOrders}
             />
 
             <div className="rounded-md border border-border-custom bg-surface-light px-3 py-2">

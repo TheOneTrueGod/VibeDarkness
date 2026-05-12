@@ -12,7 +12,12 @@ import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
 import type { OrderWaiter, WaitingForOrders, BattleOrder, ResolvedTarget } from '../../game/types';
 import { BattleSession } from '../../game/BattleSession';
-import { createBattleNet, type BattleNet, type BattleNetSyncTerminalStatus } from '../../game/BattleNet';
+import {
+    createBattleNet,
+    type BattleNet,
+    type BattleNetSyncTerminalStatus,
+    BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
+} from '../../game/BattleNet';
 import { resolveClick, validateAndResolveTarget } from '../../abilities/targeting';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
@@ -29,7 +34,6 @@ import type { BossHudSlice } from '../components/boss/BossFightHud';
 import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
 import { computeSynchash } from '../../../../utils/synchash';
-import { BATTLE_NET_T1_WAITING_POLLS } from '../../game/BattleNet';
 import { logToLobbyLog } from '../../../../lobbyLog';
 
 declare global {
@@ -154,6 +158,7 @@ export default function BattlePhase({
     const [ticksBehindHost, setTicksBehindHost] = useState(0);
     const [hostAnchorWaitPhase, setHostAnchorWaitPhase] = useState<'idle' | 'waiting_ui' | 'forcing_resync'>('idle');
     const [hostAnchorWaitElapsedMs, setHostAnchorWaitElapsedMs] = useState(0);
+    const [waitingForHostPollStreak, setWaitingForHostPollStreak] = useState(0);
     const [blockingHostPausePlane, setBlockingHostPausePlane] = useState(false);
     const [orderPipeline, setOrderPipeline] = useState<{ queued: number; sending: number }>({
         queued: 0,
@@ -161,7 +166,7 @@ export default function BattlePhase({
     });
     const [hasReceivedInitialHeartbeat, setHasReceivedInitialHeartbeat] = useState(isHost);
 
-    const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_T1_WAITING_POLLS;
+    const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS;
 
     const isMyTurn = activeLocalWaiter != null;
     const canUseOrderUi =
@@ -472,6 +477,11 @@ export default function BattlePhase({
                     setHostCatchupTargetTick(payload.targetTick);
                     setHostCatchupStuckHeartbeats(payload.stuckHeartbeats);
                     bumpOrderPipeline();
+                }),
+            );
+            unsubs.push(
+                net.on('waiting-for-host-poll-streak', (payload) => {
+                    setWaitingForHostPollStreak(payload.streak);
                 }),
             );
             unsubs.push(
@@ -788,12 +798,18 @@ export default function BattlePhase({
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="relative flex min-h-0 flex-1 flex-col">
                         <BattleSyncStatus
+                            variant="battle"
                             isHost={isHost}
                             isPaused={isPaused}
                             syncStatus={netSyncStatus}
                             syncDetails={netSyncDetails}
                             fallingBehindHost={fallingBehindHost}
                             ticksBehindHost={ticksBehindHost}
+                            waitingForHostPollStreak={waitingForHostPollStreak}
+                            stuckHeartbeats={hostCatchupStuckHeartbeats}
+                            deferredOrderCount={orderPipeline.queued}
+                            queuedOrders={orderPipeline.queued}
+                            sendingOrders={orderPipeline.sending}
                             hostAnchorWaitElapsedMs={hostAnchorWaitElapsedMs}
                             onRequestBattleReload={() =>
                                 netRef.current?.requestResync('user-reload-from-sync-box')

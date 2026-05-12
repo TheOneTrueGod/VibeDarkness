@@ -1288,6 +1288,79 @@ describe('BattleNet', () => {
         expect(status).toHaveBeenCalledWith('waiting_for_host');
     });
 
+    it('optimistic play-ahead: local tick 50 ahead of clamped host; heartbeat advances 5→20 paused — no resync, pause-plane transition re-checks fp', async () => {
+        const fp5 = 'fp05bbbbbbbbbbbb';
+        const fp20 = 'fp20cccccccccccc';
+        const hbAt5Paused = {
+            hostTick: 5,
+            hostFingerprint: fp5,
+            hostPaused: true,
+            ordersTipTick: 5,
+            orderBatchAtTick: 6,
+            pausedAtTick: 6,
+            expectingFromPlayerIds: [] as string[],
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
+        };
+        const hbAt20Paused = {
+            hostTick: 20,
+            hostFingerprint: fp20,
+            hostPaused: true,
+            ordersTipTick: 20,
+            orderBatchAtTick: 21,
+            pausedAtTick: 21,
+            expectingFromPlayerIds: [] as string[],
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 1,
+        };
+        let hbPoll = 0;
+        const getBattleHeartbeat = vi.fn(async () => {
+            hbPoll += 1;
+            return hbPoll === 1 ? hbAt5Paused : hbAt20Paused;
+        });
+        const getFingerprintRange = vi.fn((from: number, to: number) => {
+            if (from <= 5 && to >= 5) {
+                return [{ tick: 5, fp: fp5, paused: true }];
+            }
+            if (from <= 20 && to >= 20) {
+                return [{ tick: 20, fp: fp20, paused: true }];
+            }
+            return [];
+        });
+        const api = makeApi({ getBattleHeartbeat });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 50,
+                isPausedForOrderSync: () => false,
+                getFingerprintRange,
+                getLatestFingerprint: () => ({ tick: 50, fp: 'local50local50', paused: false }),
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        const status = vi.fn();
+        const details = vi.fn();
+        net.on('sync-status', status);
+        net.on('sync-details', details);
+        await net.pollOnce();
+        expect(resync).not.toHaveBeenCalled();
+        expect(status).toHaveBeenCalledWith('waiting_for_host');
+        await net.pollOnce();
+        expect(resync).not.toHaveBeenCalled();
+        expect(status).toHaveBeenCalledWith('waiting_for_host');
+        expect(getFingerprintRange).toHaveBeenCalledWith(5, 5);
+        expect(getFingerprintRange).toHaveBeenCalledWith(20, 20);
+        expect(
+            details.mock.calls.some(
+                (c) => typeof c[0] === 'string' && c[0].includes('Heartbeat pause plane updated'),
+            ),
+        ).toBe(true);
+    });
+
     it('pause plane transition: host unpauses — non-host becomes synced when fingerprint matches completed tail', async () => {
         const fp50 = 'srv50aaaaaaaaaaa';
         const hbPaused = {
