@@ -1974,8 +1974,10 @@ export class BattleNet {
     }
 
     /**
-     * Non-host: local engine tick is behind heartbeat `hostTick` but heartbeat material (`hostTick` + fp) changed —
-     * authoritative storage moved past our sim (host progressed; we did not keep pace or forked).
+     * Non-host: local engine tick is behind heartbeat `hostTick` while heartbeat material (`hostTick` + fp) changed.
+     * We allow the local sim to catch up between polls; desync is decided when {@link reconcileFingerprintsEqualHostTick}
+     * runs at `engineTick === hostTick` (incl. at pause) or when {@link reconcileNonHostAheadOfHostTail} sees the client
+     * past the server tail with a disagreeing fingerprint / pause plane.
      */
     private reconcileNonHostBehindHostTail(
         engineTick: number,
@@ -1996,16 +1998,16 @@ export class BattleNet {
             lobbyId: this.lobbyId,
             playerId: this.playerId,
             tick: engineTick,
-            severity: 'warn',
+            severity: 'info',
             gameId: this.gameId,
-            message: 'non-host behind heartbeat tail after hostTick/hostFingerprint material change — resync',
+            message:
+                'non-host behind heartbeat tail after hostTick/hostFingerprint material change — allowing local catch-up (no immediate resync)',
             context: {
                 engineTick,
                 hostTick: hb.hostTick,
                 hostFingerprintHead: hb.hostFingerprint.slice(0, 12),
             },
         });
-        this.requestResync('behind-host-heartbeat-moved');
     }
 
     /** Non-host: local sim past server completed tail — align finger/pause tails; never claim `synced` when optimistically paused ahead. */

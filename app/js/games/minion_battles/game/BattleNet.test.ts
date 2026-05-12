@@ -1502,7 +1502,7 @@ describe('BattleNet', () => {
         expect(status).toHaveBeenCalledWith('waiting_for_host');
     });
 
-    it('requests resync behind-host-heartbeat-moved when hostTick|hostFingerprint material changes while engine stays behind', async () => {
+    it('does not resync behind-host-heartbeat-moved when host tail moves while engine is still behind (allows catch-up)', async () => {
         const fp50 = 'srv50aaaaaaaaaaa';
         const fp55 = 'srv55bbbbbbbbb';
         const hb1 = {
@@ -1540,7 +1540,70 @@ describe('BattleNet', () => {
         await net.pollOnce();
         expect(resync).not.toHaveBeenCalled();
         await net.pollOnce();
-        expect(resync).toHaveBeenCalledWith('behind-host-heartbeat-moved');
+        expect(resync).not.toHaveBeenCalledWith('behind-host-heartbeat-moved');
+    });
+
+    it('after host tail moves ahead, non-host can catch up and reconcile at equal tick without behind-host resync', async () => {
+        const fp50 = 'srv50aaaaaaaaaaa';
+        const fp55 = 'srv55bbbbbbbbb';
+        const hb1 = {
+            hostTick: 50,
+            hostFingerprint: fp50,
+            hostPaused: false,
+            ordersTipTick: 50,
+            pausedAtTick: null,
+            orderBatchAtTick: null,
+            expectingFromPlayerIds: null as string[] | null,
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
+        };
+        const hb2 = {
+            ...hb1,
+            hostTick: 55,
+            hostFingerprint: fp55,
+            ordersTipTick: 55,
+        };
+        let engineTick = 50;
+        const getBattleHeartbeat = vi
+            .fn()
+            .mockResolvedValueOnce(hb1)
+            .mockResolvedValueOnce(hb2)
+            .mockResolvedValue(hb2);
+        const api = makeApi({ getBattleHeartbeat });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => engineTick,
+                getLatestFingerprint: () => ({
+                    tick: engineTick,
+                    fp: engineTick >= 55 ? fp55 : fp50,
+                    paused: false,
+                }),
+                getFingerprintRange: (from: number, to: number) => {
+                    if (from <= 55 && to >= 55 && engineTick >= 55) {
+                        return [{ tick: 55, fp: fp55, paused: false }];
+                    }
+                    if (from <= 50 && to >= 50) {
+                        return [{ tick: 50, fp: fp50, paused: false }];
+                    }
+                    return [];
+                },
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        const status = vi.fn();
+        net.on('sync-status', status);
+        await net.pollOnce();
+        await net.pollOnce();
+        expect(resync).not.toHaveBeenCalledWith('behind-host-heartbeat-moved');
+        engineTick = 55;
+        await net.pollOnce();
+        expect(resync).not.toHaveBeenCalledWith('behind-host-heartbeat-moved');
+        expect(status).toHaveBeenCalledWith('synced');
     });
 
     it('does not resync behind-host when repeated polls keep same hostTick|hostFingerprint while engine is behind', async () => {
