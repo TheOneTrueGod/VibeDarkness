@@ -15,6 +15,8 @@ const DEPLOY_FILES = [
   'index.php',
   'composer.json',
   'composer.lock',
+  'global_constants.js',
+  'global_constants.php',
 ];
 
 /** Directories to include in the deploy archive (relative to project root). */

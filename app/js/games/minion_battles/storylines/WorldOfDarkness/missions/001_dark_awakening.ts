@@ -171,7 +171,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "You open your eyes. A campfire crackles before you, its light dancing on the ground. Beyond the glow, darkness presses in. From the edge of the light come movement and growling.",
+            text: "You open your eyes. A campfire crackles before you, its light dancing on the ground. Beyond the glow, darkness presses in. From the edge of the light comes movement and growling.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
