@@ -18,7 +18,7 @@ import { Camera } from './Camera';
 import { fingerprintToHex } from './Fingerprint';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
-import type { BattleNet, BattleSessionHandle } from './BattleNet';
+import type { BattleNet, BattleSessionHandle } from './battlenet';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;

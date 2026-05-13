@@ -17,7 +17,7 @@ import {
     type BattleNet,
     type BattleNetSyncTerminalStatus,
     BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
-} from '../../game/BattleNet';
+} from '../../game/battlenet';
 import { resolveClick, validateAndResolveTarget } from '../../abilities/targeting';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';

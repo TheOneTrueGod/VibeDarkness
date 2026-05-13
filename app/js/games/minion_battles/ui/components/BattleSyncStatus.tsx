@@ -4,7 +4,7 @@ import {
     BATTLE_NET_WAITING_HOST_UI_FORCE_RESYNC_POLLS,
     BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
     type BattleNetSyncTerminalStatus,
-} from '../../game/BattleNet';
+} from '../../game/battlenet';
 
 export type BattleSyncStatusVariant = 'battle' | 'debug';
 
