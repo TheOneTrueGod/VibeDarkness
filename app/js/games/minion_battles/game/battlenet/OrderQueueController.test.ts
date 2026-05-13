@@ -6,6 +6,7 @@ import { HeartbeatHttp } from './HeartbeatHttp';
 import { HeartbeatState } from './HeartbeatState';
 import { OrderQueueController } from './OrderQueueController';
 import { SnapshotPersistence } from './SnapshotPersistence';
+import { SyncReconciler } from './SyncReconciler';
 import { SyncStatusController } from './SyncStatusController';
 import type { BattleNetContext } from './BattleNetContext';
 import type { BattleApi, BattleSessionHandle } from './types';
@@ -83,7 +84,8 @@ function makeCtx(): BattleNetContext & { requestResync: ReturnType<typeof vi.fn>
         requestResync: () => {},
     });
     const requestResync = vi.fn();
-    return {
+    const syncReconcilerRef: { current?: SyncReconciler } = {};
+    const ctx: BattleNetContext & { requestResync: ReturnType<typeof vi.fn> } = {
         api,
         session,
         isHost: false,
@@ -93,13 +95,20 @@ function makeCtx(): BattleNetContext & { requestResync: ReturnType<typeof vi.fn>
         heartbeatTraceInstanceId: 1,
         events,
         syncStatus,
+        get syncReconciler() {
+            return syncReconciler;
+        },
         heartbeatHttp,
         heartbeatState,
         fingerprintBatcher,
         snapshotPersistence,
         isRecovering: false,
         requestResync,
+        notePreviouslySyncedAnchorTick: vi.fn(),
+        resetForDesyncRecoveryEntry: vi.fn(),
     };
+    syncReconcilerRef.current = new SyncReconciler(ctx);
+    return ctx;
 }
 
 describe('OrderQueueController.getOrderSyncSummary', () => {

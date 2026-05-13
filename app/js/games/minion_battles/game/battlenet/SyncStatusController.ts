@@ -99,4 +99,20 @@ export class SyncStatusController {
         this.currentDetails = msg;
         this.events.emit('sync-details', msg);
     }
+
+    /** Non-host deferred submit: local tick ahead of heartbeat `hostTick`. */
+    presentWaitingForHostLocalAheadOfHeartbeat(): void {
+        this.setStatus(
+            'waiting_for_host',
+            "Local sim is ahead of the host's last completed tick; this order will apply when the host catches up.",
+        );
+    }
+
+    /** Order queued until host tick catches up (optimistic playahead / tick_ahead_of_host deferral). */
+    presentWaitingForHostOptimisticQueued(): void {
+        this.setStatus(
+            'waiting_for_host',
+            'Waiting for host (optimistic playahead). Your order is queued until the host tick catches up.',
+        );
+    }
 }

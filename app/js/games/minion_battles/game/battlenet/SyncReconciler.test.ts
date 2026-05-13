@@ -52,7 +52,8 @@ function makeCtx(args: { isHost?: boolean; session?: Partial<BattleSessionHandle
     const events = new BattleEventBus();
     const api = makeApi();
     const session = makeSession(args.session ?? {});
-    return {
+    const syncReconcilerRef: { current?: SyncReconciler } = {};
+    const ctx: BattleNetContext = {
         api,
         session,
         isHost: args.isHost ?? false,
@@ -62,6 +63,9 @@ function makeCtx(args: { isHost?: boolean; session?: Partial<BattleSessionHandle
         heartbeatTraceInstanceId: 1,
         events,
         syncStatus: new SyncStatusController(events),
+        get syncReconciler() {
+            return syncReconcilerRef.current!;
+        },
         heartbeatHttp: new HeartbeatHttp({
             api,
             lobbyId: 'l1',
@@ -88,7 +92,11 @@ function makeCtx(args: { isHost?: boolean; session?: Partial<BattleSessionHandle
         }),
         isRecovering: false,
         requestResync: () => {},
+        notePreviouslySyncedAnchorTick: vi.fn(),
+        resetForDesyncRecoveryEntry: vi.fn(),
     };
+    syncReconcilerRef.current = new SyncReconciler(ctx);
+    return ctx;
 }
 
 function hb(overrides: Partial<BattleNetEventMap['heartbeat']> = {}): BattleNetEventMap['heartbeat'] {

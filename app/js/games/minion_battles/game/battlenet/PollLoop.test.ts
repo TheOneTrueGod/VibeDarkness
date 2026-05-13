@@ -69,6 +69,7 @@ function makeHarness(opts: {
     const events = new BattleEventBus();
     const api = makeApi();
     const session = makeSession(opts.sessionOverrides ?? {});
+    const syncReconcilerRef: { current?: SyncReconciler } = {};
     const ctx: BattleNetContext = {
         api,
         session,
@@ -79,6 +80,9 @@ function makeHarness(opts: {
         heartbeatTraceInstanceId: 1,
         events,
         syncStatus: new SyncStatusController(events),
+        get syncReconciler() {
+            return syncReconcilerRef.current!;
+        },
         heartbeatHttp: new HeartbeatHttp({
             api,
             lobbyId: 'l1',
@@ -105,9 +109,12 @@ function makeHarness(opts: {
         }),
         isRecovering: opts.isRecovering ?? false,
         requestResync: () => {},
+        notePreviouslySyncedAnchorTick: vi.fn(),
+        resetForDesyncRecoveryEntry: vi.fn(),
     };
     const orderQueue = new OrderQueueController(ctx);
-    const syncReconciler = new SyncReconciler(ctx);
+    syncReconcilerRef.current = new SyncReconciler(ctx);
+    const syncReconciler = syncReconcilerRef.current;
     const pollOnce = vi.fn(async (..._args: unknown[]) => {
         if (opts.pollOnceImpl) {
             return opts.pollOnceImpl();
@@ -126,6 +133,7 @@ describe('PollLoop.bindSiblings', () => {
         const events = new BattleEventBus();
         const api = makeApi();
         const session = makeSession();
+        const syncReconcilerRef: { current?: SyncReconciler } = {};
         const ctx: BattleNetContext = {
             api,
             session,
@@ -136,6 +144,9 @@ describe('PollLoop.bindSiblings', () => {
             heartbeatTraceInstanceId: 1,
             events,
             syncStatus: new SyncStatusController(events),
+            get syncReconciler() {
+                return syncReconcilerRef.current!;
+            },
             heartbeatHttp: new HeartbeatHttp({
                 api,
                 lobbyId: 'l1',
@@ -162,7 +173,10 @@ describe('PollLoop.bindSiblings', () => {
             }),
             isRecovering: false,
             requestResync: () => {},
+            notePreviouslySyncedAnchorTick: vi.fn(),
+            resetForDesyncRecoveryEntry: vi.fn(),
         };
+        syncReconcilerRef.current = new SyncReconciler(ctx);
         const loop = new PollLoop(ctx);
         expect(() => loop.needsActiveHeartbeatPolling()).toThrow(/bindSiblings/);
     });

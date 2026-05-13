@@ -77,6 +77,7 @@ function makeHarness(opts: HarnessOptions = {}): Harness {
     const api = makeApi();
     const session = makeSession(opts.session ?? {});
     const requestResync = vi.fn();
+    const syncReconcilerRef: { current?: SyncReconciler } = {};
     const ctx: BattleNetContext = {
         api,
         session,
@@ -87,6 +88,9 @@ function makeHarness(opts: HarnessOptions = {}): Harness {
         heartbeatTraceInstanceId: 1,
         events,
         syncStatus: new SyncStatusController(events),
+        get syncReconciler() {
+            return syncReconcilerRef.current!;
+        },
         heartbeatHttp: new HeartbeatHttp({
             api,
             lobbyId: 'l1',
@@ -113,9 +117,12 @@ function makeHarness(opts: HarnessOptions = {}): Harness {
         }),
         isRecovering: opts.isRecovering ?? false,
         requestResync,
+        notePreviouslySyncedAnchorTick: vi.fn(),
+        resetForDesyncRecoveryEntry: vi.fn(),
     };
     const orderQueue = new OrderQueueController(ctx);
-    const syncReconciler = new SyncReconciler(ctx);
+    syncReconcilerRef.current = new SyncReconciler(ctx);
+    const syncReconciler = syncReconcilerRef.current;
     const controller = new HostAnchorWaitController(ctx, { orderQueue, syncReconciler });
     const eventCallback = vi.fn();
     const blockingCallback = vi.fn();
@@ -147,6 +154,7 @@ describe('HostAnchorWaitController.bindSiblings', () => {
         const events = new BattleEventBus();
         const api = makeApi();
         const session = makeSession();
+        const syncReconcilerRef: { current?: SyncReconciler } = {};
         const ctx: BattleNetContext = {
             api,
             session,
@@ -157,6 +165,9 @@ describe('HostAnchorWaitController.bindSiblings', () => {
             heartbeatTraceInstanceId: 1,
             events,
             syncStatus: new SyncStatusController(events),
+            get syncReconciler() {
+                return syncReconcilerRef.current!;
+            },
             heartbeatHttp: new HeartbeatHttp({
                 api,
                 lobbyId: 'l1',
@@ -183,7 +194,10 @@ describe('HostAnchorWaitController.bindSiblings', () => {
             }),
             isRecovering: false,
             requestResync: () => {},
+            notePreviouslySyncedAnchorTick: vi.fn(),
+            resetForDesyncRecoveryEntry: vi.fn(),
         };
+        syncReconcilerRef.current = new SyncReconciler(ctx);
         const controller = new HostAnchorWaitController(ctx);
         controller.setPreviouslySyncedAtTick(10);
         expect(() =>

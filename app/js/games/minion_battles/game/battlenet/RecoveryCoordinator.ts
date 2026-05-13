@@ -234,7 +234,7 @@ export class RecoveryCoordinator {
             reason,
         });
         this.ctx.syncStatus.setStatus('resyncing');
-        orderQueue.resetLocalOptimisticOrdersOnResync();
+        this.ctx.resetForDesyncRecoveryEntry();
         try {
             if (reason === 'initial-state-mismatch') {
                 const initialSuccess = await this.recoverFromInitialStateMismatchWithRetry();

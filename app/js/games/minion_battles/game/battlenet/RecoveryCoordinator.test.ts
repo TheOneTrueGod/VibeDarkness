@@ -84,6 +84,9 @@ function makeHarness(opts: {
     const events = new BattleEventBus();
     const api = makeApi(opts.apiOverrides ?? {});
     const session = makeSession(opts.sessionOverrides ?? {});
+    const heartbeatState = new HeartbeatState();
+    const orderQueueRef: { current?: OrderQueueController } = {};
+    const syncReconcilerRef: { current?: SyncReconciler } = {};
     const ctx: BattleNetContext = {
         api,
         session,
@@ -94,6 +97,9 @@ function makeHarness(opts: {
         heartbeatTraceInstanceId: 1,
         events,
         syncStatus: new SyncStatusController(events),
+        get syncReconciler() {
+            return syncReconcilerRef.current!;
+        },
         heartbeatHttp: new HeartbeatHttp({
             api,
             lobbyId: 'l1',
@@ -101,7 +107,7 @@ function makeHarness(opts: {
             playerId: 'p1',
             heartbeatTraceInstanceId: 1,
         }),
-        heartbeatState: new HeartbeatState(),
+        heartbeatState,
         fingerprintBatcher: new FingerprintBatcher({
             api,
             isHost: false,
@@ -120,9 +126,18 @@ function makeHarness(opts: {
         }),
         isRecovering: false,
         requestResync: () => {},
+        notePreviouslySyncedAnchorTick: vi.fn(),
+        resetForDesyncRecoveryEntry(): void {
+            orderQueueRef.current?.resetLocalOptimisticOrdersOnResync();
+            syncReconcilerRef.current?.resetNonHostAheadStreak();
+            heartbeatState.resetMaterialTracking();
+            syncReconcilerRef.current?.setLastNonHostHbPausePlane(null);
+        },
     };
     const orderQueue = new OrderQueueController(ctx);
-    const syncReconciler = new SyncReconciler(ctx);
+    orderQueueRef.current = orderQueue;
+    syncReconcilerRef.current = new SyncReconciler(ctx);
+    const syncReconciler = syncReconcilerRef.current;
     const coordinator = new RecoveryCoordinator(ctx, { orderQueue, syncReconciler });
     const statusCallback = vi.fn();
     events.on('sync-status', statusCallback);
@@ -412,6 +427,7 @@ describe('RecoveryCoordinator.bindSiblings', () => {
         const events = new BattleEventBus();
         const api = makeApi();
         const session = makeSession();
+        const syncReconcilerRef: { current?: SyncReconciler } = {};
         const ctx: BattleNetContext = {
             api,
             session,
@@ -422,6 +438,9 @@ describe('RecoveryCoordinator.bindSiblings', () => {
             heartbeatTraceInstanceId: 1,
             events,
             syncStatus: new SyncStatusController(events),
+            get syncReconciler() {
+                return syncReconcilerRef.current!;
+            },
             heartbeatHttp: new HeartbeatHttp({
                 api,
                 lobbyId: 'l1',
@@ -448,7 +467,10 @@ describe('RecoveryCoordinator.bindSiblings', () => {
             }),
             isRecovering: false,
             requestResync: () => {},
+            notePreviouslySyncedAnchorTick: vi.fn(),
+            resetForDesyncRecoveryEntry: vi.fn(),
         };
+        syncReconcilerRef.current = new SyncReconciler(ctx);
         const coordinator = new RecoveryCoordinator(ctx);
         await expect(coordinator.tryBootstrapFromLatestCheckpoint()).rejects.toThrow(/bindSiblings/);
     });
