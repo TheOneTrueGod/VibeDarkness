@@ -731,7 +731,10 @@ export class GameEngine implements EngineContext {
         this.lastTimestamp = timestamp;
 
         const debugPauseModeActive = debugSettingsSnapshot.debugPauseMode;
-        const canRunSimulation = !this.state.levelEventManager.isTerminal && !this.isPaused;
+        const canRunSimulation =
+            !this.state.levelEventManager.isTerminal &&
+            !this.isPaused &&
+            !this.state.multiplayerAwaitHostCatchup;
         if (canRunSimulation) {
             if (debugPauseModeActive) {
                 // Explicit one-step mode for deterministic debug inspection.

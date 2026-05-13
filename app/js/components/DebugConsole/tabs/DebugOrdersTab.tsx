@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GameStatePayload } from '../../../types';
 import type { LobbyClient } from '../../../LobbyClient';
 import type { BattleOrderRecord } from '../../../types';
-import DebugJsonBlock from '../DebugJsonBlock';
+import DebugExpandableOrder from './DebugExpandableOrder';
 
 interface DebugOrdersTabProps {
     isActive: boolean;
@@ -51,6 +51,83 @@ function orderUnitId(entry: unknown): string | null {
     const uid = (order as Record<string, unknown>).unitId;
     return typeof uid === 'string' ? uid : null;
 }
+
+function innerOrder(entry: unknown): Record<string, unknown> | null {
+    if (entry == null || typeof entry !== 'object') return null;
+    const raw = (entry as Record<string, unknown>).order;
+    if (raw == null || typeof raw !== 'object') return null;
+    return raw as Record<string, unknown>;
+}
+
+/** Persisted rows use `atTick`; checkpoint `game.orders` uses `gameTick`. */
+function orderEntryTick(entry: unknown): number {
+    if (entry == null || typeof entry !== 'object') return -1;
+    const e = entry as Record<string, unknown>;
+    if (typeof e.atTick === 'number' && !Number.isNaN(e.atTick)) return e.atTick;
+    if (typeof e.gameTick === 'number' && !Number.isNaN(e.gameTick)) return e.gameTick;
+    return -1;
+}
+
+function unitIndexFromGameState(gameState: GameStatePayload | null): Map<string, { name: string; ownerId: string }> {
+    const game = gameState?.game as Record<string, unknown> | undefined;
+    if (!game) return new Map();
+    const raw = game.units;
+    if (!Array.isArray(raw)) return new Map();
+    const map = new Map<string, { name: string; ownerId: string }>();
+    for (const u of raw) {
+        if (u == null || typeof u !== 'object') continue;
+        const rec = u as Record<string, unknown>;
+        const id = rec.id;
+        if (typeof id !== 'string') continue;
+        const n = rec.name;
+        const name = typeof n === 'string' && n.length > 0 ? n : id;
+        const ownerRaw = rec.ownerId;
+        const ownerId = typeof ownerRaw === 'string' ? ownerRaw : '?';
+        map.set(id, { name, ownerId });
+    }
+    return map;
+}
+
+function resolveOwnerPlayerId(entry: unknown, unitById: Map<string, { ownerId: string }>): string | null {
+    if (entry == null || typeof entry !== 'object') return null;
+    const e = entry as Record<string, unknown>;
+    if (typeof e.playerId === 'string') return e.playerId;
+    const uid = orderUnitId(entry);
+    if (uid == null) return null;
+    return unitById.get(uid)?.ownerId ?? null;
+}
+
+function formatMoveSummary(entry: unknown): string {
+    const ord = innerOrder(entry);
+    if (!ord) return '—';
+    const path = ord.movePath;
+    if (path == null) return '—';
+    if (!Array.isArray(path) || path.length === 0) return '—';
+    const cells: { col: number; row: number }[] = [];
+    for (const c of path) {
+        if (c == null || typeof c !== 'object') continue;
+        const r = c as Record<string, unknown>;
+        const col = r.col;
+        const row = r.row;
+        if (typeof col === 'number' && typeof row === 'number') cells.push({ col, row });
+    }
+    if (cells.length === 0) return '—';
+    const fmt = (p: { col: number; row: number }) => `[${p.col}, ${p.row}]`;
+    if (cells.length <= 4) return cells.map(fmt).join(', ');
+    return `${cells.slice(0, 2).map(fmt).join(', ')}, …, ${cells.slice(-2).map(fmt).join(', ')}`;
+}
+
+function stableOrderListKey(entry: unknown, index: number): string {
+    if (entry != null && typeof entry === 'object') {
+        const h = (entry as Record<string, unknown>).idHash;
+        if (typeof h === 'string' && h.length > 0) return h;
+    }
+    const tick = orderEntryTick(entry);
+    const uid = orderUnitId(entry) ?? '?';
+    return `${tick}-${uid}-${index}`;
+}
+
+const DEFAULT_SWATCH = '#22c55e';
 
 export default function DebugOrdersTab({
     isActive,
@@ -125,6 +202,43 @@ export default function DebugOrdersTab({
             setFilterUnitId(null);
         }
     }, [filterUnitId, unitOptions]);
+
+    const sortedOrderCards = useMemo(() => {
+        const unitById = unitIndexFromGameState(gameState);
+        const players = gameState?.players ?? {};
+        const sorted = [...filteredOrders].sort((a, b) => orderEntryTick(b) - orderEntryTick(a));
+        return sorted.map((entry, index) => {
+            const tick = orderEntryTick(entry);
+            const uid = orderUnitId(entry);
+            const uinfo = uid != null ? unitById.get(uid) : undefined;
+            const unitName = uinfo?.name ?? uid ?? '—';
+            const ownerPid = resolveOwnerPlayerId(entry, unitById);
+            const ownerPlayer = ownerPid != null ? players[ownerPid] : undefined;
+            const ownerDisplay = ownerPid != null ? (ownerPlayer?.name ?? ownerPid) : '—';
+            const swatch =
+                ownerPlayer != null &&
+                typeof ownerPlayer.color === 'string' &&
+                ownerPlayer.color.length > 0
+                    ? ownerPlayer.color
+                    : DEFAULT_SWATCH;
+            const ord = innerOrder(entry);
+            const abilityId =
+                ord != null && typeof ord.abilityId === 'string' ? ord.abilityId : '—';
+            const moveSummary = formatMoveSummary(entry);
+            return (
+                <DebugExpandableOrder
+                    key={stableOrderListKey(entry, index)}
+                    entry={entry}
+                    unitName={unitName}
+                    ownerDisplay={ownerDisplay}
+                    tick={tick}
+                    abilityId={abilityId}
+                    moveSummary={moveSummary}
+                    swatchColor={swatch}
+                />
+            );
+        });
+    }, [filteredOrders, gameState]);
 
     if (!isActive) return null;
 
@@ -236,16 +350,19 @@ export default function DebugOrdersTab({
                         ) : null}{' '}
                         {filteredOrders.length === 1 ? 'entry' : 'entries'}
                     </div>
-                    <DebugJsonBlock
-                        value={filteredOrders}
-                        emptyText={
-                            filterUnitId != null && sourceOrders.length > 0
+                    {filteredOrders.length === 0 ? (
+                        <p className="text-xs text-muted m-0">
+                            {filterUnitId != null && sourceOrders.length > 0
                                 ? 'No orders for this unit in the current list.'
                                 : usesLiveOrders
                                   ? 'No rows in persisted orders.jsonl yet.'
-                                  : 'No orders in game state yet.'
-                        }
-                    />
+                                  : 'No orders in game state yet.'}
+                        </p>
+                    ) : (
+                        <div className="flex flex-col gap-1.5 max-h-[min(60vh,28rem)] min-h-0 overflow-y-auto overflow-x-auto pr-0.5">
+                            {sortedOrderCards}
+                        </div>
+                    )}
                 </>
             )}
         </div>

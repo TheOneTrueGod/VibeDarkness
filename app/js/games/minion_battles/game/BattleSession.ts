@@ -383,6 +383,17 @@ export class BattleSession implements BattleSessionHandle {
         return this.engine?.waitingForOrders != null;
     }
 
+    /** Non-host: fixed-step sim is frozen until `gameTick <=` heartbeat host completed tail. */
+    isMultiplayerAwaitHostCatchup(): boolean {
+        return this.engine?.state.multiplayerAwaitHostCatchup ?? false;
+    }
+
+    setMultiplayerAwaitHostCatchup(blocked: boolean): void {
+        const eng = this.engine;
+        if (!eng) return;
+        eng.state.multiplayerAwaitHostCatchup = blocked;
+    }
+
     getWaitingForOrdersBatch(): WaitingForOrders | null {
         return this.engine?.waitingForOrders ?? null;
     }

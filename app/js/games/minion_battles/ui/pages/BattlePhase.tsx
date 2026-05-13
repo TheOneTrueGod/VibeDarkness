@@ -176,6 +176,7 @@ export default function BattlePhase({
         !storyPauseActive &&
         !waitingForHostCatchup &&
         !blockingHostPausePlane &&
+        !sessionRef.current?.isMultiplayerAwaitHostCatchup() &&
         (isHost || !fallingBehindHost);
 
     const showHostCatchupPopover =

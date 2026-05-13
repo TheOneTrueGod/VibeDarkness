@@ -25,6 +25,11 @@ export class GameState {
     roundNumber = 1;
     snapshotIndex = 0;
     isPaused = true;
+    /**
+     * Non-host: when local `gameTick` is past the last heartbeat `hostTick`, stop draining fixed-step sim
+     * so we do not extend optimistic playahead until the host/storage tail catches up.
+     */
+    multiplayerAwaitHostCatchup = false;
     waitingForOrders: WaitingForOrders | null = null;
     storyPauseActive = false;
     storyPauseReason: string | null = null;
