@@ -33,7 +33,7 @@ import BossFightHud from '../components/boss/BossFightHud';
 import type { BossHudSlice } from '../components/boss/BossFightHud';
 import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
-import { computeSynchash } from '../../../../utils/synchash';
+import { computeSynchash } from '@/utils/synchash';
 import { logToLobbyLog } from '../../../../lobbyLog';
 
 declare global {
@@ -261,7 +261,7 @@ export default function BattlePhase({
                     window.__minionBattlesDebugTriggerDesyncRequested = false;
                 }
                 const seq = ++hashSeq;
-                void computeSynchash(state).then((h) => {
+                void computeSynchash(state).then((h: string) => {
                     if (seq === hashSeq) {
                         window.__minionBattlesDebugSynchash = h;
                     }
@@ -870,9 +870,9 @@ export default function BattlePhase({
                 <CardHand
                     abilityIds={myAbilityIds}
                     playerUnit={
-                        activeLocalWaiter != null
+                        (activeLocalWaiter != null
                             ? engine.getUnit(activeLocalWaiter.unitId) ?? engine.getLocalPlayerUnit()
-                            : engine.getLocalPlayerUnit()
+                            : engine.getLocalPlayerUnit()) ?? null
                     }
                     isMyTurn={canUseOrderUi}
                     roundNumber={roundNumber}

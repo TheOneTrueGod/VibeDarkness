@@ -14,7 +14,11 @@
     "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["app/js/*"]
+    }
   },
   "include": ["app/js/**/*.ts", "app/js/**/*.tsx", "vite-env.d.ts", "global_constants.js"]
 }

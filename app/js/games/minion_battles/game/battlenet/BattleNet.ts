@@ -3,8 +3,6 @@ import { traceBattleHeartbeatLine } from '../../../../battleHeartbeatTrace';
 import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../../lobbyLog';
 import type { BattleOrder, SerializedGameState } from '../types';
 import { hashOrderId } from './helpers/orderHashing';
-import { sleep } from './helpers/heartbeatTiming';
-import { getSnapshotFingerprint } from './helpers/snapshotFingerprint';
 import { BattleEventBus } from './BattleEventBus';
 import { SyncStatusController } from './SyncStatusController';
 import { HeartbeatHttp } from './HeartbeatHttp';
@@ -252,12 +250,6 @@ export class BattleNet implements BattleNetContext {
     }
     private set lastSeenOrdersRecordCount(v: number) {
         this.orderQueue.setLastSeenOrdersRecordCount(v);
-    }
-    private get deferredFlushBlockedLogKey(): string | null {
-        return this.orderQueue.getDeferredFlushBlockedLogKey();
-    }
-    private set deferredFlushBlockedLogKey(v: string | null) {
-        this.orderQueue.setDeferredFlushBlockedLogKey(v);
     }
     private get hostCatchupHeartbeatStreak(): number {
         return this.orderQueue.getHostCatchupHeartbeatStreak();
@@ -1097,14 +1089,6 @@ export class BattleNet implements BattleNetContext {
         this.heartbeatState.setLatestPausedAtTick(value);
     }
 
-    private get lastHeartbeatMaterialKey(): string | null {
-        return this.heartbeatState.getMaterialKey();
-    }
-
-    private get lastPollHeartbeatMaterialChanged(): boolean {
-        return this.heartbeatState.didLastPollChangeMaterial();
-    }
-
     private updateLastSeenHeartbeat(hostTick: number): void {
         this.heartbeatState.updateLastSeenHeartbeat(hostTick);
     }
@@ -1378,16 +1362,8 @@ export class BattleNet implements BattleNetContext {
         this.hostAnchorWait.notePreviouslySyncedAnchorTick(hostAlignedTick);
     }
 
-    private computeBlockingNonHostPausePlane(engineTick: number, hb: BattleNetEventMap['heartbeat']): boolean {
-        return this.syncReconciler.computeBlockingNonHostPausePlane(engineTick, hb);
-    }
-
     private emitBlockingHostPausePlane(blocking: boolean): void {
         this.syncReconciler.emitBlockingHostPausePlane(blocking);
-    }
-
-    private shouldTrackHostAnchorWallWait(engineTick: number, hb: BattleNetEventMap['heartbeat']): boolean {
-        return this.hostAnchorWait.shouldTrackHostAnchorWallWait(engineTick, hb);
     }
 
     private refreshHostAnchorWaitAndBlocking(engineTick: number, hb: BattleNetEventMap['heartbeat']): void {
@@ -1718,26 +1694,6 @@ export class BattleNet implements BattleNetContext {
         await this.fingerprintBatcher.flush();
     }
 
-    private noteRecoveryAttempt(reason: string): boolean {
-        return this.recovery.noteRecoveryAttempt(reason);
-    }
-
-    private async replayOrdersSince(sinceTick: number): Promise<void> {
-        return this.orderQueue.replayOrdersSince(sinceTick);
-    }
-
-    private isFingerprintAlignedWithHeartbeat(heartbeat: {
-        hostTick: number | null;
-        hostFingerprint: string | null;
-        hostPaused?: boolean | null;
-    }): boolean {
-        return this.syncReconciler.isFingerprintAlignedWithHeartbeat(heartbeat);
-    }
-
-    private sleep(ms: number): Promise<void> {
-        return sleep(ms);
-    }
-
     /**
      * Ensures at least {@link HEARTBEAT_POLL_INTERVAL_MS} between battle heartbeat GETs across
      * the poll loop, recovery, and alignment helpers (serialized so concurrent callers cannot bypass).
@@ -1750,28 +1706,12 @@ export class BattleNet implements BattleNetContext {
         return this.heartbeatHttp.getBattleHeartbeatThrottled(opts);
     }
 
-    private setSyncDetails(message: string | null): void {
-        this.syncStatusController.setDetails(message);
-    }
-
     private setSyncStatus(status: BattleNetSyncTerminalStatus, details: string | null = null): void {
         this.syncStatusController.setStatus(status, details);
     }
 
-    private finalizeRecoveryOutcome(synced: boolean, reason: string): void {
-        this.syncStatusController.finalizeRecoveryOutcome(synced, reason);
-    }
-
     private emitRejectedOrderSyncDetail(rejectedReason?: string): void {
         this.syncStatusController.emitRejectedOrderSyncDetail(rejectedReason);
-    }
-
-    private needsActiveHeartbeatPolling(): boolean {
-        return this.pollLoop.needsActiveHeartbeatPolling();
-    }
-
-    private getSnapshotFingerprint(state: SerializedGameState, envelopeSynchash?: string | null): string | null {
-        return getSnapshotFingerprint(state, envelopeSynchash);
     }
 
     async tryBootstrapFromLatestCheckpoint(): Promise<boolean> {
