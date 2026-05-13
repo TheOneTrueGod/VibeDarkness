@@ -1,5 +1,6 @@
 import DebugJsonBlock from '../DebugJsonBlock';
 import BattleSyncStatus from '../../../games/minion_battles/ui/components/BattleSyncStatus';
+import { battleSyncDebugPropsFromBridge } from '../../../games/minion_battles/ui/components/battleSyncDebugPropsFromBridge';
 import type { LobbyClient } from '../../../LobbyClient';
 
 export interface DebugHeartbeatSyncPanelProps {
@@ -14,13 +15,6 @@ export interface DebugHeartbeatSyncPanelProps {
     /** Bridge object from `window.__minionBattlesSyncDebug` (updated by parent). */
     syncBridge: Record<string, unknown> | null;
 }
-
-type BattleNetSyncStatus =
-    | 'synced'
-    | 'waiting_for_host'
-    | 'resyncing'
-    | 'failed'
-    | 'synced_pending_ack';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
     return value != null && typeof value === 'object' ? (value as Record<string, unknown>) : null;
@@ -89,16 +83,8 @@ export default function DebugHeartbeatSyncPanel({
 
     const syncBridgeRecord = asRecord(syncBridge);
     const heartbeatRecord = asRecord(syncBridgeRecord?.lastHeartbeat);
-    const orderSyncSummary = asRecord(syncBridgeRecord?.orderSyncSummary);
-    const syncStatusRaw = readString(syncBridgeRecord, 'syncStatus') as BattleNetSyncStatus | null;
-    const syncDetails = readString(syncBridgeRecord, 'syncDetails');
-    const stuckHeartbeats = readNumber(syncBridgeRecord, 'stuckHeartbeats') ?? 0;
-    const deferredOrderCount = readNumber(syncBridgeRecord, 'deferredOrderCount') ?? 0;
-    const queuedOrders = readNumber(orderSyncSummary, 'queued') ?? 0;
-    const sendingOrders = readNumber(orderSyncSummary, 'sending') ?? 0;
     const debugLastPollAt = readNumber(syncBridgeRecord, 'lastPollAt');
-    const hasHeartbeatData = heartbeatRecord != null || debugLastPollAt != null;
-    const syncStatus: BattleNetSyncStatus = !hasHeartbeatData ? 'waiting_for_host' : (syncStatusRaw ?? 'waiting_for_host');
+    const syncCardProps = battleSyncDebugPropsFromBridge(syncBridge);
     const heartbeatSeq = readNumber(heartbeatRecord, 'heartbeatSeq');
     const heartbeatHostTick = readNumber(heartbeatRecord, 'hostTick');
     const heartbeatOrdersTipTick = readNumber(heartbeatRecord, 'ordersTipTick');
@@ -160,21 +146,7 @@ export default function DebugHeartbeatSyncPanel({
         <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-white/85">Heartbeat debug</span>
 
-            <BattleSyncStatus
-                variant="debug"
-                isHost={readBool(syncBridgeRecord, 'isHost') === true}
-                isPaused={readBool(syncBridgeRecord, 'pausedForOrderSync') ?? false}
-                hasHeartbeatData={hasHeartbeatData}
-                syncStatus={syncStatus}
-                syncDetails={syncDetails}
-                fallingBehindHost={false}
-                ticksBehindHost={0}
-                waitingForHostPollStreak={readNumber(syncBridgeRecord, 'waitingForHostUiPollStreak') ?? 0}
-                stuckHeartbeats={stuckHeartbeats}
-                deferredOrderCount={deferredOrderCount}
-                queuedOrders={queuedOrders}
-                sendingOrders={sendingOrders}
-            />
+            <BattleSyncStatus variant="debug" {...syncCardProps} />
 
             <div className="rounded-md border border-border-custom bg-surface-light px-3 py-2">
                 <div className="text-xs font-semibold text-white/85">Heartbeat status</div>

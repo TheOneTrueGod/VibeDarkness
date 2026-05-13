@@ -1,7 +1,7 @@
 /**
  * Game screen - shown when inside a lobby
  */
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, useSyncExternalStore } from 'react';
 import Chat from './Chat';
 import LobbyIdBadge from './LobbyIdBadge';
 import type { MessageEntry } from './Chat';
@@ -11,6 +11,8 @@ import type { ClickData } from './GameCanvas';
 import GameList from './GameList';
 import type { PlayerState, AccountState, LobbyState, GameSidebarInfo } from '../types';
 import ObjectivePanel from '../games/minion_battles/ui/components/ObjectivePanel';
+import SidebarBattleSyncDebugCard from '../games/minion_battles/ui/components/SidebarBattleSyncDebugCard';
+import { getAlwaysShowSyncStatus, subscribeAlwaysShowSyncStatus } from '../debugFlags';
 import { LobbyClient } from '../LobbyClient';
 import { getGameById } from '../games/list';
 import { useGameSyncOptional } from '../contexts/GameSyncContext';
@@ -165,6 +167,11 @@ export default function GameScreen({
     // poll loop (full state on a phase-based cadence) and don't need to block the whole screen
     const gamePhase = effectiveLobbyGameData?.gamePhase ?? effectiveLobbyGameData?.game_phase;
     const inBattle = gamePhase === 'battle';
+    const alwaysShowSyncStatus = useSyncExternalStore(
+        subscribeAlwaysShowSyncStatus,
+        getAlwaysShowSyncStatus,
+        getAlwaysShowSyncStatus,
+    );
     const showResyncOverlay = isLoading || (isResyncing && inBattle) || (battleNetResyncing && inBattle);
     const showAdminRestartBattle =
         role === 'admin' &&
@@ -265,14 +272,17 @@ export default function GameScreen({
     }, [isMobileOrTablet]);
 
     const chatTopContent = useMemo(() => {
-        if (!gameSidebarInfo) return null;
+        const showSyncDebugCard =
+            alwaysShowSyncStatus && inBattle && effectiveLobbyGameType === 'minion_battles';
+        if (!gameSidebarInfo && !showSyncDebugCard) return null;
 
         return (
             <div className="flex flex-col gap-2">
-                <ObjectivePanel objectives={gameSidebarInfo.objectives} />
+                {showSyncDebugCard ? <SidebarBattleSyncDebugCard /> : null}
+                {gameSidebarInfo != null ? <ObjectivePanel objectives={gameSidebarInfo.objectives} /> : null}
             </div>
         );
-    }, [gameSidebarInfo]);
+    }, [gameSidebarInfo, alwaysShowSyncStatus, inBattle, effectiveLobbyGameType]);
 
     const chatHeaderLeaveButton = useMemo(
         () => (
