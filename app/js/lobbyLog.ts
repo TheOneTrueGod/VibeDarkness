@@ -1,61 +1,20 @@
 /**
  * Persisted lobby debug log (storage/lobbies/<lobbyId>/lobby_log.jsonl).
  *
- * **General lobby log** — `VITE_LOBBY_LOG_THRESHOLD`:
- * `off` | `log` | `info` | `warn` | `error` | `critical` — unset defaults to `off`.
- * A line is sent only if its severity rank is **≥** the threshold (lower name = more verbose).
- *
- * **Battle sync** (defer/flush on client; order POST diagnostics on server) —
- * `LOBBY_LOG_BATTLE_SYNC` in `global_constants.js` (client) / `global_constants.php` (PHP):
- * same token set; empty constant defaults to **`info`** (second most noisy: one step quieter than `log`).
- * Legacy `true` / `1` means **`log`** (most noisy). `off` disables battle-sync lines only.
+ * Each line has a **logType** (`desync` | `battleSync` | `debug`) with its own severity floor in
+ * **Debug Console → Debug Toggles** (persisted in localStorage). See `lobbyLogPostThresholds.ts`.
  */
 import type { LobbyClient } from './LobbyClient';
-import { LOBBY_LOG_BATTLE_SYNC } from '../../global_constants.js';
-import { DEBUG_SEVERITIES, type DebugSeverity } from './debugLog';
+import type { DebugSeverity } from './debugLog';
 import { debugLog } from './debugLog';
+import {
+    type LobbyLogType,
+    lobbyLogPostThresholdState,
+    shouldPostLobbyLogLine,
+} from './lobbyLogPostThresholds';
 
-export type LobbyLogThreshold = 'off' | DebugSeverity;
-
-const SEVERITY_RANK: Record<DebugSeverity, number> = {
-    log: 0,
-    info: 1,
-    warn: 2,
-    error: 3,
-    critical: 4,
-};
-
-function thresholdFromEnv(): LobbyLogThreshold {
-    const raw = import.meta.env.VITE_LOBBY_LOG_THRESHOLD as string | undefined;
-    if (raw === 'off') return 'off';
-    if (typeof raw === 'string' && (DEBUG_SEVERITIES as readonly string[]).includes(raw)) {
-        return raw as DebugSeverity;
-    }
-    return 'off';
-}
-
-function shouldSend(threshold: LobbyLogThreshold, severity: DebugSeverity): boolean {
-    if (threshold === 'off') return false;
-    return SEVERITY_RANK[severity] >= SEVERITY_RANK[threshold];
-}
-
-/** Floor for `logToLobbyLogBattleSync` only. Default `info` when constant is empty. */
-function battleSyncThresholdFromConstants(): LobbyLogThreshold {
-    const raw = LOBBY_LOG_BATTLE_SYNC;
-    if (typeof raw !== 'string' || raw === '') {
-        return 'info';
-    }
-    if (raw === 'off') {
-        return 'off';
-    }
-    if (raw === 'true' || raw === '1') {
-        return 'log';
-    }
-    if ((DEBUG_SEVERITIES as readonly string[]).includes(raw)) {
-        return raw as DebugSeverity;
-    }
-    return 'info';
-}
+export type { LobbyLogType };
+export { LOBBY_LOG_TYPES, LOBBY_LOG_TYPE_LABELS } from './lobbyLogPostThresholds';
 
 export interface LogToLobbyLogArgs {
     lobbyClient: LobbyClient;
@@ -65,11 +24,15 @@ export interface LogToLobbyLogArgs {
     tick: number | null;
     severity?: DebugSeverity;
     message: string;
+    logType: LobbyLogType;
     /** Optional extras (battle role, heartbeat summary, etc.). */
     context?: Record<string, unknown>;
     gameId?: string | null;
     gamePhase?: string | null;
 }
+
+/** Battle-sync helpers default `logType` to `battleSync`; pass `desync` for recovery-only lines. */
+export type LogToLobbyLogBattleSyncArgs = Omit<LogToLobbyLogArgs, 'logType'> & { logType?: LobbyLogType };
 
 function postLobbyLine(args: LogToLobbyLogArgs, severity: DebugSeverity): void {
     const tick = args.tick;
@@ -80,7 +43,12 @@ function postLobbyLine(args: LogToLobbyLogArgs, severity: DebugSeverity): void {
         ...(args.context ?? {}),
     };
 
-    debugLog('lobby log', severity, '[lobby log]', { playerId: args.playerId, message: args.message, ...context });
+    debugLog('lobby log', severity, '[lobby log]', {
+        logType: args.logType,
+        playerId: args.playerId,
+        message: args.message,
+        ...context,
+    });
 
     void args.lobbyClient
         .appendLobbyLog(args.lobbyId, {
@@ -88,6 +56,7 @@ function postLobbyLine(args: LogToLobbyLogArgs, severity: DebugSeverity): void {
             severity,
             tick,
             message: args.message,
+            logType: args.logType,
             context,
             gameId: args.gameId ?? undefined,
             gamePhase: args.gamePhase ?? undefined,
@@ -98,32 +67,30 @@ function postLobbyLine(args: LogToLobbyLogArgs, severity: DebugSeverity): void {
 }
 
 /**
- * POST a single JSON line to the lobby log when env threshold allows.
+ * POST a single JSON line to the lobby log when the logType's debug-toggle floor allows.
  * Fire-and-forget; errors are swallowed (optional console line at warn).
  */
 export function logToLobbyLog(args: LogToLobbyLogArgs): void {
     const severity = args.severity ?? 'log';
-    const floor = thresholdFromEnv();
-    if (!shouldSend(floor, severity)) {
+    if (!shouldPostLobbyLogLine(args.logType, severity)) {
         return;
     }
     postLobbyLine(args, severity);
 }
 
 export function isBattleSyncLobbyLogEnabled(): boolean {
-    return battleSyncThresholdFromConstants() !== 'off';
+    return lobbyLogPostThresholdState.getThreshold('battleSync') !== 'off';
 }
 
 /**
- * Battle-sync lines: uses `LOBBY_LOG_BATTLE_SYNC` from `global_constants.js` as a severity floor (not `VITE_LOBBY_LOG_THRESHOLD`).
- * Empty constant → floor `info`. `off` → none. `true`/`1` → floor `log`.
+ * Battle-sync lines: same as {@link logToLobbyLog} but default severity `info` and default
+ * `logType` `battleSync`. Use `logType: 'desync'` for recovery-only diagnostics.
  */
-export function logToLobbyLogBattleSync(args: LogToLobbyLogArgs): void {
+export function logToLobbyLogBattleSync(args: LogToLobbyLogBattleSyncArgs): void {
     const severity = args.severity ?? 'info';
-    const floor = battleSyncThresholdFromConstants();
-    if (!shouldSend(floor, severity)) {
+    const withType: LogToLobbyLogArgs = { ...args, logType: args.logType ?? 'battleSync' };
+    if (!shouldPostLobbyLogLine(withType.logType, severity)) {
         return;
     }
-    postLobbyLine(args, severity);
+    postLobbyLine(withType, severity);
 }
-

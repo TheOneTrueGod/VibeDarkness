@@ -88,7 +88,9 @@ export class RecoveryCoordinator {
             checkpointRuntimeFingerprintHex: snapshot.synchash,
         });
         await orderQueue.seedAppliedHashesForMergedOrdersThroughTick(snapshot.tick);
-        const { maxAtTickObserved } = await orderQueue.replayOrdersSince(snapshot.tick + 1);
+        const { maxAtTickObserved } = await orderQueue.replayOrdersSince(snapshot.tick + 1, {
+            label: 'tryBootstrapFromLatestCheckpoint',
+        });
         const nextFetchSince =
             maxAtTickObserved == null
                 ? snapshot.tick + 1
@@ -126,7 +128,9 @@ export class RecoveryCoordinator {
         if (replaySinceTick > 0) {
             await orderQueue.seedAppliedHashesForMergedOrdersThroughTick(replaySinceTick - 1);
         }
-        const { maxAtTickObserved } = await orderQueue.replayOrdersSince(replaySinceTick);
+        const { maxAtTickObserved } = await orderQueue.replayOrdersSince(replaySinceTick, {
+            label: 'applyAuthoritativeStateAndCheckAlignment',
+        });
         const nextFetchSince =
             maxAtTickObserved == null
                 ? Math.max(0, replaySinceTick)
@@ -183,6 +187,7 @@ export class RecoveryCoordinator {
                 playerId: this.ctx.playerId,
                 tick: localTick,
                 severity: 'info',
+                logType: 'desync',
                 gameId: this.ctx.gameId,
                 message: 'initial-state mismatch healed from latest snapshot',
                 context: {
@@ -212,6 +217,7 @@ export class RecoveryCoordinator {
                     playerId: this.ctx.playerId,
                     tick: localTick,
                     severity: 'warn',
+                    logType: 'desync',
                     gameId: this.ctx.gameId,
                     message: 'initial-state mismatch healed from initial_state.json after snapshot missing',
                     context: {
@@ -234,6 +240,7 @@ export class RecoveryCoordinator {
                 playerId: this.ctx.playerId,
                 tick: localTick,
                 severity: 'warn',
+                logType: 'desync',
                 gameId: this.ctx.gameId,
                 message: 'initial-state mismatch retry: initial state missing',
                 context: {
@@ -267,6 +274,30 @@ export class RecoveryCoordinator {
         this.ctx.syncStatus.setStatus('resyncing');
         this.ctx.resetForDesyncRecoveryEntry();
         try {
+            const tickAtRecoveryEntry = this.ctx.session.getEngineTick();
+            const deferredRows = orderQueue.getDeferredLocalOrders().map((d) => ({
+                idHash: d.idHash,
+                atTick: d.atTick,
+                unitId: d.order.unitId,
+                abilityId: d.order.abilityId,
+                appliedLocally: d.appliedLocally,
+            }));
+            logToLobbyLogBattleSync({
+                lobbyClient: this.ctx.api as unknown as LobbyClient,
+                lobbyId: this.ctx.lobbyId,
+                playerId: this.ctx.playerId,
+                tick: tickAtRecoveryEntry,
+                severity: 'info',
+                logType: 'desync',
+                gameId: this.ctx.gameId,
+                message: 'runDesyncRecovery: entry (optimistic order state cleared; deferred POST rows listed)',
+                context: {
+                    reason,
+                    isHost: this.ctx.isHost,
+                    engineTick: tickAtRecoveryEntry,
+                    deferredRows,
+                },
+            });
             if (reason === 'initial-state-mismatch') {
                 const initialSuccess = await this.recoverFromInitialStateMismatchWithRetry();
                 this.ctx.syncStatus.finalizeRecoveryOutcome(initialSuccess, reason);
@@ -310,6 +341,26 @@ export class RecoveryCoordinator {
                     tracePhase: 'recovery_post_bootstrap_checkpoint',
                 });
                 synced = syncReconciler.isFingerprintAlignedWithHeartbeat(heartbeat);
+                logToLobbyLogBattleSync({
+                    lobbyClient: this.ctx.api as unknown as LobbyClient,
+                    lobbyId: this.ctx.lobbyId,
+                    playerId: this.ctx.playerId,
+                    tick: this.ctx.session.getEngineTick(),
+                    severity: 'info',
+                    logType: 'desync',
+                    gameId: this.ctx.gameId,
+                    message: 'runDesyncRecovery: tryBootstrapFromLatestCheckpoint finished',
+                    context: {
+                        reason,
+                        isHost: this.ctx.isHost,
+                        bootstrapSnapshotTick: this.ctx.snapshotPersistence.getLastBootstrapSnapshotTick(),
+                        lastOrderFetchSince: orderQueue.getLastOrderFetchSince(),
+                        fingerprintAligned: synced,
+                        hostTick: heartbeat.hostTick ?? null,
+                        hostPaused: heartbeat.hostPaused === true,
+                        orderBatchAtTick: heartbeat.orderBatchAtTick ?? heartbeat.pausedAtTick ?? null,
+                    },
+                });
             }
 
             if (!synced) {
@@ -329,7 +380,9 @@ export class RecoveryCoordinator {
                         checkpointRuntimeFingerprintHex: snapshot.synchash,
                     });
                     await orderQueue.seedAppliedHashesForMergedOrdersThroughTick(snapshot.tick);
-                    const { maxAtTickObserved } = await orderQueue.replayOrdersSince(snapshot.tick + 1);
+                    const { maxAtTickObserved } = await orderQueue.replayOrdersSince(snapshot.tick + 1, {
+                        label: 'runDesyncRecovery_mismatch_snapshot',
+                    });
                     const nextFetchSince =
                         maxAtTickObserved == null
                             ? snapshot.tick + 1
@@ -340,6 +393,26 @@ export class RecoveryCoordinator {
                     });
                     this.primeOrderRevisionCounterFromHeartbeat(hbLate);
                     synced = syncReconciler.isFingerprintAlignedWithHeartbeat(hbLate);
+                    logToLobbyLogBattleSync({
+                        lobbyClient: this.ctx.api as unknown as LobbyClient,
+                        lobbyId: this.ctx.lobbyId,
+                        playerId: this.ctx.playerId,
+                        tick: this.ctx.session.getEngineTick(),
+                        severity: 'info',
+                        logType: 'desync',
+                        gameId: this.ctx.gameId,
+                        message: 'runDesyncRecovery: targeted mismatch snapshot + order replay finished',
+                        context: {
+                            reason,
+                            isHost: this.ctx.isHost,
+                            snapshotEnvelopeTick: snapshot.tick,
+                            requestedAtTick,
+                            replayMaxAtTickObserved: maxAtTickObserved,
+                            nextOrderFetchSince: nextFetchSince,
+                            fingerprintAligned: synced,
+                            hostTick: hbLate.hostTick ?? null,
+                        },
+                    });
                 }
                 if (!synced) {
                     const beforeInitialReplayTick = this.ctx.session.getEngineTick();
@@ -362,6 +435,7 @@ export class RecoveryCoordinator {
                                 playerId: this.ctx.playerId,
                                 tick: beforeInitialReplayTick,
                                 severity: 'warn',
+                                logType: 'desync',
                                 gameId: this.ctx.gameId,
                                 message:
                                     'safety patch: restored latest snapshot after initial-state replay failed alignment (client stuck at tick 0)',

@@ -122,4 +122,25 @@ describe('BattleSession.applyRemoteOrders', () => {
 
         session.destroy();
     });
+
+    it('skips applyRemoteOrders for idHashes pre-seeded via seedRemoteOrderDedupeKeys', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const engine = session.getEngine()!;
+        const atTick = engine.waitingForOrders?.atTick;
+        if (typeof atTick !== 'number') throw new Error('expected waitingForOrders.atTick');
+        const unit = engine.getUnit(unitId);
+        if (!unit) throw new Error('missing unit');
+        const col = Math.floor(unit.x / 40);
+        const row = Math.floor(unit.y / 40);
+        const order = makeWaitOrder(unitId, col + 1, row);
+
+        const spy = vi.spyOn(GameEngine.prototype, 'queueOrder');
+        session.seedRemoteOrderDedupeKeys(['pre-seeded']);
+        const r = session.applyRemoteOrders([{ atTick, order, idHash: 'pre-seeded', playerId: 'p2' }]);
+        expect(spy).not.toHaveBeenCalled();
+        expect(r.newlyAppliedKeys).toEqual([]);
+        expect(r.skippedKeys).toEqual(['pre-seeded']);
+
+        session.destroy();
+    });
 });

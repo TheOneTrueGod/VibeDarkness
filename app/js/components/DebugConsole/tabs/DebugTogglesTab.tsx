@@ -17,6 +17,11 @@ import {
     subscribeShowAllResearchTrees,
     subscribeAlwaysShowSyncStatus,
 } from '../../../debugFlags';
+import {
+    LOBBY_LOG_TYPES,
+    LOBBY_LOG_TYPE_LABELS,
+    lobbyLogPostThresholdState,
+} from '../../../lobbyLogPostThresholds';
 
 interface DebugTogglesTabProps {
     isActive: boolean;
@@ -47,6 +52,18 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
     );
 
     useSyncExternalStore(subscribeDebugLog, getDebugLogSnapshot, getDebugLogSnapshot);
+
+    const subscribeLobbyLogPost = useCallback(
+        (onStoreChange: () => void) => lobbyLogPostThresholdState.subscribe(onStoreChange),
+        [],
+    );
+
+    const getLobbyLogPostSnapshot = useCallback(
+        () => LOBBY_LOG_TYPES.map((t) => `${t}:${lobbyLogPostThresholdState.getThreshold(t)}`).join('|'),
+        [],
+    );
+
+    useSyncExternalStore(subscribeLobbyLogPost, getLobbyLogPostSnapshot, getLobbyLogPostSnapshot);
 
     if (!isActive) return null;
 
@@ -90,6 +107,34 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                             value={debugLogState.getThreshold(type)}
                             onChange={(e) => {
                                 debugLogState.setThreshold(type, e.target.value as DebugLogThreshold);
+                            }}
+                        >
+                            {THRESHOLD_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                ))}
+            </div>
+
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mt-8 mb-2">
+                Persisted lobby log (server)
+            </h3>
+            <p className="text-xs text-muted mb-3 max-w-xl">
+                Severity floor per category for POSTing lines to <code className="text-muted">lobby_log.jsonl</code>.
+                Only messages at or above the chosen level are sent (same ordering as debug logging above).
+            </p>
+            <div className="flex flex-col gap-3 max-w-lg">
+                {LOBBY_LOG_TYPES.map((type) => (
+                    <label key={type} className="flex flex-col gap-1">
+                        <span className="text-xs text-muted">{LOBBY_LOG_TYPE_LABELS[type]}</span>
+                        <select
+                            className="rounded border border-border-custom bg-surface px-2 py-1.5 text-sm text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            value={lobbyLogPostThresholdState.getThreshold(type)}
+                            onChange={(e) => {
+                                lobbyLogPostThresholdState.setThreshold(type, e.target.value as DebugLogThreshold);
                             }}
                         >
                             {THRESHOLD_OPTIONS.map((opt) => (

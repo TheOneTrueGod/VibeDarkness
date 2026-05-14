@@ -204,6 +204,7 @@ export default function BattlePhase({
                 playerId,
                 tick: eng != null ? eng.gameTick : null,
                 severity: 'critical',
+                logType: 'debug',
                 gameId: api.getGameId(),
                 gamePhase: 'battle',
                 message:

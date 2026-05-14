@@ -478,6 +478,7 @@ export class LobbyClient {
             severity?: string;
             tick: number | null;
             message: string;
+            logType: 'desync' | 'battleSync' | 'debug';
             context?: Record<string, unknown>;
             gameId?: string;
             gamePhase?: string;

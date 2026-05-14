@@ -35,6 +35,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         }),
         startEngine: () => {},
         loadFromSnapshot: () => {},
+        seedRemoteOrderDedupeKeys: vi.fn(),
         applyRemoteOrders: vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] }),
         isPausedForOrderSync: () => false,
         getWaitingForOrdersBatch: () => null,

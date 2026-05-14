@@ -30,6 +30,7 @@ function makeSession(): BattleSessionHandle {
         getPayloadForPersistedInitialStateOrNull: () => null,
         startEngine: () => {},
         loadFromSnapshot: () => {},
+        seedRemoteOrderDedupeKeys: vi.fn(),
         applyRemoteOrders: vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] }),
         isPausedForOrderSync: () => false,
         getWaitingForOrdersBatch: () => null,
@@ -51,7 +52,8 @@ function makeApi(): BattleApi {
         saveBattleSnapshot: vi.fn() as unknown as BattleApi['saveBattleSnapshot'],
         appendBattleFingerprints: vi.fn() as unknown as BattleApi['appendBattleFingerprints'],
         getBattleFingerprintsRange: vi.fn() as unknown as BattleApi['getBattleFingerprintsRange'],
-    };
+        appendLobbyLog: vi.fn(async () => undefined),
+    } as BattleApi;
 }
 
 function makeCtx(): BattleNetContext & { requestResync: ReturnType<typeof vi.fn> } {
@@ -274,10 +276,12 @@ describe('OrderQueueController.seedAppliedHashesForMergedOrdersThroughTick', () 
             ],
         });
         const q = new OrderQueueController(ctx);
+        const seedDedupeSpy = vi.spyOn(ctx.session, 'seedRemoteOrderDedupeKeys');
         await q.seedAppliedHashesForMergedOrdersThroughTick(5);
         expect(q.getAppliedOrderIdHashes().has('a')).toBe(true);
         expect(q.getAppliedOrderIdHashes().has('b')).toBe(false);
         expect(applySpy).not.toHaveBeenCalled();
+        expect(seedDedupeSpy).toHaveBeenCalledWith(['a']);
         expect(ctx.api.getBattleOrdersRange).toHaveBeenCalledWith('l1', 'g1', { playerId: 'p1', untilTick: 5 });
     });
 

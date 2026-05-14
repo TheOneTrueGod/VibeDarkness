@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-    /** `off` | `log` | `info` | `warn` | `error` | `critical` — floor for POSTing lobby_log lines (default off when unset). */
+    /** Deprecated for client lobby_log POST gating: use Debug Console → Debug Toggles → Persisted lobby log. */
     readonly VITE_LOBBY_LOG_THRESHOLD?: string;
 }

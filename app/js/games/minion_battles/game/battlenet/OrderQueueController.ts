@@ -3,6 +3,7 @@ import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../../lobbyLog';
 import type { BattleOrder } from '../types';
 import type { BattleNetContext } from './BattleNetContext';
 import { BATTLE_NET_MAX_DEFERRED_ORDERS } from './constants';
+import { summarizeRemoteWireRowsForLog } from './helpers/orderWireLogSummary';
 
 export interface DeferredOrderRow {
     idHash: string;
@@ -124,6 +125,7 @@ export class OrderQueueController {
                 playerId: this.ctx.playerId,
                 tick: atTick,
                 severity: 'warn',
+                logType: 'desync',
                 gameId: this.ctx.gameId,
                 message: 'deferred order queue cap exceeded; requesting resync',
                 context: { cap: BATTLE_NET_MAX_DEFERRED_ORDERS },
@@ -225,6 +227,13 @@ export class OrderQueueController {
      * required local turns are not silently dropped (they're re-attempted after recovery).
      */
     resetLocalOptimisticOrdersOnResync(): void {
+        const deferredSnapshot = this.deferredLocalOrders.map((d) => ({
+            idHash: d.idHash,
+            atTick: d.atTick,
+            unitId: d.order.unitId,
+            abilityId: d.order.abilityId,
+            appliedLocally: d.appliedLocally,
+        }));
         this.appliedOrderIdHashes.clear();
         this.ourOrdersAwaitingServerRange.clear();
         this.serverRangeConfirmedOurOrderHashes.clear();
@@ -232,6 +241,19 @@ export class OrderQueueController {
         this.lastOrderFetchSince = 0;
         this.lastSeenOrdersRecordCount = 0;
         this.deferredFlushBlockedLogKey = null;
+        logToLobbyLogBattleSync({
+            lobbyClient: this.ctx.api as unknown as LobbyClient,
+            lobbyId: this.ctx.lobbyId,
+            playerId: this.ctx.playerId,
+            tick: this.ctx.session.getEngineTick(),
+            severity: 'info',
+            gameId: this.ctx.gameId,
+            message: 'order queue: reset optimistic order tracking (desync recovery entry); deferred rows preserved',
+            context: {
+                isHost: this.ctx.isHost,
+                deferredPreserved: deferredSnapshot,
+            },
+        });
     }
 
     /**
@@ -248,16 +270,46 @@ export class OrderQueueController {
             playerId: this.ctx.playerId,
             untilTick: maxAtTick,
         });
+        let seeded = 0;
+        let minObserved: number | null = null;
+        let maxObserved: number | null = null;
+        const sessionDedupeKeys: string[] = [];
         for (const record of orderRange.orders) {
             if (typeof record.atTick !== 'number' || record.atTick > maxAtTick) {
                 continue;
             }
+            seeded += 1;
+            minObserved =
+                minObserved == null ? record.atTick : Math.min(minObserved, record.atTick);
+            maxObserved =
+                maxObserved == null ? record.atTick : Math.max(maxObserved, record.atTick);
             if (record.playerId === this.ctx.playerId) {
                 this.serverRangeConfirmedOurOrderHashes.add(record.idHash);
                 this.ourOrdersAwaitingServerRange.delete(record.idHash);
             }
             this.appliedOrderIdHashes.add(record.idHash);
+            sessionDedupeKeys.push(record.idHash);
         }
+        if (sessionDedupeKeys.length > 0) {
+            this.ctx.session.seedRemoteOrderDedupeKeys(sessionDedupeKeys);
+        }
+        logToLobbyLogBattleSync({
+            lobbyClient: this.ctx.api as unknown as LobbyClient,
+            lobbyId: this.ctx.lobbyId,
+            playerId: this.ctx.playerId,
+            tick: this.ctx.session.getEngineTick(),
+            severity: 'info',
+            gameId: this.ctx.gameId,
+            message: 'order queue: seeded applied idHashes from merged server orders through checkpoint tick',
+            context: {
+                maxAtTick,
+                mergedRowCount: orderRange.orders.length,
+                seededRowCount: seeded,
+                seededAtTickMin: minObserved,
+                seededAtTickMax: maxObserved,
+                isHost: this.ctx.isHost,
+            },
+        });
     }
 
     /**
@@ -270,7 +322,10 @@ export class OrderQueueController {
      * @returns Maximum `atTick` among rows returned by the range fetch (including rows skipped as already-hashed),
      * or `null` when the response had no orders.
      */
-    async replayOrdersSince(sinceTick: number): Promise<{ maxAtTickObserved: number | null }> {
+    async replayOrdersSince(
+        sinceTick: number,
+        logCtx?: { label: string },
+    ): Promise<{ maxAtTickObserved: number | null }> {
         const orderRange = await this.ctx.api.getBattleOrdersRange(this.ctx.lobbyId, this.ctx.gameId, {
             playerId: this.ctx.playerId,
             sinceTick,
@@ -304,6 +359,41 @@ export class OrderQueueController {
                 this.appliedOrderIdHashes.add(k);
             }
             this.ctx.events.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
+            logToLobbyLogBattleSync({
+                lobbyClient: this.ctx.api as unknown as LobbyClient,
+                lobbyId: this.ctx.lobbyId,
+                playerId: this.ctx.playerId,
+                tick: this.ctx.session.getEngineTick(),
+                severity: 'info',
+                gameId: this.ctx.gameId,
+                message: 'order queue: replayOrdersSince applied remote rows from range fetch',
+                context: {
+                    label: logCtx?.label ?? 'replayOrdersSince',
+                    sinceTick,
+                    wireRowCount: orderRange.orders.length,
+                    toApplyCount: toApply.length,
+                    maxAtTickObserved,
+                    newlyAppliedKeys: applyResult.newlyAppliedKeys,
+                    skippedKeys: applyResult.skippedKeys,
+                    rows: summarizeRemoteWireRowsForLog(toApply),
+                    isHost: this.ctx.isHost,
+                },
+            });
+        } else if (logCtx != null) {
+            logToLobbyLogBattleSync({
+                lobbyClient: this.ctx.api as unknown as LobbyClient,
+                lobbyId: this.ctx.lobbyId,
+                playerId: this.ctx.playerId,
+                tick: this.ctx.session.getEngineTick(),
+                severity: 'log',
+                gameId: this.ctx.gameId,
+                message: 'order queue: replayOrdersSince range fetch returned no rows',
+                context: {
+                    label: logCtx.label,
+                    sinceTick,
+                    isHost: this.ctx.isHost,
+                },
+            });
         }
         return { maxAtTickObserved };
     }

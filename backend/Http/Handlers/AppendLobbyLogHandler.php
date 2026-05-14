@@ -29,6 +29,9 @@ class AppendLobbyLogHandler
         $gameId = isset($data['gameId']) && is_string($data['gameId']) ? $data['gameId'] : null;
         $gamePhase = isset($data['gamePhase']) && is_string($data['gamePhase']) ? $data['gamePhase'] : null;
 
+        $logTypeRaw = isset($data['logType']) && is_string($data['logType']) ? $data['logType'] : '';
+        $logType = in_array($logTypeRaw, ['desync', 'battleSync', 'debug'], true) ? $logTypeRaw : 'debug';
+
         try {
             $storage = new LobbyLogStorage();
             $storage->append($lobbyId, [
@@ -36,6 +39,7 @@ class AppendLobbyLogHandler
                 'severity' => $severity,
                 'tick' => $tick,
                 'message' => $message,
+                'logType' => $logType,
                 'context' => $context,
                 'gameId' => $gameId,
                 'gamePhase' => $gamePhase,

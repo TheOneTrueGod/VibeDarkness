@@ -23,6 +23,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         getPayloadForPersistedInitialStateOrNull: () => null,
         startEngine: () => {},
         loadFromSnapshot: () => {},
+        seedRemoteOrderDedupeKeys: () => {},
         applyRemoteOrders: () => ({ newlyAppliedKeys: [], skippedKeys: [] }),
         isPausedForOrderSync: () => false,
         getWaitingForOrdersBatch: () => null,

@@ -10,7 +10,7 @@ import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { SPECTATOR_ID } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { debugLog } from '../../../debugLog';
-import { logToLobbyLog } from '../../../lobbyLog';
+import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../lobbyLog';
 import { GameEngine } from './GameEngine';
 import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
@@ -20,6 +20,7 @@ import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
 import type { ApplyRemoteOrdersResult, BattleNet, BattleSessionHandle, RemoteOrderWireRow } from './battlenet';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
+import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogSummary';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -295,6 +296,7 @@ export class BattleSession implements BattleSessionHandle {
                 playerId,
                 tick: 0,
                 severity: 'info',
+                logType: 'debug',
                 gameId: api.getGameId(),
                 gamePhase: 'battle',
                 message: 'battle initial fingerprint inputs',
@@ -481,6 +483,17 @@ export class BattleSession implements BattleSessionHandle {
         };
     }
 
+    /**
+     * Align {@link BattleSession.appliedRemoteOrderKeys} with {@link OrderQueueController.seedAppliedHashesForMergedOrdersThroughTick}.
+     */
+    seedRemoteOrderDedupeKeys(keys: readonly string[]): void {
+        for (const k of keys) {
+            if (typeof k === 'string' && k.length > 0) {
+                this.appliedRemoteOrderKeys.add(k);
+            }
+        }
+    }
+
     /** Apply orders delivered from the server for non-host (or late host) clients. */
     applyRemoteOrders(orders: RemoteOrderWireRow[]): ApplyRemoteOrdersResult {
         const newlyAppliedKeys: string[] = [];
@@ -489,6 +502,7 @@ export class BattleSession implements BattleSessionHandle {
         if (!eng) {
             return { newlyAppliedKeys, skippedKeys };
         }
+        const engineTickBeforeApply = eng.gameTick;
         debugLog('sync tracking', 'info', 'BattleSession.applyRemoteOrders', {
             engineTickBefore: eng.gameTick,
             count: orders.length,
@@ -528,6 +542,39 @@ export class BattleSession implements BattleSessionHandle {
             waitingForOrders: eng.waitingForOrders,
         });
         this.emit({ type: 'card_state', engine: eng });
+        const wAfter = eng.waitingForOrders;
+        const lobbyClient = this.config.api.getLobbyClient?.();
+        if (orders.length > 0 && lobbyClient) {
+            logToLobbyLogBattleSync({
+                lobbyClient,
+                lobbyId: this.config.api.getLobbyId(),
+                playerId: this.config.playerId,
+                tick: eng.gameTick,
+                severity: 'info',
+                gameId: this.config.api.getGameId(),
+                message:
+                    'BattleSession.applyRemoteOrders: engine state after queueOrder (same effectiveTick+unitId replaces pending row)',
+                context: {
+                    engineTickBeforeApply,
+                    engineTickAfter: eng.gameTick,
+                    incomingRows: summarizeRemoteWireRowsForLog(orders),
+                    newlyAppliedKeys,
+                    skippedKeys,
+                    pendingOrdersAfter: eng.pendingOrders.map((o) => ({
+                        gameTick: o.gameTick,
+                        unitId: o.order.unitId,
+                        abilityId: o.order.abilityId,
+                    })),
+                    waitingForOrdersAfter:
+                        wAfter == null
+                            ? null
+                            : {
+                                  atTick: wAfter.atTick,
+                                  waiterUnitIds: wAfter.waiters.map((x) => x.unitId),
+                              },
+                },
+            });
+        }
         return { newlyAppliedKeys, skippedKeys };
     }
 

@@ -3,6 +3,7 @@ import { traceBattleHeartbeatLine } from '../../../../battleHeartbeatTrace';
 import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../../lobbyLog';
 import type { BattleOrder, SerializedGameState } from '../types';
 import { hashOrderId } from './helpers/orderHashing';
+import { summarizeRemoteWireRowsForLog } from './helpers/orderWireLogSummary';
 import { BattleEventBus } from './BattleEventBus';
 import { SyncStatusController } from './SyncStatusController';
 import { HeartbeatHttp } from './HeartbeatHttp';
@@ -307,6 +308,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: atTick,
 				severity: 'warn',
+				logType: 'desync',
 				gameId: this.gameId,
 				message: 'submitOrder early exit: skipped while desync recovery is active',
 				context: {
@@ -328,6 +330,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: atTick,
 				severity: 'warn',
+				logType: 'desync',
 				gameId: this.gameId,
 				message: 'submitOrder skipped: recovery active (no immediate POST)',
 				context: { why: whyImmediateSubmitSkipped, unitId: order.unitId, abilityId: order.abilityId },
@@ -498,6 +501,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: atTick,
 				severity: 'info',
+				logType: 'debug',
 				gameId: this.gameId,
 				message: 'submitOrder deferred until host tick catches up',
 				context: {
@@ -861,6 +865,26 @@ export class BattleNet implements BattleNetContext {
 		}
 		if (toApply.length > 0) {
 			const applyResult = this.session.applyRemoteOrders(toApply);
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: this.session.getEngineTick(),
+				severity: 'info',
+				gameId: this.gameId,
+				message: 'heartbeat pastAppliedActions: session.applyRemoteOrders finished',
+				context: {
+					rowCount: toApply.length,
+					maxAtTickAmongRows: maxAt >= 0 ? maxAt : null,
+					hbHostTick: typeof hb.hostTick === 'number' ? hb.hostTick : null,
+					hbGameTickEcho: hb.gameTick ?? null,
+					hbRequestedGameTick: hb.requestedGameTick ?? null,
+					rows: summarizeRemoteWireRowsForLog(toApply),
+					newlyAppliedKeys: applyResult.newlyAppliedKeys,
+					skippedKeys: applyResult.skippedKeys,
+					isHost: this.isHost,
+				},
+			});
 			this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
 			this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
 		}
@@ -878,6 +902,7 @@ export class BattleNet implements BattleNetContext {
 			return;
 		}
 		const sinceTick = rescan ? 0 : this.lastOrderFetchSince;
+		const orderFetchCursorBefore = this.lastOrderFetchSince;
 		const range = await this.api.getBattleOrdersRange(this.lobbyId, this.gameId, {
 			playerId: this.playerId,
 			sinceTick: sinceTick > 0 ? sinceTick : undefined,
@@ -898,6 +923,27 @@ export class BattleNet implements BattleNetContext {
 		}
 		if (toApply.length > 0) {
 			const applyResult = this.session.applyRemoteOrders(toApply);
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: this.session.getEngineTick(),
+				severity: 'info',
+				gameId: this.gameId,
+				message: 'poll fetchAndApplyNewOrders: session.applyRemoteOrders finished',
+				context: {
+					rescanOrdersFromTickZero: rescan,
+					sinceTick,
+					untilTick,
+					rangeRowCount: range.orders.length,
+					ordersRecordCountFromHeartbeat: opts?.serverOrderRecordCount ?? null,
+					orderFetchCursorBefore,
+					rows: summarizeRemoteWireRowsForLog(toApply),
+					newlyAppliedKeys: applyResult.newlyAppliedKeys,
+					skippedKeys: applyResult.skippedKeys,
+					isHost: this.isHost,
+				},
+			});
 			this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
 			this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
 		}
@@ -1068,6 +1114,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: atTick,
 				severity: 'warn',
+				logType: 'debug',
 				gameId: this.gameId,
 				message: 'appendBattleOrder network error; deferred for retry',
 				context: { abilityId: order.abilityId, unitId: order.unitId },
@@ -1116,6 +1163,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: atTick,
 				severity: 'log',
+				logType: 'debug',
 				gameId: this.gameId,
 				message: 'appendBattleOrder accepted',
 				context: {
@@ -1141,6 +1189,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: atTick,
 				severity: 'warn',
+				logType: 'debug',
 				gameId: this.gameId,
 				message: 'appendBattleOrder rejected tick_ahead_of_host; deferred client POST',
 				context: {
@@ -1184,6 +1233,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: atTick,
 				severity: 'warn',
+				logType: 'desync',
 				gameId: this.gameId,
 				message: 'appendBattleOrder rejected tick_in_past; requesting resync',
 				context: {
@@ -1206,6 +1256,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: atTick,
 				severity: 'warn',
+				logType: 'desync',
 				gameId: this.gameId,
 				message: `appendBattleOrder rejected ${res.rejectedReason}; requesting resync`,
 				context: { unitId: order.unitId },
@@ -1311,6 +1362,7 @@ export class BattleNet implements BattleNetContext {
 						playerId: this.playerId,
 						tick: engineTick,
 						severity: 'info',
+						logType: 'debug',
 						gameId: this.gameId,
 						message: 'flushDeferredOrdersUpTo skipped (host tail)',
 						context: {
@@ -1356,6 +1408,7 @@ export class BattleNet implements BattleNetContext {
 						playerId: this.playerId,
 						tick: engineTick,
 						severity: 'info',
+						logType: 'debug',
 						gameId: this.gameId,
 						message: 'flushDeferredOrdersUpTo partial flush; rows remain queued',
 						context: {
@@ -1394,6 +1447,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: this.session.getEngineTick(),
 				severity: 'info',
+				logType: 'debug',
 				gameId: this.gameId,
 				message: 'deferred order watchdog skipped — engine not paused for order sync while deferred POST queued',
 				context: {
@@ -1578,6 +1632,7 @@ export class BattleNet implements BattleNetContext {
 			playerId: this.playerId,
 			tick: engineTick,
 			severity: 'error',
+			logType: 'desync',
 			gameId: this.gameId,
 			message: 'optimistic playahead divergence: host and client paused on misaligned ticks vs optimistic anchor',
 			context: {
@@ -1624,6 +1679,7 @@ export class BattleNet implements BattleNetContext {
 				playerId: this.playerId,
 				tick: this.session.getEngineTick(),
 				severity: 'warn',
+				logType: 'desync',
 				gameId: this.gameId,
 				message: 'waiting_for_host paused stall — heartbeat material unchanged; forcing full resync',
 				context: {
@@ -1734,6 +1790,7 @@ export class BattleNet implements BattleNetContext {
 					playerId: this.playerId,
 					tick: engineTick,
 					severity: 'warn',
+					logType: 'desync',
 					gameId: this.gameId,
 					message:
 						'stuck-paused host ahead: rescan did not unblock client — requesting full resync',

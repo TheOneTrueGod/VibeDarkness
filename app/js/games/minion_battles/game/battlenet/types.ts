@@ -39,6 +39,13 @@ export interface BattleSessionHandle {
         state: SerializedGameState,
         opts?: { checkpointRuntimeFingerprintHex?: string | null },
     ): void;
+    /**
+     * Marks server `idHash` keys as already consumed by {@link applyRemoteOrders} without touching the engine.
+     * {@link OrderQueueController.seedAppliedHashesForMergedOrdersThroughTick} must call this in lockstep so a
+     * later `ordersRecordCount` rescan does not re-`queueOrder` rows already baked into the loaded snapshot
+     * (historical `atTick` would clamp to `gameTick` and same-unit pending rows would overwrite each other).
+     */
+    seedRemoteOrderDedupeKeys(keys: readonly string[]): void;
     applyRemoteOrders(orders: RemoteOrderWireRow[]): ApplyRemoteOrdersResult;
     /**
      * True while the engine holds a parallel player order batch (`GameEngine.waitingForOrders`).
