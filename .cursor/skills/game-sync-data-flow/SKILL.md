@@ -59,6 +59,8 @@ Keeps **`hostTick`**, **`hostFingerprint`**, **`orderBatchAtTick`**, **`expectin
 
 Adds **minimal-plan** aliases: **`latestServerGameTick`**, **`latestServerGameHash`**, optional **`gameTick`/`gameHash`** echo (when `gameTick` query param set), **`pendingOrders`** (recent window), **`appliedOrdersAtTick`**.
 
+Optional **`includePastApplied=1`** with numeric **`?gameTick=N`**: when **`N < hostTick`**, the response may include **`pastAppliedActions`** — the **`applied`** slice from **`BattleStorage::getOrdersRangeSplit`** for **`sinceTick = N + 1`** (same rows as **`appliedOrders`** on **`GET …/orders`** for that range). **`BattleNet`** (non-host) sets this flag when it detects the local engine is behind the last observed host tail. Implemented via **`BattleStorage::getAppliedOrdersRangeForWire`** so the applied list matches the orders endpoint.
+
 Also exposes optional **`fingerprintTailTick`** / **`fingerprintTailFingerprint`** (max tick row in `fingerprints.jsonl` before clamp) for diagnostics; **`hostTick`** may trail that tail while the latest snapshot’s **`waitingForOrders.atTick`** lags. **`BattleNet`** tracks **`hostTick|hostFingerprint`** between polls to detect **material** heartbeat changes, and a composite **pause-plane key** (`hostPaused`, **`hostTick`**, fingerprint, **`orderBatchAtTick`**, **`expectingFromPlayerIds`**) between polls: when the local engine runs **ahead** of the clamped server tail while the heartbeat is still **paused**, sync stays **`waiting_for_host`** (no immediate resync); when the pause plane **changes**, **`reconcileNonHostPausePlaneTransition`** re-checks the fingerprint at **`hostTick`** and may **`requestResync('pause-plane-transition-hash-mismatch')`** or return to **`synced`** if the host cleared pause and hashes agree (see **`docs/game-sync-plan.md`** optimistic playahead subsection).
 
 Poll interval: **`HEARTBEAT_POLL_INTERVAL_MS = 500`** (foreground).
@@ -74,7 +76,7 @@ Host **`saveBattleSnapshot`** → **`SaveSnapshotHandler`**: persists snapshot w
 | [`app/js/games/minion_battles/game/BattleNet.ts`](app/js/games/minion_battles/game/BattleNet.ts) | Heartbeat poll, merges, **`HostBattleNet`/`ClientBattleNet`**, **`createBattleNet`** |
 | [`app/js/LobbyClient.ts`](app/js/LobbyClient.ts) | Wire methods + **`HeartbeatResponse`** extended fields |
 | [`app/js/contexts/GameSyncContext.tsx`](app/js/contexts/GameSyncContext.tsx) | Lobby/message polling only (battle sync is **`BattleNet`**) |
-| [`backend/BattleStorage.php`](backend/BattleStorage.php) | Lobby-scoped paths, **`getOrdersRangeSplit`**, **`mergeFinalizedPendingForBatch`**, **`prunePendingOrdersAfterSnapshot`** |
+| [`backend/BattleStorage.php`](backend/BattleStorage.php) | Lobby-scoped paths, **`getOrdersRangeSplit`**, **`getAppliedOrdersRangeForWire`** (applied slice = **`GET …/orders`** `appliedOrders`), **`mergeFinalizedPendingForBatch`**, **`prunePendingOrdersAfterSnapshot`** |
 | [`backend/Http/Handlers/Battle/MergeAppliedOrdersHandler.php`](backend/Http/Handlers/Battle/MergeAppliedOrdersHandler.php) | Host merge endpoint |
 | [`backend/Http/Handlers/Battle/GetHeartbeatHandler.php`](backend/Http/Handlers/Battle/GetHeartbeatHandler.php) | Minimal + legacy heartbeat fields |
 | [`backend/Http/Handlers/Battle/SaveSnapshotHandler.php`](backend/Http/Handlers/Battle/SaveSnapshotHandler.php) | Snapshot + synchash + prune |

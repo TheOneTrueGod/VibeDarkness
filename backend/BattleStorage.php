@@ -527,6 +527,21 @@ final class BattleStorage
     }
 
     /**
+     * The `applied` slice of {@see getOrdersRangeSplit} — same records as `appliedOrders` on `GET …/orders`
+     * for the given inclusive tick bounds (null bounds = unbounded on that side).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function getAppliedOrdersRangeForWire(
+        string $lobbyId,
+        string $gameId,
+        ?int $sinceInclusiveTick,
+        ?int $untilInclusiveTick,
+    ): array {
+        return $this->getOrdersRangeSplit($lobbyId, $gameId, $sinceInclusiveTick, $untilInclusiveTick)['applied'];
+    }
+
+    /**
      * @return list<array<string,mixed>>
      */
     public function getOrdersRange(string $lobbyId, string $gameId, ?int $sinceTick, ?int $untilTick): array

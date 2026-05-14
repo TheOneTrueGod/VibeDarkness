@@ -24,6 +24,7 @@ export class HeartbeatHttp {
 
     getBattleHeartbeatThrottled(opts?: {
         gameTick?: number;
+        includePastApplied?: boolean;
         bypassThrottle?: boolean;
         tracePhase?: string;
     }): Promise<BattleHeartbeatApiResult> {
@@ -66,10 +67,12 @@ export class HeartbeatHttp {
                 playerId,
                 tracePhase,
                 gameTick: opts?.gameTick ?? null,
+                includePastApplied: opts?.includePastApplied === true,
                 bypassThrottle: opts?.bypassThrottle === true,
             });
             return api.getBattleHeartbeat(lobbyId, gameId, playerId, {
                 gameTick: opts?.gameTick,
+                includePastApplied: opts?.includePastApplied,
             });
         });
         this.battleHeartbeatHttpChain = pending.then(

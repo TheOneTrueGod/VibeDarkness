@@ -6,6 +6,10 @@ use App\AccountService;
 use App\BattleStorage;
 use App\LobbyManager;
 
+/**
+ * `appliedOrders` is the `applied` slice of {@see BattleStorage::getOrdersRangeSplit} — same list as
+ * {@see BattleStorage::getAppliedOrdersRangeForWire} for the same `sinceTick` / `untilTick`.
+ */
 class GetOrdersRangeHandler
 {
     public static function handle(LobbyManager $manager, AccountService $accountService, array $matches): array

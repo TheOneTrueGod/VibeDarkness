@@ -63,8 +63,8 @@ describe('HeartbeatHttp', () => {
             async () => HB_OK as unknown as Awaited<ReturnType<BattleApi['getBattleHeartbeat']>>,
         );
         const http = makeHttp(makeStubApi(getBattleHeartbeat as unknown as BattleApi['getBattleHeartbeat']));
-        await http.getBattleHeartbeatThrottled({ gameTick: 17 });
-        expect(getBattleHeartbeat).toHaveBeenCalledWith('l1', 'g1', 'p1', { gameTick: 17 });
+        await http.getBattleHeartbeatThrottled({ gameTick: 17, includePastApplied: true });
+        expect(getBattleHeartbeat).toHaveBeenCalledWith('l1', 'g1', 'p1', { gameTick: 17, includePastApplied: true });
     });
 
     it('continues the chain after a rejected call (next caller still runs)', async () => {

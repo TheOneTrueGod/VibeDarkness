@@ -256,3 +256,29 @@ describe('OrderQueueController.engineOrderSyncPauseSummary', () => {
         expect(s).toContain('2 waiter(s)');
     });
 });
+
+describe('OrderQueueController.seedAppliedHashesForMergedOrdersThroughTick', () => {
+    it('adds id hashes for rows with atTick <= maxAtTick without applying orders', async () => {
+        const ctx = makeCtx();
+        const applySpy = vi.spyOn(ctx.session, 'applyRemoteOrders');
+        (ctx.api.getBattleOrdersRange as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+            orders: [
+                { atTick: 4, playerId: 'p1', idHash: 'a', order: makeOrder('u1') },
+                { atTick: 10, playerId: 'p2', idHash: 'b', order: makeOrder('u2') },
+            ],
+        });
+        const q = new OrderQueueController(ctx);
+        await q.seedAppliedHashesForMergedOrdersThroughTick(5);
+        expect(q.getAppliedOrderIdHashes().has('a')).toBe(true);
+        expect(q.getAppliedOrderIdHashes().has('b')).toBe(false);
+        expect(applySpy).not.toHaveBeenCalled();
+        expect(ctx.api.getBattleOrdersRange).toHaveBeenCalledWith('l1', 'g1', { playerId: 'p1', untilTick: 5 });
+    });
+
+    it('returns early without HTTP for negative maxAtTick', async () => {
+        const ctx = makeCtx();
+        const q = new OrderQueueController(ctx);
+        await q.seedAppliedHashesForMergedOrdersThroughTick(-1);
+        expect(ctx.api.getBattleOrdersRange).not.toHaveBeenCalled();
+    });
+});

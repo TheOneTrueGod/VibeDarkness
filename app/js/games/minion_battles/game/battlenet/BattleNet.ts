@@ -583,8 +583,15 @@ export class BattleNet implements BattleNetContext {
 			}
 
 			const hbStarted = performance.now();
+			let engineTick = this.session.getEngineTick();
+			const latestHostTail = this.latestHeartbeatHostTick;
+			const includePastApplied =
+				!this.isHost &&
+				(engineTick < latestHostTail || (latestHostTail === 0 && engineTick > 0));
+
 			const hbRaw = await this.getBattleHeartbeatThrottled({
-				gameTick: this.session.getEngineTick(),
+				gameTick: engineTick,
+				includePastApplied,
 				bypassThrottle: opts?.forceHttp === true,
 				tracePhase: `poll:${pollSource}`,
 			});
@@ -596,7 +603,9 @@ export class BattleNet implements BattleNetContext {
 				hostTick: hbRaw.hostTick ?? null,
 				hostPaused: hbRaw.hostPaused === true,
 				heartbeatSeq: hbRaw.heartbeatSeq ?? null,
+				includePastApplied,
 			});
+			this.applyHeartbeatPastAppliedOrders(hbRaw);
 			const ordersRecordCountRaw = hbRaw.ordersRecordCount;
 			const ordersRecordCount =
 				typeof ordersRecordCountRaw === 'number' && !Number.isNaN(ordersRecordCountRaw)
@@ -645,6 +654,7 @@ export class BattleNet implements BattleNetContext {
 						: null,
 				fingerprintTailFingerprint:
 					typeof hbRaw.fingerprintTailFingerprint === 'string' ? hbRaw.fingerprintTailFingerprint : null,
+				pastAppliedActions: hbRaw.pastAppliedActions ?? null,
 			};
 			let heartbeatMaterialChanged = false;
 			if (!this.isHost) {
@@ -692,7 +702,7 @@ export class BattleNet implements BattleNetContext {
 				});
 			}
 
-			const engineTick = this.session.getEngineTick();
+			engineTick = this.session.getEngineTick();
 
 			if (!this.isHost) {
 				this.updateNonHostOptimisticAnchor(engineTick, hb);
@@ -764,6 +774,51 @@ export class BattleNet implements BattleNetContext {
 			});
 		} finally {
 			this.isPolling = false;
+		}
+	}
+
+	private applyHeartbeatPastAppliedOrders(hb: BattleHeartbeatApiResult): void {
+		const list = hb.pastAppliedActions;
+		if (list == null || !Array.isArray(list) || list.length === 0) {
+			return;
+		}
+		const toApply: Array<{ atTick: number; order: BattleOrder }> = [];
+		let maxAt = -1;
+		for (const raw of list) {
+			if (!raw || typeof raw !== 'object') {
+				continue;
+			}
+			const rec = raw as Record<string, unknown>;
+			const atTick = rec.atTick;
+			const idHash = rec.idHash;
+			const order = rec.order;
+			const playerId = rec.playerId;
+			if (typeof atTick !== 'number' || Number.isNaN(atTick)) {
+				continue;
+			}
+			if (typeof idHash !== 'string') {
+				continue;
+			}
+			if (!order || typeof order !== 'object') {
+				continue;
+			}
+			if (this.appliedOrderIdHashes.has(idHash)) {
+				continue;
+			}
+			if (playerId === this.playerId) {
+				this.serverRangeConfirmedOurOrderHashes.add(idHash);
+				this.ourOrdersAwaitingServerRange.delete(idHash);
+			}
+			this.appliedOrderIdHashes.add(idHash);
+			toApply.push({ atTick, order: order as BattleOrder });
+			maxAt = Math.max(maxAt, atTick);
+		}
+		if (toApply.length > 0) {
+			this.session.applyRemoteOrders(toApply);
+			this.emit('orders-applied', { count: toApply.length, source: 'poll' });
+		}
+		if (maxAt >= 0) {
+			this.lastOrderFetchSince = Math.max(this.lastOrderFetchSince, maxAt + 1);
 		}
 	}
 
@@ -1677,6 +1732,7 @@ export class BattleNet implements BattleNetContext {
 	 */
 	private getBattleHeartbeatThrottled(opts?: {
 		gameTick?: number;
+		includePastApplied?: boolean;
 		bypassThrottle?: boolean;
 		tracePhase?: string;
 	}): Promise<BattleHeartbeatApiResult> {

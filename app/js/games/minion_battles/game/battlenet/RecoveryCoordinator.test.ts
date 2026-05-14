@@ -50,6 +50,7 @@ function makeApi(overrides: Partial<Record<keyof BattleApi, unknown>> = {}): Bat
             hostFingerprint: null,
             hostPaused: false,
             ordersTipTick: 0,
+            ordersRecordCount: 0,
             orderBatchAtTick: null,
             pausedAtTick: null,
             expectingFromPlayerIds: null,
@@ -209,12 +210,22 @@ describe('RecoveryCoordinator.tryBootstrapFromLatestCheckpoint', () => {
         expect(h.ctx.snapshotPersistence.getLastBootstrapSnapshotTick()).toBeNull();
     });
 
-    it('loads snapshot, replays orders since snapshot.tick + 1, and records bootstrap tick', async () => {
+    it('loads snapshot, seeds merged orders through checkpoint tick, replays since snapshot.tick + 1, and primes fetch cursor', async () => {
         const loadFromSnapshot = vi.fn();
         const applyRemoteOrders = vi.fn();
-        const getBattleOrdersRange = vi.fn(async () => ({
-            orders: [{ atTick: 6, playerId: 'p2', idHash: 'o1', order: makeOrder('r1') }],
-        }));
+        const getBattleOrdersRange = vi.fn(
+            async (_l: string, _g: string, params: { sinceTick?: number; untilTick?: number }) => {
+                if (params.untilTick === 5 && params.sinceTick === undefined) {
+                    return {
+                        orders: [{ atTick: 5, playerId: 'p2', idHash: 'seed1', order: makeOrder('pre') }],
+                    };
+                }
+                if (params.sinceTick === 6) {
+                    return { orders: [{ atTick: 6, playerId: 'p2', idHash: 'o1', order: makeOrder('r1') }] };
+                }
+                return { orders: [] };
+            },
+        );
         const h = makeHarness({
             apiOverrides: {
                 getBattleSnapshot: vi.fn(async () => ({
@@ -232,10 +243,15 @@ describe('RecoveryCoordinator.tryBootstrapFromLatestCheckpoint', () => {
             { gameTick: 5 } as SerializedGameState,
             { checkpointRuntimeFingerprintHex: 'snap_fp' },
         );
-        expect(getBattleOrdersRange).toHaveBeenCalledWith('l1', 'g1', { playerId: 'p1', sinceTick: 6 });
+        expect(getBattleOrdersRange).toHaveBeenNthCalledWith(1, 'l1', 'g1', {
+            playerId: 'p1',
+            untilTick: 5,
+        });
+        expect(getBattleOrdersRange).toHaveBeenNthCalledWith(2, 'l1', 'g1', { playerId: 'p1', sinceTick: 6 });
+        expect(h.orderQueue.getAppliedOrderIdHashes().has('seed1')).toBe(true);
         expect(applyRemoteOrders).toHaveBeenCalledWith([{ atTick: 6, order: makeOrder('r1') }]);
         expect(h.ctx.snapshotPersistence.getLastBootstrapSnapshotTick()).toBe(5);
-        expect(h.orderQueue.getLastOrderFetchSince()).toBe(0);
+        expect(h.orderQueue.getLastOrderFetchSince()).toBe(7);
         expect(h.orderQueue.getLastSeenOrdersRecordCount()).toBe(0);
     });
 
@@ -289,6 +305,7 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
             hostFingerprint: 'aligned',
             hostPaused: false,
             ordersTipTick: 0,
+            ordersRecordCount: 0,
             orderBatchAtTick: null,
             pausedAtTick: null,
             expectingFromPlayerIds: null,
@@ -320,15 +337,24 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
             state: { gameTick: 1 } as SerializedGameState,
             synchash: null,
         }));
-        const getBattleOrdersRange = vi.fn(async () => ({
-            orders: [{ atTick: 2, playerId: 'p2', idHash: 'z1', order: makeOrder('r1') }],
-        }));
+        const getBattleOrdersRange = vi.fn(
+            async (_l: string, _g: string, params: { sinceTick?: number; untilTick?: number }) => {
+                if (params.untilTick === 1 && params.sinceTick === undefined) {
+                    return { orders: [] };
+                }
+                if (params.sinceTick === 2) {
+                    return { orders: [{ atTick: 2, playerId: 'p2', idHash: 'z1', order: makeOrder('r1') }] };
+                }
+                return { orders: [] };
+            },
+        );
         const getBattleFingerprintsRange = vi.fn(async () => ({ records: [{ tick: 1, fp: 'server1' }] }));
         const getBattleHeartbeat = vi.fn(async () => ({
             hostTick: 1,
             hostFingerprint: 'aligned1',
             hostPaused: false,
             ordersTipTick: 2,
+            ordersRecordCount: 0,
             orderBatchAtTick: null,
             pausedAtTick: null,
             expectingFromPlayerIds: null,
@@ -364,18 +390,24 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
             state: { gameTick: 0 } as SerializedGameState,
             initialFingerprint: '0011223344556677',
         }));
-        const getBattleOrdersRange = vi.fn(async (_l: string, _g: string, params: { sinceTick?: number }) => ({
-            orders:
-                (params.sinceTick ?? 0) === 0
-                    ? [{ atTick: 30, playerId: 'p2', idHash: 'i1', order: makeOrder('initial') }]
-                    : [],
-        }));
+        const getBattleOrdersRange = vi.fn(
+            async (_l: string, _g: string, params: { sinceTick?: number; untilTick?: number }) => {
+                if (params.untilTick !== undefined && params.sinceTick === undefined) {
+                    return { orders: [] };
+                }
+                if ((params.sinceTick ?? 0) === 0) {
+                    return { orders: [{ atTick: 30, playerId: 'p2', idHash: 'i1', order: makeOrder('initial') }] };
+                }
+                return { orders: [] };
+            },
+        );
         const getBattleFingerprintsRange = vi.fn(async () => ({ records: [{ tick: 75, fp: 'host75' }] }));
         const getBattleHeartbeat = vi.fn(async () => ({
             hostTick: 100,
             hostFingerprint: 'host100',
             hostPaused: false,
             ordersTipTick: 100,
+            ordersRecordCount: 0,
             orderBatchAtTick: null,
             pausedAtTick: null,
             expectingFromPlayerIds: null,

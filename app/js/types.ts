@@ -135,6 +135,12 @@ export interface HeartbeatResponse {
     requestedGamePaused?: boolean | null;
     pendingOrders?: BattleOrderRecord[];
     appliedOrdersAtTick?: { atTick: number | null; orders: BattleOrderRecord[] };
+    /**
+     * Present only when the client sent `includePastApplied=1` with numeric `?gameTick=N`.
+     * Applied rows for `atTick >= N + 1` through the applied log (same shape as `appliedOrders`
+     * on `GET …/orders` for that range). Empty array when `N >= hostTick`.
+     */
+    pastAppliedActions?: BattleOrderRecord[] | null;
     /** `paused` from fingerprints.jsonl for `hostTick` (false when unknown / no row). */
     hostPaused?: boolean | null;
     ordersTipTick: number | null;

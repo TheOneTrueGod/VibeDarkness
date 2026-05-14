@@ -573,11 +573,14 @@ export class LobbyClient {
         lobbyId: string,
         gameId: string,
         playerId: string,
-        opts?: { gameTick?: number },
+        opts?: { gameTick?: number; includePastApplied?: boolean },
     ): Promise<HeartbeatResponse> {
         const query = new URLSearchParams({ playerId });
         if (opts?.gameTick !== undefined) {
             query.set('gameTick', String(opts.gameTick));
+        }
+        if (opts?.includePastApplied === true) {
+            query.set('includePastApplied', '1');
         }
         let stack: string | undefined;
         if (isBattleHeartbeatTraceEnvOn()) {
@@ -590,6 +593,7 @@ export class LobbyClient {
             gameId,
             playerId,
             gameTick: opts?.gameTick ?? null,
+            includePastApplied: opts?.includePastApplied === true,
             stack,
         });
         const data = await this.request(
@@ -611,6 +615,7 @@ export class LobbyClient {
                 typeof data.requestedGamePaused === 'boolean' ? data.requestedGamePaused : null,
             pendingOrders: data.pendingOrders,
             appliedOrdersAtTick: data.appliedOrdersAtTick,
+            pastAppliedActions: data.pastAppliedActions,
             hostPaused: typeof data.hostPaused === 'boolean' ? data.hostPaused : false,
             ordersTipTick: data.ordersTipTick ?? null,
             ordersRecordCount: data.ordersRecordCount ?? null,

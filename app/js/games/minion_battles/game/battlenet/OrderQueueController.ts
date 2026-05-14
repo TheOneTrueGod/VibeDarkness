@@ -222,16 +222,52 @@ export class OrderQueueController {
     }
 
     /**
+     * Mark merged server orders with `atTick <= maxAtTick` as already applied (by {@link appliedOrderIdHashes})
+     * without running the engine. Used after loading a pause checkpoint whose envelope tick is `T`: every
+     * row with `atTick <= T` is already baked into that snapshot, so the next order poll must not rescan-apply
+     * them at the current `gameTick` (which would clamp historical `atTick` and re-run `movePath`, etc.).
+     */
+    async seedAppliedHashesForMergedOrdersThroughTick(maxAtTick: number): Promise<void> {
+        if (maxAtTick < 0) {
+            return;
+        }
+        const orderRange = await this.ctx.api.getBattleOrdersRange(this.ctx.lobbyId, this.ctx.gameId, {
+            playerId: this.ctx.playerId,
+            untilTick: maxAtTick,
+        });
+        for (const record of orderRange.orders) {
+            if (typeof record.atTick !== 'number' || record.atTick > maxAtTick) {
+                continue;
+            }
+            if (record.playerId === this.ctx.playerId) {
+                this.serverRangeConfirmedOurOrderHashes.add(record.idHash);
+                this.ourOrdersAwaitingServerRange.delete(record.idHash);
+            }
+            this.appliedOrderIdHashes.add(record.idHash);
+        }
+    }
+
+    /**
      * Fetch merged server orders with `atTick >= sinceTick` and apply any not already in {@link appliedOrderIdHashes}.
      * When replaying after loading a pause **checkpoint** whose envelope `tick` is `T`, callers must pass
      * `sinceTick = T + 1`: rows with `atTick <= T` are already reflected in that snapshot's sim state.
      * For `initial_state.json` bootstrap use `sinceTick = 0` so tick-0/1 rows are not skipped.
+     *
+     * @returns Maximum `atTick` among rows returned by the range fetch (including rows skipped as already-hashed),
+     * or `null` when the response had no orders.
      */
-    async replayOrdersSince(sinceTick: number): Promise<void> {
+    async replayOrdersSince(sinceTick: number): Promise<{ maxAtTickObserved: number | null }> {
         const orderRange = await this.ctx.api.getBattleOrdersRange(this.ctx.lobbyId, this.ctx.gameId, {
             playerId: this.ctx.playerId,
             sinceTick,
         });
+        let maxAtTickObserved: number | null = null;
+        for (const record of orderRange.orders) {
+            if (typeof record.atTick === 'number') {
+                maxAtTickObserved =
+                    maxAtTickObserved == null ? record.atTick : Math.max(maxAtTickObserved, record.atTick);
+            }
+        }
         const toApply: Array<{ atTick: number; order: BattleOrder }> = [];
         for (const record of orderRange.orders) {
             if (record.playerId === this.ctx.playerId) {
@@ -248,5 +284,6 @@ export class OrderQueueController {
             this.ctx.session.applyRemoteOrders(toApply);
             this.ctx.events.emit('orders-applied', { count: toApply.length, source: 'poll' });
         }
+        return { maxAtTickObserved };
     }
 }

@@ -17,6 +17,12 @@ use App\LobbyManager;
  *  - `requestedGameHash` — fingerprint row at tick N (or null when no row exists / N was a sentinel like 'latest').
  *  - `requestedGamePaused` — `paused` flag at tick N (or null when no row exists).
  *  Authoritative latest tail stays in `hostTick` / `hostFingerprint` / `hostPaused`.
+ *
+ * Optional `includePastApplied=1` with numeric `?gameTick=N` (last completed local tick):
+ * when `N < hostTick`, response includes `pastAppliedActions` — the `applied` slice from
+ * {@see BattleStorage::getOrdersRangeSplit} for `sinceTick = N + 1` (same rows as `appliedOrders`
+ * on `GET …/orders` for that range). Omitted when the flag is unset; empty array when the flag is
+ * set but `N >= hostTick` or `gameTick` is not a numeric echo tick.
  */
 class GetHeartbeatHandler
 {
@@ -155,7 +161,22 @@ class GetHeartbeatHandler
             }
         }
 
-        return [
+        $includePastApplied = isset($_GET['includePastApplied']) && (string) $_GET['includePastApplied'] === '1';
+        $pastAppliedActions = null;
+        if ($includePastApplied && $gameTickQuery !== null && $gameTickQuery >= 0) {
+            if ($hostTick !== null && $gameTickQuery < $hostTick) {
+                $pastAppliedActions = $storage->getAppliedOrdersRangeForWire(
+                    $lobbyId,
+                    $gameId,
+                    $gameTickQuery + 1,
+                    null,
+                );
+            } else {
+                $pastAppliedActions = [];
+            }
+        }
+
+        $out = [
             'success' => true,
             'heartbeatSeq' => $heartbeatSeq,
             'fingerprintTailTick' => $fingerprintTailTick,
@@ -182,5 +203,11 @@ class GetHeartbeatHandler
             'pendingOrders' => $orderSplit['pending'],
             'appliedOrdersAtTick' => $appliedOrdersAtTick,
         ];
+        if ($pastAppliedActions !== null) {
+            $out['pastAppliedActions'] = $pastAppliedActions;
+        }
+
+        return $out;
     }
 }
+

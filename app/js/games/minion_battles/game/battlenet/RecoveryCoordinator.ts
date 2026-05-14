@@ -7,6 +7,7 @@ import { INITIAL_STATE_MAX_RETRIES, INITIAL_STATE_RETRY_DELAY_MS } from './const
 import type { BattleNetContext } from './BattleNetContext';
 import type { OrderQueueController } from './OrderQueueController';
 import type { SyncReconciler } from './SyncReconciler';
+import type { BattleHeartbeatApiResult } from './types';
 import type { SerializedGameState } from '../types';
 
 /**
@@ -86,9 +87,18 @@ export class RecoveryCoordinator {
         this.ctx.session.loadFromSnapshot(snapshot.state, {
             checkpointRuntimeFingerprintHex: snapshot.synchash,
         });
-        await orderQueue.replayOrdersSince(snapshot.tick + 1);
-        orderQueue.setLastOrderFetchSince(0);
-        orderQueue.setLastSeenOrdersRecordCount(0);
+        await orderQueue.seedAppliedHashesForMergedOrdersThroughTick(snapshot.tick);
+        const { maxAtTickObserved } = await orderQueue.replayOrdersSince(snapshot.tick + 1);
+        const nextFetchSince =
+            maxAtTickObserved == null
+                ? snapshot.tick + 1
+                : Math.max(maxAtTickObserved + 1, snapshot.tick + 1);
+        orderQueue.setLastOrderFetchSince(nextFetchSince);
+        const hbBootstrap = await this.ctx.heartbeatHttp.getBattleHeartbeatThrottled({
+            tracePhase: 'try_bootstrap_post_checkpoint',
+            bypassThrottle: true,
+        });
+        this.primeOrderRevisionCounterFromHeartbeat(hbBootstrap);
         return true;
     }
 
@@ -113,11 +123,32 @@ export class RecoveryCoordinator {
         orderQueue.getOurOrdersAwaitingServerRange().clear();
         orderQueue.getServerRangeConfirmedOurOrderHashes().clear();
         this.ctx.session.loadFromSnapshot(state, { checkpointRuntimeFingerprintHex });
-        await orderQueue.replayOrdersSince(replaySinceTick);
+        if (replaySinceTick > 0) {
+            await orderQueue.seedAppliedHashesForMergedOrdersThroughTick(replaySinceTick - 1);
+        }
+        const { maxAtTickObserved } = await orderQueue.replayOrdersSince(replaySinceTick);
+        const nextFetchSince =
+            maxAtTickObserved == null
+                ? Math.max(0, replaySinceTick)
+                : Math.max(maxAtTickObserved + 1, replaySinceTick > 0 ? replaySinceTick : 0);
+        orderQueue.setLastOrderFetchSince(nextFetchSince);
         const heartbeat = await this.ctx.heartbeatHttp.getBattleHeartbeatThrottled({
             tracePhase: 'recovery_apply_authoritative_alignment',
         });
+        this.primeOrderRevisionCounterFromHeartbeat(heartbeat);
         return syncReconciler.isFingerprintAlignedWithHeartbeat(heartbeat);
+    }
+
+    /**
+     * Align {@link OrderQueueController}'s `ordersRecordCount` baseline with the server so the first
+     * post-checkpoint heartbeat poll does not treat the whole merged log as newly appended rows.
+     */
+    private primeOrderRevisionCounterFromHeartbeat(hb: BattleHeartbeatApiResult): void {
+        const { orderQueue } = this.requireSiblings();
+        const cnt = hb.ordersRecordCount;
+        if (typeof cnt === 'number' && !Number.isNaN(cnt)) {
+            orderQueue.setLastSeenOrdersRecordCount(cnt);
+        }
     }
 
     /** Host-persisted battle start + full order log replay (tick 0 baseline). */
@@ -297,10 +328,17 @@ export class RecoveryCoordinator {
                     this.ctx.session.loadFromSnapshot(snapshot.state, {
                         checkpointRuntimeFingerprintHex: snapshot.synchash,
                     });
-                    await orderQueue.replayOrdersSince(snapshot.tick + 1);
+                    await orderQueue.seedAppliedHashesForMergedOrdersThroughTick(snapshot.tick);
+                    const { maxAtTickObserved } = await orderQueue.replayOrdersSince(snapshot.tick + 1);
+                    const nextFetchSince =
+                        maxAtTickObserved == null
+                            ? snapshot.tick + 1
+                            : Math.max(maxAtTickObserved + 1, snapshot.tick + 1);
+                    orderQueue.setLastOrderFetchSince(nextFetchSince);
                     const hbLate = await this.ctx.heartbeatHttp.getBattleHeartbeatThrottled({
                         tracePhase: 'recovery_post_snapshot_replay',
                     });
+                    this.primeOrderRevisionCounterFromHeartbeat(hbLate);
                     synced = syncReconciler.isFingerprintAlignedWithHeartbeat(hbLate);
                 }
                 if (!synced) {

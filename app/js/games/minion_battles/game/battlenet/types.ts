@@ -86,6 +86,7 @@ export type BattleNetEventMap = {
         /** Max tick in `fingerprints.jsonl` (unclamped); optional until server ships tail fields. */
         fingerprintTailTick: number | null;
         fingerprintTailFingerprint: string | null;
+        pastAppliedActions?: Array<Record<string, unknown>> | null;
     };
     'orders-applied': { count: number; source: 'poll' | 'submit' };
     'host-catchup-wait': {
@@ -132,7 +133,7 @@ export interface BattleApi {
         lobbyId: string,
         gameId: string,
         playerId: string,
-        opts?: { gameTick?: number },
+        opts?: { gameTick?: number; includePastApplied?: boolean },
     ): Promise<{
         hostTick: number | null;
         hostFingerprint: string | null;
@@ -146,6 +147,8 @@ export interface BattleApi {
         requestedGamePaused?: boolean | null;
         pendingOrders?: Array<Record<string, unknown>>;
         appliedOrdersAtTick?: { atTick: number | null; orders: Array<Record<string, unknown>> };
+        /** Same rows as `appliedOrders` on GET /orders for `sinceTick = gameTick + 1` when behind-host slice is enabled. */
+        pastAppliedActions?: Array<Record<string, unknown>> | null;
         ordersTipTick: number | null;
         ordersRecordCount?: number | null;
         /** Parallel order batch tick when paused; legacy alias for some payloads: {@link pausedAtTick}. */
