@@ -36,12 +36,17 @@ export interface BattleSessionHandle {
     isDebugSimulationFrozen(): boolean;
     /** True while the battle engine loop is running (`GameEngine.start` … `stop`). */
     isEngineSimulationRunning(): boolean;
-    /** Non-host: stop draining fixed-step simulation while local tick is past the last heartbeat `hostTick`. */
+    /**
+     * Non-host: optional gate on fixed-step simulation relative to heartbeat tail.
+     * {@link BattleNet} normally keeps this cleared so optimistic playahead runs until a natural pause.
+     */
     setMultiplayerAwaitHostCatchup(blocked: boolean): void;
 }
 
 export type BattleNetSyncTerminalStatus =
     | 'synced'
+    /** Non-host: local sim is past heartbeat `hostTick` but not yet at a parallel-order pause (benign optimistic playahead). */
+    | 'optimistic_client_playahead'
     | 'waiting_for_host'
     | 'resyncing'
     | 'failed'

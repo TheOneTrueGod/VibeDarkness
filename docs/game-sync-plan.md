@@ -154,25 +154,46 @@ Case 1:  Submit Orders call fails
 
 Case 2:  Submit Orders call succeeds
 - This means the orders were accepted by the server, but the host hasn't necessarily picked them up yet
-- Sync status becomes "Waiting for Host.  Reason: Optimistic Playahead"
-- Start hearbeat loop (fetch latest minimal state.  Keep doing it until we get a new one)
+- Start the heartbeat loop (fetch minimal state on the **[normative](#heartbeat-loop-normative)** cadence). **Do not** force the top-level sync terminal status to **"Waiting for host"** for the whole optimistic run — see **`optimistic_client_playahead`** below.
 
 After the submit orders call succeeds, there will be a few different possible states we need to keep track of and check for, but in the golden path;
 - The game will continue playing until it reaches a pause point
 - The heartbeat loop will at some point (either before or after the above) update to a new tick
 - After both of the above have completed, the heartbeat tick will match the paused game tick, and the heartbeat hash will match the paused game hash.  When this happens, the game state should be updated to "Synched".
 
+#### Client ahead of host: two causes (normative)
+
+Definitions:
+
+- **Optimistic client playahead (benign):** `localEngineTick` may exceed heartbeat **`hostTick`** after the local player's orders were accepted and the client resumed simulation **assuming** the host will merge pending orders and advance storage. This is **not** a desync by itself.
+- **True playback desync:** local deterministic playback diverged from what the host/storage will produce (bug, platform difference, etc.). The client cannot repair this locally; **full resync** is required.
+
+**Benign optimistic playahead — sync UX**
+
+- While the local sim is past **`hostTick`** but has **not** yet reached the next **parallel-order pause** (`waitingForOrders` / order-sync pause), terminal sync status should be **`optimistic_client_playahead`** (or equivalent UX: treat like **synced** for "sim is allowed to run" — not **waiting_for_host**).
+- When the client **does** reach that pause while still ahead of the heartbeat tail, use **`waiting_for_host`**. In that state the client may still **select** orders locally, but **must not POST** them until the host timeline and heartbeat align (same cautions as before).
+
+**True desync — detection (non-host)**
+
+- When optimistic playahead **begins** (first poll where **`localEngineTick > hostTick`**), record an **anchor**: **`(anchorHostTick, anchorLocalTick)`** = `(heartbeat.hostTick, localEngineTick)` at that observation.
+- If later **both** the heartbeat shows **`hostPaused`** and the local engine is **paused for parallel order sync**, **and** **`heartbeat.hostTick !== anchorHostTick`**, **`localEngineTick !== anchorLocalTick`**, **`heartbeat.hostTick !== localEngineTick`**, treat as **optimistic playback divergence**: log at **error** severity with ticks, fingerprints, pause flags, batch ids, `expectingFromPlayerIds`, and material heartbeat fields — then **full resync**.
+- **Same tick, different fingerprint** (`localEngineTick === hostTick` but local ring hash ≠ `hostFingerprint`) is **not** classified under "ahead of host tail"; it is handled on the **equal-tick fingerprint reconcile** path (`reconcileFingerprintsEqualHostTick` → **`hash-mismatch`** resync), with structured logging.
+
+**Stall while `waiting_for_host` (implementation)**
+
+- If sync is **`waiting_for_host`** **and** the engine is paused for parallel orders **and** heartbeat **material** (`hostTick` + `hostFingerprint`) stays **unchanged** for **15 seconds** (wall clock), assume the host failed to apply/merge; **full resync** (`waiting-for-host-paused-stall`). This timer applies **only** in the post-pause **`waiting_for_host`** phase, not during free-running **`optimistic_client_playahead`**.
+
 #### Heartbeat material change & reconcile (implementation)
 
 - **Material change** on a poll means the pair **`(hostTick, hostFingerprint)`** from the minimal heartbeat **differs** from the previous poll’s pair (when both fingerprints were present). **`heartbeatSeq` alone is not sufficient** (mtime-based noise).
 - When **`localEngineTick < hostTick`** and the material pair **changed**, the client treats storage as having moved **past** the local sim and triggers **recovery / resync** (host advanced; client did not stay aligned).
-- **Optimistic play-ahead vs clamped pause plane:** when **`localEngineTick > hostTick`** and the heartbeat still shows **`hostPaused`** (server completed tail clamped by snapshot `waitingForOrders.atTick`) while the local engine is **not** paused for parallel order sync, **`BattleNet` sets `waiting_for_host`** and **does not** resync immediately — the server pause metadata may lag merges/checkpoints (e.g. spectator host). Heartbeat polling continues.
+- **Optimistic play-ahead vs clamped pause plane:** when **`localEngineTick > hostTick`** and the heartbeat still shows **`hostPaused`** (server completed tail clamped by snapshot `waitingForOrders.atTick`) while the local engine is **not** paused for parallel order sync, **`BattleNet` sets `optimistic_client_playahead`** and **does not** resync immediately — the server pause metadata may lag merges/checkpoints (e.g. spectator host). Heartbeat polling continues. Once the client hits a parallel-order pause in this regime, status moves to **`waiting_for_host`** as above.
 - **Pause-plane transition:** the client also tracks a composite key of **`hostPaused`**, **`hostTick`**, **`hostFingerprint`**, **`orderBatchAtTick`**, and **`expectingFromPlayerIds`**. When that key **changes** vs the previous poll, **`BattleNet` re-checks** the local fingerprint ring at the new **`hostTick`** against **`hostFingerprint`**; a **mismatch** triggers **resync** (`pause-plane-transition-hash-mismatch`). When the host **clears pause** and fingerprints **agree**, sync can return to **`synced`**.
 - Optional wire fields **`fingerprintTailTick`** / **`fingerprintTailFingerprint`** expose the **unclamped** max row in `fingerprints.jsonl` for debug; authoritative append / **`hostTick`** semantics stay clamped vs snapshot `waitingForOrders.atTick`.
 
 Nonstandard path to handle;
 - It's possible that the game will finish playing out and reach the pause point 5 - 10 real-world seconds before the host does
-- In this state, the client should be allowed to select orders, but the synching state will remain "Waiting for host".
+- In this state, the client should be allowed to select orders, and the synching state should be **"Waiting for host"** (entered when the pause is reached — see above).
 - As long as synching state is "Waiting for host", the client's orders should not be submitted to the server.  They should remain tracked on the client side.  This is because the game may yet become desynched, or something may have gone wrong with the host's connection.
 
 **Current implementation note:** the live UI may temporarily hold both targeting and server POST when the host pause plane blocks (`blocking-host-pause-plane`) or when orders are deferred ahead of the host tick; detailed "select-only / stage-then-submit" behaviour is not fully split yet — see `BattleNet` + `BattlePhase` (`canUseOrderUi`). Server reject reasons are surfaced via `sync-details` where possible.
@@ -182,6 +203,7 @@ Error paths to handle;
 - - This indicates that the host never resumed, or ran into a problem.
 - - After the game reaches its paused state, show a "Waiting for host" sync state with how many seconds have elapsed while waiting.
 - - Keep the heartbeat loop going in this time
+- - **Implementation:** if **`waiting_for_host`** persists while paused **and** heartbeat material (`hostTick` + `hostFingerprint`) is unchanged for **15s** (wall clock), **full resync** (`waiting-for-host-paused-stall`). Distinct from optional UI timing below.
 - - After waiting for 5 seconds, a "reload" button should appear in the sync state box
 - - After waiting for 20 seconds, change the colour of the sync state box to red.
 - - At this point, we can keep waiting for the host, but it's unlikely they'll be catching up.  Something has probably gone wrong.  We'll leave the option of reloading up to the user, but the game can't proceed without the host, so we'll keep heartbeat looping until we hear back from them.

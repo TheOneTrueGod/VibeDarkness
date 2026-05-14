@@ -33,7 +33,7 @@ export class SyncStatusController {
 
     setStatus(status: BattleNetSyncTerminalStatus, details: string | null = null): void {
         // After desync recovery we require explicit Continue (`synced_pending_ack`). Heartbeat
-        // fingerprint reconcile must not emit `synced` / `waiting_for_host` over that gate — it
+        // fingerprint reconcile must not emit `synced` / `waiting_for_host` / `optimistic_client_playahead` over that gate — it
         // used to leave `awaitingUserAck` true while the UI showed `synced` (no banner).
         if (
             this.awaitingUserAck &&

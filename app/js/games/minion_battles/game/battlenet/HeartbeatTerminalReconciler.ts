@@ -5,8 +5,8 @@ import { BATTLE_NET_T1_WAITING_POLLS, BATTLE_NET_T2_RESYNC_POLLS } from './const
 import type { BattleNetEventMap, NonHostHbPausePlaneSnap } from './types';
 
 /**
- * After each heartbeat poll, decides terminal sync UI status (`synced` vs `waiting_for_host`)
- * and whether to request full resync, using local fingerprint rows vs server tail.
+ * After each heartbeat poll, decides terminal sync UI status (`synced`, `optimistic_client_playahead`,
+ * `waiting_for_host`, …) and whether to request full resync, using local fingerprint rows vs server tail.
  */
 export class HeartbeatTerminalReconciler {
     constructor(private readonly ctx: BattleNetContext) {}
@@ -85,6 +85,25 @@ export class HeartbeatTerminalReconciler {
             return;
         }
         if (!this.ctx.isHost && hb.hostFingerprint != null) {
+            const rowAtTail = this.ctx.session.getFingerprintRange(engineTick, engineTick)[0];
+            logToLobbyLogBattleSync({
+                lobbyClient: this.ctx.api as unknown as LobbyClient,
+                lobbyId: this.ctx.lobbyId,
+                playerId: this.ctx.playerId,
+                tick: engineTick,
+                severity: 'error',
+                gameId: this.ctx.gameId,
+                message: 'equal-tick fingerprint mismatch vs heartbeat (non-host) — full resync',
+                context: {
+                    engineTick,
+                    localLatestFpHead: local?.fp?.slice(0, 12) ?? null,
+                    localLatestPaused: local?.paused ?? null,
+                    hostFingerprintHead: hb.hostFingerprint.slice(0, 12),
+                    hostPaused: hb.hostPaused,
+                    rowAtTickFpHead: rowAtTail?.fp?.slice(0, 12) ?? null,
+                    rowAtTickPaused: rowAtTail?.paused ?? null,
+                },
+            });
             this.ctx.requestResync('hash-mismatch');
         }
     }
@@ -136,7 +155,7 @@ export class HeartbeatTerminalReconciler {
                 const agreeRow = this.ctx.session.getFingerprintRange(hb.hostTick, hb.hostTick)[0];
                 if (agreeRow != null && agreeRow.fp === hostFp) {
                     this.ctx.syncStatus.setStatus(
-                        'waiting_for_host',
+                        'optimistic_client_playahead',
                         'Local sim ahead while server tail is clamped; fingerprints agree at completed tick (checkpoint may trail).',
                     );
                     return;
@@ -153,7 +172,7 @@ export class HeartbeatTerminalReconciler {
                 tick: engineTick,
                 severity: 'info',
                 gameId: this.ctx.gameId,
-                message: 'non-host ahead of clamped server tail — waiting_for_host (not resync)',
+                message: 'non-host ahead of clamped server tail — optimistic_client_playahead (not resync)',
                 context: {
                     engineTick,
                     hostTick: hb.hostTick,
@@ -162,14 +181,18 @@ export class HeartbeatTerminalReconciler {
                     expectingFromPlayerIds: exp,
                 },
             });
-            this.ctx.syncStatus.setStatus('waiting_for_host', detail);
+            this.ctx.syncStatus.setStatus('optimistic_client_playahead', detail);
             return;
         }
 
         const hostTailFp = hb.hostFingerprint;
         if (hostTailFp == null) {
             this.sr.resetNonHostAheadStreak();
-            this.ctx.syncStatus.setStatus('waiting_for_host');
+            if (localOrderPause) {
+                this.ctx.syncStatus.setStatus('waiting_for_host');
+            } else {
+                this.ctx.syncStatus.setStatus('optimistic_client_playahead');
+            }
             return;
         }
 
@@ -205,7 +228,11 @@ export class HeartbeatTerminalReconciler {
 
         if (localRow == null) {
             this.sr.resetNonHostAheadStreak();
-            this.ctx.syncStatus.setStatus('waiting_for_host');
+            if (localOrderPause) {
+                this.ctx.syncStatus.setStatus('waiting_for_host');
+            } else {
+                this.ctx.syncStatus.setStatus('optimistic_client_playahead');
+            }
             return;
         }
 
@@ -235,11 +262,11 @@ export class HeartbeatTerminalReconciler {
         }
 
         if (this.sr.getAheadWithUnchangedServerTailStreak() >= BATTLE_NET_T1_WAITING_POLLS) {
-            this.ctx.syncStatus.setStatus('waiting_for_host');
+            this.ctx.syncStatus.setStatus('optimistic_client_playahead');
             return;
         }
 
-        this.ctx.syncStatus.setStatus('synced');
+        this.ctx.syncStatus.setStatus('optimistic_client_playahead');
     }
 
     /**

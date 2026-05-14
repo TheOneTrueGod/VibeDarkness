@@ -26,8 +26,9 @@ export class GameState {
     snapshotIndex = 0;
     isPaused = true;
     /**
-     * Non-host: when local `gameTick` is past the last heartbeat `hostTick`, stop draining fixed-step sim
-     * so we do not extend optimistic playahead until the host/storage tail catches up.
+     * Non-host: reserved gate for freezing fixed-step sim relative to heartbeat tail.
+     * {@link BattleNet} keeps this cleared during normal optimistic playahead so the client can run
+     * until the next natural pause; do not use `gameTick > hostTick` alone to set this.
      */
     multiplayerAwaitHostCatchup = false;
     waitingForOrders: WaitingForOrders | null = null;

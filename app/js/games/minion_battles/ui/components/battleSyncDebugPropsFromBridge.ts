@@ -24,6 +24,7 @@ function readBool(record: Record<string, unknown> | null, key: string): boolean 
 
 type BattleNetSyncStatus =
     | 'synced'
+    | 'optimistic_client_playahead'
     | 'waiting_for_host'
     | 'resyncing'
     | 'failed'

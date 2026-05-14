@@ -20,6 +20,13 @@ export const BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS = BATTLE_NET_T1_WAITING_POLLS
  */
 export const BATTLE_NET_WAITING_HOST_UI_FORCE_RESYNC_POLLS = BATTLE_NET_T2_RESYNC_POLLS;
 
+/**
+ * Non-host: while sync is `waiting_for_host` **and** the engine is paused for parallel orders,
+ * if heartbeat material (`hostTick` + `hostFingerprint`) is unchanged for this long, force full resync
+ * (host likely stuck applying merged orders).
+ */
+export const BATTLE_NET_WAITING_HOST_PAUSED_STALL_MS = 15_000;
+
 /** Anchor tick stuck (`hostPaused` + host tail equals last proven sync tick): show bottom-centre "waiting for host". */
 export const HOST_ANCHOR_WAIT_SHOW_MS = 2000;
 /** Same situation: suspected failure — force hard resync. */

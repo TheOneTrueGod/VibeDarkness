@@ -79,6 +79,21 @@ function pickSyncCardModel(p: BattleSyncStatusProps): CardModel {
         return null;
     }
 
+    if (variant === 'battle' && syncStatus === 'optimistic_client_playahead') {
+        return null;
+    }
+
+    if (variant === 'debug' && syncStatus === 'optimistic_client_playahead') {
+        return {
+            title: 'Sync status · optimistic playahead',
+            tone: 'neutral',
+            summary:
+                detail ??
+                'Local sim is past the heartbeat completed tick; host is expected to catch up before the next pause.',
+            details: detailsBattleOrDebug(p, detail),
+        };
+    }
+
     if (variant === 'debug' && syncStatus === 'synced') {
         const backlog = p.queuedOrders > 0 || p.sendingOrders > 0 || p.deferredOrderCount > 0;
         return {
