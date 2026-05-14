@@ -120,9 +120,19 @@ export interface HeartbeatResponse {
     /** Doc alias: same as `hostTick` / `hostFingerprint`. */
     latestServerGameTick?: number | null;
     latestServerGameHash?: string | null;
-    /** Optional client query echo: hash at `gameTick` when `gameTick` query param set. */
+    /** Legacy client query echo: hash at `gameTick` when `gameTick` query param set. */
     gameTick?: number | null;
     gameHash?: string | null;
+    /**
+     * Dual fingerprint echo (preferred): what the client asked about via `?gameTick=N`.
+     * - `requestedGameTick`: echoes the numeric tick the client sent (null when 'latest' / non-numeric / unset).
+     * - `requestedGameHash`: fingerprint at that tick from `fingerprints.jsonl`, or null when no row.
+     * - `requestedGamePaused`: `paused` flag at that tick, or null when no row.
+     * Authoritative latest tail stays in `hostTick` / `hostFingerprint` / `hostPaused`.
+     */
+    requestedGameTick?: number | null;
+    requestedGameHash?: string | null;
+    requestedGamePaused?: boolean | null;
     pendingOrders?: BattleOrderRecord[];
     appliedOrdersAtTick?: { atTick: number | null; orders: BattleOrderRecord[] };
     /** `paused` from fingerprints.jsonl for `hostTick` (false when unknown / no row). */

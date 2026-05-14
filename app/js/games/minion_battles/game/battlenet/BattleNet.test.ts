@@ -5,6 +5,8 @@ import {
     BattleNet,
     BATTLE_NET_MAX_DEFERRED_ORDERS,
     BATTLE_NET_T2_RESYNC_POLLS,
+    BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS,
+    BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
     HOST_ANCHOR_RESYNC_MS,
     type BattleSessionHandle,
 } from './BattleNet';
@@ -1772,4 +1774,189 @@ describe('BattleNet', () => {
     });
 
     // HostBattleNet.mergeAppliedOrdersForBatch tests moved to battlenet/SnapshotPersistence.test.ts.
+
+    it('non-host: stuck paused host ahead forces full order rescan from tick 0 after K polls (material-change only)', async () => {
+        let hbPoll = 0;
+        const getBattleHeartbeat = vi.fn(async () => {
+            const idx = hbPoll;
+            hbPoll += 1;
+            // `ordersRecordCount` is held constant so the main-path revision rescan does NOT
+            // trigger; only the new stuck-paused detector should issue the tick-zero rescan.
+            return {
+                hostTick: 100 + idx * 25,
+                hostFingerprint: `host_fp_${idx}_________`,
+                hostPaused: true,
+                ordersTipTick: 100,
+                orderBatchAtTick: 101 + idx * 25,
+                pausedAtTick: 101 + idx * 25,
+                expectingFromPlayerIds: ['p2'] as string[],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: idx,
+                ordersRecordCount: 10,
+            };
+        });
+        const getBattleOrdersRange = vi.fn(async () => ({ orders: [] }));
+        const appendLobbyLog = vi.fn(async () => ({ success: true }));
+        const api = makeApi({ getBattleHeartbeat, getBattleOrdersRange, appendLobbyLog });
+        const session = makeSession({
+            getEngineTick: () => 50,
+            isPausedForOrderSync: () => true,
+            getLatestFingerprint: () => ({ tick: 50, fp: 'local_fp_50_____', paused: true }),
+            getFingerprintRange: () => [],
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+
+        // K+1 polls: poll 1 establishes baseline (no prior material), polls 2..K+1 increment streak.
+        for (let i = 0; i < BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS + 1; i++) {
+            await net.pollOnce();
+        }
+
+        const detectorLogged = appendLobbyLog.mock.calls.some((call) => {
+            const body = call[1] as { message?: string } | undefined;
+            return body?.message === 'stuck-paused host ahead: forcing order rescan from tick 0';
+        });
+        expect(detectorLogged).toBe(true);
+        expect(resync).not.toHaveBeenCalledWith('stuck-paused-host-ahead');
+    });
+
+    it('non-host: stuck paused host ahead escalates to requestResync after rescan fails to unblock', async () => {
+        let hbPoll = 0;
+        const getBattleHeartbeat = vi.fn(async () => {
+            const idx = hbPoll;
+            hbPoll += 1;
+            return {
+                hostTick: 100 + idx * 10,
+                hostFingerprint: `host_fp_${idx}_________`,
+                hostPaused: true,
+                ordersTipTick: 100 + idx * 10,
+                orderBatchAtTick: 101 + idx * 10,
+                pausedAtTick: 101 + idx * 10,
+                expectingFromPlayerIds: ['p2'] as string[],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: idx,
+                ordersRecordCount: 1 + idx,
+            };
+        });
+        const getBattleOrdersRange = vi.fn(async () => ({ orders: [] }));
+        const api = makeApi({ getBattleHeartbeat, getBattleOrdersRange });
+        const session = makeSession({
+            getEngineTick: () => 50,
+            isPausedForOrderSync: () => true,
+            getLatestFingerprint: () => ({ tick: 50, fp: 'local_fp_50_____', paused: true }),
+            getFingerprintRange: () => [],
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+
+        // baseline poll + K to trigger rescan + M post-rescan polls to escalate to resync.
+        const totalPolls = 1 + BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS + BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS;
+        for (let i = 0; i < totalPolls; i++) {
+            await net.pollOnce();
+        }
+
+        expect(resync).toHaveBeenCalledWith('stuck-paused-host-ahead');
+    });
+
+    it('non-host: stuck paused detector does not trigger while engine catches up alongside host', async () => {
+        let engineTick = 50;
+        let hbPoll = 0;
+        const getBattleHeartbeat = vi.fn(async () => {
+            const idx = hbPoll;
+            hbPoll += 1;
+            return {
+                hostTick: 100 + idx * 10,
+                hostFingerprint: `host_fp_progress_${idx}__`,
+                hostPaused: true,
+                ordersTipTick: 100 + idx * 10,
+                orderBatchAtTick: 101 + idx * 10,
+                pausedAtTick: 101 + idx * 10,
+                expectingFromPlayerIds: ['p2'] as string[],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: idx,
+                ordersRecordCount: 5 + idx,
+            };
+        });
+        const api = makeApi({ getBattleHeartbeat });
+        const session = makeSession({
+            getEngineTick: () => engineTick,
+            isPausedForOrderSync: () => true,
+            getLatestFingerprint: () => ({ tick: engineTick, fp: 'local_progress__', paused: true }),
+            getFingerprintRange: () => [],
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+
+        // Engine advances every poll alongside the host — streak should never accumulate.
+        for (let i = 0; i < BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS + BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS + 2; i++) {
+            await net.pollOnce();
+            engineTick += 5;
+        }
+
+        expect(resync).not.toHaveBeenCalledWith('stuck-paused-host-ahead');
+    });
+
+    it('non-host: stuck paused detector consumes heartbeat dual-fingerprint echo fields without breaking', async () => {
+        const getBattleHeartbeat = vi.fn(async () => ({
+            hostTick: 200,
+            hostFingerprint: 'authoritative_tail',
+            hostPaused: true,
+            ordersTipTick: 200,
+            orderBatchAtTick: 201,
+            pausedAtTick: 201,
+            expectingFromPlayerIds: ['p2'] as string[],
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
+            ordersRecordCount: 1,
+            requestedGameTick: 50,
+            requestedGameHash: 'requested_at_50_',
+            requestedGamePaused: false,
+        }));
+        const api = makeApi({ getBattleHeartbeat });
+        const session = makeSession({
+            getEngineTick: () => 50,
+            isPausedForOrderSync: () => true,
+            getLatestFingerprint: () => ({ tick: 50, fp: 'requested_at_50_', paused: false }),
+            getFingerprintRange: () => [],
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const seenHeartbeats: Array<{ requestedGameTick?: number | null; requestedGameHash?: string | null }> = [];
+        net.on('heartbeat', (hb) => {
+            seenHeartbeats.push({ requestedGameTick: hb.requestedGameTick, requestedGameHash: hb.requestedGameHash });
+        });
+
+        await net.pollOnce();
+
+        expect(seenHeartbeats.length).toBe(1);
+        expect(seenHeartbeats[0].requestedGameTick).toBe(50);
+        expect(seenHeartbeats[0].requestedGameHash).toBe('requested_at_50_');
+    });
 });

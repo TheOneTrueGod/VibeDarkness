@@ -20,6 +20,9 @@ import {
 	BATTLE_NET_WAITING_HOST_PAUSED_STALL_MS,
 	BATTLE_NET_BEHIND_HOST_TICKS_THRESHOLD,
 	BATTLE_NET_DEFERRED_FORCE_FLUSH_POLLS,
+	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_GAP,
+	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS,
+	BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
 } from './constants';
 import type {
 	BattleSessionHandle,
@@ -44,6 +47,9 @@ export {
 	BATTLE_NET_BEHIND_HOST_TICKS_THRESHOLD,
 	BATTLE_NET_MAX_DEFERRED_ORDERS,
 	BATTLE_NET_DEFERRED_FORCE_FLUSH_POLLS,
+	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_GAP,
+	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS,
+	BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
 } from './constants';
 export type {
 	BattleSessionHandle,
@@ -246,6 +252,22 @@ export class BattleNet implements BattleNetContext {
 	private waitingForHostPausedStallSinceMs: number | null = null;
 	private waitingForHostPausedStallMaterialKey: string | null = null;
 
+	/**
+	 * Non-host: consecutive polls where the host advanced (material change or new order records)
+	 * while we're paused for parallel orders AND `hostTick - engineTick` exceeds
+	 * {@link BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_GAP}. When this reaches
+	 * {@link BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS}, a full order rescan is forced. After the
+	 * rescan, if the streak keeps growing for {@link BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS} more
+	 * polls without local engine progress, escalate to `requestResync('stuck-paused-host-ahead')`.
+	 */
+	private stuckPausedHostAheadPollStreak = 0;
+	/** Last engineTick observed by the stuck-paused detector (reset when the streak resets). */
+	private stuckPausedHostAheadPrevEngineTick: number | null = null;
+	/** True once we've forced a catch-up rescan for the current stall (latched until streak resets). */
+	private stuckPausedHostAheadRescanDone = false;
+	/** Polls observed after rescan still meeting the stuck conditions (drives resync escalation). */
+	private stuckPausedHostAheadPostRescanPolls = 0;
+
 	async submitOrder(order: BattleOrder, atTick: number): Promise<void> {
 		if (this.isRecovering) {
 			const whyImmediateSubmitSkipped =
@@ -343,7 +365,11 @@ export class BattleNet implements BattleNetContext {
 			return;
 		}
 
-		if (!this.appliedOrderIdHashes.has(idHash)) {
+		this.ourOrdersAwaitingServerRange.add(idHash);
+
+		// Non-host: keep optimistic local apply *before* POST deferral gates (deferred submits must still
+		// queue locally). Host defers local apply until after append so merge-applied cannot race pending JSONL.
+		if (!this.appliedOrderIdHashes.has(idHash) && !this.isHost) {
 			this.appliedOrderIdHashes.add(idHash);
 			this.session.applyRemoteOrders([{ atTick, order }]);
 			this.emit('orders-applied', { count: 1, source: 'submit' });
@@ -371,7 +397,6 @@ export class BattleNet implements BattleNetContext {
 				},
 			});
 		}
-		this.ourOrdersAwaitingServerRange.add(idHash);
 
 		// Defer only when more than one tick ahead of the host's last completed tick.
 		// Orders for `hostTick + 1` (same as current `orderBatchAtTick` when paused) must POST while paused.
@@ -459,6 +484,20 @@ export class BattleNet implements BattleNetContext {
 					queuedAfter: this.deferredLocalOrders.length,
 				},
 			});
+			return;
+		}
+
+		// Host: append to pending_orders.jsonl *before* local queueOrder + tryResumeParallel → merge-applied,
+		// so merge never races ahead of the host's own pending row on disk (see mergeFinalizedPendingForBatch).
+		if (this.isHost) {
+			const appended = await this.persistOrder(order, atTick, idHash, true);
+			if (appended) {
+				this.applyLocalSubmitOrderAfterAppend(order, atTick, idHash, {
+					localEngineTick,
+					localLatestFingerprintTick,
+					effectiveHostTickCandidate,
+				});
+			}
 			return;
 		}
 
@@ -590,6 +629,16 @@ export class BattleNet implements BattleNetContext {
 					(typeof hbRaw.hostFingerprint === 'string' ? hbRaw.hostFingerprint : null),
 				gameTick: hbRaw.gameTick ?? null,
 				gameHash: hbRaw.gameHash ?? null,
+				requestedGameTick:
+					typeof hbRaw.requestedGameTick === 'number'
+						? hbRaw.requestedGameTick
+						: hbRaw.gameTick ?? null,
+				requestedGameHash:
+					typeof hbRaw.requestedGameHash === 'string'
+						? hbRaw.requestedGameHash
+						: hbRaw.gameHash ?? null,
+				requestedGamePaused:
+					typeof hbRaw.requestedGamePaused === 'boolean' ? hbRaw.requestedGamePaused : null,
 				fingerprintTailTick:
 					typeof hbRaw.fingerprintTailTick === 'number' && !Number.isNaN(hbRaw.fingerprintTailTick)
 						? hbRaw.fingerprintTailTick
@@ -702,6 +751,7 @@ export class BattleNet implements BattleNetContext {
 
 				if (!this.isRecovering) {
 					this.tickNonHostWaitingForHostPausedStall(hb);
+					await this.tickNonHostStuckPausedHostAhead(hb, heartbeatMaterialChanged, ordersRecordCount);
 				}
 			}
 
@@ -796,12 +846,50 @@ export class BattleNet implements BattleNetContext {
 		this.orderQueue.applyDeferredRowLocallyIfNeeded(item);
 	}
 
+	/** Host-only: queue locally after append so `tryResumeParallel` → merge sees the row on disk first. */
+	private applyLocalSubmitOrderAfterAppend(
+		order: BattleOrder,
+		atTick: number,
+		idHash: string,
+		ctx: {
+			localEngineTick: number;
+			localLatestFingerprintTick: number | null;
+			effectiveHostTickCandidate: number | null;
+		},
+	): void {
+		this.session.applyRemoteOrders([{ atTick, order }]);
+		this.emit('orders-applied', { count: 1, source: 'submit' });
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: atTick,
+			severity: 'info',
+			gameId: this.gameId,
+			message: 'host order applied locally after append (append → merge chain)',
+			context: {
+				idHash,
+				abilityId: order.abilityId,
+				unitId: order.unitId,
+				order,
+				isHost: true,
+				lastSeenHeartbeatHostTick: this.latestHeartbeatHostTick,
+				lastHeartbeatAgeMs: this.getLastHeartbeatAgeMs(),
+				localEngineTick: ctx.localEngineTick,
+				localLatestFingerprintTick: ctx.localLatestFingerprintTick,
+				effectiveHostTickCandidate: ctx.effectiveHostTickCandidate,
+				isPausedForOrderSync: this.session.isPausedForOrderSync(),
+				queuedDeferredBeforeSubmit: this.deferredLocalOrders.length,
+			},
+		});
+	}
+
 	private async persistOrder(
 		order: BattleOrder,
 		atTick: number,
 		idHash: string,
 		allowDeferralOnHostLag: boolean,
-	): Promise<void> {
+	): Promise<boolean> {
 		let res: {
 			accepted: boolean;
 			idHash: string;
@@ -878,7 +966,7 @@ export class BattleNet implements BattleNetContext {
 				context: { abilityId: order.abilityId, unitId: order.unitId },
 			});
 			this.emitHostCatchupWaitState();
-			return;
+			return false;
 		}
 		this.updateHeartbeatFromAppendResponse(res);
 		logToLobbyLogBattleSync({
@@ -932,7 +1020,7 @@ export class BattleNet implements BattleNetContext {
 					serverHostFingerprintAtAppend: res.hostFingerprint ?? null,
 				},
 			});
-			return;
+			return true;
 		}
 		if (allowDeferralOnHostLag && res.rejectedReason === 'tick_ahead_of_host') {
 			this.deferLocalOrder(idHash, atTick, order, true);
@@ -956,7 +1044,7 @@ export class BattleNet implements BattleNetContext {
 					serverHostFingerprintAtAppend: res.hostFingerprint ?? null,
 				},
 			});
-			return;
+			return false;
 		}
 		if (!allowDeferralOnHostLag && res.rejectedReason === 'tick_ahead_of_host') {
 			logToLobbyLogBattleSync({
@@ -978,7 +1066,7 @@ export class BattleNet implements BattleNetContext {
 				},
 			});
 			this.emitHostCatchupWaitState();
-			return;
+			return false;
 		}
 		if (res.rejectedReason === 'tick_in_past') {
 			this.emitRejectedOrderSyncDetail(res.rejectedReason);
@@ -1000,7 +1088,7 @@ export class BattleNet implements BattleNetContext {
 				},
 			});
 			this.requestResync('tick-in-past');
-			return;
+			return false;
 		}
 		if (res.rejectedReason === 'not_unit_owner' || res.rejectedReason === 'unknown_unit') {
 			this.emitRejectedOrderSyncDetail(res.rejectedReason);
@@ -1016,7 +1104,7 @@ export class BattleNet implements BattleNetContext {
 				context: { unitId: order.unitId },
 			});
 			this.requestResync(res.rejectedReason === 'not_unit_owner' ? 'not-unit-owner' : 'unknown-unit');
-			return;
+			return false;
 		}
 		// Duplicate/other non-ahead responses mean the server already has this order or
 		// cannot use it; keep local optimistic state transient and drop the deferred row.
@@ -1041,6 +1129,7 @@ export class BattleNet implements BattleNetContext {
 				note: 'If server duplicate is a false positive, investigate 32-bit idHash collisions.',
 			},
 		});
+		return false;
 	}
 
 	private get latestHeartbeatHostTick(): number {
@@ -1314,6 +1403,7 @@ export class BattleNet implements BattleNetContext {
 		this.nonHostOptimisticPlayaheadAnchor = null;
 		this.waitingForHostPausedStallSinceMs = null;
 		this.waitingForHostPausedStallMaterialKey = null;
+		this.resetStuckPausedHostAheadStreak();
 		this.heartbeatState.resetMaterialTracking();
 		this.syncReconciler.setLastNonHostHbPausePlane(null);
 		this.clearHostAnchorWaitState();
@@ -1435,6 +1525,146 @@ export class BattleNet implements BattleNetContext {
 			});
 			this.requestResync('waiting-for-host-paused-stall');
 		}
+	}
+
+	/**
+	 * Detector for the **stuck paused host ahead** deadlock: non-host client is paused for parallel
+	 * order sync at local tick `N` while server `hostTick` has moved far ahead (e.g. `N+50`) because
+	 * client missed intermediate order rows.
+	 *
+	 * Triggers when ALL hold for {@link BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS} consecutive polls:
+	 *  - `!isHost`,
+	 *  - `session.isPausedForOrderSync()`,
+	 *  - `hostTick - engineTick >= BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_GAP`,
+	 *  - heartbeat material `(hostTick, hostFingerprint)` changed **or** `ordersRecordCount` increased
+	 *    (server moved forward) AND local `engineTick` did **not** advance.
+	 *
+	 * On trigger: force an order rescan from tick 0 (orders-first remediation). If after rescan the
+	 * stall persists for {@link BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS} more polls, escalate to
+	 * `requestResync('stuck-paused-host-ahead')`.
+	 */
+	private async tickNonHostStuckPausedHostAhead(
+		hb: BattleNetEventMap['heartbeat'],
+		heartbeatMaterialChanged: boolean,
+		ordersRecordCount: number | null,
+	): Promise<void> {
+		if (this.isHost) {
+			this.resetStuckPausedHostAheadStreak();
+			return;
+		}
+		const engineTick = this.session.getEngineTick();
+		const paused = this.session.isPausedForOrderSync();
+		const gap = hb.hostTick - engineTick;
+		if (!paused || gap < BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_GAP) {
+			this.resetStuckPausedHostAheadStreak();
+			return;
+		}
+		// engine catching up — clear streak (this poll already proved progress).
+		if (
+			this.stuckPausedHostAheadPrevEngineTick !== null &&
+			engineTick > this.stuckPausedHostAheadPrevEngineTick
+		) {
+			this.resetStuckPausedHostAheadStreak();
+			return;
+		}
+		const ordersIncreased = ordersRecordCount !== null && ordersRecordCount > this.lastSeenOrdersRecordCount;
+		const serverMoved = heartbeatMaterialChanged || ordersIncreased;
+		const engineStalled =
+			this.stuckPausedHostAheadPrevEngineTick === null ||
+			engineTick === this.stuckPausedHostAheadPrevEngineTick;
+
+		if (!serverMoved || !engineStalled) {
+			// Conditions not met this poll — record current engineTick but do not count the poll.
+			// (Tracking prev engineTick lets the next poll detect a stall vs progress.)
+			this.stuckPausedHostAheadPrevEngineTick = engineTick;
+			return;
+		}
+
+		this.stuckPausedHostAheadPollStreak += 1;
+		this.stuckPausedHostAheadPrevEngineTick = engineTick;
+
+		if (
+			!this.stuckPausedHostAheadRescanDone &&
+			this.stuckPausedHostAheadPollStreak >= BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS
+		) {
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: engineTick,
+				severity: 'info',
+				gameId: this.gameId,
+				message: 'stuck-paused host ahead: forcing order rescan from tick 0',
+				context: {
+					engineTick,
+					hostTick: hb.hostTick,
+					gap,
+					streak: this.stuckPausedHostAheadPollStreak,
+					orderBatchAtTick: hb.orderBatchAtTick,
+					ordersRecordCount,
+					lastSeenOrdersRecordCount: this.lastSeenOrdersRecordCount,
+				},
+			});
+			await this.forceCatchupOrderRescan(hb.hostTick, ordersRecordCount);
+			this.stuckPausedHostAheadRescanDone = true;
+			this.stuckPausedHostAheadPostRescanPolls = 0;
+			// Re-read engineTick — rescan may have applied orders that advanced the local sim.
+			const engineTickAfter = this.session.getEngineTick();
+			this.stuckPausedHostAheadPrevEngineTick = engineTickAfter;
+			if (engineTickAfter >= hb.hostTick) {
+				this.resetStuckPausedHostAheadStreak();
+			}
+			return;
+		}
+
+		if (this.stuckPausedHostAheadRescanDone) {
+			this.stuckPausedHostAheadPostRescanPolls += 1;
+			if (this.stuckPausedHostAheadPostRescanPolls >= BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS) {
+				logToLobbyLogBattleSync({
+					lobbyClient: this.api as unknown as LobbyClient,
+					lobbyId: this.lobbyId,
+					playerId: this.playerId,
+					tick: engineTick,
+					severity: 'warn',
+					gameId: this.gameId,
+					message:
+						'stuck-paused host ahead: rescan did not unblock client — requesting full resync',
+					context: {
+						engineTick,
+						hostTick: hb.hostTick,
+						gap,
+						streak: this.stuckPausedHostAheadPollStreak,
+						postRescanPolls: this.stuckPausedHostAheadPostRescanPolls,
+						orderBatchAtTick: hb.orderBatchAtTick,
+						ordersRecordCount,
+					},
+				});
+				this.resetStuckPausedHostAheadStreak();
+				this.requestResync('stuck-paused-host-ahead');
+			}
+		}
+	}
+
+	private resetStuckPausedHostAheadStreak(): void {
+		this.stuckPausedHostAheadPollStreak = 0;
+		this.stuckPausedHostAheadPrevEngineTick = null;
+		this.stuckPausedHostAheadRescanDone = false;
+		this.stuckPausedHostAheadPostRescanPolls = 0;
+	}
+
+	/**
+	 * Force a full rescan of `applied + pending` orders from tick 0 to `hostTick`, applying any rows
+	 * not already in {@link appliedOrderIdHashes}. Reuses {@link fetchAndApplyNewOrders} with
+	 * `rescanOrdersFromTickZero: true` so the dedupe stays correct.
+	 */
+	private async forceCatchupOrderRescan(hostTick: number, serverOrderRecordCount: number | null): Promise<void> {
+		// Reset the cursor so the next normal poll cannot skip rows we may have missed; the rescan
+		// itself uses `sinceTick = 0` regardless of the cursor.
+		this.lastOrderFetchSince = 0;
+		await this.fetchAndApplyNewOrders(hostTick, {
+			rescanOrdersFromTickZero: true,
+			serverOrderRecordCount,
+		});
 	}
 
 	private async flushFingerprints(): Promise<void> {

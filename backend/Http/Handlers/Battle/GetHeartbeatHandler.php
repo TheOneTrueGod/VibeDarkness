@@ -11,6 +11,12 @@ use App\LobbyManager;
  * `fingerprintTailTick` / `fingerprintTailFingerprint` — max tick row in `fingerprints.jsonl` before clamp; may exceed `hostTick` while snapshot catch-up lags.
  * `hostPaused` — `paused` flag from the fingerprints.jsonl row for that tick (story/deferred/general pause signal).
  * `pausedAtTick` — when non-null, alias of `orderBatchAtTick` (parallel batch = `waitingForOrders.atTick`).
+ *
+ * Dual fingerprint echo (when `?gameTick=N` is numeric):
+ *  - `requestedGameTick` — echoes N.
+ *  - `requestedGameHash` — fingerprint row at tick N (or null when no row exists / N was a sentinel like 'latest').
+ *  - `requestedGamePaused` — `paused` flag at tick N (or null when no row exists).
+ *  Authoritative latest tail stays in `hostTick` / `hostFingerprint` / `hostPaused`.
  */
 class GetHeartbeatHandler
 {
@@ -72,7 +78,14 @@ class GetHeartbeatHandler
         }
         $heartbeatSeq = max($fpMtime, $ordMtime, $snapMtime);
 
-        $gameTickQuery = isset($_GET['gameTick']) && $_GET['gameTick'] !== '' ? (int) $_GET['gameTick'] : null;
+        // `gameTick` query may be a numeric tick (echo that row's fingerprint/paused) or
+        // a sentinel like 'latest' (skip echo; only the authoritative host tail is returned).
+        // Non-numeric values that are not the sentinel are treated like 'latest' (null echo).
+        $gameTickQueryRaw = isset($_GET['gameTick']) && $_GET['gameTick'] !== '' ? (string) $_GET['gameTick'] : null;
+        $gameTickQuery = null;
+        if ($gameTickQueryRaw !== null && is_numeric($gameTickQueryRaw)) {
+            $gameTickQuery = (int) $gameTickQueryRaw;
+        }
 
         $resolved = $storage->resolveLastCompletedTickAndFingerprint($lobbyId, $gameId);
         $latestFpRow = $storage->getLatestFingerprint($lobbyId, $gameId);
@@ -131,10 +144,14 @@ class GetHeartbeatHandler
 
         $requestedTick = $gameTickQuery;
         $requestedHash = null;
+        $requestedPaused = null;
         if ($requestedTick !== null && $requestedTick >= 0) {
             $fpRows = $storage->getFingerprintsRange($lobbyId, $gameId, $requestedTick, $requestedTick);
             if ($fpRows !== []) {
-                $requestedHash = $fpRows[0]['fp'];
+                $requestedHash = $fpRows[0]['fp'] ?? null;
+                if (array_key_exists('paused', $fpRows[0])) {
+                    $requestedPaused = (bool) $fpRows[0]['paused'];
+                }
             }
         }
 
@@ -154,8 +171,14 @@ class GetHeartbeatHandler
             'initialFingerprint' => $initialState['initialFingerprint'] ?? null,
             'latestServerGameTick' => $hostTick,
             'latestServerGameHash' => $hostFingerprint,
+            // Legacy echo fields (kept for back-compat with older clients).
             'gameTick' => $requestedTick,
             'gameHash' => $requestedHash,
+            // Dual fingerprint echo: explicit "what the client asked about" fields. `hostTick` /
+            // `hostFingerprint` above remain authoritative for the latest completed tail.
+            'requestedGameTick' => $requestedTick,
+            'requestedGameHash' => $requestedHash,
+            'requestedGamePaused' => $requestedPaused,
             'pendingOrders' => $orderSplit['pending'],
             'appliedOrdersAtTick' => $appliedOrdersAtTick,
         ];

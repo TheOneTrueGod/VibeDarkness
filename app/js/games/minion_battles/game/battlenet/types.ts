@@ -79,6 +79,10 @@ export type BattleNetEventMap = {
         latestServerGameHash?: string | null;
         gameTick?: number | null;
         gameHash?: string | null;
+        /** Dual fingerprint echo: row for the `?gameTick=N` the client sent (null when sentinel / no row). */
+        requestedGameTick?: number | null;
+        requestedGameHash?: string | null;
+        requestedGamePaused?: boolean | null;
         /** Max tick in `fingerprints.jsonl` (unclamped); optional until server ships tail fields. */
         fingerprintTailTick: number | null;
         fingerprintTailFingerprint: string | null;
@@ -136,6 +140,10 @@ export interface BattleApi {
         latestServerGameHash?: string | null;
         gameTick?: number | null;
         gameHash?: string | null;
+        /** Dual fingerprint echo (preferred): row for the `?gameTick=N` the client sent. */
+        requestedGameTick?: number | null;
+        requestedGameHash?: string | null;
+        requestedGamePaused?: boolean | null;
         pendingOrders?: Array<Record<string, unknown>>;
         appliedOrdersAtTick?: { atTick: number | null; orders: Array<Record<string, unknown>> };
         ordersTipTick: number | null;

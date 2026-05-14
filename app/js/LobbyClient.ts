@@ -603,6 +603,12 @@ export class LobbyClient {
             latestServerGameHash: data.latestServerGameHash ?? null,
             gameTick: data.gameTick ?? null,
             gameHash: data.gameHash ?? null,
+            requestedGameTick:
+                typeof data.requestedGameTick === 'number' ? data.requestedGameTick : data.gameTick ?? null,
+            requestedGameHash:
+                typeof data.requestedGameHash === 'string' ? data.requestedGameHash : data.gameHash ?? null,
+            requestedGamePaused:
+                typeof data.requestedGamePaused === 'boolean' ? data.requestedGamePaused : null,
             pendingOrders: data.pendingOrders,
             appliedOrdersAtTick: data.appliedOrdersAtTick,
             hostPaused: typeof data.hostPaused === 'boolean' ? data.hostPaused : false,

@@ -36,3 +36,22 @@ export const HOST_ANCHOR_RESYNC_MS = 10_000;
 export const BATTLE_NET_BEHIND_HOST_TICKS_THRESHOLD = 10;
 export const BATTLE_NET_MAX_DEFERRED_ORDERS = 32;
 export const BATTLE_NET_DEFERRED_FORCE_FLUSH_POLLS = 5;
+
+/**
+ * Non-host stuck-paused detector: minimum `hostTick - engineTick` gap that counts as
+ * "host has advanced past us while we're paused for parallel orders". Smaller gaps are
+ * treated as normal optimistic playahead / catch-up windows.
+ */
+export const BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_GAP = 2;
+/**
+ * Non-host stuck-paused detector: consecutive polls (~500ms each) where the host moved
+ * (material change or new order records) but local `engineTick` did not advance — at this
+ * count we force a full order rescan to unblock the local parallel-order pause.
+ */
+export const BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS = 3;
+/**
+ * Non-host stuck-paused detector: additional polls after the catch-up rescan where the
+ * client is still paused and behind — at this point assume order recovery alone cannot
+ * unblock us and escalate to `requestResync('stuck-paused-host-ahead')`.
+ */
+export const BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS = 2;
