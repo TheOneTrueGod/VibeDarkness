@@ -1,6 +1,23 @@
 import type { LobbyClient } from '../../../../LobbyClient';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from '../types';
 
+/** One remote order row for {@link BattleSessionHandle.applyRemoteOrders} (wire + optional dedupe fields). */
+export type RemoteOrderWireRow = {
+    gameTick?: number;
+    atTick?: number;
+    order: BattleOrder | Record<string, unknown>;
+    /** Server row id when present — preferred dedupe key in {@link BattleSession.applyRemoteOrders}. */
+    idHash?: string;
+    /** Row owner for {@link hashOrderId} fallback when `idHash` is absent. */
+    playerId?: string;
+};
+
+/** Returned by session {@link BattleSessionHandle.applyRemoteOrders} so {@link BattleNet} can align `appliedOrderIdHashes` with rows the session actually queued. */
+export type ApplyRemoteOrdersResult = {
+    newlyAppliedKeys: string[];
+    skippedKeys: string[];
+};
+
 export interface BattleSessionHandle {
     getEngineTick(): number;
     /** Incremental sim hash at the current engine state (matches tick-complete flush / {@link GameEngine.getRuntimeFingerprintHex}). */
@@ -22,9 +39,7 @@ export interface BattleSessionHandle {
         state: SerializedGameState,
         opts?: { checkpointRuntimeFingerprintHex?: string | null },
     ): void;
-    applyRemoteOrders(
-        orders: Array<{ gameTick?: number; atTick?: number; order: BattleOrder | Record<string, unknown> }>,
-    ): void;
+    applyRemoteOrders(orders: RemoteOrderWireRow[]): ApplyRemoteOrdersResult;
     /**
      * True while the engine holds a parallel player order batch (`GameEngine.waitingForOrders`).
      * Distinct from BattleNet HTTP deferral (`deferredLocalOrders`).

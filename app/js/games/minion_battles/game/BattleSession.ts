@@ -18,7 +18,8 @@ import { Camera } from './Camera';
 import { fingerprintToHex } from './Fingerprint';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
-import type { BattleNet, BattleSessionHandle } from './battlenet';
+import type { ApplyRemoteOrdersResult, BattleNet, BattleSessionHandle, RemoteOrderWireRow } from './battlenet';
+import { hashOrderId } from './battlenet/helpers/orderHashing';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -73,6 +74,8 @@ export class BattleSession implements BattleSessionHandle {
     /** Debug-only one-shot: force the next heartbeat fingerprint comparison to mismatch. */
     private forceNextFingerprintMismatch = false;
     private readonly listeners = new Set<BattleSessionListener>();
+    /** Dedupe keys for remote rows applied this engine lifetime (cleared when the engine is torn down or replaced from snapshot). */
+    private appliedRemoteOrderKeys = new Set<string>();
 
     constructor(private readonly config: BattleSessionConfig) {}
 
@@ -215,6 +218,7 @@ export class BattleSession implements BattleSessionHandle {
      */
     async load({ players, characterSelections, battleSeed, initialSnapshot }: BattleSessionLoadArgs): Promise<void> {
         this.updateLobbyContext(players, characterSelections);
+        this.appliedRemoteOrderKeys.clear();
         this.teardownEngineAndRendererOnly();
         const { api, playerId, missionId, isHost } = this.config;
         api.setCurrentPlayerId();
@@ -315,6 +319,7 @@ export class BattleSession implements BattleSessionHandle {
             gameTick: raw.gameTick ?? raw.game_tick,
             snapshotIndex: raw.snapshotIndex,
         });
+        this.appliedRemoteOrderKeys.clear();
         this.teardownEngineAndRendererOnly();
         const { api, playerId, missionId } = this.config;
         api.setCurrentPlayerId();
@@ -477,11 +482,13 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     /** Apply orders delivered from the server for non-host (or late host) clients. */
-    applyRemoteOrders(
-        orders: Array<{ gameTick?: number; atTick?: number; order: BattleOrder | Record<string, unknown> }>,
-    ): void {
+    applyRemoteOrders(orders: RemoteOrderWireRow[]): ApplyRemoteOrdersResult {
+        const newlyAppliedKeys: string[] = [];
+        const skippedKeys: string[] = [];
         const eng = this.engine;
-        if (!eng) return;
+        if (!eng) {
+            return { newlyAppliedKeys, skippedKeys };
+        }
         debugLog('sync tracking', 'info', 'BattleSession.applyRemoteOrders', {
             engineTickBefore: eng.gameTick,
             count: orders.length,
@@ -493,9 +500,26 @@ export class BattleSession implements BattleSessionHandle {
         });
         for (const rec of orders) {
             const atTick = rec.atTick ?? rec.gameTick;
-            if (typeof atTick !== 'number') continue;
+            if (typeof atTick !== 'number' || Number.isNaN(atTick)) {
+                continue;
+            }
+            const idWire = rec.idHash;
+            const keyFromWire = typeof idWire === 'string' && idWire.length > 0 ? idWire : null;
+            const playerId = typeof rec.playerId === 'string' && rec.playerId.length > 0 ? rec.playerId : null;
+            const key =
+                keyFromWire ??
+                (playerId != null ? hashOrderId(playerId, atTick, rec.order as BattleOrder) : null);
+            if (key == null) {
+                continue;
+            }
+            if (this.appliedRemoteOrderKeys.has(key)) {
+                skippedKeys.push(key);
+                continue;
+            }
             const order = rec.order;
             eng.queueOrder(atTick, order as unknown as BattleOrder);
+            this.appliedRemoteOrderKeys.add(key);
+            newlyAppliedKeys.push(key);
         }
         eng.tryResumeParallel();
         this.emit({
@@ -504,6 +528,7 @@ export class BattleSession implements BattleSessionHandle {
             waitingForOrders: eng.waitingForOrders,
         });
         this.emit({ type: 'card_state', engine: eng });
+        return { newlyAppliedKeys, skippedKeys };
     }
 
     /**
@@ -568,6 +593,7 @@ export class BattleSession implements BattleSessionHandle {
         prevEngine?.destroy();
         this.engine = null;
         this.camera = null;
+        this.appliedRemoteOrderKeys.clear();
     }
 
     /** Full teardown (unmount). */

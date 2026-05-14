@@ -140,9 +140,22 @@ export class OrderQueueController {
             return;
         }
         if (!this.appliedOrderIdHashes.has(item.idHash)) {
+            const applyResult = this.ctx.session.applyRemoteOrders([
+                {
+                    atTick: item.atTick,
+                    order: item.order,
+                    idHash: item.idHash,
+                    playerId: this.ctx.playerId,
+                },
+            ]);
+            for (const k of applyResult.newlyAppliedKeys) {
+                this.appliedOrderIdHashes.add(k);
+            }
+            for (const k of applyResult.skippedKeys) {
+                this.appliedOrderIdHashes.add(k);
+            }
             this.appliedOrderIdHashes.add(item.idHash);
-            this.ctx.session.applyRemoteOrders([{ atTick: item.atTick, order: item.order }]);
-            this.ctx.events.emit('orders-applied', { count: 1, source: 'submit' });
+            this.ctx.events.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'submit' });
             this.ourOrdersAwaitingServerRange.add(item.idHash);
         }
         item.appliedLocally = true;
@@ -248,7 +261,8 @@ export class OrderQueueController {
     }
 
     /**
-     * Fetch merged server orders with `atTick >= sinceTick` and apply any not already in {@link appliedOrderIdHashes}.
+     * Fetch merged server orders with `atTick >= sinceTick` and apply them; {@link BattleSession.applyRemoteOrders}
+     * dedupes by `idHash` / `hashOrderId`. {@link OrderQueueController.getAppliedOrderIdHashes} is updated from the session result.
      * When replaying after loading a pause **checkpoint** whose envelope `tick` is `T`, callers must pass
      * `sinceTick = T + 1`: rows with `atTick <= T` are already reflected in that snapshot's sim state.
      * For `initial_state.json` bootstrap use `sinceTick = 0` so tick-0/1 rows are not skipped.
@@ -268,21 +282,28 @@ export class OrderQueueController {
                     maxAtTickObserved == null ? record.atTick : Math.max(maxAtTickObserved, record.atTick);
             }
         }
-        const toApply: Array<{ atTick: number; order: BattleOrder }> = [];
+        const toApply: Array<{ atTick: number; order: BattleOrder; idHash: string; playerId: string }> = [];
         for (const record of orderRange.orders) {
             if (record.playerId === this.ctx.playerId) {
                 this.serverRangeConfirmedOurOrderHashes.add(record.idHash);
                 this.ourOrdersAwaitingServerRange.delete(record.idHash);
             }
-            if (this.appliedOrderIdHashes.has(record.idHash)) {
-                continue;
-            }
-            this.appliedOrderIdHashes.add(record.idHash);
-            toApply.push({ atTick: record.atTick, order: record.order });
+            toApply.push({
+                atTick: record.atTick,
+                order: record.order,
+                idHash: record.idHash,
+                playerId: record.playerId,
+            });
         }
         if (toApply.length > 0) {
-            this.ctx.session.applyRemoteOrders(toApply);
-            this.ctx.events.emit('orders-applied', { count: toApply.length, source: 'poll' });
+            const applyResult = this.ctx.session.applyRemoteOrders(toApply);
+            for (const k of applyResult.newlyAppliedKeys) {
+                this.appliedOrderIdHashes.add(k);
+            }
+            for (const k of applyResult.skippedKeys) {
+                this.appliedOrderIdHashes.add(k);
+            }
+            this.ctx.events.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
         }
         return { maxAtTickObserved };
     }

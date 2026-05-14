@@ -16,8 +16,10 @@ export {
 } from './BattleNet';
 
 export type {
+    ApplyRemoteOrdersResult,
     BattleSessionHandle,
     BattleNetSyncTerminalStatus,
     BattleNetPollOnceOptions,
     BattleNetFactoryArgs,
+    RemoteOrderWireRow,
 } from './BattleNet';

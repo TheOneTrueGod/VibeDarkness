@@ -134,6 +134,8 @@ Hosts definitionally can't desync, so we don't need to worry about it.
 - Follow the **[Heartbeat loop (normative)](#heartbeat-loop-normative)** rules (including polling while paused for parallel orders / waiting-for-host stalls). Do not queue overlapping periodic requests.
 - If we get back enough applied orders to resume gameplay, then do so.
 
+Non-host **`includePastApplied`**: the client sends it when behind the last observed host completed tick (including the “`hostTick` was 0 but local `gameTick` > 0`” bootstrap case), or when **`nonHostPastAppliedHeartbeatLatch`** is on—set after a poll observes post-merge **`engineTick < hostTick`** while the engine is paused for parallel order sync, and cleared when caught up (`engineTick >= hostTick` and not paused for order sync), on invalid **`hostTick`**, or at desync recovery entry. **`BattleSession.applyRemoteOrders`** dedupes each wire row by **`idHash`** or **`hashOrderId(playerId, atTick, order)`**; **`BattleNet`** updates **`appliedOrderIdHashes`** from the session apply outcome so skipped duplicates do not leave orphan hash entries.
+
 ### Optimistic playahead
 When a client is the one to submit the last order needed for a turn, we want to allow for that client to optimistically assume the API call is going to succeed, and to let the game resume.  If the clients find out that something changed underneath them, then they'll need to roll back to the previous state and play out the game from there.  For more serious desyncs, we'll need to do a full resync.
 In order to do this, we'll need desync detection logic.

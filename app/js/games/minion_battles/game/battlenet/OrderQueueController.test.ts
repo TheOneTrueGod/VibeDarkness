@@ -30,7 +30,7 @@ function makeSession(): BattleSessionHandle {
         getPayloadForPersistedInitialStateOrNull: () => null,
         startEngine: () => {},
         loadFromSnapshot: () => {},
-        applyRemoteOrders: vi.fn(),
+        applyRemoteOrders: vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] }),
         isPausedForOrderSync: () => false,
         getWaitingForOrdersBatch: () => null,
         isDebugSimulationFrozen: () => false,
@@ -163,13 +163,19 @@ describe('OrderQueueController.deferLocalOrder', () => {
 describe('OrderQueueController.applyDeferredRowLocallyIfNeeded', () => {
     it('applies the order via session and emits orders-applied once', () => {
         const ctx = makeCtx();
+        vi.mocked(ctx.session.applyRemoteOrders).mockReturnValue({
+            newlyAppliedKeys: ['h1'],
+            skippedKeys: [],
+        });
         const emitSpy = vi.fn();
         ctx.events.on('orders-applied', emitSpy);
         const q = new OrderQueueController(ctx);
         const row = { idHash: 'h1', atTick: 5, order: makeOrder('u'), appliedLocally: false };
         q.applyDeferredRowLocallyIfNeeded(row);
         expect(row.appliedLocally).toBe(true);
-        expect(ctx.session.applyRemoteOrders).toHaveBeenCalledWith([{ atTick: 5, order: row.order }]);
+        expect(ctx.session.applyRemoteOrders).toHaveBeenCalledWith([
+            { atTick: 5, order: row.order, idHash: 'h1', playerId: 'p1' },
+        ]);
         expect(emitSpy).toHaveBeenCalledWith({ count: 1, source: 'submit' });
 
         q.applyDeferredRowLocallyIfNeeded(row);

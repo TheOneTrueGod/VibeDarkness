@@ -35,7 +35,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         }),
         startEngine: () => {},
         loadFromSnapshot: () => {},
-        applyRemoteOrders: () => {},
+        applyRemoteOrders: vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] }),
         isPausedForOrderSync: () => false,
         getWaitingForOrdersBatch: () => null,
         isDebugSimulationFrozen: () => false,
@@ -139,7 +139,7 @@ describe('BattleNet', () => {
     });
 
     it('fetches and applies missing orders when engine is behind host', async () => {
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         const api = makeApi({
             getBattleHeartbeat: vi.fn(async () => ({
                 hostTick: 100,
@@ -175,9 +175,65 @@ describe('BattleNet', () => {
 
         expect(applyRemoteOrders).toHaveBeenCalledTimes(1);
         expect(applyRemoteOrders).toHaveBeenCalledWith([
-            { atTick: 81, order: makeOrder('a') },
-            { atTick: 82, order: makeOrder('b') },
+            { atTick: 81, order: makeOrder('a'), idHash: 'h1', playerId: 'p2' },
+            { atTick: 82, order: makeOrder('b'), idHash: 'h2', playerId: 'p2' },
         ]);
+    });
+
+    it('non-host: includePastApplied latch keeps includePastApplied when cold-start heuristic is false', async () => {
+        const hbOpts: Array<{ includePastApplied?: boolean }> = [];
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(
+                async (_l: string, _g: string, _p: string, opts?: { includePastApplied?: boolean }) => {
+                    hbOpts.push({ includePastApplied: opts?.includePastApplied });
+                    const behind = engineTick < 50;
+                    return {
+                        hostTick: 50,
+                        hostFingerprint: 'fp50aligned00000',
+                        hostPaused: behind,
+                        ordersTipTick: 0,
+                        pausedAtTick: behind ? 43 : null,
+                        orderBatchAtTick: behind ? 43 : null,
+                        expectingFromPlayerIds: behind ? ['p2'] : null,
+                        initialFingerprint: '0011223344556677',
+                        heartbeatSeq: 0,
+                    };
+                },
+            ),
+        });
+        let engineTick = 49;
+        let paused = true;
+        const session = makeSession({
+            getEngineTick: () => engineTick,
+            isPausedForOrderSync: () => paused,
+            getLatestFingerprint: () =>
+                engineTick >= 50
+                    ? { tick: 50, fp: 'fp50aligned00000', paused: false }
+                    : { tick: 49, fp: 'fp50aligned00000', paused: true },
+            getFingerprintRange: () => [],
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        net.heartbeatState.updateLastSeenHeartbeat(49);
+
+        await net.pollOnce();
+        expect(hbOpts[0]?.includePastApplied).toBe(false);
+
+        engineTick = 50;
+        paused = false;
+        await net.pollOnce();
+        expect(hbOpts[1]?.includePastApplied).toBe(true);
+
+        engineTick = 50;
+        paused = false;
+        await net.pollOnce();
+        expect(hbOpts[2]?.includePastApplied).toBe(false);
     });
 
     it('emits synced when equal tick fingerprints match', async () => {
@@ -527,7 +583,7 @@ describe('BattleNet', () => {
     });
 
     it('revision fetch pulls a second order when ordersRecordCount increases but ordersTipTick does not', async () => {
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         let heartbeatCalls = 0;
         let rangeCalls = 0;
         const api = makeApi({
@@ -588,12 +644,17 @@ describe('BattleNet', () => {
 
         expect(rangeCalls).toBe(2);
         expect(applyRemoteOrders).toHaveBeenCalledTimes(2);
-        expect(applyRemoteOrders).toHaveBeenNthCalledWith(1, [{ atTick: 2, order: makeOrder('a') }]);
-        expect(applyRemoteOrders).toHaveBeenNthCalledWith(2, [{ atTick: 2, order: makeOrder('b') }]);
+        expect(applyRemoteOrders).toHaveBeenNthCalledWith(1, [
+            { atTick: 2, order: makeOrder('a'), idHash: 'h1', playerId: '8' },
+        ]);
+        expect(applyRemoteOrders).toHaveBeenNthCalledWith(2, [
+            { atTick: 2, order: makeOrder('a'), idHash: 'h1', playerId: '8' },
+            { atTick: 2, order: makeOrder('b'), idHash: 'h2', playerId: '9' },
+        ]);
     });
 
     it('legacy tip polling does not skip late order at same tick after an empty range response', async () => {
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         let heartbeatCalls = 0;
         let rangeCalls = 0;
         const api = makeApi({
@@ -639,14 +700,16 @@ describe('BattleNet', () => {
         expect(heartbeatCalls).toBe(2);
         expect(rangeCalls).toBe(2);
         expect(applyRemoteOrders).toHaveBeenCalledTimes(1);
-        expect(applyRemoteOrders).toHaveBeenCalledWith([{ atTick: 96, order: makeOrder('late') }]);
+        expect(applyRemoteOrders).toHaveBeenCalledWith([
+            { atTick: 96, order: makeOrder('late'), idHash: 'late96', playerId: '9' },
+        ]);
     });
 
     // Recovery flow tests (divergent fingerprints, latest snapshot vs targeted snapshot,
     // initial-state replay fallback) moved to battlenet/RecoveryCoordinator.test.ts.
 
     it('submitOrder applies local order only once for duplicate submissions', async () => {
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         let heartbeatCalls = 0;
         const api = makeApi({
             getBattleHeartbeat: vi.fn(async () => {
@@ -679,11 +742,14 @@ describe('BattleNet', () => {
         await net.pollOnce();
 
         expect(applyRemoteOrders).toHaveBeenCalledTimes(1);
+        expect(applyRemoteOrders).toHaveBeenCalledWith([
+            expect.objectContaining({ atTick: 20, order, playerId: 'p1' }),
+        ]);
         expect((api as unknown as { appendBattleOrder: ReturnType<typeof vi.fn> }).appendBattleOrder).toHaveBeenCalledTimes(1);
     });
 
     it('defers non-host order POST until heartbeat hostTick catches up', async () => {
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         let heartbeatCalls = 0;
         const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
             accepted: true,
@@ -769,7 +835,7 @@ describe('BattleNet', () => {
             getEngineTick: () => 1,
             /** Must match heartbeat `hostTick`/`hostFingerprint` or poll triggers hash-mismatch recovery. */
             getLatestFingerprint: () => ({ tick: 1, fp: 'fp1', paused: false }),
-            applyRemoteOrders: vi.fn(),
+            applyRemoteOrders: vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] }),
             isPausedForOrderSync: () => true,
         });
         const net = new BattleNet({
@@ -788,7 +854,7 @@ describe('BattleNet', () => {
     });
 
     it('drops deferred local orders on full resync', async () => {
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
             accepted: true,
             idHash: body.idHash ?? 'idhash',
@@ -1439,7 +1505,7 @@ describe('BattleNet', () => {
             session: makeSession({
                 getEngineTick: () => 0,
                 isPausedForOrderSync: () => true,
-                applyRemoteOrders: vi.fn(),
+                applyRemoteOrders: vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] }),
             }),
             isHost: false,
             lobbyId: 'l1',

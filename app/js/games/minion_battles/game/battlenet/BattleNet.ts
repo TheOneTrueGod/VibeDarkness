@@ -25,6 +25,7 @@ import {
 	BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
 } from './constants';
 import type {
+	ApplyRemoteOrdersResult,
 	BattleSessionHandle,
 	BattleNetEventMap,
 	BattleNetListener as Listener,
@@ -52,10 +53,12 @@ export {
 	BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
 } from './constants';
 export type {
+	ApplyRemoteOrdersResult,
 	BattleSessionHandle,
 	BattleNetSyncTerminalStatus,
 	BattleNetPollOnceOptions,
 	BattleNetFactoryArgs,
+	RemoteOrderWireRow,
 } from './types';
 
 /** Monotonic id for `traceBattleHeartbeatLine` (`heartbeatTraceInstanceId`). */
@@ -267,6 +270,24 @@ export class BattleNet implements BattleNetContext {
 	private stuckPausedHostAheadRescanDone = false;
 	/** Polls observed after rescan still meeting the stuck conditions (drives resync escalation). */
 	private stuckPausedHostAheadPostRescanPolls = 0;
+	/**
+	 * Non-host: after observing post-merge `engineTick < hostTick` while paused for parallel orders,
+	 * keep `includePastApplied` on subsequent heartbeats until catch-up / recovery clears this.
+	 */
+	private nonHostPastAppliedHeartbeatLatch = false;
+
+	/**
+	 * Session {@link BattleSessionHandle.applyRemoteOrders} is authoritative for dedupe; merge its
+	 * outcome into {@link appliedOrderIdHashes} so we never orphan hashes for rows the session skipped.
+	 */
+	private registerAppliedOrderHashesFromRemoteApplyResult(result: ApplyRemoteOrdersResult): void {
+		for (const k of result.newlyAppliedKeys) {
+			this.appliedOrderIdHashes.add(k);
+		}
+		for (const k of result.skippedKeys) {
+			this.appliedOrderIdHashes.add(k);
+		}
+	}
 
 	async submitOrder(order: BattleOrder, atTick: number): Promise<void> {
 		if (this.isRecovering) {
@@ -370,9 +391,12 @@ export class BattleNet implements BattleNetContext {
 		// Non-host: keep optimistic local apply *before* POST deferral gates (deferred submits must still
 		// queue locally). Host defers local apply until after append so merge-applied cannot race pending JSONL.
 		if (!this.appliedOrderIdHashes.has(idHash) && !this.isHost) {
+			const applyResult = this.session.applyRemoteOrders([
+				{ atTick, order, idHash, playerId: this.playerId },
+			]);
+			this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
 			this.appliedOrderIdHashes.add(idHash);
-			this.session.applyRemoteOrders([{ atTick, order }]);
-			this.emit('orders-applied', { count: 1, source: 'submit' });
+			this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'submit' });
 			logToLobbyLogBattleSync({
 				lobbyClient: this.api as unknown as LobbyClient,
 				lobbyId: this.lobbyId,
@@ -587,7 +611,9 @@ export class BattleNet implements BattleNetContext {
 			const latestHostTail = this.latestHeartbeatHostTick;
 			const includePastApplied =
 				!this.isHost &&
-				(engineTick < latestHostTail || (latestHostTail === 0 && engineTick > 0));
+				(this.nonHostPastAppliedHeartbeatLatch ||
+					engineTick < latestHostTail ||
+					(latestHostTail === 0 && engineTick > 0));
 
 			const hbRaw = await this.getBattleHeartbeatThrottled({
 				gameTick: engineTick,
@@ -705,6 +731,19 @@ export class BattleNet implements BattleNetContext {
 			engineTick = this.session.getEngineTick();
 
 			if (!this.isHost) {
+				const hbTickRaw = hbRaw.hostTick;
+				const hbTick =
+					typeof hbTickRaw === 'number' && !Number.isNaN(hbTickRaw) ? hbTickRaw : null;
+				if (hbTick === null) {
+					this.nonHostPastAppliedHeartbeatLatch = false;
+				} else if (engineTick >= hbTick && !this.session.isPausedForOrderSync()) {
+					this.nonHostPastAppliedHeartbeatLatch = false;
+				} else if (engineTick < hbTick && this.session.isPausedForOrderSync()) {
+					this.nonHostPastAppliedHeartbeatLatch = true;
+				}
+			}
+
+			if (!this.isHost) {
 				this.updateNonHostOptimisticAnchor(engineTick, hb);
 				const behind = hb.hostTick - engineTick;
 				if (behind > BATTLE_NET_BEHIND_HOST_TICKS_THRESHOLD) {
@@ -782,7 +821,12 @@ export class BattleNet implements BattleNetContext {
 		if (list == null || !Array.isArray(list) || list.length === 0) {
 			return;
 		}
-		const toApply: Array<{ atTick: number; order: BattleOrder }> = [];
+		const toApply: Array<{
+			atTick: number;
+			order: BattleOrder;
+			idHash: string;
+			playerId?: string;
+		}> = [];
 		let maxAt = -1;
 		for (const raw of list) {
 			if (!raw || typeof raw !== 'object') {
@@ -802,20 +846,23 @@ export class BattleNet implements BattleNetContext {
 			if (!order || typeof order !== 'object') {
 				continue;
 			}
-			if (this.appliedOrderIdHashes.has(idHash)) {
-				continue;
-			}
-			if (playerId === this.playerId) {
+			const pid =
+				typeof playerId === 'string' && playerId.length > 0
+					? playerId
+					: typeof rec.player_id === 'string' && (rec.player_id as string).length > 0
+						? (rec.player_id as string)
+						: undefined;
+			if (pid === this.playerId) {
 				this.serverRangeConfirmedOurOrderHashes.add(idHash);
 				this.ourOrdersAwaitingServerRange.delete(idHash);
 			}
-			this.appliedOrderIdHashes.add(idHash);
-			toApply.push({ atTick, order: order as BattleOrder });
+			toApply.push({ atTick, order: order as BattleOrder, idHash, playerId: pid });
 			maxAt = Math.max(maxAt, atTick);
 		}
 		if (toApply.length > 0) {
-			this.session.applyRemoteOrders(toApply);
-			this.emit('orders-applied', { count: toApply.length, source: 'poll' });
+			const applyResult = this.session.applyRemoteOrders(toApply);
+			this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
+			this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
 		}
 		if (maxAt >= 0) {
 			this.lastOrderFetchSince = Math.max(this.lastOrderFetchSince, maxAt + 1);
@@ -836,21 +883,23 @@ export class BattleNet implements BattleNetContext {
 			sinceTick: sinceTick > 0 ? sinceTick : undefined,
 			untilTick: untilTick >= 0 ? untilTick : undefined,
 		});
-		const toApply: Array<{ atTick: number; order: BattleOrder }> = [];
+		const toApply: Array<{ atTick: number; order: BattleOrder; idHash: string; playerId: string }> = [];
 		for (const rec of range.orders) {
 			if (rec.playerId === this.playerId) {
 				this.serverRangeConfirmedOurOrderHashes.add(rec.idHash);
 				this.ourOrdersAwaitingServerRange.delete(rec.idHash);
 			}
-			if (this.appliedOrderIdHashes.has(rec.idHash)) {
-				continue;
-			}
-			this.appliedOrderIdHashes.add(rec.idHash);
-			toApply.push({ atTick: rec.atTick, order: rec.order });
+			toApply.push({
+				atTick: rec.atTick,
+				order: rec.order,
+				idHash: rec.idHash,
+				playerId: rec.playerId,
+			});
 		}
 		if (toApply.length > 0) {
-			this.session.applyRemoteOrders(toApply);
-			this.emit('orders-applied', { count: toApply.length, source: 'poll' });
+			const applyResult = this.session.applyRemoteOrders(toApply);
+			this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
+			this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
 		}
 		const srvCount = opts?.serverOrderRecordCount;
 		if (srvCount != null) {
@@ -912,8 +961,11 @@ export class BattleNet implements BattleNetContext {
 			effectiveHostTickCandidate: number | null;
 		},
 	): void {
-		this.session.applyRemoteOrders([{ atTick, order }]);
-		this.emit('orders-applied', { count: 1, source: 'submit' });
+		const applyResult = this.session.applyRemoteOrders([
+			{ atTick, order, idHash, playerId: this.playerId },
+		]);
+		this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
+		this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'submit' });
 		logToLobbyLogBattleSync({
 			lobbyClient: this.api as unknown as LobbyClient,
 			lobbyId: this.lobbyId,
@@ -1452,6 +1504,7 @@ export class BattleNet implements BattleNetContext {
 	 * are preserved — see {@link OrderQueueController.resetLocalOptimisticOrdersOnResync}.
 	 */
 	resetForDesyncRecoveryEntry(): void {
+		this.nonHostPastAppliedHeartbeatLatch = false;
 		this.orderQueue.resetLocalOptimisticOrdersOnResync();
 		this.resetNonHostAheadStreak();
 		this.previouslySyncedAtTick = null;
@@ -1709,7 +1762,7 @@ export class BattleNet implements BattleNetContext {
 
 	/**
 	 * Force a full rescan of `applied + pending` orders from tick 0 to `hostTick`, applying any rows
-	 * not already in {@link appliedOrderIdHashes}. Reuses {@link fetchAndApplyNewOrders} with
+	 * not already applied by the session (session dedupe + {@link appliedOrderIdHashes} alignment). Reuses {@link fetchAndApplyNewOrders} with
 	 * `rescanOrdersFromTickZero: true` so the dedupe stays correct.
 	 */
 	private async forceCatchupOrderRescan(hostTick: number, serverOrderRecordCount: number | null): Promise<void> {

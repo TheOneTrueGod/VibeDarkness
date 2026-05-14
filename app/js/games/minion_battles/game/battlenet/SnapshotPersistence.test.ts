@@ -19,7 +19,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         }),
         startEngine: () => {},
         loadFromSnapshot: () => {},
-        applyRemoteOrders: () => {},
+        applyRemoteOrders: () => ({ newlyAppliedKeys: [], skippedKeys: [] }),
         isPausedForOrderSync: () => false,
         getWaitingForOrdersBatch: () => null,
         isDebugSimulationFrozen: () => false,

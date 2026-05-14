@@ -29,7 +29,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         getPayloadForPersistedInitialStateOrNull: () => null,
         startEngine: () => {},
         loadFromSnapshot: () => {},
-        applyRemoteOrders: () => {},
+        applyRemoteOrders: () => ({ newlyAppliedKeys: [], skippedKeys: [] }),
         isPausedForOrderSync: () => false,
         getWaitingForOrdersBatch: () => null,
         isDebugSimulationFrozen: () => false,
@@ -212,7 +212,7 @@ describe('RecoveryCoordinator.tryBootstrapFromLatestCheckpoint', () => {
 
     it('loads snapshot, seeds merged orders through checkpoint tick, replays since snapshot.tick + 1, and primes fetch cursor', async () => {
         const loadFromSnapshot = vi.fn();
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         const getBattleOrdersRange = vi.fn(
             async (_l: string, _g: string, params: { sinceTick?: number; untilTick?: number }) => {
                 if (params.untilTick === 5 && params.sinceTick === undefined) {
@@ -249,7 +249,9 @@ describe('RecoveryCoordinator.tryBootstrapFromLatestCheckpoint', () => {
         });
         expect(getBattleOrdersRange).toHaveBeenNthCalledWith(2, 'l1', 'g1', { playerId: 'p1', sinceTick: 6 });
         expect(h.orderQueue.getAppliedOrderIdHashes().has('seed1')).toBe(true);
-        expect(applyRemoteOrders).toHaveBeenCalledWith([{ atTick: 6, order: makeOrder('r1') }]);
+        expect(applyRemoteOrders).toHaveBeenCalledWith([
+            { atTick: 6, order: makeOrder('r1'), idHash: 'o1', playerId: 'p2' },
+        ]);
         expect(h.ctx.snapshotPersistence.getLastBootstrapSnapshotTick()).toBe(5);
         expect(h.orderQueue.getLastOrderFetchSince()).toBe(7);
         expect(h.orderQueue.getLastSeenOrdersRecordCount()).toBe(0);
@@ -294,7 +296,7 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
 
     it('emits resyncing, runs initial-state mismatch path, and finalizes with success', async () => {
         const loadFromSnapshot = vi.fn();
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         const getBattleSnapshot = vi.fn(async () => null);
         const getBattleInitialState = vi.fn(async () => ({
             state: { gameTick: 0 } as SerializedGameState,
@@ -331,7 +333,7 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
 
     it('prefers latest checkpoint snapshot before falling back to targeted snapshot', async () => {
         const loadFromSnapshot = vi.fn();
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         const getBattleSnapshot = vi.fn(async () => ({
             tick: 1,
             state: { gameTick: 1 } as SerializedGameState,
@@ -379,12 +381,14 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
         await h.coordinator.runDesyncRecovery('hash-mismatch');
         expect(getBattleSnapshot).toHaveBeenCalledTimes(1);
         expect(getBattleSnapshot).toHaveBeenCalledWith('l1', 'g1', { playerId: 'p1' });
-        expect(applyRemoteOrders).toHaveBeenCalledWith([{ atTick: 2, order: makeOrder('r1') }]);
+        expect(applyRemoteOrders).toHaveBeenCalledWith([
+            { atTick: 2, order: makeOrder('r1'), idHash: 'z1', playerId: 'p2' },
+        ]);
     });
 
     it('falls back to initial-state replay when latest checkpoint is missing', async () => {
         const loadFromSnapshot = vi.fn();
-        const applyRemoteOrders = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         const getBattleSnapshot = vi.fn(async () => null);
         const getBattleInitialState = vi.fn(async () => ({
             state: { gameTick: 0 } as SerializedGameState,
@@ -432,7 +436,9 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
         });
         await h.coordinator.runDesyncRecovery('hash-mismatch');
         expect(getBattleInitialState).toHaveBeenCalled();
-        expect(applyRemoteOrders).toHaveBeenCalledWith([{ atTick: 30, order: makeOrder('initial') }]);
+        expect(applyRemoteOrders).toHaveBeenCalledWith([
+            { atTick: 30, order: makeOrder('initial'), idHash: 'i1', playerId: 'p2' },
+        ]);
         const statuses = h.statusCallback.mock.calls.map((c) => c[0]);
         expect(statuses).toContain('resyncing');
         expect(statuses).toContain('synced_pending_ack');
