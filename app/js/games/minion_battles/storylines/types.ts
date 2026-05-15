@@ -80,10 +80,17 @@ export interface VictoryConditionUnitDead {
     unitCharacterId: string;
 }
 
+/** True when {@link EngineContext.roundNumber} has reached at least `round` (inclusive). */
+export interface VictoryConditionAtLeastRound {
+    type: 'atLeastRound';
+    round: number;
+}
+
 export type VictoryCondition =
     | VictoryConditionEliminateAllEnemies
     | VictoryConditionAllUnitsNearPosition
-    | VictoryConditionUnitDead;
+    | VictoryConditionUnitDead
+    | VictoryConditionAtLeastRound;
 
 /** When an objective completes, run these in order (host only for npcChat). */
 export type ObjectiveOnCompleteEffect =

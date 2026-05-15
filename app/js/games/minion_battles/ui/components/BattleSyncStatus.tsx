@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SyncStatusCard, { type SyncStatusTone } from './SyncStatusCard';
 import {
     BATTLE_NET_WAITING_HOST_UI_FORCE_RESYNC_POLLS,
     BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
     type BattleNetSyncTerminalStatus,
 } from '../../game/battlenet';
+import {
+    BATTLE_RESYNC_INFORM_AUTO_DISMISS_MS,
+    BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK,
+} from '../../../../../../global_constants.js';
 
 export type BattleSyncStatusVariant = 'battle' | 'debug';
 
@@ -30,6 +34,9 @@ export interface BattleSyncStatusProps {
     hostAnchorWaitElapsedMs?: number;
     onRequestBattleReload?: () => void;
     onAcknowledgeRecoveryContinue?: () => void;
+    /** Shown after resync when sim did not pause for ack; dismiss clears parent state. */
+    resyncInformAck?: { reason: string; token: number } | null;
+    onDismissResyncInformAck?: () => void;
 }
 
 type CardModel = {
@@ -71,9 +78,71 @@ function detailsBattleOrDebug(p: BattleSyncStatusProps, tail: string | null): Re
     return tail ? <span className="block">{tail}</span> : null;
 }
 
+/** Okay + timed fill for post-resync informational banner (non-blocking sim). */
+function ResyncInformOkayActions({
+    autoDismissMs,
+    onDismiss,
+}: {
+    autoDismissMs: number;
+    onDismiss: () => void;
+}): React.ReactElement {
+    const [progress, setProgress] = useState(0);
+    const dismissedRef = useRef(false);
+    const dismiss = useCallback(() => {
+        if (dismissedRef.current) return;
+        dismissedRef.current = true;
+        onDismiss();
+    }, [onDismiss]);
+
+    useEffect(() => {
+        dismissedRef.current = false;
+        const start = performance.now();
+        let frame = 0;
+        const tick = (now: number) => {
+            if (dismissedRef.current) return;
+            const t = Math.min(1, (now - start) / autoDismissMs);
+            setProgress(t);
+            if (t >= 1) {
+                dismiss();
+                return;
+            }
+            frame = requestAnimationFrame(tick);
+        };
+        frame = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(frame);
+    }, [autoDismissMs, dismiss]);
+
+    return (
+        <button
+            type="button"
+            onClick={dismiss}
+            aria-label="Dismiss resync notice"
+            className="relative min-w-[4.5rem] overflow-hidden rounded bg-emerald-950 px-2 py-1 text-xs font-medium text-emerald-50 ring-1 ring-emerald-600/60 hover:ring-emerald-500"
+        >
+            <span
+                className="pointer-events-none absolute inset-y-0 left-0 bg-emerald-500/85"
+                style={{ width: `${progress * 100}%` }}
+                aria-hidden
+            />
+            <span className="relative z-10">Okay</span>
+        </button>
+    );
+}
+
 function pickSyncCardModel(p: BattleSyncStatusProps): CardModel {
     const { variant, syncStatus, isHost, isPaused, syncDetails } = p;
     const detail = trimDetail(syncDetails);
+
+    if (variant === 'battle' && p.resyncInformAck) {
+        const tail = `Resync complete (${p.resyncInformAck.reason}).`;
+        return {
+            title: 'Battle resynced',
+            tone: 'success',
+            summary:
+                'State matches the server again. Tap Okay or wait — this notice closes automatically.',
+            details: detailsBattleOrDebug(p, tail),
+        };
+    }
 
     if (variant === 'battle' && syncStatus === 'synced') {
         return null;
@@ -232,8 +301,23 @@ export default function BattleSyncStatus(props: BattleSyncStatusProps) {
             ? 'pointer-events-none absolute left-3 top-3 z-20 w-[min(26rem,calc(100vw-1.5rem))]'
             : 'w-full max-w-none';
 
+    const informOkayBtn =
+        props.variant === 'battle' &&
+        props.resyncInformAck &&
+        typeof props.onDismissResyncInformAck === 'function' ? (
+            <div className="pointer-events-auto">
+                <ResyncInformOkayActions
+                    key={props.resyncInformAck.token}
+                    autoDismissMs={BATTLE_RESYNC_INFORM_AUTO_DISMISS_MS}
+                    onDismiss={props.onDismissResyncInformAck}
+                />
+            </div>
+        ) : null;
+
     const continueBtn =
-        props.syncStatus === 'synced_pending_ack' && typeof props.onAcknowledgeRecoveryContinue === 'function' ? (
+        props.syncStatus === 'synced_pending_ack' &&
+        BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK &&
+        typeof props.onAcknowledgeRecoveryContinue === 'function' ? (
             <div className="pointer-events-auto">
                 <button
                     type="button"
@@ -257,12 +341,14 @@ export default function BattleSyncStatus(props: BattleSyncStatusProps) {
         </div>
     ) : null;
 
-    const actions = continueBtn != null || reloadBtn != null ? (
-        <>
-            {continueBtn}
-            {reloadBtn}
-        </>
-    ) : undefined;
+    const actions =
+        informOkayBtn != null || continueBtn != null || reloadBtn != null ? (
+            <>
+                {informOkayBtn}
+                {continueBtn}
+                {reloadBtn}
+            </>
+        ) : undefined;
 
     return (
         <div className={outerClass}>

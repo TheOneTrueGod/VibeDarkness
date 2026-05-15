@@ -563,7 +563,7 @@ export class BattleNet implements BattleNetContext {
 		return this.snapshotPersistence.mergeAppliedOrdersForBatch(batchAtTick);
 	}
 
-	/** Clears the post-recovery "Continue" UX gate (see {@link BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC}). */
+	/** Clears the post-recovery "Continue" UX gate (see {@link BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK} in `global_constants.js`). */
 	acknowledgeRecoveryContinue(): void {
 		this.syncStatusController.acknowledgeRecoveryContinue();
 	}

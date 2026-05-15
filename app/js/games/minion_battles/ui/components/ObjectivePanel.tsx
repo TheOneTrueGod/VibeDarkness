@@ -16,7 +16,7 @@ interface ObjectivePanelProps {
 export default function ObjectivePanel({ objectives }: ObjectivePanelProps) {
     if (objectives.length === 0) {
         return (
-            <div className="rounded-lg border border-dark-600 bg-dark-800/60 px-3 py-2 text-center text-xs text-gray-500">
+            <div className="rounded-lg border border-white bg-dark-800/60 px-3 py-2 text-center text-xs text-gray-500">
                 No objectives for this mission.
             </div>
         );
@@ -24,7 +24,7 @@ export default function ObjectivePanel({ objectives }: ObjectivePanelProps) {
 
     return (
         <div
-            className="flex flex-col gap-1.5 rounded-lg border border-dark-600 bg-dark-800/80 px-2 py-2"
+            className="flex flex-col gap-1.5 rounded-lg border border-white bg-dark-800/80 px-2 py-2"
             aria-label="Mission objectives"
         >
             <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Objectives</div>
@@ -39,8 +39,8 @@ export default function ObjectivePanel({ objectives }: ObjectivePanelProps) {
                         <span
                             className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-bold ${
                                 o.completed
-                                    ? 'border-green-600 bg-green-900/40 text-green-400'
-                                    : 'border-dark-500 bg-dark-900 text-gray-500'
+                                    ? 'border-emerald-600/80 bg-green-900/40 text-green-400'
+                                    : 'border-border-custom bg-dark-900 text-gray-500'
                             }`}
                             aria-hidden
                         >

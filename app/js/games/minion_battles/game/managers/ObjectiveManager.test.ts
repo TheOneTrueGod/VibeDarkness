@@ -62,22 +62,75 @@ describe('ObjectiveManager', () => {
         expect(mop?.completed).toBe(true);
     });
 
+    it('atLeastRound gates eliminate objective until the round threshold', () => {
+        resetGameObjectIdCounter(1);
+        const grid = new TerrainGrid(20, 20, CELL_SIZE, TerrainType.Grass);
+        const tm = new TerrainManager(grid);
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1, terrainManager: tm });
+
+        const boar = createUnitFromSpawnConfig(
+            {
+                characterId: ENEMY_BOAR.characterId,
+                name: ENEMY_BOAR.name,
+                x: 200,
+                y: 200,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: ENEMY_BOAR.abilities,
+                aiSettings: ENEMY_BOAR.aiSettings ?? null,
+            },
+            engine.eventBus,
+            engine,
+        );
+        engine.addUnit(boar);
+
+        engine.registerBattleObjectives([
+            {
+                id: 'survive',
+                label: 'Survive',
+                toComplete: { type: 'atLeastRound', round: 3 },
+            },
+            {
+                id: 'clear',
+                label: 'Clear',
+                requiresCompletedId: 'survive',
+                toComplete: { type: 'eliminateAllEnemies' },
+            },
+        ]);
+
+        let rows = engine.getBattleObjectiveRows();
+        expect(rows.map((r) => r.id)).toEqual(['survive']);
+        engine.state.objectiveManager.processObjectives();
+        rows = engine.getBattleObjectiveRows();
+        expect(rows.find((r) => r.id === 'survive')?.completed).toBe(false);
+
+        engine.roundNumber = 3;
+        engine.state.objectiveManager.processObjectives();
+        rows = engine.getBattleObjectiveRows();
+        expect(rows.find((r) => r.id === 'survive')?.completed).toBe(true);
+        expect(rows.find((r) => r.id === 'clear')).toBeDefined();
+        expect(rows.find((r) => r.id === 'clear')?.completed).toBe(false);
+
+        boar.hp = 0;
+        engine.state.objectiveManager.processObjectives();
+        expect(engine.getBattleObjectiveRows().find((r) => r.id === 'clear')?.completed).toBe(true);
+
+        engine.destroy();
+    });
+
     it('round-trips objective state in engine JSON', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
-        engine.registerBattleObjectives([
-            { id: 'a', label: 'A', toComplete: { type: 'eliminateAllEnemies' } },
-        ]);
+        engine.registerBattleObjectives([{ id: 'a', label: 'A', toComplete: { type: 'eliminateAllEnemies' } }]);
         engine.state.objectiveManager.processObjectives();
 
         const json = engine.toJSON();
         expect(json.objectives?.completedIds).toContain('a');
 
         const restored = GameEngine.fromJSON(json, 'p1', null);
-        restored.registerBattleObjectives([
-            { id: 'a', label: 'A', toComplete: { type: 'eliminateAllEnemies' } },
-        ]);
+        restored.registerBattleObjectives([{ id: 'a', label: 'A', toComplete: { type: 'eliminateAllEnemies' } }]);
         expect(restored.getBattleObjectiveRows().find((r) => r.id === 'a')?.completed).toBe(true);
         restored.destroy();
         engine.destroy();

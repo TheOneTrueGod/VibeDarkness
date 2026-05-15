@@ -8,6 +8,7 @@ export class BattleEventBus {
     private readonly listeners: { [K in keyof BattleNetEventMap]: Set<BattleNetListener<K>> } = {
         'sync-status': new Set(),
         'sync-details': new Set(),
+        'post-resync-inform': new Set(),
         'host-anchor-wait': new Set(),
         'blocking-host-pause-plane': new Set(),
         'falling-behind': new Set(),

@@ -554,6 +554,9 @@ export class LevelEventManager {
             );
             return !hasTargetAlive;
         }
+        if (cond.type === 'atLeastRound') {
+            return this.ctx.roundNumber >= cond.round;
+        }
         return false;
     }
 

@@ -10,10 +10,20 @@
 export const LOBBY_LOG_BATTLE_SYNC = 'info';
 
 /**
- * After a desync recovery resync, resume simulation automatically without extra UI.
- * When false, Battle UI may show a continue affordance (see BattleNet / sync box).
+ * When true after a successful full desync recovery, order submission stays blocked until the user
+ * clicks Continue in the battle sync banner (`synced_pending_ack`).
+ * When false (default), the sim resumes immediately and an informational banner shows Okay + auto-dismiss.
  */
-export const BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC = false;
+export const BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK = false;
+
+/** Auto-dismiss delay for the informational resync banner when {@link BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK} is false. */
+export const BATTLE_RESYNC_INFORM_AUTO_DISMISS_MS = 10_000;
+
+/**
+ * @deprecated Use {@link BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK} instead — this is `!BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK`.
+ * Kept so older imports/docs keep compiling.
+ */
+export const BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC = !BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK;
 
 /** Foreground periodic battle heartbeat cadence (`BattleNet` GET /heartbeat). */
 export const HEARTBEAT_POLL_INTERVAL_MS = 500;

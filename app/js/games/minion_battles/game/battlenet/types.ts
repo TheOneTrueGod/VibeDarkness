@@ -78,6 +78,8 @@ export type BattleNetEventMap = {
     'sync-status': BattleNetSyncTerminalStatus;
     /** Optional human-readable sync detail shown in Battle UI while recovering. */
     'sync-details': string | null;
+    /** Recovery finished without blocking the sim; battle UI may show a short informational banner. */
+    'post-resync-inform': { reason: string };
     /** Non-host: stuck waiting for host to advance past anchor tick (wall-clock gated UX + resync). */
     'host-anchor-wait': { phase: 'idle' | 'waiting_ui' | 'forcing_resync'; elapsedMs: number };
     /** Non-host: cannot submit parallel orders until host pause plane aligns (pause-ahead desync prevention). */

@@ -72,6 +72,15 @@ describe('SyncStatusController', () => {
         expect(statusListener).not.toHaveBeenCalled();
     });
 
+    it('finalizeRecoveryOutcome(true) emits post-resync-inform and stays synced when not pausing for ack', () => {
+        const { ctrl, events } = make();
+        const inform = vi.fn();
+        events.on('post-resync-inform', inform);
+        ctrl.finalizeRecoveryOutcome(true, 'hash-mismatch');
+        expect(ctrl.getStatus()).toBe('synced');
+        expect(inform).toHaveBeenCalledWith({ reason: 'hash-mismatch' });
+    });
+
     it('finalizeRecoveryOutcome(false) emits failed', () => {
         const { ctrl } = make();
         ctrl.finalizeRecoveryOutcome(false, 'whatever');
@@ -83,6 +92,14 @@ describe('SyncStatusController', () => {
         ctrl.finalizeRecoveryOutcome(true, 'initial-state-mismatch');
         expect(ctrl.getStatus()).toBe('synced');
         expect(ctrl.isAwaitingUserAck()).toBe(false);
+    });
+
+    it('finalizeRecoveryOutcome initial-state-mismatch does not emit post-resync-inform', () => {
+        const { ctrl, events } = make();
+        const inform = vi.fn();
+        events.on('post-resync-inform', inform);
+        ctrl.finalizeRecoveryOutcome(true, 'initial-state-mismatch');
+        expect(inform).not.toHaveBeenCalled();
     });
 
     it('summarizeOrderRejectReason returns empty string for falsy/empty reasons', () => {

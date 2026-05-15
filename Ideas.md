@@ -7,12 +7,13 @@ Feedback May 14, 2026
 [x] Add "SPC" to the hotkey for wait
 [x] Change the foot icon
 
-- Make the objective indicator wait until the third round
-- Spread out wolf spawns on first level
+[x] Make the objective indicator wait until the third round
+[x] Spread out wolf spawns on first level
+[x] In the first few missions, give a hint
+[x] Dodge indicator doesn't accurate reflect the range
+[x] Have 'continue' automatically happen on desync.  Show the message for a certain amount of time
+
 - Startup hints and losing hints
-- In the first few missions, give a hint
-- Dodge indicator doesn't accurate reflect the range
-- Have 'continue' automatically happen on desync.  Show the message for a certain amount of time
 - Two tones to movement based on how far you'll move after using the action
 - Define "knockback" and "stun"
 - Make sure the punch stun upgrade doesn't say "more" stun.

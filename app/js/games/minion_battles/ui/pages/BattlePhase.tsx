@@ -159,6 +159,7 @@ export default function BattlePhase({
     const [teamworkBurstKey, setTeamworkBurstKey] = useState(0);
     const [netSyncStatus, setNetSyncStatus] = useState<BattleNetSyncTerminalStatus>('waiting_for_host');
     const [netSyncDetails, setNetSyncDetails] = useState<string | null>(null);
+    const [resyncInformAck, setResyncInformAck] = useState<{ reason: string; token: number } | null>(null);
     const [waitingForHostCatchup, setWaitingForHostCatchup] = useState(false);
     const [hostCatchupHostTick, setHostCatchupHostTick] = useState(0);
     const [hostCatchupTargetTick, setHostCatchupTargetTick] = useState<number | null>(null);
@@ -176,6 +177,8 @@ export default function BattlePhase({
     const [hasReceivedInitialHeartbeat, setHasReceivedInitialHeartbeat] = useState(isHost);
 
     const battleActionRow = useBattleActionRowHost();
+
+    const dismissResyncInformAck = useCallback(() => setResyncInformAck(null), []);
 
     const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS;
 
@@ -479,12 +482,20 @@ export default function BattlePhase({
             unsubs.push(
                 net.on('sync-status', (status) => {
                     setNetSyncStatus(status);
+                    if (status === 'resyncing') {
+                        setResyncInformAck(null);
+                    }
                     bumpOrderPipeline();
                 }),
             );
             unsubs.push(
                 net.on('sync-details', (details) => {
                     setNetSyncDetails(details);
+                }),
+            );
+            unsubs.push(
+                net.on('post-resync-inform', (payload) => {
+                    setResyncInformAck({ reason: payload.reason, token: Date.now() });
                 }),
             );
             unsubs.push(
@@ -886,6 +897,8 @@ export default function BattlePhase({
                                 netRef.current?.requestResync('user-reload-from-sync-box')
                             }
                             onAcknowledgeRecoveryContinue={() => netRef.current?.acknowledgeRecoveryContinue()}
+                            resyncInformAck={resyncInformAck}
+                            onDismissResyncInformAck={dismissResyncInformAck}
                         />
                         <BattleCanvas
                             engine={engine}

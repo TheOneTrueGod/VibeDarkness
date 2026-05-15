@@ -118,6 +118,19 @@ const ENEMIES = [
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
+    /** Halfway through round 1 / 2 (rounds are 10s each; see GameEngine ROUND_DURATION). */
+    {
+        type: 'spawnWave',
+        trigger: { afterSeconds: 5 },
+        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1 }],
+        emittedByNpcId: '1',
+    },
+    {
+        type: 'spawnWave',
+        trigger: { afterSeconds: 15 },
+        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1 }],
+        emittedByNpcId: '1',
+    },
     {
         type: 'spawnWave',
         trigger: { atRound: 2 },
@@ -127,7 +140,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'spawnWave',
         trigger: { atRound: 3 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 3 }],
+        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2 }],
         emittedByNpcId: '1',
     },
     {
@@ -140,8 +153,14 @@ const LEVEL_EVENTS: LevelEvent[] = [
 
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
+        id: 'survive_wolves',
+        label: 'Survive the wolves',
+        toComplete: { type: 'atLeastRound', round: 3 },
+    },
+    {
         id: 'eliminate_enemies',
         label: 'Eliminate all enemies to win',
+        requiresCompletedId: 'survive_wolves',
         toComplete: { type: 'eliminateAllEnemies' },
     },
 ];

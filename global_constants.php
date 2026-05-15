@@ -10,5 +10,11 @@ declare(strict_types=1);
  */
 const LOBBY_LOG_BATTLE_SYNC = 'info';
 
-/** After desync recovery full resync: auto-resume without explicit user continue. */
-const BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC = false;
+/** When true, client would block until user Continue after resync (see JS `BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK`). */
+const BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK = false;
+
+/**
+ * @deprecated Inverse of {@see BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK} for legacy readers.
+ * Was “auto resume without continue”; now expressed as “do not pause for ack”.
+ */
+const BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC = !BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK;

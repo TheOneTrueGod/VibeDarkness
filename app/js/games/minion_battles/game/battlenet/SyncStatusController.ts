@@ -1,15 +1,15 @@
-import { BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC } from '../../../../../../global_constants.js';
+import { BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK } from '../../../../../../global_constants.js';
 import type { BattleEventBus } from './BattleEventBus';
 import type { BattleNetSyncTerminalStatus } from './types';
 
 /**
  * Owns the BattleNet sync UI state machine: terminal status, human-readable details,
- * and the post-recovery "Continue" gate.
+ * and the post-recovery "Continue" gate when {@link BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK} is true.
  */
 export class SyncStatusController {
     private currentStatus: BattleNetSyncTerminalStatus = 'waiting_for_host';
     private currentDetails: string | null = null;
-    /** Recovery succeeded but UX gate (`BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC=false`) awaits Continue. */
+    /** Recovery succeeded but UX gate (`BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK`) awaits Continue. */
     private awaitingUserAck = false;
 
     constructor(private readonly events: BattleEventBus) {}
@@ -65,8 +65,11 @@ export class SyncStatusController {
             this.setStatus('failed');
             return;
         }
-        if (BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC || reason === 'initial-state-mismatch') {
+        if (!BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK || reason === 'initial-state-mismatch') {
             this.setStatus('synced');
+            if (!BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK && reason !== 'initial-state-mismatch') {
+                this.events.emit('post-resync-inform', { reason });
+            }
             return;
         }
         this.setStatus(

@@ -103,12 +103,12 @@ export default function CardComponent({
                     ${isSelected
                         ? 'border-yellow-400 bg-surface-light -translate-y-2 shadow-lg shadow-yellow-400/25'
                         : isHovered && !isDisabled
-                            ? 'border-slate-400 bg-[#283a56] -translate-y-1'
+                            ? 'border-white bg-[#283a56] -translate-y-1'
                             : isActive
                                 ? 'border-green-500 bg-surface-light shadow-lg shadow-green-500/25'
                                 : isDisabled
-                                    ? 'border-border-custom bg-surface-light'
-                                    : 'border-border-custom bg-surface-light'
+                                    ? 'border-white/30 bg-surface-light'
+                                    : 'border-white bg-surface-light'
                     }
                 `}
             >
@@ -140,7 +140,7 @@ export default function CardComponent({
                     )}
 
                     <div className="mt-1 flex min-h-[22px] w-full items-center gap-1">
-                        <div className="rounded border border-border-custom bg-surface px-2.5 py-1 text-[11px] tabular-nums leading-none text-gray-100">
+                        <div className="rounded border border-white bg-surface px-2.5 py-1 text-[11px] tabular-nums leading-none text-gray-100">
                             {usesLeft}/{maxUses}
                         </div>
                     {showRecovery && (

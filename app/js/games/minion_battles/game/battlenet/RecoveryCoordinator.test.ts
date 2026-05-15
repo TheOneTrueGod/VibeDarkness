@@ -442,7 +442,7 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
         ]);
         const statuses = h.statusCallback.mock.calls.map((c) => c[0]);
         expect(statuses).toContain('resyncing');
-        expect(statuses).toContain('synced_pending_ack');
+        expect(statuses).toContain('synced');
     });
 
     it('clears isRecovering flag in finally block even when caller throws', async () => {

@@ -1,5 +1,5 @@
 /**
- * Dodge - Warrior card. Move toward target up to 140px over 0.4s at constant rate.
+ * Dodge - Warrior card. Move toward target up to {@link DODGE_MAX_DISTANCE}px over 0.4s at constant rate (terrain may shorten travel).
  * Spawns afterimages every 2 ticks during the dodge.
  */
 
@@ -7,9 +7,10 @@ import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
+import type { TerrainManager } from '../../terrain/TerrainManager';
+import { computeForcedDisplacement } from '../../game/forceMove';
 import { Effect } from '../../game/effects/Effect';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
@@ -20,9 +21,10 @@ import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses'
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const DODGE_DURATION = 0.4;
-const DODGE_MAX_DISTANCE = 140;
+/** Max travel distance (px); preview uses the same value with {@link computeForcedDisplacement}. */
+export const DODGE_MAX_DISTANCE = 140;
 /** Step size (px) when testing passability along the dodge path to avoid moving into terrain. */
-const COLLISION_STEP = 4;
+export const DODGE_COLLISION_STEP = 4;
 
 /** Duration of each afterimage in seconds (6 frames at 60 fps). */
 const AFTERIMAGE_DURATION = 6 / 60;
@@ -109,19 +111,15 @@ export const DodgeAbility: AbilityStatic = {
                 // Opposite of movement direction, with slight random variance
                 const baseAngle = Math.atan2(-dirResult.dirY, -dirResult.dirX);
                 // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
                 const angleVariance = (Math.random() - 0.5) * 0.6;
                 // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
                 const speed = 30 + Math.random() * 20;
                 effectData.vx = Math.cos(baseAngle + angleVariance) * speed;
                 effectData.vy = Math.sin(baseAngle + angleVariance) * speed;
             } else if (!isMoving) {
                 // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
                 const angle = Math.random() * Math.PI * 2;
                 // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
                 const speed = 30 + Math.random() * 20;
                 effectData.vx = Math.cos(angle) * speed;
                 effectData.vy = Math.sin(angle) * speed;
@@ -139,14 +137,32 @@ export const DodgeAbility: AbilityStatic = {
 
         if (!pos || distToTarget === 0 || moveDistance <= 0) return;
 
-        applyForcedDisplacementToward(engine, caster, pos.x, pos.y, moveDistance, { step: COLLISION_STEP });
+        applyForcedDisplacementToward(engine, caster, pos.x, pos.y, moveDistance, { step: DODGE_COLLISION_STEP });
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
         // Dodge has no attack that can be blocked.
     },
 
-    renderTargetingPreview: createPixelTargetPreview(DODGE_MAX_DISTANCE),
+    renderTargetingPreview(gr, caster, _currentTargets, mouseWorld, _units, gameState): void {
+        gr.clear();
+        const terrainManager =
+            gameState && typeof gameState === 'object' && 'terrainManager' in gameState
+                ? ((gameState as { terrainManager?: TerrainManager | null }).terrainManager ?? null)
+                : null;
+        const { dx, dy, distance } = computeForcedDisplacement(
+            caster.x,
+            caster.y,
+            mouseWorld.x,
+            mouseWorld.y,
+            DODGE_MAX_DISTANCE,
+            { terrainManager, step: DODGE_COLLISION_STEP },
+        );
+        if (distance <= 0) return;
+        gr.moveTo(caster.x, caster.y);
+        gr.lineTo(caster.x + dx, caster.y + dy);
+        gr.stroke({ color: 0xc0c0c0, width: 2, alpha: 0.6 });
+    },
 };
 
 export const DodgeCard: CardDef = {

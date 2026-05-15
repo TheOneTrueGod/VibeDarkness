@@ -281,9 +281,21 @@ export default function GameScreen({
         if (!gameSidebarInfo && !showSyncDebugCard) return null;
 
         return (
-            <div className="flex flex-col gap-2">
-                {showSyncDebugCard ? <SidebarBattleSyncDebugCard /> : null}
-                {gameSidebarInfo != null ? <ObjectivePanel objectives={gameSidebarInfo.objectives} /> : null}
+            <div className="flex flex-col">
+                {showSyncDebugCard ? (
+                    <div
+                        className={
+                            gameSidebarInfo != null ? 'border-b border-border-custom pb-2' : undefined
+                        }
+                    >
+                        <SidebarBattleSyncDebugCard />
+                    </div>
+                ) : null}
+                {gameSidebarInfo != null ? (
+                    <div className={showSyncDebugCard ? 'pt-2' : undefined}>
+                        <ObjectivePanel objectives={gameSidebarInfo.objectives} />
+                    </div>
+                ) : null}
             </div>
         );
     }, [gameSidebarInfo, alwaysShowSyncStatus, inBattle, effectiveLobbyGameType]);
@@ -583,7 +595,9 @@ export default function GameScreen({
                                 )}
                                 {playerListSection}
                             </div>
-                            <div className="flex min-h-0 shrink-0 flex-col">{chatPanel}</div>
+                            <div className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-tr-lg border border-l-0 border-border-custom">
+                                {chatPanel}
+                            </div>
                         </div>
                         <BattleActionRowSlot className="min-h-0 w-full shrink-0 border-t border-border-custom bg-surface" />
                     </div>

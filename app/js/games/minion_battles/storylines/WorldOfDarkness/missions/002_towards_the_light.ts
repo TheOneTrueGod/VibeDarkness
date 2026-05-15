@@ -183,7 +183,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'find_safety',
-        label: 'Find safety — reach the light deep in the cave with your whole party',
+        label: 'Find safety — reach the light in the cave to the east with your whole party',
         toComplete: {
             type: 'allUnitsNearPosition',
             col: CAVE_CAMPFIRE.col + RIGHT_OFFSET_COL,
