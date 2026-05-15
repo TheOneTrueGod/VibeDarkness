@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { GameEngine } from '../../game/GameEngine';
@@ -40,6 +41,7 @@ import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
 import { computeSynchash } from '@/utils/synchash';
 import { logToLobbyLog } from '../../../../lobbyLog';
+import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
 
 declare global {
     interface Window {
@@ -172,6 +174,8 @@ export default function BattlePhase({
         sending: 0,
     });
     const [hasReceivedInitialHeartbeat, setHasReceivedInitialHeartbeat] = useState(isHost);
+
+    const battleActionRow = useBattleActionRowHost();
 
     const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS;
 
@@ -822,12 +826,33 @@ export default function BattlePhase({
         );
     }
 
+    const actionRowHost = battleActionRow?.actionRowHost ?? null;
+
+    const cardHand = (
+        <CardHand
+            abilityIds={myAbilityIds}
+            playerUnit={
+                (activeLocalWaiter != null
+                    ? engine.getUnit(activeLocalWaiter.unitId) ?? engine.getLocalPlayerUnit()
+                    : engine.getLocalPlayerUnit()) ?? null
+            }
+            isMyTurn={canUseOrderUi}
+            roundNumber={roundNumber}
+            roundProgress={roundProgress}
+            isPaused={isPaused}
+            selectedCardIndex={selectedCardIndex}
+            onSelectCard={handleSelectCard}
+            onWait={handleWait}
+            gameState={engine}
+        />
+    );
+
     return (
         <div className="w-full h-full flex min-h-0 flex-col relative">
             {/* Timeline rail + canvas stack share space above the hand; hand spans full width */}
             <div className="flex min-h-0 flex-1 flex-row">
                 <aside
-                    className="flex w-72 shrink-0 min-h-0 flex-col overflow-x-hidden border-r border-dark-700"
+                    className="flex w-80 shrink-0 min-h-0 flex-col overflow-x-hidden border-r border-dark-700"
                     aria-label="Action timeline"
                 >
                     <BattleTimeline
@@ -911,24 +936,11 @@ export default function BattlePhase({
                 </div>
             </div>
 
-            <div className="shrink-0 min-w-0">
-                <CardHand
-                    abilityIds={myAbilityIds}
-                    playerUnit={
-                        (activeLocalWaiter != null
-                            ? engine.getUnit(activeLocalWaiter.unitId) ?? engine.getLocalPlayerUnit()
-                            : engine.getLocalPlayerUnit()) ?? null
-                    }
-                    isMyTurn={canUseOrderUi}
-                    roundNumber={roundNumber}
-                    roundProgress={roundProgress}
-                    isPaused={isPaused}
-                    selectedCardIndex={selectedCardIndex}
-                    onSelectCard={handleSelectCard}
-                    onWait={handleWait}
-                    gameState={engine}
-                />
-            </div>
+            {actionRowHost ? (
+                createPortal(<div className="min-w-0">{cardHand}</div>, actionRowHost)
+            ) : (
+                <div className="shrink-0 min-w-0">{cardHand}</div>
+            )}
         </div>
     );
 }

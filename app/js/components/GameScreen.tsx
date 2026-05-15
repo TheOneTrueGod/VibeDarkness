@@ -19,6 +19,10 @@ import { useGameSyncOptional } from '../contexts/GameSyncContext';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
 import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
+import {
+    BattleActionRowProvider,
+    BattleActionRowSlot,
+} from '../contexts/BattleActionRowContext';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -331,149 +335,209 @@ export default function GameScreen({
         (battlePlayerListHidden ||
             (effectiveLobbyGameData?.gamePhase ?? effectiveLobbyGameData?.game_phase) === 'battle');
 
-    return (
-        <div className="flex h-screen max-md:flex-col">
-            {/* Main Game Area */}
-            <div className="flex-1 flex flex-col p-4 min-w-0">
-                {/* Header - responsive: no overlap; on mobile resources + leave move to chat */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 px-2 sm:px-4 py-3 bg-surface rounded mb-4">
-                    <div className="min-w-0 flex-1 flex items-center gap-2">
-                        <span className="truncate">{player.name}</span>
-                        {isHost && (
-                            <span className="px-2 py-1 bg-warning text-secondary rounded text-xs font-bold shrink-0">
-                                HOST
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex-shrink-0 flex items-center justify-center min-w-0 max-w-[50%] sm:max-w-none">
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                            <span className="text-lg sm:text-xl font-semibold truncate">{lobby.name}</span>
-                            <LobbyIdBadge id={lobby.id} className="hidden sm:inline" />
-                        </div>
-                    </div>
-                    <div className="flex-1 flex justify-end items-center gap-2 sm:gap-3 min-w-0">
-                        {isMobileOrTablet && (
-                            <button
-                                type="button"
-                                onClick={openChat}
-                                className="relative p-2 rounded bg-surface-light hover:bg-surface-light/80 transition-colors shrink-0"
-                                aria-label="Open chat"
-                            >
-                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                </svg>
-                                {unreadCount > 0 && (
-                                    <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-danger px-1.5 text-xs font-bold text-white">
-                                        {unreadCount > 99 ? '99+' : unreadCount}
-                                    </span>
-                                )}
-                            </button>
-                        )}
+    /** Desktop Minion Battles combat: chat sits above a full-width action row (card hand portals into it). */
+    const battleChromeDesktop =
+        !isMobileOrTablet &&
+        effectiveLobbyPageState === 'in_game' &&
+        effectiveLobbyGameType === 'minion_battles' &&
+        inBattle;
+
+    const lobbyHeader = useMemo(
+        () => (
+            <div
+                className={`flex flex-wrap items-center gap-2 sm:gap-3 px-2 sm:px-4 py-3 bg-surface rounded ${
+                    battleChromeDesktop ? 'mb-0 shrink-0' : 'mb-4'
+                }`}
+            >
+                <div className="min-w-0 flex-1 flex items-center gap-2">
+                    <span className="truncate">{player.name}</span>
+                    {isHost && (
+                        <span className="px-2 py-1 bg-warning text-secondary rounded text-xs font-bold shrink-0">
+                            HOST
+                        </span>
+                    )}
+                </div>
+                <div className="flex-shrink-0 flex items-center justify-center min-w-0 max-w-[50%] sm:max-w-none">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <span className="text-lg sm:text-xl font-semibold truncate">{lobby.name}</span>
+                        <LobbyIdBadge id={lobby.id} className="hidden sm:inline" />
                     </div>
                 </div>
-
-                {/* Central area */}
-                <div className="flex-1 relative flex flex-col min-h-0">
-                    {effectiveLobbyPageState === 'home' && (
-                        <GameList isHost={isHost} onSelectGame={onSelectGame} />
-                    )}
-                    {effectiveLobbyPageState === 'in_game' && effectiveLobbyGameType && (
-                        <div className="flex-1 relative flex items-center justify-center bg-surface rounded-lg overflow-hidden min-h-0">
-                            {gameLoadError ? (
-                                <p className="p-5 text-danger">{gameLoadError}</p>
-                            ) : GameComp ? (
-                                <>
-                                    <GameComp
-                                        lobbyClient={lobbyClient}
-                                        lobbyId={lobby.id}
-                                        gameId={effectiveLobbyGameId ?? ''}
-                                        minionBattlesApi={minionBattlesApi}
-                                        playerId={player.id}
-                                        isHost={isHost}
-                                        players={effectivePlayers}
-                                        gameData={effectiveLobbyGameData}
-                                        onSidebarInfoChange={setGameSidebarInfo}
-                                        onRecordMissionResult={onRecordMissionResult}
-                                        onLeave={onLeave}
-                                        onTryAgain={onTryAgain}
-                                        onEmittedChatMessage={onEmittedChatMessage}
-                                        onBattleStartStatusChange={setBattlePlayerListHidden}
-                                        onBattleNetResyncingChange={setBattleNetResyncing}
-                                        currentCampaignId={currentCampaignId}
-                                    />
-                                    {/* Loading/resyncing overlay: keeps canvas visible, blocks interaction */}
-                                    {showResyncOverlay && (
-                                        <div
-                                            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 rounded-lg"
-                                            style={{ pointerEvents: 'auto' }}
-                                            aria-busy="true"
-                                            aria-live="polite"
-                                        >
-                                            <div className="flex flex-col items-center gap-4 px-6 py-6 bg-surface rounded-xl border border-border-custom shadow-xl">
-                                                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                                                <p className="text-muted">
-                                                    {isLoading
-                                                        ? 'Loading game state...'
-                                                        : battleNetResyncing && !isLoading
-                                                          ? 'Resyncing battle…'
-                                                          : 'Resyncing...'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            ) : (
-                                <>
-                                    <div className="flex flex-col items-center gap-4 text-muted">
-                                        <p>Loading game...</p>
-                                    </div>
-                                    {/* Overlay during initial load so layout stays stable */}
-                                    {showResyncOverlay && (
-                                        <div
-                                            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 rounded-lg"
-                                            style={{ pointerEvents: 'auto' }}
-                                            aria-busy="true"
-                                        >
-                                            <div className="flex flex-col items-center gap-4 px-6 py-6 bg-surface rounded-xl border border-border-custom shadow-xl">
-                                                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                                                <p className="text-muted">Loading game state...</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
+                <div className="flex-1 flex justify-end items-center gap-2 sm:gap-3 min-w-0">
+                    {isMobileOrTablet && (
+                        <button
+                            type="button"
+                            onClick={openChat}
+                            className="relative p-2 rounded bg-surface-light hover:bg-surface-light/80 transition-colors shrink-0"
+                            aria-label="Open chat"
+                        >
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-danger px-1.5 text-xs font-bold text-white">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
                             )}
-                        </div>
-                    )}
-                    {effectiveLobbyPageState === 'home' && (
-                        <GameCanvas clicks={clicks} onCanvasClick={onCanvasClick} />
+                        </button>
                     )}
                 </div>
-
-                {/* Player List (hidden during battle phase in minion_battles) */}
-                {!shouldHideBattlePlayerList && (
-                    <PlayerList
-                        players={effectivePlayers}
-                        currentPlayerId={player.id}
-                        characterSelections={
-                            effectiveLobbyGameData != null
-                                ? (effectiveLobbyGameData.characterSelections as Record<string, string>) ??
-                                  (effectiveLobbyGameData.character_selections as Record<string, string>)
-                                : undefined
-                        }
-                        readyPlayerIds={
-                            effectiveLobbyGameData != null &&
-                            (effectiveLobbyGameData.gamePhase ?? effectiveLobbyGameData.game_phase) === 'character_select'
-                                ? ((effectiveLobbyGameData.characterSelectReadyPlayerIds ??
-                                      effectiveLobbyGameData.character_select_ready_player_ids) as string[] | undefined) ?? []
-                                : undefined
-                        }
-                        flashingPlayerIds={flashingPlayerIds}
-                    />
-                )}
             </div>
+        ),
+        [
+            battleChromeDesktop,
+            isHost,
+            isMobileOrTablet,
+            lobby.id,
+            lobby.name,
+            openChat,
+            player.name,
+            unreadCount,
+        ],
+    );
 
-            {/* Chat Sidebar (desktop) / Slide-over (tablet & mobile) */}
-            {isMobileOrTablet ? (
+    const centralSection = useMemo(
+        () => (gamePanelRounding: string, overlayRounding: string) => (
+            <div className="flex-1 relative flex flex-col min-h-0">
+                {effectiveLobbyPageState === 'home' && <GameList isHost={isHost} onSelectGame={onSelectGame} />}
+                {effectiveLobbyPageState === 'in_game' && effectiveLobbyGameType && (
+                    <div
+                        className={`flex-1 relative flex items-center justify-center bg-surface overflow-hidden min-h-0 ${gamePanelRounding}`}
+                    >
+                        {gameLoadError ? (
+                            <p className="p-5 text-danger">{gameLoadError}</p>
+                        ) : GameComp ? (
+                            <>
+                                <GameComp
+                                    lobbyClient={lobbyClient}
+                                    lobbyId={lobby.id}
+                                    gameId={effectiveLobbyGameId ?? ''}
+                                    minionBattlesApi={minionBattlesApi}
+                                    playerId={player.id}
+                                    isHost={isHost}
+                                    players={effectivePlayers}
+                                    gameData={effectiveLobbyGameData}
+                                    onSidebarInfoChange={setGameSidebarInfo}
+                                    onRecordMissionResult={onRecordMissionResult}
+                                    onLeave={onLeave}
+                                    onTryAgain={onTryAgain}
+                                    onEmittedChatMessage={onEmittedChatMessage}
+                                    onBattleStartStatusChange={setBattlePlayerListHidden}
+                                    onBattleNetResyncingChange={setBattleNetResyncing}
+                                    currentCampaignId={currentCampaignId}
+                                />
+                                {showResyncOverlay && (
+                                    <div
+                                        className={`absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 ${overlayRounding}`}
+                                        style={{ pointerEvents: 'auto' }}
+                                        aria-busy="true"
+                                        aria-live="polite"
+                                    >
+                                        <div className="flex flex-col items-center gap-4 px-6 py-6 bg-surface rounded-xl border border-border-custom shadow-xl">
+                                            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                                            <p className="text-muted">
+                                                {isLoading
+                                                    ? 'Loading game state...'
+                                                    : battleNetResyncing && !isLoading
+                                                      ? 'Resyncing battle…'
+                                                      : 'Resyncing...'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div className="flex flex-col items-center gap-4 text-muted">
+                                    <p>Loading game...</p>
+                                </div>
+                                {showResyncOverlay && (
+                                    <div
+                                        className={`absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 ${overlayRounding}`}
+                                        style={{ pointerEvents: 'auto' }}
+                                        aria-busy="true"
+                                    >
+                                        <div className="flex flex-col items-center gap-4 px-6 py-6 bg-surface rounded-xl border border-border-custom shadow-xl">
+                                            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                                            <p className="text-muted">Loading game state...</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+                {effectiveLobbyPageState === 'home' && <GameCanvas clicks={clicks} onCanvasClick={onCanvasClick} />}
+            </div>
+        ),
+        [
+            GameComp,
+            battleNetResyncing,
+            clicks,
+            currentCampaignId,
+            effectiveLobbyGameData,
+            effectiveLobbyGameId,
+            effectiveLobbyGameType,
+            effectiveLobbyPageState,
+            effectivePlayers,
+            gameLoadError,
+            isHost,
+            isLoading,
+            lobby.id,
+            lobbyClient,
+            minionBattlesApi,
+            onEmittedChatMessage,
+            onLeave,
+            onRecordMissionResult,
+            onSelectGame,
+            onTryAgain,
+            onCanvasClick,
+            player.id,
+            showResyncOverlay,
+        ],
+    );
+
+    const playerListSection =
+        !shouldHideBattlePlayerList ? (
+            <PlayerList
+                players={effectivePlayers}
+                currentPlayerId={player.id}
+                characterSelections={
+                    effectiveLobbyGameData != null
+                        ? (effectiveLobbyGameData.characterSelections as Record<string, string>) ??
+                          (effectiveLobbyGameData.character_selections as Record<string, string>)
+                        : undefined
+                }
+                readyPlayerIds={
+                    effectiveLobbyGameData != null &&
+                    (effectiveLobbyGameData.gamePhase ?? effectiveLobbyGameData.game_phase) === 'character_select'
+                        ? ((effectiveLobbyGameData.characterSelectReadyPlayerIds ??
+                              effectiveLobbyGameData.character_select_ready_player_ids) as string[] | undefined) ?? []
+                        : undefined
+                }
+                flashingPlayerIds={flashingPlayerIds}
+            />
+        ) : null;
+
+    const chatPanel = (
+        <Chat
+            messages={chatMessages}
+            connectionStatus={connectionStatus}
+            enabled={chatEnabled}
+            onSend={onSendChat}
+            topContent={chatTopContent}
+            headerRightContent={chatHeaderLeaveButton}
+        />
+    );
+
+    if (isMobileOrTablet) {
+        return (
+            <div className="flex h-screen max-md:flex-col">
+                <div className="flex-1 flex flex-col p-4 min-w-0">
+                    {lobbyHeader}
+                    {centralSection('rounded-lg', 'rounded-lg')}
+                    {playerListSection}
+                </div>
                 <>
                     {chatPanelOpen && (
                         <div
@@ -501,16 +565,41 @@ export default function GameScreen({
                         />
                     </div>
                 </>
-            ) : (
-                <Chat
-                    messages={chatMessages}
-                    connectionStatus={connectionStatus}
-                    enabled={chatEnabled}
-                    onSend={onSendChat}
-                    topContent={chatTopContent}
-                    headerRightContent={chatHeaderLeaveButton}
-                />
-            )}
+            </div>
+        );
+    }
+
+    if (battleChromeDesktop) {
+        return (
+            <BattleActionRowProvider>
+                <div className="flex h-screen min-h-0 flex-col">
+                    <div className="shrink-0 px-4 pt-4">{lobbyHeader}</div>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                        <div className="flex min-h-0 flex-1 flex-row items-stretch px-4 pb-2">
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                                {centralSection(
+                                    'rounded-tl-lg border border-r-0 border-border-custom',
+                                    'rounded-tl-lg',
+                                )}
+                                {playerListSection}
+                            </div>
+                            <div className="flex min-h-0 shrink-0 flex-col">{chatPanel}</div>
+                        </div>
+                        <BattleActionRowSlot className="min-h-0 w-full shrink-0 border-t border-border-custom bg-surface" />
+                    </div>
+                </div>
+            </BattleActionRowProvider>
+        );
+    }
+
+    return (
+        <div className="flex h-screen max-md:flex-col">
+            <div className="flex min-w-0 flex-1 flex-col p-4">
+                {lobbyHeader}
+                {centralSection('rounded-lg', 'rounded-lg')}
+                {playerListSection}
+            </div>
+            {chatPanel}
         </div>
     );
 }
