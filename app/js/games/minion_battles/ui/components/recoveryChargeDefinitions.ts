@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Clock, Footprints, Sun, Zap } from 'lucide-react';
+import { Clock, Sun, Zap } from 'lucide-react';
 
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
 
@@ -17,29 +17,29 @@ export interface RecoveryChargeDefinition {
 export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryChargeDefinition> = {
     staminaCharge: {
         fillClass: 'bg-gray-300',
-        Icon: Footprints,
-        iconClassName: 'text-dark-900 opacity-90',
+        Icon: Zap,
+        iconClassName: 'text-gray-100',
         strokeWidth: 2.25,
         rowExplanation: 'Stamina charges — gained from round-start surge and other effects; fill bars to recover uses.',
     },
     lightCharge: {
         fillClass: 'bg-yellow-300',
         Icon: Sun,
-        iconClassName: 'text-amber-950 opacity-95',
+        iconClassName: 'text-amber-200',
         strokeWidth: 2.25,
         rowExplanation: 'Light charges — fill bars to recover uses.',
     },
     energyCharge: {
         fillClass: 'bg-cyan-300',
         Icon: Zap,
-        iconClassName: 'text-cyan-950 opacity-95',
+        iconClassName: 'text-cyan-200',
         strokeWidth: 2.25,
         rowExplanation: 'Energy charges — fill bars to recover uses.',
     },
     roundCharge: {
         fillClass: 'bg-white',
         Icon: Clock,
-        iconClassName: 'text-dark-900 opacity-90',
+        iconClassName: 'text-gray-100',
         strokeWidth: 2.25,
         rowExplanation: 'Round charges — gain one at the start of each round while this card can recharge.',
     },

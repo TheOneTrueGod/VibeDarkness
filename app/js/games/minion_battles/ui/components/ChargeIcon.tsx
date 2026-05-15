@@ -28,11 +28,13 @@ export function ChargeIcon({ chargeType, showFill, fillOpacity, innerWidthPct }:
                     style={{ width: `${innerWidthPct}%` }}
                 />
             </div>
-            <Icon
-                className={`relative z-[2] h-3.5 w-3.5 shrink-0 pointer-events-none ${def.iconClassName}`}
-                strokeWidth={def.strokeWidth}
-                aria-hidden
-            />
+            <span className="relative z-[2] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-black p-[3px] pointer-events-none">
+                <Icon
+                    className={`h-3 w-3 ${def.iconClassName}`}
+                    strokeWidth={def.strokeWidth}
+                    aria-hidden
+                />
+            </span>
         </div>
     );
 }

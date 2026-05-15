@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { Unit } from './Unit';
 import { EventBus } from '../EventBus';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
 
 describe('Unit', () => {
     it('serializes and restores to an equivalent object', () => {
@@ -91,5 +92,154 @@ describe('Unit', () => {
             name: 'NoMod',
         });
         expect(unit.getDamageModifier()).toEqual({ flatAmt: 0, multiplier: 1 });
+    });
+
+    it('clears wait lockout after min time when a live enemy is within 4 Chebyshev grid tiles (failsafe)', () => {
+        const waiter = new Unit({
+            id: 'unit_waiter',
+            x: 0,
+            y: 0,
+            hp: 100,
+            speed: 100,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+            name: 'Waiter',
+        });
+        waiter.active = true;
+        waiter.waitMinEndTime = 1;
+        waiter.waitMaxEndTime = 10;
+        waiter.setMovement(
+            [
+                { col: 0, row: 0 },
+                { col: 1, row: 0 },
+                { col: 2, row: 0 },
+            ],
+            undefined,
+            0,
+        );
+
+        const foe = new Unit({
+            id: 'unit_foe',
+            x: 4 * CELL_SIZE,
+            y: 0,
+            hp: 50,
+            speed: 100,
+            teamId: 'enemy',
+            ownerId: 'ai',
+            characterId: 'enemy_grunt',
+            name: 'Foe',
+        });
+        foe.active = true;
+
+        waiter.update(1 / 60, { gameTime: 1, roundNumber: 1, units: [waiter, foe] });
+
+        expect(waiter.isInWaitLockout()).toBe(false);
+        expect(waiter.movement).not.toBeNull();
+    });
+
+    it('does not clear wait lockout from enemy failsafe before min time', () => {
+        const waiter = new Unit({
+            id: 'unit_waiter2',
+            x: 0,
+            y: 0,
+            hp: 100,
+            speed: 100,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+            name: 'Waiter',
+        });
+        waiter.active = true;
+        waiter.waitMinEndTime = 5;
+        waiter.waitMaxEndTime = 10;
+        waiter.setMovement([{ col: 0, row: 0 }, { col: 1, row: 0 }], undefined, 0);
+
+        const foe = new Unit({
+            id: 'unit_foe2',
+            x: 0,
+            y: 0,
+            hp: 50,
+            speed: 100,
+            teamId: 'enemy',
+            ownerId: 'ai',
+            characterId: 'enemy_grunt',
+            name: 'Foe',
+        });
+        foe.active = true;
+
+        waiter.update(1 / 60, { gameTime: 4.9, roundNumber: 1, units: [waiter, foe] });
+
+        expect(waiter.isInWaitLockout()).toBe(true);
+    });
+
+    it('does not clear wait lockout from enemy failsafe when nearest enemy is 5 Chebyshev tiles away', () => {
+        const waiter = new Unit({
+            id: 'unit_waiter3',
+            x: 0,
+            y: 0,
+            hp: 100,
+            speed: 100,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+            name: 'Waiter',
+        });
+        waiter.active = true;
+        waiter.waitMinEndTime = 1;
+        waiter.waitMaxEndTime = 10;
+        waiter.setMovement([{ col: 0, row: 0 }, { col: 1, row: 0 }], undefined, 0);
+
+        const foe = new Unit({
+            id: 'unit_foe3',
+            x: 5 * CELL_SIZE,
+            y: 0,
+            hp: 50,
+            speed: 100,
+            teamId: 'enemy',
+            ownerId: 'ai',
+            characterId: 'enemy_grunt',
+            name: 'Foe',
+        });
+        foe.active = true;
+
+        waiter.update(1 / 60, { gameTime: 1, roundNumber: 1, units: [waiter, foe] });
+
+        expect(waiter.isInWaitLockout()).toBe(true);
+    });
+
+    it('does not clear wait lockout from failsafe for allied units at close range', () => {
+        const waiter = new Unit({
+            id: 'unit_waiter4',
+            x: 0,
+            y: 0,
+            hp: 100,
+            speed: 100,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+            name: 'Waiter',
+        });
+        waiter.active = true;
+        waiter.waitMinEndTime = 1;
+        waiter.waitMaxEndTime = 10;
+        waiter.setMovement([{ col: 0, row: 0 }, { col: 1, row: 0 }], undefined, 0);
+
+        const ally = new Unit({
+            id: 'unit_ally',
+            x: 0,
+            y: 0,
+            hp: 50,
+            speed: 100,
+            teamId: 'allied',
+            ownerId: 'p2',
+            characterId: 'player',
+            name: 'Ally',
+        });
+        ally.active = true;
+
+        waiter.update(1 / 60, { gameTime: 1, roundNumber: 1, units: [waiter, ally] });
+
+        expect(waiter.isInWaitLockout()).toBe(true);
     });
 });

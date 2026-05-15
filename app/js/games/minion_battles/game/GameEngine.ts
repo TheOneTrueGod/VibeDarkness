@@ -93,6 +93,11 @@ const CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND = 1;
 /** Fixed time step (seconds): 60 ticks/second. */
 const FIXED_DT = 1 / 60;
 
+/** Seconds of game time after applying a `wait` order before it may end early (movement done / enemy proximity failsafe). */
+const WAIT_ORDER_MIN_DURATION_SEC = 1;
+/** Hard cap (seconds of game time): `wait` always ends by this offset from order application. */
+const WAIT_ORDER_MAX_DURATION_SEC = 3;
+
 /** Save a checkpoint to the server every this many game ticks. */
 export const CHECKPOINT_INTERVAL = 10;
 
@@ -1154,8 +1159,8 @@ export class GameEngine implements EngineContext {
         }
 
         if (order.abilityId === 'wait') {
-            unit.waitMinEndTime = this.gameTime + 1;
-            unit.waitMaxEndTime = this.gameTime + 3;
+            unit.waitMinEndTime = this.gameTime + WAIT_ORDER_MIN_DURATION_SEC;
+            unit.waitMaxEndTime = this.gameTime + WAIT_ORDER_MAX_DURATION_SEC;
             return;
         }
 

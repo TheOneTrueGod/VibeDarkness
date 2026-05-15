@@ -127,6 +127,16 @@ function stableOrderListKey(entry: unknown, index: number): string {
     return `${tick}-${uid}-${index}`;
 }
 
+/** Pending queue rows carry `pendingLineId`; applied log rows use `sourcePendingLineId` / `mergedAt`. */
+function isOrderRecordPending(entry: unknown): boolean {
+    if (entry == null || typeof entry !== 'object') return false;
+    const e = entry as Record<string, unknown>;
+    const src = e.sourcePendingLineId;
+    if (typeof src === 'string' && src.length > 0) return false;
+    const pending = e.pendingLineId;
+    return typeof pending === 'string' && pending.length > 0;
+}
+
 const DEFAULT_SWATCH = '#22c55e';
 
 export default function DebugOrdersTab({
@@ -235,6 +245,7 @@ export default function DebugOrdersTab({
                     abilityId={abilityId}
                     moveSummary={moveSummary}
                     swatchColor={swatch}
+                    isPending={isOrderRecordPending(entry)}
                 />
             );
         });

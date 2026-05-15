@@ -1,45 +1,34 @@
 import React from 'react';
 
 type BossArcadeHpBarProps = {
+    name: string;
     hp: number;
     maxHp: number;
 };
 
 /**
- * Arcade-style readout: two-digit percentage (99 = full) plus a wide red fill for true HP fraction.
+ * Compact boss HP strip with fill ratio and name centered on the bar.
  */
-export function BossArcadeHpBar({ hp, maxHp }: BossArcadeHpBarProps) {
+export function BossArcadeHpBar({ name, hp, maxHp }: BossArcadeHpBarProps) {
     const safeMax = maxHp > 0 ? maxHp : 1;
     const ratio = Math.min(1, Math.max(0, hp / safeMax));
-    const displayPct = Math.min(99, Math.floor(ratio * 100));
-    const tens = Math.floor(displayPct / 10);
-    const ones = displayPct % 10;
     const fillWidthPct = ratio * 100;
 
     return (
-        <div className="flex min-h-[3.25rem] flex-row items-stretch gap-3 sm:gap-4">
+        <div
+            className="relative h-9 w-full overflow-hidden rounded-sm border-4 border-red-950 shadow-md sm:h-10"
+            aria-label={`${name} health ${Math.round(ratio * 100)} percent`}
+        >
+            <div className="absolute inset-0 bg-red-950/95" aria-hidden />
             <div
-                className="flex shrink-0 select-none flex-row items-center tabular-nums"
-                aria-label={`Boss health about ${displayPct} percent`}
-            >
-                <span
-                    className={`text-[2.75rem] font-black leading-none tracking-tight sm:text-5xl ${
-                        tens === 0 ? 'text-gray-100/25' : 'text-gray-100'
-                    }`}
-                >
-                    {tens}
+                className="absolute inset-y-0 left-0 bg-gradient-to-b from-red-500 to-red-700 transition-[width] duration-150 ease-out"
+                style={{ width: `${fillWidthPct}%` }}
+                aria-hidden
+            />
+            <div className="relative z-10 flex h-full items-center justify-center px-3">
+                <span className="max-w-full truncate text-center text-xs font-bold uppercase tracking-[0.18em] text-gray-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] sm:text-sm">
+                    {name}
                 </span>
-                <span className="text-[2.75rem] font-black leading-none tracking-tight text-gray-100 sm:text-5xl">
-                    {ones}
-                </span>
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-center py-0.5">
-                <div className="h-10 w-full overflow-hidden rounded-sm border-2 border-red-950 bg-red-950/90 sm:h-12">
-                    <div
-                        className="h-full bg-gradient-to-b from-red-500 to-red-700 transition-[width] duration-150 ease-out"
-                        style={{ width: `${fillWidthPct}%` }}
-                    />
-                </div>
             </div>
         </div>
     );

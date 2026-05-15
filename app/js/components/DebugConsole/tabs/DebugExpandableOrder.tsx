@@ -11,6 +11,8 @@ export interface DebugExpandableOrderProps {
     moveSummary: string;
     /** CSS color for the left swatch (e.g. player lobby color). */
     swatchColor: string;
+    /** Row is still on the server pending queue (not yet in applied log). */
+    isPending?: boolean;
 }
 
 export default function DebugExpandableOrder({
@@ -21,14 +23,24 @@ export default function DebugExpandableOrder({
     abilityId,
     moveSummary,
     swatchColor,
+    isPending = false,
 }: DebugExpandableOrderProps) {
     const [expanded, setExpanded] = useState(false);
 
+    const shellClass = isPending
+        ? 'shrink-0 rounded border-2 border-violet-600 bg-violet-400/15 overflow-hidden'
+        : 'shrink-0 rounded border border-border-custom bg-surface-light overflow-hidden';
+    const buttonHoverClass = isPending
+        ? 'hover:bg-violet-400/25'
+        : 'hover:bg-border-custom/40';
+    const expandedTopBorder = isPending ? 'border-t border-violet-600/70' : 'border-t border-border-custom';
+    const expandedBg = isPending ? 'bg-violet-950/30' : 'bg-surface';
+
     return (
-        <div className="shrink-0 rounded border border-border-custom bg-surface-light overflow-hidden">
+        <div className={shellClass}>
             <button
                 type="button"
-                className="w-full text-left flex items-stretch gap-2 px-2 py-2 hover:bg-border-custom/40 transition-colors min-w-0"
+                className={`w-full text-left flex items-stretch gap-2 px-2 py-2 ${buttonHoverClass} transition-colors min-w-0`}
                 onClick={() => setExpanded((v) => !v)}
                 aria-expanded={expanded}
             >
@@ -60,7 +72,7 @@ export default function DebugExpandableOrder({
                 </span>
             </button>
             {expanded && (
-                <div className="border-t border-border-custom px-2 py-2 bg-surface overflow-x-auto">
+                <div className={`${expandedTopBorder} px-2 py-2 ${expandedBg} overflow-x-auto`}>
                     <DebugJsonBlock value={entry} emptyText="(empty)" />
                 </div>
             )}

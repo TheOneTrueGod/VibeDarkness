@@ -275,8 +275,8 @@ export default function CardHand({
                     ))}
                 </div>
             )}
-            {/* Fixed-height row for wait button and ability cards */}
-            <div ref={rowRef} className="relative flex items-center gap-4 h-[158px]">
+            {/* Bottom-aligned row: round tracker and wait flank a centered card cluster; outer gaps are 2× the card–card gap (gap-4 vs gap-2). */}
+            <div ref={rowRef} className="relative flex min-h-[158px] items-end justify-center gap-4">
                 {pulseParticles.map((p) => {
                     const t = Math.max(0, Math.min(1, (animationNow - p.startMs - p.staggerMs) / p.durationMs));
                     const oneMinus = 1 - t;
@@ -300,7 +300,6 @@ export default function CardHand({
                         />
                     );
                 })}
-                {/* Wait + abilities */}
                 {playerUnit && (
                     <>
                         <RoundTrackerCard
@@ -311,90 +310,90 @@ export default function CardHand({
                                 roundTrackerRef.current = el;
                             }}
                         />
+                        {/* Hand cards: gap-2 between cards; gap-4 on parent separates tracker / cluster / wait */}
+                        <div
+                            className="flex max-w-[800px] flex-shrink-0 flex-wrap justify-center gap-2"
+                            onPointerLeave={() => setHoveredCardId(null)}
+                        >
+                            {handCards.map((card, index) => {
+                                const canAfford = playerUnit ? canAffordAbility(playerUnit, card.ability) : false;
+                                const canUse = card.runtime.currentUses > 0;
+                                const isDisabled = !isMyTurn || !canAfford || !canUse;
+                                const isHovered = hoveredCardId === card.abilityId;
+                                const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
+                                const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
+                                const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
+
+                                return (
+                                    <div
+                                        key={card.abilityId}
+                                        ref={(el) => {
+                                            cardRefs.current[card.abilityId] = el;
+                                        }}
+                                    >
+                                        <CardComponent
+                                            ability={card.ability}
+                                            runtime={card.runtime}
+                                            isSelected={selectedCardIndex === index}
+                                            isActive={isActive}
+                                            isDisabled={isDisabled}
+                                            onSelect={() => handleSelectCard(index)}
+                                            isHovered={isHovered}
+                                            onHoverChange={(hovered) => {
+                                                if (hovered) {
+                                                    setHoveredCardId(card.abilityId);
+                                                } else {
+                                                    setHoveredCardId((prev) => (prev === card.abilityId ? null : prev));
+                                                }
+                                            }}
+                                            isMobile={isMobile}
+                                            showMobileDescription={mobileDescIndex === index}
+                                            onMobileDescriptionToggle={() => handleMobileDescToggle(index)}
+                                            onMobileDescriptionDismiss={handleMobileDescDismiss}
+                                            gameState={gameState}
+                                            onPrimaryRecoveryPillRef={(el) => {
+                                                recoveryPillRefs.current[card.abilityId] = el;
+                                            }}
+                                        />
+                                    </div>
+                                );
+                            })}
+
+                            {handCards.length === 0 && (
+                                <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
+                            )}
+                        </div>
                         <button
+                            type="button"
                             onClick={onWait}
                             disabled={!isMyTurn}
-                            className={`flex flex-col items-center justify-center w-[80px] h-[104px] rounded-lg border-2 transition-all duration-150 flex-shrink-0 ${
+                            className={`flex h-[104px] w-[80px] flex-shrink-0 flex-col items-center justify-center rounded-lg border-2 transition-all duration-150 ${
                                 isMyTurn
-                                    ? 'bg-dark-700 border-dark-500 text-gray-200 hover:bg-dark-600 hover:border-gray-400 hover:-translate-y-1 cursor-pointer'
-                                    : 'bg-dark-800 border-dark-700 text-gray-600 cursor-not-allowed'
+                                    ? 'cursor-pointer border-dark-500 bg-dark-700 text-gray-200 hover:-translate-y-1 hover:border-gray-400 hover:bg-dark-600'
+                                    : 'cursor-not-allowed border-dark-700 bg-dark-800 text-gray-600'
                             }`}
                             title="Wait (Space)"
+                            aria-keyshortcuts="Space"
                         >
                             <span className="text-sm font-medium">Wait</span>
-                            <svg
-                                viewBox="0 0 80 20"
-                                className="w-12 h-3 mt-1 text-gray-400"
-                                aria-hidden
+                            <kbd
+                                className={`mt-2 flex h-10 min-w-[3.5rem] items-center justify-center rounded border-2 px-2 font-mono text-[11px] font-semibold tracking-wide shadow-inner ${
+                                    isMyTurn
+                                        ? 'border-gray-500 bg-dark-800 text-gray-200'
+                                        : 'border-dark-600 bg-dark-900 text-gray-500'
+                                }`}
                             >
-                                <rect
-                                    x="2"
-                                    y="2"
-                                    width="76"
-                                    height="16"
-                                    rx="3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.5"
-                                />
-                            </svg>
+                                Space
+                            </kbd>
                         </button>
                     </>
                 )}
 
-                {/* Hand cards: max width 800px so bar doesn't grow too wide */}
-                <div
-                    className="flex gap-2 flex-1 justify-center min-w-0 max-w-[800px] items-center"
-                    onPointerLeave={() => setHoveredCardId(null)}
-                >
-                    {handCards.map((card, index) => {
-                        const canAfford = playerUnit ? canAffordAbility(playerUnit, card.ability) : false;
-                        const canUse = card.runtime.currentUses > 0;
-                        const isDisabled = !isMyTurn || !canAfford || !canUse;
-                        const isHovered = hoveredCardId === card.abilityId;
-                        const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
-                        const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
-                        const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
-
-                        return (
-                            <div
-                                key={card.abilityId}
-                                ref={(el) => {
-                                    cardRefs.current[card.abilityId] = el;
-                                }}
-                            >
-                                <CardComponent
-                                    ability={card.ability}
-                                    runtime={card.runtime}
-                                    isSelected={selectedCardIndex === index}
-                                    isActive={isActive}
-                                    isDisabled={isDisabled}
-                                    onSelect={() => handleSelectCard(index)}
-                                    isHovered={isHovered}
-                                    onHoverChange={(hovered) => {
-                                        if (hovered) {
-                                            setHoveredCardId(card.abilityId);
-                                        } else {
-                                            setHoveredCardId((prev) => (prev === card.abilityId ? null : prev));
-                                        }
-                                    }}
-                                    isMobile={isMobile}
-                                    showMobileDescription={mobileDescIndex === index}
-                                    onMobileDescriptionToggle={() => handleMobileDescToggle(index)}
-                                    onMobileDescriptionDismiss={handleMobileDescDismiss}
-                                    gameState={gameState}
-                                    onPrimaryRecoveryPillRef={(el) => {
-                                        recoveryPillRefs.current[card.abilityId] = el;
-                                    }}
-                                />
-                            </div>
-                        );
-                    })}
-
-                    {handCards.length === 0 && (
+                {!playerUnit && (
+                    <div className="flex min-h-[104px] w-full max-w-[800px] items-center justify-center" onPointerLeave={() => setHoveredCardId(null)}>
                         <p className="text-muted text-sm py-4">No cards in hand</p>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Mobile tooltip overlay */}

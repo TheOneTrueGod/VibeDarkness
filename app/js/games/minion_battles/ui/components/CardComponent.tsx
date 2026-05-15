@@ -99,47 +99,50 @@ export default function CardComponent({
             <div
                 className={`
                     relative w-[124px] h-[158px] rounded-lg border-2 transition-all duration-150
-                    flex flex-col items-center justify-between p-2 overflow-visible pointer-events-none
+                    flex flex-col items-stretch justify-between p-2 overflow-visible pointer-events-none
                     ${isSelected
-                        ? 'border-yellow-400 bg-dark-700 -translate-y-2 shadow-lg shadow-yellow-400/20'
-                        : isHovered
-                            ? 'border-dark-400 bg-dark-700 -translate-y-1'
+                        ? 'border-yellow-400 bg-surface-light -translate-y-2 shadow-lg shadow-yellow-400/25'
+                        : isHovered && !isDisabled
+                            ? 'border-slate-400 bg-[#283a56] -translate-y-1'
                             : isActive
-                                ? 'border-green-500 bg-dark-700 shadow-lg shadow-green-500/30'
+                                ? 'border-green-500 bg-surface-light shadow-lg shadow-green-500/25'
                                 : isDisabled
-                                    ? 'border-dark-600 bg-dark-800 opacity-50'
-                                    : 'border-dark-500 bg-dark-700'
+                                    ? 'border-border-custom bg-surface-light'
+                                    : 'border-border-custom bg-surface-light'
                     }
                 `}
             >
-                {/* Card image */}
                 <div
-                    className="w-full h-14 flex items-center justify-center mb-1 mt-1"
-                    dangerouslySetInnerHTML={{ __html: ability.image }}
-                />
+                    className={`flex min-h-0 flex-1 flex-col items-center justify-between ${isDisabled ? 'opacity-50' : ''}`}
+                >
+                    {/* Card image */}
+                    <div
+                        className="mb-1 mt-1 flex h-14 w-full items-center justify-center"
+                        dangerouslySetInnerHTML={{ __html: ability.image }}
+                    />
 
-                {/* Card title */}
-                <span className="text-white text-[14px] font-medium leading-tight text-center w-full px-1 whitespace-normal">
-                    {ability.name}
-                </span>
+                    {/* Card title */}
+                    <span className="w-full whitespace-normal px-1 text-center text-[14px] font-medium leading-tight text-gray-100">
+                        {ability.name}
+                    </span>
 
-                {costs.length > 0 && (
-                    <div className="w-full flex flex-wrap items-center justify-center gap-1 mt-1">
-                        {costs.map((cost) => (
-                            <div
-                                key={`${cost.resourceId}-${cost.amount}`}
-                                className="px-1.5 py-0.5 rounded border border-dark-500 text-[10px] text-gray-200 bg-dark-800"
-                            >
-                                {cost.resourceId} -{cost.amount}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                    {costs.length > 0 && (
+                        <div className="mt-1 flex w-full flex-wrap items-center justify-center gap-1">
+                            {costs.map((cost) => (
+                                <div
+                                    key={`${cost.resourceId}-${cost.amount}`}
+                                    className="rounded border border-border-custom bg-surface px-1.5 py-0.5 text-[10px] text-gray-200"
+                                >
+                                    {cost.resourceId} -{cost.amount}
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
-                <div className="w-full mt-1 flex items-center gap-1 min-h-[22px]">
-                    <div className="px-2.5 py-1 rounded border border-gray-500 bg-gray-700 text-[11px] text-gray-100 tabular-nums leading-none">
-                        {usesLeft}/{maxUses}
-                    </div>
+                    <div className="mt-1 flex min-h-[22px] w-full items-center gap-1">
+                        <div className="rounded border border-border-custom bg-surface px-2.5 py-1 text-[11px] tabular-nums leading-none text-gray-100">
+                            {usesLeft}/{maxUses}
+                        </div>
                     {showRecovery && (
                         <div className="flex-1 flex flex-col justify-center gap-0.5">
                             {recoveryRules.map((rule, ruleIndex) => {
@@ -193,6 +196,7 @@ export default function CardComponent({
                             })}
                         </div>
                     )}
+                    </div>
                 </div>
             </div>
 

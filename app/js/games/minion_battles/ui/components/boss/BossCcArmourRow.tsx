@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Zap } from 'lucide-react';
 
 type BossCcArmourRowProps = {
+    /** `overlay`: trailing row for bottom-corner HUD; default centered under bar. */
+    placement?: 'default' | 'overlay';
     effectiveHardCcThreshold: number;
     hardCcArmourConsumed: number;
     /** Increments on absorb/land so impact animation can trigger. */
@@ -11,6 +13,7 @@ type BossCcArmourRowProps = {
 
 /** Crowd-control protection pips: outline slots fill with CC icons when absorbed. */
 export function BossCcArmourRow({
+    placement = 'default',
     effectiveHardCcThreshold,
     hardCcArmourConsumed,
     hardCcArmourEventSerial,
@@ -38,9 +41,22 @@ export function BossCcArmourRow({
     const filled = Math.min(hardCcArmourConsumed, total);
     const label = `Crowd control protection: ${filled} of ${total} slots filled`;
 
+    const rowClass =
+        placement === 'overlay'
+            ? 'flex flex-row justify-end gap-1.5'
+            : 'mt-2 flex justify-center gap-1.5 px-2';
+
+    const pipClass =
+        placement === 'overlay'
+            ? 'flex h-6 w-6 items-center justify-center rounded-full border-2 border-amber-500 bg-gray-900 shadow-inner'
+            : 'flex h-7 w-7 items-center justify-center rounded-full border-2 border-amber-500 bg-gray-900 shadow-inner';
+
+    const iconClass = placement === 'overlay' ? 'h-3 w-3' : 'h-4 w-4';
+    const iconStroke = placement === 'overlay' ? 2.25 : 2.5;
+
     return (
         <div
-            className="mt-2 flex justify-center gap-1.5 px-2"
+            className={rowClass}
             role="group"
             aria-label={label}
         >
@@ -48,18 +64,20 @@ export function BossCcArmourRow({
                 const showIcon = i < filled;
                 const pop = showIcon && pulseIndex === i;
                 return (
-                    <div
-                        key={i}
-                        className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-amber-500/70 bg-gray-900/80 shadow-inner"
-                    >
+                    <div key={i} className={pipClass}>
                         {showIcon ? (
                             <Zap
-                                className={`h-4 w-4 text-amber-400 ${pop ? 'animate-cc-pop' : ''}`}
+                                className={`${iconClass} text-amber-400 ${pop ? 'animate-cc-pop' : ''}`}
                                 aria-hidden
-                                strokeWidth={2.5}
+                                strokeWidth={iconStroke}
                             />
                         ) : (
-                            <span className="block h-2 w-2 rounded-full bg-gray-700/80" aria-hidden />
+                            <span
+                                className={`block rounded-full bg-gray-600 ${
+                                    placement === 'overlay' ? 'h-1.5 w-1.5' : 'h-2 w-2'
+                                }`}
+                                aria-hidden
+                            />
                         )}
                     </div>
                 );

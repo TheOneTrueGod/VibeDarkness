@@ -23,6 +23,10 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
+import {
+    PLAYER_MOVE_WAYPOINT_MAX,
+    buildPlayerMovePathThroughWaypoints,
+} from '../../terrain/playerMovePath';
 import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import TurnIndicator from '../components/TurnIndicator';
@@ -31,6 +35,7 @@ import BattleSyncStatus from '../components/BattleSyncStatus';
 import BattleHostAnchorBanner from '../components/BattleHostAnchorBanner';
 import BossFightHud from '../components/boss/BossFightHud';
 import type { BossHudSlice } from '../components/boss/BossFightHud';
+import { getBossSpecialMoveCharges } from '../components/boss/bossSignatureHud';
 import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
 import { computeSynchash } from '@/utils/synchash';
@@ -144,6 +149,8 @@ export default function BattlePhase({
         previewOrderUnitId: activeLocalWaiter?.unitId ?? null,
     };
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
+    /** Up to {@link PLAYER_MOVE_WAYPOINT_MAX} queued destinations (shift-right-click chain). */
+    const pendingMoveWaypointsRef = useRef<{ col: number; row: number }[]>([]);
     const [, forceRender] = useState(0);
     const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [storyPauseActive, setStoryPauseActive] = useState(false);
@@ -348,6 +355,10 @@ export default function BattlePhase({
             pendingMovePathRef.current = existingPath && existingPath.length > 0
                 ? existingPath.map((p) => ({ ...p }))
                 : null;
+            pendingMoveWaypointsRef.current =
+                pendingMovePathRef.current && pendingMovePathRef.current.length > 0
+                    ? [{ ...pendingMovePathRef.current[pendingMovePathRef.current.length - 1]! }]
+                    : [];
 
             updateCardStateRef.current?.(engine);
         },
@@ -577,19 +588,31 @@ export default function BattlePhase({
                 hardCcArmourConsumed: b.hardCcArmourConsumed,
                 hardCcArmourEventSerial: b.hardCcArmourEventSerial,
                 lastHardCcEventKind: b.lastHardCcEventKind,
+                specialMoveCharges: getBossSpecialMoveCharges(b),
             };
-            setBossHud((prev) =>
-                prev &&
-                prev.name === next.name &&
-                prev.hp === next.hp &&
-                prev.maxHp === next.maxHp &&
-                prev.effectiveHardCcThreshold === next.effectiveHardCcThreshold &&
-                prev.hardCcArmourConsumed === next.hardCcArmourConsumed &&
-                prev.hardCcArmourEventSerial === next.hardCcArmourEventSerial &&
-                prev.lastHardCcEventKind === next.lastHardCcEventKind
+            setBossHud((prev) => {
+                const smPrev = prev?.specialMoveCharges;
+                const smNext = next.specialMoveCharges;
+                const smEqual =
+                    (smPrev == null && smNext == null) ||
+                    (smPrev != null &&
+                        smNext != null &&
+                        smPrev.filled === smNext.filled &&
+                        smPrev.total === smNext.total &&
+                        smPrev.abilityName === smNext.abilityName);
+
+                return prev &&
+                    prev.name === next.name &&
+                    prev.hp === next.hp &&
+                    prev.maxHp === next.maxHp &&
+                    prev.effectiveHardCcThreshold === next.effectiveHardCcThreshold &&
+                    prev.hardCcArmourConsumed === next.hardCcArmourConsumed &&
+                    prev.hardCcArmourEventSerial === next.hardCcArmourEventSerial &&
+                    prev.lastHardCcEventKind === next.lastHardCcEventKind &&
+                    smEqual
                     ? prev
-                    : next,
-            );
+                    : next;
+            });
         };
         tick();
         const id = window.setInterval(tick, 100);
@@ -628,6 +651,7 @@ export default function BattlePhase({
         targetingStateRef.current.currentTargets = [];
         targetingStateRef.current.waitingForOrders = null;
         pendingMovePathRef.current = null;
+        pendingMoveWaypointsRef.current = [];
 
         void sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders: canUseOrderUi });
     }, [waitingForOrders, activeLocalWaiter, canUseOrderUi]);
@@ -722,7 +746,7 @@ export default function BattlePhase({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleWait, handleSelectCard, myAbilityIds, canUseOrderUi]);
 
-    const handleCanvasRightClick = useCallback((screenX: number, screenY: number) => {
+    const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean) => {
         const engine = sessionRef.current?.getEngine();
         const camera = sessionRef.current?.getCamera();
         if (!engine || !camera || !canUseOrderUi || !activeLocalWaiter || !waitingForOrders) return;
@@ -740,15 +764,35 @@ export default function BattlePhase({
 
         const unitGrid = grid.worldToGrid(unit.x, unit.y);
         const destGrid = grid.worldToGrid(clampedX, clampedY);
-        const gridPath = engine.terrainManager.findGridPath(
-            unitGrid.col, unitGrid.row,
-            destGrid.col, destGrid.row,
-        );
 
-        if (gridPath) {
-            pendingMovePathRef.current = gridPath;
-            unit.setMovement(gridPath, undefined, engine.gameTick);
+        if (shiftKey) {
+            if (pendingMoveWaypointsRef.current.length >= PLAYER_MOVE_WAYPOINT_MAX) return;
+            const nextWaypoints = [...pendingMoveWaypointsRef.current, { ...destGrid }];
+            const fullPath = buildPlayerMovePathThroughWaypoints(
+                engine.terrainManager,
+                unitGrid.col,
+                unitGrid.row,
+                nextWaypoints,
+            );
+            if (fullPath === null) return;
+            pendingMoveWaypointsRef.current = nextWaypoints;
+            pendingMovePathRef.current = fullPath;
+            unit.setMovement(fullPath, undefined, engine.gameTick);
+            return;
         }
+
+        const waypoints = [{ ...destGrid }];
+        const fullPath = buildPlayerMovePathThroughWaypoints(
+            engine.terrainManager,
+            unitGrid.col,
+            unitGrid.row,
+            waypoints,
+        );
+        if (fullPath === null) return;
+
+        pendingMoveWaypointsRef.current = waypoints;
+        pendingMovePathRef.current = fullPath;
+        unit.setMovement(fullPath, undefined, engine.gameTick);
     }, [canUseOrderUi, activeLocalWaiter, waitingForOrders]);
 
     const handleForceResync = useCallback(() => {
@@ -780,7 +824,6 @@ export default function BattlePhase({
 
     return (
         <div className="w-full h-full flex min-h-0 flex-col relative">
-            <BossFightHud boss={bossHud} />
             {/* Timeline rail + canvas stack share space above the hand; hand spans full width */}
             <div className="flex min-h-0 flex-1 flex-row">
                 <aside
@@ -799,6 +842,7 @@ export default function BattlePhase({
 
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="relative flex min-h-0 flex-1 flex-col">
+                        <BossFightHud boss={bossHud} />
                         <BattleSyncStatus
                             variant="battle"
                             isHost={isHost}

@@ -35,6 +35,7 @@ import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid
 import type { DamageTakenEvent } from './EventBus';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 import { getPortraitIds, PORTRAITS } from '../character_defs/portraits';
+import type { ResolvedTarget } from './types';
 
 /** Hit flash duration in seconds (real time, not affected by pause). */
 const HIT_FLASH_DURATION = 0.3;
@@ -45,6 +46,9 @@ const MOVE_TARGET_COLOR = 0x333333;
 /** Light background stroke for move target paths for readability on all terrain. */
 const MOVE_TARGET_PATH_BG_COLOR = 0xffffff;
 
+/** Opacity for pending-order and enemy-movement ghost overlays (whole layer). */
+const GHOST_PREVIEW_LAYER_ALPHA = 0.5;
+
 /** Z-index constants for game container layers (lower = behind). */
 const Z_INDEX = {
     terrain: 0,
@@ -52,6 +56,7 @@ const Z_INDEX = {
     darkness: 5,
     specialTiles: 6,
     moveTargets: 7,
+    ghostPreview: 8,
     units: 10,
     projectiles: 11,
     effects: 12,
@@ -83,6 +88,8 @@ export class GameRenderer {
     private effectVisuals: Map<string, Container> = new Map();
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
+    /** Pending orders + enemy movement paths (lighter than live player move targets). */
+    private ghostPreviewGraphics: Graphics = new Graphics();
     private initialized: boolean = false;
     /** Deduplicates concurrent `init` (e.g. React Strict Mode). */
     private initInFlight: Promise<void> | null = null;
@@ -228,6 +235,8 @@ export class GameRenderer {
         this.gameContainer.addChild(this.abilityPreviewGraphics);
         this.targetingPreviewGraphics.zIndex = Z_INDEX.targetingPreview;
         this.gameContainer.addChild(this.targetingPreviewGraphics);
+        this.ghostPreviewGraphics.zIndex = Z_INDEX.ghostPreview;
+        this.gameContainer.addChild(this.ghostPreviewGraphics);
 
         if (WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START) {
             await this.loadBattleAssets();
@@ -568,6 +577,7 @@ export class GameRenderer {
         this.renderDarkCrystalAura(engine);
         this.renderSpecialTiles(engine.specialTiles);
         this.renderMoveTargets(engine.units);
+        this.renderGhostPreviews(engine);
         this.renderProjectiles(engine.projectiles);
         this.renderEffects(engine.effects);
         this.renderActiveAbilityPreviews(engine);
@@ -951,50 +961,7 @@ export class GameRenderer {
             visual.x = 0;
             visual.y = 0;
 
-            const path = unit.movement.path;
-
-            // Draw path line from unit position through grid cell centers
-            // First: thick light outline underneath (1px thicker than main stroke).
-            visual.moveTo(unit.x, unit.y);
-            for (const cell of path) {
-                const wx = cell.col * CELL_SIZE + CELL_SIZE / 2;
-                const wy = cell.row * CELL_SIZE + CELL_SIZE / 2;
-                visual.lineTo(wx, wy);
-            }
-            visual.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
-
-            // Second: original dark path on top.
-            visual.moveTo(unit.x, unit.y);
-            for (const cell of path) {
-                const wx = cell.col * CELL_SIZE + CELL_SIZE / 2;
-                const wy = cell.row * CELL_SIZE + CELL_SIZE / 2;
-                visual.lineTo(wx, wy);
-            }
-            // Darker inner path stroke should be fully opaque for readability.
-            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
-
-            // Destination marker at last cell
-            const lastCell = path[path.length - 1];
-            const destX = lastCell.col * CELL_SIZE + CELL_SIZE / 2;
-            const destY = lastCell.row * CELL_SIZE + CELL_SIZE / 2;
-
-            // Outer ring at destination
-            visual.circle(destX, destY, 8);
-            // Light background ring (1px thicker than dark ring).
-            visual.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
-
-            // Dark ring on top.
-            visual.circle(destX, destY, 8);
-            visual.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 1 });
-
-            // Inner dot at destination
-            visual.circle(destX, destY, 2);
-            // Light dot background for two-tone treatment.
-            visual.fill({ color: MOVE_TARGET_PATH_BG_COLOR, alpha: 0.7 });
-
-            // Dark dot on top.
-            visual.circle(destX, destY, 2);
-            visual.fill({ color: MOVE_TARGET_COLOR, alpha: 1 });
+            this.drawPlayerMoveTargetPathWithCap(visual, unit.x, unit.y, unit.movement.path);
         }
 
         // Hide visuals for units that no longer have a move target
@@ -1002,6 +969,223 @@ export class GameRenderer {
             if (!activeIds.has(key)) {
                 visual.visible = false;
             }
+        }
+    }
+
+    /**
+     * Full-opacity move path + destination ring/dot (local player live preview).
+     */
+    private drawPlayerMoveTargetPathWithCap(
+        g: Graphics,
+        originX: number,
+        originY: number,
+        path: { col: number; row: number }[],
+    ): void {
+        g.moveTo(originX, originY);
+        for (const cell of path) {
+            const wx = cell.col * CELL_SIZE + CELL_SIZE / 2;
+            const wy = cell.row * CELL_SIZE + CELL_SIZE / 2;
+            g.lineTo(wx, wy);
+        }
+        g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
+
+        g.moveTo(originX, originY);
+        for (const cell of path) {
+            const wx = cell.col * CELL_SIZE + CELL_SIZE / 2;
+            const wy = cell.row * CELL_SIZE + CELL_SIZE / 2;
+            g.lineTo(wx, wy);
+        }
+        g.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
+
+        const lastCell = path[path.length - 1];
+        const destX = lastCell.col * CELL_SIZE + CELL_SIZE / 2;
+        const destY = lastCell.row * CELL_SIZE + CELL_SIZE / 2;
+
+        g.circle(destX, destY, 8);
+        g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
+
+        g.circle(destX, destY, 8);
+        g.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 1 });
+
+        g.circle(destX, destY, 2);
+        g.fill({ color: MOVE_TARGET_PATH_BG_COLOR, alpha: 0.7 });
+
+        g.circle(destX, destY, 2);
+        g.fill({ color: MOVE_TARGET_COLOR, alpha: 1 });
+    }
+
+    /**
+     * Ghost previews: pending batch orders (movement + ability) and enemy AI movement routes.
+     * Whole layer uses {@link GHOST_PREVIEW_LAYER_ALPHA}; enemy paths omit the destination cap and
+     * fade the tail after the first two grid cells.
+     */
+    private renderGhostPreviews(engine: GameEngine): void {
+        this.ghostPreviewGraphics.clear();
+        this.ghostPreviewGraphics.x = 0;
+        this.ghostPreviewGraphics.y = 0;
+        this.ghostPreviewGraphics.alpha = GHOST_PREVIEW_LAYER_ALPHA;
+
+        const cellSize = CELL_SIZE;
+
+        for (const unit of engine.units) {
+            if (!unit.active || !unit.isAlive()) continue;
+            if (!unit.movement || unit.movement.path.length === 0) continue;
+            if (!areEnemies(this.localTeamId, unit.teamId)) continue;
+            if (this.enemyUnitHiddenInFullDarkness(unit, cellSize)) continue;
+            this.drawEnemyGhostMovePath(this.ghostPreviewGraphics, unit.x, unit.y, unit.movement.path);
+        }
+
+        const batch = engine.waitingForOrders;
+        if (!batch) return;
+
+        const previewGr = this.ghostPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics;
+
+        for (const entry of engine.pendingOrders) {
+            if (entry.gameTick !== batch.atTick) continue;
+            const unit = engine.getUnit(entry.order.unitId);
+            if (!unit?.active || !unit.isAlive()) continue;
+
+            const path = entry.order.movePath;
+            if (path && path.length > 0) {
+                if (areEnemies(this.localTeamId, unit.teamId)) {
+                    if (!this.enemyUnitHiddenInFullDarkness(unit, cellSize)) {
+                        this.drawEnemyGhostMovePath(this.ghostPreviewGraphics, unit.x, unit.y, path);
+                    }
+                } else {
+                    this.drawPlayerMoveTargetPathWithCap(this.ghostPreviewGraphics, unit.x, unit.y, path);
+                }
+            }
+
+            const abilityId = entry.order.abilityId;
+            if (abilityId === 'wait') continue;
+
+            const ability = getAbility(abilityId);
+            if (!ability?.renderTargetingPreview) continue;
+            if (areEnemies(this.localTeamId, unit.teamId) && this.enemyUnitHiddenInFullDarkness(unit, cellSize)) {
+                continue;
+            }
+
+            const mouseWorld = this.mouseWorldForGhostAbilityPreview(
+                entry.order.targets,
+                engine,
+                unit.x,
+                unit.y,
+            );
+            ability.renderTargetingPreview(previewGr, unit, entry.order.targets, mouseWorld, engine.units, engine);
+            if (ability.renderTargetingPreviewSelectedTargets) {
+                ability.renderTargetingPreviewSelectedTargets(
+                    previewGr,
+                    unit,
+                    entry.order.targets,
+                    mouseWorld,
+                    engine.units,
+                    engine,
+                );
+            }
+        }
+    }
+
+    private enemyUnitHiddenInFullDarkness(unit: Unit, cellSize: number): boolean {
+        if (!areEnemies(this.localTeamId, unit.teamId) || !this.currentLightGrid) return false;
+        const col = Math.floor(unit.x / cellSize);
+        const row = Math.floor(unit.y / cellSize);
+        const light = this.getLightAt(col, row);
+        return light !== null && light <= -20;
+    }
+
+    private mouseWorldForGhostAbilityPreview(
+        targets: ResolvedTarget[],
+        engine: GameEngine,
+        fallbackX: number,
+        fallbackY: number,
+    ): { x: number; y: number } {
+        for (const t of targets) {
+            if (t.type === 'pixel' && t.position) {
+                return { x: t.position.x, y: t.position.y };
+            }
+            if (t.type === 'unit' && t.unitId) {
+                const u = engine.getUnit(t.unitId);
+                if (u) return { x: u.x, y: u.y };
+            }
+        }
+        return { x: fallbackX, y: fallbackY };
+    }
+
+    /**
+     * Enemy ghost: first two cells match player path strokes; remainder is a polyline that fades toward the end;
+     * no destination ring/dot.
+     */
+    private drawEnemyGhostMovePath(
+        g: Graphics,
+        originX: number,
+        originY: number,
+        path: { col: number; row: number }[],
+    ): void {
+        const cs = CELL_SIZE;
+        const center = (col: number, row: number) => ({
+            x: col * cs + cs / 2,
+            y: row * cs + cs / 2,
+        });
+
+        const n = path.length;
+        if (n === 0) return;
+
+        const solidCellCount = Math.min(2, n);
+        g.moveTo(originX, originY);
+        for (let i = 0; i < solidCellCount; i++) {
+            const p = center(path[i]!.col, path[i]!.row);
+            g.lineTo(p.x, p.y);
+        }
+        g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
+
+        g.moveTo(originX, originY);
+        for (let i = 0; i < solidCellCount; i++) {
+            const p = center(path[i]!.col, path[i]!.row);
+            g.lineTo(p.x, p.y);
+        }
+        g.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
+
+        if (n < 3) return;
+
+        const tailPoints: { x: number; y: number }[] = [];
+        for (let i = 1; i < n; i++) {
+            tailPoints.push(center(path[i]!.col, path[i]!.row));
+        }
+
+        let totalLen = 0;
+        const segLens: number[] = [];
+        for (let i = 0; i < tailPoints.length - 1; i++) {
+            const a = tailPoints[i]!;
+            const b = tailPoints[i + 1]!;
+            const L = Math.hypot(b.x - a.x, b.y - a.y);
+            segLens.push(L);
+            totalLen += L;
+        }
+        if (totalLen <= 0) return;
+
+        let traveled = 0;
+        for (let i = 0; i < tailPoints.length - 1; i++) {
+            const a = tailPoints[i]!;
+            const b = tailPoints[i + 1]!;
+            const len = segLens[i] ?? 0;
+            const steps = Math.max(3, Math.ceil(len / 8));
+            for (let s = 0; s < steps; s++) {
+                const t0 = s / steps;
+                const t1 = (s + 1) / steps;
+                const mx0 = a.x + (b.x - a.x) * t0;
+                const my0 = a.y + (b.y - a.y) * t0;
+                const mx1 = a.x + (b.x - a.x) * t1;
+                const my1 = a.y + (b.y - a.y) * t1;
+                const midTravel = traveled + len * ((t0 + t1) / 2);
+                const alphaTail = 0.88 * (1 - midTravel / totalLen) + 0.05;
+                g.moveTo(mx0, my0);
+                g.lineTo(mx1, my1);
+                g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 4, alpha: alphaTail * 0.65 });
+                g.moveTo(mx0, my0);
+                g.lineTo(mx1, my1);
+                g.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: alphaTail });
+            }
+            traveled += len;
         }
     }
 
@@ -1187,6 +1371,7 @@ export class GameRenderer {
         this.clearHitFlashes();
         this.abilityPreviewGraphics.destroy();
         this.targetingPreviewGraphics.destroy();
+        this.ghostPreviewGraphics.destroy();
         for (const visual of this.unitVisuals.values()) visual.destroy();
         for (const visual of this.moveTargetVisuals.values()) visual.destroy();
         for (const visual of this.projectileVisuals.values()) visual.destroy();

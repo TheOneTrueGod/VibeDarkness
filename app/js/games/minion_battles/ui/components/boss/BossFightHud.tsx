@@ -1,7 +1,8 @@
 import React from 'react';
-import { BossBackground } from './BossBackground';
 import { BossArcadeHpBar } from './BossArcadeHpBar';
 import { BossCcArmourRow } from './BossCcArmourRow';
+import { BossSpecialMoveChargesBar } from './BossSpecialMoveCharges';
+import type { BossSpecialMoveCharges } from './bossSignatureHud';
 
 export type BossHudSlice = {
     name: string;
@@ -11,34 +12,51 @@ export type BossHudSlice = {
     hardCcArmourConsumed: number;
     hardCcArmourEventSerial: number;
     lastHardCcEventKind: 'absorbed' | 'landed' | null;
+    specialMoveCharges: BossSpecialMoveCharges | null;
 } | null;
 
 type BossFightHudProps = {
     boss: BossHudSlice;
 };
 
-/** Centered boss name + arcade HP bar; renders nothing when there is no living boss. */
+/**
+ * Boss name inside HP bar, signature charges (when configured), CC pips; overlays the battle view.
+ */
 export default function BossFightHud({ boss }: BossFightHudProps) {
     if (!boss) return null;
 
     return (
         <div
-            className="pointer-events-none flex shrink-0 justify-center px-2 pt-1 pb-2"
+            className="pointer-events-none absolute left-1/2 top-2 z-30 w-[min(28rem,calc(100%-1rem))] -translate-x-1/2"
             role="region"
             aria-label="Boss fight"
         >
-            <BossBackground>
-                <BossArcadeHpBar hp={boss.hp} maxHp={boss.maxHp} />
-                <BossCcArmourRow
-                    effectiveHardCcThreshold={boss.effectiveHardCcThreshold}
-                    hardCcArmourConsumed={boss.hardCcArmourConsumed}
-                    hardCcArmourEventSerial={boss.hardCcArmourEventSerial}
-                    lastHardCcEventKind={boss.lastHardCcEventKind}
-                />
-                <p className="mt-2 text-center text-xs font-bold uppercase tracking-[0.2em] text-gray-300 sm:text-sm">
-                    {boss.name}
-                </p>
-            </BossBackground>
+            <div className="px-2 pt-1 pb-4">
+                <div className="relative w-full">
+                    <BossArcadeHpBar name={boss.name} hp={boss.hp} maxHp={boss.maxHp} />
+
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-[55%] flex-row items-center justify-between gap-2">
+                        <div className="flex min-w-0 flex-1 justify-start">
+                            {boss.specialMoveCharges != null ? (
+                                <BossSpecialMoveChargesBar
+                                    filled={boss.specialMoveCharges.filled}
+                                    total={boss.specialMoveCharges.total}
+                                    abilityName={boss.specialMoveCharges.abilityName}
+                                />
+                            ) : null}
+                        </div>
+                        <div className="flex shrink-0 justify-end">
+                            <BossCcArmourRow
+                                placement="overlay"
+                                effectiveHardCcThreshold={boss.effectiveHardCcThreshold}
+                                hardCcArmourConsumed={boss.hardCcArmourConsumed}
+                                hardCcArmourEventSerial={boss.hardCcArmourEventSerial}
+                                lastHardCcEventKind={boss.lastHardCcEventKind}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

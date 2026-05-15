@@ -7,7 +7,7 @@
  */
 
 import { GameObject, generateGameObjectId } from '../GameObject';
-import type { TeamId } from '../teams';
+import { areEnemies, type TeamId } from '../teams';
 import type { ActiveAbility } from '../types';
 import type { AbilityNote } from '../AbilityNote';
 import type { Resource } from '../../resources/Resource';
@@ -32,6 +32,9 @@ import type { CcResistKey } from '../../crowdControl/ccTypes';
 import { getBrambleMovementMultiplier } from '../brambleSlow';
 import type { Effect } from '../effects/Effect';
 import type { LanterniteNestMissionConfig } from '../../storylines/types';
+
+/** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
+const WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID = 4;
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -483,6 +486,24 @@ export class Unit extends GameObject {
         return step;
     }
 
+    /** During wait+move: true if any live enemy is within Chebyshev distance on the grid from this unit's cell. */
+    private hasEnemyWithinWaitProximityFailsafe(engine: unknown, maxChebyshevGrid: number): boolean {
+        const units = (engine as { units?: readonly Unit[] }).units;
+        if (!units?.length) return false;
+
+        const myCol = Math.floor(this.x / CELL_SIZE);
+        const myRow = Math.floor(this.y / CELL_SIZE);
+
+        for (const other of units) {
+            if (other === this || !other.isAlive()) continue;
+            if (!areEnemies(this.teamId, other.teamId)) continue;
+            const oCol = Math.floor(other.x / CELL_SIZE);
+            const oRow = Math.floor(other.y / CELL_SIZE);
+            if (Math.max(Math.abs(myCol - oCol), Math.abs(myRow - oRow)) <= maxChebyshevGrid) return true;
+        }
+        return false;
+    }
+
     update(dt: number, engine: unknown): void {
         const eng = engine as { gameTime: number; roundNumber: number };
         const gameTime = eng.gameTime;
@@ -491,13 +512,16 @@ export class Unit extends GameObject {
         // Expire buffs
         this.buffs = this.buffs.filter((b) => !b.isExpired(gameTime, roundNumber));
 
-        // Wait action: enforce minimum and maximum wait duration, and allow early end when movement finishes.
+        // Wait action: enforce minimum and maximum wait duration, allow early end when movement finishes,
+        // or after min time if an enemy is within grid range (failsafe so long paths do not stall in melee).
         if (this.waitMinEndTime !== null && this.waitMaxEndTime !== null) {
             const reachedMovementTarget = !this.movement;
             const afterMin = gameTime >= this.waitMinEndTime;
             const afterMax = gameTime >= this.waitMaxEndTime;
+            const enemyProximityFailsafe =
+                afterMin && this.hasEnemyWithinWaitProximityFailsafe(engine, WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID);
 
-            if (afterMax || (afterMin && reachedMovementTarget)) {
+            if (afterMax || (afterMin && reachedMovementTarget) || enemyProximityFailsafe) {
                 this.waitMinEndTime = null;
                 this.waitMaxEndTime = null;
             }

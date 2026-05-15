@@ -83,14 +83,13 @@ export function isBattleSyncLobbyLogEnabled(): boolean {
 }
 
 /**
- * Battle-sync lines: same as {@link logToLobbyLog} but default severity `info` and default
+ * Battle-sync lines: delegates to {@link logToLobbyLog} with default severity `info` and default
  * `logType` `battleSync`. Use `logType: 'desync'` for recovery-only diagnostics.
  */
 export function logToLobbyLogBattleSync(args: LogToLobbyLogBattleSyncArgs): void {
-    const severity = args.severity ?? 'info';
-    const withType: LogToLobbyLogArgs = { ...args, logType: args.logType ?? 'battleSync' };
-    if (!shouldPostLobbyLogLine(withType.logType, severity)) {
-        return;
-    }
-    postLobbyLine(withType, severity);
+    logToLobbyLog({
+        ...args,
+        logType: args.logType ?? 'battleSync',
+        severity: args.severity ?? 'info',
+    });
 }
