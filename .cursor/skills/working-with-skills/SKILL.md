@@ -60,6 +60,10 @@ When adding or reorganizing a **thematic line of cards** (a new skill tree):
 2. Co-locate all related `card_defs` under **`app/js/games/minion_battles/card_defs/<tree_folder>/`** (see `05_earth_core/` and `utility/` for folder layout and import depth). For Earth (**`05`**), read `05_earth_core/EarthCore.md` when changing that line. Do not scatter one tree across unrelated top-level folders.
 3. Follow **`app/js/games/minion_battles/card_defs/SKILL.md`** for id rules, registration, and `abilityTimings`; keep this skill free of duplicated numeric assignments.
 
+## Verification after code edits
+
+When a skill tells the agent to run tests after changing application code, it should match the workspace **post-change** hook (`.cursor/rules/post-change-test-hook.mdc`): run **`npm run lint`** (ESLint) **before** **`npx vitest run --changed`** / **`npm run test`**. Never instruct Vitest first.
+
 ## Structure
 
 Every skill needs YAML frontmatter with `name` and `description`:

@@ -1,5 +1,5 @@
 import type { LobbyClient } from '../../../../LobbyClient';
-import { logToLobbyLog } from '../../../../lobbyLog';
+import { logToLobbyLog, logToLobbyLogForced } from '../../../../lobbyLog';
 import { sleep } from './helpers/heartbeatTiming';
 import type { BattleApi, BattleSessionHandle } from './types';
 import type { SerializedGameState } from '../types';
@@ -137,6 +137,47 @@ export class SnapshotPersistence {
      * `saveBattleSnapshot` — not React/debug-buffered lobby state.
      */
     async debugLogLocalStateAndSubmitSnapshot(): Promise<void> {
+        await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({ forceLobbyPost: false });
+    }
+
+    /**
+     * Same as {@link debugLogLocalStateAndSubmitSnapshot}, but lobby log lines always POST (ignore
+     * debug-toggle floors). Prefaced by a compact marker line with the recovery `reason`.
+     * Invoked only from {@link RecoveryCoordinator.runDesyncRecovery} — not from visibility / tab focus.
+     */
+    async desyncRecoveryLobbyTrace(reason: string): Promise<void> {
+        const session = this.config.session;
+        const tick = session.getEngineTick();
+        const latestFp = session.getLatestFingerprint();
+        logToLobbyLogForced({
+            lobbyClient: this.config.api as unknown as LobbyClient,
+            lobbyId: this.config.lobbyId,
+            playerId: this.config.playerId,
+            tick,
+            severity: 'warn',
+            logType: 'desync',
+            gameId: this.config.gameId,
+            gamePhase: 'battle',
+            message: 'desync recovery: pre-repair trace marker',
+            context: {
+                reason,
+                isHost: this.config.isHost,
+                engineTick: tick,
+                latestFingerprintTick: latestFp?.tick ?? null,
+                latestFingerprintHex: latestFp?.fp ?? null,
+                fingerprintTailPaused: latestFp?.paused ?? null,
+            },
+        });
+        await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({ forceLobbyPost: true });
+    }
+
+    /**
+     * @param forceLobbyPost When true, POST the serialized-state line even if the user's lobby-log
+     *        "debug" threshold is `off` (used for automated desync traces).
+     */
+    private async writeSerializedLocalStateToLobbyAndMaybeSnapshot(options: {
+        forceLobbyPost: boolean;
+    }): Promise<void> {
         const state = this.config.session.getSerializedSnapshot();
         const tick = state.gameTick;
         const checkpointFp = this.config.session.getRuntimeFingerprintHex();
@@ -148,21 +189,26 @@ export class SnapshotPersistence {
                   }
                 : {};
 
-        logToLobbyLog({
+        const logArgs = {
             lobbyClient: this.config.api as unknown as LobbyClient,
             lobbyId: this.config.lobbyId,
             playerId: this.config.playerId,
             tick,
-            severity: 'critical',
-            logType: 'debug',
+            severity: 'critical' as const,
+            logType: 'debug' as const,
             gameId: this.config.gameId,
-            gamePhase: 'battle',
+            gamePhase: 'battle' as const,
             message: 'debug: local serialized game state',
             context: {
                 isHost: this.config.isHost,
                 serializedGameState: state,
             },
-        });
+        };
+        if (options.forceLobbyPost) {
+            logToLobbyLogForced(logArgs);
+        } else {
+            logToLobbyLog(logArgs);
+        }
 
         if (!this.config.isHost) {
             return;

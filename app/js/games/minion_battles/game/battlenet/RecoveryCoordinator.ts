@@ -272,6 +272,11 @@ export class RecoveryCoordinator {
             reason,
         });
         this.ctx.syncStatus.setStatus('resyncing');
+        try {
+            await this.ctx.snapshotPersistence.desyncRecoveryLobbyTrace(reason);
+        } catch (err) {
+            console.error('[BattleNet] desyncRecoveryLobbyTrace failed', err);
+        }
         this.ctx.resetForDesyncRecoveryEntry();
         try {
             const tickAtRecoveryEntry = this.ctx.session.getEngineTick();

@@ -78,6 +78,15 @@ export function logToLobbyLog(args: LogToLobbyLogArgs): void {
     postLobbyLine(args, severity);
 }
 
+/**
+ * POST to `lobby_log.jsonl` regardless of Debug Console log-type thresholds.
+ * Use for automated diagnostics (e.g. desync recovery) where the user did not opt in via toggles.
+ */
+export function logToLobbyLogForced(args: LogToLobbyLogArgs): void {
+    const severity = args.severity ?? 'log';
+    postLobbyLine(args, severity);
+}
+
 export function isBattleSyncLobbyLogEnabled(): boolean {
     return lobbyLogPostThresholdState.getThreshold('battleSync') !== 'off';
 }

@@ -51,7 +51,7 @@ Runner order (simplified): pass check → terminal → **battle idle** (early ex
 ## Modifying behaviour safely
 
 - Prefer changing **scenario setup/assertions** before changing core engine idle rules, so battle semantics stay centralized.
-- After edits under `app/js/`, run **`npm run lint`**, then Vitest **twice**: (1) **`npx vitest run --changed`** — tests tied to uncommitted changes; if the working tree is clean vs `HEAD`, use **`npx vitest run --changed HEAD~1`** for the latest commit — (2) **`npm run test`** for the full suite (`SimulationRunner.test.ts` and ability tests as applicable).
+- After edits under `app/js/`: run **`npm run lint`** (ESLint: `eslint .`) **first** and fix reported **errors** before starting Vitest. Then run Vitest **twice**: (1) **`npx vitest run --changed`** — tests tied to uncommitted changes; if the working tree is clean vs `HEAD`, use **`npx vitest run --changed HEAD~1`** for the latest commit — (2) **`npm run test`** for the full suite (`SimulationRunner.test.ts` and ability tests as applicable). Do not run Vitest until ESLint has completed successfully.
 - UI-only tweaks (layout, `cellPx`, playback controls) stay in `AbilityTestPage` / `MiniTerrainView` unless scenario data must change.
 
 ## Related skills
