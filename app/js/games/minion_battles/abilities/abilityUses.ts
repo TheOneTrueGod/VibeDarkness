@@ -1,6 +1,9 @@
 import { abilityHasTag, type AbilityStatic } from './Ability';
 import type { Unit } from '../game/units/Unit';
-import { STICK_SWORD_NODE_EXTRA_USES, STICK_SWORD_TREE_ID } from '../../../researchTrees/trees/stick_sword';
+import {
+    STICK_SWORD_NODE_EXTRA_USES,
+    STICK_SWORD_TREE_ID,
+} from '../../../researchTrees/trees/stick_sword';
 import { TRAINING_NODE_CHARGING_PUNCH, TRAINING_TREE_ID } from '../../../researchTrees/trees/training';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 import { getAbility } from './AbilityRegistry';
@@ -29,7 +32,8 @@ const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
     '0007': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Alpha Charge
     '0101': { maxUses: 2, recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Dodge
     '0102': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Punch
-    '0103': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 2 }] }, // Swing Bat
+    '0103': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 2 }] }, // Swing Stick
+    '0115': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 2 }] }, // Swing Bat (pipe bat)
     throw_rock: { maxUses: 6, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
     throw_knife: { maxUses: 5, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
     '0601': { maxUses: 1, recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Throw Torch
@@ -63,26 +67,30 @@ export function ensureAbilityRuntimeState(unit: Unit, abilityId: string): void {
 }
 
 const SWING_SWORD_ABILITY_ID = '0112';
-const SWING_SWORD_EXTRA_USES = 2;
+const SWING_BAT_ABILITY_ID = '0115';
+const SWING_EXTRA_USES = 2;
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
 const CRYSTAL_ROCKS_NODE_CHARGED_ROCKS = 'charged_rocks';
 const THROW_ROCK_USES_PENALTY_WITH_CHARGED = 3;
 const PUNCH_ABILITY_ID = '0102';
 const PUNCH_CHARGING_RESEARCH_USES_PENALTY = 1;
 
-/** Sword Conditioning research: +max uses for Swing Sword (base config is still 2). */
+/** Iron Wrists research: +max uses for whichever weapon the unit carries (sword or bat path). */
 export function applyStickSwordResearchToAbilityRuntime(
     unit: Unit,
     getResearchNodes: (treeId: string) => string[],
 ): void {
     const nodes = getResearchNodes(STICK_SWORD_TREE_ID);
     if (!nodes.includes(STICK_SWORD_NODE_EXTRA_USES)) return;
-    if (!unit.abilities.includes(SWING_SWORD_ABILITY_ID)) return;
-    ensureAbilityRuntimeState(unit, SWING_SWORD_ABILITY_ID);
-    const runtime = unit.abilityRuntime[SWING_SWORD_ABILITY_ID];
-    if (!runtime) return;
-    runtime.maxUses += SWING_SWORD_EXTRA_USES;
-    runtime.currentUses += SWING_SWORD_EXTRA_USES;
+
+    for (const abilityId of [SWING_SWORD_ABILITY_ID, SWING_BAT_ABILITY_ID]) {
+        if (!unit.abilities.includes(abilityId)) continue;
+        ensureAbilityRuntimeState(unit, abilityId);
+        const runtime = unit.abilityRuntime[abilityId];
+        if (!runtime) continue;
+        runtime.maxUses += SWING_EXTRA_USES;
+        runtime.currentUses += SWING_EXTRA_USES;
+    }
 }
 
 /** Charged Rocks research: Throw Rock has fewer max uses. */

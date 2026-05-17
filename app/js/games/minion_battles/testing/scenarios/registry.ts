@@ -18,9 +18,11 @@ import {
     throwRockNoResearchScenario,
 } from './abilities/throwRockResearch';
 import {
-    swingSwordExtraTargetScenario,
+    swingSwordJaggedEdgeScenario,
+    swingSwordNoBleedWithoutResearchScenario,
     swingSwordExtraUsesScenario,
     swingSwordNoneScenario,
+    swingSwordHitsTwoTargetsScenario,
 } from './abilities/swingSwordResearch';
 
 export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
@@ -37,7 +39,9 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     throwRockMorePowerScenario,
     throwRockMoreRockScenario,
     swingSwordNoneScenario,
-    swingSwordExtraTargetScenario,
+    swingSwordJaggedEdgeScenario,
+    swingSwordNoBleedWithoutResearchScenario,
+    swingSwordHitsTwoTargetsScenario,
     swingSwordExtraUsesScenario,
 ];
 

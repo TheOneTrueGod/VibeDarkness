@@ -11,6 +11,7 @@ import { crystalEmbeddedShieldItem } from './hands/011_crystal_embedded_shield';
 import { throwingCrystalShieldItem } from './hands/012_throwing_crystal_shield';
 import { chargedRocksItem } from './hands/013_charged_rocks';
 import { throwingKnivesItem } from './hands/016_throwing_knives';
+import { pipeBatItem } from './hands/021_pipe_bat';
 import { coreBasicItem } from './core/004_core_basic';
 import { coreWeaponsItem } from './core/006_core_weapons';
 import { beastCoreItem } from './core/014_beast_core';
@@ -45,6 +46,7 @@ import smgIcon from './assets/008_smg.svg';
 import shotgunIcon from './assets/009_shotgun.svg';
 import laserSwordIcon from './assets/010_laser_sword.svg';
 import craftedSwordIcon from './assets/015_crafted_sword.svg';
+import pipeBatIcon from './assets/002_torch.svg';
 
 export type { ItemDef, ItemCardEntry, EquipmentSlotType, CoreSlotLayout } from './types';
 
@@ -76,6 +78,7 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [shotgunItem.id]: shotgunIcon,
     [laserSwordItem.id]: laserSwordIcon,
     [craftedSwordItem.id]: craftedSwordIcon,
+    [pipeBatItem.id]: pipeBatIcon,
 };
 
 /** Default core for World of Darkness (1 weapon, 1 utility). */
@@ -121,6 +124,7 @@ export const ITEMS: Record<string, ItemDef> = {
     [shotgunItem.id]: shotgunItem,
     [laserSwordItem.id]: laserSwordItem,
     [craftedSwordItem.id]: craftedSwordItem,
+    [pipeBatItem.id]: pipeBatItem,
 };
 
 export function getItemDef(id: string): ItemDef | undefined {

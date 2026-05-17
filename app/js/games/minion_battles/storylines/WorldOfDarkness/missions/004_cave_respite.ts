@@ -8,7 +8,7 @@ import type { PostMissionChoiceResolveParams } from '../../types';
 import type { PostMissionStoryDef, StoryChoiceAction, StoryChoiceOptionRow } from '../../storyTypes';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../../../researchTrees/trees/crystal_rocks';
 import {
-    STICK_SWORD_NODE_EXTRA_TARGET,
+    STICK_SWORD_NODE_JAGGED_EDGE,
     STICK_SWORD_NODE_EXTRA_USES,
     STICK_SWORD_TREE_ID,
 } from '../../../../../researchTrees/trees/stick_sword';
@@ -164,11 +164,11 @@ function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, st
     if (hasResearched(trees, STICK_SWORD_TREE_ID, NODE_CRAFT_SWORD)) {
         return [
             {
-                id: STICK_SWORD_NODE_EXTRA_TARGET,
-                label: '+1 Swing Sword Target',
-                loreTitle: 'Wider Arc',
-                loreDescription: 'Drill cleaving lines that catch one more foe in the same breath.',
-                action: grant(STICK_SWORD_TREE_ID, STICK_SWORD_NODE_EXTRA_TARGET),
+                id: STICK_SWORD_NODE_JAGGED_EDGE,
+                label: 'Jagged Edge',
+                loreTitle: 'Ragged Steel',
+                loreDescription: 'File the blade to a wicked burr — every slice leaves a wound that keeps bleeding.',
+                action: grant(STICK_SWORD_TREE_ID, STICK_SWORD_NODE_JAGGED_EDGE),
             },
             {
                 id: STICK_SWORD_NODE_EXTRA_USES,

@@ -7,28 +7,37 @@ import {
     seedHandWithAbilities,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
+import {
+    STICK_SWORD_NODE_JAGGED_EDGE,
+    STICK_SWORD_TREE_ID,
+} from '../../../../../researchTrees/trees/stick_sword';
 
-/** Swing Sword applies bleed stacks on a melee hit. */
+const P = TINY_BATTLE_PLAYER_ID;
+
+/** Swing Sword with Jagged Edge research applies bleed stacks on a melee hit. */
 export const swingSwordAppliesBleedScenario: ScenarioDefinition = {
     id: 'buff_swing_sword_bleed',
-    title: 'Swing Sword applies bleed debuff on hit',
+    title: 'Swing Sword with Jagged Edge applies bleed debuff on hit',
     category: 'general',
     generalSection: 'Debuffs',
     maxDurationMs: 5000,
     buildEngine() {
+        const research = { [P]: { [STICK_SWORD_TREE_ID]: ['craft_sword', STICK_SWORD_NODE_JAGGED_EDGE] } };
         const engine = buildTinyBattleEngine({
             gridW: 14,
             gridH: 10,
-            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            localPlayerId: P,
             grass: true,
+            playerResearchTreesByPlayer: research,
         });
         placePlayerAndDummy(engine, {
-            playerId: TINY_BATTLE_PLAYER_ID,
+            playerId: P,
             playerWorld: { x: 200, y: 220 },
             dummyWorld: { x: 280, y: 220 },
             abilities: ['0112'],
+            playerResearchTreesByPlayer: research,
         });
-        seedHandWithAbilities(engine, TINY_BATTLE_PLAYER_ID, [{ cardDefId: asCardDefId('0112'), abilityId: '0112' }]);
+        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0112'), abilityId: '0112' }]);
         return engine;
     },
     getInitialOrders(engine) {

@@ -1,9 +1,8 @@
 /**
- * Swing Bat - Warrior melee ability.
+ * Swing Bat — Warrior melee (pipe bat).
  *
- * Thick line perpendicular to the aim direction, at a distance between min and max range.
- * Hits the enemy closest to the left end of the line. Wind up 0.2s, punch effect to centre of line,
- * damage + knockback (poise check). Line thickness 26, swing length 80.
+ * Heavy perpendicular swing. Hits up to 3 targets; longer stun/knockback than the basic stick.
+ * Damage boosted by Reinforced Steel research.
  */
 
 import { AbilityState } from '../../abilities/Ability';
@@ -35,34 +34,40 @@ import {
     updateMeleeTrackingEntry,
     type MeleeTrackingEntry,
 } from '../../abilities/meleeTrackingHelpers';
+import {
+    STICK_SWORD_TREE_ID,
+    STICK_SWORD_NODE_PIPE_BAT_DAMAGE,
+} from '../../../../researchTrees/trees/stick_sword';
+import { getApproxIntegerIncrease, DescriptiveValue } from '../../../../researchTrees/descriptiveValue';
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
+const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}15`;
 const PREFIRE_TIME = 0.2;
 const BASE_MIN_RANGE = 0;
 const BASE_MAX_RANGE = 56;
-const DAMAGE = 10;
+const BASE_DAMAGE = 10;
+const DAMAGE_RESEARCH_BONUS = getApproxIntegerIncrease(BASE_DAMAGE, DescriptiveValue.Medium);
 const SWING_BAT_EFFECT_DURATION = 0.4;
 const POISE_DAMAGE = 10;
 const KNOCKBACK_MAGNITUDE = 45;
-const KNOCKBACK_AIR_TIME = 0.3;
-const KNOCKBACK_SLIDE_TIME = 0.2;
-/** Line thickness for hitbox and preview (px). */
+/** Longer air/slide time than the basic stick for a heavier-feeling stun. */
+const KNOCKBACK_AIR_TIME = 0.5;
+const KNOCKBACK_SLIDE_TIME = 0.3;
+const MAX_TARGETS = 3;
 const LINE_THICKNESS = 26;
-/** Length of the perpendicular swing line (px). */
 const SWING_LENGTH = 80;
 const SWING_BAT_MELEE_ANIMATION: MeleeAnimationProfile = {
     slide: {
         startTime: 0.1,
         impactTime: 0.2,
         backstepEndTime: 0.3,
-        forwardDistance: 16,
+        forwardDistance: 18,
         backwardDistance: 0,
     },
     chargeUp: createChargeUpConfig('high', {
         startTime: 0.04,
         endTime: 0.1,
         radius: DEFAULT_UNIT_RADIUS,
-        color: 0xd39a4a,
+        color: 0x8a6a3a,
     }),
 };
 
@@ -79,7 +84,6 @@ function getMaxRange(caster: Unit): number {
     return BASE_MAX_RANGE + caster.radius;
 }
 
-/** Perpendicular line: centre at clamped distance along aim; left/right ends for hitbox. */
 function getPerpendicularLine(
     caster: { x: number; y: number },
     target: { x: number; y: number },
@@ -125,17 +129,26 @@ interface GameEngineLike {
     gameTime: number;
     eventBus: EventBus;
     interruptUnitAndRefundAbilities(unit: Unit): void;
+    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
+}
+
+function getDamage(engine: GameEngineLike | undefined, caster: Unit): number {
+    const nodes = engine?.getPlayerResearchNodes?.(caster.ownerId, STICK_SWORD_TREE_ID) ?? [];
+    return nodes.includes(STICK_SWORD_NODE_PIPE_BAT_DAMAGE)
+        ? BASE_DAMAGE + DAMAGE_RESEARCH_BONUS
+        : BASE_DAMAGE;
 }
 
 const SWING_BAT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-  <rect x="8" y="24" width="48" height="16" rx="4" fill="#8B4513" stroke="#654321" stroke-width="2"/>
-  <ellipse cx="32" cy="32" rx="14" ry="14" fill="#d4a574" stroke="#8B4513" stroke-width="2"/>
-  <path d="M32 18 L35 24 L32 30 L29 24 Z M32 34 L35 40 L32 46 L29 40 Z" fill="#8B0000"/>
+  <rect x="10" y="28" width="44" height="12" rx="3" fill="#6b6b7a" stroke="#4a4a58" stroke-width="2"/>
+  <rect x="28" y="8" width="8" height="24" rx="2" fill="#7c7c8c" stroke="#4a4a58" stroke-width="1.5"/>
+  <rect x="10" y="28" width="20" height="12" rx="3" fill="#5a5a68" opacity="0.6"/>
+  <circle cx="52" cy="34" r="5" fill="#4a4a58" stroke="#333344" stroke-width="1.5"/>
 </svg>`;
 
 export const SwingBatAbility: AbilityStatic = {
     id: CARD_ID,
-    name: 'Swing Stick',
+    name: 'Swing Bat',
     image: SWING_BAT_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
@@ -144,14 +157,14 @@ export const SwingBatAbility: AbilityStatic = {
     abilityTimings: [
         { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
         { id: 'hit', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
-        { id: 'cooldown', start: 0.3, end: 1.55, abilityPhase: AbilityPhase.Cooldown },
+        { id: 'cooldown', start: 0.3, end: 1.65, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
-            `Swing your stick dealing {${DAMAGE}} damage to an enemy, interrupting them and knocking them back.`,
+            `Swing your pipe bat dealing {${BASE_DAMAGE}} damage to up to ${MAX_TARGETS} enemies, interrupting and knocking them back hard.`,
         ];
     },
 
@@ -165,6 +178,7 @@ export const SwingBatAbility: AbilityStatic = {
         }
         return [];
     },
+
     beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
         const eng = engine as GameEngineLike;
         const meleeAnimationProfile: MeleeAnimationProfile = {
@@ -184,29 +198,28 @@ export const SwingBatAbility: AbilityStatic = {
             }
         }
         const pos = getPixelTargetPosition(targets, 0);
-        let trackedUnit: Unit | null = null;
+        let trackedUnits: (Unit | null)[] = [];
         if (pos) {
             const minR = getMinRange(caster);
             const maxR = getMaxRange(caster);
             const line = getPerpendicularLine(caster, pos, minR, maxR);
             const ctx = buildHitboxContext(eng.units);
             const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
-            if (hits.length > 0) {
-                hits.sort((a, b) => {
-                    const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
-                    const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
-                    return da - db;
-                });
-                trackedUnit = hits[0] ?? null;
-            }
+            hits.sort((a, b) => {
+                const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
+                const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+                return da - db;
+            });
+            trackedUnits = hits.slice(0, MAX_TARGETS).map((u) => u);
         }
         const payload: SwingBatCastPayload = {
             meleeAnimationProfile,
-            meleeTracking: buildMeleeTrackingEntries([trackedUnit]),
+            meleeTracking: buildMeleeTrackingEntries(trackedUnits),
         };
         active.castPayload = payload;
         spawnMeleeChargeUpEffect(eng, caster, meleeAnimationProfile);
     },
+
     getCasterRenderOffset(caster: Unit, activeAbility: ActiveAbility, gameTime: number): { x: number; y: number } | null {
         const payload = activeAbility.castPayload as SwingBatCastPayload | undefined;
         if (!payload?.meleeAnimationProfile) return null;
@@ -228,77 +241,70 @@ export const SwingBatAbility: AbilityStatic = {
         if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
 
         const fallbackPos = getPixelTargetPosition(targets, 0);
-        if (!fallbackPos) return;
-        const trackingEntry = tracking?.[0];
-        const pos = trackingEntry ? getMeleeTrackingAimPoint(eng, trackingEntry, fallbackPos) : fallbackPos;
+        if (!fallbackPos && !tracking?.length) return;
 
-        const minR = getMinRange(caster);
-        const line = getPerpendicularLine(caster, pos, minR, maxR);
+        const primaryEntry = tracking?.[0];
+        const pos = primaryEntry && fallbackPos
+            ? getMeleeTrackingAimPoint(eng, primaryEntry, fallbackPos)
+            : (fallbackPos ?? null);
 
-        const hitUnits = ThickLineHitbox.getUnitsInHitbox(
-            eng,
-            caster,
-            line.leftX,
-            line.leftY,
-            line.rightX,
-            line.rightY,
-            LINE_THICKNESS,
-        );
-
-        eng.addEffect(new Effect({
-            x: line.rightX,
-            y: line.rightY,
-            duration: SWING_BAT_EFFECT_DURATION,
-            effectType: 'punch',
-            startX: line.leftX,
-            startY: line.leftY,
-        }));
-
-        if (hitUnits.length === 0) return;
-
-        hitUnits.sort((a, b) => {
-            const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
-            const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
-            return da - db;
-        });
-        const targetUnit = hitUnits[0]!;
-        if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) return;
-
-        let hitDamage = DAMAGE;
-        if (isSinglePlayerBattle(eng.units) && targetUnit.characterId === 'dark_wolf') {
-            hitDamage = Math.max(DAMAGE, targetUnit.maxHp);
+        if (pos) {
+            const minR = getMinRange(caster);
+            const line = getPerpendicularLine(caster, pos, minR, maxR);
+            eng.addEffect(new Effect({
+                x: line.rightX,
+                y: line.rightY,
+                duration: SWING_BAT_EFFECT_DURATION,
+                effectType: 'punch',
+                startX: line.leftX,
+                startY: line.leftY,
+            }));
         }
 
-        const blocked = !tryDamageOrBlock(targetUnit, {
-            engine: eng,
-            gameTime: eng.gameTime,
-            eventBus: eng.eventBus,
-            attackerX: caster.x,
-            attackerY: caster.y,
-            attackerId: caster.id,
-            abilityId: CARD_ID,
-            damage: hitDamage,
-            attackType: 'melee',
-        });
-        if (blocked) return;
+        if (!tracking || tracking.length === 0) return;
 
-        const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
-        targetUnit.applyKnockback(
-            POISE_DAMAGE,
-            {
-                knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
-                knockbackAirTime: KNOCKBACK_AIR_TIME,
-                knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-            },
-            eng.eventBus,
-            (u) => eng.interruptUnitAndRefundAbilities(u),
-        );
+        const hitDamageBase = getDamage(eng, caster);
+
+        for (const entry of tracking) {
+            if (entry.lockedPosition !== null) continue;
+            if (entry.unitId === null) continue;
+            const targetUnit = eng.getUnit(entry.unitId);
+            if (!targetUnit || !targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) continue;
+
+            let hitDamage = hitDamageBase;
+            if (isSinglePlayerBattle(eng.units) && targetUnit.characterId === 'dark_wolf') {
+                hitDamage = Math.max(hitDamage, targetUnit.maxHp);
+            }
+
+            const blocked = !tryDamageOrBlock(targetUnit, {
+                engine: eng,
+                gameTime: eng.gameTime,
+                eventBus: eng.eventBus,
+                attackerX: caster.x,
+                attackerY: caster.y,
+                attackerId: caster.id,
+                abilityId: CARD_ID,
+                damage: hitDamage,
+                attackType: 'melee',
+            });
+            if (blocked) continue;
+
+            const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
+            targetUnit.applyKnockback(
+                POISE_DAMAGE,
+                {
+                    knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
+                    knockbackAirTime: KNOCKBACK_AIR_TIME,
+                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
+                    knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
+                },
+                eng.eventBus,
+                (u) => eng.interruptUnitAndRefundAbilities(u),
+            );
+        }
     },
 
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        // Melee blocked: no additional behaviour.
-    },
+    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
 
     renderTargetingPreview(
         gr: IAbilityPreviewGraphics,
@@ -331,19 +337,19 @@ export const SwingBatAbility: AbilityStatic = {
         gr.lineTo(midX - offX, midY - offY);
         gr.lineTo(midX + offX, midY + offY);
         gr.lineTo(leftTopX, leftTopY);
-        gr.fill({ color: 0x646473, alpha: 0.55 });
+        gr.fill({ color: 0x4a4a60, alpha: 0.55 });
         gr.moveTo(midX + offX, midY + offY);
         gr.lineTo(midX - offX, midY - offY);
         gr.lineTo(rightBotX, rightBotY);
         gr.lineTo(rightTopX, rightTopY);
         gr.lineTo(midX + offX, midY + offY);
-        gr.fill({ color: 0xc8c8d7, alpha: 0.7 });
+        gr.fill({ color: 0x8a8aa0, alpha: 0.7 });
         gr.moveTo(leftTopX, leftTopY);
         gr.lineTo(leftBotX, leftBotY);
         gr.lineTo(rightBotX, rightBotY);
         gr.lineTo(rightTopX, rightTopY);
         gr.lineTo(leftTopX, leftTopY);
-        gr.stroke({ color: 0x505050, width: 2, alpha: 0.9 });
+        gr.stroke({ color: 0x505060, width: 2, alpha: 0.9 });
 
         const ctx = buildHitboxContext(units);
         const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
@@ -353,14 +359,14 @@ export const SwingBatAbility: AbilityStatic = {
                 const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
                 return da - db;
             });
-            renderMeleeTrackingHighlights(gr, [hits[0]!]);
+            renderMeleeTrackingHighlights(gr, hits.slice(0, MAX_TARGETS));
         }
     },
 };
 
 export const SwingBatCard: CardDef = {
     id: asCardDefId(CARD_ID),
-    name: 'Swing Stick',
+    name: 'Swing Bat',
     abilityId: CARD_ID,
     durability: 2,
     discardDuration: { duration: 1, unit: 'rounds' },

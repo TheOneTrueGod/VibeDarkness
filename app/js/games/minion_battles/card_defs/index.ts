@@ -24,6 +24,7 @@ import { ShiningBlockCard } from './0110_ShiningBlock/0110Ability';
 import { BeastClawCard } from './utility/0611_BeastClaw/0611Ability';
 import { ClawCard } from './0111_Claw/0111Ability';
 import { SwingSwordCard } from './0112_SwingSword/0112Ability';
+import { SwingBatCard as SwingBatPipeBatCard } from './0115_SwingBat/0115Ability';
 import { AbsorptionShieldCard } from './0113_AbsorptionShield/0113Ability';
 import { EnergyBlastCard } from './0114_EnergyBlast/0114Ability';
 import { ImpactConversionCard } from './05_earth_core/0521_ImpactConversion/0521Ability';
@@ -64,6 +65,7 @@ const cardDefs: CardDef[] = [
     BeastClawCard,
     ClawCard,
     SwingSwordCard,
+    SwingBatPipeBatCard,
     AbsorptionShieldCard,
     EnergyBlastCard,
     ImpactConversionCard,

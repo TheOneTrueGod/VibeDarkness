@@ -1,8 +1,9 @@
 /**
  * Swing Sword — Warrior melee (crafted sword).
  *
- * Like Laser Sword: thick perpendicular slash, up to 2 targets (3 with research), wide line,
- * metallic gray trail. Slightly shorter reach than Laser Sword; much lower knockback than Swing Bat.
+ * Perpendicular slash, up to 2 targets, metallic gray trail.
+ * Slightly shorter reach than Laser Sword. Small knockback, no stun.
+ * Bleed only applies when Jagged Edge is researched.
  */
 
 import { AbilityState } from '../../abilities/Ability';
@@ -31,7 +32,7 @@ import {
 } from '../../abilities/meleeTrackingHelpers';
 import {
     STICK_SWORD_TREE_ID,
-    STICK_SWORD_NODE_EXTRA_TARGET,
+    STICK_SWORD_NODE_JAGGED_EDGE,
 } from '../../../../researchTrees/trees/stick_sword';
 import {
     createChargeUpConfig,
@@ -49,14 +50,13 @@ const DAMAGE = 10;
 const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
 const SLASH_TRAIL_COLOR = 0xc0c8d0;
-const POISE_DAMAGE = 20;
-/** Much lower than Swing Bat / Laser Sword (80). */
-const KNOCKBACK_MAGNITUDE = 32;
-const KNOCKBACK_AIR_TIME = 0.3;
-const KNOCKBACK_SLIDE_TIME = 0.2;
-const BASE_MAX_TARGETS = 2;
-const WITH_RESEARCH_MAX_TARGETS = 3;
-/** Line thickness for hitbox and preview (px) — same family as Laser Sword. */
+const POISE_DAMAGE = 5;
+/** Small nudge — sword slices rather than bludgeons. */
+const KNOCKBACK_MAGNITUDE = 18;
+const KNOCKBACK_AIR_TIME = 0.2;
+const KNOCKBACK_SLIDE_TIME = 0.15;
+const MAX_TARGETS = 2;
+/** Line thickness for hitbox and preview (px). */
 const LINE_THICKNESS = 36;
 const SWING_LENGTH = 80;
 const SWING_SWORD_MELEE_ANIMATION: MeleeAnimationProfile = {
@@ -138,15 +138,9 @@ interface GameEngineLike {
     localPlayerId?: string;
 }
 
-function getMaxTargets(engine: GameEngineLike | undefined, caster: Unit): number {
+function hasJaggedEdge(engine: GameEngineLike | undefined, caster: Unit): boolean {
     const nodes = engine?.getPlayerResearchNodes?.(caster.ownerId, STICK_SWORD_TREE_ID) ?? [];
-    return nodes.includes(STICK_SWORD_NODE_EXTRA_TARGET) ? WITH_RESEARCH_MAX_TARGETS : BASE_MAX_TARGETS;
-}
-
-function getMaxTargetsForTooltip(engine: GameEngineLike | undefined): number {
-    const ownerId = engine?.localPlayerId ?? '';
-    const nodes = engine?.getPlayerResearchNodes?.(ownerId, STICK_SWORD_TREE_ID) ?? [];
-    return nodes.includes(STICK_SWORD_NODE_EXTRA_TARGET) ? WITH_RESEARCH_MAX_TARGETS : BASE_MAX_TARGETS;
+    return nodes.includes(STICK_SWORD_NODE_JAGGED_EDGE);
 }
 
 const SWING_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -168,16 +162,18 @@ export const SwingSwordAbility: AbilityStatic = {
     abilityTimings: [
         { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
         { id: 'slash', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
-        { id: 'cooldown', start: 0.3, end: 1.6, abilityPhase: AbilityPhase.Cooldown },
+        { id: 'cooldown', start: 0.3, end: 1.3, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
     aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
 
     getTooltipText(gameState?: unknown): string[] {
         const engine = gameState as GameEngineLike | undefined;
-        const maxT = getMaxTargetsForTooltip(engine);
+        const ownerId = engine?.localPlayerId ?? '';
+        const nodes = engine?.getPlayerResearchNodes?.(ownerId, STICK_SWORD_TREE_ID) ?? [];
+        const bleedLine = nodes.includes(STICK_SWORD_NODE_JAGGED_EDGE) ? ' Inflicts {Bleed}.' : '';
         return [
-            `Slash with the sword dealing {${DAMAGE}} damage to up to ${maxT} enemies, interrupting and knocking them back.`,
+            `Slash with the sword dealing {${DAMAGE}} damage to up to ${MAX_TARGETS} enemies, nudging them back.${bleedLine}`,
         ];
     },
 
@@ -212,7 +208,6 @@ export const SwingSwordAbility: AbilityStatic = {
         const pos = getPixelTargetPosition(targets, 0);
         let trackedUnits: (Unit | null)[] = [];
         if (pos) {
-            const maxTargets = getMaxTargets(eng, caster);
             const minR = getMinRange(caster);
             const maxR = getMaxRange(caster);
             const line = getPerpendicularLine(caster, pos, minR, maxR);
@@ -223,7 +218,7 @@ export const SwingSwordAbility: AbilityStatic = {
                 const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
                 return da - db;
             });
-            trackedUnits = hits.slice(0, maxTargets).map((u) => u);
+            trackedUnits = hits.slice(0, MAX_TARGETS).map((u) => u);
         }
         const payload: SwingSwordCastPayload = {
             meleeAnimationProfile,
@@ -255,7 +250,6 @@ export const SwingSwordAbility: AbilityStatic = {
         const fallbackPos = getPixelTargetPosition(targets, 0);
         if (!fallbackPos && !tracking?.length) return;
 
-        // Determine VFX aim point from first tracked unit (or fallback pixel).
         const primaryEntry = tracking?.[0];
         const vfxPos = primaryEntry && fallbackPos
             ? getMeleeTrackingAimPoint(eng, primaryEntry, fallbackPos)
@@ -269,8 +263,9 @@ export const SwingSwordAbility: AbilityStatic = {
 
         if (!tracking || tracking.length === 0) return;
 
+        const applyBleed = hasJaggedEdge(eng, caster);
+
         for (const entry of tracking) {
-            // Locked = unit evaded or left tether range — skip.
             if (entry.lockedPosition !== null) continue;
             if (entry.unitId === null) continue;
             const targetUnit = eng.getUnit(entry.unitId);
@@ -289,7 +284,9 @@ export const SwingSwordAbility: AbilityStatic = {
             });
             if (blocked) continue;
 
-            applyBleedStack(targetUnit, eng.gameTime, eng.roundNumber);
+            if (applyBleed) {
+                applyBleedStack(targetUnit, eng.gameTime, eng.roundNumber);
+            }
 
             const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
             targetUnit.applyKnockback(
@@ -301,7 +298,6 @@ export const SwingSwordAbility: AbilityStatic = {
                     knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
                 },
                 eng.eventBus,
-                (u) => eng.interruptUnitAndRefundAbilities(u),
             );
         }
     },
@@ -361,7 +357,7 @@ export const SwingSwordAbility: AbilityStatic = {
                 const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
                 return da - db;
             });
-            renderMeleeTrackingHighlights(gr, hits.slice(0, WITH_RESEARCH_MAX_TARGETS));
+            renderMeleeTrackingHighlights(gr, hits.slice(0, MAX_TARGETS));
         }
     },
 };
