@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(node_modules/.bin/jest --testPathPattern=\"0102Ability|punchResearch|SimulationRunner\" --no-coverage)",
-      "Bash(node_modules/.bin/vitest run *)"
+      "Bash(node_modules/.bin/vitest run *)",
+      "Read(//c/Users/Jeremy/.claude/**)",
+      "Bash(xargs grep -l \"applyTrainingResearchToAbilityRuntime\\\\|applyStickSwordResearchToAbilityRuntime\\\\|applyCrystalRocksResearchToAbilityRuntime\")",
+      "Skill(research-trees)",
+      "Skill(research-trees:*)"
     ]
   }
 }

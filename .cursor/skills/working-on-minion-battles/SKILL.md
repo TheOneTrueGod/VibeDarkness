@@ -32,6 +32,10 @@ See `game/teams.ts` for team definitions (`TeamId`), alliance rules (`ALLIANCE_M
 - **Getting allies**: Use `engine.getAllies(caster)` to get all units allied with the caster (alive, excluding the caster). This filters by team alliance, not by `ownerId`.
 - **Where teamId is set**: See `storylines/BaseMissionDef.ts` for player unit team assignment and enemy spawn configs (e.g. `enemyConstants.ts`) for enemy teams.
 
+## Research Trees / Upgrades
+
+The **Upgrades** tab in the Character Editor is powered by research trees — a meta-game system where campaign characters unlock nodes that modify their abilities or equipment before battle. Tree and node definitions live in `app/js/researchTrees/`. For everything in this area, see the **research-trees** skill.
+
 ## Descriptive Values
 
 - Shared descriptive magnitudes live in `app/js/researchTrees/descriptiveValue.ts` (`DescriptiveValue` + percent table).
