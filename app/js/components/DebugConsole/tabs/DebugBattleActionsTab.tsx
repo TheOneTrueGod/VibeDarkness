@@ -19,7 +19,7 @@ interface DebugBattleActionsTabProps {
 }
 
 export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isHost = false, skipCurrentTurn = null }: DebugBattleActionsTabProps) {
-    const { darkOverlayEnabled, godModeEnabled, superSpeedEnabled, setDarkOverlayEnabled, setGodModeEnabled, setSuperSpeedEnabled } =
+    const { darkOverlayEnabled, godModeEnabled, superSpeedEnabled, logEveryTick, setDarkOverlayEnabled, setGodModeEnabled, setSuperSpeedEnabled, setLogEveryTick } =
         useDebugSettings();
 
     if (!isActive || !inBattle || !isAdmin) return null;
@@ -76,6 +76,17 @@ export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isH
                     offLabel="Off"
                 />
                 <span className="text-[11px] text-muted">Player-controlled units move 10x faster while enabled.</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+                <span>Console log every tick</span>
+                <DebugOnOffButton
+                    enabled={logEveryTick}
+                    onToggle={() => setLogEveryTick(!logEveryTick)}
+                    onLabel="On"
+                    offLabel="Off"
+                />
+                <span className="text-[11px] text-muted">Logs syncHash, gameTick, and gameState to the console on every tick.</span>
             </div>
 
         </div>

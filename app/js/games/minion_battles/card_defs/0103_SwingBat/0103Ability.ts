@@ -27,6 +27,14 @@ import {
     spawnMeleeChargeUpEffect,
     type MeleeAnimationProfile,
 } from '../../abilities/meleeAnimationProfile';
+import {
+    buildHitboxContext,
+    buildMeleeTrackingEntries,
+    getMeleeTrackingAimPoint,
+    renderMeleeTrackingHighlights,
+    updateMeleeTrackingEntry,
+    type MeleeTrackingEntry,
+} from '../../abilities/meleeTrackingHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
 const PREFIRE_TIME = 0.2;
@@ -60,6 +68,7 @@ const SWING_BAT_MELEE_ANIMATION: MeleeAnimationProfile = {
 
 type SwingBatCastPayload = {
     meleeAnimationProfile: MeleeAnimationProfile;
+    meleeTracking: MeleeTrackingEntry[];
 };
 
 function getMinRange(_caster: Unit): number {
@@ -130,6 +139,7 @@ export const SwingBatAbility: AbilityStatic = {
     image: SWING_BAT_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
+    tags: ['meleeTracking'],
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
@@ -155,7 +165,7 @@ export const SwingBatAbility: AbilityStatic = {
         }
         return [];
     },
-    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
+    beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
         const eng = engine as GameEngineLike;
         const meleeAnimationProfile: MeleeAnimationProfile = {
             ...SWING_BAT_MELEE_ANIMATION,
@@ -173,7 +183,28 @@ export const SwingBatAbility: AbilityStatic = {
                 pulse.endRadius += caster.radius - DEFAULT_UNIT_RADIUS;
             }
         }
-        active.castPayload = { meleeAnimationProfile } as SwingBatCastPayload;
+        const pos = getPixelTargetPosition(targets, 0);
+        let trackedUnit: Unit | null = null;
+        if (pos) {
+            const minR = getMinRange(caster);
+            const maxR = getMaxRange(caster);
+            const line = getPerpendicularLine(caster, pos, minR, maxR);
+            const ctx = buildHitboxContext(eng.units);
+            const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
+            if (hits.length > 0) {
+                hits.sort((a, b) => {
+                    const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
+                    const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+                    return da - db;
+                });
+                trackedUnit = hits[0] ?? null;
+            }
+        }
+        const payload: SwingBatCastPayload = {
+            meleeAnimationProfile,
+            meleeTracking: buildMeleeTrackingEntries([trackedUnit]),
+        };
+        active.castPayload = payload;
         spawnMeleeChargeUpEffect(eng, caster, meleeAnimationProfile);
     },
     getCasterRenderOffset(caster: Unit, activeAbility: ActiveAbility, gameTime: number): { x: number; y: number } | null {
@@ -182,15 +213,26 @@ export const SwingBatAbility: AbilityStatic = {
         return getMeleeAnimationOffset(caster, activeAbility, gameTime, payload.meleeAnimationProfile);
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number, active?: ActiveAbility): void {
+        const eng = engine as GameEngineLike;
+        const payload = active?.castPayload as SwingBatCastPayload | undefined;
+        const tracking = payload?.meleeTracking;
+        const maxR = getMaxRange(caster);
+
+        if (tracking) {
+            for (const entry of tracking) {
+                updateMeleeTrackingEntry(eng, caster, entry, maxR);
+            }
+        }
+
         if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
 
-        const pos = getPixelTargetPosition(targets, 0);
-        if (!pos) return;
+        const fallbackPos = getPixelTargetPosition(targets, 0);
+        if (!fallbackPos) return;
+        const trackingEntry = tracking?.[0];
+        const pos = trackingEntry ? getMeleeTrackingAimPoint(eng, trackingEntry, fallbackPos) : fallbackPos;
 
-        const eng = engine as GameEngineLike;
         const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
         const line = getPerpendicularLine(caster, pos, minR, maxR);
 
         const hitUnits = ThickLineHitbox.getUnitsInHitbox(
@@ -263,7 +305,7 @@ export const SwingBatAbility: AbilityStatic = {
         caster: Unit,
         _currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
-        _units: Unit[],
+        units: Unit[],
     ): void {
         const minR = getMinRange(caster);
         const maxR = getMaxRange(caster);
@@ -302,6 +344,17 @@ export const SwingBatAbility: AbilityStatic = {
         gr.lineTo(rightTopX, rightTopY);
         gr.lineTo(leftTopX, leftTopY);
         gr.stroke({ color: 0x505050, width: 2, alpha: 0.9 });
+
+        const ctx = buildHitboxContext(units);
+        const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
+        if (hits.length > 0) {
+            hits.sort((a, b) => {
+                const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
+                const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+                return da - db;
+            });
+            renderMeleeTrackingHighlights(gr, [hits[0]!]);
+        }
     },
 };
 

@@ -21,6 +21,15 @@ import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { ThickLineHitbox } from '../../hitboxes';
+import {
+    buildHitboxContext,
+    buildMeleeTrackingEntries,
+    getMeleeTrackingAimPoint,
+    renderMeleeTrackingHighlights,
+    updateMeleeTrackingEntry,
+    type MeleeTrackingEntry,
+} from '../../abilities/meleeTrackingHelpers';
+import type { ActiveAbility } from '../../game/types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}05`;
 const PREFIRE_TIME = 0.2;
@@ -109,6 +118,7 @@ export const LaserSwordAbility: AbilityStatic = {
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 8, allowPartialIfPositive: true }],
     rechargeTurns: 1,
+    tags: ['meleeTracking'],
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
@@ -135,48 +145,62 @@ export const LaserSwordAbility: AbilityStatic = {
         return [];
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+    beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
+        const eng = engine as GameEngineLike;
+        const pos = getPixelTargetPosition(targets, 0);
+        let trackedUnits: (Unit | null)[] = [];
+        if (pos) {
+            const minR = getMinRange(caster);
+            const maxR = getMaxRange(caster);
+            const line = getPerpendicularLine(caster, pos, minR, maxR);
+            const ctx = buildHitboxContext(eng.units);
+            const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
+            hits.sort((a, b) => {
+                const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
+                const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+                return da - db;
+            });
+            trackedUnits = hits.slice(0, MAX_TARGETS).map((u) => u);
+        }
+        active.castPayload = { meleeTracking: buildMeleeTrackingEntries(trackedUnits) };
+    },
+
+    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number, active?: ActiveAbility): void {
+        const eng = engine as GameEngineLike;
+        const tracking = (active?.castPayload as { meleeTracking?: MeleeTrackingEntry[] } | undefined)?.meleeTracking;
+        const maxR = getMaxRange(caster);
+
+        if (tracking) {
+            for (const entry of tracking) {
+                updateMeleeTrackingEntry(eng, caster, entry, maxR);
+            }
+        }
+
         if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
 
-        const pos = getPixelTargetPosition(targets, 0);
-        if (!pos) return;
+        const fallbackPos = getPixelTargetPosition(targets, 0);
+        if (!fallbackPos && !tracking?.length) return;
 
-        const eng = engine as GameEngineLike;
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        const line = getPerpendicularLine(caster, pos, minR, maxR);
+        // Determine VFX aim point from first tracked unit (or fallback pixel).
+        const primaryEntry = tracking?.[0];
+        const vfxPos = primaryEntry && fallbackPos
+            ? getMeleeTrackingAimPoint(eng, primaryEntry, fallbackPos)
+            : (fallbackPos ?? null);
 
-        const hitUnits = ThickLineHitbox.getUnitsInHitbox(
-            eng,
-            caster,
-            line.leftX,
-            line.leftY,
-            line.rightX,
-            line.rightY,
-            LINE_THICKNESS,
-        );
+        if (vfxPos) {
+            const minR = getMinRange(caster);
+            const line = getPerpendicularLine(caster, vfxPos, minR, maxR);
+            eng.addEffect(createSlashTrailEffect(line.leftX, line.leftY, line.rightX, line.rightY, SLASH_TRAIL_DURATION, SLASH_TRAIL_THICKNESS));
+        }
 
-        // Always play slash trail (same animation whether we hit or not).
-        eng.addEffect(createSlashTrailEffect(
-            line.leftX,
-            line.leftY,
-            line.rightX,
-            line.rightY,
-            SLASH_TRAIL_DURATION,
-            SLASH_TRAIL_THICKNESS,
-        ));
+        if (!tracking || tracking.length === 0) return;
 
-        if (hitUnits.length === 0) return;
-
-        hitUnits.sort((a, b) => {
-            const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
-            const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
-            return da - db;
-        });
-
-        const targetsToHit = hitUnits.slice(0, MAX_TARGETS);
-        for (const targetUnit of targetsToHit) {
-            if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) continue;
+        for (const entry of tracking) {
+            // Locked = unit evaded or left tether range — skip.
+            if (entry.lockedPosition !== null) continue;
+            if (entry.unitId === null) continue;
+            const targetUnit = eng.getUnit(entry.unitId);
+            if (!targetUnit || !targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) continue;
 
             const blocked = !tryDamageOrBlock(targetUnit, {
                 engine: eng,
@@ -215,7 +239,7 @@ export const LaserSwordAbility: AbilityStatic = {
         caster: Unit,
         _currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
-        _units: Unit[],
+        units: Unit[],
     ): void {
         const minR = getMinRange(caster);
         const maxR = getMaxRange(caster);
@@ -254,6 +278,17 @@ export const LaserSwordAbility: AbilityStatic = {
         gr.lineTo(rightTopX, rightTopY);
         gr.lineTo(leftTopX, leftTopY);
         gr.stroke({ color: 0x4fb8c8, width: 2, alpha: 0.9 });
+
+        const ctx = buildHitboxContext(units);
+        const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
+        if (hits.length > 0) {
+            hits.sort((a, b) => {
+                const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
+                const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+                return da - db;
+            });
+            renderMeleeTrackingHighlights(gr, hits.slice(0, MAX_TARGETS));
+        }
     },
 };
 

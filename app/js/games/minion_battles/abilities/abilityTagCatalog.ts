@@ -7,6 +7,8 @@ import type { AbilityTag } from './Ability';
 export type AbilityTagSettingsByTag = {
     /** No catalog defaults yet; replace with a richer type when this tag gains options. */
     priority: PriorityTagSettings;
+    meleeTracking: PriorityTagSettings;
+    evade: PriorityTagSettings;
 };
 
 /** Empty settings object type for tags with no catalog options yet. */
@@ -24,6 +26,8 @@ export type AbilityTagCatalog = {
 
 export const ABILITY_TAG_CATALOG: AbilityTagCatalog = {
     priority: { hint: 'Recovers First' },
+    meleeTracking: { hint: 'Tracks Target' },
+    evade: { hint: 'Evades' },
 };
 
 export function getAbilityTagCatalogEntry<K extends AbilityTag>(tag: K): AbilityTagCatalogEntry<K> {

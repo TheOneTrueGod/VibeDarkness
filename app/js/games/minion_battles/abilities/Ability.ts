@@ -81,7 +81,7 @@ export type AbilityKeyword = 'nestedCard';
  * Simple capability / classification tags on an ability (distinct from structured `keywords` like nestedCard).
  * Extend this union when new tags are needed.
  */
-export type AbilityTag = 'priority';
+export type AbilityTag = 'priority' | 'meleeTracking' | 'evade';
 
 type AbilityTagResolver = (abilityId: string) => readonly AbilityTag[];
 

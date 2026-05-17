@@ -994,6 +994,9 @@ export class GameEngine implements EngineContext {
             this.storyPauseActive;
         this.state.runtimeFingerprintRing.push(this.gameTick, this.runtimeFingerprint, paused);
         this.onTickComplete?.(this.gameTick, this.getRuntimeFingerprintHex(), paused);
+        if (debugSettingsSnapshot.logEveryTick) {
+            console.log('[tick]', { syncHash: this.getRuntimeFingerprintHex(), gameTick: this.gameTick, gameState: this.toJSON() });
+        }
         if (committedParallelPause) {
             return;
         }

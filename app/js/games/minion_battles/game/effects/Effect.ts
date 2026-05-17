@@ -242,8 +242,8 @@ export class Effect extends GameObject {
             this.x += vx * dt;
             this.y += vy * dt;
         }
-        // DamageNumber: parabolic path + ease-out (see damageNumberMotion); update before lifetime cull.
-        if (this.effectType === 'DamageNumber') {
+        // DamageNumber / FloatingText: parabolic path + ease-out (see damageNumberMotion); update before lifetime cull.
+        if (this.effectType === 'DamageNumber' || this.effectType === 'FloatingText') {
             const pos = computeDamageNumberWorldPosition(this.effectData as Partial<DamageNumberMotionData>, this.progress);
             this.x = pos.x;
             this.y = pos.y;

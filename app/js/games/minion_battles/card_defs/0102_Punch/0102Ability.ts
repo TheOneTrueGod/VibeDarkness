@@ -32,6 +32,14 @@ import {
     spawnMeleeChargeUpEffect,
     type MeleeAnimationProfile,
 } from '../../abilities/meleeAnimationProfile';
+import {
+    buildHitboxContext,
+    buildMeleeTrackingEntries,
+    getMeleeTrackingAimPoint,
+    renderMeleeTrackingHighlights,
+    updateMeleeTrackingEntry,
+    type MeleeTrackingEntry,
+} from '../../abilities/meleeTrackingHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}02`;
 const PREFIRE_TIME = 0.2;
@@ -103,6 +111,7 @@ interface PunchPlan {
 type PunchCastPayload = {
     movementLockUntil: number;
     meleeAnimationProfile: MeleeAnimationProfile;
+    meleeTracking: MeleeTrackingEntry[];
 };
 
 const PUNCH_SLIDE_START = 0.1;
@@ -210,9 +219,11 @@ function tryStrikeTarget(
     targets: ResolvedTarget[],
     active: ActiveAbility | undefined,
     strikeTime: number,
+    trackingEntry: MeleeTrackingEntry | undefined,
 ): void {
-    const targetPos = getPixelTargetPosition(targets, targetIndex);
-    if (!targetPos) return;
+    const fallbackPos = getPixelTargetPosition(targets, targetIndex);
+    if (!fallbackPos) return;
+    const targetPos = trackingEntry ? getMeleeTrackingAimPoint(engine, trackingEntry, fallbackPos) : fallbackPos;
 
     const maxR = getMaxRange(caster);
     const { x: endX, y: endY } = getAimPointClampedToMaxRange(caster, targetPos, maxR);
@@ -325,6 +336,7 @@ export const PunchAbility: AbilityStatic = {
     image: PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
+    tags: ['meleeTracking'],
     prefireTime: PREFIRE_TIME,
     abilityTimings: BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {
@@ -403,11 +415,30 @@ export const PunchAbility: AbilityStatic = {
         }
         return [];
     },
-    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
+    beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
         const eng = engine as GameEngineLike;
         const plan = buildPunchPlan(getOwnerPunchResearch(eng, caster));
         const meleeAnimationProfile = createPunchMeleeAnimationProfile(caster, plan.research);
-        const payload: PunchCastPayload = { movementLockUntil: plan.movementLockUntil, meleeAnimationProfile };
+        const maxR = getMaxRange(caster);
+        const ctx = buildHitboxContext(eng.units);
+        const hitUnitsBySlot = plan.strikeTimes.map(({ targetIndex }) => {
+            const pos = getPixelTargetPosition(targets, targetIndex);
+            if (!pos) return null;
+            const { x: endX, y: endY } = getAimPointClampedToMaxRange(caster, pos, maxR);
+            const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, caster.x, caster.y, endX, endY, LINE_THICKNESS);
+            if (hits.length === 0) return null;
+            hits.sort((a, b) => {
+                const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
+                const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
+                return da - db;
+            });
+            return hits[0] ?? null;
+        });
+        const payload: PunchCastPayload = {
+            movementLockUntil: plan.movementLockUntil,
+            meleeAnimationProfile,
+            meleeTracking: buildMeleeTrackingEntries(hitUnitsBySlot),
+        };
         active.castPayload = payload;
         spawnMeleeChargeUpEffect(eng, caster, meleeAnimationProfile);
     },
@@ -436,12 +467,21 @@ export const PunchAbility: AbilityStatic = {
         const pos = getPixelTargetPosition(targets, 0);
         const eng = engine as GameEngineLike;
         const plan = buildPunchPlan(getOwnerPunchResearch(eng, caster));
+        const payload = active?.castPayload as PunchCastPayload | undefined;
+        const tracking = payload?.meleeTracking;
+
+        if (tracking) {
+            for (const entry of tracking) {
+                updateMeleeTrackingEntry(eng, caster, entry, getMaxRange(caster));
+            }
+        }
 
         // Preserve baseline behavior: no hit if first target is missing.
         if (!pos) return;
         for (const strike of plan.strikeTimes) {
             if (prevTime < strike.time && currentTime >= strike.time) {
-                tryStrikeTarget(eng, caster, plan, strike.targetIndex, targets, active, strike.time);
+                const trackingEntry = tracking?.[strike.targetIndex];
+                tryStrikeTarget(eng, caster, plan, strike.targetIndex, targets, active, strike.time, trackingEntry);
             }
         }
     },
@@ -455,11 +495,21 @@ export const PunchAbility: AbilityStatic = {
         caster: Unit,
         _currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
-        _units: Unit[],
+        units: Unit[],
     ): void {
         const maxR = getMaxRange(caster);
         const aimAtMax = getAimPointClampedToMaxRange(caster, mouseWorld, maxR);
         ThickLineHitbox.renderTargetingPreview(gr, caster, aimAtMax, maxR, LINE_THICKNESS);
+        const ctx = buildHitboxContext(units);
+        const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, caster.x, caster.y, aimAtMax.x, aimAtMax.y, LINE_THICKNESS);
+        if (hits.length > 0) {
+            hits.sort((a, b) => {
+                const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
+                const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
+                return da - db;
+            });
+            renderMeleeTrackingHighlights(gr, [hits[0]!]);
+        }
     },
 };
 

@@ -9,6 +9,8 @@ export interface DebugSettingsSnapshot {
     debugPauseMode: boolean;
     /** Number of fixed ticks requested via debug single-step control. */
     debugAdvanceTicksRequested: number;
+    /** When true, logs syncHash, gameTick, and gameState to the console on every tick. */
+    logEveryTick: boolean;
 }
 
 export const debugSettingsSnapshot: DebugSettingsSnapshot = {
@@ -17,6 +19,7 @@ export const debugSettingsSnapshot: DebugSettingsSnapshot = {
     superSpeedEnabled: false,
     debugPauseMode: false,
     debugAdvanceTicksRequested: 0,
+    logEveryTick: false,
 };
 
 export function requestDebugAdvanceTicks(count = 1): void {
