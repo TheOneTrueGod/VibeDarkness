@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node_modules/.bin/jest --testPathPattern=\"0102Ability|punchResearch|SimulationRunner\" --no-coverage)"
+      "Bash(node_modules/.bin/jest --testPathPattern=\"0102Ability|punchResearch|SimulationRunner\" --no-coverage)",
+      "Bash(node_modules/.bin/vitest run *)"
     ]
   }
 }
