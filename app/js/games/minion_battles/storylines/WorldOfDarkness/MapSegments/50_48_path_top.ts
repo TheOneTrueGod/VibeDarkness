@@ -31,6 +31,6 @@ export const MAP_SEGMENT_50_48_PATH_TOP: TerrainType[][] = [
     [R, _, _, R, R, D, D, _, _, R, R, R, R, R, R, R, R, R, R, R, R, R],
     [R, _, _, R, R, D, D, _, _, _, R, R, R, R, R, R, R, R, R, R, R, R],
     [R, _, T, T, _, D, D, _, _, _, _, R, R, R, R, R, R, R, R, R, R, R],
-    [R, T, T, _, _, _, _, _, _, _, _, _, R, R, R, R, R, R, R, R, R],
-    [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+    [R, T, T, _, _, D, D, _, _, _, _, _, _, R, R, R, R, R, R, R, R, R],
+    [R, R, R, R, R, D, D, _, _, _, _, _, R, R, R, R, R, R, R, R, R, R],
 ];

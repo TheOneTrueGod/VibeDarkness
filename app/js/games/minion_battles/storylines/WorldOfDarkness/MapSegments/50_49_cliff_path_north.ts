@@ -12,8 +12,8 @@ const T = TerrainType.ThickGrass;
 const D = TerrainType.Dirt;
 
 export const MAP_SEGMENT_50_49_CLIFF_PATH_NORTH: TerrainType[][] = [
-    [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
-    [R, _, _, R, R, _, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R, R],
+    [R, R, R, R, R, D, D, _, _, _, _, _, R, R, R, R, R, R, R, R, R, R],
+    [R, _, _, R, R, D, D, _, _, _, _, _, _, _, _, _, _, R, R, R, R, R],
     [R, _, _, R, R, D, D, _, _, _, _, _, _, _, _, _, _, _, R, R, R, R],
     [R, _, T, R, R, D, D, _, _, T, _, _, _, _, _, _, _, _, R, R, R, R],
     [R, T, T, _, _, D, D, _, T, T, T, _, _, _, _, _, _, _, _, _, R, R],
@@ -27,9 +27,9 @@ export const MAP_SEGMENT_50_49_CLIFF_PATH_NORTH: TerrainType[][] = [
     [R, _, R, R, _, _, _, _, D, D, D, _, _, _, _, R, R, R, R, R, R, R],
     [R, _, _, _, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
     [R, T, _, _, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
-    [R, T, T, _, _, _, _, _, _, D, D, _, _, R, R, R, R, R, R, R, R, R],
-    [R, _, _, _, R, _, _, _, _, D, D, _, R, R, R, R, R, R, R, R, R, R],
-    [R, _, _, R, R, _, _, _, _, _, D, D, _, R, R, R, R, R, R, R, R, R],
+    [R, T, T, _, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
+    [R, _, _, _, R, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R, R],
+    [R, _, _, R, R, _, _, _, _, _, D, D, _, _, R, R, R, R, R, R, R, R],
     [R, _, _, R, R, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R],
     [R, _, T, T, _, _, _, _, _, _, D, D, _, _, _, R, R, R, R, R, R, R],
     [R, T, T, _, _, _, _, _, _, _, D, D, _, _, R, R, R, R, R, R, R, R],
