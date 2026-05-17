@@ -216,6 +216,11 @@ export default function ResearchNodeCard({
                     <ResearchAbilityPreview
                         from={node.modifiesAbility.from}
                         to={node.modifiesAbility.to}
+                        afterTooltipLines={
+                            node.modifiesAbility.from === node.modifiesAbility.to
+                                ? [node.description]
+                                : undefined
+                        }
                     />
                 )}
             </div>,

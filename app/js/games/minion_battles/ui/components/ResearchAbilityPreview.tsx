@@ -20,8 +20,8 @@ function parseHighlightedSegments(text: string): Array<{ text: string; highlight
     return segments;
 }
 
-function MiniAbilityCard({ ability, label }: { ability: AbilityStatic; label: string }) {
-    const lines = ability.getTooltipText();
+function MiniAbilityCard({ ability, label, overrideTooltipLines }: { ability: AbilityStatic; label: string; overrideTooltipLines?: string[] }) {
+    const lines = overrideTooltipLines ?? ability.getTooltipText();
 
     return (
         <div className="flex flex-col gap-1">
@@ -66,9 +66,12 @@ function MiniAbilityCard({ ability, label }: { ability: AbilityStatic; label: st
 interface ResearchAbilityPreviewProps {
     from: string;
     to: string;
+    /** Lines to show in the "after" card instead of the ability's own tooltip. Used when the
+     *  ability is the same before and after (from === to) — the node description describes the change. */
+    afterTooltipLines?: string[];
 }
 
-export default function ResearchAbilityPreview({ from, to }: ResearchAbilityPreviewProps) {
+export default function ResearchAbilityPreview({ from, to, afterTooltipLines }: ResearchAbilityPreviewProps) {
     const fromAbility = getAbility(from);
     const toAbility = getAbility(to);
 
@@ -85,7 +88,7 @@ export default function ResearchAbilityPreview({ from, to }: ResearchAbilityPrev
             )}
             <div className="text-zinc-400 text-base shrink-0 self-center">→</div>
             {toAbility ? (
-                <MiniAbilityCard ability={toAbility} label="After" />
+                <MiniAbilityCard ability={toAbility} label="After" overrideTooltipLines={afterTooltipLines} />
             ) : (
                 <div className="w-[130px] rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[10px] text-zinc-500 italic">
                     Unknown
