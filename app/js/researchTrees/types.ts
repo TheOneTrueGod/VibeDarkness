@@ -29,6 +29,11 @@ export interface ResearchNodeDef {
     requirements: Requirement[];
     cost: CampaignResourceCost;
     effects: ResearchEffect[];
+    /**
+     * Ability IDs to show a before/after card preview in the tooltip.
+     * Use the same ID for both when the node modifies rather than replaces an ability.
+     */
+    modifiesAbility?: { from: string; to: string };
 }
 
 export interface ResearchTreeDef {

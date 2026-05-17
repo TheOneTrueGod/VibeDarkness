@@ -22,6 +22,7 @@ export const techShieldTree: ResearchTreeDef = {
             requirements: [{ type: 'characterHasEquippedItem', itemId: '003' }],
             cost: { crystals: 5 },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '003', toItemId: '011' }],
+            modifiesAbility: { from: '0104', to: '0110' },
         },
         {
             id: 'throwing_crystal_shield',
@@ -37,6 +38,7 @@ export const techShieldTree: ResearchTreeDef = {
             ],
             cost: { crystals: 30 },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '011', toItemId: '012' }],
+            modifiesAbility: { from: '0110', to: '0113' },
         },
         {
             id: TECH_SHIELD_NODE_STRENGTHENING_LIGHT,
@@ -51,6 +53,7 @@ export const techShieldTree: ResearchTreeDef = {
             ],
             cost: { crystals: 25 },
             effects: [],
+            modifiesAbility: { from: '0110', to: '0110' },
         },
     ],
 };

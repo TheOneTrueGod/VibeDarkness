@@ -49,6 +49,7 @@ export const trainingTree: ResearchTreeDef = {
             ],
             cost: { food: 20 },
             effects: [],
+            modifiesAbility: { from: '0102', to: '0102' },
         },
         {
             id: TRAINING_NODE_STRONG_PUNCH,
@@ -66,6 +67,7 @@ export const trainingTree: ResearchTreeDef = {
             ],
             cost: { food: 20 },
             effects: [],
+            modifiesAbility: { from: '0102', to: '0102' },
         },
         {
             id: TRAINING_NODE_SNEAKY_PUNCH,
@@ -83,6 +85,7 @@ export const trainingTree: ResearchTreeDef = {
             ],
             cost: { food: 20 },
             effects: [],
+            modifiesAbility: { from: '0102', to: '0102' },
         },
         {
             id: TRAINING_NODE_CHARGING_PUNCH,
@@ -100,6 +103,7 @@ export const trainingTree: ResearchTreeDef = {
             ],
             cost: { food: 20 },
             effects: [],
+            modifiesAbility: { from: '0102', to: '0102' },
         },
     ],
 };

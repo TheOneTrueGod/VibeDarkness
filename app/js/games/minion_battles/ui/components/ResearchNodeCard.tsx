@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
+import ResearchAbilityPreview from './ResearchAbilityPreview';
 
 export interface ResearchRequirementBadge {
     id: string;
@@ -75,7 +76,7 @@ export default function ResearchNodeCard({
     const isInteractive = mode === 'interactive';
     const costGains = campaignResourceGains(node.cost);
     const hasReqBadges = showRequirements && requirementBadges.length > 0;
-    const hasTooltipContent = Boolean(node.flavorText || selectionReason);
+    const hasTooltipContent = Boolean(node.flavorText || selectionReason || node.modifiesAbility);
 
     const anchorRef = useRef<HTMLDivElement>(null);
     const [flavorHover, setFlavorHover] = useState(false);
@@ -86,10 +87,10 @@ export default function ResearchNodeCard({
         if (!el) return;
         const rect = el.getBoundingClientRect();
         const margin = 8;
-        const approxH = 140;
+        const approxH = node.modifiesAbility ? 280 : 140;
         const vh = window.innerHeight;
         const vw = window.innerWidth;
-        const halfW = 120;
+        const halfW = node.modifiesAbility ? 160 : 120;
 
         let top: number;
         let transform: string;
@@ -104,7 +105,7 @@ export default function ResearchNodeCard({
         let left = rect.left + rect.width / 2;
         left = Math.max(halfW + 8, Math.min(vw - halfW - 8, left));
         setTipPosition({ left, top, transform });
-    }, []);
+    }, [node.modifiesAbility]);
 
     const handleFlavorEnter = useCallback(() => {
         if (!hasTooltipContent) return;
@@ -138,7 +139,7 @@ export default function ResearchNodeCard({
     const layoutClasses =
         layout === 'comfortable'
             ? 'w-[280px] h-[120px] shrink-0 px-3 py-2 gap-1 overflow-hidden'
-            : 'w-[180px] h-[92px] shrink-0 px-3 py-2 gap-1 overflow-hidden';
+            : 'w-[180px] h-[104px] shrink-0 px-3 py-2 gap-1 overflow-hidden';
 
     const cardClasses = `relative rounded-lg border text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${!isInteractive ? 'cursor-default' : ''} ${className}`;
 
@@ -149,13 +150,13 @@ export default function ResearchNodeCard({
 
     const descSizeClass = layout === 'comfortable' ? 'text-xs leading-snug' : 'text-[11px] leading-tight';
 
-    const descClampLines = layout === 'comfortable' ? 4 : 2;
+    const descClampLines = layout === 'comfortable' ? 4 : 3;
 
     const content = (
         <div className="flex h-full min-h-0 w-full flex-col gap-1 overflow-hidden">
             <div className={`${titleClass} shrink-0`}>{node.title}</div>
             <div
-                className={`${descSizeClass} min-h-0 flex-1 text-gray-300 ${layout === 'comfortable' ? 'line-clamp-4' : 'line-clamp-2'}`}
+                className={`${descSizeClass} min-h-0 flex-1 text-gray-300 ${layout === 'comfortable' ? 'line-clamp-4' : 'line-clamp-3'}`}
                 style={{
                     display: '-webkit-box',
                     WebkitLineClamp: descClampLines,
@@ -173,14 +174,14 @@ export default function ResearchNodeCard({
                 ))}
             </div>
             {showCost && (
-                <div className="shrink-0 text-[11px] text-muted flex flex-wrap items-center gap-2">
+                <div className="shrink-0 text-[10px] text-muted flex flex-wrap items-center gap-1">
                     {costGains.length > 0 ? (
                         costGains.map(({ resource, count }) => (
                             <ResourcePill
                                 key={`${node.id}-${resource}`}
                                 resource={resource}
                                 count={count}
-                                className="text-[11px]"
+                                size={layout === 'compact' ? 'small' : 'default'}
                             />
                         ))
                     ) : (
@@ -191,6 +192,8 @@ export default function ResearchNodeCard({
         </div>
     );
 
+    const tooltipWidth = node.modifiesAbility ? 'w-[320px]' : 'w-60';
+
     const flavorPortal =
         flavorHover &&
         tipPosition &&
@@ -198,7 +201,7 @@ export default function ResearchNodeCard({
         typeof document !== 'undefined' &&
         createPortal(
             <div
-                className="pointer-events-none fixed z-[9999] w-60 rounded-md border border-border-custom bg-surface-light px-3 py-2 text-xs text-gray-200 shadow-lg"
+                className={`pointer-events-none fixed z-[9999] ${tooltipWidth} rounded-md border border-border-custom bg-surface-light px-3 py-2 text-xs text-gray-200 shadow-lg`}
                 style={{
                     left: tipPosition.left,
                     top: tipPosition.top,
@@ -208,6 +211,12 @@ export default function ResearchNodeCard({
                 {node.flavorText && <p className="mt-0.5 italic text-gray-200">{node.flavorText}</p>}
                 {selectionReason && (
                     <p className={`${node.flavorText ? 'mt-2' : 'mt-0.5'} text-rose-200`}>{selectionReason}</p>
+                )}
+                {node.modifiesAbility && (
+                    <ResearchAbilityPreview
+                        from={node.modifiesAbility.from}
+                        to={node.modifiesAbility.to}
+                    />
                 )}
             </div>,
             document.body,

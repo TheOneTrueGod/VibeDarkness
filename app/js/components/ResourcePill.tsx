@@ -8,7 +8,7 @@ const RESOURCE_ORDER: CampaignResourceKey[] = ['food', 'metal', 'population', 'c
 
 const RESOURCE_META: Record<
     CampaignResourceKey,
-    { label: string; color: string; Icon: React.FC<{ color: string }> }
+    { label: string; color: string; Icon: React.FC<{ color: string; className?: string }> }
 > = {
     food: { label: 'Food', color: '#E67E22', Icon: FoodIcon },
     metal: { label: 'Metal', color: '#95A5A6', Icon: MetalIcon },
@@ -16,9 +16,9 @@ const RESOURCE_META: Record<
     crystals: { label: 'Crystals', color: '#9B59B6', Icon: CrystalIcon },
 };
 
-function FoodIcon({ color }: { color: string }) {
+function FoodIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
     return (
-        <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] shrink-0" aria-hidden>
+        <svg viewBox="0 0 24 24" className={`${className} shrink-0`} aria-hidden>
             <path
                 fill={color}
                 d="M12 2C8 6 6 10 6 14c0 3.3 2.7 6 6 6s6-2.7 6-6c0-4-2-8-6-12zm0 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
@@ -27,9 +27,9 @@ function FoodIcon({ color }: { color: string }) {
     );
 }
 
-function MetalIcon({ color }: { color: string }) {
+function MetalIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
     return (
-        <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] shrink-0" aria-hidden>
+        <svg viewBox="0 0 24 24" className={`${className} shrink-0`} aria-hidden>
             <path
                 fill={color}
                 d="M4 18h16v2H4v-2zm2-2h12l1-8H5l1 8zm2-10h8l-1-4H9l-1 4z"
@@ -38,9 +38,9 @@ function MetalIcon({ color }: { color: string }) {
     );
 }
 
-function PopulationIcon({ color }: { color: string }) {
+function PopulationIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
     return (
-        <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] shrink-0" aria-hidden>
+        <svg viewBox="0 0 24 24" className={`${className} shrink-0`} aria-hidden>
             <path
                 fill={color}
                 d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.84 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
@@ -49,9 +49,9 @@ function PopulationIcon({ color }: { color: string }) {
     );
 }
 
-function CrystalIcon({ color }: { color: string }) {
+function CrystalIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
     return (
-        <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] shrink-0" aria-hidden>
+        <svg viewBox="0 0 24 24" className={`${className} shrink-0`} aria-hidden>
             <path fill={color} d="M12 2L22 12L12 22L2 12Z" />
         </svg>
     );
@@ -60,17 +60,23 @@ function CrystalIcon({ color }: { color: string }) {
 export interface ResourcePillProps {
     resource: CampaignResourceKey;
     count: number;
+    size?: 'default' | 'small';
     className?: string;
 }
 
-export default function ResourcePill({ resource, count, className = '' }: ResourcePillProps) {
+export default function ResourcePill({ resource, count, size = 'default', className = '' }: ResourcePillProps) {
     const meta = RESOURCE_META[resource];
     const { color, Icon, label } = meta;
     const isNegative = count < 0;
     const displayColor = isNegative ? '#f87171' : color;
+    const isSmall = size === 'small';
     return (
         <span
-            className={`inline-flex min-h-[32px] shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-semibold leading-snug bg-surface-light ${className}`}
+            className={`inline-flex shrink-0 items-center bg-surface-light font-semibold leading-snug ${
+                isSmall
+                    ? 'gap-1 rounded px-1.5 py-[2px] text-[10px]'
+                    : 'min-h-[32px] gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px]'
+            } ${className}`}
             style={{
                 borderWidth: 1,
                 borderStyle: 'solid',
@@ -79,7 +85,7 @@ export default function ResourcePill({ resource, count, className = '' }: Resour
             }}
             title={`${count} ${label}`}
         >
-            <Icon color={displayColor} />
+            <Icon color={displayColor} className={isSmall ? 'w-3 h-3' : 'w-[18px] h-[18px]'} />
             {count}
         </span>
     );

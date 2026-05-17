@@ -33,6 +33,7 @@ export const stickSwordTree: ResearchTreeDef = {
             requirements: [{ type: 'characterHasEquippedItem', itemId: '002' }],
             cost: { metal: 5 },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '002', toItemId: '015' }],
+            modifiesAbility: { from: '0103', to: '0112' },
         },
         {
             id: STICK_SWORD_NODE_JAGGED_EDGE,
@@ -47,6 +48,7 @@ export const stickSwordTree: ResearchTreeDef = {
             ],
             cost: { metal: 20 },
             effects: [],
+            modifiesAbility: { from: '0112', to: '0112' },
         },
         {
             id: STICK_SWORD_NODE_PIPE_BAT,
@@ -59,6 +61,7 @@ export const stickSwordTree: ResearchTreeDef = {
             requirements: [{ type: 'characterHasEquippedItem', itemId: '002' }],
             cost: { metal: 5 },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '002', toItemId: '021' }],
+            modifiesAbility: { from: '0103', to: '0115' },
         },
         {
             id: STICK_SWORD_NODE_EXTRA_USES,
@@ -87,6 +90,7 @@ export const stickSwordTree: ResearchTreeDef = {
             ],
             cost: { metal: 20 },
             effects: [],
+            modifiesAbility: { from: '0115', to: '0115' },
         },
     ],
 };

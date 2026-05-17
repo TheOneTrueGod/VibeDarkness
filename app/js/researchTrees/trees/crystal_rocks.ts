@@ -22,6 +22,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             requirements: [{ type: 'characterHasEquippedItem', itemId: '001' }],
             cost: { crystals: 5 },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '001', toItemId: '013' }],
+            modifiesAbility: { from: 'throw_rock', to: 'throw_charged_rock' },
         },
         {
             id: 'throwing_knives',
@@ -34,6 +35,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             requirements: [{ type: 'characterHasEquippedItem', itemId: '001' }],
             cost: { metal: 5 },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '001', toItemId: '016' }],
+            modifiesAbility: { from: 'throw_rock', to: 'throw_knife' },
         },
         {
             id: 'more_rock',
@@ -49,6 +51,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             ],
             cost: { metal: 10, crystals: 10 },
             effects: [],
+            modifiesAbility: { from: 'throw_rock', to: 'throw_rock' },
         },
         {
             id: 'more_power',
@@ -61,6 +64,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             requirements: [{ type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_rock' }],
             cost: { crystals: 30 },
             effects: [],
+            modifiesAbility: { from: 'throw_charged_rock', to: 'throw_charged_rock' },
         },
     ],
 };
