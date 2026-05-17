@@ -157,6 +157,8 @@ const UNIT_DEFS: Record<
         uiDescription: 'Pack leader with heavy claws and howling support.',
         combatCc: {
             ccDurationResistPct: { ALL: 0.5 },
+            hardCcArmourFloor: 2,
+            chainCcDecayRounds: 0,
         },
     },
     boar: {

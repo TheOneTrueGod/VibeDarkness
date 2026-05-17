@@ -1,5 +1,5 @@
 /**
- * Core Awakening - Mission 6: Story-only reward pick after the Alpha Wolf (core items).
+ * Core Awakening - Mission 6: Story-only reward pick after The Beast (core items).
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
@@ -21,7 +21,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: 'The Alpha Wolf is defeated. The cave falls silent, and your breath steadies in the dark.',
+            text: 'The Beast is defeated. The cave falls silent, and your breath steadies in the dark.',
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },

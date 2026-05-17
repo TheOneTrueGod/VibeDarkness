@@ -128,6 +128,8 @@ Whenever an ability needs to store data for future use, it must be serializable.
 - **Ability**: In `abilities/AbilityRegistry.ts`, import and call `register(YourAbility)`.
 - **Card def**: In `card_defs/index.ts`, import and add to the `cardDefs` array.
 
+To avoid name collisions when importing multiple abilities, suffix the exported ability constant with its 4-digit ID: e.g. `SwingBatAbility_0103`, `SwingBatAbility_0115`. Apply this convention to all new abilities.
+
 ## Ability concepts
 
 - **Range**: Always calculate based on the range value plus the size of the source object plus the size of the target object.

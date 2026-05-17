@@ -1,6 +1,6 @@
 /**
- * Monster - Mission 5: Boss fight against the Alpha Wolf.
- * Map: 49_50 path (left) stitched to 50_50 crystal cave (right). The Alpha stands just inside
+ * Monster - Mission 5: Boss fight against The Beast.
+ * Map: 49_50 path (left) stitched to 50_50 crystal cave (right). The Beast stands just inside
  * the cave on the dark crystal (a few columns past the segment seam).
  * When players leave and get within 400 units, he attacks.
  * Dark crystal creates a purple-tinted arena (light range 10).
@@ -63,7 +63,7 @@ const CAVE_CAMPFIRE_GLOBAL = {
 const ENEMIES = [
     {
         ...ENEMY_ALPHA_WOLF,
-        name: 'Alpha Wolf',
+        name: 'The Beast',
         position: WOLF_POSITION,
     },
 ];
@@ -73,7 +73,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
         type: 'victoryCheck',
         trigger: { afterRound: 0 },
         conditions: [{ type: 'unitDead', unitCharacterId: 'alpha_wolf' }],
-        emittedMessage: 'Defeat the Alpha Wolf',
+        emittedMessage: 'Defeat the Beast',
         emittedByNpcId: '1',
         missionResult: 'victory',
     },
@@ -109,7 +109,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "The Alpha Wolf has come. He will not let you pass. The dark crystal at his feet pulses with malice. There is no retreat—only the fight.",
+            text: "The Beast has come. He will not let you pass. The dark crystal at his feet pulses with malice. There is no retreat—only the fight.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },

@@ -79,8 +79,8 @@ export const stickSwordTree: ResearchTreeDef = {
         },
         {
             id: STICK_SWORD_NODE_PIPE_BAT_DAMAGE,
-            title: 'Reinforced Steel',
-            description: 'A heavier, fortified pipe — Swing Bat deals {Medium} more damage.',
+            title: 'Training Regime',
+            description: 'Your bat feels like an extension of your arm. Swing Bat deals {Medium} more damage.',
             order: 50,
             position: { x: 400, y: 480 },
             prereqNodeIds: [STICK_SWORD_NODE_PIPE_BAT],

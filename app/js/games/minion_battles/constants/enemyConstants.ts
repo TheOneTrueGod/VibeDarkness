@@ -57,7 +57,7 @@ export const ENEMY_BOAR: EnemySpawnDef = {
 /** Alpha Wolf: boss — baseline hp/speed in unit defs. Claw (0004), Summon (0005), Charge (0007). radius 26. */
 export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     characterId: 'alpha_wolf',
-    name: 'Alpha Wolf',
+    name: 'The Beast',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
     abilities: ['0004', '0005', '0007'],

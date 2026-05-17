@@ -25,6 +25,7 @@ import { ThickLineHitbox } from '../../hitboxes';
 import { getTrainingPunchResearchState, type TrainingPunchResearchState } from '../../research/researchTrainingEffects';
 import { DescriptiveValue, getApproxIntegerIncrease } from '../../../../researchTrees/descriptiveValue';
 import { STUNNED_BUFF_TYPE } from '../../buffs/StunnedBuff';
+import { BLEED_BUFF_TYPE } from '../../buffs/BleedBuff';
 import { TRAINING_NODE_CHARGING_PUNCH, TRAINING_NODE_STRONG_PUNCH, TRAINING_TREE_ID } from '../../../../researchTrees/trees/training';
 import {
     createChargeUpConfig,
@@ -186,7 +187,7 @@ function getPunchBaseDamageForTarget(research: TrainingPunchResearchState, targe
     if (research.hasStrongPunch) {
         damage += STRONG_PUNCH_BONUS_DAMAGE;
     }
-    if (research.hasSneakyPunch && target?.hasBuff(STUNNED_BUFF_TYPE)) {
+    if (research.hasSneakyPunch && (target?.hasBuff(STUNNED_BUFF_TYPE) || target?.hasBuff(BLEED_BUFF_TYPE))) {
         damage += SNEAKY_PUNCH_BONUS_DAMAGE;
     }
     return damage;
@@ -397,7 +398,7 @@ export const PunchAbility: AbilityStatic = {
             lines.push(`Strong Punch: +{${STRONG_PUNCH_BONUS_DAMAGE}} damage, knockback, and stun`);
         }
         if (research.hasSneakyPunch) {
-            lines.push(`Sneaky Punch: +{${SNEAKY_PUNCH_BONUS_DAMAGE}} damage vs stunned enemies`);
+            lines.push(`Sneaky Punch: +{${SNEAKY_PUNCH_BONUS_DAMAGE}} damage vs stunned or bleeding enemies`);
         }
         if (research.hasChargingPunch) {
             lines.push('Charging Punch: On hit, grant {1} Light Charge');

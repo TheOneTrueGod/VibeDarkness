@@ -146,7 +146,7 @@ const SWING_BAT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/20
   <circle cx="52" cy="34" r="5" fill="#4a4a58" stroke="#333344" stroke-width="1.5"/>
 </svg>`;
 
-export const SwingBatAbility: AbilityStatic = {
+export const SwingBatAbility_0115: AbilityStatic = {
     id: CARD_ID,
     name: 'Swing Bat',
     image: SWING_BAT_IMAGE,

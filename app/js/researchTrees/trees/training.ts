@@ -72,7 +72,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_SNEAKY_PUNCH,
             title: 'Sneaky Punch',
-            description: `Punch deals {${DescriptiveValue.Medium}} bonus damage to stunned enemies.`,
+            description: `Punch deals {${DescriptiveValue.Medium}} bonus damage to stunned or {bleeding} enemies.`,
             flavorText: 'Strike when an enemy loses their footing.',
             order: 40,
             position: { x: 450, y: 230 },

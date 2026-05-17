@@ -133,7 +133,7 @@ const SWING_BAT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/20
   <path d="M32 18 L35 24 L32 30 L29 24 Z M32 34 L35 40 L32 46 L29 40 Z" fill="#8B0000"/>
 </svg>`;
 
-export const SwingBatAbility: AbilityStatic = {
+export const SwingBatAbility_0103: AbilityStatic = {
     id: CARD_ID,
     name: 'Swing Stick',
     image: SWING_BAT_IMAGE,

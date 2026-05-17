@@ -139,7 +139,7 @@ export default function ResearchNodeCard({
     const layoutClasses =
         layout === 'comfortable'
             ? 'w-[280px] h-[120px] shrink-0 px-3 py-2 gap-1 overflow-hidden'
-            : 'w-[180px] h-[104px] shrink-0 px-3 py-2 gap-1 overflow-hidden';
+            : 'w-[180px] h-[116px] shrink-0 px-3 py-2 gap-1 overflow-hidden';
 
     const cardClasses = `relative rounded-lg border text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${!isInteractive ? 'cursor-default' : ''} ${className}`;
 

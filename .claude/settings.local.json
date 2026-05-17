@@ -8,7 +8,9 @@
       "Skill(research-trees)",
       "Skill(research-trees:*)",
       "Bash(npx tsc *)",
-      "PowerShell(cd \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\"; Get-ChildItem -Path . -Recurse -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq \"card_defs\" } | Select-Object -ExpandProperty FullName)"
+      "PowerShell(cd \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\"; Get-ChildItem -Path . -Recurse -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq \"card_defs\" } | Select-Object -ExpandProperty FullName)",
+      "Skill(working-with-skills)",
+      "Skill(working-with-skills:*)"
     ]
   }
 }
