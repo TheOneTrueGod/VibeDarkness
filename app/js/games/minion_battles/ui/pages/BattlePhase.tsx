@@ -73,6 +73,14 @@ declare global {
         __minionBattlesDebugTriggerDesyncRequested?: boolean;
         /** Debug Console → BattleNet: lobby_log (critical) + host snapshot POST from live engine. */
         __minionBattlesDebugLogLocalStateToLobby?: () => Promise<void>;
+        /** Admin command: fully heal a unit (debug/host only). */
+        __minionBattlesAdminHealUnit?: (unitId: string) => void;
+        /** Admin command: kill a unit (debug/host only). */
+        __minionBattlesAdminKillUnit?: (unitId: string) => void;
+        /** Admin command: teleport a unit to world coordinates (debug/host only). */
+        __minionBattlesAdminMoveUnit?: (unitId: string, worldX: number, worldY: number) => void;
+        /** Set by DebugUnitsTab when Move mode is active; consumed and cleared by handleCanvasClick. */
+        __minionBattlesAdminMovePendingUnitId?: string;
     }
 }
 
@@ -251,14 +259,42 @@ export default function BattlePhase({
             window.__minionBattlesDebugAutoFollowPausedUntil = Date.now() + 2500;
         };
 
+        window.__minionBattlesAdminHealUnit = (unitId: string) => {
+            const engine = sessionRef.current?.getEngine();
+            const net = netRef.current;
+            if (!engine || !net) return;
+            engine.adminHealUnit(unitId);
+            void net.debugLogLocalStateAndSubmitSnapshot();
+        };
+
+        window.__minionBattlesAdminKillUnit = (unitId: string) => {
+            const engine = sessionRef.current?.getEngine();
+            const net = netRef.current;
+            if (!engine || !net) return;
+            engine.adminKillUnit(unitId);
+            void net.debugLogLocalStateAndSubmitSnapshot();
+        };
+
+        window.__minionBattlesAdminMoveUnit = (unitId: string, worldX: number, worldY: number) => {
+            const engine = sessionRef.current?.getEngine();
+            const net = netRef.current;
+            if (!engine || !net) return;
+            engine.adminMoveUnit(unitId, worldX, worldY);
+            void net.debugLogLocalStateAndSubmitSnapshot();
+        };
+
         return () => {
             sessionRef.current?.getRenderer()?.setDebugUnitOutline(null);
             window.__minionBattlesDebugSetUnitHover = undefined;
             window.__minionBattlesDebugAutoFollowPausedUntil = undefined;
             window.__minionBattlesDebugGameTick = undefined;
             window.__minionBattlesDebugGameState = undefined;
+            window.__minionBattlesAdminHealUnit = undefined;
+            window.__minionBattlesAdminKillUnit = undefined;
+            window.__minionBattlesAdminMoveUnit = undefined;
+            window.__minionBattlesAdminMovePendingUnitId = undefined;
         };
-         
+
     }, []);
 
     useEffect(() => {
@@ -672,6 +708,18 @@ export default function BattlePhase({
     }, [waitingForOrders, activeLocalWaiter, canUseOrderUi]);
 
     const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
+        const adminMovePendingUnitId = window.__minionBattlesAdminMovePendingUnitId;
+        if (adminMovePendingUnitId) {
+            window.__minionBattlesAdminMovePendingUnitId = undefined;
+            const adminEngine = sessionRef.current?.getEngine();
+            const adminCamera = sessionRef.current?.getCamera();
+            if (adminEngine && adminCamera) {
+                const worldPos = adminCamera.screenToWorld(screenX, screenY);
+                window.__minionBattlesAdminMoveUnit?.(adminMovePendingUnitId, worldPos.x, worldPos.y);
+            }
+            return;
+        }
+
         const engine = sessionRef.current?.getEngine();
         const camera = sessionRef.current?.getCamera();
         if (!engine || !camera || !selectedAbility || !canUseOrderUi || !activeLocalWaiter) return;

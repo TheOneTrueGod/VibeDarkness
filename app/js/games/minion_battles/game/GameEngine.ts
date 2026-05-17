@@ -145,8 +145,9 @@ export class GameEngine implements EngineContext {
     private onRoundEnd: ((roundNumber: number) => void) | null = null;
     private onStateChanged: EngineStateCallback | null = null;
     private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
-    private onTickComplete: ((gameTick: number, fingerprintHex: string, paused: boolean) => void) | null = null;
+    private onTickComplete: ((gameTick: number, fingerprintHex: string, paused: boolean, adminReason?: string) => void) | null = null;
     private onParallelBatchResolved: ((batchAtTick: number) => void | Promise<void>) | null = null;
+    private pendingAdminReason: string | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
 
@@ -582,12 +583,46 @@ export class GameEngine implements EngineContext {
         this.onCheckpoint = cb;
     }
 
-    setOnTickComplete(cb: (gameTick: number, fingerprintHex: string, paused: boolean) => void): void {
+    setOnTickComplete(cb: (gameTick: number, fingerprintHex: string, paused: boolean, adminReason?: string) => void): void {
         this.onTickComplete = cb;
     }
 
     setOnParallelBatchResolved(cb: ((batchAtTick: number) => void | Promise<void>) | null): void {
         this.onParallelBatchResolved = cb;
+    }
+
+    // ========================================================================
+    // Admin commands — direct state mutations for debug/host use only.
+    // Each mixes ADMIN_STATE_CHANGE into the running fingerprint so non-host
+    // clients detect the divergence and resync with the saved snapshot.
+    // ========================================================================
+
+    adminHealUnit(unitId: string): void {
+        const unit = this.getUnit(unitId);
+        if (!unit) return;
+        unit.hp = unit.maxHp;
+        this.mixRuntimeFingerprint(FingerprintEvent.ADMIN_STATE_CHANGE, 1);
+        this.pendingAdminReason = 'admin_heal';
+    }
+
+    adminKillUnit(unitId: string): void {
+        const unit = this.getUnit(unitId);
+        if (!unit || !unit.active) return;
+        unit.hp = 0;
+        unit.active = false;
+        this.eventBus.emit('unit_died', { unitId: unit.id, killerUnitId: null });
+        this.mixRuntimeFingerprint(FingerprintEvent.ADMIN_STATE_CHANGE, 2);
+        this.pendingAdminReason = 'admin_kill';
+    }
+
+    adminMoveUnit(unitId: string, x: number, y: number): void {
+        const unit = this.getUnit(unitId);
+        if (!unit) return;
+        unit.x = x;
+        unit.y = y;
+        unit.clearMovement();
+        this.mixRuntimeFingerprint(FingerprintEvent.ADMIN_STATE_CHANGE, 3);
+        this.pendingAdminReason = 'admin_move';
     }
 
     /** True while {@link GameEngine.start} has started the rAF/tick loop and {@link GameEngine.stop} has not torn it down. */
@@ -993,7 +1028,8 @@ export class GameEngine implements EngineContext {
             this.deferredOrderPause != null ||
             this.storyPauseActive;
         this.state.runtimeFingerprintRing.push(this.gameTick, this.runtimeFingerprint, paused);
-        this.onTickComplete?.(this.gameTick, this.getRuntimeFingerprintHex(), paused);
+        this.onTickComplete?.(this.gameTick, this.getRuntimeFingerprintHex(), paused, this.pendingAdminReason ?? undefined);
+        this.pendingAdminReason = null;
         if (debugSettingsSnapshot.logEveryTick) {
             console.log('[tick]', { syncHash: this.getRuntimeFingerprintHex(), gameTick: this.gameTick, gameState: this.toJSON() });
         }

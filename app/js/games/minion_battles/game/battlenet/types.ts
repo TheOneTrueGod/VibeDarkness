@@ -90,6 +90,7 @@ export type BattleNetEventMap = {
         hostTick: number;
         hostFingerprint: string | null;
         hostPaused: boolean;
+        hostFingerprintAdminReason?: string | null;
         ordersTipTick: number;
         ordersRecordCount: number | null;
         orderBatchAtTick: number | null;
@@ -182,6 +183,7 @@ export interface BattleApi {
         initialFingerprint: string | null;
         heartbeatSeq?: number | null;
         hostPaused?: boolean | null;
+        hostFingerprintAdminReason?: string | null;
         fingerprintTailTick?: number | null;
         fingerprintTailFingerprint?: string | null;
     }>;

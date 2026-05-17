@@ -112,6 +112,9 @@ class GetHeartbeatHandler
 
         $hostTick = $resolved['lastCompleted'];
         $hostFingerprint = $resolved['fingerprint'];
+        $hostFingerprintAdminReason = isset($resolved['adminReason']) && is_string($resolved['adminReason'])
+            ? $resolved['adminReason']
+            : null;
 
         $hostPaused = false;
         if ($hostTick !== null && $hostTick >= 0 && is_string($hostFingerprint)) {
@@ -184,6 +187,7 @@ class GetHeartbeatHandler
             'hostTick' => $hostTick,
             'hostFingerprint' => $hostFingerprint,
             'hostPaused' => $hostPaused,
+            'hostFingerprintAdminReason' => $hostFingerprintAdminReason,
             'ordersTipTick' => $ordersTipTick >= 0 ? $ordersTipTick : null,
             'ordersRecordCount' => $ordersRecordCount,
             'orderBatchAtTick' => $orderBatchAtTick,

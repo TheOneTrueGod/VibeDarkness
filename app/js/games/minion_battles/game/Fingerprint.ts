@@ -35,6 +35,7 @@ export const FingerprintEvent = {
     PROJECTILE_HIT: 6,
     EFFECT_TICK: 7,
     TICK_END: 8,
+    ADMIN_STATE_CHANGE: 9,
 } as const;
 
 export type FingerprintEvent = (typeof FingerprintEvent)[keyof typeof FingerprintEvent];

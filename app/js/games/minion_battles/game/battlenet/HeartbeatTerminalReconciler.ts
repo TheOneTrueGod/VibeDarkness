@@ -104,7 +104,7 @@ export class HeartbeatTerminalReconciler {
                     rowAtTickPaused: rowAtTail?.paused ?? null,
                 },
             });
-            this.ctx.requestResync('hash-mismatch');
+            this.ctx.requestResync(hb.hostFingerprintAdminReason ?? 'hash-mismatch');
         }
     }
 
@@ -200,7 +200,7 @@ export class HeartbeatTerminalReconciler {
 
         if (localRow != null && localRow.fp !== hostTailFp) {
             this.sr.resetNonHostAheadStreak();
-            this.ctx.requestResync('hash-mismatch');
+            this.ctx.requestResync(hb.hostFingerprintAdminReason ?? 'hash-mismatch');
             return;
         }
 

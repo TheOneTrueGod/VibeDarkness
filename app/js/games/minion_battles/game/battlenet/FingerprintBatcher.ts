@@ -13,16 +13,16 @@ export interface FingerprintBatcherConfig {
  * `appendBattleFingerprints` POSTs. Failed flushes are re-prepended for retry.
  */
 export class FingerprintBatcher {
-    private pendingBatch: Array<{ tick: number; fp: string; paused: boolean }> = [];
+    private pendingBatch: Array<{ tick: number; fp: string; paused: boolean; adminReason?: string }> = [];
     private flushTimer: ReturnType<typeof setInterval> | null = null;
 
     constructor(private readonly config: FingerprintBatcherConfig) {}
 
-    queueFingerprint(tick: number, fp: string, paused: boolean): void {
+    queueFingerprint(tick: number, fp: string, paused: boolean, adminReason?: string): void {
         if (!this.config.isHost) {
             return;
         }
-        this.pendingBatch.push({ tick, fp, paused });
+        this.pendingBatch.push(adminReason ? { tick, fp, paused, adminReason } : { tick, fp, paused });
     }
 
     /** Visible for testing; not part of the long-term controller contract. */

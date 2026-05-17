@@ -717,7 +717,7 @@ export class LobbyClient {
     async appendBattleFingerprints(
         lobbyId: string,
         gameId: string,
-        body: { playerId: string; records: Array<{ tick: number; fp: string; paused: boolean }> },
+        body: { playerId: string; records: Array<{ tick: number; fp: string; paused: boolean; adminReason?: string }> },
     ): Promise<{ appended: number }> {
         const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/fingerprints`, {
             method: 'POST',

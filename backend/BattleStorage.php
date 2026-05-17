@@ -1076,10 +1076,14 @@ final class BattleStorage
                     }
                     continue;
                 }
-                $encoded = json_encode(
-                    ['tick' => $tick, 'fp' => $fp, 'paused' => $paused],
-                    JSON_UNESCAPED_SLASHES
-                );
+                $adminReason = isset($rec['adminReason']) && is_string($rec['adminReason']) && $rec['adminReason'] !== ''
+                    ? $rec['adminReason']
+                    : null;
+                $rowData = ['tick' => $tick, 'fp' => $fp, 'paused' => $paused];
+                if ($adminReason !== null) {
+                    $rowData['adminReason'] = $adminReason;
+                }
+                $encoded = json_encode($rowData, JSON_UNESCAPED_SLASHES);
                 if ($encoded === false) {
                     continue;
                 }
@@ -1151,11 +1155,15 @@ final class BattleStorage
                     continue;
                 }
                 if (!isset($bestByTick[$tick])) {
-                    $bestByTick[$tick] = [
+                    $row = [
                         'tick' => $tick,
                         'fp' => $fp,
                         'paused' => $this->fingerprintRecordPaused($rec),
                     ];
+                    if (isset($rec['adminReason']) && is_string($rec['adminReason']) && $rec['adminReason'] !== '') {
+                        $row['adminReason'] = $rec['adminReason'];
+                    }
+                    $bestByTick[$tick] = $row;
                 }
             }
             @flock($fh, LOCK_UN);
@@ -1167,11 +1175,13 @@ final class BattleStorage
         }
         ksort($bestByTick, SORT_NUMERIC);
         return array_values(array_map(
-            static fn(array $rec): array => [
-                'tick' => $rec['tick'],
-                'fp' => $rec['fp'],
-                'paused' => $rec['paused'],
-            ],
+            static function (array $rec): array {
+                $out = ['tick' => $rec['tick'], 'fp' => $rec['fp'], 'paused' => $rec['paused']];
+                if (isset($rec['adminReason'])) {
+                    $out['adminReason'] = $rec['adminReason'];
+                }
+                return $out;
+            },
             $bestByTick
         ));
     }
@@ -1217,11 +1227,15 @@ final class BattleStorage
                 $tick = (int) $rec['tick'];
                 if ($maxTick === null || $tick > $maxTick) {
                     $maxTick = $tick;
-                    $latest = [
+                    $row = [
                         'tick' => $tick,
                         'fp' => $fp,
                         'paused' => $this->fingerprintRecordPaused($rec),
                     ];
+                    if (isset($rec['adminReason']) && is_string($rec['adminReason']) && $rec['adminReason'] !== '') {
+                        $row['adminReason'] = $rec['adminReason'];
+                    }
+                    $latest = $row;
                 }
             }
             @flock($fh, LOCK_UN);
@@ -1253,6 +1267,9 @@ final class BattleStorage
         $latestFingerprint = $this->getLatestFingerprint($lobbyId, $gameId);
         $fpTick = isset($latestFingerprint['tick']) ? (int) $latestFingerprint['tick'] : null;
         $fp = isset($latestFingerprint['fp']) && is_string($latestFingerprint['fp']) ? $latestFingerprint['fp'] : null;
+        $adminReason = isset($latestFingerprint['adminReason']) && is_string($latestFingerprint['adminReason'])
+            ? $latestFingerprint['adminReason']
+            : null;
 
         $latestSnapshot = $this->getSnapshotAtOrBefore($lobbyId, $gameId, null);
         $orderBatchAtTick = null;
@@ -1282,11 +1299,15 @@ final class BattleStorage
             }
         }
 
-        return [
+        $result = [
             'lastCompleted' => $hostTick >= 0 ? $hostTick : null,
             'fingerprint' => $fp,
             'orderBatchAtTick' => $orderBatchAtTick,
         ];
+        if ($adminReason !== null) {
+            $result['adminReason'] = $adminReason;
+        }
+        return $result;
     }
 
     // ------------------------------------------------------------------

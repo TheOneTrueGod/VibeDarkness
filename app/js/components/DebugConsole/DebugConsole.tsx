@@ -170,7 +170,7 @@ export default function DebugConsole({
                     inBattle={inBattle}
                     battleOrdersDebug={battleOrdersDebug}
                 />
-                <DebugUnitsTab isActive={activeTab === 'units'} inBattle={inBattle} gameState={gameState} />
+                <DebugUnitsTab isActive={activeTab === 'units'} inBattle={inBattle} gameState={gameState} isAdmin={isAdmin} />
                 <DebugOrdersTab
                     isActive={activeTab === 'orders'}
                     inBattle={inBattle}

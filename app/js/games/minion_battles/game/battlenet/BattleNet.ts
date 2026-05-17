@@ -547,8 +547,8 @@ export class BattleNet implements BattleNetContext {
 		void this.runDesyncRecovery(_reason);
 	}
 
-	queueFingerprint(tick: number, fp: string, paused: boolean): void {
-		this.fingerprintBatcher.queueFingerprint(tick, fp, paused);
+	queueFingerprint(tick: number, fp: string, paused: boolean, adminReason?: string): void {
+		this.fingerprintBatcher.queueFingerprint(tick, fp, paused, adminReason);
 	}
 
 	async saveSnapshotOnPause(tick: number, state: SerializedGameState): Promise<void> {
@@ -648,6 +648,7 @@ export class BattleNet implements BattleNetContext {
 				hostTick: hbRaw.hostTick ?? 0,
 				hostFingerprint: hbRaw.hostFingerprint ?? null,
 				hostPaused: hbRaw.hostPaused === true,
+				hostFingerprintAdminReason: typeof hbRaw.hostFingerprintAdminReason === 'string' ? hbRaw.hostFingerprintAdminReason : null,
 				ordersTipTick: hbRaw.ordersTipTick ?? -1,
 				ordersRecordCount,
 				orderBatchAtTick,

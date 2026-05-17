@@ -5,12 +5,16 @@ import { DebugButton } from '../DebugButton';
 interface MouseDebugBridge {
     __minionBattlesDebugSetUnitHover?: (unitId: string | null) => void;
     __minionBattlesDebugGameState?: Record<string, unknown> | null;
+    __minionBattlesAdminHealUnit?: (unitId: string) => void;
+    __minionBattlesAdminKillUnit?: (unitId: string) => void;
+    __minionBattlesAdminMovePendingUnitId?: string;
 }
 
 interface DebugUnitsTabProps {
     isActive: boolean;
     inBattle: boolean;
     gameState: GameStatePayload | null;
+    isAdmin?: boolean;
 }
 
 type DebugUnit = Record<string, unknown> & {
@@ -39,12 +43,13 @@ type DebugUnit = Record<string, unknown> & {
     movement?: unknown;
 };
 
-export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUnitsTabProps) {
+export default function DebugUnitsTab({ isActive, inBattle, gameState, isAdmin = false }: DebugUnitsTabProps) {
     const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
     const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null);
     const [unitStateOpen, setUnitStateOpen] = useState(false);
     const [aiStateOpen, setAiStateOpen] = useState(false);
     const [abilitiesOpen, setAbilitiesOpen] = useState(false);
+    const [awaitingMoveTargetUnitId, setAwaitingMoveTargetUnitId] = useState<string | null>(null);
 
     // Lazy-load portrait assets only when the user opens the Units debug tab.
     const [getPortraitFn, setGetPortraitFn] = useState<((id: string) => { picture: string } | undefined) | null>(null);
@@ -56,13 +61,18 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
         | null
     >(null);
 
-    // Poll live engine state when in battle so Units tab stays up to date
+    // Poll live engine state when in battle so Units tab stays up to date.
+    // Also detects when BattlePhase has consumed the admin move flag (move completed).
     const [liveGameState, setLiveGameState] = useState<Record<string, unknown> | null>(null);
     useEffect(() => {
         if (!isActive || !inBattle) return;
         const id = window.setInterval(() => {
             const live = (window as unknown as MouseDebugBridge).__minionBattlesDebugGameState;
             setLiveGameState(live ?? null);
+            // If we were waiting for a move target and the flag has been consumed, clear local state.
+            if ((window as unknown as MouseDebugBridge).__minionBattlesAdminMovePendingUnitId === undefined) {
+                setAwaitingMoveTargetUnitId((prev) => (prev !== null ? null : prev));
+            }
         }, 100);
         return () => window.clearInterval(id);
     }, [isActive, inBattle]);
@@ -168,6 +178,9 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
         setUnitStateOpen(false);
         setAiStateOpen(false);
         setAbilitiesOpen(false);
+        // Cancel any pending admin move when selection changes.
+        (window as unknown as MouseDebugBridge).__minionBattlesAdminMovePendingUnitId = undefined;
+        setAwaitingMoveTargetUnitId(null);
     }, [selectedUnitId]);
 
     if (!isActive) return null;
@@ -261,6 +274,48 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
                                 <div className="text-[11px] text-muted font-mono truncate">{String(selectedUnit.id)}</div>
                             </div>
                         </div>
+
+                        {isAdmin && (
+                            <div className="border border-amber-600/40 rounded bg-amber-900/20 p-2 flex flex-col gap-2">
+                                <div className="text-[11px] text-amber-400 font-mono font-semibold uppercase tracking-wide">
+                                    Admin Commands
+                                </div>
+                                <div className="flex gap-2">
+                                    <DebugButton
+                                        onClick={() => {
+                                            if (awaitingMoveTargetUnitId) {
+                                                (window as unknown as MouseDebugBridge).__minionBattlesAdminMovePendingUnitId = undefined;
+                                                setAwaitingMoveTargetUnitId(null);
+                                            } else {
+                                                (window as unknown as MouseDebugBridge).__minionBattlesAdminMovePendingUnitId = selectedUnit.id;
+                                                setAwaitingMoveTargetUnitId(selectedUnit.id);
+                                            }
+                                        }}
+                                    >
+                                        {awaitingMoveTargetUnitId ? 'Cancel Move' : 'Move'}
+                                    </DebugButton>
+                                    <DebugButton
+                                        onClick={() => {
+                                            (window as unknown as MouseDebugBridge).__minionBattlesAdminHealUnit?.(selectedUnit.id);
+                                        }}
+                                    >
+                                        Heal
+                                    </DebugButton>
+                                    <DebugButton
+                                        onClick={() => {
+                                            (window as unknown as MouseDebugBridge).__minionBattlesAdminKillUnit?.(selectedUnit.id);
+                                        }}
+                                    >
+                                        Kill
+                                    </DebugButton>
+                                </div>
+                                {awaitingMoveTargetUnitId && (
+                                    <div className="text-[11px] text-amber-300 font-mono">
+                                        Click on the canvas to set unit position
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
                             <span className="text-muted">characterId</span>
