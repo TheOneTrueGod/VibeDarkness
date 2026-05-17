@@ -137,7 +137,10 @@ export class SnapshotPersistence {
      * `saveBattleSnapshot` — not React/debug-buffered lobby state.
      */
     async debugLogLocalStateAndSubmitSnapshot(): Promise<void> {
-        await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({ forceLobbyPost: false });
+        await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({
+            forceLobbyPost: false,
+            immediateLobbyLog: true,
+        });
     }
 
     /**
@@ -168,15 +171,21 @@ export class SnapshotPersistence {
                 fingerprintTailPaused: latestFp?.paused ?? null,
             },
         });
-        await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({ forceLobbyPost: true });
+        await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({
+            forceLobbyPost: true,
+            immediateLobbyLog: false,
+        });
     }
 
     /**
      * @param forceLobbyPost When true, POST the serialized-state line even if the user's lobby-log
      *        "debug" threshold is `off` (used for automated desync traces).
+     * @param immediateLobbyLog When true (Debug Console «Log local state» only), bypass the lobby log
+     *        batch queue for this line.
      */
     private async writeSerializedLocalStateToLobbyAndMaybeSnapshot(options: {
         forceLobbyPost: boolean;
+        immediateLobbyLog: boolean;
     }): Promise<void> {
         const state = this.config.session.getSerializedSnapshot();
         const tick = state.gameTick;
@@ -205,9 +214,15 @@ export class SnapshotPersistence {
             },
         };
         if (options.forceLobbyPost) {
-            logToLobbyLogForced(logArgs);
+            logToLobbyLogForced({
+                ...logArgs,
+                manualLobbyLogPost: options.immediateLobbyLog,
+            });
         } else {
-            logToLobbyLog(logArgs);
+            logToLobbyLog({
+                ...logArgs,
+                manualLobbyLogPost: options.immediateLobbyLog,
+            });
         }
 
         if (!this.config.isHost) {

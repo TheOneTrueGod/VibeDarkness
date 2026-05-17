@@ -3,10 +3,14 @@
  *
  * Each line has a **logType** (`desync` | `battleSync` | `debug`) with its own severity floor in
  * **Debug Console → Debug Toggles** (persisted in localStorage). See `lobbyLogPostThresholds.ts`.
+ *
+ * Lines are queued and POSTed in batches (see `lobbyLogBatchQueue.ts`) except when
+ * {@link LogToLobbyLogArgs.manualLobbyLogPost} is set for Debug Console «Log local state».
  */
 import type { LobbyClient } from './LobbyClient';
 import type { DebugSeverity } from './debugLog';
 import { debugLog } from './debugLog';
+import { enqueueBatchedLobbyLogLine } from './lobbyLogBatchQueue';
 import {
     type LobbyLogType,
     lobbyLogPostThresholdState,
@@ -29,6 +33,10 @@ export interface LogToLobbyLogArgs {
     context?: Record<string, unknown>;
     gameId?: string | null;
     gamePhase?: string | null;
+    /**
+     * When true (Debug Console «Log local state» only), POST immediately instead of the batch queue.
+     */
+    manualLobbyLogPost?: boolean;
 }
 
 /** Battle-sync helpers default `logType` to `battleSync`; pass `desync` for recovery-only lines. */
@@ -50,20 +58,31 @@ function postLobbyLine(args: LogToLobbyLogArgs, severity: DebugSeverity): void {
         ...context,
     });
 
-    void args.lobbyClient
-        .appendLobbyLog(args.lobbyId, {
-            playerId: args.playerId,
-            severity,
-            tick,
-            message: args.message,
-            logType: args.logType,
-            context,
-            gameId: args.gameId ?? undefined,
-            gamePhase: args.gamePhase ?? undefined,
-        })
-        .catch(() => {
-            debugLog('lobby log', 'warn', 'appendLobbyLog failed', args.message);
-        });
+    const body = {
+        playerId: args.playerId,
+        severity,
+        tick,
+        message: args.message,
+        logType: args.logType,
+        context,
+        gameId: args.gameId ?? undefined,
+        gamePhase: args.gamePhase ?? undefined,
+    };
+
+    const onFail = (): void => {
+        debugLog('lobby log', 'warn', 'appendLobbyLog failed', args.message);
+    };
+
+    if (args.manualLobbyLogPost) {
+        void args.lobbyClient.appendLobbyLog(args.lobbyId, body).catch(onFail);
+        return;
+    }
+
+    enqueueBatchedLobbyLogLine({
+        lobbyClient: args.lobbyClient,
+        lobbyId: args.lobbyId,
+        body,
+    });
 }
 
 /**

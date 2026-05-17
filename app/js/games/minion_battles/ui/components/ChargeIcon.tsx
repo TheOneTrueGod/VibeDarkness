@@ -28,7 +28,9 @@ export function ChargeIcon({ chargeType, showFill, fillOpacity, innerWidthPct }:
                     style={{ width: `${innerWidthPct}%` }}
                 />
             </div>
-            <span className="relative z-[2] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-black p-[3px] pointer-events-none">
+            <span
+                className={`relative z-[2] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border bg-black p-[3px] pointer-events-none ${def.iconCircleBorderClass}`}
+            >
                 <Icon
                     className={`h-3 w-3 ${def.iconClassName}`}
                     strokeWidth={def.strokeWidth}

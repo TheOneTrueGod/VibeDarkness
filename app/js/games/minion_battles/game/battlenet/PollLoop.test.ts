@@ -39,6 +39,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
 function makeApi(): BattleApi {
     const api = {
         appendLobbyLog: vi.fn(async () => ({ success: true })),
+        appendLobbyLogBatch: vi.fn(async () => ({ success: true })),
         appendBattleOrder: vi.fn(),
         getBattleOrdersRange: vi.fn(async () => ({ orders: [] })),
         getBattleSnapshot: vi.fn(async () => null),

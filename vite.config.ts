@@ -16,6 +16,7 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'node',
+        setupFiles: ['./app/js/test/vitestSetup.ts'],
     },
     build: {
         outDir: 'dist',

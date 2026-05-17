@@ -53,6 +53,7 @@ function makeApi(): BattleApi {
         appendBattleFingerprints: vi.fn() as unknown as BattleApi['appendBattleFingerprints'],
         getBattleFingerprintsRange: vi.fn() as unknown as BattleApi['getBattleFingerprintsRange'],
         appendLobbyLog: vi.fn(async () => undefined),
+        appendLobbyLogBatch: vi.fn(async () => undefined),
     } as BattleApi;
 }
 

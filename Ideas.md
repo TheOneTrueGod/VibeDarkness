@@ -13,6 +13,10 @@ Feedback May 14, 2026
 [x] Dodge indicator doesn't accurate reflect the range
 [x] Have 'continue' automatically happen on desync.  Show the message for a certain amount of time
 
+- Have punch aquire its targets ("Target Lock") at the start of the use.  Have it highlight enemies with the preview to indicate this.
+	- They can only get away from it by moving far enough away, or using an ability with the "evade" tag (which breaks target locks)
+	- Do the same with other melee attacks
+	- Should rock work that way?  The weird projectile through the air might be weird.
 - Startup hints and losing hints
 - Two tones to movement based on how far you'll move after using the action
 - Define "knockback" and "stun"

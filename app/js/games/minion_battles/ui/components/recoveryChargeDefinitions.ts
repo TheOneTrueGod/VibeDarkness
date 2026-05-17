@@ -6,6 +6,8 @@ import type { RecoveryChargeType } from '../../abilities/abilityUses';
 export interface RecoveryChargeDefinition {
     /** Tailwind bg class applied to segment fill. */
     fillClass: string;
+    /** Tailwind border class for the icon circle (matches fill colour). */
+    iconCircleBorderClass: string;
     Icon: LucideIcon;
     /** Classes for the lucide SVG (colour / opacity on the gauge). */
     iconClassName: string;
@@ -17,6 +19,7 @@ export interface RecoveryChargeDefinition {
 export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryChargeDefinition> = {
     staminaCharge: {
         fillClass: 'bg-gray-300',
+        iconCircleBorderClass: 'border-gray-300',
         Icon: Zap,
         iconClassName: 'text-gray-100',
         strokeWidth: 2.25,
@@ -24,6 +27,7 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
     },
     lightCharge: {
         fillClass: 'bg-yellow-300',
+        iconCircleBorderClass: 'border-yellow-300',
         Icon: Sun,
         iconClassName: 'text-amber-200',
         strokeWidth: 2.25,
@@ -31,6 +35,7 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
     },
     energyCharge: {
         fillClass: 'bg-cyan-300',
+        iconCircleBorderClass: 'border-cyan-300',
         Icon: Zap,
         iconClassName: 'text-cyan-200',
         strokeWidth: 2.25,
@@ -38,6 +43,7 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
     },
     roundCharge: {
         fillClass: 'bg-white',
+        iconCircleBorderClass: 'border-white',
         Icon: Clock,
         iconClassName: 'text-gray-100',
         strokeWidth: 2.25,

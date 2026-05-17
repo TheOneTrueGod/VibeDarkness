@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { LobbyClient } from '../../../../LobbyClient';
+import { flushLobbyLogBatchQueueForTests } from '../../../../lobbyLogBatchQueue';
 import type { BattleOrder, SerializedGameState } from '../types';
 import {
     BattleNet,
@@ -49,6 +50,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
 function makeApi(overrides: Record<string, unknown> = {}): LobbyClient {
     const api = {
         appendLobbyLog: vi.fn(async () => ({ success: true })),
+        appendLobbyLogBatch: vi.fn(async () => ({ success: true })),
         appendBattleOrder: vi.fn(async (_lobbyId: string, _gameId: string, body: { idHash?: string }) => ({
             accepted: true,
             idHash: body.idHash ?? 'idhash',
@@ -1863,8 +1865,8 @@ describe('BattleNet', () => {
             };
         });
         const getBattleOrdersRange = vi.fn(async () => ({ orders: [] }));
-        const appendLobbyLog = vi.fn(async () => ({ success: true }));
-        const api = makeApi({ getBattleHeartbeat, getBattleOrdersRange, appendLobbyLog });
+        const appendLobbyLogBatch = vi.fn(async () => ({ success: true }));
+        const api = makeApi({ getBattleHeartbeat, getBattleOrdersRange, appendLobbyLogBatch });
         const session = makeSession({
             getEngineTick: () => 50,
             isPausedForOrderSync: () => true,
@@ -1886,9 +1888,11 @@ describe('BattleNet', () => {
             await net.pollOnce();
         }
 
-        const detectorLogged = appendLobbyLog.mock.calls.some((call) => {
-            const body = call[1] as { message?: string } | undefined;
-            return body?.message === 'stuck-paused host ahead: forcing order rescan from tick 0';
+        await flushLobbyLogBatchQueueForTests();
+
+        const detectorLogged = appendLobbyLogBatch.mock.calls.some((call) => {
+            const lines = (call[1] as { lines?: Array<{ message?: string }> } | undefined)?.lines;
+            return lines?.some((row) => row.message === 'stuck-paused host ahead: forcing order rescan from tick 0');
         });
         expect(detectorLogged).toBe(true);
         expect(resync).not.toHaveBeenCalledWith('stuck-paused-host-ahead');

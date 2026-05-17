@@ -139,11 +139,28 @@ interface PollMessage {
     data: Record<string, unknown>;
 }
 
+/** One persisted line for `POST /api/lobbies/:id/lobby-log` (and batch). */
+export interface AppendLobbyLogBody {
+    playerId: string;
+    severity?: string;
+    tick: number | null;
+    message: string;
+    logType: 'desync' | 'battleSync' | 'debug';
+    context?: Record<string, unknown>;
+    gameId?: string;
+    gamePhase?: string;
+}
+
 export class LobbyClient {
     private baseUrl: string;
 
     constructor(baseUrl = '') {
         this.baseUrl = baseUrl;
+    }
+
+    /** Root URL prefix for `/api` requests (empty string when same-origin). */
+    getBaseUrl(): string {
+        return this.baseUrl;
     }
 
     private async request(endpoint: string, options: RequestInit = {}): Promise<ApiResponse> {
@@ -471,20 +488,18 @@ export class LobbyClient {
         return (data.gameState as Record<string, unknown>) ?? {};
     }
 
-    async appendLobbyLog(
-        lobbyId: string,
-        body: {
-            playerId: string;
-            severity?: string;
-            tick: number | null;
-            message: string;
-            logType: 'desync' | 'battleSync' | 'debug';
-            context?: Record<string, unknown>;
-            gameId?: string;
-            gamePhase?: string;
-        },
-    ): Promise<void> {
+    async appendLobbyLog(lobbyId: string, body: AppendLobbyLogBody): Promise<void> {
         await this.request(`/api/lobbies/${lobbyId}/lobby-log`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+    }
+
+    async appendLobbyLogBatch(
+        lobbyId: string,
+        body: { playerId: string; lines: AppendLobbyLogBody[] },
+    ): Promise<void> {
+        await this.request(`/api/lobbies/${lobbyId}/lobby-log/batch`, {
             method: 'POST',
             body: JSON.stringify(body),
         });
