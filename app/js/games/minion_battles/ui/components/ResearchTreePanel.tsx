@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { AccountState, CampaignResources } from '../../../../types';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
-import type { ResearchTreeDef, Requirement } from '../../../../researchTrees/types';
+import type { ResearchTreeDef, ResearchNodeDef, Requirement } from '../../../../researchTrees/types';
 import {
 	canResearchNode,
 	computeEffectiveResourcesForTree,
@@ -68,6 +68,10 @@ export interface ResearchTreeListProps {
 	canResetResearch?: boolean;
 	resetSaving?: boolean;
 	onResetResearchTree?: (treeId: string) => void;
+	/** When true, prepends an “All” button; selectedTreeId=null means “All” is active. */
+	showAllOption?: boolean;
+	/** Called when the “All” button is clicked (only relevant when showAllOption=true). */
+	onSelectAll?: () => void;
 }
 
 export function ResearchTreeList({
@@ -79,12 +83,27 @@ export function ResearchTreeList({
 	canResetResearch = false,
 	resetSaving = false,
 	onResetResearchTree,
+	showAllOption = false,
+	onSelectAll,
 }: ResearchTreeListProps) {
 	const firstTreeId = availableTrees[0]?.id ?? null;
-	const activeTreeId = selectedTreeId ?? firstTreeId;
+	const activeTreeId = showAllOption ? selectedTreeId : (selectedTreeId ?? firstTreeId);
 
 	return (
 		<div className="flex flex-col gap-1 overflow-y-auto">
+			{showAllOption && (
+				<button
+					type="button"
+					onClick={() => onSelectAll?.()}
+					className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors ${
+						activeTreeId === null
+							? 'border-primary bg-surface-light text-white'
+							: 'border-border-custom bg-surface text-gray-200 hover:bg-surface-light'
+					}`}
+				>
+					All
+				</button>
+			)}
 			{availableTrees.map((t) => {
 				const purchasedCount = (researchTrees[t.id] ?? []).length;
 				const isSelected = t.id === activeTreeId;
@@ -378,6 +397,60 @@ export function ResearchTreeContent({
 			</div>
 
 			{saving && <p className="text-xs text-muted">Saving…</p>}
+		</div>
+	);
+}
+
+export interface ResearchedNodesGridProps {
+	availableTrees: ResearchTreeDef[];
+	researchTrees: Record<string, string[]>;
+	/** When set, only nodes from this tree are shown. When null, all trees are shown. */
+	filterTreeId: string | null;
+}
+
+/** Non-admin read-only grid of all researched nodes, optionally filtered by tree. */
+export function ResearchedNodesGrid({ availableTrees, researchTrees, filterTreeId }: ResearchedNodesGridProps) {
+	const groups = useMemo(() => {
+		const result: { tree: ResearchTreeDef; nodes: ResearchNodeDef[] }[] = [];
+		for (const tree of availableTrees) {
+			if (filterTreeId !== null && tree.id !== filterTreeId) continue;
+			const researched = new Set(researchTrees[tree.id] ?? []);
+			const nodes = tree.nodes.filter((n) => researched.has(n.id));
+			if (nodes.length > 0) result.push({ tree, nodes });
+		}
+		return result;
+	}, [availableTrees, filterTreeId, researchTrees]);
+
+	const totalCount = groups.reduce((sum, g) => sum + g.nodes.length, 0);
+
+	if (totalCount === 0) {
+		return <p className="text-sm text-muted">No research unlocked yet.</p>;
+	}
+
+	const showTreeHeaders = filterTreeId === null && groups.length > 1;
+
+	return (
+		<div className="overflow-y-auto space-y-4" style={{ maxHeight: 500 }}>
+			{groups.map(({ tree, nodes }) => (
+				<div key={tree.id}>
+					{showTreeHeaders && (
+						<p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">{tree.title}</p>
+					)}
+					<div className="flex flex-wrap gap-3">
+						{nodes.map((node) => (
+							<ResearchNodeCard
+								key={node.id}
+								node={node}
+								variant="display"
+								state="researched"
+								layout="comfortable"
+								showCost={false}
+								showRequirements={false}
+							/>
+						))}
+					</div>
+				</div>
+			))}
 		</div>
 	);
 }

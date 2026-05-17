@@ -19,7 +19,7 @@ import type { CampaignCharacter } from '../../../character_defs/CampaignCharacte
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
-import { ResearchTreeList, ResearchTreeContent } from '../ResearchTreePanel';
+import { ResearchTreeList, ResearchTreeContent, ResearchedNodesGrid } from '../ResearchTreePanel';
 import type { AccountState, CampaignState } from '../../../../../types';
 import { getCoreFromEquipment } from '../../../character_defs/items';
 import { RESEARCH_TREES } from '../../../../../researchTrees/list';
@@ -119,6 +119,7 @@ export default function CharacterEditor({
     const [dragSlot, setDragSlot] = useState<EquipmentSlotType | null>(null);
     const [researchTrees, setResearchTrees] = useState<Record<string, string[]>>(() => character.researchTrees ?? {});
     const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
+    const [adminUseGridView, setAdminUseGridView] = useState(false);
     const [localCampaign, setLocalCampaign] = useState<CampaignState | null>(null);
     const [grantResourceKey, setGrantResourceKey] = useState<'food' | 'metal' | 'population' | 'crystals'>('food');
     const [grantResourceAmount, setGrantResourceAmount] = useState<string>('1');
@@ -183,13 +184,15 @@ export default function CharacterEditor({
     }, [showAllResearchTreesDebug, eligibleResearchTrees]);
 
     useEffect(() => {
+        // Non-admins see a grid view where null means "All trees" — don't force a selection.
+        if (permissionAccount?.role !== 'admin') return;
         const firstId = displayResearchTrees[0]?.id ?? null;
         const isSelectedStillAvailable =
             selectedTreeId != null && displayResearchTrees.some((t) => t.id === selectedTreeId);
         if (!isSelectedStillAvailable) {
             setSelectedTreeId(firstId);
         }
-    }, [displayResearchTrees, selectedTreeId]);
+    }, [displayResearchTrees, selectedTreeId, permissionAccount?.role]);
 
     useEffect(() => {
         if (campaign) {
@@ -482,6 +485,9 @@ export default function CharacterEditor({
         setDragSlot(null);
     }, []);
 
+    const isAdmin = permissionAccount?.role === 'admin';
+    const useGridView = !isAdmin || adminUseGridView;
+
     const firstTreeId = displayResearchTrees[0]?.id ?? null;
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
     const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
@@ -622,9 +628,9 @@ export default function CharacterEditor({
                     </div>
 
                     {/* Panel-specific sidebar */}
-                    <div className="flex-1 min-h-0 overflow-auto p-3">
-                        {activeTab === 'equipment' &&
-                            (equippedItemsDisplay === 'list' ? (
+                    {activeTab === 'equipment' ? (
+                        <div className="flex-1 min-h-0 overflow-auto p-3">
+                            {equippedItemsDisplay === 'list' ? (
                                 <EquippedItemsList
                                     equipment={equipment}
                                     slotDescriptors={getSlotDescriptors(equipment)}
@@ -646,20 +652,37 @@ export default function CharacterEditor({
                                     dragSlot={dragSlot}
                                     editMode={editMode}
                                 />
-                            ))}
-                        {activeTab === 'research' && researchEnabled && (
-                            <ResearchTreeList
-                                availableTrees={displayResearchTrees}
-                                dimmedTreeIds={dimmedResearchTreeIds}
-                                selectedTreeId={selectedTreeId}
-                                onSelectTree={(id) => setSelectedTreeId(id)}
-                                researchTrees={researchTrees}
-                                canResetResearch={permissionAccount?.role === 'admin'}
-                                resetSaving={saving}
-                                onResetResearchTree={(treeId) => void handleResetResearch([treeId])}
-                            />
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    ) : activeTab === 'research' && researchEnabled ? (
+                        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                            {isAdmin && (
+                                <div className="shrink-0 px-3 pt-3 pb-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setAdminUseGridView((v) => !v)}
+                                        className="w-full rounded-md border border-border-custom bg-surface-light px-2 py-1.5 text-xs font-medium text-muted hover:text-white transition-colors"
+                                    >
+                                        {adminUseGridView ? 'Switch to Tree View' : 'Switch to Grid View'}
+                                    </button>
+                                </div>
+                            )}
+                            <div className="flex-1 min-h-0 overflow-auto p-3 pt-2">
+                                <ResearchTreeList
+                                    availableTrees={displayResearchTrees}
+                                    dimmedTreeIds={dimmedResearchTreeIds}
+                                    selectedTreeId={selectedTreeId}
+                                    onSelectTree={(id) => setSelectedTreeId(id)}
+                                    researchTrees={researchTrees}
+                                    canResetResearch={isAdmin && !adminUseGridView}
+                                    resetSaving={saving}
+                                    onResetResearchTree={(treeId) => void handleResetResearch([treeId])}
+                                    showAllOption={useGridView}
+                                    onSelectAll={() => setSelectedTreeId(null)}
+                                />
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
 
                 {/* Right column: panel main container */}
@@ -719,21 +742,29 @@ export default function CharacterEditor({
 
                                     {displayResearchTrees.length === 0 ? (
                                         <p className="text-sm text-muted">No research trees available.</p>
-                                    ) : selectedTree ? (
-                                        <ResearchTreeContent
-                                            tree={selectedTree}
-                                            dimmed={selectedTreeDimmed}
-                                            account={account ?? null}
-                                            character={character}
-                                            equipment={equipment}
+                                    ) : !useGridView ? (
+                                        selectedTree ? (
+                                            <ResearchTreeContent
+                                                tree={selectedTree}
+                                                dimmed={selectedTreeDimmed}
+                                                account={account ?? null}
+                                                character={character}
+                                                equipment={equipment}
+                                                researchTrees={researchTrees}
+                                                campaignResources={resolvedCampaign.resources}
+                                                saving={saving}
+                                                canResetResearch
+                                                onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
+                                                onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
+                                            />
+                                        ) : null
+                                    ) : (
+                                        <ResearchedNodesGrid
+                                            availableTrees={displayResearchTrees}
                                             researchTrees={researchTrees}
-                                            campaignResources={resolvedCampaign.resources}
-                                            saving={saving}
-                                            canResetResearch={permissionAccount?.role === 'admin'}
-                                            onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
-                                            onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
+                                            filterTreeId={selectedTreeId}
                                         />
-                                    ) : null}
+                                    )}
                                 </>
                             ) : (
                                 <p className="text-sm text-muted">Campaign resources not loaded.</p>
