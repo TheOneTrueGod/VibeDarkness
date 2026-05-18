@@ -124,7 +124,7 @@ export class Effect extends GameObject {
             };
             const radialPhase = this.elapsed <= 1;
             const homingPhase = this.elapsed > 1 && this.elapsed <= 3;
-            const homingTargets = ctx.units.filter((u) => u.isAlive());
+            const homingTargets = ctx.units.filter((u) => u.isAlive() && u.isPlayerControlled());
 
             if (radialPhase) {
                 const total = (data.radialRatePerSecond ?? 24) * dt + (data.radialRemainder ?? 0);
