@@ -63,7 +63,7 @@ const CAVE_CAMPFIRE_GLOBAL = {
 const ENEMIES = [
     {
         ...ENEMY_ALPHA_WOLF,
-        name: 'The Beast',
+        name: 'Beast',
         position: WOLF_POSITION,
     },
 ];

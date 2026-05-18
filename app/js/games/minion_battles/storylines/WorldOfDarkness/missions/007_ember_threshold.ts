@@ -1,8 +1,9 @@
 /**
  * Lantern quest M1 — follow patrol light south-west, protect a stirred Lanternite nest.
  *
- * Terrain: Crystal cave chunk (east, top half) stitched over a padded west wilds band;
- * below, 49_51 west glade | 50_51 south gate. No narrative rewards yet.
+ * Terrain: 2×2 segment grid (each 22×22):
+ *   [49_50 wilds pad (proc) | 50_50 crystal cave]
+ *   [49_51 west glade       | 50_51 south gate  ]
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
@@ -24,6 +25,7 @@ import {
     crystalSpecialTilesAt,
     MAP_SEGMENT_50_50_CRYSTAL_CAVE,
 } from '../MapSegments/50_50_crystal_cave';
+import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
 import { MAP_SEGMENT_49_51_WEST_GLADE, LANTERN_NEST_FOCUS } from '../MapSegments/49_51_west_glade';
 import {
     MAP_SEGMENT_50_51_SOUTH_GATE,
@@ -32,44 +34,26 @@ import {
 
 const COLS = 44;
 const ROWS = 44;
-/** East half of the map starts at column 22 (quadrant grid: west | east). */
-const CAVE_ORIGIN_COL = 22;
-const BOTTOM_SEGMENT_ROW_OFFSET = 22;
+/** Local-grid column origin for world-col-50 segments (50_XX → col 22). */
+const SEG_COL_50_ORIGIN = 22;
+/** Local-grid row origin for world-row-51 segments (XX_51 → row 22). */
+const SEG_ROW_51_ORIGIN = 22;
+const CAVE_ORIGIN_COL = SEG_COL_50_ORIGIN;
+const BOTTOM_SEGMENT_ROW_OFFSET = SEG_ROW_51_ORIGIN;
 const WORLD_WIDTH = COLS * CELL_SIZE;
 const WORLD_HEIGHT = ROWS * CELL_SIZE;
 
 const _ = TerrainType.Grass;
-const R = TerrainType.Rock;
-const T = TerrainType.ThickGrass;
-
-/** 22×22 northwest quadrant: wilds pad with vertical seam touching the crystal cave. */
-function buildTopLeftWildsQuadrant(): TerrainType[][] {
-    const rows: TerrainType[][] = [];
-    for (let r = 0; r < 22; r++) {
-        const row: TerrainType[] = [];
-        for (let c = 0; c < 22; c++) {
-            const seamWithCave = c === 21;
-            if (seamWithCave) {
-                row.push(r >= 8 && r <= 17 ? _ : R);
-            } else {
-                const edge = r === 0 || r === 21 || c === 0;
-                row.push(edge ? R : r % 3 === 0 && c % 4 === 0 ? T : _);
-            }
-        }
-        rows.push(row);
-    }
-    return rows;
-}
 
 /**
- * Four 22×22 quadrants stitched as stitchTerrain expects (tiles are segments, not pre-merged strips):
- * [ wilds pad | crystal cave ]
- * [ west glade | south gate ]
+ * 2×2 segment grid — world addresses drive layout (lower col → left, lower row → top):
+ * [ 49_50 wilds pad (proc) | 50_50 crystal cave ]
+ * [ 49_51 west glade       | 50_51 south gate   ]
  */
 function createTerrain(): TerrainGrid {
     const stitched = stitchTerrain(
         [
-            [buildTopLeftWildsQuadrant(), MAP_SEGMENT_50_50_CRYSTAL_CAVE],
+            [MAP_SEGMENT_49_50_PATH_TO_CAVE, MAP_SEGMENT_50_50_CRYSTAL_CAVE],
             [MAP_SEGMENT_49_51_WEST_GLADE, MAP_SEGMENT_50_51_SOUTH_GATE],
         ],
         _,

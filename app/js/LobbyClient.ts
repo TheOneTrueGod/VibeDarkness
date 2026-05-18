@@ -172,7 +172,9 @@ export class LobbyClient {
         const response = await fetch(url, { ...defaultOptions, ...options });
         const data = (await response.json()) as ApiResponse;
         if (!data.success) {
-            throw new Error((data.error as string) || 'Request failed');
+            const err = new Error((data.error as string) || 'Request failed') as Error & { httpStatus: number };
+            err.httpStatus = response.status;
+            throw err;
         }
         return data;
     }

@@ -6,7 +6,6 @@ const DEFAULT_PARTICLE_LIFE = 0.25;
 /** Minimal engine surface for spawning transient effects (avoids Effect ↔ GameEngine import cycle). */
 export type DarkBlobParticleSpawnContext = {
     addEffect(e: Effect): void;
-    generateRandomInteger(min: number, max: number): number;
 };
 
 /** Spawns a single darkBlob particle (same asset as dissolution bursts). */

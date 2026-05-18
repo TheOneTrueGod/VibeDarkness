@@ -98,14 +98,14 @@ export class Effect extends GameObject {
             while (data.particleSpawned < data.particleBudget && data.particleAccum >= 1) {
                 data.particleAccum -= 1;
                 data.particleSpawned += 1;
-                const ox = (ctx.generateRandomInteger(-1000, 1000) / 1000) * r * 0.35;
-                const oy = (ctx.generateRandomInteger(-1000, 1000) / 1000) * r * 0.35;
-                const vx = (ctx.generateRandomInteger(-800, 800) / 1000) * 55;
-                const vy = -150 - (ctx.generateRandomInteger(0, 1000) / 1000) * 120;
+                const ox = (Math.random() * 2 - 1) * r * 0.35;
+                const oy = (Math.random() * 2 - 1) * r * 0.35;
+                const vx = (Math.random() * 2 - 1) * 0.8 * 55;
+                const vy = -150 - Math.random() * 120;
                 spawnDarkBlobParticle(ctx, this.x + ox, this.y + oy, {
                     vx,
                     vy,
-                    scale: 0.55 + (ctx.generateRandomInteger(0, 1000) / 1000) * 0.45,
+                    scale: 0.55 + Math.random() * 0.45,
                 });
             }
         }
@@ -113,7 +113,6 @@ export class Effect extends GameObject {
         if (this.effectType === 'AlphaWolfStoryController') {
             const ctx = engine as {
                 addEffect(e: Effect): void;
-                generateRandomInteger(min: number, max: number): number;
                 units: Unit[];
             };
             const data = this.effectData as {
@@ -131,8 +130,8 @@ export class Effect extends GameObject {
                 const spawnCount = Math.floor(total);
                 data.radialRemainder = total - spawnCount;
                 for (let i = 0; i < spawnCount; i++) {
-                    const angle = (ctx.generateRandomInteger(0, 6283) / 1000) * 2 * Math.PI;
-                    const speed = 120 + (ctx.generateRandomInteger(0, 1000) / 1000) * 160;
+                    const angle = Math.random() * 2 * Math.PI;
+                    const speed = 120 + Math.random() * 160;
                     const vx = Math.cos(angle) * speed;
                     const vy = Math.sin(angle) * speed;
                     ctx.addEffect(
@@ -141,7 +140,7 @@ export class Effect extends GameObject {
                             y: this.y,
                             duration: 1,
                             effectType: 'ParticleImage',
-                            effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.7 + (ctx.generateRandomInteger(0, 1000) / 1000) * 0.5 },
+                            effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.7 + Math.random() * 0.5 },
                         }),
                     );
                 }
@@ -152,15 +151,15 @@ export class Effect extends GameObject {
                 const spawnCount = Math.floor(total);
                 data.homingRemainder = total - spawnCount;
                 for (let i = 0; i < spawnCount; i++) {
-                    const idx = ctx.generateRandomInteger(0, homingTargets.length - 1);
+                    const idx = Math.floor(Math.random() * homingTargets.length);
                     const target = homingTargets[idx];
                     if (!target) continue;
-                    const spawnAngle = (ctx.generateRandomInteger(0, 6283) / 1000) * 2 * Math.PI;
-                    const spawnRadius = 16 + (ctx.generateRandomInteger(0, 1000) / 1000) * 20;
+                    const spawnAngle = Math.random() * 2 * Math.PI;
+                    const spawnRadius = 16 + Math.random() * 20;
                     const sx = this.x + Math.cos(spawnAngle) * spawnRadius;
                     const sy = this.y + Math.sin(spawnAngle) * spawnRadius;
-                    const mx = (sx + target.x) * 0.5 + (ctx.generateRandomInteger(-120, 120));
-                    const my = (sy + target.y) * 0.5 - (70 + ctx.generateRandomInteger(0, 80));
+                    const mx = (sx + target.x) * 0.5 + (Math.random() * 240 - 120);
+                    const my = (sy + target.y) * 0.5 - (70 + Math.random() * 80);
                     ctx.addEffect(
                         new Effect({
                             x: sx,

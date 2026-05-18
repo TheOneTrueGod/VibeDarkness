@@ -15,6 +15,7 @@ export interface FingerprintBatcherConfig {
 export class FingerprintBatcher {
     private pendingBatch: Array<{ tick: number; fp: string; paused: boolean; adminReason?: string }> = [];
     private flushTimer: ReturnType<typeof setInterval> | null = null;
+    private flushing = false;
 
     constructor(private readonly config: FingerprintBatcherConfig) {}
 
@@ -47,9 +48,10 @@ export class FingerprintBatcher {
     }
 
     async flush(): Promise<void> {
-        if (!this.config.isHost || this.pendingBatch.length === 0) {
+        if (!this.config.isHost || this.pendingBatch.length === 0 || this.flushing) {
             return;
         }
+        this.flushing = true;
         const batch = this.pendingBatch;
         this.pendingBatch = [];
         try {
@@ -59,6 +61,8 @@ export class FingerprintBatcher {
             });
         } catch (_error) {
             this.pendingBatch = batch.concat(this.pendingBatch);
+        } finally {
+            this.flushing = false;
         }
     }
 }

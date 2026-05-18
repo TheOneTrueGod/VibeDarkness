@@ -76,7 +76,11 @@ async function postOneChunkWithRetry(
         try {
             await lobbyClient.appendLobbyLogBatch(lobbyId, { playerId, lines });
             return;
-        } catch {
+        } catch (e) {
+            const status = (e as { httpStatus?: number }).httpStatus;
+            if (status !== undefined && status >= 400 && status < 500) {
+                return; // client error (e.g. 403 player left lobby) — drop, retrying won't help
+            }
             await sleep(BASE_RETRY_MS * 2 ** attempt);
         }
     }

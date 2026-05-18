@@ -18,7 +18,12 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\app\\\\js\\\\games\\\\minion_battles\" -Recurse -Directory)",
       "Bash(Select-Object FullName)",
       "Skill(debugging-lobbies)",
-      "Skill(debugging-lobbies:*)"
+      "Skill(debugging-lobbies:*)",
+      "Skill(missions)",
+      "Skill(missions:*)",
+      "Skill(map-segments)",
+      "Skill(map-segments:*)",
+      "Edit(/.claude/skills/map-segments/**)"
     ]
   }
 }

@@ -19,6 +19,31 @@ Use when:
 - Each **segment** is `TerrainType[][]`: **outer index = row (north→south in array order)**, inner = columns. Rows should share one width unless you pad explicitly.
 - Naming: filenames `{col}_{row}_{description}` for map-macro layout. For stacks that share the same `_col` (e.g. `50_48`, `50_49`, `50_50`), the numeric row part increases **southward** on stitched vertical maps — see segment usage in `WorldOfDarkness/missions/003_light_empowered.ts` and neighbouring files under `MapSegments/`.
 
+## Segment filename = world-grid address
+
+The `{col}_{row}` prefix in a segment filename is its **world segment grid address** — not a local tile index.
+
+- Higher `col` = further **east**; higher `row` = further **south**.
+- `50_49` is directly **north** of `50_50`; `50_50` is directly **east** of `49_50`.
+- When composing a mission map, arrange segments in the `stitchTerrain` matrix so their grid addresses match spatial layout: **lower col → left column**, **lower row → top row**.
+
+### Example (2×2 mission)
+
+```
+stitchTerrain([
+  [SEG_49_50, SEG_50_50],   // row 50 (north half)
+  [SEG_49_51, SEG_50_51],   // row 51 (south half)
+], fill)
+```
+
+The **local-grid origin** of any segment at world address `(wc, wr)` is:
+- `originCol = (wc - minCol) * segmentWidth`
+- `originRow = (wr - minRow) * segmentHeight`
+
+where `minCol` / `minRow` are the smallest world-grid values used in that mission's stitchTerrain matrix.
+
+If a slot has no segment file (e.g. a procedurally-built pad), label its function/constant with the world-grid address it occupies so future readers can orient it on the map.
+
 ## `stitchTerrain` — API contract
 
 **Source:** `app/js/games/minion_battles/terrain/TerrainGrid.ts` (`stitchTerrain`, `TerrainGrid.createTerrainFromArray`, `CELL_SIZE`).
