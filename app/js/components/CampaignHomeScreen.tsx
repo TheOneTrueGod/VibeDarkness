@@ -242,10 +242,11 @@ export default function CampaignHomeScreen({
             });
     }, [user, hasCampaign, lobbyClient, refetchUser]);
 
-    // Active lobbies for Join tab (lobbies that had a get-state call in the last 10 minutes)
+    // Active lobbies for Join tab — polls every second, appending new lobbies
     useEffect(() => {
         let cancelled = false;
-        (async () => {
+
+        const fetchLobbies = async () => {
             const list = await lobbyClient.getActiveLobbies();
             if (cancelled) return;
             const infos: RecentLobbyInfo[] = list.map((entry) => ({
@@ -255,10 +256,18 @@ export default function CampaignHomeScreen({
                 gameType: entry.gameType ?? null,
                 playerCount: entry.player_ids?.length ?? 0,
             }));
-            setRecentLobbyInfos(infos);
-        })();
+            setRecentLobbyInfos((prev) => {
+                const existingIds = new Set(prev.map((l) => l.id));
+                const newLobbies = infos.filter((l) => !existingIds.has(l.id));
+                return newLobbies.length > 0 ? [...prev, ...newLobbies] : prev;
+            });
+        };
+
+        void fetchLobbies();
+        const intervalId = setInterval(() => { void fetchLobbies(); }, 1000);
         return () => {
             cancelled = true;
+            clearInterval(intervalId);
         };
     }, [lobbyClient]);
 

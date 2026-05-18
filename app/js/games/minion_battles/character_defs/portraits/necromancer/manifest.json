@@ -1,0 +1,12 @@
+{
+  "id": "necromancer",
+  "name": "Necromancer",
+  "battleModel": {
+    "type": "procedural",
+    "bodyColor": "#1a1a2e",
+    "size": "Medium",
+    "showNameLetter": true,
+    "innerCircle": null,
+    "modelImage": "battleModel.svg"
+  }
+}

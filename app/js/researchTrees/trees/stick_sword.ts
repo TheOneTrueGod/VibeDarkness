@@ -80,7 +80,7 @@ export const stickSwordTree: ResearchTreeDef = {
         {
             id: STICK_SWORD_NODE_PIPE_BAT_DAMAGE,
             title: 'Training Regime',
-            description: 'Your bat feels like an extension of your arm. Swing Bat deals {Medium} more damage.',
+            description: 'Your bat feels like an extension of your arm. Swing Bat gets a {Medium} damage increase.',
             order: 50,
             position: { x: 400, y: 480 },
             prereqNodeIds: [STICK_SWORD_NODE_PIPE_BAT],

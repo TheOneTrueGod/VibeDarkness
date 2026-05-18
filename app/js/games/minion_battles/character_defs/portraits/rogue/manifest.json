@@ -1,0 +1,12 @@
+{
+  "id": "rogue",
+  "name": "Rogue",
+  "battleModel": {
+    "type": "procedural",
+    "bodyColor": "#2c2c2c",
+    "size": "Small",
+    "showNameLetter": true,
+    "innerCircle": null,
+    "modelImage": "battleModel.svg"
+  }
+}

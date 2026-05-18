@@ -177,10 +177,11 @@ function UnitRailIcon({
         const p = getPortrait(unit.portraitId);
         if (p?.picture) {
             return (
-                <div
-                    className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-dark-600 bg-dark-800 [&>svg]:h-full [&>svg]:w-full [&>svg]:max-h-full [&>svg]:max-w-full"
+                <img
+                    src={p.picture}
+                    alt={unit.name}
                     title={unit.name}
-                    dangerouslySetInnerHTML={{ __html: p.picture }}
+                    className="h-7 w-7 shrink-0 rounded-sm border border-dark-600 bg-dark-800 object-cover"
                 />
             );
         }

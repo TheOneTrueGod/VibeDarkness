@@ -1,0 +1,12 @@
+{
+  "id": "ranger",
+  "name": "Ranger",
+  "battleModel": {
+    "type": "procedural",
+    "bodyColor": "#2e7d32",
+    "size": "Medium",
+    "showNameLetter": true,
+    "innerCircle": null,
+    "modelImage": "battleModel.svg"
+  }
+}

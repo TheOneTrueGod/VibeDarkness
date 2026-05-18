@@ -1,0 +1,20 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="rogue-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#2c2c2c;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#0a0a0a;stop-opacity:1"/>
+        </linearGradient>
+    </defs>
+    <rect width="200" height="200" fill="url(#rogue-bg)"/>
+    <circle cx="100" cy="75" r="25" fill="#c4a882"/>
+    <rect x="75" y="100" width="50" height="50" rx="5" fill="#1a1a1a"/>
+    <rect x="55" y="105" width="20" height="10" rx="3" fill="#1a1a1a"/>
+    <rect x="125" y="105" width="20" height="10" rx="3" fill="#1a1a1a"/>
+    <path d="M70 70 Q100 60 130 70" fill="#333"/>
+    <rect x="75" y="65" width="50" height="8" fill="#333" rx="2"/>
+    <rect x="60" y="130" width="4" height="25" fill="#c0c0c0" transform="rotate(-15 62 142)"/>
+    <rect x="136" y="130" width="4" height="25" fill="#c0c0c0" transform="rotate(15 138 142)"/>
+    <circle cx="92" cy="72" r="3" fill="#1a1a1a"/>
+    <circle cx="108" cy="72" r="3" fill="#1a1a1a"/>
+    <path d="M95 83 L105 83" stroke="#1a1a1a" stroke-width="1.5"/>
+</svg>

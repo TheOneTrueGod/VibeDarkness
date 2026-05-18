@@ -507,6 +507,7 @@ export default function CharacterSelectPhase({
                         account={user}
                         campaign={campaign}
                         equippedItemsDisplay="list"
+                        localPlayerId={user?.id}
                     />
                 </div>
             ) : (
@@ -559,6 +560,7 @@ export default function CharacterSelectPhase({
                     onClose={() => setCreatorOpen(false)}
                     createCharacter={createCharacterApi}
                     anchorRef={{ current: createCardRef }}
+                    localPlayerId={user?.id}
                 />
             )}
 
@@ -802,10 +804,9 @@ function CampaignCharacterCard({
             >
                 ×
             </button>
-            <div
-                className="w-full flex-1 overflow-hidden flex items-center justify-center bg-background relative"
-                dangerouslySetInnerHTML={{ __html: portrait?.picture ?? '' }}
-            />
+            <div className="w-full flex-1 overflow-hidden flex items-center justify-center bg-background relative">
+                {portrait?.picture && <img src={portrait.picture} alt="" className="w-full h-full object-cover" />}
+            </div>
 
             {disallowReason != null && (
                 <div className="absolute inset-0 bottom-8 flex items-center justify-center pointer-events-none overflow-hidden">

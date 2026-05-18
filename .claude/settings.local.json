@@ -10,7 +10,9 @@
       "Bash(npx tsc *)",
       "PowerShell(cd \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\"; Get-ChildItem -Path . -Recurse -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq \"card_defs\" } | Select-Object -ExpandProperty FullName)",
       "Skill(working-with-skills)",
-      "Skill(working-with-skills:*)"
+      "Skill(working-with-skills:*)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\" -Directory)",
+      "Bash(Select-Object Name)"
     ]
   }
 }

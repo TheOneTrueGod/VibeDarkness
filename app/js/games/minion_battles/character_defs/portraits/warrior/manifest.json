@@ -1,0 +1,12 @@
+{
+  "id": "warrior",
+  "name": "Warrior",
+  "battleModel": {
+    "type": "procedural",
+    "bodyColor": "#8b0000",
+    "size": "Large",
+    "showNameLetter": true,
+    "innerCircle": null,
+    "modelImage": "battleModel.svg"
+  }
+}

@@ -1,0 +1,19 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="warrior-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#8B0000;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#4a0000;stop-opacity:1"/>
+        </linearGradient>
+    </defs>
+    <rect width="200" height="200" fill="url(#warrior-bg)"/>
+    <circle cx="100" cy="70" r="30" fill="#d4a574"/>
+    <rect x="70" y="100" width="60" height="50" rx="5" fill="#8B4513"/>
+    <rect x="55" y="105" width="15" height="35" rx="3" fill="#d4a574"/>
+    <rect x="130" y="105" width="15" height="35" rx="3" fill="#d4a574"/>
+    <rect x="140" y="90" width="8" height="55" fill="#a0a0a0"/>
+    <rect x="136" y="85" width="16" height="8" fill="#a0a0a0"/>
+    <rect x="80" y="55" width="40" height="12" rx="2" fill="#a0a0a0"/>
+    <circle cx="90" cy="65" r="3" fill="#1a1a1a"/>
+    <circle cx="110" cy="65" r="3" fill="#1a1a1a"/>
+    <path d="M92 78 Q100 85 108 78" stroke="#1a1a1a" stroke-width="2" fill="none"/>
+</svg>

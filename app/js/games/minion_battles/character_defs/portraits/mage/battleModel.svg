@@ -1,0 +1,26 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="mage-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#1a0a3e;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#0d0520;stop-opacity:1"/>
+        </linearGradient>
+        <radialGradient id="mage-glow" cx="50%" cy="50%">
+            <stop offset="0%" style="stop-color:#9b59b6;stop-opacity:0.6"/>
+            <stop offset="100%" style="stop-color:#9b59b6;stop-opacity:0"/>
+        </radialGradient>
+    </defs>
+    <rect width="200" height="200" fill="url(#mage-bg)"/>
+    <circle cx="100" cy="130" r="50" fill="url(#mage-glow)"/>
+    <circle cx="100" cy="80" r="25" fill="#e8d5b7"/>
+    <polygon points="70,70 100,20 130,70" fill="#4a148c"/>
+    <rect x="75" y="105" width="50" height="55" rx="5" fill="#4a148c"/>
+    <rect x="55" y="110" width="20" height="8" rx="3" fill="#4a148c"/>
+    <rect x="125" y="110" width="20" height="8" rx="3" fill="#4a148c"/>
+    <circle cx="50" cy="125" r="8" fill="#9b59b6" opacity="0.8"/>
+    <circle cx="50" cy="125" r="4" fill="#e1bee7"/>
+    <rect x="48" y="125" width="4" height="40" fill="#8B4513"/>
+    <circle cx="92" cy="75" r="3" fill="#1a1a1a"/>
+    <circle cx="108" cy="75" r="3" fill="#1a1a1a"/>
+    <circle cx="92" cy="75" r="1" fill="#9b59b6"/>
+    <circle cx="108" cy="75" r="1" fill="#9b59b6"/>
+</svg>

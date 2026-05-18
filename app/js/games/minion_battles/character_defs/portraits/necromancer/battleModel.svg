@@ -1,0 +1,26 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="necro-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#1a0a2e;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#000000;stop-opacity:1"/>
+        </linearGradient>
+        <radialGradient id="necro-glow" cx="50%" cy="50%">
+            <stop offset="0%" style="stop-color:#00ff00;stop-opacity:0.3"/>
+            <stop offset="100%" style="stop-color:#00ff00;stop-opacity:0"/>
+        </radialGradient>
+    </defs>
+    <rect width="200" height="200" fill="url(#necro-bg)"/>
+    <circle cx="100" cy="140" r="50" fill="url(#necro-glow)"/>
+    <circle cx="100" cy="75" r="22" fill="#b8b8b8"/>
+    <polygon points="75,68 100,25 125,68" fill="#1a1a1a"/>
+    <rect x="78" y="97" width="44" height="55" rx="5" fill="#1a1a1a"/>
+    <rect x="58" y="100" width="20" height="10" rx="3" fill="#1a1a1a"/>
+    <rect x="122" y="100" width="20" height="10" rx="3" fill="#1a1a1a"/>
+    <circle cx="92" cy="72" r="4" fill="#00ff00" opacity="0.8"/>
+    <circle cx="108" cy="72" r="4" fill="#00ff00" opacity="0.8"/>
+    <circle cx="92" cy="72" r="2" fill="#000"/>
+    <circle cx="108" cy="72" r="2" fill="#000"/>
+    <path d="M93 84 Q100 80 107 84" stroke="#666" stroke-width="1.5" fill="none"/>
+    <rect x="48" y="110" width="3" height="45" fill="#555"/>
+    <circle cx="50" cy="105" r="8" fill="#00ff00" opacity="0.5"/>
+</svg>

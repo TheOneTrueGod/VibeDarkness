@@ -185,6 +185,8 @@ export class Unit extends GameObject {
     ccDurationFlatSec: Partial<Record<CcResistKey, number>> = {};
     /** Baseline hard CC threshold floor (absorbed hits before one lands). Boss default often 2. */
     hardCcArmourFloor: number = 0;
+    /** When > 0, overrides the incoming hit's duration for the stun applied on CC armour break. */
+    ccArmourBreakStunDuration: number = 0;
     /** Extra hard CC threshold from chain resist; decays per round toward 0. */
     bonusHardCcArmour: number = 0;
     /** Qualifying absorbed hard CC attempts since the last stun that actually applied. */
@@ -804,6 +806,7 @@ export class Unit extends GameObject {
             ccDurationResistPct: { ...this.ccDurationResistPct },
             ccDurationFlatSec: { ...this.ccDurationFlatSec },
             hardCcArmourFloor: this.hardCcArmourFloor,
+            ccArmourBreakStunDuration: this.ccArmourBreakStunDuration,
             bonusHardCcArmour: this.bonusHardCcArmour,
             hardCcArmourConsumed: this.hardCcArmourConsumed,
             chainCcResist: this.chainCcResist,
@@ -942,6 +945,7 @@ export class Unit extends GameObject {
         unit.ccDurationResistPct = { ...(data.ccDurationResistPct as Partial<Record<CcResistKey, number>> | undefined) };
         unit.ccDurationFlatSec = { ...(data.ccDurationFlatSec as Partial<Record<CcResistKey, number>> | undefined) };
         unit.hardCcArmourFloor = (data.hardCcArmourFloor as number | undefined) ?? 0;
+        unit.ccArmourBreakStunDuration = (data.ccArmourBreakStunDuration as number | undefined) ?? 0;
         unit.bonusHardCcArmour = (data.bonusHardCcArmour as number | undefined) ?? 0;
         unit.hardCcArmourConsumed = (data.hardCcArmourConsumed as number | undefined) ?? 0;
         unit.chainCcResist = (data.chainCcResist as number | undefined) ?? 0;

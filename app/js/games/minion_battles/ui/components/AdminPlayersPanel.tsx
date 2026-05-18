@@ -87,7 +87,7 @@ function CharacterListCard({
             }`}
         >
             <div className="h-24 bg-background flex items-center justify-center overflow-hidden">
-                <div dangerouslySetInnerHTML={{ __html: portrait?.picture ?? '' }} className="w-full h-full" />
+                {portrait?.picture && <img src={portrait.picture} alt="" className="w-full h-full object-cover" />}
             </div>
             <div className="px-3 py-2">
                 <p className="text-sm font-semibold text-white truncate">{displayName}</p>

@@ -18,6 +18,7 @@ export function applyCombatCrowdControlProfile(unit: Unit): void {
     }
 
     unit.hardCcArmourFloor = def?.hardCcArmourFloor ?? (isBoss ? 1 : 0);
+    unit.ccArmourBreakStunDuration = def?.ccArmourBreakStunDuration ?? 0;
     unit.chainCcResist = def?.chainCcResist ?? (isBoss ? 1 : 0);
     unit.chainCcDecayRounds = def?.chainCcDecayRounds ?? 1;
 }

@@ -1,0 +1,12 @@
+{
+  "id": "mage",
+  "name": "Mage",
+  "battleModel": {
+    "type": "procedural",
+    "bodyColor": "#4a148c",
+    "size": "Small",
+    "showNameLetter": true,
+    "innerCircle": null,
+    "modelImage": "battleModel.svg"
+  }
+}

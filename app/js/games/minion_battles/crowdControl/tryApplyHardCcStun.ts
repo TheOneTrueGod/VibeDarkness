@@ -39,8 +39,9 @@ export function tryApplyHardCcStun(
     }
 
     target.hardCcArmourConsumed = 0;
-    target.addBuff(new StunnedBuff(effectiveDuration), gameTime, roundNumber);
+    const breakDuration = target.ccArmourBreakStunDuration > 0 ? target.ccArmourBreakStunDuration : effectiveDuration;
+    target.addBuff(new StunnedBuff(breakDuration), gameTime, roundNumber);
     target.onSuccessfulHardCcLand();
     target.recordHardCcArmourEvent('landed', gameTime);
-    return { outcome: 'applied', effectiveDuration };
+    return { outcome: 'applied', effectiveDuration: breakDuration };
 }

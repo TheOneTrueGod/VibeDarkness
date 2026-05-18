@@ -3,7 +3,7 @@
  * Portrait carousel (selected centre, prev/next faded behind), Create button.
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import { getPortraitIds, getPortrait } from '../../../character_defs/portraits';
+import { getPortraitIdsForPlayer, getPortrait } from '../../../character_defs/portraits';
 import { getRandomCharacterName } from '../../../character_defs/characterNames';
 import { getDefaultEquipmentForCampaign } from '../../../character_defs/items';
 
@@ -23,6 +23,8 @@ interface CharacterCreatorProps {
         equipment?: string[];
     }) => Promise<{ id: string; portraitId: string }>;
     anchorRef: React.RefObject<HTMLElement | null>;
+    /** Account ID of the local player; used to restrict which portraits are selectable. */
+    localPlayerId?: number;
 }
 
 export default function CharacterCreator({
@@ -33,8 +35,9 @@ export default function CharacterCreator({
     onClose,
     createCharacter,
     anchorRef: _anchorRef,
+    localPlayerId,
 }: CharacterCreatorProps) {
-    const portraitIds = useMemo(() => getPortraitIds(), []);
+    const portraitIds = useMemo(() => getPortraitIdsForPlayer(localPlayerId), [localPlayerId]);
     const totalCount = portraitIds.length;
     const initialIndex = useMemo(() => {
         if (initialPortraitId && portraitIds.includes(initialPortraitId)) {
@@ -204,9 +207,8 @@ function PortraitBlock({ portraitId }: { portraitId: string }) {
     const portrait = getPortrait(portraitId);
     if (!portrait) return null;
     return (
-        <div
-            className="w-full h-full flex items-center justify-center bg-background"
-            dangerouslySetInnerHTML={{ __html: portrait.picture }}
-        />
+        <div className="w-full h-full flex items-center justify-center bg-background">
+            {portrait.picture && <img src={portrait.picture} alt="" className="w-full h-full object-cover" />}
+        </div>
     );
 }

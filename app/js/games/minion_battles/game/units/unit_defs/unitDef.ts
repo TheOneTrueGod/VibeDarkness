@@ -13,7 +13,7 @@ import {
     type DarkCreatureDissolutionDeathEffectDef,
 } from '../../deathEffects/darkCreatureDissolutionDef';
 import { DARK_CREATURE_CORRUPTION_TINT, DARK_CREATURE_ICON_TINT_ALPHA } from '../../deathEffects/darkCreatureVisualConstants';
-import { getPortrait } from '../../../character_defs/portraits';
+import { getPortrait } from '../../../character_defs/portraitLoader';
 import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
 import type { CcResistKey } from '../../../crowdControl/ccTypes';
 
@@ -24,6 +24,8 @@ export type UnitCombatCcDef = {
     hardCcArmourFloor?: number;
     chainCcResist?: number;
     chainCcDecayRounds?: number;
+    /** Fixed stun duration (seconds) applied when CC armour breaks. Overrides the incoming hit's duration. */
+    ccArmourBreakStunDuration?: number;
 };
 
 /** Color for allied unit glows. */
@@ -159,6 +161,7 @@ const UNIT_DEFS: Record<
             ccDurationResistPct: { ALL: 0.5 },
             hardCcArmourFloor: 2,
             chainCcDecayRounds: 0,
+            ccArmourBreakStunDuration: 5,
         },
     },
     boar: {
@@ -272,12 +275,12 @@ function ensureDarkCreatureIconTint(visual: Container, unit: Unit, characterText
     tint.height = charSprite.height;
 }
 
-/** Token fill behind the portrait sprite; portrait may override. */
+/** Token fill behind the portrait sprite; portrait battle model may override. */
 export function resolvePlayerBodyColor(portraitId: string | undefined): number {
     const base = UNIT_DEFS.player.bodyColor;
     if (!portraitId) return base;
     const p = getPortrait(portraitId);
-    return p?.battleBodyColor ?? base;
+    return p?.battleModel.bodyColor ?? base;
 }
 
 /** Hitbox radius from global player default and optional portrait size override. */
@@ -286,7 +289,7 @@ export function resolvePlayerUnitRadius(portraitId: string | undefined): number 
     const baseR = UNIT_SIZE_MAP[baseSize];
     if (!portraitId) return baseR;
     const p = getPortrait(portraitId);
-    if (p?.battleUnitSize) return UNIT_SIZE_MAP[p.battleUnitSize];
+    if (p?.battleModel.size) return UNIT_SIZE_MAP[p.battleModel.size];
     return baseR;
 }
 
@@ -305,13 +308,21 @@ class DefaultUnitDef implements IUnitDef {
         const isEnemy = areEnemies(context.localTeamId, unit.teamId);
         const glowColor = isEnemy ? ENEMY_GLOW_COLOR : ALLY_GLOW_COLOR;
         const def = UNIT_DEFS[unit.characterId as UnitDefId] ?? { bodyColor: DEFAULT_BODY_COLOR };
-        const bodyColor =
-            unit.characterId === PLAYER_CHARACTER_ID
-                ? resolvePlayerBodyColor(unit.portraitId)
-                : (def.bodyColor ?? DEFAULT_BODY_COLOR);
+
+        const playerPortrait =
+            unit.characterId === PLAYER_CHARACTER_ID && unit.portraitId
+                ? getPortrait(unit.portraitId)
+                : undefined;
+
+        const bodyColor = playerPortrait
+            ? (playerPortrait.battleModel.bodyColor ?? UNIT_DEFS.player.bodyColor)
+            : (def.bodyColor ?? DEFAULT_BODY_COLOR);
+
         let characterTexture: Texture | null = null;
+        let isPlayerPortraitTexture = false;
         if (unit.characterId === PLAYER_CHARACTER_ID && unit.portraitId) {
             characterTexture = context.getPlayerPortraitTexture(unit.portraitId);
+            if (characterTexture) isPlayerPortraitTexture = true;
         } else if (def.characterSpriteKey) {
             characterTexture = context.getCharacterTexture(def.characterSpriteKey);
         }
@@ -341,33 +352,24 @@ class DefaultUnitDef implements IUnitDef {
         body.label = 'body';
         container.addChild(body);
 
-        // Character sprite (e.g. bowman for enemy_ranged)
-        if (showCharacterSprite && characterTexture) {
-            const spriteSize = unit.radius * 2 * CHARACTER_SPRITE_SCALE;
-            const charSprite = new Sprite(characterTexture);
-            charSprite.anchor.set(0.5, 0.5);
-            charSprite.width = spriteSize;
-            charSprite.height = spriteSize;
-            charSprite.label = 'characterSprite';
-            container.addChild(charSprite);
-            ensureDarkCreatureIconTint(container, unit, characterTexture);
+        // Inner circle (optional, from portrait battle model)
+        const innerCircleDef = playerPortrait?.battleModel.innerCircle;
+        if (innerCircleDef) {
+            const inner = new Graphics();
+            inner.circle(0, 0, unit.radius * innerCircleDef.radiusRatio);
+            inner.fill(innerCircleDef.color);
+            inner.label = 'innerCircle';
+            container.addChild(inner);
         }
 
-        // Character initial label (hidden when character sprite is shown)
-        const style = new TextStyle({
-            fontSize: 14,
-            fontWeight: 'bold',
-            fill: 0xffffff,
-        });
-        const label = new Text({ text: unit.name.charAt(0).toUpperCase(), style });
-        label.anchor.set(0.5, 0.5);
-        label.label = 'label';
-        label.visible = !showCharacterSprite;
-        container.addChild(label);
+        // Character sprite (e.g. bowman for enemy_ranged, or model image for player portraits)
+        if (showCharacterSprite && characterTexture) {
+            ensureUnitCharacterSprite(container, unit, characterTexture, isPlayerPortraitTexture);
+        }
 
-        // HP bar background
+        // HP bar background (taller to accommodate the name label)
         const hpBg = new Graphics();
-        hpBg.rect(-unit.radius, -unit.radius - 10, unit.radius * 2, 6);
+        hpBg.rect(-unit.radius, -unit.radius - 14, unit.radius * 2, 10);
         hpBg.fill({ color: 0x333333, alpha: 0.8 });
         hpBg.label = 'hpBg';
         container.addChild(hpBg);
@@ -376,6 +378,20 @@ class DefaultUnitDef implements IUnitDef {
         const hpFill = new Graphics();
         hpFill.label = 'hpFill';
         container.addChild(hpFill);
+
+        // Character initial label — always visible, layered on top of the HP bar
+        const style = new TextStyle({
+            fontSize: 8,
+            fontWeight: 'bold',
+            fill: 0x000000,
+        });
+        const label = new Text({ text: unit.name.slice(0, 6).toUpperCase(), style });
+        label.anchor.set(0.5, 0.5);
+        label.x = 0;
+        label.y = -unit.radius - 9; // vertical center of the HP bar
+        label.label = 'label';
+        label.visible = true;
+        container.addChild(label);
 
         return container;
     }
@@ -479,7 +495,7 @@ export function updateUnitHpBar(visual: Container, unit: Unit): void {
     const ratio = unit.hp / unit.maxHp;
     const barWidth = unit.radius * 2 * ratio;
     const barColor = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
-    hpFill.rect(-unit.radius, -unit.radius - 10, barWidth, 6);
+    hpFill.rect(-unit.radius, -unit.radius - 14, barWidth, 10);
     hpFill.fill(barColor);
 }
 
@@ -487,8 +503,8 @@ export function updateUnitHpBar(visual: Container, unit: Unit): void {
  * Ensures a character sprite exists and uses `texture`, sized for the unit's radius.
  * Call when assets finish loading after the unit visual was created with a fallback label.
  */
-export function ensureUnitCharacterSprite(visual: Container, unit: Unit, texture: Texture): void {
-    const spriteSize = unit.radius * 2 * CHARACTER_SPRITE_SCALE;
+export function ensureUnitCharacterSprite(visual: Container, unit: Unit, texture: Texture, clipToCircle = false): void {
+    const spriteSize = clipToCircle ? unit.radius * 2 : unit.radius * 2 * CHARACTER_SPRITE_SCALE;
     let charSprite = visual.children.find((c) => c.label === 'characterSprite') as Sprite | undefined;
     if (!charSprite) {
         charSprite = new Sprite(texture);
@@ -496,7 +512,17 @@ export function ensureUnitCharacterSprite(visual: Container, unit: Unit, texture
         charSprite.label = 'characterSprite';
         const bodyIdx = visual.children.findIndex((c) => c.label === 'body');
         const insertAt = bodyIdx >= 0 ? bodyIdx + 1 : visual.children.length;
-        visual.addChildAt(charSprite, insertAt);
+        if (clipToCircle) {
+            const mask = new Graphics();
+            mask.circle(0, 0, unit.radius);
+            mask.fill(0xffffff);
+            mask.label = 'characterSpriteMask';
+            visual.addChildAt(mask, insertAt);
+            visual.addChildAt(charSprite, insertAt + 1);
+            charSprite.mask = mask;
+        } else {
+            visual.addChildAt(charSprite, insertAt);
+        }
     } else {
         charSprite.texture = texture;
     }
@@ -510,9 +536,7 @@ export function syncUnitCharacterSpriteIfNeeded(visual: Container, unit: Unit, c
     if (unit.characterId === PLAYER_CHARACTER_ID && unit.portraitId) {
         const texture = context.getPlayerPortraitTexture(unit.portraitId);
         if (!texture) return;
-        ensureUnitCharacterSprite(visual, unit, texture);
-        const label = visual.children.find((c) => c.label === 'label');
-        if (label) label.visible = false;
+        ensureUnitCharacterSprite(visual, unit, texture, true);
         return;
     }
     const key = getCharacterSpriteKey(unit.characterId);
@@ -520,6 +544,4 @@ export function syncUnitCharacterSpriteIfNeeded(visual: Container, unit: Unit, c
     const texture = context.getCharacterTexture(key);
     if (!texture) return;
     ensureUnitCharacterSprite(visual, unit, texture);
-    const label = visual.children.find((c) => c.label === 'label');
-    if (label) label.visible = false;
 }

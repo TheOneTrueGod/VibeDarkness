@@ -5,7 +5,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Check, Pencil, X } from 'lucide-react';
-import { getPortraitIds, getPortrait } from '../../../character_defs/portraits';
+import { getPortraitIdsForPlayer, getPortrait } from '../../../character_defs/portraits';
 import {
     getItemDef,
     getEquippedForSlot,
@@ -58,6 +58,8 @@ interface CharacterEditorProps {
     campaign?: CampaignState | null;
     /** How equipped items appear in the Equipment tab sidebar. */
     equippedItemsDisplay?: 'paperDoll' | 'list';
+    /** Account ID of the local player; used to restrict which portraits they can cycle to. */
+    localPlayerId?: number;
 }
 
 type EditorTab = 'equipment' | 'research';
@@ -95,6 +97,7 @@ export default function CharacterEditor({
     viewerAccount,
     campaign,
     equippedItemsDisplay = 'paperDoll',
+    localPlayerId,
 }: CharacterEditorProps) {
     const canEditName = editMode || allowNameEdit;
 
@@ -102,7 +105,7 @@ export default function CharacterEditor({
         return value.replace(/[^a-zA-Z0-9]/g, '').slice(0, MAX_CHARACTER_NAME_LENGTH);
     }, []);
 
-    const portraitIds = useMemo(() => getPortraitIds(), []);
+    const portraitIds = useMemo(() => getPortraitIdsForPlayer(localPlayerId), [localPlayerId]);
     const totalPortraits = portraitIds.length;
 
     const [portraitIndex, setPortraitIndex] = useState(() => {

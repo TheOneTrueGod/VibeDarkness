@@ -34,7 +34,7 @@ import type { SpecialTile } from './specialTiles/SpecialTile';
 import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid';
 import type { DamageTakenEvent } from './EventBus';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
-import { getPortraitIds, PORTRAITS } from '../character_defs/portraits';
+import { getPortraitIds, PORTRAITS } from '../character_defs/portraitLoader';
 import type { ResolvedTarget } from './types';
 
 /** Hit flash duration in seconds (real time, not affected by pause). */
@@ -301,13 +301,10 @@ export class GameRenderer {
         }
 
         for (const portraitId of getPortraitIds()) {
-            const pic = PORTRAITS[portraitId]?.picture;
-            if (!pic) continue;
+            const url = PORTRAITS[portraitId]?.battleModel.modelImageUrl;
+            if (!url) continue;
             try {
-                const blob = new Blob([pic], { type: 'image/svg+xml;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
                 const tex = (await Assets.load(url)) as Texture;
-                URL.revokeObjectURL(url);
                 this.playerPortraitTextures.set(portraitId, tex);
             } catch (err) {
                 console.warn('[GameRenderer] Failed to load portrait texture:', portraitId, err);
@@ -823,7 +820,7 @@ export class GameRenderer {
                 if (characterSprite) characterSprite.visible = true;
                 const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
                 if (darkTint) darkTint.visible = true;
-                if (label) label.visible = !characterSprite;
+                if (label) label.visible = true;
                 if (glow) glow.visible = true;
                 if (playerRing) playerRing.visible = true;
                 updateUnitHpBar(visual, unit);

@@ -1,0 +1,24 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="healer-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#f5f5dc;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#d4c89a;stop-opacity:1"/>
+        </linearGradient>
+        <radialGradient id="healer-glow" cx="50%" cy="50%">
+            <stop offset="0%" style="stop-color:#ffd700;stop-opacity:0.4"/>
+            <stop offset="100%" style="stop-color:#ffd700;stop-opacity:0"/>
+        </radialGradient>
+    </defs>
+    <rect width="200" height="200" fill="url(#healer-bg)"/>
+    <circle cx="100" cy="100" r="60" fill="url(#healer-glow)"/>
+    <circle cx="100" cy="75" r="25" fill="#d4a574"/>
+    <rect x="75" y="100" width="50" height="55" rx="5" fill="#f0f0f0"/>
+    <rect x="95" y="110" width="10" height="30" fill="#ff0000"/>
+    <rect x="85" y="120" width="30" height="10" fill="#ff0000"/>
+    <rect x="55" y="105" width="20" height="10" rx="3" fill="#f0f0f0"/>
+    <rect x="125" y="105" width="20" height="10" rx="3" fill="#f0f0f0"/>
+    <circle cx="100" cy="55" r="12" fill="#ffd700" opacity="0.4"/>
+    <circle cx="92" cy="70" r="3" fill="#4a90d9"/>
+    <circle cx="108" cy="70" r="3" fill="#4a90d9"/>
+    <path d="M93 82 Q100 87 107 82" stroke="#333" stroke-width="1.5" fill="none"/>
+</svg>

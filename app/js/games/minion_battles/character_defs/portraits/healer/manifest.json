@@ -1,0 +1,12 @@
+{
+  "id": "healer",
+  "name": "Healer",
+  "battleModel": {
+    "type": "procedural",
+    "bodyColor": "#c9b896",
+    "size": "Medium",
+    "showNameLetter": true,
+    "innerCircle": null,
+    "modelImage": "battleModel.svg"
+  }
+}
