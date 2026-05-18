@@ -60,7 +60,7 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     name: 'The Beast',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['0004', '0005', '0007'],
+    abilities: ['0005', '0007'],
     aiSettings: { minRange: 0, maxRange: 100 },
     radius: 26,
     unitTags: [UnitTag.Boss],

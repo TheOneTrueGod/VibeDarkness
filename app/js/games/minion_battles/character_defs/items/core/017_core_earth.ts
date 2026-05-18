@@ -9,6 +9,7 @@ export const coreEarthItem: ItemDef = {
     cardsToAdd: [
         { cardId: '0102', count: 3 }, // Punch
         { cardId: '0101', count: 2 }, // Dodge
+        { cardId: '0534', count: 1 }, // Boar Claws
     ],
     icon: '017_core_earth.svg',
 };

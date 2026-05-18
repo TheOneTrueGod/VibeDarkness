@@ -39,6 +39,7 @@ import { StoneTombCard } from './05_earth_core/0530_StoneTomb/0530Ability';
 import { KnockCard } from './05_earth_core/0531_Knock/0531Ability';
 import { AnchoredTremorCard } from './05_earth_core/0532_AnchoredTremor/0532Ability';
 import { StoneyPunchCard } from './05_earth_core/0533_StoneyPunch/0533Ability';
+import { BoarClawsCard } from './05_earth_core/0534_BoarClaws/0534Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -80,6 +81,7 @@ const cardDefs: CardDef[] = [
     KnockCard,
     AnchoredTremorCard,
     StoneyPunchCard,
+    BoarClawsCard,
 ];
 
 /** Map card ID -> card definition for resolving hands (arrays of card IDs) to card data. */

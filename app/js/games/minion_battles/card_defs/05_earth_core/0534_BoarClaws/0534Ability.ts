@@ -1,0 +1,424 @@
+/**
+ * Boar Claws — Earth Core card. Wall-penetrating dash that damages rock tiles in transit.
+ * If the dash ends inside a wall, the unit is steadily pushed out and launched (slingshot).
+ */
+
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../../abilities/Ability';
+import { AbilityState } from '../../../abilities/Ability';
+import { AbilityPhase } from '../../../abilities/abilityTimings';
+import type { TargetDef } from '../../../abilities/targeting';
+import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
+import type { ResolvedTarget } from '../../../game/types';
+import type { Unit } from '../../../game/units/Unit';
+import { Effect } from '../../../game/effects/Effect';
+import { asCardDefId, type CardDef } from '../../types';
+import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
+import { getPixelTargetPosition, getDirectionFromTo } from '../../../abilities/targetHelpers';
+import { getBodyColorForUnit, getCharacterSpriteKey } from '../../../game/units/unit_defs/unitDef';
+import { areEnemies } from '../../../game/teams';
+import { isAbilityNote } from '../../../game/AbilityNote';
+import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
+import type { EventBus } from '../../../game/EventBus';
+import type { Effect as EffectType } from '../../../game/effects/Effect';
+import { grantRecoveryChargeToRandomAbility } from '../../../abilities/abilityUses';
+
+const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
+const DASH_DURATION = 0.4;
+const SLINGSHOT_PHASE = 0.3;
+const COOLDOWN_DURATION = 0.8;
+const MAX_DISTANCE = 160;
+const DAMAGE = 5;
+const POISE_DAMAGE = 4;
+const KNOCKBACK_MAGNITUDE = 40;
+const KNOCKBACK_AIR_TIME = 0.2;
+const KNOCKBACK_SLIDE_TIME = 0.12;
+const SLINGSHOT_SPEED = 400; // px/s
+const SLINGSHOT_LAUNCH_MAGNITUDE = 160;
+const SLINGSHOT_LAUNCH_AIR_TIME = 0.4;
+const SLINGSHOT_LAUNCH_SLIDE_TIME = 0.2;
+const AFTERIMAGE_DURATION = 6 / 60;
+
+// Number of evenly-spaced directions to scan when looking for nearest passable tile
+const NEAREST_PASSABLE_DIR_COUNT = 16;
+
+interface TerrainManagerLike {
+    grid: { worldToGrid(x: number, y: number): { col: number; row: number } };
+    isPassable(x: number, y: number): boolean;
+    damageRock(col: number, row: number): unknown;
+}
+
+interface GameEngineLike {
+    units: Unit[];
+    addEffect(e: EffectType): void;
+    gameTime: number;
+    eventBus: EventBus;
+    interruptUnitAndRefundAbilities(unit: Unit): void;
+    generateRandomInteger(min: number, max: number): number;
+    terrainManager?: TerrainManagerLike | null;
+}
+
+const BOAR_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="32" r="28" fill="#3a3028" stroke="#1a1a1a"/>
+  <path d="M18 46 L28 28 M24 48 L34 30 M30 46 L40 28"
+        stroke="#a07840" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+</svg>`;
+
+/** Scan NEAREST_PASSABLE_DIR_COUNT evenly-spaced angles from caster position, return direction toward nearest passable tile. */
+function findNearestPassableDirection(
+    tm: TerrainManagerLike,
+    x: number,
+    y: number,
+): { x: number; y: number } | null {
+    const STEP = 4;
+    const MAX_STEPS = 50; // 200px
+    let bestDist = Infinity;
+    let bestDir: { x: number; y: number } | null = null;
+
+    for (let i = 0; i < NEAREST_PASSABLE_DIR_COUNT; i++) {
+        const angle = (i / NEAREST_PASSABLE_DIR_COUNT) * Math.PI * 2;
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+        for (let s = 1; s <= MAX_STEPS; s++) {
+            const d = s * STEP;
+            if (tm.isPassable(x + dx * d, y + dy * d)) {
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestDir = { x: dx, y: dy };
+                }
+                break;
+            }
+        }
+    }
+    return bestDir;
+}
+
+/** Apply launching self-knockback (slingshot launch). poiseDamage=0 so it always applies. */
+function applySlingshotLaunch(
+    caster: Unit,
+    dirX: number,
+    dirY: number,
+    eventBus: EventBus,
+): void {
+    caster.applyKnockback(
+        0,
+        {
+            knockbackVector: {
+                x: dirX * SLINGSHOT_LAUNCH_MAGNITUDE,
+                y: dirY * SLINGSHOT_LAUNCH_MAGNITUDE,
+            },
+            knockbackAirTime: SLINGSHOT_LAUNCH_AIR_TIME,
+            knockbackSlideTime: SLINGSHOT_LAUNCH_SLIDE_TIME,
+            knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
+        },
+        eventBus,
+    );
+}
+
+/** Damage a rock tile at the caster's current position (once per unique tile per cast). */
+function maybeDamageCurrentTile(
+    caster: Unit,
+    tm: TerrainManagerLike,
+    damagedTileKeys: string[],
+): void {
+    if (tm.isPassable(caster.x, caster.y)) return;
+    const cell = tm.grid.worldToGrid(caster.x, caster.y);
+    const key = `${cell.col},${cell.row}`;
+    if (damagedTileKeys.includes(key)) return;
+    damagedTileKeys.push(key);
+    tm.damageRock(cell.col, cell.row);
+}
+
+export const BoarClawsAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Boar Claws',
+    image: BOAR_CLAWS_IMAGE,
+    resourceCost: null,
+    rechargeTurns: 0,
+    prefireTime: DASH_DURATION,
+    abilityTimings: [
+        { id: 'dash',      start: 0,                                end: DASH_DURATION,                              abilityPhase: AbilityPhase.Iframe },
+        { id: 'slingshot', start: DASH_DURATION,                   end: DASH_DURATION + SLINGSHOT_PHASE,            abilityPhase: AbilityPhase.Cooldown },
+        { id: 'cooldown',  start: DASH_DURATION + SLINGSHOT_PHASE, end: DASH_DURATION + SLINGSHOT_PHASE + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
+    ],
+    targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
+    aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
+
+    getTooltipText(): string[] {
+        return [
+            'Dash through walls with iframes, damaging rock tiles you pass through',
+            `Deal {${DAMAGE}} damage and knock back enemies you touch`,
+            'If you end the dash inside a wall, you are flung out the other side',
+        ];
+    },
+
+    getAbilityStates(currentTime: number): AbilityStateEntry[] {
+        if (currentTime < DASH_DURATION) {
+            return [{ state: AbilityState.IFRAMES }];
+        }
+        return [];
+    },
+
+    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+        const eng = engine as GameEngineLike;
+        const tm = eng.terrainManager ?? null;
+
+        // ── Init ──────────────────────────────────────────────────────────────────
+        if (prevTime < 0.05 && currentTime >= 0.05) {
+            caster.setAbilityNote({
+                abilityId: CARD_ID,
+                abilityNote: {
+                    hitTargetIds: [],
+                    wallEntryX: null,
+                    wallEntryY: null,
+                    slingshotDirX: null,
+                    slingshotDirY: null,
+                    damagedTileKeys: [],
+                },
+            });
+            grantRecoveryChargeToRandomAbility(
+                caster,
+                'staminaCharge',
+                (min, max) => eng.generateRandomInteger(min, max),
+                { excludeAbilityId: CARD_ID },
+            );
+        }
+
+        // ── Slingshot phase ───────────────────────────────────────────────────────
+        if (currentTime >= DASH_DURATION) {
+            if (!isAbilityNote(caster.abilityNote, CARD_ID)) {
+                return;
+            }
+            const note = caster.abilityNote.abilityNote;
+
+            // First tick at dash end: decide whether to start slingshot
+            if (prevTime < DASH_DURATION) {
+                if (tm && !tm.isPassable(caster.x, caster.y)) {
+                    // Compute slingshot direction: continuing through the wall
+                    let dirX = 0;
+                    let dirY = 0;
+                    if (note.wallEntryX !== null && note.wallEntryY !== null) {
+                        const dx = caster.x - note.wallEntryX;
+                        const dy = caster.y - note.wallEntryY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 0) {
+                            dirX = dx / dist;
+                            dirY = dy / dist;
+                        }
+                    }
+                    if (dirX === 0 && dirY === 0) {
+                        // Edge case: started inside wall with no recorded entry
+                        const nearest = findNearestPassableDirection(tm, caster.x, caster.y);
+                        if (nearest) {
+                            dirX = nearest.x;
+                            dirY = nearest.y;
+                        }
+                    }
+                    if (dirX !== 0 || dirY !== 0) {
+                        note.slingshotDirX = dirX;
+                        note.slingshotDirY = dirY;
+                    }
+                }
+            }
+
+            // Active slingshot: push caster out each tick
+            if (note.slingshotDirX !== null && note.slingshotDirY !== null) {
+                const dt = currentTime - prevTime;
+                const movePerTick = SLINGSHOT_SPEED * dt;
+                caster.invalidateMovementPath();
+                // Move a fixed distance in slingshot direction, bypassing terrain
+                caster.moveUnit(
+                    caster.x + note.slingshotDirX * 10000,
+                    caster.y + note.slingshotDirY * 10000,
+                    movePerTick,
+                );
+
+                if (tm) {
+                    maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
+                }
+
+                if (!tm || tm.isPassable(caster.x, caster.y)) {
+                    // Exited wall — launch!
+                    applySlingshotLaunch(caster, note.slingshotDirX, note.slingshotDirY, eng.eventBus);
+                    caster.clearAbilityNote();
+                    return;
+                }
+            }
+
+            // Slingshot phase expired but unit still stuck: force out via nearest direction
+            if (currentTime >= DASH_DURATION + SLINGSHOT_PHASE && isAbilityNote(caster.abilityNote, CARD_ID)) {
+                if (tm && !tm.isPassable(caster.x, caster.y)) {
+                    const dir = findNearestPassableDirection(tm, caster.x, caster.y);
+                    if (dir) {
+                        let exitX = caster.x;
+                        let exitY = caster.y;
+                        for (let d = 4; d <= 800; d += 4) {
+                            const tx = caster.x + dir.x * d;
+                            const ty = caster.y + dir.y * d;
+                            if (tm.isPassable(tx, ty)) {
+                                exitX = tx;
+                                exitY = ty;
+                                break;
+                            }
+                        }
+                        const distToExit = Math.sqrt((exitX - caster.x) ** 2 + (exitY - caster.y) ** 2);
+                        if (distToExit > 0) {
+                            caster.invalidateMovementPath();
+                            caster.moveUnit(exitX, exitY, distToExit);
+                            applySlingshotLaunch(caster, dir.x, dir.y, eng.eventBus);
+                        }
+                    }
+                }
+                caster.clearAbilityNote();
+            }
+            return;
+        }
+
+        // ── Dash phase (currentTime < DASH_DURATION) ──────────────────────────────
+        const pos = getPixelTargetPosition(targets, 0);
+        const dirResult = pos ? getDirectionFromTo(caster.x, caster.y, pos.x, pos.y) : null;
+        const distToTarget = dirResult?.dist ?? 0;
+        const moveDistance =
+            distToTarget > 0
+                ? Math.min(
+                      ((currentTime - prevTime) / DASH_DURATION) * MAX_DISTANCE,
+                      distToTarget,
+                  )
+                : 0;
+
+        // Afterimage effects
+        const twoTickPeriods = Math.floor(currentTime * 30);
+        const prevTwoTickPeriods = prevTime < 0 ? -1 : Math.floor(prevTime * 30);
+        const isMoving = moveDistance > 0;
+        for (let i = prevTwoTickPeriods + 1; i <= twoTickPeriods; i++) {
+            const effectData: Record<string, unknown> = {
+                bodyColor: getBodyColorForUnit(caster),
+                radius: caster.radius,
+                characterSpriteKey: getCharacterSpriteKey(caster.characterId),
+            };
+            if (isMoving && dirResult && dirResult.dist > 0) {
+                const baseAngle = Math.atan2(-dirResult.dirY, -dirResult.dirX);
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
+                const angleVariance = (Math.random() - 0.5) * 0.6;
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
+                const speed = 30 + Math.random() * 20;
+                effectData.vx = Math.cos(baseAngle + angleVariance) * speed;
+                effectData.vy = Math.sin(baseAngle + angleVariance) * speed;
+            } else if (!isMoving) {
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
+                const angle = Math.random() * Math.PI * 2;
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
+                const speed = 30 + Math.random() * 20;
+                effectData.vx = Math.cos(angle) * speed;
+                effectData.vy = Math.sin(angle) * speed;
+            }
+            eng.addEffect(
+                new Effect({
+                    x: caster.x,
+                    y: caster.y,
+                    duration: AFTERIMAGE_DURATION,
+                    effectType: 'Afterimage',
+                    effectData,
+                }),
+            );
+        }
+
+        // Wall-penetrating movement: bypass terrain check, call moveUnit directly
+        if (pos && distToTarget > 0 && moveDistance > 0) {
+            const prevX = caster.x;
+            const prevY = caster.y;
+
+            caster.invalidateMovementPath();
+            caster.moveUnit(pos.x, pos.y, moveDistance);
+
+            // Wall entry/exit tracking and rock tile damage
+            if (tm) {
+                const wasPassable = tm.isPassable(prevX, prevY);
+                const nowPassable = tm.isPassable(caster.x, caster.y);
+
+                if (isAbilityNote(caster.abilityNote, CARD_ID)) {
+                    const note = caster.abilityNote.abilityNote;
+                    if (wasPassable && !nowPassable) {
+                        note.wallEntryX = prevX;
+                        note.wallEntryY = prevY;
+                    } else if (!wasPassable && nowPassable) {
+                        note.wallEntryX = null;
+                        note.wallEntryY = null;
+                    }
+                    maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
+                }
+            }
+        }
+
+        // Enemy hit detection (identical to Claw)
+        if (isAbilityNote(caster.abilityNote, CARD_ID) && dirResult && dirResult.dist > 0) {
+            const note = caster.abilityNote.abilityNote;
+            const touchRadius = caster.radius;
+            const moveDirX = dirResult.dirX;
+            const moveDirY = dirResult.dirY;
+
+            for (const unit of eng.units) {
+                if (!unit.active || !unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
+                if (unit.id === caster.id) continue;
+                if (note.hitTargetIds.includes(unit.id)) continue;
+                if (unit.hasIFrames(eng.gameTime)) continue;
+
+                const dx = unit.x - caster.x;
+                const dy = unit.y - caster.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > touchRadius + unit.radius) continue;
+
+                const blocked = !tryDamageOrBlock(unit, {
+                    engine: eng,
+                    gameTime: eng.gameTime,
+                    eventBus: eng.eventBus,
+                    attackerX: caster.x,
+                    attackerY: caster.y,
+                    attackerId: caster.id,
+                    abilityId: CARD_ID,
+                    damage: DAMAGE,
+                    attackType: 'melee',
+                });
+                if (blocked) continue;
+
+                note.hitTargetIds.push(unit.id);
+
+                const cross = moveDirX * dy - moveDirY * dx;
+                const perpX = cross > 0 ? -moveDirY : moveDirY;
+                const perpY = cross > 0 ? moveDirX : -moveDirX;
+                const perpLen = Math.sqrt(perpX * perpX + perpY * perpY);
+                const knockX = perpLen > 0 ? (perpX / perpLen) * KNOCKBACK_MAGNITUDE : KNOCKBACK_MAGNITUDE;
+                const knockY = perpLen > 0 ? (perpY / perpLen) * KNOCKBACK_MAGNITUDE : 0;
+
+                unit.applyKnockback(
+                    POISE_DAMAGE,
+                    {
+                        knockbackVector: { x: knockX, y: knockY },
+                        knockbackAirTime: KNOCKBACK_AIR_TIME,
+                        knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
+                        knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
+                    },
+                    eng.eventBus,
+                    (u) => eng.interruptUnitAndRefundAbilities(u),
+                );
+            }
+        }
+    },
+
+    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
+        // Melee blocked: no additional behaviour.
+    },
+
+    renderTargetingPreview: createPixelTargetPreview(MAX_DISTANCE),
+};
+
+export const BoarClawsCard: CardDef = {
+    id: asCardDefId(CARD_ID),
+    name: 'Boar Claws',
+    abilityId: CARD_ID,
+    durability: 1,
+    discardDuration: { duration: 1, unit: 'rounds' },
+};

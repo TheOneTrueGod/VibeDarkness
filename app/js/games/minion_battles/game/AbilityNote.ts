@@ -13,6 +13,14 @@ export interface AbilityNoteMap {
     '0106': { blockCount: number; rewardedTwiceBlock?: boolean };
     '0110': { retaliationCount: number };
     '0111': { hitTargetIds: string[] };
+    '0534': {
+        hitTargetIds: string[];
+        wallEntryX: number | null;
+        wallEntryY: number | null;
+        slingshotDirX: number | null;
+        slingshotDirY: number | null;
+        damagedTileKeys: string[];
+    };
 }
 
 /** Discriminated union: { abilityId: K, abilityNote: AbilityNoteMap[K] } for each K. */
