@@ -93,10 +93,10 @@ const CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND = 1;
 /** Fixed time step (seconds): 60 ticks/second. */
 const FIXED_DT = 1 / 60;
 
-/** Seconds of game time after applying a `wait` order before it may end early (movement done / enemy proximity failsafe). */
+/** Seconds of game time after applying a `wait` order before it may end early (movement done / enemy proximity failsafe / coop cancel). */
 const WAIT_ORDER_MIN_DURATION_SEC = 1.5;
 /** Hard cap (seconds of game time): `wait` always ends by this offset from order application. */
-const WAIT_ORDER_MAX_DURATION_SEC = 1.5;
+const WAIT_ORDER_MAX_DURATION_SEC = 2.5;
 
 /** Save a checkpoint to the server every this many game ticks. */
 export const CHECKPOINT_INTERVAL = 10;
@@ -903,6 +903,13 @@ export class GameEngine implements EngineContext {
                         this.cancelActiveAbility(unit.id, active.abilityId);
                         cancelledOwners.add(unit.ownerId);
                     }
+                }
+                // Wait action coop cancel: if the unit is past its min wait time it is in the
+                // coop-cancellable window (last 1 s of the 1.5–2.5 s wait duration).
+                if (unit.isInWaitLockout() && unit.waitMinEndTime !== null && this.gameTime >= unit.waitMinEndTime) {
+                    unit.waitMinEndTime = null;
+                    unit.waitMaxEndTime = null;
+                    cancelledOwners.add(unit.ownerId);
                 }
             }
 
