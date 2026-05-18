@@ -25,9 +25,9 @@ Discrete steps only: `Camera.ZOOM_LEVELS = [0.5, 0.75, 1.0, 1.5, 2.0]`.
 
 - `zoomIn(pivotScreenX, pivotScreenY)` — step up one level, keeping the pivot world point fixed on screen.
 - `zoomOut(pivotScreenX, pivotScreenY)` — step down one level.
+- `setZoomLevel(level)` — set zoom to an exact level and re-clamp; use when camera position is already correct (e.g. after `snapTo`).
 
-**Scroll wheel:** pivot = mouse cursor position on canvas.
-**Keyboard (T/G):** pivot = viewport center (`viewportWidth/2`, `viewportHeight/2`).
+**All zoom input** uses the player unit's current screen position as the pivot so the character stays in place on screen. Falls back to viewport center if no player unit exists.
 
 ## Coordinate Conversions
 
@@ -76,9 +76,10 @@ this.gameContainer.y = -camera.y * camera.zoom + camera.viewportHeight / 2;
 
 | Input | Action |
 |-------|--------|
-| Scroll wheel (on canvas) | `zoomIn` / `zoomOut` at mouse position |
-| T key | `zoomIn` at viewport center |
-| G key | `zoomOut` at viewport center |
+| Scroll wheel (on canvas) | `zoomIn` / `zoomOut` pivoted on the player unit's screen position |
+| T key | `zoomIn` pivoted on the player unit's screen position |
+| G key | `zoomOut` pivoted on the player unit's screen position |
+| Home / H key | `snapTo` player unit + `setZoomLevel(1.0)` + resume auto-follow |
 | WASD / arrows | `panBy` at `PAN_SPEED` world px/frame |
 | Left-drag | `panBy(-dx/zoom, -dy/zoom)` per pointer-move event |
 

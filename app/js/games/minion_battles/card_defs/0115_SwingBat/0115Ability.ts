@@ -328,27 +328,13 @@ export const SwingBatAbility_0115: AbilityStatic = {
         const rightBotY = line.rightY - offY;
         const rightTopX = line.rightX + offX;
         const rightTopY = line.rightY + offY;
-        const midX = line.centerX;
-        const midY = line.centerY;
-
         gr.clear();
         gr.moveTo(leftTopX, leftTopY);
         gr.lineTo(leftBotX, leftBotY);
-        gr.lineTo(midX - offX, midY - offY);
-        gr.lineTo(midX + offX, midY + offY);
-        gr.lineTo(leftTopX, leftTopY);
-        gr.fill({ color: 0x4a4a60, alpha: 0.55 });
-        gr.moveTo(midX + offX, midY + offY);
-        gr.lineTo(midX - offX, midY - offY);
-        gr.lineTo(rightBotX, rightBotY);
-        gr.lineTo(rightTopX, rightTopY);
-        gr.lineTo(midX + offX, midY + offY);
-        gr.fill({ color: 0x8a8aa0, alpha: 0.7 });
-        gr.moveTo(leftTopX, leftTopY);
-        gr.lineTo(leftBotX, leftBotY);
         gr.lineTo(rightBotX, rightBotY);
         gr.lineTo(rightTopX, rightTopY);
         gr.lineTo(leftTopX, leftTopY);
+        gr.fill({ color: 0x9ca3af, alpha: 0.5 });
         gr.stroke({ color: 0x505060, width: 2, alpha: 0.9 });
 
         const ctx = buildHitboxContext(units);

@@ -197,13 +197,24 @@ export default function BattleCanvas({
             }
             if (e.code === 'KeyT') {
                 e.preventDefault();
-                camera.zoomIn(camera.viewportWidth / 2, camera.viewportHeight / 2);
+                const pu = engine.getLocalPlayerUnit();
+                const piv = pu ? camera.worldToScreen(pu.x, pu.y) : { x: camera.viewportWidth / 2, y: camera.viewportHeight / 2 };
+                camera.zoomIn(piv.x, piv.y);
                 autoFollowPausedUntilRef.current = Date.now() + 5000;
             }
             if (e.code === 'KeyG') {
                 e.preventDefault();
-                camera.zoomOut(camera.viewportWidth / 2, camera.viewportHeight / 2);
+                const pu = engine.getLocalPlayerUnit();
+                const piv = pu ? camera.worldToScreen(pu.x, pu.y) : { x: camera.viewportWidth / 2, y: camera.viewportHeight / 2 };
+                camera.zoomOut(piv.x, piv.y);
                 autoFollowPausedUntilRef.current = Date.now() + 5000;
+            }
+            if (e.code === 'Home' || e.code === 'KeyH') {
+                e.preventDefault();
+                const pu = engine.getLocalPlayerUnit();
+                if (pu) camera.snapTo(pu.x, pu.y);
+                camera.setZoomLevel(1.0);
+                autoFollowPausedUntilRef.current = 0;
             }
         };
         const handleKeyUp = (e: KeyboardEvent) => {
@@ -218,7 +229,7 @@ export default function BattleCanvas({
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, []);
+    }, [camera, engine]);
 
     // Scroll-wheel zoom — must be a native listener with passive:false to call preventDefault
     useEffect(() => {
@@ -226,16 +237,15 @@ export default function BattleCanvas({
         if (!canvas) return;
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const sx = e.clientX - rect.left;
-            const sy = e.clientY - rect.top;
-            if (e.deltaY < 0) camera.zoomIn(sx, sy);
-            else camera.zoomOut(sx, sy);
+            const pu = engine.getLocalPlayerUnit();
+            const piv = pu ? camera.worldToScreen(pu.x, pu.y) : { x: camera.viewportWidth / 2, y: camera.viewportHeight / 2 };
+            if (e.deltaY < 0) camera.zoomIn(piv.x, piv.y);
+            else camera.zoomOut(piv.x, piv.y);
             autoFollowPausedUntilRef.current = Date.now() + 5000;
         };
         canvas.addEventListener('wheel', handleWheel, { passive: false });
         return () => canvas.removeEventListener('wheel', handleWheel);
-    }, [camera]);
+    }, [camera, engine]);
 
     const handleContextMenu = useCallback(
         (e: React.MouseEvent<HTMLCanvasElement>) => {

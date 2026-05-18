@@ -2,6 +2,7 @@
  * Debug toggles — persisted client flags (localStorage). Add new rows as checkboxes; layout is two columns.
  */
 import React, { useCallback, useSyncExternalStore } from 'react';
+import { useDebugSettings } from '../../../contexts/DebugSettingsContext';
 import {
     DEBUG_TYPES,
     DEBUG_LOG_THRESHOLD_LABELS,
@@ -32,6 +33,8 @@ const THRESHOLD_OPTIONS = (
 ).map((value) => ({ value, label: DEBUG_LOG_THRESHOLD_LABELS[value] }));
 
 export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
+    const { logEveryTick, setLogEveryTick } = useDebugSettings();
+
     const showAllResearchTrees = useSyncExternalStore(
         subscribeShowAllResearchTrees,
         getShowAllResearchTrees,
@@ -90,6 +93,15 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                         onChange={(e) => setAlwaysShowSyncStatus(e.target.checked)}
                     />
                     <span className="leading-snug">Always show sync status</span>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border border-border-custom bg-surface text-primary focus:ring-primary shrink-0"
+                        checked={logEveryTick}
+                        onChange={(e) => setLogEveryTick(e.target.checked)}
+                    />
+                    <span className="leading-snug">Console log every tick</span>
                 </label>
             </div>
 

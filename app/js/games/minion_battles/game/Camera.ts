@@ -91,6 +91,12 @@ export class Camera {
         this.clamp();
     }
 
+    /** Set zoom to an exact level (must be one of ZOOM_LEVELS) and re-clamp. Use when the camera position is already correct. */
+    setZoomLevel(level: number): void {
+        this.zoom = level;
+        this.clamp();
+    }
+
     /** Step zoom in one level, keeping the pivot screen point fixed in world space. */
     zoomIn(pivotScreenX: number, pivotScreenY: number): void {
         const idx = Camera.ZOOM_LEVELS.indexOf(this.zoom);
