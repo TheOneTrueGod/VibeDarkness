@@ -252,8 +252,8 @@ function tryStrikeTarget(
 
     if (hitUnits.length > 0) {
         hitUnits.sort((a, b) => {
-            const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
-            const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
+            const da = (a.x - fallbackPos.x) ** 2 + (a.y - fallbackPos.y) ** 2;
+            const db = (b.x - fallbackPos.x) ** 2 + (b.y - fallbackPos.y) ** 2;
             return da - db;
         });
     }
@@ -429,8 +429,8 @@ export const PunchAbility: AbilityStatic = {
             const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, caster.x, caster.y, endX, endY, LINE_THICKNESS);
             if (hits.length === 0) return null;
             hits.sort((a, b) => {
-                const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
-                const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
+                const da = (a.x - pos.x) ** 2 + (a.y - pos.y) ** 2;
+                const db = (b.x - pos.x) ** 2 + (b.y - pos.y) ** 2;
                 return da - db;
             });
             return hits[0] ?? null;
@@ -505,8 +505,8 @@ export const PunchAbility: AbilityStatic = {
         const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, caster.x, caster.y, aimAtMax.x, aimAtMax.y, LINE_THICKNESS);
         if (hits.length > 0) {
             hits.sort((a, b) => {
-                const da = (a.x - caster.x) ** 2 + (a.y - caster.y) ** 2;
-                const db = (b.x - caster.x) ** 2 + (b.y - caster.y) ** 2;
+                const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
+                const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
                 return da - db;
             });
             renderMeleeTrackingHighlights(gr, [hits[0]!]);

@@ -214,8 +214,8 @@ export const SwingSwordAbility: AbilityStatic = {
             const ctx = buildHitboxContext(eng.units);
             const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
             hits.sort((a, b) => {
-                const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
-                const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+                const da = (a.x - pos.x) ** 2 + (a.y - pos.y) ** 2;
+                const db = (b.x - pos.x) ** 2 + (b.y - pos.y) ** 2;
                 return da - db;
             });
             trackedUnits = hits.slice(0, MAX_TARGETS).map((u) => u);
@@ -339,8 +339,8 @@ export const SwingSwordAbility: AbilityStatic = {
         const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
         if (hits.length > 0) {
             hits.sort((a, b) => {
-                const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
-                const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+                const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
+                const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
                 return da - db;
             });
             renderMeleeTrackingHighlights(gr, hits.slice(0, MAX_TARGETS));

@@ -193,8 +193,8 @@ export const SwingBatAbility_0103: AbilityStatic = {
             const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
             if (hits.length > 0) {
                 hits.sort((a, b) => {
-                    const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
-                    const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+                    const da = (a.x - pos.x) ** 2 + (a.y - pos.y) ** 2;
+                    const db = (b.x - pos.x) ** 2 + (b.y - pos.y) ** 2;
                     return da - db;
                 });
                 trackedUnit = hits[0] ?? null;
@@ -257,8 +257,8 @@ export const SwingBatAbility_0103: AbilityStatic = {
         if (hitUnits.length === 0) return;
 
         hitUnits.sort((a, b) => {
-            const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
-            const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+            const da = (a.x - fallbackPos.x) ** 2 + (a.y - fallbackPos.y) ** 2;
+            const db = (b.x - fallbackPos.x) ** 2 + (b.y - fallbackPos.y) ** 2;
             return da - db;
         });
         const targetUnit = hitUnits[0]!;
@@ -335,8 +335,8 @@ export const SwingBatAbility_0103: AbilityStatic = {
         const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
         if (hits.length > 0) {
             hits.sort((a, b) => {
-                const da = (a.x - line.leftX) ** 2 + (a.y - line.leftY) ** 2;
-                const db = (b.x - line.leftX) ** 2 + (b.y - line.leftY) ** 2;
+                const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
+                const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
                 return da - db;
             });
             renderMeleeTrackingHighlights(gr, [hits[0]!]);
