@@ -553,9 +553,10 @@ export class GameRenderer {
 
         this.targetingState = targetingState ?? null;
 
-        // Update game container offset (camera)
-        this.gameContainer.x = -camera.x + camera.viewportWidth / 2;
-        this.gameContainer.y = -camera.y + camera.viewportHeight / 2;
+        // Update game container offset and scale (camera + zoom)
+        this.gameContainer.scale.set(camera.zoom);
+        this.gameContainer.x = -camera.x * camera.zoom + camera.viewportWidth / 2;
+        this.gameContainer.y = -camera.y * camera.zoom + camera.viewportHeight / 2;
 
         if (this.pendingUnitCharacterSpriteSync) {
             this.syncAllUnitCharacterSprites(engine);

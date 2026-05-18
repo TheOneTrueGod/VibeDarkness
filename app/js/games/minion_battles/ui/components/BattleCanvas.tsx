@@ -195,6 +195,16 @@ export default function BattleCanvas({
                 e.preventDefault();
                 keysHeldRef.current.add(e.code);
             }
+            if (e.code === 'KeyT') {
+                e.preventDefault();
+                camera.zoomIn(camera.viewportWidth / 2, camera.viewportHeight / 2);
+                autoFollowPausedUntilRef.current = Date.now() + 5000;
+            }
+            if (e.code === 'KeyG') {
+                e.preventDefault();
+                camera.zoomOut(camera.viewportWidth / 2, camera.viewportHeight / 2);
+                autoFollowPausedUntilRef.current = Date.now() + 5000;
+            }
         };
         const handleKeyUp = (e: KeyboardEvent) => {
             if (movementKeys.has(e.code)) {
@@ -209,6 +219,23 @@ export default function BattleCanvas({
             window.removeEventListener('keyup', handleKeyUp);
         };
     }, []);
+
+    // Scroll-wheel zoom — must be a native listener with passive:false to call preventDefault
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+            if (e.deltaY < 0) camera.zoomIn(sx, sy);
+            else camera.zoomOut(sx, sy);
+            autoFollowPausedUntilRef.current = Date.now() + 5000;
+        };
+        canvas.addEventListener('wheel', handleWheel, { passive: false });
+        return () => canvas.removeEventListener('wheel', handleWheel);
+    }, [camera]);
 
     const handleContextMenu = useCallback(
         (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -267,7 +294,7 @@ export default function BattleCanvas({
         }
 
         if (state.dragging) {
-            camera.panBy(-dx, -dy);
+            camera.panBy(-dx / camera.zoom, -dy / camera.zoom);
             if (playerUnit) {
                 camera.setFocusTarget(playerUnit.x, playerUnit.y, playerUnit.radius);
             }

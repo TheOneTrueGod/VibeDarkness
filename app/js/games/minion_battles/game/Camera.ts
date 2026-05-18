@@ -23,6 +23,11 @@ export class Camera {
     /** When the unit is within this many pixels of screen center after lerp, snap to centered for a clean stop. */
     private readonly centerSnapThresholdPx: number = 2;
 
+    /** Discrete zoom steps available. */
+    static readonly ZOOM_LEVELS = [0.5, 0.75, 1.0, 1.5, 2.0];
+    /** Current zoom multiplier (always one of ZOOM_LEVELS). */
+    zoom: number = 1.0;
+
     constructor(viewportWidth: number, viewportHeight: number, worldWidth: number, worldHeight: number) {
         this.viewportWidth = viewportWidth;
         this.viewportHeight = viewportHeight;
@@ -86,17 +91,51 @@ export class Camera {
         this.clamp();
     }
 
+    /** Step zoom in one level, keeping the pivot screen point fixed in world space. */
+    zoomIn(pivotScreenX: number, pivotScreenY: number): void {
+        const idx = Camera.ZOOM_LEVELS.indexOf(this.zoom);
+        if (idx < Camera.ZOOM_LEVELS.length - 1) {
+            this._applyZoom(Camera.ZOOM_LEVELS[idx + 1], pivotScreenX, pivotScreenY);
+        }
+    }
+
+    /** Step zoom out one level, keeping the pivot screen point fixed in world space. */
+    zoomOut(pivotScreenX: number, pivotScreenY: number): void {
+        const idx = Camera.ZOOM_LEVELS.indexOf(this.zoom);
+        if (idx > 0) {
+            this._applyZoom(Camera.ZOOM_LEVELS[idx - 1], pivotScreenX, pivotScreenY);
+        }
+    }
+
     /**
-     * Clamp camera so the camera center stays inside the world bounds.
+     * Apply a new zoom level while keeping the given screen-space pivot point
+     * fixed at the same world position before and after the zoom change.
+     */
+    private _applyZoom(newZoom: number, pivotScreenX: number, pivotScreenY: number): void {
+        const pivotWorld = this.screenToWorld(pivotScreenX, pivotScreenY);
+        this.zoom = newZoom;
+        // Solve: (pivotWorld.x - camera.x) * newZoom + vw/2 = pivotScreenX
+        this.x = pivotWorld.x - (pivotScreenX - this.viewportWidth / 2) / newZoom;
+        this.y = pivotWorld.y - (pivotScreenY - this.viewportHeight / 2) / newZoom;
+        this.clamp();
+    }
+
+    /**
+     * Clamp camera so the visible area stays within the world bounds plus a 100px buffer.
+     * If the viewport (in world space) is larger than the map + buffer, center on the world.
      */
     private clamp(): void {
-        const worldMinX = 0;
-        const worldMaxX = this.worldWidth;
-        const worldMinY = 0;
-        const worldMaxY = this.worldHeight;
+        const buffer = 100;
+        const halfW = this.viewportWidth / (2 * this.zoom);
+        const halfH = this.viewportHeight / (2 * this.zoom);
 
-        this.x = this.clampValue(this.x, worldMinX, worldMaxX);
-        this.y = this.clampValue(this.y, worldMinY, worldMaxY);
+        const minX = halfW - buffer;
+        const maxX = this.worldWidth - halfW + buffer;
+        this.x = minX <= maxX ? this.clampValue(this.x, minX, maxX) : this.worldWidth / 2;
+
+        const minY = halfH - buffer;
+        const maxY = this.worldHeight - halfH + buffer;
+        this.y = minY <= maxY ? this.clampValue(this.y, minY, maxY) : this.worldHeight / 2;
     }
 
     private clampValue(value: number, min: number, max: number): number {
@@ -104,19 +143,19 @@ export class Camera {
         return Math.max(min, Math.min(max, value));
     }
 
-    /** Convert a world-space coordinate to screen-space. */
+    /** Convert a world-space coordinate to screen-space (zoom-aware). */
     worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
         return {
-            x: worldX - this.x + this.viewportWidth / 2,
-            y: worldY - this.y + this.viewportHeight / 2,
+            x: (worldX - this.x) * this.zoom + this.viewportWidth / 2,
+            y: (worldY - this.y) * this.zoom + this.viewportHeight / 2,
         };
     }
 
-    /** Convert a screen-space coordinate to world-space. */
+    /** Convert a screen-space coordinate to world-space (zoom-aware). */
     screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
         return {
-            x: screenX + this.x - this.viewportWidth / 2,
-            y: screenY + this.y - this.viewportHeight / 2,
+            x: (screenX - this.viewportWidth / 2) / this.zoom + this.x,
+            y: (screenY - this.viewportHeight / 2) / this.zoom + this.y,
         };
     }
 

@@ -12,7 +12,9 @@
       "Skill(working-with-skills)",
       "Skill(working-with-skills:*)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\" -Directory)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(xargs grep -l \"canvas\\\\|getContext\\\\|Canvas\")",
+      "Bash(xargs grep -l \"wheel\\\\|scroll\\\\|addEventListener\\\\|keydown\\\\|mousedown\\\\|onWheel\")"
     ]
   }
 }
