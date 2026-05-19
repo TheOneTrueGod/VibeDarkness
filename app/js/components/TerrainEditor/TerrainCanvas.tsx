@@ -36,7 +36,7 @@ interface TerrainCanvasProps {
 export function getBrushCells(
     col: number,
     row: number,
-    brushSize: 1 | 2 | 3,
+    brushSize: 1 | 2 | 3 | 4,
     width: number,
     height: number,
 ): { col: number; row: number }[] {

@@ -342,11 +342,14 @@ export default function CampaignHomeScreen({
     }, [missionResults]);
 
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="h-screen flex flex-col">
+            <div className="flex-1 overflow-y-auto w-full">
             <div
-                className={`flex-1 mx-auto w-full px-5 py-8 max-md:px-5 max-md:py-5 ${
+                className={`mx-auto w-full px-5 py-8 max-md:px-5 max-md:py-5 ${
                     activeTab === 'players'
                         ? 'max-w-[1800px]'
+                        : activeTab === 'terrain_editor'
+                          ? 'max-w-[1400px]'
                         : activeTab === 'ability_test'
                           ? 'max-w-[min(1800px,100%)]'
                           : 'max-w-[800px]'
@@ -528,6 +531,7 @@ export default function CampaignHomeScreen({
                         {activeTab === 'terrain_editor' && isAdmin && <TerrainEditorTab />}
                     </>
                 )}
+            </div>
             </div>
 
             {hasCampaign && campaign && (

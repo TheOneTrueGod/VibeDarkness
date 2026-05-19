@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapSegmentData } from '../../games/minion_battles/terrain/segmentSchema';
 import { listSegments } from '../../games/minion_battles/terrain/segmentRegistry';
 
 interface SegmentSelectorProps {
     selectedId: string | null;
     onSelect: (data: MapSegmentData) => void;
+    defaultId?: string;
+    onSegmentsChange?: (segments: Map<string, MapSegmentData>) => void;
 }
 
-export default function SegmentSelector({ selectedId, onSelect }: SegmentSelectorProps) {
+export default function SegmentSelector({ selectedId, onSelect, defaultId, onSegmentsChange }: SegmentSelectorProps) {
     const [apiSegments, setApiSegments] = useState<MapSegmentData[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -33,16 +35,35 @@ export default function SegmentSelector({ selectedId, onSelect }: SegmentSelecto
         fetchApiSegments();
     }, []);
 
-    // Merge registry + API segments; API wins on collision.
-    const registrySegments = listSegments();
-    const merged = new Map<string, MapSegmentData>();
-    for (const seg of registrySegments) {
-        merged.set(seg.id, seg);
-    }
-    for (const seg of apiSegments) {
-        merged.set(seg.id, seg);
-    }
-    const allSegments = Array.from(merged.values());
+    const registrySegments = useMemo(() => listSegments(), []);
+    const merged = useMemo(() => {
+        const map = new Map<string, MapSegmentData>();
+        for (const seg of registrySegments) map.set(seg.id, seg);
+        for (const seg of apiSegments) map.set(seg.id, seg);
+        return map;
+    }, [registrySegments, apiSegments]);
+
+    const allSegments = useMemo(() => Array.from(merged.values()), [merged]);
+
+    // Auto-select default segment once segments are available and nothing is selected
+    const onSelectRef = useRef(onSelect);
+    useEffect(() => { onSelectRef.current = onSelect; });
+    const hasAutoSelected = useRef(false);
+    useEffect(() => {
+        if (hasAutoSelected.current || selectedId != null || defaultId == null) return;
+        const seg = merged.get(defaultId);
+        if (seg) {
+            hasAutoSelected.current = true;
+            onSelectRef.current(seg);
+        }
+    }, [merged, selectedId, defaultId]);
+
+    // Notify parent when segment list changes
+    const onSegmentsChangeRef = useRef(onSegmentsChange);
+    useEffect(() => { onSegmentsChangeRef.current = onSegmentsChange; });
+    useEffect(() => {
+        onSegmentsChangeRef.current?.(merged);
+    }, [merged]);
 
     function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
         const id = e.target.value;

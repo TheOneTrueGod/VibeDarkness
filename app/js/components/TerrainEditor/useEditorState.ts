@@ -16,7 +16,7 @@ export interface EditorState {
     activeTool: 'terrain_paint' | 'poi';
     showPOIs: boolean;
     selectedTerrainType: TerrainType;
-    brushSize: 1 | 2 | 3;
+    brushSize: 1 | 2 | 3 | 4;
     selectedPOIId: string | null;
     hoveredCell: { col: number; row: number } | null;
     saveStatus: 'idle' | 'saving' | 'saved' | 'error';
@@ -43,7 +43,7 @@ type EditorAction =
     | { type: 'LOAD_SEGMENT'; payload: MapSegmentData }
     | { type: 'SET_TOOL'; payload: 'terrain_paint' | 'poi' }
     | { type: 'SET_TERRAIN_TYPE'; payload: TerrainType }
-    | { type: 'SET_BRUSH_SIZE'; payload: 1 | 2 | 3 }
+    | { type: 'SET_BRUSH_SIZE'; payload: 1 | 2 | 3 | 4 }
     | { type: 'TOGGLE_POIS' }
     | { type: 'SET_HOVERED_CELL'; payload: { col: number; row: number } | null }
     | { type: 'PAINT_CELLS'; payload: { col: number; row: number }[] }
@@ -192,7 +192,7 @@ export interface EditorActions {
     loadSegment: (data: MapSegmentData) => void;
     setTool: (tool: 'terrain_paint' | 'poi') => void;
     setTerrainType: (type: TerrainType) => void;
-    setBrushSize: (size: 1 | 2 | 3) => void;
+    setBrushSize: (size: 1 | 2 | 3 | 4) => void;
     togglePOIs: () => void;
     setHoveredCell: (cell: { col: number; row: number } | null) => void;
     paintCells: (cells: { col: number; row: number }[]) => void;

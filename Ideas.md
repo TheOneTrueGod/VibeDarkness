@@ -3,6 +3,9 @@ Chip:  Crystal + Crystal
 Clarence:  Crystal + Crystal
 Voen: metal
 
+Feedback May 18
+[] Turn indicator says "stamina surge recovers 3 stamina".  Pot lid says "get 2 stamina surges"
+
 Feedback May 14, 2026
 [x] Add "SPC" to the hotkey for wait
 [x] Change the foot icon
