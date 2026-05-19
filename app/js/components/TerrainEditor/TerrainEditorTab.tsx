@@ -93,7 +93,9 @@ export default function TerrainEditorTab() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(state.segmentData),
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const json = await response.json().catch(() => null);
+            console.log('[TerrainEditor] Save response:', response.status, json);
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${JSON.stringify(json)}`);
             actions.setSaveStatus('saved');
             actions.clearDirty();
             setTimeout(() => actions.setSaveStatus('idle'), 2000);

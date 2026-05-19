@@ -10,8 +10,8 @@ interface SegmentSelectorProps {
 }
 
 export default function SegmentSelector({ selectedId, onSelect, defaultId, onSegmentsChange }: SegmentSelectorProps) {
-    const [apiSegments, setApiSegments] = useState<MapSegmentData[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [apiSegments, setApiSegments] = useState<MapSegmentData[] | null>(null); // null = not yet fetched
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     async function fetchApiSegments() {
@@ -19,13 +19,14 @@ export default function SegmentSelector({ selectedId, onSelect, defaultId, onSeg
         setError(null);
         try {
             const response = await fetch('/api/terrain-segments');
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const json = await response.json();
-            setApiSegments((json as { segments: MapSegmentData[] }).segments ?? []);
+            const fetched = (json as { segments: MapSegmentData[] }).segments ?? [];
+            console.log('[SegmentSelector] API segments:', fetched.map((s) => s.id));
+            setApiSegments(fetched);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch segments');
+            setApiSegments([]); // unblock auto-select even on error
         } finally {
             setIsLoading(false);
         }
@@ -35,11 +36,19 @@ export default function SegmentSelector({ selectedId, onSelect, defaultId, onSeg
         fetchApiSegments();
     }, []);
 
-    const registrySegments = useMemo(() => listSegments(), []);
+    const registrySegments = useMemo(() => {
+        const segs = listSegments();
+        console.log('[SegmentSelector] Registry segments:', segs.map((s) => s.id));
+        return segs;
+    }, []);
+
+    // Both sources ready once the API fetch has returned (success or error).
+    const bothReady = apiSegments !== null;
+
     const merged = useMemo(() => {
         const map = new Map<string, MapSegmentData>();
         for (const seg of registrySegments) map.set(seg.id, seg);
-        for (const seg of apiSegments) map.set(seg.id, seg);
+        for (const seg of apiSegments ?? []) map.set(seg.id, seg); // API wins on collision
         return map;
     }, [registrySegments, apiSegments]);
 
@@ -48,26 +57,19 @@ export default function SegmentSelector({ selectedId, onSelect, defaultId, onSeg
     const onSelectRef = useRef(onSelect);
     useEffect(() => { onSelectRef.current = onSelect; });
 
-    // Auto-select default segment once segments are available and nothing is selected.
-    // Runs on registry segments immediately, but if the API later provides an updated
-    // version of the currently-loaded segment, reload it so saved changes are reflected.
+    // Auto-select only after both sources are ready so the API version is preferred.
     const hasAutoSelected = useRef(false);
     useEffect(() => {
-        if (defaultId == null) return;
+        if (!bothReady || hasAutoSelected.current || selectedId != null || defaultId == null) return;
         const seg = merged.get(defaultId);
-        if (!seg) return;
-        if (selectedId == null && !hasAutoSelected.current) {
-            // Initial load from registry
+        if (seg) {
             hasAutoSelected.current = true;
+            console.log('[SegmentSelector] Auto-selecting:', seg.id, '| source:', apiSegments?.find((s) => s.id === seg.id) ? 'API' : 'registry');
             onSelectRef.current(seg);
-        } else if (selectedId === defaultId && apiSegments.length > 0) {
-            // API fetch just completed — reload with the API version if one exists
-            const apiSeg = apiSegments.find((s) => s.id === defaultId);
-            if (apiSeg) onSelectRef.current(apiSeg);
         }
-    }, [merged, apiSegments, selectedId, defaultId]);
+    }, [bothReady, merged, selectedId, defaultId]);
 
-    // Notify parent when segment list changes
+    // Notify parent when segment list changes.
     const onSegmentsChangeRef = useRef(onSegmentsChange);
     useEffect(() => { onSegmentsChangeRef.current = onSegmentsChange; });
     useEffect(() => {
@@ -75,11 +77,8 @@ export default function SegmentSelector({ selectedId, onSelect, defaultId, onSeg
     }, [merged]);
 
     function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-        const id = e.target.value;
-        const seg = merged.get(id);
-        if (seg) {
-            onSelect(seg);
-        }
+        const seg = merged.get(e.target.value);
+        if (seg) onSelect(seg);
     }
 
     return (

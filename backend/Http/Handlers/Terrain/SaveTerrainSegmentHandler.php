@@ -54,9 +54,14 @@ class SaveTerrainSegmentHandler
             return ['success' => false, 'error' => 'Body id does not match URL id'];
         }
 
-        $filePath = __DIR__ . '/../../../../../storage/terrain-segments/' . $urlId . '.json';
+        $filePath = __DIR__ . '/../../../../storage/terrain-segments/' . $urlId . '.json';
 
-        file_put_contents($filePath, json_encode($body, JSON_PRETTY_PRINT));
+        $result = file_put_contents($filePath, json_encode($body, JSON_PRETTY_PRINT));
+
+        if ($result === false) {
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Failed to write segment file'];
+        }
 
         return ['success' => true];
     }

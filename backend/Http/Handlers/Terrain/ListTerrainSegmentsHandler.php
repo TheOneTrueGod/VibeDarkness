@@ -9,7 +9,7 @@ class ListTerrainSegmentsHandler
 {
     public static function handle(LobbyManager $manager, AccountService $accountService, array $matches): array
     {
-        $storageDir = __DIR__ . '/../../../../../storage/terrain-segments';
+        $storageDir = __DIR__ . '/../../../../storage/terrain-segments';
         $segments = [];
 
         if (is_dir($storageDir)) {

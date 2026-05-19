@@ -16,7 +16,7 @@ class GetTerrainSegmentHandler
             return ['success' => false, 'error' => 'Invalid segment id'];
         }
 
-        $filePath = __DIR__ . '/../../../../../storage/terrain-segments/' . $id . '.json';
+        $filePath = __DIR__ . '/../../../../storage/terrain-segments/' . $id . '.json';
 
         if (!file_exists($filePath)) {
             http_response_code(404);
