@@ -45,18 +45,27 @@ export default function SegmentSelector({ selectedId, onSelect, defaultId, onSeg
 
     const allSegments = useMemo(() => Array.from(merged.values()), [merged]);
 
-    // Auto-select default segment once segments are available and nothing is selected
     const onSelectRef = useRef(onSelect);
     useEffect(() => { onSelectRef.current = onSelect; });
+
+    // Auto-select default segment once segments are available and nothing is selected.
+    // Runs on registry segments immediately, but if the API later provides an updated
+    // version of the currently-loaded segment, reload it so saved changes are reflected.
     const hasAutoSelected = useRef(false);
     useEffect(() => {
-        if (hasAutoSelected.current || selectedId != null || defaultId == null) return;
+        if (defaultId == null) return;
         const seg = merged.get(defaultId);
-        if (seg) {
+        if (!seg) return;
+        if (selectedId == null && !hasAutoSelected.current) {
+            // Initial load from registry
             hasAutoSelected.current = true;
             onSelectRef.current(seg);
+        } else if (selectedId === defaultId && apiSegments.length > 0) {
+            // API fetch just completed — reload with the API version if one exists
+            const apiSeg = apiSegments.find((s) => s.id === defaultId);
+            if (apiSeg) onSelectRef.current(apiSeg);
         }
-    }, [merged, selectedId, defaultId]);
+    }, [merged, apiSegments, selectedId, defaultId]);
 
     // Notify parent when segment list changes
     const onSegmentsChangeRef = useRef(onSegmentsChange);

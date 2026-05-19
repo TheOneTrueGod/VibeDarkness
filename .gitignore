@@ -5,3 +5,4 @@ storage/
 deploy.zip
 Plans/
 vendor/
+.claude/worktrees/
