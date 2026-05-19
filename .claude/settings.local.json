@@ -23,7 +23,13 @@
       "Skill(missions:*)",
       "Skill(map-segments)",
       "Skill(map-segments:*)",
-      "Edit(/.claude/skills/map-segments/**)"
+      "Edit(/.claude/skills/map-segments/**)",
+      "Bash(dir \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\storage\")",
+      "Bash(dir /s /b \"C:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\.claude\")",
+      "Bash(dir /s /b \"C:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\.claude\\\\skills\" 2>nul)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness"
     ]
   }
 }
