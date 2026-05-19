@@ -48,6 +48,9 @@ use App\Http\Handlers\GrantAccountResourceHandler;
 use App\Http\Handlers\GrantCampaignResourceHandler;
 use App\Http\Handlers\RemoveAccountItemHandler;
 use App\Http\Handlers\ListAdminAccountsHandler;
+use App\Http\Handlers\Terrain\ListTerrainSegmentsHandler;
+use App\Http\Handlers\Terrain\GetTerrainSegmentHandler;
+use App\Http\Handlers\Terrain\SaveTerrainSegmentHandler;
 
 /**
  * Matches request method and path to handler functions.
@@ -105,6 +108,9 @@ class Router
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/join$#', JoinLobbyHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/leave$#', LeaveLobbyHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)$#', GetLobbyHandler::class],
+            ['GET', '#^/api/terrain-segments$#', ListTerrainSegmentsHandler::class],
+            ['GET', '#^/api/terrain-segments/([a-z0-9_-]+)$#', GetTerrainSegmentHandler::class],
+            ['PUT', '#^/api/terrain-segments/([a-z0-9_-]+)$#', SaveTerrainSegmentHandler::class],
             ['GET', '#^/api/stats$#', StatsHandler::class],
         ];
     }

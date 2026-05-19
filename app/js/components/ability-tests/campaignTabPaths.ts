@@ -1,6 +1,6 @@
-export type TabId = 'welcome' | 'mission_select' | 'join_mission' | 'players' | 'ability_test';
+export type TabId = 'welcome' | 'mission_select' | 'join_mission' | 'players' | 'ability_test' | 'terrain_editor';
 
-export const CAMPAIGN_TAB_IDS: TabId[] = ['welcome', 'mission_select', 'join_mission', 'players', 'ability_test'];
+export const CAMPAIGN_TAB_IDS: TabId[] = ['welcome', 'mission_select', 'join_mission', 'players', 'ability_test', 'terrain_editor'];
 
 /** URL path segment under `/campaign/:tabSlug` */
 export const CAMPAIGN_TAB_SLUG: Record<TabId, string> = {
@@ -9,6 +9,7 @@ export const CAMPAIGN_TAB_SLUG: Record<TabId, string> = {
     join_mission: 'join-mission',
     players: 'players',
     ability_test: 'ability-test',
+    terrain_editor: 'terrain-editor',
 };
 
 const SLUG_TO_TAB = Object.fromEntries(

@@ -17,6 +17,7 @@ import ResourcePill, { campaignResourceGains } from './ResourcePill';
 import ResearchRewardTinyChip, { MISSION_REWARD_CHIP_CLASSNAME } from './ResearchRewardTinyChip';
 import { ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
 import AbilityTestPage from './AbilityTestPage';
+import TerrainEditorTab from './TerrainEditor/TerrainEditorTab';
 import {
     type TabId,
     CAMPAIGN_TAB_IDS,
@@ -34,6 +35,7 @@ const TAB_SETTINGS: Record<
     join_mission: { label: 'Join Mission', isVisible: () => true },
     players: { label: 'Players', isVisible: (isAdmin) => isAdmin, adminTab: true },
     ability_test: { label: 'Ability Test', isVisible: (isAdmin) => isAdmin, adminTab: true },
+    terrain_editor: { label: 'Terrain Editor', isVisible: (isAdmin) => isAdmin, adminTab: true },
 };
 
 /** Default tab when no tab is selected; non-admins see Join Mission first. */
@@ -522,6 +524,8 @@ export default function CampaignHomeScreen({
                         )}
 
                         {activeTab === 'ability_test' && isAdmin && <AbilityTestPage />}
+
+                        {activeTab === 'terrain_editor' && isAdmin && <TerrainEditorTab />}
                     </>
                 )}
             </div>
