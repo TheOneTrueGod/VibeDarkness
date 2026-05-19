@@ -23,6 +23,7 @@ import {
 	pointsOfInterest as cliffPathPOI,
 } from '../MapSegments/50_49_cliff_path_north';
 import { MAP_SEGMENT_50_48_PATH_TOP } from '../MapSegments/50_48_path_top';
+import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
@@ -35,9 +36,9 @@ const WORLD_HEIGHT = ROWS * CELL_SIZE;
 const _ = TerrainType.Grass;
 
 function createTerrain(): TerrainGrid {
-	const top = MAP_SEGMENT_50_48_PATH_TOP;
-	const middle = MAP_SEGMENT_50_49_CLIFF_PATH_NORTH;
-	const bottom = MAP_SEGMENT_50_50_CRYSTAL_CAVE;
+	const top = getTerrainForSegment('50_48_path_top', MAP_SEGMENT_50_48_PATH_TOP);
+	const middle = getTerrainForSegment('50_49_cliff_path_north', MAP_SEGMENT_50_49_CLIFF_PATH_NORTH);
+	const bottom = getTerrainForSegment('50_50_crystal_cave', MAP_SEGMENT_50_50_CRYSTAL_CAVE);
 	const stitched = stitchTerrain([[top], [middle], [bottom]], _);
 	return TerrainGrid.createTerrainFromArray(COLS, ROWS, CELL_SIZE, stitched, _);
 }
@@ -191,6 +192,8 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 };
 
 export class LightEmpoweredMission extends BaseMissionDef {
+	segmentIds = ['50_48_path_top', '50_49_cliff_path_north', '50_50_crystal_cave'];
+
 	missionId = 'light_empowered';
 	campaignId = 'world_of_darkness';
 	name = 'Find some food';

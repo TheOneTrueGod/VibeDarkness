@@ -42,6 +42,8 @@ import type { MessageEntry } from '../../../../components/Chat';
 import { computeSynchash } from '@/utils/synchash';
 import { logToLobbyLog } from '../../../../lobbyLog';
 import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
+import { fetchBattleAssets } from '../../game/fetchBattleAssets';
+import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 
 declare global {
     interface Window {
@@ -83,6 +85,8 @@ declare global {
         __minionBattlesAdminMovePendingUnitId?: string;
     }
 }
+
+type BattleInitPhase = 'fetching_assets' | 'loading_battle' | 'submitting' | 'ready';
 
 interface BattlePhaseProps {
     api: MinionBattlesApi;
@@ -166,6 +170,7 @@ export default function BattlePhase({
     const [storyPauseActive, setStoryPauseActive] = useState(false);
     const [teamworkBurstKey, setTeamworkBurstKey] = useState(0);
     const [netSyncStatus, setNetSyncStatus] = useState<BattleNetSyncTerminalStatus>('waiting_for_host');
+    const [battleInitPhase, setBattleInitPhase] = useState<BattleInitPhase>('fetching_assets');
     const [netSyncDetails, setNetSyncDetails] = useState<string | null>(null);
     const [resyncInformAck, setResyncInformAck] = useState<{ reason: string; token: number } | null>(null);
     const [waitingForHostCatchup, setWaitingForHostCatchup] = useState(false);
@@ -476,6 +481,33 @@ export default function BattlePhase({
                 }
             };
 
+            const logInit = (message: string, severity: 'info' | 'warn' = 'info') => {
+                void logToLobbyLog({
+                    lobbyClient: api.getLobbyClient(),
+                    lobbyId: api.getLobbyId(),
+                    playerId,
+                    gameId: api.getGameId(),
+                    tick: 0,
+                    severity,
+                    logType: 'debug',
+                    gamePhase: 'battle',
+                    message,
+                });
+            };
+
+            // --- Battle Initialization: fetch terrain assets ---
+            setBattleInitPhase('fetching_assets');
+            const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
+            await fetchBattleAssets(api, playerId, mission.segmentIds);
+
+            if (!effectAlive) {
+                tearDownNetForAbortedLoad();
+                return;
+            }
+
+            setBattleInitPhase('loading_battle');
+            logInit('Battle Initialization: loading battle engine...');
+
             let bootstrappedFromCheckpoint = false;
             try {
                 bootstrappedFromCheckpoint = await net.tryBootstrapFromLatestCheckpoint();
@@ -508,6 +540,8 @@ export default function BattlePhase({
                     initialSnapshot: (initialGameState as SerializedGameState | null | undefined) ?? undefined,
                 });
             }
+
+            logInit('Battle Initialization: engine loaded');
 
             if (!effectAlive) {
                 tearDownNetForAbortedLoad();
@@ -595,8 +629,12 @@ export default function BattlePhase({
             };
 
             if (isHost) {
+                setBattleInitPhase('submitting');
+                logInit('Battle Initialization: submitting initial state to server...');
                 await net.saveInitialState();
             }
+            setBattleInitPhase('ready');
+            logInit('Battle Initialization: complete');
             session.startEngine();
             net.start();
             bumpOrderPipeline();
@@ -877,10 +915,21 @@ export default function BattlePhase({
         );
     }
 
-    if (!engine || !renderer || !camera) {
+    if (!engine || !renderer || !camera || battleInitPhase !== 'ready') {
+        const loadingLabel =
+            battleInitPhase === 'fetching_assets'
+                ? 'Loading terrain...'
+                : battleInitPhase === 'loading_battle'
+                  ? 'Initializing battle...'
+                  : battleInitPhase === 'submitting'
+                    ? 'Preparing battle...'
+                    : null;
         return (
             <div className="w-full h-full flex items-center justify-center">
-                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                <div className="text-center space-y-4">
+                    <div className="w-16 h-16 mx-auto border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    {loadingLabel && <p className="text-sm text-light-300">{loadingLabel}</p>}
+                </div>
             </div>
         );
     }

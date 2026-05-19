@@ -14,6 +14,7 @@ import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
+import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 import {
     MAP_SEGMENT_50_50_CRYSTAL_CAVE,
     CAVE_CAMPFIRE,
@@ -34,8 +35,8 @@ const RIGHT_SEGMENT_COL = SEGMENT_COLS;
 const _ = TerrainType.Grass;
 
 function createTerrain(): TerrainGrid {
-    const left = MAP_SEGMENT_49_50_PATH_TO_CAVE;
-    const right = MAP_SEGMENT_50_50_CRYSTAL_CAVE;
+    const left = getTerrainForSegment('49_50_path_to_cave', MAP_SEGMENT_49_50_PATH_TO_CAVE);
+    const right = getTerrainForSegment('50_50_crystal_cave', MAP_SEGMENT_50_50_CRYSTAL_CAVE);
     const stitched = stitchTerrain([[left, right]], _);
     return TerrainGrid.createTerrainFromArray(COLS, ROWS, CELL_SIZE, stitched, _);
 }
@@ -129,6 +130,8 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 };
 
 export class MonsterMission extends BaseMissionDef {
+    segmentIds = ['49_50_path_to_cave', '50_50_crystal_cave'];
+
     missionId = 'monster';
     campaignId = 'world_of_darkness';
     name = 'Monster';

@@ -31,6 +31,7 @@ import {
     MAP_SEGMENT_50_51_SOUTH_GATE,
     PATROL_DRAW_POINT,
 } from '../MapSegments/50_51_south_gate';
+import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
 const COLS = 44;
 const ROWS = 44;
@@ -53,8 +54,8 @@ const _ = TerrainType.Grass;
 function createTerrain(): TerrainGrid {
     const stitched = stitchTerrain(
         [
-            [MAP_SEGMENT_49_50_PATH_TO_CAVE, MAP_SEGMENT_50_50_CRYSTAL_CAVE],
-            [MAP_SEGMENT_49_51_WEST_GLADE, MAP_SEGMENT_50_51_SOUTH_GATE],
+            [getTerrainForSegment('49_50_path_to_cave', MAP_SEGMENT_49_50_PATH_TO_CAVE), getTerrainForSegment('50_50_crystal_cave', MAP_SEGMENT_50_50_CRYSTAL_CAVE)],
+            [getTerrainForSegment('49_51_west_glade', MAP_SEGMENT_49_51_WEST_GLADE), getTerrainForSegment('50_51_south_gate', MAP_SEGMENT_50_51_SOUTH_GATE)],
         ],
         _,
     );
@@ -163,6 +164,7 @@ export class EmberThresholdMission extends BaseMissionDef {
     static readonly nameStr = 'Ember at the Threshold';
 
     campaignId = 'world_of_darkness';
+    segmentIds = ['49_50_path_to_cave', '50_50_crystal_cave', '49_51_west_glade', '50_51_south_gate'];
 
     battleObjectives: BattleObjectiveDef[] = [
         {

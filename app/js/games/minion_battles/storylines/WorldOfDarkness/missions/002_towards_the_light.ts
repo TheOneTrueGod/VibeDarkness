@@ -30,6 +30,7 @@ import {
     CAVE_CAMPFIRE,
     crystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
+import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 import { rocksItem } from '../../../character_defs/items/hands/001_rocks';
 import { torchItem } from '../../../character_defs/items/hands/002_torch';
 import { potShieldItem } from '../../../character_defs/items/hands/003_pot_shield';
@@ -124,7 +125,7 @@ const R = TerrainType.Rock;
 
 /** Right third (44–65): rocky cave from shared map segment. */
 function buildRightSection(): TerrainType[][] {
-    return MAP_SEGMENT_50_50_CRYSTAL_CAVE;
+    return getTerrainForSegment('50_50_crystal_cave', MAP_SEGMENT_50_50_CRYSTAL_CAVE);
 }
 
 /** Apply global rocky border and small protrusions to a 2D terrain array (mutates). */
@@ -144,8 +145,8 @@ function applyBorder(grid: TerrainType[][], cols: number, rows: number): void {
 }
 
 function createTerrain(): TerrainGrid {
-    const left = MAP_SEGMENT_48_50_WAKEUP;
-    const middle = MAP_SEGMENT_49_50_PATH_TO_CAVE;
+    const left = getTerrainForSegment('48_50_wakeup', MAP_SEGMENT_48_50_WAKEUP);
+    const middle = getTerrainForSegment('49_50_path_to_cave', MAP_SEGMENT_49_50_PATH_TO_CAVE);
     const right = buildRightSection();
     const stitched = stitchTerrain([[left, middle, right]], _);
     applyBorder(stitched, COLS, ROWS);
@@ -272,6 +273,8 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 };
 
 export class TowardsTheLightMission extends BaseMissionDef {
+    segmentIds = ['48_50_wakeup', '49_50_path_to_cave', '50_50_crystal_cave'];
+
     getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams): StoryChoiceOptionRow[] | null {
         if (params.choiceId !== 'towards_the_light_cave_choice') return null;
         return getTowardsTheLightCaveChoiceRows(params.equippedItemIds);
