@@ -827,6 +827,18 @@ const effectDefRegistry: Record<string, IEffectDef> = {
     SlashingSword: slashingSwordEffectDef,
     SlashTrail: slashTrailEffectDef,
     ChargedRockExplosion: chargedRockExplosionEffectDef,
+    EnergyBlastExplosion: {
+        createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics { return new Graphics(); },
+        updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+            const g = visual as Graphics;
+            g.clear();
+            const startRadius = effect.effectRadius ?? 40;
+            const radius = Math.max(1, startRadius * (1 - effect.progress * 0.5));
+            const alpha = Math.max(0.2, 0.85 * (1 - effect.progress));
+            g.circle(0, 0, radius);
+            g.fill({ color: 0x8be9ff, alpha });
+        },
+    },
     DamageNumber: damageNumberEffectDef,
     FloatingText: floatingTextEffectDef,
 };

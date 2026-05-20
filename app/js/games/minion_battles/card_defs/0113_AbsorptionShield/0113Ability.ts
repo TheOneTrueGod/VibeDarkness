@@ -3,7 +3,7 @@ import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackB
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createArcTargetPreview, drawArcWedge } from '../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../game/types';
+import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { getDirectionFromTo } from '../../abilities/targetHelpers';
 import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
@@ -23,6 +23,9 @@ const SHIELD_FILL_COLOR = 0x7de2f5;
 const SHIELD_STROKE_COLOR = 0x35a7c1;
 const MAX_RANGE = 300;
 const MIN_RANGE = 10;
+const MAX_BLOCK_SURGES = 2;
+
+type AbsorptionShieldPayload = { surgeCount: number };
 
 interface AbsorptionShieldEngineLike {
     generateRandomInteger(min: number, max: number): number;
@@ -55,8 +58,13 @@ export const AbsorptionShieldAbility: AbilityStatic = {
     getTooltipText(_gameState?: unknown): string[] {
         return [
             'Raise your shield to block attacks from the front',
-            'On Block: Gain {1} energy charge',
+            `On Block: Gain {1} energy charge (up to {${MAX_BLOCK_SURGES}}x per use)`,
         ];
+    },
+
+    beginActiveCast(_engine: unknown, _caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
+        const payload: AbsorptionShieldPayload = { surgeCount: 0 };
+        active.castPayload = payload;
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
@@ -121,6 +129,10 @@ export const AbsorptionShieldAbility: AbilityStatic = {
     },
 
     onBlockSuccess(engine: unknown, defender: Unit, _attackInfo: AttackBlockedInfo): void {
+        const active = defender.activeAbilities.find((a) => a.abilityId === CARD_ID);
+        const payload = active?.castPayload as AbsorptionShieldPayload | undefined;
+        if (payload && payload.surgeCount >= MAX_BLOCK_SURGES) return;
+        if (payload) payload.surgeCount++;
         const eng = engine as AbsorptionShieldEngineLike;
         grantRecoveryChargeToRandomAbility(
             defender,
