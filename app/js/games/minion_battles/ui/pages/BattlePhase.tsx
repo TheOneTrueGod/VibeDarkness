@@ -842,6 +842,12 @@ export default function BattlePhase({
                 handleWait();
                 return;
             }
+            if (e.code === 'Escape') {
+                setSelectedCardIndex(null);
+                setSelectedAbility(null);
+                setCurrentTargets([]);
+                return;
+            }
             const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key, 10) : 0;
             if (digit > 0 && canUseOrderUi) {
                 const index = digit - 1;

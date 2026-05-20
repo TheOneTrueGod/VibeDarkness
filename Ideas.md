@@ -1,10 +1,18 @@
 People's Choices
 Chip:  Crystal + Crystal
 Clarence:  Crystal + Crystal
+Kerry: Bleeding sword.  Likes shotgun builds
 Voen: metal
 
 Feedback May 18
 [] Turn indicator says "stamina surge recovers 3 stamina".  Pot lid says "get 2 stamina surges"
+[] Darkness damage is a little too low, and it's possible to speedrun the second mission
+[] Movement target can be in a rock
+Ammo shows up for swing sword.  It shouldn't.
+Something's slightly off with the target locking.  It seems 
+Put the boar on the path
+Adjust enemy AI in the find some food mission.  They don't spawn enough.
+
 
 Feedback May 14, 2026
 [x] Add "SPC" to the hotkey for wait
