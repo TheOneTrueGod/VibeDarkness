@@ -66,7 +66,7 @@ export default function CardComponent({
     const tooltipLines = ability.getTooltipText(gameState);
     const costs = getAbilityResourceCosts(ability);
     const recoveryRules = getAbilityUseConfig(ability.id).recoveries;
-    const showRecovery = recoveryRules.length > 0;
+    const hasRecovery = recoveryRules.length > 0;
     const firstRule = recoveryRules[0];
     const animRule: AbilityChargeAnimRule | undefined = firstRule
         ? {
@@ -75,10 +75,11 @@ export default function CardComponent({
               usesRecovered: firstRule.usesRecovered,
           }
         : undefined;
-    const anim = useAbilityUseChargeAnimation(ability.id, runtime, showRecovery ? animRule : undefined);
+    const anim = useAbilityUseChargeAnimation(ability.id, runtime, hasRecovery ? animRule : undefined);
     const usesLeft = Math.max(0, anim.uses);
     const maxUses = Math.max(1, anim.maxUses);
     const isAtFullUses = usesLeft >= maxUses;
+    const showRecovery = hasRecovery && !isAtFullUses;
 
     return (
         <div
@@ -149,11 +150,19 @@ export default function CardComponent({
                                 const recoveryNeeded = Math.max(1, rule.chargesPerRecovery);
                                 const chargeDef = RECOVERY_CHARGE_DEFINITIONS[rule.chargeType];
                                 const rowTitle = chargeDef.rowExplanation;
+                                // Compute overlap: pips are 22px each; available width ~75px.
+                                // Positive = gap (px), negative = overlap (px).
+                                const PIP_SIZE = 22;
+                                const AVAILABLE_WIDTH = 75;
+                                const totalNatural = recoveryNeeded * PIP_SIZE + (recoveryNeeded - 1) * 2;
+                                const interPipSpacing = totalNatural > AVAILABLE_WIDTH && recoveryNeeded > 1
+                                    ? -Math.ceil((totalNatural - AVAILABLE_WIDTH) / (recoveryNeeded - 1))
+                                    : 2;
                                 return (
                                     <div
                                         key={`${rule.chargeType}-${rule.chargesPerRecovery}`}
                                         ref={ruleIndex === 0 ? onPrimaryRecoveryPillRef ?? null : null}
-                                        className="flex min-h-[14px] items-center gap-0.5 overflow-visible py-px"
+                                        className="flex min-h-[14px] items-center overflow-hidden py-px"
                                         title={rowTitle}
                                         aria-label={rowTitle}
                                     >
@@ -188,6 +197,7 @@ export default function CardComponent({
                                                     showFill={showFill}
                                                     fillOpacity={fillOpacity}
                                                     innerWidthPct={innerWidthPct}
+                                                    marginLeft={i === 0 ? 0 : interPipSpacing}
                                                 />
                                             );
                                         })}

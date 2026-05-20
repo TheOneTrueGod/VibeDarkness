@@ -16,6 +16,15 @@ import { DARK_CREATURE_CORRUPTION_TINT, DARK_CREATURE_ICON_TINT_ALPHA } from '..
 import { getPortrait } from '../../../character_defs/portraitLoader';
 import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
 import type { CcResistKey } from '../../../crowdControl/ccTypes';
+import { UnitTag } from '../unitTag';
+
+type HpBarSize = 'large' | 'small' | 'hidden';
+
+function getHpBarSize(unit: Unit): HpBarSize {
+    if (unit.tags.includes(UnitTag.Boss)) return 'hidden';
+    if (unit.teamId === 'player') return 'large';
+    return 'small';
+}
 
 /** Optional crowd-control tuning merged onto units at spawn (see `applyCombatCrowdControlProfile`). */
 export type UnitCombatCcDef = {
@@ -149,7 +158,7 @@ const UNIT_DEFS: Record<
     alpha_wolf: {
         bodyColor: 0x1a1a2e,
         characterSpriteKey: 'alpha_wolf',
-        hp: 140,
+        hp: 160,
         speed: 135,
         size: 'Extra Large',
         stamina: 2,
@@ -367,31 +376,33 @@ class DefaultUnitDef implements IUnitDef {
             ensureUnitCharacterSprite(container, unit, characterTexture, isPlayerPortraitTexture);
         }
 
-        // HP bar background (taller to accommodate the name label)
+        const hpBarSize = getHpBarSize(unit);
+
         const hpBg = new Graphics();
-        hpBg.rect(-unit.radius, -unit.radius - 14, unit.radius * 2, 10);
-        hpBg.fill({ color: 0x333333, alpha: 0.8 });
         hpBg.label = 'hpBg';
+        hpBg.visible = hpBarSize !== 'hidden';
+        if (hpBarSize === 'large') {
+            hpBg.rect(-unit.radius, -unit.radius - 14, unit.radius * 2, 10);
+        } else if (hpBarSize === 'small') {
+            hpBg.rect(-unit.radius, -unit.radius - 8, unit.radius * 2, 5);
+        }
+        if (hpBarSize !== 'hidden') hpBg.fill({ color: 0x333333, alpha: 0.8 });
         container.addChild(hpBg);
 
-        // HP bar fill
         const hpFill = new Graphics();
         hpFill.label = 'hpFill';
+        hpFill.visible = hpBarSize !== 'hidden';
         container.addChild(hpFill);
 
-        // Character initial label — always visible, layered on top of the HP bar
-        const style = new TextStyle({
-            fontSize: 8,
-            fontWeight: 'bold',
-            fill: 0x000000,
-        });
-        const label = new Text({ text: unit.name.slice(0, 6).toUpperCase(), style });
-        label.anchor.set(0.5, 0.5);
-        label.x = 0;
-        label.y = -unit.radius - 9; // vertical center of the HP bar
-        label.label = 'label';
-        label.visible = true;
-        container.addChild(label);
+        if (hpBarSize === 'large') {
+            const style = new TextStyle({ fontSize: 8, fontWeight: 'bold', fill: 0x000000 });
+            const label = new Text({ text: unit.name.slice(0, 6).toUpperCase(), style });
+            label.anchor.set(0.5, 0.5);
+            label.x = 0;
+            label.y = -unit.radius - 9;
+            label.label = 'label';
+            container.addChild(label);
+        }
 
         return container;
     }
@@ -490,12 +501,17 @@ export function renderUnit(unit: Unit, context: IUnitRenderContext): Container {
 /** Update the HP bar child inside a unit visual container. Call each frame from GameRenderer. */
 export function updateUnitHpBar(visual: Container, unit: Unit): void {
     const hpFill = visual.children.find((c) => c.label === 'hpFill') as Graphics | undefined;
-    if (!hpFill) return;
+    if (!hpFill || !hpFill.visible) return;
     hpFill.clear();
     const ratio = unit.hp / unit.maxHp;
     const barWidth = unit.radius * 2 * ratio;
     const barColor = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
-    hpFill.rect(-unit.radius, -unit.radius - 14, barWidth, 10);
+    const hpBarSize = getHpBarSize(unit);
+    if (hpBarSize === 'large') {
+        hpFill.rect(-unit.radius, -unit.radius - 14, barWidth, 10);
+    } else {
+        hpFill.rect(-unit.radius, -unit.radius - 8, barWidth, 5);
+    }
     hpFill.fill(barColor);
 }
 

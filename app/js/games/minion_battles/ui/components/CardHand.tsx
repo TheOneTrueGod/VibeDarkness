@@ -300,16 +300,16 @@ export default function CardHand({
                         />
                     );
                 })}
+                <RoundTrackerCard
+                    roundNumber={roundNumber}
+                    progress={roundProgress}
+                    isPaused={isPaused}
+                    onRootRef={(el) => {
+                        roundTrackerRef.current = el;
+                    }}
+                />
                 {playerUnit && (
                     <>
-                        <RoundTrackerCard
-                            roundNumber={roundNumber}
-                            progress={roundProgress}
-                            isPaused={isPaused}
-                            onRootRef={(el) => {
-                                roundTrackerRef.current = el;
-                            }}
-                        />
                         {/* Hand cards: gap-2 between cards; gap-4 on parent separates tracker / cluster / wait */}
                         <div
                             className="flex max-w-[800px] flex-shrink-0 flex-wrap justify-center gap-2"

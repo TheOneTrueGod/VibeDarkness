@@ -4,6 +4,7 @@ import { getScenarioById } from '../scenarios/registry';
 import { pathShortCommuteScenario } from '../scenarios/general/pathfinding';
 import { punchBaselineScenario } from '../scenarios/abilities/punchResearch';
 import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordResearch';
+import { absorptionShieldEnergyChargeScenario } from '../scenarios/abilities/absorptionShieldScenario';
 
 describe('runScenarioHeadless', () => {
     it('passes short pathfinding commute', () => {
@@ -20,6 +21,11 @@ describe('runScenarioHeadless', () => {
     it('passes swing sword extra uses research scenario', () => {
         const r = runScenarioHeadless(swingSwordExtraUsesScenario);
         expect(r.passed).toBe(true);
+    });
+
+    it('passes absorption shield energy charge on block scenario', () => {
+        const r = runScenarioHeadless(absorptionShieldEnergyChargeScenario);
+        expect(r.passed, r.failureMessage ?? '').toBe(true);
     });
 
     it('getScenarioById returns registered scenario', () => {

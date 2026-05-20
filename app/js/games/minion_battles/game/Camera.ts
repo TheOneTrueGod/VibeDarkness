@@ -131,7 +131,7 @@ export class Camera {
      * If the viewport (in world space) is larger than the map + buffer, center on the world.
      */
     private clamp(): void {
-        const buffer = 100;
+        const buffer = 300;
         const halfW = this.viewportWidth / (2 * this.zoom);
         const halfH = this.viewportHeight / (2 * this.zoom);
 

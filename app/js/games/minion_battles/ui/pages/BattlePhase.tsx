@@ -669,6 +669,13 @@ export default function BattlePhase({
                 setBossHud(null);
                 return;
             }
+            const exposedBuff = b.buffs.find((buf) => buf._type === 'exposed');
+            const exposedSecondsRemaining =
+                exposedBuff && exposedBuff.duration.unit === 'seconds'
+                    ? Math.max(0, exposedBuff.appliedAtTime + exposedBuff.duration.value - eng.gameTime)
+                    : null;
+            const exposedTotalDuration =
+                exposedBuff?.duration.unit === 'seconds' ? exposedBuff.duration.value : null;
             const next: BossHudSlice = {
                 name: b.name,
                 hp: b.hp,
@@ -678,6 +685,8 @@ export default function BattlePhase({
                 hardCcArmourEventSerial: b.hardCcArmourEventSerial,
                 lastHardCcEventKind: b.lastHardCcEventKind,
                 specialMoveCharges: getBossSpecialMoveCharges(b),
+                exposedSecondsRemaining,
+                exposedTotalDuration,
             };
             setBossHud((prev) => {
                 const smPrev = prev?.specialMoveCharges;
@@ -698,6 +707,9 @@ export default function BattlePhase({
                     prev.hardCcArmourConsumed === next.hardCcArmourConsumed &&
                     prev.hardCcArmourEventSerial === next.hardCcArmourEventSerial &&
                     prev.lastHardCcEventKind === next.lastHardCcEventKind &&
+                    Math.round((prev.exposedSecondsRemaining ?? -1) * 10) ===
+                        Math.round((next.exposedSecondsRemaining ?? -1) * 10) &&
+                    prev.exposedTotalDuration === next.exposedTotalDuration &&
                     smEqual
                     ? prev
                     : next;

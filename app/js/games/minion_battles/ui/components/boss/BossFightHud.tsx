@@ -1,6 +1,7 @@
 import React from 'react';
 import { BossArcadeHpBar } from './BossArcadeHpBar';
 import { BossCcArmourRow } from './BossCcArmourRow';
+import { BossExposedTimerBar } from './BossExposedTimerBar';
 import { BossSpecialMoveChargesBar } from './BossSpecialMoveCharges';
 import type { BossSpecialMoveCharges } from './bossSignatureHud';
 
@@ -13,6 +14,8 @@ export type BossHudSlice = {
     hardCcArmourEventSerial: number;
     lastHardCcEventKind: 'absorbed' | 'landed' | null;
     specialMoveCharges: BossSpecialMoveCharges | null;
+    exposedSecondsRemaining: number | null;
+    exposedTotalDuration: number | null;
 } | null;
 
 type BossFightHudProps = {
@@ -46,13 +49,20 @@ export default function BossFightHud({ boss }: BossFightHudProps) {
                             ) : null}
                         </div>
                         <div className="flex shrink-0 justify-end">
-                            <BossCcArmourRow
-                                placement="overlay"
-                                effectiveHardCcThreshold={boss.effectiveHardCcThreshold}
-                                hardCcArmourConsumed={boss.hardCcArmourConsumed}
-                                hardCcArmourEventSerial={boss.hardCcArmourEventSerial}
-                                lastHardCcEventKind={boss.lastHardCcEventKind}
-                            />
+                            {boss.exposedSecondsRemaining != null && boss.exposedTotalDuration != null ? (
+                                <BossExposedTimerBar
+                                    secondsRemaining={boss.exposedSecondsRemaining}
+                                    totalDuration={boss.exposedTotalDuration}
+                                />
+                            ) : (
+                                <BossCcArmourRow
+                                    placement="overlay"
+                                    effectiveHardCcThreshold={boss.effectiveHardCcThreshold}
+                                    hardCcArmourConsumed={boss.hardCcArmourConsumed}
+                                    hardCcArmourEventSerial={boss.hardCcArmourEventSerial}
+                                    lastHardCcEventKind={boss.lastHardCcEventKind}
+                                />
+                            )}
                         </div>
                     </div>
                 </div>

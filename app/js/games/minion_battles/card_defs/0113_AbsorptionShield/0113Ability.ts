@@ -10,8 +10,7 @@ import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses'
 import { asCardDefId, type CardDef } from '../types';
 
 const CARD_ID = '0113';
-const DURATION = 1;
-const COOLDOWN_TIME = 1;
+const DURATION = 1.5;
 const MOVEMENT_PENALTY = 0.1;
 const SHIELD_ARC_DEG = 120;
 const SHIELD_ARC_RAD = (SHIELD_ARC_DEG * Math.PI) / 180;
@@ -48,12 +47,6 @@ export const AbsorptionShieldAbility: AbilityStatic = {
             start: 0,
             end: DURATION,
             abilityPhase: AbilityPhase.Juggernaut,
-        },
-        {
-            id: 'cooldown',
-            start: DURATION,
-            end: DURATION + COOLDOWN_TIME,
-            abilityPhase: AbilityPhase.Cooldown,
         },
     ],
     targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
@@ -94,8 +87,10 @@ export const AbsorptionShieldAbility: AbilityStatic = {
         gr: IAbilityPreviewGraphics,
         caster: Unit,
         activeAbility: { startTime: number; targets: ResolvedTarget[] },
-        _gameTime: number,
+        gameTime: number,
     ): void {
+        const elapsed = gameTime - activeAbility.startTime;
+        if (elapsed < 0 || elapsed >= DURATION) return;
         const pos = activeAbility.targets[0]?.position;
         if (!pos) return;
         const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);

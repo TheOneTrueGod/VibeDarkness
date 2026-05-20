@@ -1,4 +1,5 @@
 import { StunnedBuff } from '../buffs/StunnedBuff';
+import { ExposedBuff } from '../buffs/ExposedBuff';
 import type { Unit } from '../game/units/Unit';
 import { CC_MIN_POTENCY_SEC } from './ccConstants';
 import { resolveCcDuration } from './resolveCcDuration';
@@ -19,6 +20,11 @@ export function tryApplyHardCcStun(
     gameTime: number,
     roundNumber: number,
 ): HardCcStunAttemptResult {
+    // Exposed units are immune to further hard CC; counter does not advance.
+    if (target.hasBuff('exposed')) {
+        return { outcome: 'absorbed' };
+    }
+
     const effectiveDuration = resolveCcDuration(target, 'STUN', baseSeconds);
     if (effectiveDuration < CC_MIN_POTENCY_SEC) {
         return { outcome: 'no_potency' };
@@ -38,9 +44,10 @@ export function tryApplyHardCcStun(
         return { outcome: 'absorbed' };
     }
 
+    // Armour breaks: apply Exposed instead of a plain stun.
     target.hardCcArmourConsumed = 0;
     const breakDuration = target.ccArmourBreakStunDuration > 0 ? target.ccArmourBreakStunDuration : effectiveDuration;
-    target.addBuff(new StunnedBuff(breakDuration), gameTime, roundNumber);
+    target.addBuff(new ExposedBuff(breakDuration), gameTime, roundNumber);
     target.onSuccessfulHardCcLand();
     target.recordHardCcArmourEvent('landed', gameTime);
     return { outcome: 'applied', effectiveDuration: breakDuration };

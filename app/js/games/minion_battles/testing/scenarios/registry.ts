@@ -5,6 +5,7 @@ import {
     pathStraightMoveScenario,
 } from './general/pathfinding';
 import { swingSwordAppliesBleedScenario } from './general/buffs';
+import { bossStunMechanicsScenario } from './general/enemies';
 import {
     punchBaselineScenario,
     punchChargingScenario,
@@ -24,6 +25,7 @@ import {
     swingSwordNoneScenario,
     swingSwordHitsTwoTargetsScenario,
 } from './abilities/swingSwordResearch';
+import { absorptionShieldEnergyChargeScenario } from './abilities/absorptionShieldScenario';
 
 export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathStraightMoveScenario,
@@ -43,6 +45,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     swingSwordNoBleedWithoutResearchScenario,
     swingSwordHitsTwoTargetsScenario,
     swingSwordExtraUsesScenario,
+    bossStunMechanicsScenario,
+    absorptionShieldEnergyChargeScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -57,6 +61,7 @@ export function getGeneralTestScenarios(): ScenarioDefinition[] {
 const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'movement', section: 'Movement' },
     { slug: 'debuffs', section: 'Debuffs' },
+    { slug: 'enemies', section: 'Enemies' },
 ];
 
 export interface GeneralTestSidebarGroup {
@@ -90,6 +95,7 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('punch_')) return '0102';
     if (id.startsWith('throw_rock') || id.includes('throw_rock')) return 'throw_rock';
     if (id.startsWith('swing_sword') || id.includes('buff_swing')) return '0112';
+    if (id.startsWith('absorption_shield')) return '0113';
     return null;
 }
 

@@ -1,5 +1,6 @@
 /**
- * Recovery segment gauge: clipped fill track + centred Lucide icon from {@link RECOVERY_CHARGE_DEFINITIONS}.
+ * Recovery pip: a circular icon that is light-coloured (possessed) or dark (missing).
+ * Partial fill animates inside the circle during charge transitions.
  */
 
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
@@ -12,31 +13,33 @@ export interface ChargeIconProps {
     /** e.g. `opacity-100` vs `opacity-50` when at full uses. */
     fillOpacity: string;
     innerWidthPct: number;
+    /** Left offset in px — positive = gap, negative = overlap with previous pip. */
+    marginLeft?: number;
 }
 
-export function ChargeIcon({ chargeType, showFill, fillOpacity, innerWidthPct }: ChargeIconProps) {
+export function ChargeIcon({ chargeType, showFill, fillOpacity, innerWidthPct, marginLeft }: ChargeIconProps) {
     const def = RECOVERY_CHARGE_DEFINITIONS[chargeType];
     const { Icon } = def;
+    const isPossessed = showFill && innerWidthPct >= 100;
 
     return (
-        <div className="relative flex min-h-[14px] max-w-[40px] flex-1 shrink-0 items-center justify-center overflow-visible">
-            <div className="absolute inset-x-0 top-1/2 h-2 w-full -translate-y-1/2 overflow-hidden rounded-[2px] border border-gray-600 bg-gray-800">
+        <span
+            className={`relative flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border overflow-hidden p-[3px] pointer-events-none ${def.iconCircleBorderClass} ${
+                isPossessed ? def.possessedBgClass : 'bg-black'
+            } ${fillOpacity}`}
+            style={marginLeft !== undefined ? { marginLeft } : undefined}
+        >
+            {showFill && !isPossessed && innerWidthPct > 0 && (
                 <div
-                    className={`absolute bottom-0 left-0 top-0 rounded-[1px] ${
-                        showFill ? `${def.fillClass} ${fillOpacity}` : 'bg-transparent'
-                    }`}
+                    className={`absolute bottom-0 left-0 top-0 z-0 ${def.fillClass}`}
                     style={{ width: `${innerWidthPct}%` }}
                 />
-            </div>
-            <span
-                className={`relative z-[2] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border bg-black p-[3px] pointer-events-none ${def.iconCircleBorderClass}`}
-            >
-                <Icon
-                    className={`h-3 w-3 ${def.iconClassName}`}
-                    strokeWidth={def.strokeWidth}
-                    aria-hidden
-                />
-            </span>
-        </div>
+            )}
+            <Icon
+                className={`relative z-[1] h-3 w-3 ${isPossessed ? def.darkIconClassName : def.iconClassName}`}
+                strokeWidth={def.strokeWidth}
+                aria-hidden
+            />
+        </span>
     );
 }

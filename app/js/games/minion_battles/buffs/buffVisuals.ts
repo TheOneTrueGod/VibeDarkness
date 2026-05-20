@@ -8,6 +8,7 @@ import type { Unit } from '../game/units/Unit';
 import type { Buff } from './Buff';
 import { STUNNED_BUFF_TYPE } from './StunnedBuff';
 import { BLEED_BUFF_TYPE, BleedBuff } from './BleedBuff';
+import { EXPOSED_BUFF_TYPE } from './ExposedBuff';
 
 /** Context passed when rendering a buff visual. */
 export interface IBuffVisualContext {
@@ -115,3 +116,4 @@ export function getBuffVisualRenderer(buffType: string): BuffVisualRenderer {
 // Register built-in buff visuals
 registerBuffVisual(STUNNED_BUFF_TYPE, stunnedBuffVisual);
 registerBuffVisual(BLEED_BUFF_TYPE, bleedBuffVisual);
+registerBuffVisual(EXPOSED_BUFF_TYPE, stunnedBuffVisual);

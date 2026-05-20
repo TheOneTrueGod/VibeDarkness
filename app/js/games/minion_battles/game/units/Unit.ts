@@ -337,7 +337,8 @@ export class Unit extends GameObject {
         if (debugSettingsSnapshot.godModeEnabled && this.isPlayerControlled()) {
             return 0;
         }
-        const armourDamage = applyDamageToEarthCoreArmour(this, amount);
+        const incomingAmount = this.hasBuff('exposed') ? Math.round(amount * 1.2) : amount;
+        const armourDamage = applyDamageToEarthCoreArmour(this, incomingAmount);
         const actual = Math.min(armourDamage.remainingDamage, this.hp);
         this.hp -= actual;
 
@@ -538,8 +539,8 @@ export class Unit extends GameObject {
             return;
         }
 
-        // Stunned units must not advance along a movement path (canAct already blocks new orders).
-        if (this.hasBuff('stunned')) {
+        // Stunned/exposed units must not advance along a movement path (canAct already blocks new orders).
+        if (this.hasBuff('stunned') || this.hasBuff('exposed')) {
             return;
         }
 
@@ -721,6 +722,7 @@ export class Unit extends GameObject {
             this.isAlive() &&
             !this.isInKnockback() &&
             !this.hasBuff('stunned') &&
+            !this.hasBuff('exposed') &&
             this.activeAbilities.length === 0 &&
             !this.isInWaitLockout()
         );

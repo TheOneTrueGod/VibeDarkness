@@ -44,7 +44,7 @@ const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
     '0105': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Laser Sword
     '0112': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Swing Sword
     '0113': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Absorption Shield
-    '0114': { maxUses: 2, startingUses: 0, recoveries: [{ chargeType: 'energyCharge', chargesPerRecovery: 3, usesRecovered: 1 }] }, // Energy Blast
+    '0114': { maxUses: 1, startingUses: 0, recoveries: [{ chargeType: 'energyCharge', chargesPerRecovery: 3, usesRecovered: 1 }] }, // Energy Blast
     '0203': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Pistol
     '0204': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // SMG
     '0205': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Shotgun

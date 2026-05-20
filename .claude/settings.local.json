@@ -28,7 +28,19 @@
       "Bash(dir /s /b \"C:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\.claude\")",
       "Bash(dir /s /b \"C:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\.claude\\\\skills\" 2>nul)",
       "Skill(campaign-home-tabs)",
-      "Skill(campaign-home-tabs:*)"
+      "Skill(campaign-home-tabs:*)",
+      "Skill(ability-tests)",
+      "Skill(ability-tests:*)",
+      "Bash(npx eslint *)",
+      "Bash(npx vitest *)",
+      "Bash(npm run *)",
+      "Bash(git stash *)",
+      "Bash(findstr /n \"roundNumber\\\\|roundProgress\" \"app\\\\js\\\\games\\\\minion_battles\\\\ui\\\\components\\\\CardHand.tsx\")",
+      "Bash(del \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\app\\\\js\\\\games\\\\minion_battles\\\\testing\\\\scenarios\\\\abilities\\\\absorptionShieldScenario.test.ts\")",
+      "Skill(battle-camera)",
+      "Skill(battle-camera:*)",
+      "Skill(working-on-minion-battles)",
+      "Skill(working-on-minion-battles:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness"
