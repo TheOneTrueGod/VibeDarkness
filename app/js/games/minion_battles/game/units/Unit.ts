@@ -29,8 +29,7 @@ import type { UnitTag } from './unitTag';
 import { parseUnitTagsFromJSON } from './unitTag';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import type { CcResistKey } from '../../crowdControl/ccTypes';
-import { getBrambleMovementMultiplier } from '../brambleSlow';
-import type { Effect } from '../effects/Effect';
+import { getBrambleMovementMultiplier, type BramblePatch } from '../brambleSlow';
 import type { LanterniteNestMissionConfig } from '../../storylines/types';
 
 /** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
@@ -164,6 +163,9 @@ export class Unit extends GameObject {
 
     /** Darkness corruption progress 0..1. Fills only in full darkness; drains when brighter. At 1 in full darkness: escalating damage then reset to 0. */
     corruptionProgress: number = 0;
+
+    /** Crystal corruption progress 0..1. Set while this unit is actively corrupting a crystal; 0 when not corrupting. */
+    crystalCorruptionProgress: number = 0;
 
     /**
      * How many darkness damage procs this unit has taken since last full reset.
@@ -563,9 +565,9 @@ export class Unit extends GameObject {
 
         // Compute effective speed: base × ability penalties × terrain modifier × bramble patches
         let effectiveSpeed = this.getEffectiveSpeed(gameTime);
-        const fx = (engine as { effects?: Effect[] }).effects;
-        if (fx && fx.length > 0) {
-            effectiveSpeed *= getBrambleMovementMultiplier(this.x, this.y, fx);
+        const bp = (engine as { bramblePatches?: readonly BramblePatch[] }).bramblePatches;
+        if (bp && bp.length > 0) {
+            effectiveSpeed *= getBrambleMovementMultiplier(this.x, this.y, bp);
         }
         if (terrainManager) {
             effectiveSpeed *= terrainManager.getSpeedMultiplier(this.x, this.y);
@@ -802,6 +804,7 @@ export class Unit extends GameObject {
             waitMinEndTime: this.waitMinEndTime,
             waitMaxEndTime: this.waitMaxEndTime,
             corruptionProgress: this.corruptionProgress,
+            crystalCorruptionProgress: this.crystalCorruptionProgress,
             darknessDamageProcCount: this.darknessDamageProcCount,
             poiseHp: this.poiseHp,
             maxPoiseHp: this.maxPoiseHp,
@@ -961,6 +964,7 @@ export class Unit extends GameObject {
         const ev = data.lastHardCcEventKind;
         unit.lastHardCcEventKind = ev === 'absorbed' || ev === 'landed' ? ev : null;
         unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));
+        unit.crystalCorruptionProgress = Math.max(0, Math.min(1, (data.crystalCorruptionProgress as number) ?? 0));
         unit.darknessDamageProcCount = Math.max(0, Math.floor((data.darknessDamageProcCount as number) ?? 0));
         const kb = data.knockback as KnockbackState | null;
         if (kb && typeof kb.knockbackElapsed === 'number') {

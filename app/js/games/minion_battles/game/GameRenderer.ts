@@ -27,7 +27,7 @@ import {
     type IUnitRenderContext,
 } from './units/unit_defs/unitDef';
 import { getBuffVisualRenderer } from '../buffs/buffVisuals';
-import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from './effectDef';
+import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from './effect_defs/index';
 import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from './effectImages';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import type { SpecialTile } from './specialTiles/SpecialTile';
@@ -86,6 +86,7 @@ export class GameRenderer {
     private moveTargetVisuals: Map<string, Graphics> = new Map();
     private projectileVisuals: Map<string, Graphics> = new Map();
     private effectVisuals: Map<string, Container> = new Map();
+    private lightSourceVisuals: Map<string, Graphics> = new Map();
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
     /** Pending orders + enemy movement paths (lighter than live player move targets). */
@@ -407,21 +408,9 @@ export class GameRenderer {
         return sources;
     }
 
-    /** Build light sources from Torch effects (use current lightAmount/radius from effectData). */
+    /** Build light sources from LightSourceManager. */
     private getLightSourcesFromEffects(engine: GameEngine): LightSource[] {
-        const grid = engine.terrainManager?.grid;
-        if (!grid) return [];
-        const sources: LightSource[] = [];
-        for (const effect of engine.effects) {
-            if (!effect.active || effect.effectType !== 'Torch') continue;
-            const data = effect.effectData as { lightAmount?: number; radius?: number };
-            const emission = data.lightAmount ?? 0;
-            const radius = data.radius ?? 0;
-            if (emission <= 0 || radius <= 0) continue;
-            const { col, row } = grid.worldToGrid(effect.x, effect.y);
-            sources.push({ col, row, emission, radius });
-        }
-        return sources;
+        return engine.state.lightSourceManager.buildGridLightInputs();
     }
 
     private static lightSourcesKey(sources: LightSource[]): string {
@@ -578,6 +567,7 @@ export class GameRenderer {
         this.renderGhostPreviews(engine);
         this.renderProjectiles(engine.projectiles);
         this.renderEffects(engine.effects);
+        this.renderLightSources(engine);
         this.renderActiveAbilityPreviews(engine);
         this.renderTargetingPreview(engine);
         this.cleanupStaleVisuals(engine);
@@ -848,6 +838,29 @@ export class GameRenderer {
                 corruptionBar.stroke({ color: 0x9966cc, width: 1 });
             } else {
                 if (corruptionBar) corruptionBar.visible = false;
+            }
+
+            // Crystal corruption bar: shows while unit is actively corrupting a crystal
+            let crystalCorruptBar = visual.children.find((c) => c.label === 'crystalCorruptBar') as Graphics | undefined;
+            if (unit.crystalCorruptionProgress > 0) {
+                if (!crystalCorruptBar) {
+                    crystalCorruptBar = new Graphics();
+                    crystalCorruptBar.label = 'crystalCorruptBar';
+                    visual.addChild(crystalCorruptBar);
+                }
+                crystalCorruptBar.visible = true;
+                crystalCorruptBar.clear();
+                const w = 24;
+                const h = 4;
+                const y = -unit.radius - 20;
+                crystalCorruptBar.rect(-w / 2, y, w, h);
+                crystalCorruptBar.fill({ color: 0x332244 });
+                crystalCorruptBar.rect(-w / 2, y, w * unit.crystalCorruptionProgress, h);
+                crystalCorruptBar.fill({ color: 0x663399 });
+                crystalCorruptBar.rect(-w / 2, y, w, h);
+                crystalCorruptBar.stroke({ color: 0x9966cc, width: 1 });
+            } else {
+                if (crystalCorruptBar) crystalCorruptBar.visible = false;
             }
 
             // Buff effects: each buff renders its own visual (e.g. stunned stars)
@@ -1317,6 +1330,34 @@ export class GameRenderer {
     }
 
     // ========================================================================
+    // Light Sources
+    // ========================================================================
+
+    private renderLightSources(engine: GameEngine): void {
+        const lsm = engine.state.lightSourceManager;
+        for (const ls of lsm.lightSources) {
+            let g = this.lightSourceVisuals.get(ls.id);
+            if (!g) {
+                g = new Graphics();
+                g.zIndex = Z_INDEX.specialTiles - 1;
+                this.lightSourceVisuals.set(ls.id, g);
+                this.gameContainer.addChild(g);
+            }
+            g.x = ls.x;
+            g.y = ls.y;
+            g.visible = ls.active && ls.lightAmount > 0;
+            if (!g.visible) continue;
+            g.clear();
+            const size = Math.max(8, Math.min(20, ls.radius * 4));
+            g.circle(0, 0, size);
+            g.fill({ color: 0xffaa40, alpha: 0.4 + (ls.lightAmount / 15) * 0.4 });
+            g.circle(0, 0, size * 0.6);
+            g.fill({ color: 0xffdd00, alpha: 0.5 });
+            g.stroke({ color: 0xff6600, width: 1, alpha: 0.8 });
+        }
+    }
+
+    // ========================================================================
     // Cleanup
     // ========================================================================
 
@@ -1355,6 +1396,15 @@ export class GameRenderer {
                 this.gameContainer.removeChild(visual);
                 visual.destroy();
                 this.effectVisuals.delete(id);
+            }
+        }
+
+        const activeLightSourceIds = new Set(engine.state.lightSourceManager.lightSources.map((ls) => ls.id));
+        for (const [id, visual] of this.lightSourceVisuals) {
+            if (!activeLightSourceIds.has(id)) {
+                this.gameContainer.removeChild(visual);
+                visual.destroy();
+                this.lightSourceVisuals.delete(id);
             }
         }
     }

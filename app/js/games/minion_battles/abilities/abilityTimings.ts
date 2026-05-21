@@ -23,6 +23,39 @@ export interface AbilityTiming {
 }
 
 /**
+ * Declarative emitter definition for a timing window.
+ * When the timing window opens the engine automatically creates and registers
+ * the appropriate EffectEmitter; when it closes the emitter is deactivated.
+ */
+export type AbilityTimingEmitterDef =
+    | {
+        mode: 'instant';
+        /** effectType string matching an effectDefRegistry key */
+        effectType: string;
+        effectData?: Record<string, unknown>;
+        /** Emit N copies at once. Default 1. */
+        count?: number;
+      }
+    | {
+        mode: 'interval';
+        intervalSeconds: number;
+        effectType: string;
+        effectData?: Record<string, unknown>;
+        /** Optional radius passed to Effect.effectRadius (for size-dependent visuals). */
+        effectRadius?: number;
+        /** When true, fires the first effect on the very first game tick (seeds accumulator). */
+        fireImmediately?: boolean;
+      }
+    | {
+        mode: 'continuous';
+        effectType: string;
+        effectData?: Record<string, unknown>;
+        emitWhilePaused?: boolean;
+        /** Emit every N render frames. Default 1. */
+        emitIntervalFrames?: number;
+      };
+
+/**
  * Half-open interval [start, end) from ability start, seconds.
  * Declaration order matters when intervals overlap (UI merge: first-listed wins).
  */
@@ -35,6 +68,8 @@ export interface AbilityTimingInterval {
     timelineLabel?: string;
     /** Optional battle timeline tooltip body. */
     timelineDescription?: string;
+    /** Optional declarative emitter: engine auto-creates/deactivates it as this window opens/closes. */
+    emitterDef?: AbilityTimingEmitterDef;
 }
 
 export type AbilityTimingEntry = AbilityTiming | AbilityTimingInterval;

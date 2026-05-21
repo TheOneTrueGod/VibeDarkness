@@ -57,6 +57,7 @@ interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
     units: Unit[];
     addEffect(effect: Effect): void;
+    addLightSource(ls: import('../../game/lightSources/LightSource').LightSource): void;
     eventBus: EventBus;
     gameTime: number;
     roundNumber: number;
@@ -150,7 +151,7 @@ function executeShiningBlockRetaliation(engine: GameEngineLike, defender: Unit, 
     });
     engine.addEffect(flash);
 
-    engine.addEffect(createCrystalLightEffect(defender.x, defender.y));
+    engine.addLightSource(createCrystalLightEffect(defender.x, defender.y));
 }
 
 export const ShiningBlockAbility: AbilityStatic = {

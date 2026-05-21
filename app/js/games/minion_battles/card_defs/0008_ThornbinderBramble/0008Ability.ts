@@ -14,9 +14,8 @@ import { areEnemies } from '../../game/teams';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition } from '../../abilities/targetHelpers';
 import type { EventBus } from '../../game/EventBus';
-import { Effect } from '../../game/effects/Effect';
 import { isLightHateWeakened } from '../../game/lightHate';
-import { BRAMBLE_PATCH_EFFECT_TYPE } from '../../game/brambleSlow';
+import type { BramblePatch } from '../../game/brambleSlow';
 
 export const THORNBINDER_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}08`;
 
@@ -35,8 +34,8 @@ interface EngineLike {
     units: Unit[];
     gameTime: number;
     eventBus: EventBus;
-    effects: Effect[];
-    addEffect(e: Effect): void;
+    bramblePatches: readonly BramblePatch[];
+    addBramblePatch(patch: BramblePatch): void;
     lightLevelEnabled: boolean;
     globalLightLevel: number;
     terrainManager: { grid: import('../../terrain/TerrainGrid').TerrainGrid } | null;
@@ -51,10 +50,14 @@ function getStrikePosition(caster: Unit, active: { targets: ResolvedTarget[] }):
 }
 
 function clearBrambleFromOwner(engine: EngineLike, ownerId: string): void {
-    for (const e of engine.effects) {
-        if (!e.active || e.effectType !== BRAMBLE_PATCH_EFFECT_TYPE) continue;
-        const d = e.effectData as { ownerUnitId?: string };
-        if (d.ownerUnitId === ownerId) e.active = false;
+    // Filter out patches belonging to this owner — they will be garbage collected since
+    // bramblePatches is reassigned on the state object. The engine's getter always reads
+    // state.bramblePatches so we cast to access the mutable field.
+    const mutable = engine as unknown as { state: { bramblePatches: BramblePatch[] } };
+    if (mutable.state?.bramblePatches) {
+        mutable.state.bramblePatches = mutable.state.bramblePatches.filter(
+            (p) => p.ownerUnitId !== ownerId,
+        );
     }
 }
 
@@ -128,20 +131,15 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         }
 
         const expiresAt = eng.gameTime + (COOLDOWN_END - STRIKE_TIME) - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
-        eng.addEffect(
-            new Effect({
-                x: pos.x,
-                y: pos.y,
-                duration: 999_999,
-                effectType: BRAMBLE_PATCH_EFFECT_TYPE,
-                effectData: {
-                    radiusPx: radius,
-                    slowMult,
-                    expiresAtGameTime: Math.max(eng.gameTime + 0.05, expiresAt),
-                    ownerUnitId: caster.id,
-                },
-            }),
-        );
+        eng.addBramblePatch({
+            id: `bramble-${Date.now()}-${Math.random()}`,
+            x: pos.x,
+            y: pos.y,
+            radiusPx: radius,
+            slowMult,
+            expiresAtGameTime: Math.max(eng.gameTime + 0.05, expiresAt),
+            ownerUnitId: caster.id,
+        });
     },
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
     renderTargetingPreview(gr: IAbilityPreviewGraphics, caster: Unit): void {

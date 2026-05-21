@@ -8,7 +8,7 @@ import { AbilityState } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { TargetDef } from '../../../abilities/targeting';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../../game/types';
+import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { Effect } from '../../../game/effects/Effect';
 import { asCardDefId, type CardDef } from '../../types';
@@ -19,8 +19,9 @@ import { areEnemies } from '../../../game/teams';
 import { isAbilityNote } from '../../../game/AbilityNote';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import type { EventBus } from '../../../game/EventBus';
-import type { Effect as EffectType } from '../../../game/effects/Effect';
 import { grantRecoveryChargeToRandomAbility } from '../../../abilities/abilityUses';
+import { ContinuousEmitter } from '../../../game/effects/EffectEmitter';
+import type { EngineContext } from '../../../game/EngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
 const DASH_DURATION = 0.4;
@@ -47,14 +48,8 @@ interface TerrainManagerLike {
     damageRock(col: number, row: number): unknown;
 }
 
-interface GameEngineLike {
-    units: Unit[];
-    addEffect(e: EffectType): void;
-    gameTime: number;
-    eventBus: EventBus;
+interface GameEngineLike extends EngineContext {
     interruptUnitAndRefundAbilities(unit: Unit): void;
-    generateRandomInteger(min: number, max: number): number;
-    terrainManager?: TerrainManagerLike | null;
 }
 
 const BOAR_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -158,9 +153,44 @@ export const BoarClawsAbility: AbilityStatic = {
         return [];
     },
 
+    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
+        const eng = engine as GameEngineLike;
+        const bodyColor = getBodyColorForUnit(caster);
+        const radius = caster.radius;
+        const characterSpriteKey = getCharacterSpriteKey(caster.characterId);
+
+        const emitter = new ContinuousEmitter({
+            x: caster.x,
+            y: caster.y,
+            attachedToUnitId: caster.id,
+            lifetime: DASH_DURATION,
+            emitIntervalFrames: 2,
+            factory: (em) => {
+                const effectData: Record<string, unknown> = { bodyColor, radius, characterSpriteKey };
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
+                const angle = Math.random() * Math.PI * 2;
+                // cosmetic-only: not part of synced state
+                // eslint-disable-next-line no-restricted-syntax
+                const speed = 30 + Math.random() * 20;
+                effectData.vx = Math.cos(angle) * speed;
+                effectData.vy = Math.sin(angle) * speed;
+                return [new Effect({
+                    x: em.x,
+                    y: em.y,
+                    duration: AFTERIMAGE_DURATION,
+                    effectType: 'Afterimage',
+                    effectData,
+                })];
+            },
+        });
+        eng.addEffectEmitter(emitter);
+        active.castPayload = { afterimageEmitter: emitter };
+    },
+
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         const eng = engine as GameEngineLike;
-        const tm = eng.terrainManager ?? null;
+        const tm = (eng.terrainManager as TerrainManagerLike | null) ?? null;
 
         // ── Init ──────────────────────────────────────────────────────────────────
         if (prevTime < 0.05 && currentTime >= 0.05) {
@@ -284,47 +314,6 @@ export const BoarClawsAbility: AbilityStatic = {
                       distToTarget,
                   )
                 : 0;
-
-        // Afterimage effects
-        const twoTickPeriods = Math.floor(currentTime * 30);
-        const prevTwoTickPeriods = prevTime < 0 ? -1 : Math.floor(prevTime * 30);
-        const isMoving = moveDistance > 0;
-        for (let i = prevTwoTickPeriods + 1; i <= twoTickPeriods; i++) {
-            const effectData: Record<string, unknown> = {
-                bodyColor: getBodyColorForUnit(caster),
-                radius: caster.radius,
-                characterSpriteKey: getCharacterSpriteKey(caster.characterId),
-            };
-            if (isMoving && dirResult && dirResult.dist > 0) {
-                const baseAngle = Math.atan2(-dirResult.dirY, -dirResult.dirX);
-                // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
-                const angleVariance = (Math.random() - 0.5) * 0.6;
-                // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
-                const speed = 30 + Math.random() * 20;
-                effectData.vx = Math.cos(baseAngle + angleVariance) * speed;
-                effectData.vy = Math.sin(baseAngle + angleVariance) * speed;
-            } else if (!isMoving) {
-                // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
-                const angle = Math.random() * Math.PI * 2;
-                // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
-                const speed = 30 + Math.random() * 20;
-                effectData.vx = Math.cos(angle) * speed;
-                effectData.vy = Math.sin(angle) * speed;
-            }
-            eng.addEffect(
-                new Effect({
-                    x: caster.x,
-                    y: caster.y,
-                    duration: AFTERIMAGE_DURATION,
-                    effectType: 'Afterimage',
-                    effectData,
-                }),
-            );
-        }
 
         // Wall-penetrating movement: bypass terrain check, call moveUnit directly
         if (pos && distToTarget > 0 && moveDistance > 0) {

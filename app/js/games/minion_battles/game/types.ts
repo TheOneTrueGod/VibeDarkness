@@ -121,6 +121,12 @@ export interface SerializedGameState {
     storyPauseEndsAt?: number | null;
     /** Battle objective completion / reveal state (optional). */
     objectives?: { completedIds: string[]; revealedIds: string[] };
+    /** Persistent in-game light sources (thrown torches, etc.). */
+    lightSources?: Record<string, unknown>[];
+    /** Active bramble slow zones. */
+    bramblePatches?: Record<string, unknown>[];
+    /** Serialized effect emitters (runtime-only factories not included; short-lived, safe to drop on reconnect). */
+    effectEmitters?: Record<string, unknown>[];
 }
 
 /** Optional args when hydrating {@link GameEngine} from JSON (e.g. server checkpoint `synchash`). */

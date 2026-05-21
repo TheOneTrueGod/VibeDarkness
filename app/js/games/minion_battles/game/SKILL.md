@@ -15,7 +15,9 @@ description: Architecture of the GameEngine manager-of-managers pattern, tick lo
 |---------|------|------|
 | **UnitManager** | `game/managers/UnitManager.ts` | All units and unit-related queries |
 | **ProjectileManager** | `game/managers/ProjectileManager.ts` | All projectiles, movement, and collision |
-| **EffectManager** | `game/managers/EffectManager.ts` | All effects, torch decays, and light sources from effects |
+| **EffectManager** | `game/effects/EffectManager.ts` | All visual Effects; render-tick (`renderUpdate`) and game-tick (`gameUpdate`) update paths |
+| **EffectEmitterManager** | `game/effects/EffectEmitterManager.ts` | Game-tick emitters that produce Effects each tick; updated in `fixedUpdate` |
+| **LightSourceManager** | `game/lightSources/LightSourceManager.ts` | All LightSources; round-based and interval decay, unit-follow, LightGrid feed |
 | **CardManager** | `game/managers/CardManager.ts` | Cards, research trees, and ability-use tracking |
 | **SpecialTileManager** | `game/managers/SpecialTileManager.ts` | Special tiles, crystal protection, and light sources from tiles |
 | **LevelEventManager** | `game/managers/LevelEventManager.ts` | Level events, spawn waves, victory/defeat conditions |
@@ -44,10 +46,12 @@ See `GameEngine.ts` `fixedUpdate()` for the full tick order. The high-level flow
 6. Process active abilities
 7. Process unit ticks (AI, movement)
 8. Process crystal aura, corruption, darkness
-9. Update projectiles and effects
+9. Update projectiles, effects (`EffectManager.gameUpdate`), and effect emitters (`EffectEmitterManager.update`)
 10. Process card discard timers
 11. Cleanup inactive objects
 12. Run defeat checks
+
+**Render-tick updates (outside fixedUpdate):** Purely visual `Effect` objects advance via `EffectManager.renderUpdate(realDt)` every rAF frame regardless of pause state. `EffectEmitterManager.renderUpdate` also runs each frame for `ContinuousEmitter` instances (those with `emitWhilePaused: true` continue emitting even while the game is paused). See `game/effects/AGENTS.md` for the full Effect/EffectEmitter architecture.
 
 ## Backward Compatibility
 

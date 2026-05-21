@@ -12,7 +12,10 @@ import type { Unit } from './units/Unit';
 import type { Effect } from './effects/Effect';
 import type { Projectile } from './projectiles/Projectile';
 import type { SpecialTile } from './specialTiles/SpecialTile';
-import type { LightSource } from './LightGrid';
+import type { LightSource as GridLightSource } from './LightGrid';
+import type { LightSource } from './lightSources/LightSource';
+import type { EffectEmitter } from './effects/EffectEmitter';
+import type { BramblePatch } from './brambleSlow';
 
 export interface EngineContext {
     gameTime: number;
@@ -36,17 +39,25 @@ export interface EngineContext {
     readonly units: Unit[];
     readonly effects: Effect[];
     readonly specialTiles: SpecialTile[];
+    readonly bramblePatches: readonly BramblePatch[];
 
     addUnit(unit: Unit): void;
     addEffect(effect: Effect): void;
     addProjectile(projectile: Projectile): void;
+    addBramblePatch(patch: BramblePatch): void;
     getUnit(id: string): Unit | undefined;
     getAllies(caster: Unit): Unit[];
     damageSpecialTile(tileId: string, amount: number): boolean;
     getCrystalProtectedSet(): Set<string>;
     getCrystalProtectionMap(): Map<string, number>;
 
-    getAllLightSources(): LightSource[];
+    getAllLightSources(): GridLightSource[];
+
+    /** Add a persistent LightSource to the scene (e.g. TorchProjectile landing). */
+    addLightSource(ls: LightSource): void;
+
+    /** Register an EffectEmitter to be ticked by the EffectEmitterManager. */
+    addEffectEmitter(emitter: EffectEmitter): void;
 
     /** Reveal battle objectives that declare `revealedInitially: false`. */
     revealBattleObjectives(ids: readonly string[]): void;

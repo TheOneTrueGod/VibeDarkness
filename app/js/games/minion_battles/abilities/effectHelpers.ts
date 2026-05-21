@@ -9,6 +9,7 @@ import type { AttackBlockedInfo } from './Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../game/forceMove';
 import { Effect } from '../game/effects/Effect';
+import { LightSource } from '../game/lightSources/LightSource';
 
 /** Default slash trail color (light cyan). */
 const DEFAULT_SLASH_TRAIL_COLOR = 0x7fdfef;
@@ -54,28 +55,29 @@ const DEFAULT_DECAY_INTERVAL = 0.25;
 
 /**
  * Create a brief light source with no visuals (e.g. charged crystal, Shining Block retaliation).
- * Uses Torch effect with showVisual: false and decayRate/decayInterval for gradual fade.
+ * Uses interval-based decay (decayRate/decayInterval) for gradual fade.
  */
 export function createCrystalLightEffect(
     x: number,
     y: number,
     options: CrystalLightEffectOptions = {},
-): Effect {
+): LightSource {
     const lightAmount = options.lightAmount ?? DEFAULT_LIGHT_AMOUNT;
     const radius = options.radius ?? DEFAULT_RADIUS;
     const decayRate = options.decayRate ?? DEFAULT_DECAY_RATE;
     const decayInterval = options.decayInterval ?? DEFAULT_DECAY_INTERVAL;
-    return new Effect({
+    return new LightSource({
         x,
         y,
-        duration: 999,
-        effectType: 'Torch',
-        effectData: {
-            lightAmount,
-            radius,
+        lightAmount,
+        radius,
+        decay: {
+            roundCreated: 0,
+            initialLightAmount: lightAmount,
+            initialRadius: radius,
+            roundsTotal: 999,
             decayRate,
             decayInterval,
-            showVisual: false,
         },
     });
 }

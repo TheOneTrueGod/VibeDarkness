@@ -8,10 +8,6 @@
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { computeDamageNumberWorldPosition, type DamageNumberMotionData } from './damageNumberMotion';
 import type { Unit } from '../units/Unit';
-import {
-    spawnDarkBlobParticle,
-    type DarkBlobParticleSpawnContext,
-} from '../deathEffects/spawnDarkBlobParticle';
 
 export class Effect extends GameObject {
     /** Total duration in seconds. */
@@ -29,7 +25,7 @@ export class Effect extends GameObject {
     private endX: number;
     private startY?: number;
     private endY: number;
-    /** Optional payload for effect-type-specific data (e.g. CorruptionOrb target, CorruptionProgressBar progress). */
+    /** Optional payload for effect-type-specific data (e.g. CorruptionOrb target position, ParticleImage velocity). */
     effectData: Record<string, unknown> = {};
 
     constructor(config: {
@@ -60,55 +56,122 @@ export class Effect extends GameObject {
         if (config.effectData) this.effectData = { ...config.effectData };
     }
 
-    update(dt: number, engine: unknown): void {
-        if (!this.active) return;
-        this.elapsed += dt;
+    /**
+     * True for effects that need engine context in their update — these remain on the game tick
+     * and are skipped by renderUpdate(). Transitional flag for Phase 3 migration.
+     */
+    isGameDriven(): boolean {
+        return (
+            this.effectType === 'AlphaWolfStoryController' ||
+            this.effectType === 'StoryHomingParticle'
+        );
+    }
 
-        if (this.effectType === 'BramblePatch') {
-            const engTime = engine as { gameTime?: number };
-            const expiresAt = (this.effectData as { expiresAtGameTime?: number }).expiresAtGameTime;
-            if (expiresAt != null && engTime.gameTime != null && engTime.gameTime >= expiresAt) {
-                this.active = false;
+    /**
+     * Advance visual state — runs every render frame for purely visual effects.
+     * Skipped for game-driven effects (isGameDriven() === true).
+     * Does NOT access engine context.
+     */
+    renderUpdate(realDt: number): void {
+        if (!this.active) return;
+        this.elapsed += realDt;
+
+        // ParticleImage: simple 2D particle with velocity damping
+        if (this.effectType === 'ParticleImage') {
+            const data = this.effectData as { vx?: number; vy?: number };
+            const vx = data.vx ?? 0;
+            const vy = data.vy ?? 0;
+            this.x += vx * realDt;
+            this.y += vy * realDt;
+            // Exponential decay so particles slow down quickly (matches short 0.3s lifetime).
+            const dampingK = 8;
+            const factor = Math.exp(-dampingK * realDt);
+            data.vx = vx * factor;
+            data.vy = vy * factor;
+        }
+        // Afterimage: optional drift when unit was standing still (no damping; constant drift)
+        if (this.effectType === 'Afterimage') {
+            const data = this.effectData as { vx?: number; vy?: number };
+            const vx = data.vx ?? 0;
+            const vy = data.vy ?? 0;
+            this.x += vx * realDt;
+            this.y += vy * realDt;
+        }
+        // DamageNumber / FloatingText: parabolic path + ease-out (see damageNumberMotion)
+        if (this.effectType === 'DamageNumber' || this.effectType === 'FloatingText') {
+            const pos = computeDamageNumberWorldPosition(this.effectData as Partial<DamageNumberMotionData>, this.progress);
+            this.x = pos.x;
+            this.y = pos.y;
+        }
+        // CorruptionOrb: phase 0 = straight for ~10 ticks, then phase 1 = arc to target
+        if (this.effectType === 'CorruptionOrb') {
+            const data = this.effectData as {
+                targetX: number;
+                targetY: number;
+                phase: number;
+                phase0Elapsed: number;
+                dirX: number;
+                dirY: number;
+            };
+            const straightDuration = 10 / 60;
+            const speed0 = 120;
+            const speed1 = 280;
+            if (data.phase === 0) {
+                data.phase0Elapsed = (data.phase0Elapsed ?? 0) + realDt;
+                this.x += (data.dirX ?? 0) * speed0 * realDt;
+                this.y += (data.dirY ?? 0) * speed0 * realDt;
+                if (data.phase0Elapsed >= straightDuration) {
+                    data.phase = 1;
+                }
+                // Do not fall through to expiry check — CorruptionOrb uses dist check instead
+                return;
+            } else {
+                const dx = data.targetX - this.x;
+                const dy = data.targetY - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 6) {
+                    this.active = false;
+                    return;
+                }
+                const step = Math.min(speed1 * realDt, dist);
+                this.x += (dx / dist) * step;
+                this.y += (dy / dist) * step;
                 return;
             }
         }
-
-        if (this.effectType === 'Torch') {
-            const data = this.effectData as { followUnitId?: string };
-            if (data.followUnitId) {
-                const u = (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(data.followUnitId);
-                if (u?.isAlive()) {
-                    this.x = u.x;
-                    this.y = u.y;
-                }
-            }
+        // Traveling effect: interpolate position from start to end
+        if (this.startX !== undefined && this.startY !== undefined && this.effectType !== 'DamageNumber') {
+            const t = this.progress;
+            this.x = this.startX + (this.endX - this.startX) * t;
+            this.y = this.startY + (this.endY - this.startY) * t;
         }
-
-        if (this.effectType === 'DarkCreatureIconDeath') {
-            const ctx = engine as DarkBlobParticleSpawnContext;
-            const data = this.effectData as {
-                particleBudget: number;
-                particleSpawned: number;
-                particleAccum: number;
-                displayRadius?: number;
-            };
-            const rate = data.particleBudget / this.duration;
-            data.particleAccum += rate * dt;
-            const r = data.displayRadius != null && data.displayRadius > 0 ? data.displayRadius : 12;
-            while (data.particleSpawned < data.particleBudget && data.particleAccum >= 1) {
-                data.particleAccum -= 1;
-                data.particleSpawned += 1;
-                const ox = (Math.random() * 2 - 1) * r * 0.35;
-                const oy = (Math.random() * 2 - 1) * r * 0.35;
-                const vx = (Math.random() * 2 - 1) * 0.8 * 55;
-                const vy = -150 - Math.random() * 120;
-                spawnDarkBlobParticle(ctx, this.x + ox, this.y + oy, {
-                    vx,
-                    vy,
-                    scale: 0.55 + Math.random() * 0.45,
-                });
+        // TorchProjectile: flag landing for EffectManager.gameUpdate to process; don't expire here
+        if (this.effectType === 'TorchProjectile') {
+            if (this.elapsed >= this.duration) {
+                (this.effectData as { landingPending?: boolean }).landingPending = true;
             }
+            return;
         }
+        // Expiry check (game-driven effects manage their own expiry in update(); TorchProjectile handled above)
+        const totalDuration = (this.delay ?? 0) + this.duration;
+        if (this.elapsed >= totalDuration) {
+            this.active = false;
+        }
+    }
+
+    /**
+     * Game-tick update — runs engine-context branches for game-driven effects.
+     * For game-driven effects this also advances elapsed (since renderUpdate is skipped for them).
+     * For non-game-driven effects elapsed is advanced by renderUpdate(); this method is a no-op.
+     */
+    update(dt: number, engine: unknown): void {
+        if (!this.active) return;
+
+        // Only game-driven effects are updated here; purely visual effects are handled in renderUpdate().
+        if (!this.isGameDriven()) return;
+
+        // Advance elapsed for game-driven effects (renderUpdate won't be called for them).
+        this.elapsed += dt;
 
         if (this.effectType === 'AlphaWolfStoryController') {
             const ctx = engine as {
@@ -182,6 +245,7 @@ export class Effect extends GameObject {
                 }
             }
         }
+
         if (this.effectType === 'StoryHomingParticle') {
             const ctx = engine as {
                 addEffect(e: Effect): void;
@@ -220,106 +284,11 @@ export class Effect extends GameObject {
             }
             return;
         }
-        // ParticleImage: simple 2D particle with velocity damping
-        if (this.effectType === 'ParticleImage') {
-            const data = this.effectData as { vx?: number; vy?: number };
-            const vx = data.vx ?? 0;
-            const vy = data.vy ?? 0;
-            this.x += vx * dt;
-            this.y += vy * dt;
-            // Exponential decay so particles slow down quickly (matches short 0.3s lifetime).
-            const dampingK = 8;
-            const factor = Math.exp(-dampingK * dt);
-            data.vx = vx * factor;
-            data.vy = vy * factor;
-        }
-        // Afterimage: optional drift when unit was standing still (no damping; constant drift)
-        if (this.effectType === 'Afterimage') {
-            const data = this.effectData as { vx?: number; vy?: number };
-            const vx = data.vx ?? 0;
-            const vy = data.vy ?? 0;
-            this.x += vx * dt;
-            this.y += vy * dt;
-        }
-        // DamageNumber / FloatingText: parabolic path + ease-out (see damageNumberMotion); update before lifetime cull.
-        if (this.effectType === 'DamageNumber' || this.effectType === 'FloatingText') {
-            const pos = computeDamageNumberWorldPosition(this.effectData as Partial<DamageNumberMotionData>, this.progress);
-            this.x = pos.x;
-            this.y = pos.y;
-        }
-        // TorchProjectile: when it reaches the target, spawn the ground Torch effect then deactivate
-        if (this.effectType === 'TorchProjectile' && this.elapsed >= this.duration) {
-            const data = this.effectData as {
-                roundCreated?: number;
-                initialLightAmount?: number;
-                initialRadius?: number;
-                roundsTotal?: number;
-            };
-            const roundCreated = data.roundCreated ?? 1;
-            const initialLightAmount = data.initialLightAmount ?? 10;
-            const initialRadius = data.initialRadius ?? 5;
-            const roundsTotal = data.roundsTotal ?? 3;
-            const torchEffect = new Effect({
-                x: this.endX,
-                y: this.endY,
-                duration: 999,
-                effectType: 'Torch',
-                effectData: {
-                    roundCreated,
-                    initialLightAmount,
-                    initialRadius,
-                    lightAmount: initialLightAmount,
-                    radius: initialRadius,
-                    roundsTotal,
-                },
-            });
-            (engine as { addEffect(e: Effect): void }).addEffect(torchEffect);
-            this.active = false;
-            return;
-        }
+
+        // Expiry for game-driven effects
         const totalDuration = (this.delay ?? 0) + this.duration;
         if (this.elapsed >= totalDuration) {
             this.active = false;
-        }
-        // CorruptionOrb: phase 0 = straight for ~10 ticks, then phase 1 = arc to target
-        if (this.effectType === 'CorruptionOrb') {
-            const data = this.effectData as {
-                targetX: number;
-                targetY: number;
-                phase: number;
-                phase0Elapsed: number;
-                dirX: number;
-                dirY: number;
-            };
-            const straightDuration = 10 / 60;
-            const speed0 = 120;
-            const speed1 = 280;
-            if (data.phase === 0) {
-                data.phase0Elapsed = (data.phase0Elapsed ?? 0) + dt;
-                this.x += (data.dirX ?? 0) * speed0 * dt;
-                this.y += (data.dirY ?? 0) * speed0 * dt;
-                if (data.phase0Elapsed >= straightDuration) {
-                    data.phase = 1;
-                }
-            } else {
-                const dx = data.targetX - this.x;
-                const dy = data.targetY - this.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 6) {
-                    this.active = false;
-                    return;
-                }
-                const step = Math.min(speed1 * dt, dist);
-                this.x += (dx / dist) * step;
-                this.y += (dy / dist) * step;
-            }
-            return;
-        }
-        // Traveling effect: interpolate position from start to end
-        if (this.startX !== undefined && this.startY !== undefined && this.effectType !== 'DamageNumber') {
-            const t = this.progress;
-            this.x = this.startX + (this.endX - this.startX) * t;
-            this.y = this.startY + (this.endY - this.startY) * t;
         }
     }
 

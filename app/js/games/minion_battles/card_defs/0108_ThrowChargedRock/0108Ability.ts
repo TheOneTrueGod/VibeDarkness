@@ -133,6 +133,7 @@ const PREVIEW_TEAL = 0x2dd4bf;
 interface GameEngineLike {
     addProjectile(projectile: Projectile): void;
     addEffect(effect: Effect): void;
+    addLightSource(ls: import('../../game/lightSources/LightSource').LightSource): void;
     getUnit(id: string): Unit | undefined;
     getUnits(): Unit[];
     eventBus: EventBus;
@@ -317,7 +318,7 @@ export const ThrowChargedRock: AbilityStatic = {
             }),
         );
 
-        eng.addEffect(createCrystalLightEffect(projectile.x, projectile.y));
+        eng.addLightSource(createCrystalLightEffect(projectile.x, projectile.y));
 
         const units = eng
             .getUnits()

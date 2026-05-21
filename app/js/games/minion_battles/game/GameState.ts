@@ -8,12 +8,15 @@ import type { TerrainManager } from '../terrain/TerrainManager';
 import type { EngineContext } from './EngineContext';
 import { UnitManager } from './managers/UnitManager';
 import { ProjectileManager } from './managers/ProjectileManager';
-import { EffectManager } from './managers/EffectManager';
+import { EffectManager } from './effects/EffectManager';
 import { CardManager } from './managers/CardManager';
 import { SpecialTileManager } from './managers/SpecialTileManager';
 import { LevelEventManager } from './managers/LevelEventManager';
 import { ObjectiveManager } from './managers/ObjectiveManager';
+import { LightSourceManager } from './lightSources/LightSourceManager';
+import { EffectEmitterManager } from './effects/EffectEmitterManager';
 import { fingerprintInitial, FingerprintRing, type Fingerprint64 } from './Fingerprint';
+import type { BramblePatch } from './brambleSlow';
 
 export class GameState {
     readonly eventBus = new EventBus();
@@ -43,12 +46,17 @@ export class GameState {
     readonly unitManager: UnitManager;
     readonly projectileManager: ProjectileManager;
     readonly effectManager: EffectManager;
+    readonly effectEmitterManager: EffectEmitterManager;
     readonly cardManager: CardManager;
     readonly specialTileManager: SpecialTileManager;
     readonly levelEventManager: LevelEventManager;
     readonly objectiveManager: ObjectiveManager;
+    readonly lightSourceManager: LightSourceManager;
 
     terrainManager: TerrainManager | null = null;
+
+    /** Active bramble slow zones (game-state objects, not visual effects). */
+    bramblePatches: BramblePatch[] = [];
 
     /** Orders scheduled to be applied at specific game ticks. */
     pendingOrders: OrderAtTick[] = [];
@@ -67,9 +75,11 @@ export class GameState {
         this.unitManager = new UnitManager(ctx);
         this.projectileManager = new ProjectileManager(ctx);
         this.effectManager = new EffectManager(ctx);
+        this.effectEmitterManager = new EffectEmitterManager();
         this.cardManager = new CardManager(ctx);
         this.specialTileManager = new SpecialTileManager(ctx);
         this.levelEventManager = new LevelEventManager(ctx);
         this.objectiveManager = new ObjectiveManager(ctx);
+        this.lightSourceManager = new LightSourceManager(ctx);
     }
 }

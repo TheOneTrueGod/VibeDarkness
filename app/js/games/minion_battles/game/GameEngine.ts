@@ -24,10 +24,13 @@ import { Effect } from './effects/Effect';
 import { getAbility } from '../abilities/AbilityRegistry';
 import {
     elapsedIsInCoopCooldown,
+    enteredTimingIds,
+    exitedTimingIds,
     getTotalAbilityDurationForCast,
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
 } from '../abilities/abilityTimings';
+import { createEmitterFromDef } from '../abilities/createEmitterFromDef';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
 import { AbilityEventType } from '../abilities/Ability';
@@ -38,7 +41,8 @@ import type { SpecialTile } from './specialTiles/SpecialTile';
 import { isTileDefendPoint } from './specialTiles/SpecialTile';
 import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from './units/unitAI';
 import type { AIContext, AILightSource } from './units/unitAI';
-import { getLightGrid, type LightSource } from './LightGrid';
+import { getLightGrid, type LightSource as GridLightInput } from './LightGrid';
+import { LightSource } from './lightSources/LightSource';
 import { DarkCreatureIconDeathEffect } from './deathEffects/DarkCreatureIconDeathEffect';
 import { getDeathEffectDef } from './units/unit_defs/unitDef';
 import type { CardDefId } from '../card_defs';
@@ -73,11 +77,13 @@ import { createGenericEnemy } from './units/GenericEnemy';
 import { getDefaultHp, getDefaultSpeed } from './units/unit_defs/unitDef';
 import {
     processLanternitePulseMilestone,
-    removeLanterniteTorchEffects,
+    removeLanterniteLightSources,
     LANTERNITE_CHARACTER_ID,
     LANTERNITE_RESPAWN_DELAY_SEC,
 } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
+import { bramblePatchFromJSON, bramblePatchToJSON, type BramblePatch } from './brambleSlow';
+import type { EffectEmitter } from './effects/EffectEmitter';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -139,6 +145,12 @@ export class GameEngine implements EngineContext {
 
     /** Units whose casts ended by duration this tick (cleared each normal tick before `processActiveAbilities`). */
     private naturalAbilityCompletionUnitIdsThisTick = new Set<string>();
+
+    /**
+     * Active EffectEmitters created from declarative `emitterDef` on AbilityTimingInterval.
+     * Keyed by `${casterId}_${intervalId}`. Cleared on fromJSON (emitters are runtime-only).
+     */
+    private activeTimingEmitters = new Map<string, EffectEmitter>();
 
     // -- Callbacks (engine wiring, not serialized) --
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
@@ -282,6 +294,11 @@ export class GameEngine implements EngineContext {
     get projectiles(): Projectile[] { return this.state.projectileManager.projectiles; }
     get effects(): Effect[] { return this.state.effectManager.effects; }
     get specialTiles(): SpecialTile[] { return this.state.specialTileManager.specialTiles; }
+    get bramblePatches(): readonly BramblePatch[] { return this.state.bramblePatches; }
+
+    addBramblePatch(patch: BramblePatch): void {
+        this.state.bramblePatches.push(patch);
+    }
     get cards(): Record<string, import('./managers/CardManager').CardInstance[]> { return this.state.cardManager.cards; }
     set cards(value: Record<string, import('./managers/CardManager').CardInstance[]>) { this.state.cardManager.cards = value; }
 
@@ -309,6 +326,22 @@ export class GameEngine implements EngineContext {
     addEffect(effect: Effect): void {
         this.state.effectManager.addEffect(effect);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(effect.id), Math.floor(effect.x), Math.floor(effect.y));
+    }
+
+    addLightSource(ls: LightSource): void {
+        this.state.lightSourceManager.addLightSource(ls);
+    }
+
+    get effectEmitterManager() { return this.state.effectEmitterManager; }
+
+    addEffectEmitter(emitter: EffectEmitter): void {
+        this.state.effectEmitterManager.addEmitter(emitter);
+    }
+
+    private getUnitPositionSnapshot(): Map<string, { x: number; y: number }> {
+        const snap = new Map<string, { x: number; y: number }>();
+        for (const unit of this.units) snap.set(unit.id, { x: unit.x, y: unit.y });
+        return snap;
     }
 
     addSpecialTile(tile: SpecialTile): void { this.state.specialTileManager.addSpecialTile(tile); }
@@ -363,10 +396,10 @@ export class GameEngine implements EngineContext {
     // Light
     // ========================================================================
 
-    getAllLightSources(): LightSource[] {
+    getAllLightSources(): GridLightInput[] {
         return [
             ...this.state.specialTileManager.buildLightSourcesFromSpecialTiles(),
-            ...this.state.effectManager.buildLightSourcesFromEffects(),
+            ...this.state.lightSourceManager.buildGridLightInputs(),
         ];
     }
 
@@ -388,15 +421,11 @@ export class GameEngine implements EngineContext {
             }
         }
         const grid = this.terrainManager?.grid;
-        for (const effect of this.effects) {
-            if (!effect.active || effect.effectType !== 'Torch') continue;
-            const data = effect.effectData as { lightAmount?: number; radius?: number };
-            const emission = data.lightAmount ?? 0;
-            const radius = data.radius ?? 0;
-            if (emission <= 0 || radius <= 0) continue;
-            const col = grid ? grid.worldToGrid(effect.x, effect.y).col : 0;
-            const row = grid ? grid.worldToGrid(effect.x, effect.y).row : 0;
-            out.push({ id: effect.id, col, row, emission, radius });
+        for (const ls of this.state.lightSourceManager.lightSources) {
+            if (!ls.active || ls.lightAmount <= 0 || ls.radius <= 0) continue;
+            const col = grid ? grid.worldToGrid(ls.x, ls.y).col : 0;
+            const row = grid ? grid.worldToGrid(ls.x, ls.y).row : 0;
+            out.push({ id: ls.id, col, row, emission: ls.lightAmount, radius: ls.radius });
         }
         return out;
     }
@@ -412,7 +441,7 @@ export class GameEngine implements EngineContext {
             const unit = this.getUnit(data.unitId);
             if (!unit) return;
             if (unit.characterId === LANTERNITE_CHARACTER_ID) {
-                removeLanterniteTorchEffects(unit.id, this.effects);
+                removeLanterniteLightSources(unit.id, this.state.lightSourceManager.lightSources);
                 if (unit.lanterniteNestOwnerUnitId == null) {
                     this.lanterniteRespawns.push({
                         atGameTime: this.gameTime + LANTERNITE_RESPAWN_DELAY_SEC,
@@ -695,7 +724,7 @@ export class GameEngine implements EngineContext {
      * Effect types that may stay `active` for a long time but are not transient combat/VFX
      * (scenario runners should not wait on them to "finish playing").
      */
-    private static readonly SCENARIO_RUNNER_NON_BLOCKING_EFFECT_TYPES = new Set<string>(['Torch', 'CorruptionProgressBar']);
+    private static readonly SCENARIO_RUNNER_NON_BLOCKING_EFFECT_TYPES = new Set<string>(['Torch']);
 
     /**
      * True when scripted battle work is done: no pending orders, no casts/movement/knockback/wait
@@ -769,6 +798,14 @@ export class GameEngine implements EngineContext {
 
         const frameTime = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
         this.lastTimestamp = timestamp;
+
+        // Advance purely visual effects every render frame regardless of game pause.
+        this.state.effectManager.renderUpdate(frameTime);
+        const posSnapshot = this.getUnitPositionSnapshot();
+        const emitterVisualEffects = this.state.effectEmitterManager.renderUpdate(
+            frameTime, posSnapshot, this.isPaused,
+        );
+        for (const fx of emitterVisualEffects) this.state.effectManager.addEffect(fx);
 
         const debugPauseModeActive = debugSettingsSnapshot.debugPauseMode;
         const canRunSimulation =
@@ -980,7 +1017,7 @@ export class GameEngine implements EngineContext {
         }
 
         this.state.specialTileManager.processSpecialTileLightDecays();
-        this.state.effectManager.processTorchEffectDecays();
+        this.state.lightSourceManager.processDecays();
 
         // Check for round end
         if (roundTime >= ROUND_DURATION) {
@@ -1003,7 +1040,10 @@ export class GameEngine implements EngineContext {
         if (!this.storyPauseActive) {
             this.state.projectileManager.update(dt);
         }
-        this.state.effectManager.update(dt);
+        this.state.effectManager.gameUpdate(dt);
+        const emitterEffects = this.state.effectEmitterManager.update(dt, this);
+        for (const fx of emitterEffects) this.state.effectManager.addEffect(fx);
+        this.state.lightSourceManager.update(dt);
         this.processEphemeralUnitExpiry();
         processLanterniteNests({
             gameTime: this.gameTime,
@@ -1016,6 +1056,10 @@ export class GameEngine implements EngineContext {
         this.state.unitManager.cleanupInactive();
         this.state.projectileManager.cleanupInactive();
         this.state.effectManager.cleanupInactive();
+        this.state.lightSourceManager.cleanupInactive();
+        this.state.bramblePatches = this.state.bramblePatches.filter(
+            (p) => p.expiresAtGameTime > this.gameTime,
+        );
         this.mixRuntimeFingerprint(
             FingerprintEvent.EFFECT_TICK,
             this.effects.length >>> 0,
@@ -1376,6 +1420,32 @@ export class GameEngine implements EngineContext {
                 const prevTime = currentTime - dt;
                 const safePrevTime = Math.max(0, prevTime);
 
+                const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, this));
+                const entered = enteredTimingIds(safePrevTime, currentTime, intervals);
+                const exited = exitedTimingIds(safePrevTime, currentTime, intervals);
+
+                for (const interval of intervals) {
+                    if (interval.emitterDef && entered.has(interval.id)) {
+                        const emitter = createEmitterFromDef(interval.emitterDef, {
+                            x: unit.x,
+                            y: unit.y,
+                            attachedToUnitId: unit.id,
+                            lifetime: interval.end - interval.start,
+                        });
+                        const key = `${unit.id}_${interval.id}`;
+                        this.activeTimingEmitters.set(key, emitter);
+                        this.addEffectEmitter(emitter);
+                    }
+                    if (interval.emitterDef && exited.has(interval.id)) {
+                        const key = `${unit.id}_${interval.id}`;
+                        const emitter = this.activeTimingEmitters.get(key);
+                        if (emitter) {
+                            emitter.active = false;
+                            this.activeTimingEmitters.delete(key);
+                        }
+                    }
+                }
+
                 ability.doCardEffect(this, unit, active.targets, safePrevTime, currentTime, active);
                 triggerAbilityEvent({
                     engine: this,
@@ -1515,16 +1585,16 @@ export class GameEngine implements EngineContext {
             if (unit.aiContext.aiTree !== 'default') continue;
             const ctx = unit.aiContext;
             const tileId = ctx.corruptingTargetId;
-            if (!tileId) continue;
+            if (!tileId) {
+                if (unit.crystalCorruptionProgress > 0) unit.crystalCorruptionProgress = 0;
+                continue;
+            }
 
             const tile = this.specialTiles.find((t) => t.id === tileId);
             if (!tile || tile.hp <= 0 || !tile.destructible) {
                 ctx.corruptingTargetId = undefined;
                 ctx.corruptingStartedAt = undefined;
-                const bar = this.effects.find(
-                    (e) => e.effectType === 'CorruptionProgressBar' && (e.effectData as { unitId?: string }).unitId === unit.id,
-                );
-                if (bar) bar.active = false;
+                unit.crystalCorruptionProgress = 0;
                 continue;
             }
 
@@ -1537,32 +1607,13 @@ export class GameEngine implements EngineContext {
             if (!atTile) {
                 ctx.corruptingTargetId = undefined;
                 ctx.corruptingStartedAt = undefined;
-                const bar = this.effects.find(
-                    (e) => e.effectType === 'CorruptionProgressBar' && (e.effectData as { unitId?: string }).unitId === unit.id,
-                );
-                if (bar) bar.active = false;
+                unit.crystalCorruptionProgress = 0;
                 continue;
             }
 
             const startedAt = ctx.corruptingStartedAt ?? this.gameTime;
             const elapsed = this.gameTime - startedAt;
-
-            let barEffect = this.effects.find(
-                (e) => e.effectType === 'CorruptionProgressBar' && (e.effectData as { unitId?: string }).unitId === unit.id,
-            );
-            if (!barEffect) {
-                barEffect = new Effect({
-                    x: unit.x,
-                    y: unit.y,
-                    duration: 999,
-                    effectType: 'CorruptionProgressBar',
-                    effectData: { unitId: unit.id, progress: 0 },
-                });
-                this.addEffect(barEffect);
-            }
-            barEffect.x = unit.x;
-            barEffect.y = unit.y;
-            (barEffect.effectData as { progress?: number }).progress = Math.min(1, elapsed / 2);
+            unit.crystalCorruptionProgress = Math.min(1, elapsed / 2);
 
             if (elapsed >= 2) {
                 this.damageSpecialTile(tileId, 1);
@@ -1637,7 +1688,7 @@ export class GameEngine implements EngineContext {
 
     private handleRoundEnd(_roundNumber: number): void {
         this.state.cardManager.clearAbilityUses();
-        this.state.effectManager.handleRoundEndTorchDecay(this.roundNumber);
+        this.state.lightSourceManager.handleRoundEnd(this.roundNumber);
         for (const unit of this.units) {
             if (!unit.isAlive()) continue;
             unit.tickHardCcChainDecayAtRoundEnd();
@@ -1667,8 +1718,8 @@ export class GameEngine implements EngineContext {
                 units: this.units,
                 lightLevelEnabled: this.lightLevelEnabled,
                 eventBus: this.eventBus,
-                addEffect: (e) => this.addEffect(e),
-                effects: this.effects,
+                addLightSource: (ls) => this.addLightSource(ls),
+                lightSources: this.state.lightSourceManager.lightSources,
             });
             this.appliedRoundStartRecovery = true;
         }
@@ -1678,8 +1729,8 @@ export class GameEngine implements EngineContext {
                 units: this.units,
                 lightLevelEnabled: this.lightLevelEnabled,
                 eventBus: this.eventBus,
-                addEffect: (e) => this.addEffect(e),
-                effects: this.effects,
+                addLightSource: (ls) => this.addLightSource(ls),
+                lightSources: this.state.lightSourceManager.lightSources,
             });
             this.appliedMidRoundRecovery = true;
         }
@@ -1781,6 +1832,7 @@ export class GameEngine implements EngineContext {
             units: this.state.unitManager.toJSON(),
             projectiles: this.state.projectileManager.toJSON(),
             effects: this.state.effectManager.toJSON(),
+            effectEmitters: this.state.effectEmitterManager.toJSON(),
             cards: cardData.cards as Record<string, import('./types').SerializedCardInstance[]>,
             waitingForOrders: this.waitingForOrders
                 ? {
@@ -1800,6 +1852,8 @@ export class GameEngine implements EngineContext {
             storyPauseReason: this.storyPauseReason,
             storyPauseEndsAt: this.storyPauseEndsAt,
             objectives: this.state.objectiveManager.toJSON(),
+            lightSources: this.state.lightSourceManager.toJSON(),
+            bramblePatches: this.state.bramblePatches.map(bramblePatchToJSON),
         };
     }
 
@@ -1898,9 +1952,19 @@ export class GameEngine implements EngineContext {
 
         // Restore effects
         engine.state.effectManager.restoreFromJSON(data.effects);
+        // Restore effect emitters (runtime-only factories are dropped; emitters are short-lived)
+        engine.state.effectEmitterManager.restoreFromJSON(data.effectEmitters ?? []);
 
         // Restore special tiles
         engine.state.specialTileManager.restoreFromJSON(data.specialTiles ?? []);
+
+        // Restore light sources
+        engine.state.lightSourceManager.restoreFromJSON(data.lightSources ?? []);
+
+        // Restore bramble patches
+        engine.state.bramblePatches = (data.bramblePatches ?? []).map(
+            (d) => bramblePatchFromJSON(d as Record<string, unknown>),
+        );
 
         // Restore cards + research trees
         engine.state.cardManager.restoreFromJSON(data.cards, data.playerResearchTreesByPlayer);
@@ -1974,6 +2038,7 @@ export class GameEngine implements EngineContext {
         this.state.unitManager.units = [];
         this.state.projectileManager.projectiles = [];
         this.state.effectManager.effects = [];
+        this.state.effectEmitterManager.emitters = [];
         this.state.specialTileManager.specialTiles = [];
     }
 }

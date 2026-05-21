@@ -40,7 +40,10 @@
       "Skill(battle-camera)",
       "Skill(battle-camera:*)",
       "Skill(working-on-minion-battles)",
-      "Skill(working-on-minion-battles:*)"
+      "Skill(working-on-minion-battles:*)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\app\\\\js\\\\games\\\\minion_battles\" -Recurse -Name)",
+      "Bash(Select-Object -First 50)",
+      "Bash(grep -v \"^$\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness"

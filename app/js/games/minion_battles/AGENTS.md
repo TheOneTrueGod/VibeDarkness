@@ -19,13 +19,15 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | Directory | Purpose |
 |-----------|---------|
 | `game/` | Simulation and presentation: engine, state, renderer, camera, events, light grid, shared wire/runtime types, `GameObject`, and subfolders. |
-| `game/managers/` | Slices of battle state (units, cards, effects, projectiles, level events, special tiles). |
+| `game/managers/` | Slices of battle state (units, cards, projectiles, level events, special tiles). (`EffectManager` and `EffectEmitterManager` moved to `game/effects/`.) |
 | `game/deathEffects/` | Death VFX; standard purple Darkness dissolution is centralized in `darkCreatureDissolutionDef.ts` (see **writing-style-enemies** / **working-on-minion-battles** skills). |
 | `game/units/` | Unit model, factories, `GenericEnemy`, AI under `unitAI/`, optional enemy archetype helpers under `dark_animals/`. |
 | `game/units/unit_defs/` | Per-`characterId` baselines (`unitDef.ts`, `unitConstants.ts`), including optional **`creatureType`**. |
 | `game/units/dark_animals/` | Darkness-flavoured enemy factories or spawn templates co-located with that theme. |
 | `game/units/unitAI/` | AI runner, trees, and behaviour modules (grouped subfolders by tree/archetype). |
-| `game/effects/` | In-battle effect runtime objects. |
+| `game/effects/` | In-battle effect runtime objects: `Effect.ts`, `EffectManager.ts`, `EffectEmitter.ts`, `EffectEmitterManager.ts`. See `game/effects/AGENTS.md` for the Effect/EffectEmitter system. |
+| `game/effect_defs/` | Visual effect definitions (replaced the old `game/effectDef.ts`). |
+| `game/lightSources/` | Light source runtime objects. |
 | `game/projectiles/` | Projectile runtime objects. |
 | `game/specialTiles/` | Special tile runtime objects. |
 | `ui/components/` | Reusable React battle UI. |
@@ -99,10 +101,16 @@ GameEngine.fromJSON()  (game/GameEngine.ts)
  │  This is the ONLY place where raw JSON becomes GameObjects.
  │
  ▼
-GameEngine tick loop  (fixedUpdate @ 60 Hz)
+GameEngine tick loop  (fixedUpdate @ 60 Hz, pauses when game pauses)
  │  Advances simulation: orders, abilities, movement, AI, projectiles,
- │  effects, round boundaries, victory/defeat.
+ │  effects (EffectManager.gameUpdate), effect emitters (EffectEmitterManager.update),
+ │  round boundaries, victory/defeat.
  │  Managers own slices; engine orchestrates step order.
+ │
+ │  renderUpdate (every rAF frame, regardless of pause)
+ │  Purely visual Effects advance via EffectManager.renderUpdate(realDt).
+ │  EffectEmitterManager.renderUpdate runs ContinuousEmitters each frame;
+ │  emitters with emitWhilePaused:true continue firing during pause.
  │
  ▼
 BattleCanvas  (ui/components/BattleCanvas.tsx)
@@ -284,6 +292,8 @@ The bus is passed into managers and `Unit.fromJSON` during deserialization. List
 It is acceptable for the canvas layer to mutate `Camera` on every frame — this is not domain state and does not need to go through engine mutation boundaries.
 
 ### Managers
+
+See [game/effects/AGENTS.md](game/effects/AGENTS.md) for the Effect/EffectEmitter system.
 
 - Each **manager** owns a **slice** of **GameObjects**: storage, **invariants** for that slice (valid add/remove, lookups), and behavior that is **local** to that slice.
 - **Cross-manager** rules default to the **GameEngine** (facade) or to **domain events** on the **EventBus** — pick one primary style per feature and avoid ad hoc cross-calls from UI.

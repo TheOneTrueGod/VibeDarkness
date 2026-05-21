@@ -3,9 +3,9 @@
  */
 
 import type { Unit } from '../units/Unit';
-import { Effect } from '../effects/Effect';
 import type { EventBus } from '../EventBus';
 import type { LanterniteNestMissionConfig } from '../../storylines/types';
+import { LightSource } from '../lightSources/LightSource';
 
 export const LANTERNITE_CHARACTER_ID = 'lanternite';
 export const LANTERNITE_NEST_CHARACTER_ID = 'lanternite_nest';
@@ -36,35 +36,35 @@ function applySoulSap(lanternite: Unit, eventBus: EventBus): void {
 }
 
 /** Remove lantern glow owned by this lantern unit (call on death before respawn bookkeeping). */
-export function removeLanterniteTorchEffects(ownerLanternUnitId: string, effects: Effect[]): void {
-    for (const e of effects) {
-        if (!e.active || e.effectType !== 'Torch') continue;
-        const data = e.effectData as { lanternOwnerUnitId?: string };
-        if (data.lanternOwnerUnitId === ownerLanternUnitId) e.active = false;
+export function removeLanterniteLightSources(ownerLanternUnitId: string, lightSources: LightSource[]): void {
+    const torchId = `lantern_torch_${ownerLanternUnitId}`;
+    for (const ls of lightSources) {
+        if (ls.id === torchId) ls.active = false;
     }
 }
 
-function upsertLanternTorch(args: {
+function upsertLanternLightSource(args: {
     lanternite: Unit;
-    addEffect: (e: Effect) => void;
-    effects: Effect[];
+    addLightSource: (ls: LightSource) => void;
+    lightSources: LightSource[];
 }): void {
     const torchId = `lantern_torch_${args.lanternite.id}`;
-    for (const e of args.effects) {
-        if (e.id === torchId) e.active = false;
+    for (const ls of args.lightSources) {
+        if (ls.id === torchId) ls.active = false;
     }
-    args.addEffect(
-        new Effect({
+    args.addLightSource(
+        new LightSource({
             id: torchId,
             x: args.lanternite.x,
             y: args.lanternite.y,
-            duration: 999_999,
-            effectType: 'Torch',
-            effectData: {
-                lightAmount: LANTERNITE_TORCH_LIGHT,
-                radius: LANTERNITE_TORCH_RADIUS_TILES,
-                followUnitId: args.lanternite.id,
-                lanternOwnerUnitId: args.lanternite.id,
+            lightAmount: LANTERNITE_TORCH_LIGHT,
+            radius: LANTERNITE_TORCH_RADIUS_TILES,
+            followUnitId: args.lanternite.id,
+            decay: {
+                roundCreated: 0,
+                initialLightAmount: LANTERNITE_TORCH_LIGHT,
+                initialRadius: LANTERNITE_TORCH_RADIUS_TILES,
+                roundsTotal: 999,
             },
         }),
     );
@@ -77,22 +77,22 @@ export function processLanternitePulseMilestone(
         units: Unit[];
         lightLevelEnabled: boolean;
         eventBus: EventBus;
-        addEffect: (e: Effect) => void;
-        effects: Effect[];
+        addLightSource: (ls: LightSource) => void;
+        lightSources: LightSource[];
     },
 ): void {
     for (const lantern of ctx.units) {
         if (!lantern.isAlive() || lantern.characterId !== LANTERNITE_CHARACTER_ID) continue;
         applySoulSap(lantern, ctx.eventBus);
         if (!lantern.isAlive()) {
-            removeLanterniteTorchEffects(lantern.id, ctx.effects);
+            removeLanterniteLightSources(lantern.id, ctx.lightSources);
             continue;
         }
         if (ctx.lightLevelEnabled) {
-            upsertLanternTorch({
+            upsertLanternLightSource({
                 lanternite: lantern,
-                addEffect: ctx.addEffect,
-                effects: ctx.effects,
+                addLightSource: ctx.addLightSource,
+                lightSources: ctx.lightSources,
             });
         }
     }
