@@ -48,8 +48,8 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
             ],
             cost: { food: 20 },
-            effects: [],
-            modifiesAbility: { from: '0102', to: '0102' },
+            effects: [{ type: 'replaceCard', fromCardId: '0102', toCardId: '0116' }],
+            modifiesAbility: { from: '0102', to: '0116' },
         },
         {
             id: TRAINING_NODE_STRONG_PUNCH,

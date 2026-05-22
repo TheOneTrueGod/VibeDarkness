@@ -188,4 +188,8 @@ export interface ActiveAbility {
      * Prefer this over inferring setup from `doCardEffect` phase boundaries. Serialized with checkpoints.
      */
     castPayload?: unknown;
+    /** Per-behaviour per-cast runtime state. Keyed by `${intervalId}_${behaviourIndex}`. NOT serialized. */
+    castBehaviourPayloads?: Record<string, unknown>;
+    /** Guards legacy evade-break firing to once per cast. NOT serialized. */
+    evadeFired?: boolean;
 }

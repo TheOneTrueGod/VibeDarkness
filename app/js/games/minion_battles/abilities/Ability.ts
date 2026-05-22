@@ -56,6 +56,8 @@ export enum AbilityEventType {
     ON_ATTACK_HIT = 'on_attack_hit',
     /** Fires when this ability is blocked by another active blocking ability. */
     ON_ATTACK_BLOCKED = 'on_attack_blocked',
+    /** Fires once when this ability's evade window opens (legacy path for abilities with the `evade` tag). */
+    ON_EVADE_START = 'on_evade_start',
 }
 
 /** A single active state produced by an ability at a given time. */
@@ -183,7 +185,8 @@ export interface AbilityStatic {
      *
      * On the first tick, `prevTime` is 0.
      */
-    doCardEffect(
+    /** @deprecated Prefer `castBehaviours` on `abilityTimings` intervals for new abilities. */
+    doCardEffect?(
         engine: unknown,
         caster: Unit,
         targets: ResolvedTarget[],

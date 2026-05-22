@@ -20,6 +20,7 @@ import {
     BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
 } from '../../game/battlenet';
 import { resolveClick, validateAndResolveTarget } from '../../abilities/targeting';
+import { resolveHitbox } from '../../abilities/hitboxDef';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -141,6 +142,11 @@ export default function BattlePhase({
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
     const [myAbilityIds, setMyAbilityIds] = useState<string[]>([]);
     const mouseWorldRef = useRef({ x: 0, y: 0 });
+    const lockOnCacheRef = useRef<{
+        targetIdx: number;
+        mouseWorldPos: { x: number; y: number };
+        candidate: { unitId: string } | null;
+    } | null>(null);
     const targetingStateRef = useRef<{
         selectedAbility: AbilityStatic | null;
         currentTargets: ResolvedTarget[];
@@ -782,8 +788,24 @@ export default function BattlePhase({
         const targetDef = resolvedTargets[targetIndex];
         if (!targetDef) return;
 
-        const resolved = validateAndResolveTarget(targetDef, clickResult);
-        if (!resolved) return;
+        let resolved: ResolvedTarget | null;
+
+        if (targetDef.lockOn) {
+            const cache = lockOnCacheRef.current;
+            const candidate = cache?.targetIdx === targetIndex ? cache.candidate : null;
+            if (candidate) {
+                resolved = { type: 'unit', unitId: candidate.unitId };
+            } else if (targetDef.lockOn.allowMiss !== false) {
+                // allowMiss defaults to true — fall back to pixel
+                resolved = { type: 'pixel', position: clickResult.worldPosition };
+            } else {
+                // allowMiss: false with no candidate — block the click
+                return;
+            }
+        } else {
+            resolved = validateAndResolveTarget(targetDef, clickResult);
+            if (!resolved) return;
+        }
 
         const newTargets = [...currentTargets, resolved];
         setCurrentTargets(newTargets);
@@ -802,6 +824,43 @@ export default function BattlePhase({
         if (camera) {
             const worldPos = camera.screenToWorld(screenX, screenY);
             mouseWorldRef.current = worldPos;
+
+            // Lock-on hover caching: recompute when mouse moves > 2px from cached position
+            if (selectedAbility && engine) {
+                const state = targetingStateRef.current;
+                const targetIndex = state.currentTargets.length;
+                const resolvedTargets = getAbilityTargets(selectedAbility, engine.getUnit(state.previewOrderUnitId ?? '') ?? undefined, engine);
+                const targetDef = resolvedTargets[targetIndex];
+                if (targetDef?.lockOn) {
+                    const cache = lockOnCacheRef.current;
+                    const cacheStale =
+                        !cache ||
+                        cache.targetIdx !== targetIndex ||
+                        Math.sqrt((worldPos.x - cache.mouseWorldPos.x) ** 2 + (worldPos.y - cache.mouseWorldPos.y) ** 2) > 2;
+                    if (cacheStale) {
+                        const caster = state.previewOrderUnitId ? engine.getUnit(state.previewOrderUnitId) : null;
+                        if (caster) {
+                            const hitUnits = resolveHitbox(targetDef.lockOn.hitbox, {
+                                engine: engine as unknown as import('../../hitboxes/Hitbox').HitboxEngineContext,
+                                caster,
+                                originX: caster.x,
+                                originY: caster.y,
+                                aimX: worldPos.x,
+                                aimY: worldPos.y,
+                            });
+                            lockOnCacheRef.current = {
+                                targetIdx: targetIndex,
+                                mouseWorldPos: { x: worldPos.x, y: worldPos.y },
+                                candidate: hitUnits[0] ? { unitId: hitUnits[0].id } : null,
+                            };
+                        } else {
+                            lockOnCacheRef.current = null;
+                        }
+                    }
+                } else {
+                    lockOnCacheRef.current = null;
+                }
+            }
 
             if (engine?.terrainManager) {
                 const grid = engine.terrainManager.grid;
@@ -823,7 +882,7 @@ export default function BattlePhase({
             }
         }
         forceRender((n) => n + 1);
-    }, []);
+    }, [selectedAbility]);
 
     const handleWait = useCallback(() => {
         const engine = sessionRef.current?.getEngine();

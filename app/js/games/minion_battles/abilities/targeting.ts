@@ -8,14 +8,22 @@
 import type { Unit } from '../game/units/Unit';
 import type { Camera } from '../game/Camera';
 import type { ResolvedTarget } from '../game/types';
+import type { HitboxDef } from './hitboxDef';
 
 /** The types of targets an ability can require. */
 export type TargetType = 'player' | 'unit' | 'pixel';
 
+export interface LockOnDef {
+    hitbox: HitboxDef;
+    filter: 'enemy' | 'ally' | 'any';
+    allowMiss?: boolean; // true = fall back to pixel on no unit found (default); false = click is invalid
+}
+
 /** Describes one required target for an ability. */
 export interface TargetDef {
-    type: TargetType;
+    type?: TargetType; // Optional when lockOn is present; defaults to 'pixel'
     label: string;
+    lockOn?: LockOnDef;
 }
 
 /** Result of resolving a click on the canvas. */
@@ -83,7 +91,8 @@ export function validateAndResolveTarget(
     targetDef: TargetDef,
     clickResult: ClickResult,
 ): ResolvedTarget | null {
-    switch (targetDef.type) {
+    const targetType = targetDef.type ?? 'pixel';
+    switch (targetType) {
         case 'pixel':
             // Any click on the canvas is valid
             return {

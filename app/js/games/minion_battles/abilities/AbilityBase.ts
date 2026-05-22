@@ -23,14 +23,14 @@ export abstract class AbilityBase<TNote = never> implements AbilityStatic {
     abstract readonly prefireTime: number;
     abstract readonly targets: TargetDef[];
 
-    abstract doCardEffect(
-        engine: unknown,
-        caster: Unit,
-        targets: ResolvedTarget[],
-        prevTime: number,
-        currentTime: number,
-        active?: ActiveAbility,
-    ): void;
+    doCardEffect(
+        _engine: unknown,
+        _caster: Unit,
+        _targets: ResolvedTarget[],
+        _prevTime: number,
+        _currentTime: number,
+        _active?: ActiveAbility,
+    ): void {}
 
     abstract getTooltipText(gameState?: unknown): string[];
 

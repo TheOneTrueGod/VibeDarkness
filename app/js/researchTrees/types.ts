@@ -14,7 +14,8 @@ export type Requirement =
 
 export type ResearchEffect =
     | { type: 'replaceEquippedItem'; fromItemId: string; toItemId: string }
-    | { type: 'addExtraCardsFromItem'; itemId: string; cardId: string; count: number };
+    | { type: 'addExtraCardsFromItem'; itemId: string; cardId: string; count: number }
+    | { type: 'replaceCard'; fromCardId: string; toCardId: string };
 
 export interface ResearchNodeDef {
     id: string;

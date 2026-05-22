@@ -193,6 +193,29 @@ export function applyResearchEffects(tree: ResearchTreeDef, ctx: ResearchContext
 }
 
 /**
+ * Returns a map of cardId → replacement cardId based on all `replaceCard` effects in researched nodes.
+ * Applied after equipment is resolved when building the battle deck.
+ */
+export function getCardReplacementsFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): Map<string, string> {
+    const trees = researchTrees ?? {};
+    const replacements = new Map<string, string>();
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(trees[tree.id] ?? []);
+        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        for (const node of researchedNodes) {
+            for (const eff of node.effects) {
+                if (eff.type === 'replaceCard') {
+                    replacements.set(eff.fromCardId, eff.toCardId);
+                }
+            }
+        }
+    }
+    return replacements;
+}
+
+/**
  * Applies all trees' deterministic equipment mutations (matches Character Editor layered research effects).
  * Use when building battle deck item lists from persisted equipment plus `researchTrees`.
  */

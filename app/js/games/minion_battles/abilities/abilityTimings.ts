@@ -4,6 +4,8 @@
  * intervals `[start, end)` with stable `id` for overlap and simulation hooks.
  */
 
+import type { CastBehaviourEntry } from './castBehaviourTypes';
+
 /** Phase of an ability's execution (for segment coloring). */
 export enum AbilityPhase {
     Windup = 'windup',
@@ -70,6 +72,16 @@ export interface AbilityTimingInterval {
     timelineDescription?: string;
     /** Optional declarative emitter: engine auto-creates/deactivates it as this window opens/closes. */
     emitterDef?: AbilityTimingEmitterDef;
+    castBehaviours?: CastBehaviourEntry[];
+    /**
+     * When true, the engine fires evade-break logic for the caster as soon as this
+     * interval is entered. Use on the first Active/Iframe interval of any new evade ability.
+     *
+     * WARNING: applyCoopTailSplit creates new interval objects that do NOT preserve
+     * castBehaviours, emitterDef, evadeEffect, or any other extension fields.
+     * CoopCooldown intervals must always be last and must have no behavioral effects.
+     */
+    evadeEffect?: boolean;
 }
 
 export type AbilityTimingEntry = AbilityTiming | AbilityTimingInterval;
@@ -148,6 +160,17 @@ function isTailBoundaryEffectPhase(phase: AbilityPhase): boolean {
     );
 }
 
+/**
+ * WARNING: This function creates new interval objects preserving only:
+ * id, start, end, abilityPhase, timelineLabel, timelineDescription.
+ * Fields castBehaviours, emitterDef, evadeEffect, and any future extension
+ * fields are NOT carried through to split intervals.
+ *
+ * Rule: CoopCooldown intervals must always be the last timing entries in an
+ * ability, and must carry no behavioral effects (no castBehaviours, no
+ * emitterDef, no evadeEffect). Any interval subject to tail splitting must
+ * be free of these fields.
+ */
 /**
  * Second half of the terminal tail (after the last Active/Juggernaut/Iframe segment) becomes
  * {@link AbilityPhase.CoopCooldown} so coop sync can trim casts without changing total duration.

@@ -786,8 +786,10 @@ export class Unit extends GameObject {
             } : null,
             abilities: this.abilities,
             activeAbilities: this.activeAbilities.map((a) => ({
-                ...a,
+                abilityId: a.abilityId,
+                startTime: a.startTime,
                 targets: a.targets.map((t) => ({ ...t })),
+                fired: a.fired,
                 castPayload:
                     a.castPayload !== undefined
                         ? JSON.parse(JSON.stringify(a.castPayload)) as unknown

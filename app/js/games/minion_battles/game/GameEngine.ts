@@ -34,6 +34,13 @@ import { createEmitterFromDef } from '../abilities/createEmitterFromDef';
 import { spendAbilityCost, refundAbilityCost } from '../abilities/Ability';
 import type { AbilityStatic } from '../abilities/Ability';
 import { AbilityEventType } from '../abilities/Ability';
+import { abilityHasTag } from '../abilities/Ability';
+import {
+    type CastBehaviourEntry,
+    type CastBehaviourBaseContext,
+    resolveBehaviourTimingRef,
+} from '../abilities/castBehaviourTypes';
+import { AbilityPhase } from '../abilities/abilityTimings';
 import { areEnemies } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { BattleObjectiveDef, LevelEvent } from '../storylines/types';
@@ -152,6 +159,18 @@ export class GameEngine implements EngineContext {
      * Keyed by `${casterId}_${intervalId}`. Cleared on fromJSON (emitters are runtime-only).
      */
     private activeTimingEmitters = new Map<string, EffectEmitter>();
+
+    /**
+     * Active sustained CastBehaviours. Keyed by `${casterId}_${intervalId}_${behaviourIdx}`.
+     * Runtime-only — cleared on fromJSON.
+     */
+    private activeCastBehaviours = new Map<string, {
+        entry: CastBehaviourEntry;
+        intervalStart: number;
+        intervalEnd: number;
+        caster: Unit;
+        active: import('./types').ActiveAbility;
+    }>();
 
     // -- Callbacks (engine wiring, not serialized) --
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
@@ -1354,6 +1373,8 @@ export class GameEngine implements EngineContext {
             abilityId: ability.id,
             startTime: this.gameTime,
             targets: targets.map((t) => ({ ...t })),
+            castBehaviourPayloads: {},
+            evadeFired: false,
         };
         ability.beginActiveCast?.(this, unit, active.targets, active);
         unit.activeAbilities.push(active);
@@ -1436,7 +1457,149 @@ export class GameEngine implements EngineContext {
                     }
                 }
 
-                ability.doCardEffect(this, unit, active.targets, safePrevTime, currentTime, active);
+                // castBehaviours: interval enter
+                for (const interval of intervals) {
+                    if (!interval.castBehaviours) continue;
+                    for (let bIdx = 0; bIdx < interval.castBehaviours.length; bIdx++) {
+                        const entry = interval.castBehaviours[bIdx]!;
+                        if (!entered.has(interval.id)) continue;
+                        const behaviourKey = `${unit.id}_${interval.id}_${bIdx}`;
+                        const resolvedStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
+                        const resolvedEnd = entry.timingEnd !== undefined
+                            ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
+                            : null;
+
+                        const targetIdx = entry.targetIndex ?? 0;
+                        const target = active.targets[targetIdx] ?? active.targets[0] ?? { type: 'pixel' as const, position: { x: unit.x, y: unit.y } };
+
+                        if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
+
+                        const setupCtx: import('../abilities/castBehaviourTypes').CastBehaviourSetupContext = {
+                            caster: unit,
+                            target,
+                            allTargets: active.targets,
+                            castPayload: active.castPayload,
+                            behaviourPayload: active.castBehaviourPayloads[behaviourKey],
+                            setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
+                            engine: this,
+                        };
+                        entry.behaviour.onSetup?.(setupCtx);
+
+                        if (resolvedEnd !== null) {
+                            this.activeCastBehaviours.set(behaviourKey, {
+                                entry,
+                                intervalStart: resolvedStart,
+                                intervalEnd: resolvedEnd,
+                                caster: unit,
+                                active,
+                            });
+                        } else {
+                            const tickCtx: import('../abilities/castBehaviourTypes').CastBehaviourTickContext = {
+                                caster: unit,
+                                target,
+                                allTargets: active.targets,
+                                castPayload: active.castPayload,
+                                behaviourPayload: active.castBehaviourPayloads[behaviourKey],
+                                setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
+                                engine: this,
+                                windowProgress: 0,
+                                prevWindowProgress: 0,
+                                isFirstTick: true,
+                                isLastTick: true,
+                            };
+                            entry.behaviour.onTick?.(tickCtx);
+                        }
+                    }
+                }
+
+                // castBehaviours: interval exit (sustained)
+                for (const interval of intervals) {
+                    if (!interval.castBehaviours) continue;
+                    for (let bIdx = 0; bIdx < interval.castBehaviours.length; bIdx++) {
+                        const entry = interval.castBehaviours[bIdx]!;
+                        if (!exited.has(interval.id)) continue;
+                        const behaviourKey = `${unit.id}_${interval.id}_${bIdx}`;
+                        const rec = this.activeCastBehaviours.get(behaviourKey);
+                        if (!rec) continue;
+                        const targetIdx = entry.targetIndex ?? 0;
+                        const target = active.targets[targetIdx] ?? active.targets[0] ?? { type: 'pixel' as const, position: { x: unit.x, y: unit.y } };
+                        const tickCtx: import('../abilities/castBehaviourTypes').CastBehaviourTickContext = {
+                            caster: unit,
+                            target,
+                            allTargets: active.targets,
+                            castPayload: active.castPayload,
+                            behaviourPayload: active.castBehaviourPayloads?.[behaviourKey],
+                            setBehaviourPayload: (data) => { if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {}; active.castBehaviourPayloads[behaviourKey] = data; },
+                            engine: this,
+                            windowProgress: 1,
+                            prevWindowProgress: Math.max(0, Math.min(1, (rec.intervalEnd - rec.intervalStart) > 0 ? ((currentTime - rec.intervalStart) / (rec.intervalEnd - rec.intervalStart) - dt / (rec.intervalEnd - rec.intervalStart)) : 1)),
+                            isFirstTick: false,
+                            isLastTick: true,
+                        };
+                        entry.behaviour.onTick?.(tickCtx);
+                        this.activeCastBehaviours.delete(behaviourKey);
+                    }
+                }
+
+                // castBehaviours: evade-break on interval enter (declarative and legacy paths)
+                for (const interval of intervals) {
+                    if (!entered.has(interval.id)) continue;
+                    const isDeclarativeEvade = interval.evadeEffect === true;
+                    const isLegacyEvade =
+                        !active.evadeFired &&
+                        abilityHasTag(active.abilityId, 'evade') &&
+                        (interval.abilityPhase === AbilityPhase.Active || interval.abilityPhase === AbilityPhase.Iframe);
+                    if (!isDeclarativeEvade && !isLegacyEvade) continue;
+
+                    active.evadeFired = true;
+                    const snapshot = { x: unit.x, y: unit.y };
+                    for (const [behaviourKey, rec] of this.activeCastBehaviours) {
+                        if (rec.caster.id === unit.id) continue;
+                        const behaviourTarget = rec.active.targets[rec.entry.targetIndex ?? 0];
+                        if (behaviourTarget?.type !== 'unit' || behaviourTarget.unitId !== unit.id) continue;
+                        const baseCtx: CastBehaviourBaseContext = {
+                            caster: rec.caster,
+                            target: behaviourTarget,
+                            allTargets: rec.active.targets,
+                            castPayload: rec.active.castPayload,
+                            behaviourPayload: rec.active.castBehaviourPayloads?.[behaviourKey],
+                            setBehaviourPayload: (data) => {
+                                if (!rec.active.castBehaviourPayloads) rec.active.castBehaviourPayloads = {};
+                                rec.active.castBehaviourPayloads[behaviourKey] = data;
+                            },
+                        };
+                        rec.entry.behaviour.onTargetEvade?.(unit.id, snapshot, baseCtx);
+                    }
+                }
+
+                // castBehaviours: per-tick for active sustained behaviours belonging to this cast
+                for (const [behaviourKey, rec] of this.activeCastBehaviours) {
+                    if (rec.caster.id !== unit.id || rec.active !== active) continue;
+                    const windowLen = rec.intervalEnd - rec.intervalStart;
+                    const rawProgress = windowLen > 0 ? (currentTime - rec.intervalStart) / windowLen : 1;
+                    const rawPrevProgress = windowLen > 0 ? (safePrevTime - rec.intervalStart) / windowLen : 0;
+                    const targetIdx = rec.entry.targetIndex ?? 0;
+                    const target = active.targets[targetIdx] ?? active.targets[0] ?? { type: 'pixel' as const, position: { x: unit.x, y: unit.y } };
+                    const tickCtx: import('../abilities/castBehaviourTypes').CastBehaviourTickContext = {
+                        caster: unit,
+                        target,
+                        allTargets: active.targets,
+                        castPayload: active.castPayload,
+                        behaviourPayload: active.castBehaviourPayloads?.[behaviourKey],
+                        setBehaviourPayload: (data) => {
+                            if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
+                            active.castBehaviourPayloads[behaviourKey] = data;
+                        },
+                        engine: this,
+                        windowProgress: Math.max(0, Math.min(1, rawProgress)),
+                        prevWindowProgress: Math.max(0, Math.min(1, rawPrevProgress)),
+                        isFirstTick: rawPrevProgress <= 0 && rawProgress > 0,
+                        isLastTick: false,
+                    };
+                    rec.entry.behaviour.onTick?.(tickCtx);
+                }
+
+                ability.doCardEffect?.(this, unit, active.targets, safePrevTime, currentTime, active);
                 triggerAbilityEvent({
                     engine: this,
                     caster: unit,
@@ -1479,6 +1642,28 @@ export class GameEngine implements EngineContext {
         }
     }
 
+    private cleanupCastBehavioursForAbility(unit: Unit, active: import('./types').ActiveAbility): void {
+        for (const [key, rec] of this.activeCastBehaviours) {
+            if (rec.caster.id !== unit.id || rec.active !== active) continue;
+            const targetIdx = rec.entry.targetIndex ?? 0;
+            const target = active.targets[targetIdx] ?? active.targets[0] ?? { type: 'pixel' as const, position: { x: unit.x, y: unit.y } };
+            const ctx: import('../abilities/castBehaviourTypes').CastBehaviourInterruptContext = {
+                caster: unit,
+                target,
+                allTargets: active.targets,
+                castPayload: active.castPayload,
+                behaviourPayload: active.castBehaviourPayloads?.[key],
+                setBehaviourPayload: (data) => {
+                    if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
+                    active.castBehaviourPayloads[key] = data;
+                },
+                engine: this,
+            };
+            rec.entry.behaviour.onInterrupt?.(ctx);
+            this.activeCastBehaviours.delete(key);
+        }
+    }
+
     cancelActiveAbility(unitId: string, abilityId: string): void {
         const unit = this.getUnit(unitId);
         if (!unit) return;
@@ -1500,6 +1685,7 @@ export class GameEngine implements EngineContext {
                 currentTime: elapsed,
             });
         }
+        this.cleanupCastBehavioursForAbility(unit, active);
         unit.activeAbilities.splice(idx, 1);
     }
 
@@ -1522,6 +1708,7 @@ export class GameEngine implements EngineContext {
                     currentTime: elapsed,
                 });
             }
+            this.cleanupCastBehavioursForAbility(unit, active);
             unit.activeAbilities.splice(0, 1);
         }
         unit.clearAbilityNote();
@@ -2012,6 +2199,12 @@ export class GameEngine implements EngineContext {
         }
 
         return engine;
+    }
+
+    /** Pause game simulation for approximately `frames` game ticks (hitpause). */
+    requestHitPause(frames: number): void {
+        // Stub: no-op for MVP. Future implementation would freeze dt for N frames.
+        void frames;
     }
 
     destroy(): void {

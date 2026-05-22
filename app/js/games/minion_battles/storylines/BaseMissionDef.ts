@@ -35,7 +35,7 @@ import {
     applyTrainingResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { mergeBattleEquipmentIdsFromResearch } from '../../../researchTrees/evaluator';
+import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch } from '../../../researchTrees/evaluator';
 import { Ammo } from '../resources/Ammo';
 import {
     hydrateLanterniteNestFromMissionDef,
@@ -143,6 +143,15 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             // Fallback if no equipment (should not happen if new characters get a core).
             if (abilities.length === 0) {
                 abilities.push('0101', '0102');
+            }
+
+            // Apply card-level replacements from research (e.g. Double Punch replaces Punch).
+            const cardReplacements = getCardReplacementsFromResearch(researchByPlayer[pu.playerId]);
+            if (cardReplacements.size > 0) {
+                for (let j = 0; j < abilities.length; j++) {
+                    const replacement = cardReplacements.get(abilities[j]!);
+                    if (replacement) abilities[j] = replacement;
+                }
             }
 
             // Determine spawn position.

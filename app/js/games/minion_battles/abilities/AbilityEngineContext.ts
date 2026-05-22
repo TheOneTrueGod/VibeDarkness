@@ -15,5 +15,6 @@ export interface AbilityEngineContext {
     gameTime: number;
     eventBus: EventBus;
     generateRandomInteger(min: number, max: number): number;
+    requestHitPause?(frames: number): void;
     terrainManager?: TerrainManager | null;
 }

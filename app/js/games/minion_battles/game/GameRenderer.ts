@@ -12,6 +12,8 @@ import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
 import type { Unit } from './units/Unit';
 import { getAbility } from '../abilities/AbilityRegistry';
+import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries } from '../abilities/abilityTimings';
+import { resolveBehaviourTimingRef } from '../abilities/castBehaviourTypes';
 import { Projectile } from './projectiles/Projectile';
 import type { Effect } from './effects/Effect';
 import { areEnemies } from './teams';
@@ -765,6 +767,51 @@ export class GameRenderer {
                 if (!offset) continue;
                 renderOffsetX += offset.x;
                 renderOffsetY += offset.y;
+            }
+            for (const activeAbility of unit.activeAbilities) {
+                if (!activeAbility.castBehaviourPayloads) continue;
+                const ability = getAbility(activeAbility.abilityId);
+                if (!ability) continue;
+                const intervals = normalizeAbilityTimingsToIntervals(
+                    resolveAbilityTimingEntries(ability, unit, engine),
+                );
+                for (let iIdx = 0; iIdx < intervals.length; iIdx++) {
+                    const interval = intervals[iIdx]!;
+                    if (!interval.castBehaviours) continue;
+                    for (let bIdx = 0; bIdx < interval.castBehaviours.length; bIdx++) {
+                        const entry = interval.castBehaviours[bIdx]!;
+                        if (!entry.behaviour.getCasterRenderOffset) continue;
+                        const elapsed = engine.gameTime - activeAbility.startTime;
+                        const windowStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
+                        const windowEnd = entry.timingEnd !== undefined
+                            ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
+                            : windowStart;
+                        const windowLen = windowEnd - windowStart;
+                        const rawProgress = windowLen > 0 ? (elapsed - windowStart) / windowLen : 0;
+                        const windowProgress = Math.max(0, Math.min(1, rawProgress));
+                        // Only call if the window is active or just past
+                        if (elapsed < windowStart - 0.05 || elapsed > windowEnd + 0.05) continue;
+                        const behaviourKey = `${unit.id}_${interval.id}_${bIdx}`;
+                        const behaviourPayload = activeAbility.castBehaviourPayloads[behaviourKey];
+                        const targetIdx = entry.targetIndex ?? 0;
+                        const target = activeAbility.targets[targetIdx] ?? activeAbility.targets[0];
+                        if (!target) continue;
+                        const offset = entry.behaviour.getCasterRenderOffset({
+                            caster: unit,
+                            target,
+                            allTargets: activeAbility.targets,
+                            castPayload: activeAbility.castPayload,
+                            behaviourPayload,
+                            setBehaviourPayload: () => {}, // no-op: render must not mutate simulation state
+                            gameTime: engine.gameTime,
+                            windowProgress,
+                        });
+                        if (offset) {
+                            renderOffsetX += offset.x;
+                            renderOffsetY += offset.y;
+                        }
+                    }
+                }
             }
             visual.x = unit.x + renderOffsetX;
             visual.y = unit.y + renderOffsetY;
