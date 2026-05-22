@@ -84,6 +84,7 @@ import {
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 import { bramblePatchFromJSON, bramblePatchToJSON, type BramblePatch } from './brambleSlow';
 import type { EffectEmitter } from './effects/EffectEmitter';
+import { AlphaWolfStoryEmitter } from './effects/AlphaWolfStoryEmitter';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -552,19 +553,12 @@ export class GameEngine implements EngineContext {
                 },
             }),
         );
-        this.addEffect(
-            new Effect({
+        this.addEffectEmitter(
+            new AlphaWolfStoryEmitter({
                 x: unit.x,
                 y: unit.y,
-                duration: STORY_DURATION_SECONDS,
-                effectType: 'AlphaWolfStoryController',
-                effectData: {
-                    seededAt: this.gameTime,
-                    radialRatePerSecond: 24,
-                    homingRatePerSecond: 20,
-                    radialRemainder: 0,
-                    homingRemainder: 0,
-                },
+                radialRatePerSecond: 24,
+                homingRatePerSecond: 20,
             }),
         );
     }
@@ -776,13 +770,6 @@ export class GameEngine implements EngineContext {
         }
         for (const p of data.projectiles ?? []) {
             const id = (p as { id?: string }).id;
-            if (typeof id === 'string') {
-                const n = parseGameObjectIdNumber(id);
-                if (n !== null && n > maxN) maxN = n;
-            }
-        }
-        for (const e of data.effects ?? []) {
-            const id = (e as { id?: string }).id;
             if (typeof id === 'string') {
                 const n = parseGameObjectIdNumber(id);
                 if (n !== null && n > maxN) maxN = n;
@@ -1040,9 +1027,9 @@ export class GameEngine implements EngineContext {
         if (!this.storyPauseActive) {
             this.state.projectileManager.update(dt);
         }
-        this.state.effectManager.gameUpdate(dt);
         const emitterEffects = this.state.effectEmitterManager.update(dt, this);
         for (const fx of emitterEffects) this.state.effectManager.addEffect(fx);
+        this.state.effectManager.gameUpdate(dt);
         this.state.lightSourceManager.update(dt);
         this.processEphemeralUnitExpiry();
         processLanterniteNests({
@@ -1421,8 +1408,11 @@ export class GameEngine implements EngineContext {
                 const safePrevTime = Math.max(0, prevTime);
 
                 const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, this));
-                const entered = enteredTimingIds(safePrevTime, currentTime, intervals);
-                const exited = exitedTimingIds(safePrevTime, currentTime, intervals);
+                // Use unclamped prevTime for entry/exit detection so intervals starting at t=0
+                // are correctly detected as "entered" on the first tick (safePrevTime would be 0,
+                // making a [0, end) interval appear already active and suppressing emitter creation).
+                const entered = enteredTimingIds(prevTime, currentTime, intervals);
+                const exited = exitedTimingIds(prevTime, currentTime, intervals);
 
                 for (const interval of intervals) {
                     if (interval.emitterDef && entered.has(interval.id)) {
@@ -1831,7 +1821,6 @@ export class GameEngine implements EngineContext {
             snapshotIndex: this.snapshotIndex,
             units: this.state.unitManager.toJSON(),
             projectiles: this.state.projectileManager.toJSON(),
-            effects: this.state.effectManager.toJSON(),
             effectEmitters: this.state.effectEmitterManager.toJSON(),
             cards: cardData.cards as Record<string, import('./types').SerializedCardInstance[]>,
             waitingForOrders: this.waitingForOrders
@@ -1950,8 +1939,6 @@ export class GameEngine implements EngineContext {
         // Restore projectiles
         engine.state.projectileManager.restoreFromJSON(data.projectiles);
 
-        // Restore effects
-        engine.state.effectManager.restoreFromJSON(data.effects);
         // Restore effect emitters (runtime-only factories are dropped; emitters are short-lived)
         engine.state.effectEmitterManager.restoreFromJSON(data.effectEmitters ?? []);
 

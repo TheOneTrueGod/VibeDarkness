@@ -7,7 +7,6 @@
 
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { computeDamageNumberWorldPosition, type DamageNumberMotionData } from './damageNumberMotion';
-import type { Unit } from '../units/Unit';
 
 export class Effect extends GameObject {
     /** Total duration in seconds. */
@@ -57,19 +56,7 @@ export class Effect extends GameObject {
     }
 
     /**
-     * True for effects that need engine context in their update — these remain on the game tick
-     * and are skipped by renderUpdate(). Transitional flag for Phase 3 migration.
-     */
-    isGameDriven(): boolean {
-        return (
-            this.effectType === 'AlphaWolfStoryController' ||
-            this.effectType === 'StoryHomingParticle'
-        );
-    }
-
-    /**
      * Advance visual state — runs every render frame for purely visual effects.
-     * Skipped for game-driven effects (isGameDriven() === true).
      * Does NOT access engine context.
      */
     renderUpdate(realDt: number): void {
@@ -145,147 +132,14 @@ export class Effect extends GameObject {
             this.x = this.startX + (this.endX - this.startX) * t;
             this.y = this.startY + (this.endY - this.startY) * t;
         }
-        // TorchProjectile: flag landing for EffectManager.gameUpdate to process; don't expire here
+        // TorchProjectile: flag landing for EffectManager.gameUpdate to convert to a LightSource; don't expire here
         if (this.effectType === 'TorchProjectile') {
             if (this.elapsed >= this.duration) {
                 (this.effectData as { landingPending?: boolean }).landingPending = true;
             }
             return;
         }
-        // Expiry check (game-driven effects manage their own expiry in update(); TorchProjectile handled above)
-        const totalDuration = (this.delay ?? 0) + this.duration;
-        if (this.elapsed >= totalDuration) {
-            this.active = false;
-        }
-    }
-
-    /**
-     * Game-tick update — runs engine-context branches for game-driven effects.
-     * For game-driven effects this also advances elapsed (since renderUpdate is skipped for them).
-     * For non-game-driven effects elapsed is advanced by renderUpdate(); this method is a no-op.
-     */
-    update(dt: number, engine: unknown): void {
-        if (!this.active) return;
-
-        // Only game-driven effects are updated here; purely visual effects are handled in renderUpdate().
-        if (!this.isGameDriven()) return;
-
-        // Advance elapsed for game-driven effects (renderUpdate won't be called for them).
-        this.elapsed += dt;
-
-        if (this.effectType === 'AlphaWolfStoryController') {
-            const ctx = engine as {
-                addEffect(e: Effect): void;
-                units: Unit[];
-            };
-            const data = this.effectData as {
-                radialRatePerSecond?: number;
-                homingRatePerSecond?: number;
-                radialRemainder?: number;
-                homingRemainder?: number;
-            };
-            const radialPhase = this.elapsed <= 1;
-            const homingPhase = this.elapsed > 1 && this.elapsed <= 3;
-            const homingTargets = ctx.units.filter((u) => u.isAlive() && u.isPlayerControlled());
-
-            if (radialPhase) {
-                const total = (data.radialRatePerSecond ?? 24) * dt + (data.radialRemainder ?? 0);
-                const spawnCount = Math.floor(total);
-                data.radialRemainder = total - spawnCount;
-                for (let i = 0; i < spawnCount; i++) {
-                    const angle = Math.random() * 2 * Math.PI;
-                    const speed = 120 + Math.random() * 160;
-                    const vx = Math.cos(angle) * speed;
-                    const vy = Math.sin(angle) * speed;
-                    ctx.addEffect(
-                        new Effect({
-                            x: this.x,
-                            y: this.y,
-                            duration: 1,
-                            effectType: 'ParticleImage',
-                            effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.7 + Math.random() * 0.5 },
-                        }),
-                    );
-                }
-            }
-
-            if (homingPhase && homingTargets.length > 0) {
-                const total = (data.homingRatePerSecond ?? 20) * dt + (data.homingRemainder ?? 0);
-                const spawnCount = Math.floor(total);
-                data.homingRemainder = total - spawnCount;
-                for (let i = 0; i < spawnCount; i++) {
-                    const idx = Math.floor(Math.random() * homingTargets.length);
-                    const target = homingTargets[idx];
-                    if (!target) continue;
-                    const spawnAngle = Math.random() * 2 * Math.PI;
-                    const spawnRadius = 16 + Math.random() * 20;
-                    const sx = this.x + Math.cos(spawnAngle) * spawnRadius;
-                    const sy = this.y + Math.sin(spawnAngle) * spawnRadius;
-                    const mx = (sx + target.x) * 0.5 + (Math.random() * 240 - 120);
-                    const my = (sy + target.y) * 0.5 - (70 + Math.random() * 80);
-                    ctx.addEffect(
-                        new Effect({
-                            x: sx,
-                            y: sy,
-                            duration: 2,
-                            effectType: 'StoryHomingParticle',
-                            effectData: {
-                                imageKey: 'darkBlob',
-                                startX: sx,
-                                startY: sy,
-                                controlX: mx,
-                                controlY: my,
-                                targetUnitId: target.id,
-                                targetX: target.x,
-                                targetY: target.y,
-                                pulseSpawned: false,
-                            },
-                        }),
-                    );
-                }
-            }
-        }
-
-        if (this.effectType === 'StoryHomingParticle') {
-            const ctx = engine as {
-                addEffect(e: Effect): void;
-                getUnit(id: string): Unit | undefined;
-            };
-            const data = this.effectData as {
-                startX: number;
-                startY: number;
-                controlX: number;
-                controlY: number;
-                targetUnitId?: string;
-                targetX: number;
-                targetY: number;
-                pulseSpawned?: boolean;
-            };
-            const t = this.progress;
-            const targetUnit = data.targetUnitId ? ctx.getUnit(data.targetUnitId) : undefined;
-            const tx = targetUnit?.x ?? data.targetX;
-            const ty = targetUnit?.y ?? data.targetY;
-            data.targetX = tx;
-            data.targetY = ty;
-            this.x = (1 - t) * (1 - t) * data.startX + 2 * (1 - t) * t * data.controlX + t * t * tx;
-            this.y = (1 - t) * (1 - t) * data.startY + 2 * (1 - t) * t * data.controlY + t * t * ty;
-            if (t >= 1 && !data.pulseSpawned) {
-                data.pulseSpawned = true;
-                ctx.addEffect(
-                    new Effect({
-                        x: tx,
-                        y: ty,
-                        duration: 0.45,
-                        effectType: 'Pulse',
-                        effectData: { colors: [0xa855f7, 0x7e22ce, 0x581c87] },
-                    }),
-                );
-                this.active = false;
-            }
-            return;
-        }
-
-        // Expiry for game-driven effects
+        // Expiry check (TorchProjectile handled above)
         const totalDuration = (this.delay ?? 0) + this.duration;
         if (this.elapsed >= totalDuration) {
             this.active = false;
@@ -299,46 +153,4 @@ export class Effect extends GameObject {
         return Math.min(1, (this.elapsed - start) / this.duration);
     }
 
-    toJSON(): Record<string, unknown> {
-        const out: Record<string, unknown> = {
-            _type: 'effect',
-            id: this.id,
-            x: this.x,
-            y: this.y,
-            active: this.active,
-            duration: this.duration,
-            elapsed: this.elapsed,
-            effectType: this.effectType,
-        };
-        if (this.startX !== undefined) {
-            out.startX = this.startX;
-            out.startY = this.startY;
-            out.endX = this.endX;
-            out.endY = this.endY;
-        }
-        if (Object.keys(this.effectData).length > 0) out.effectData = { ...this.effectData };
-        if (this.delay !== undefined) out.delay = this.delay;
-        return out;
-    }
-
-    static fromJSON(data: Record<string, unknown>): Effect {
-        const endX = (data.endX ?? data.x) as number;
-        const endY = (data.endY ?? data.y) as number;
-        const config: ConstructorParameters<typeof Effect>[0] = {
-            id: data.id as string,
-            x: endX,
-            y: endY,
-            duration: data.duration as number,
-            effectType: data.effectType as string,
-        };
-        if (data.startX != null) config.startX = data.startX as number;
-        if (data.startY != null) config.startY = data.startY as number;
-        if (data.effectRadius != null) config.effectRadius = data.effectRadius as number;
-        if (data.effectData != null) config.effectData = data.effectData as Record<string, unknown>;
-        if (data.delay != null) config.delay = data.delay as number;
-        const effect = new Effect(config);
-        effect.active = data.active as boolean;
-        effect.elapsed = data.elapsed as number;
-        return effect;
-    }
 }

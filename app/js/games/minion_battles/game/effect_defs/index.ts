@@ -19,7 +19,6 @@ import { pulseEffectDef, howlShockwaveEffectDef } from './aoeEffects';
 import {
     darkCreatureIconDeathEffectDef,
     alphaWolfStoryRemnantEffectDef,
-    alphaWolfStoryControllerEffectDef,
     storyHomingParticleEffectDef,
     particleImageEffectDef,
 } from './deathEffects';
@@ -51,7 +50,6 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     ChargeUpEffect: chargeUpEffectDef,
     AlphaWolfStoryRemnant: alphaWolfStoryRemnantEffectDef,
     DarkCreatureIconDeath: darkCreatureIconDeathEffectDef,
-    AlphaWolfStoryController: alphaWolfStoryControllerEffectDef,
     StoryHomingParticle: storyHomingParticleEffectDef,
     bite: biteEffectDef,
     CorruptionOrb: corruptionOrbEffectDef,

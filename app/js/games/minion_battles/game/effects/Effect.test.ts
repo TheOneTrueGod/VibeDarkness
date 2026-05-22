@@ -1,11 +1,11 @@
 /**
- * Effect serialization tests: toJSON round-trip restores all saveable properties.
+ * Effect unit tests.
  */
 import { describe, it, expect } from 'vitest';
 import { Effect } from './Effect';
 
 describe('Effect', () => {
-    it('serializes and restores to an equivalent object', () => {
+    it('advances elapsed and deactivates after duration', () => {
         const effect = new Effect({
             id: 'fx_1',
             x: 150,
@@ -13,18 +13,28 @@ describe('Effect', () => {
             duration: 0.5,
             effectType: 'impact',
         });
-        effect.active = true;
-        effect.elapsed = 0.2;
+        expect(effect.active).toBe(true);
+        expect(effect.elapsed).toBe(0);
 
-        const json = effect.toJSON();
-        const restored = Effect.fromJSON(json);
+        effect.renderUpdate(0.3);
+        expect(effect.elapsed).toBeCloseTo(0.3);
+        expect(effect.active).toBe(true);
 
-        expect(restored.id).toBe(effect.id);
-        expect(restored.x).toBe(effect.x);
-        expect(restored.y).toBe(effect.y);
-        expect(restored.active).toBe(effect.active);
-        expect(restored.duration).toBe(effect.duration);
-        expect(restored.effectType).toBe(effect.effectType);
-        expect(restored.elapsed).toBe(effect.elapsed);
+        effect.renderUpdate(0.3);
+        expect(effect.elapsed).toBeCloseTo(0.6);
+        expect(effect.active).toBe(false);
+    });
+
+    it('computes progress correctly', () => {
+        const effect = new Effect({
+            x: 0,
+            y: 0,
+            duration: 1,
+            effectType: 'impact',
+        });
+        effect.elapsed = 0.5;
+        expect(effect.progress).toBeCloseTo(0.5);
+        effect.elapsed = 2;
+        expect(effect.progress).toBe(1);
     });
 });

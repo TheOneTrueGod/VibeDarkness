@@ -116,17 +116,6 @@ export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
     },
 };
 
-/** Alpha wolf story controller has no direct visual; it only spawns particles/effects. */
-export const alphaWolfStoryControllerEffectDef: IEffectDef = {
-    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
-        return new Graphics();
-    },
-    updateVisual(visual: Container, _effect: Effect, _context: IEffectRenderContext): void {
-        const g = visual as Graphics;
-        g.clear();
-    },
-};
-
 /** Purple homing particle that travels from wolf remnant to player targets. */
 export const storyHomingParticleEffectDef: IEffectDef = {
     createVisual(effect: Effect, context: IEffectRenderContext): Container {

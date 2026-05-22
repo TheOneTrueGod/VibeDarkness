@@ -6,7 +6,7 @@
  * engine objects with camera offsets applied.
  */
 
-import { Application, Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Particle, ParticleContainer, Sprite, Texture } from 'pixi.js';
 import { WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START } from '../../../gameConstants';
 import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
@@ -86,6 +86,10 @@ export class GameRenderer {
     private moveTargetVisuals: Map<string, Graphics> = new Map();
     private projectileVisuals: Map<string, Graphics> = new Map();
     private effectVisuals: Map<string, Container> = new Map();
+    /** PixiJS v8 ParticleContainer for high-count sprite-based effects (ParticleImage, StoryHomingParticle). */
+    private particleContainer: ParticleContainer | null = null;
+    /** Particle objects for particle-type effects, keyed by effect ID. */
+    private particleEffects: Map<string, Particle> = new Map();
     private lightSourceVisuals: Map<string, Graphics> = new Map();
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
@@ -239,6 +243,10 @@ export class GameRenderer {
         this.ghostPreviewGraphics.zIndex = Z_INDEX.ghostPreview;
         this.gameContainer.addChild(this.ghostPreviewGraphics);
 
+        this.particleContainer = new ParticleContainer({ dynamicProperties: { position: true, alpha: true, scale: true } });
+        this.particleContainer.zIndex = Z_INDEX.effects;
+        this.gameContainer.addChild(this.particleContainer);
+
         if (WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START) {
             await this.loadBattleAssets();
         } else {
@@ -299,6 +307,9 @@ export class GameRenderer {
             } catch (err) {
                 console.warn('[GameRenderer] Failed to load effect texture:', key, src, err);
             }
+        }
+        if (this.particleContainer && this.effectTextures.darkBlob) {
+            this.particleContainer.texture = this.effectTextures.darkBlob;
         }
 
         for (const portraitId of getPortraitIds()) {
@@ -1308,6 +1319,8 @@ export class GameRenderer {
     // Effects
     // ========================================================================
 
+    private static readonly PARTICLE_EFFECT_TYPES = new Set(['ParticleImage', 'StoryHomingParticle']);
+
     private renderEffects(effects: Effect[]): void {
         const unitContext = this.getUnitRenderContext();
         const context: IEffectRenderContext = {
@@ -1315,6 +1328,10 @@ export class GameRenderer {
             getCharacterTexture: (characterId: string) => unitContext.getCharacterTexture(characterId),
         };
         for (const effect of effects) {
+            if (GameRenderer.PARTICLE_EFFECT_TYPES.has(effect.effectType)) {
+                this.syncParticleEffect(effect);
+                continue;
+            }
             let visual = this.effectVisuals.get(effect.id);
             if (!visual) {
                 visual = createEffectVisual(effect, context);
@@ -1326,6 +1343,54 @@ export class GameRenderer {
             visual.y = effect.y;
             visual.visible = effect.active;
             updateEffectVisual(visual, effect, context);
+        }
+        if (this.particleEffects.size > 0) this.particleContainer?.update();
+    }
+
+    /**
+     * Create or update a Particle in the ParticleContainer for sprite-only particle effects.
+     * Both ParticleImage and StoryHomingParticle use the shared darkBlob texture.
+     */
+    private syncParticleEffect(effect: Effect): void {
+        const pc = this.particleContainer;
+        if (!pc?.texture) return;
+
+        if (!effect.active) {
+            const p = this.particleEffects.get(effect.id);
+            if (p) {
+                pc.removeParticle(p);
+                this.particleEffects.delete(effect.id);
+            }
+            return;
+        }
+
+        let particle = this.particleEffects.get(effect.id);
+        if (!particle) {
+            particle = new Particle({ texture: pc.texture, anchorX: 0.5, anchorY: 0.5 });
+            pc.addParticle(particle);
+            this.particleEffects.set(effect.id, particle);
+        }
+
+        particle.x = effect.x;
+        particle.y = effect.y;
+        const texW = pc.texture.width || 1;
+        const texH = pc.texture.height || 1;
+
+        if (effect.effectType === 'ParticleImage') {
+            const data = effect.effectData as { scale?: number };
+            const life = 1 - effect.progress;
+            particle.alpha = life * life;
+            const base = (data.scale ?? 1) * 18;
+            const s = base * (0.6 + 0.4 * life);
+            particle.scaleX = s / texW;
+            particle.scaleY = s / texH;
+        } else {
+            // StoryHomingParticle
+            const life = Math.max(0.35, 1 - effect.progress * 0.4);
+            particle.alpha = life;
+            const size = 14 + (1 - effect.progress) * 6;
+            particle.scaleX = size / texW;
+            particle.scaleY = size / texH;
         }
     }
 
@@ -1398,6 +1463,12 @@ export class GameRenderer {
                 this.effectVisuals.delete(id);
             }
         }
+        for (const [id, particle] of this.particleEffects) {
+            if (!activeEffectIds.has(id)) {
+                this.particleContainer?.removeParticle(particle);
+                this.particleEffects.delete(id);
+            }
+        }
 
         const activeLightSourceIds = new Set(engine.state.lightSourceManager.lightSources.map((ls) => ls.id));
         for (const [id, visual] of this.lightSourceVisuals) {
@@ -1424,6 +1495,11 @@ export class GameRenderer {
         for (const visual of this.moveTargetVisuals.values()) visual.destroy();
         for (const visual of this.projectileVisuals.values()) visual.destroy();
         for (const visual of this.effectVisuals.values()) visual.destroy();
+        if (this.particleContainer) {
+            this.particleContainer.destroy();
+            this.particleContainer = null;
+        }
+        this.particleEffects.clear();
         for (const visual of this.specialTileVisuals.values()) visual.destroy();
         if (this.darknessOverlaySprite) {
             this.darknessOverlaySprite.destroy();

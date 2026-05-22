@@ -29,11 +29,12 @@ export abstract class GameObject {
         this.active = true;
     }
 
-    /** Called every fixed-step tick. dt is in seconds. */
-    abstract update(dt: number, engine: unknown): void;
+    /** Called every fixed-step tick. dt is in seconds. Override in subclasses that need engine context. */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    update(_dt: number, _engine: unknown): void { /* no-op by default */ }
 
-    /** Serialize to a plain object for server sync. */
-    abstract toJSON(): Record<string, unknown>;
+    /** Serialize to a plain object for server sync. Override in subclasses that support serialization. */
+    toJSON(): Record<string, unknown> { return {}; }
 
     /** Deactivate this object (will be cleaned up by the engine). */
     destroy(): void {

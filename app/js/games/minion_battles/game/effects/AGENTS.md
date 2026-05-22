@@ -13,23 +13,16 @@ This directory contains two distinct classes of objects that both produce visual
 - Runs **every render frame** (called by `EffectManager.renderUpdate`).
 - Advances `this.elapsed`, updates position/velocity, fires expiry check.
 - Does **not** access engine context.
-- Only called for effects where `isGameDriven() === false`.
+- All effects are purely visual — there is no `isGameDriven()` method or `update()` game-logic method.
 
-### Effect.isGameDriven()
+### TorchProjectile landing
 
-Returns `true` for effects that still need engine context in their `update()` method:
-
-- `AlphaWolfStoryController` — spawns child effects (addEffect)
-- `StoryHomingParticle` — follows a unit via getUnit
-- `TorchProjectile` — calls addLightSource on arrival
-- `DarkCreatureIconDeath` — spawns dark blob particles
-
-These are **transitional**: they will be migrated to EffectEmitters in Phase 3. For now they stay on the game tick and are skipped by `renderUpdate`.
+`TorchProjectile` effects set a `landingPending` flag on their `effectData` when travel completes (via `renderUpdate`). `EffectManager.gameUpdate` checks this flag each fixed tick and converts it into a `ctx.addLightSource(...)` call — this is the only remaining coupling between the effects system and engine context.
 
 ### Adding a new Effect
 
 1. Pick an `effectType` string (e.g. `'MySparkle'`).
-2. Add rendering logic in the `GameRenderer` keyed on `effectType`.
+2. Add rendering logic in `effect_defs/` keyed on `effectType`.
 3. Optionally add position/motion logic to `renderUpdate()` in `Effect.ts`.
 4. Construct it with `new Effect({ x, y, duration, effectType, effectData })` and call `engine.addEffect(effect)`.
 5. Keep it purely visual — no `engine` access inside the effect.
@@ -47,6 +40,8 @@ These are **transitional**: they will be migrated to EffectEmitters in Phase 3. 
 | `OneShotEmitter` | Fires once on the first game tick, then deactivates. |
 | `IntervalEmitter` | Fires every `intervalSeconds` over a fixed `lifetime`. |
 | `ContinuousEmitter` | Fires every render frame (or every N frames) via `renderUpdate`. Supports `emitWhilePaused`. |
+| `AlphaWolfStoryEmitter` | Custom emitter: drives the alpha wolf death particle sequence (radial burst + homing particles). |
+| `StoryHomingParticleEmitter` | Custom emitter: tracks one homing particle along a bezier path to a target unit. |
 
 ### emitWhilePaused
 
@@ -59,6 +54,8 @@ When `emitter.emitWhilePaused = true`, `EffectEmitterManager.renderUpdate` calls
 ### Serialization note
 
 Factory functions (closures) passed to `OneShotEmitter`, `IntervalEmitter`, and `ContinuousEmitter` constructors are **runtime-only** — they are not serialized. Only scalar state (elapsed, accumulator, etc.) is included in `toJSON()`. This is intentional: emitters are short-lived and re-created by the ability/event that originally spawned them when a reconnect occurs.
+
+Custom subclasses (`AlphaWolfStoryEmitter`, `StoryHomingParticleEmitter`) do serialize their full state (position fields, accumulators, elapsed). Note: `EffectEmitterManager.restoreFromJSON` currently drops all emitters on reconnect — restoring mid-sequence emission is not yet implemented (acceptable since these are cosmetic story effects).
 
 ### Adding a new EffectEmitter
 
@@ -79,10 +76,11 @@ GameEngine.loop() (render tick, ~60 fps)
         └── ContinuousEmitter.renderUpdate() → new Effects → EffectManager.addEffect()
 
 GameEngine.fixedUpdate() (game tick, FIXED_DT = 1/60 s, pauses when game pauses)
-  ├── EffectManager.gameUpdate(dt)               ← advances game-driven Effects
   └── EffectEmitterManager.update(dt, engine)
         ├── OneShotEmitter.update()   → new Effects
         ├── IntervalEmitter.update()  → new Effects
+        ├── AlphaWolfStoryEmitter.update() → new Effects (radial particles + homing emitters)
+        ├── StoryHomingParticleEmitter.update() → StoryHomingParticle visual Effects + Pulse at arrival
         └── ContinuousEmitter.update() → tracks elapsed/expiry only, returns []
               → collected Effects → EffectManager.addEffect()
 ```
@@ -91,5 +89,5 @@ GameEngine.fixedUpdate() (game tick, FIXED_DT = 1/60 s, pauses when game pauses)
 
 ## Phase notes
 
-- **Phase 2 (current)**: Added `renderUpdate` / `isGameDriven` separation and `EffectEmitter` infrastructure. No behavior changes — visual output is identical.
-- **Phase 3 (future)**: Migrate `AlphaWolfStoryController`, `StoryHomingParticle`, `TorchProjectile`, `DarkCreatureIconDeath` out of `Effect.update()` into proper `EffectEmitter` subclasses.
+- **Phase 2**: Added `renderUpdate` / `isGameDriven` separation and `EffectEmitter` infrastructure.
+- **Phase 3 (complete)**: Migrated `AlphaWolfStoryController` and `StoryHomingParticle` to custom `EffectEmitter` subclasses. `Effect.isGameDriven()` and `Effect.update()` have been removed. Effects are no longer serialized — `Effect.toJSON()` / `fromJSON()` and `EffectManager.toJSON()` / `restoreFromJSON()` have been removed. `EffectManager.gameUpdate()` is retained (handles TorchProjectile landing only).

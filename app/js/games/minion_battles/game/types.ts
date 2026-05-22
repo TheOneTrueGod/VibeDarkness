@@ -89,7 +89,6 @@ export interface SerializedGameState {
     snapshotIndex: number;
     units: Record<string, unknown>[];
     projectiles: Record<string, unknown>[];
-    effects: Record<string, unknown>[];
     cards: Record<string, SerializedCardInstance[]>;
     waitingForOrders: WaitingForOrders | null;
     /** Orders scheduled for future ticks (included in checkpoints). */

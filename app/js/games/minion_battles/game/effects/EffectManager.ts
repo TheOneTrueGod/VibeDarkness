@@ -19,22 +19,11 @@ export class EffectManager {
     }
 
     /**
-     * Called every render frame — advances purely visual (non-game-driven) effects.
-     * Game-driven effects (isGameDriven() === true) are skipped here; they advance in gameUpdate().
+     * Called in fixedUpdate — processes effects that need engine context (TorchProjectile landings).
+     * The `landingPending` flag is set by `renderUpdate` when a TorchProjectile travel completes;
+     * this method converts the flag into a persisted LightSource on the game tick.
      */
-    renderUpdate(realDt: number): void {
-        for (const effect of this.effects) {
-            if (!effect.active || effect.isGameDriven()) continue;
-            effect.renderUpdate(realDt);
-        }
-    }
-
-    /**
-     * Called in fixedUpdate — runs game-driven effects that need engine context.
-     * Purely visual effects are skipped here; they advance in renderUpdate().
-     */
-    gameUpdate(dt: number): void {
-        // Process TorchProjectile landings: renderUpdate marks landingPending when travel completes.
+    gameUpdate(_dt: number): void {
         for (const effect of this.effects) {
             if (!effect.active || effect.effectType !== 'TorchProjectile') continue;
             const data = effect.effectData as {
@@ -60,30 +49,19 @@ export class EffectManager {
                 },
             }));
         }
-
-        for (const effect of this.effects) {
-            if (!effect.active || !effect.isGameDriven()) continue;
-            effect.update(dt, this.ctx);
-        }
     }
 
-    /** @deprecated Use gameUpdate() from fixedUpdate and renderUpdate() from the render loop. */
-    update(dt: number): void {
-        this.gameUpdate(dt);
+    /**
+     * Called every render frame — advances purely visual effects.
+     */
+    renderUpdate(realDt: number): void {
+        for (const effect of this.effects) {
+            if (!effect.active) continue;
+            effect.renderUpdate(realDt);
+        }
     }
 
     cleanupInactive(): void {
         this.effects = this.effects.filter((e) => e.active);
-    }
-
-    toJSON(): Record<string, unknown>[] {
-        return this.effects.map((e) => e.toJSON());
-    }
-
-    restoreFromJSON(fxDataArray: Record<string, unknown>[]): void {
-        this.effects = [];
-        for (const fxData of fxDataArray) {
-            this.effects.push(Effect.fromJSON(fxData));
-        }
     }
 }
