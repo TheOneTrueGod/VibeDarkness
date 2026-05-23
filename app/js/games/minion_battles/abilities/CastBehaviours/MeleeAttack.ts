@@ -39,13 +39,25 @@ function dirFromTo(
     return { dirX: dx / len, dirY: dy / len };
 }
 
+// How many px beyond the hitbox range a locked unit can roam before losing guaranteed-hit status.
+const LOCK_ON_TETHER_EXTRA = 50;
+
+function getLockOnRange(def: HitboxDef | null): number {
+    if (def === null || def.shape === 'custom') return LOCK_ON_TETHER_EXTRA;
+    return def.range + LOCK_ON_TETHER_EXTRA;
+}
+
 // ---- Payload ----
+
+interface LockedUnit {
+    unitId: string;
+    lockedPosition: { x: number; y: number } | null; // set when unit evades
+}
 
 interface MeleeAttackPayload {
     aimDirX: number;
     aimDirY: number;
-    lockedUnitId: string | null;
-    lockedPosition: { x: number; y: number } | null;
+    lockedUnits: LockedUnit[];
     interrupted: boolean;
     impactFired: boolean;
 }
@@ -58,6 +70,7 @@ export class MeleeAttackBehaviour implements CastBehaviour {
     private damageCallback: ((ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void) | null = null;
     private impactAt: number = 0.4;
     private slideConfig = { forwardDistance: 12, backwardDistance: 0 };
+    private maxHits: number = 1;
 
     withHitbox(def: HitboxDef): this {
         this.hitboxDef = def;
@@ -84,14 +97,18 @@ export class MeleeAttackBehaviour implements CastBehaviour {
         return this;
     }
 
+    // How many targets to lock on to (starting from the behaviour's targetIndex slot).
+    withMaxHits(n: number): this {
+        this.maxHits = n;
+        return this;
+    }
+
     onSetup(ctx: CastBehaviourSetupContext): void {
         const target = ctx.target;
         let aimDirX = 0;
         let aimDirY = 0;
-        let lockedUnitId: string | null = null;
 
         if (target.type === 'unit' && target.unitId != null) {
-            lockedUnitId = target.unitId;
             const targetUnit = ctx.engine.getUnit(target.unitId);
             const tx = targetUnit?.x ?? ctx.caster.x;
             const ty = targetUnit?.y ?? ctx.caster.y;
@@ -104,11 +121,20 @@ export class MeleeAttackBehaviour implements CastBehaviour {
             aimDirY = dir.dirY;
         }
 
+        // Collect locked units starting at the primary target's slot, up to maxHits.
+        const startIdx = Math.max(0, ctx.allTargets.indexOf(ctx.target));
+        const lockedUnits: LockedUnit[] = [];
+        for (let i = startIdx; i < Math.min(ctx.allTargets.length, startIdx + this.maxHits); i++) {
+            const t = ctx.allTargets[i];
+            if (t?.type === 'unit' && t.unitId != null) {
+                lockedUnits.push({ unitId: t.unitId, lockedPosition: null });
+            }
+        }
+
         const payload: MeleeAttackPayload = {
             aimDirX,
             aimDirY,
-            lockedUnitId,
-            lockedPosition: null,
+            lockedUnits,
             interrupted: false,
             impactFired: false,
         };
@@ -125,19 +151,15 @@ export class MeleeAttackBehaviour implements CastBehaviour {
 
         ctx.setBehaviourPayload({ ...payload, impactFired: true });
 
-        // Resolve aim point — locked position takes priority (unit dodged)
+        // Resolve aim point from primary target (used for hitbox direction and fallback VFX).
         let aimX: number;
         let aimY: number;
-        if (payload.lockedPosition != null) {
-            aimX = payload.lockedPosition.x;
-            aimY = payload.lockedPosition.y;
-        } else if (ctx.target.type === 'unit' && ctx.target.unitId != null) {
+        if (ctx.target.type === 'unit' && ctx.target.unitId != null) {
             const liveUnit = ctx.engine.getUnit(ctx.target.unitId);
             if (liveUnit) {
                 aimX = liveUnit.x;
                 aimY = liveUnit.y;
             } else {
-                // Fallback: project aim direction
                 const FALLBACK_DIST = 64;
                 aimX = ctx.caster.x + payload.aimDirX * FALLBACK_DIST;
                 aimY = ctx.caster.y + payload.aimDirY * FALLBACK_DIST;
@@ -151,21 +173,46 @@ export class MeleeAttackBehaviour implements CastBehaviour {
             aimY = ctx.caster.y + payload.aimDirY * FALLBACK_DIST;
         }
 
-        // Hit detection
-        let hitUnits: Unit[] = [];
+        // --- Guaranteed hits: locked units still within lock-on range ---
+        // Evaded units (lockedPosition set) are excluded — they dodged intentionally.
+        const lockOnRange = getLockOnRange(this.hitboxDef);
+        const guaranteedHitIds = new Set<string>();
+        const guaranteedHits: Unit[] = [];
+
+        for (const locked of payload.lockedUnits) {
+            if (locked.lockedPosition !== null) continue; // evaded
+            const liveUnit = ctx.engine.getUnit(locked.unitId);
+            if (!liveUnit || !liveUnit.isAlive()) continue;
+            const dx = liveUnit.x - ctx.caster.x;
+            const dy = liveUnit.y - ctx.caster.y;
+            if (Math.sqrt(dx * dx + dy * dy) <= lockOnRange) {
+                guaranteedHits.push(liveUnit);
+                guaranteedHitIds.add(locked.unitId);
+            }
+        }
+
+        // --- Hitbox check fills any remaining slots ---
+        let hitboxUnits: Unit[] = [];
         if (this.hitboxDef != null) {
-            hitUnits = resolveHitbox(this.hitboxDef, {
+            hitboxUnits = resolveHitbox(this.hitboxDef, {
                 engine: ctx.engine as unknown as HitboxEngineContext,
                 caster: ctx.caster,
                 originX: ctx.caster.x,
                 originY: ctx.caster.y,
                 aimX,
                 aimY,
-                priorityUnitId: payload.lockedUnitId ?? undefined,
             });
         }
 
-        // Spawn impact VFX
+        // Final list: guaranteed hits first, then hitbox extras (no duplicates).
+        const hitUnits: Unit[] = [...guaranteedHits];
+        for (const u of hitboxUnits) {
+            if (!guaranteedHitIds.has(u.id)) {
+                hitUnits.push(u);
+            }
+        }
+
+        // Spawn impact VFX on first hit (or at aim point on a full miss).
         if (hitUnits.length > 0) {
             ctx.engine.addEffect(new Effect({
                 x: hitUnits[0].x,
@@ -184,18 +231,19 @@ export class MeleeAttackBehaviour implements CastBehaviour {
             }));
         }
 
-        // Dodged floating text when unit evaded and hitbox missed
-        if (payload.lockedPosition != null && hitUnits.length === 0) {
+        // Dodged floating text for each evaded locked unit.
+        for (const locked of payload.lockedUnits) {
+            if (locked.lockedPosition === null) continue;
             ctx.engine.addEffect(new Effect({
-                x: payload.lockedPosition.x,
-                y: payload.lockedPosition.y,
+                x: locked.lockedPosition.x,
+                y: locked.lockedPosition.y,
                 duration: 0.92,
                 effectType: 'FloatingText',
                 effectData: {
                     amount: 0,
                     color: 0xfacc15,
-                    originX: payload.lockedPosition.x,
-                    originY: payload.lockedPosition.y,
+                    originX: locked.lockedPosition.x,
+                    originY: locked.lockedPosition.y,
                     dirX: 0,
                     dirY: -1,
                     flightPx: 48,
@@ -204,12 +252,12 @@ export class MeleeAttackBehaviour implements CastBehaviour {
             }));
         }
 
-        // Apply damage
+        // Apply damage.
         if (hitUnits.length > 0 && this.damageCallback != null) {
             this.damageCallback(ctx, hitUnits);
         }
 
-        // Hit pause
+        // Hit pause.
         ctx.engine.requestHitPause?.(3);
     }
 
@@ -226,9 +274,14 @@ export class MeleeAttackBehaviour implements CastBehaviour {
     ): void {
         const payload = ctx.behaviourPayload as MeleeAttackPayload | undefined;
         if (!payload) return;
-        if (payload.lockedUnitId === unitId && payload.lockedPosition === null) {
-            ctx.setBehaviourPayload({ ...payload, lockedPosition: snapshot });
-        }
+        const idx = payload.lockedUnits.findIndex(
+            lu => lu.unitId === unitId && lu.lockedPosition === null,
+        );
+        if (idx === -1) return;
+        const newLockedUnits = payload.lockedUnits.map((lu, i) =>
+            i === idx ? { ...lu, lockedPosition: snapshot } : lu,
+        );
+        ctx.setBehaviourPayload({ ...payload, lockedUnits: newLockedUnits });
     }
 
     getCasterRenderOffset(ctx: CastBehaviourRenderContext): { x: number; y: number } | null {

@@ -848,6 +848,11 @@ export default function BattlePhase({
                                 aimX: worldPos.x,
                                 aimY: worldPos.y,
                             });
+                            hitUnits.sort((a, b) => {
+                                const da = (a.x - worldPos.x) ** 2 + (a.y - worldPos.y) ** 2;
+                                const db = (b.x - worldPos.x) ** 2 + (b.y - worldPos.y) ** 2;
+                                return da - db;
+                            });
                             lockOnCacheRef.current = {
                                 targetIdx: targetIndex,
                                 mouseWorldPos: { x: worldPos.x, y: worldPos.y },
