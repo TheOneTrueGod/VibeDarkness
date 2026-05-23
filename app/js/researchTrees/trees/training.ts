@@ -66,8 +66,8 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
             ],
             cost: { food: 20 },
-            effects: [],
-            modifiesAbility: { from: '0102', to: '0102' },
+            effects: [{ type: 'replaceCard', fromCardId: '0102', toCardId: '0117' }],
+            modifiesAbility: { from: '0102', to: '0117' },
         },
         {
             id: TRAINING_NODE_SNEAKY_PUNCH,
@@ -84,8 +84,8 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
             ],
             cost: { food: 20 },
-            effects: [],
-            modifiesAbility: { from: '0102', to: '0102' },
+            effects: [{ type: 'replaceCard', fromCardId: '0102', toCardId: '0118' }],
+            modifiesAbility: { from: '0102', to: '0118' },
         },
         {
             id: TRAINING_NODE_CHARGING_PUNCH,
@@ -102,8 +102,8 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_SNEAKY_PUNCH },
             ],
             cost: { food: 20 },
-            effects: [],
-            modifiesAbility: { from: '0102', to: '0102' },
+            effects: [{ type: 'replaceCard', fromCardId: '0102', toCardId: '0119' }],
+            modifiesAbility: { from: '0102', to: '0119' },
         },
     ],
 };

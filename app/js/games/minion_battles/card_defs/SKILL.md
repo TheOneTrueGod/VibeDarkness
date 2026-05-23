@@ -18,6 +18,13 @@ Important: ability implementation files belong in `card_defs/` folders (not dire
 - **Helpers**: See utility files in `abilities/` (`targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`) for available helpers. When adding new reusable behaviour, add or extend a helper first, then call it from the ability.
 - **Hitboxes**: For hit-detection shapes, see the **working-with-hitboxes** skill.
 
+## Reuse before you build
+
+Before implementing, break the ability into its constituent parts (movement, hitbox, visual effect, event rule, CastBehaviour, etc.) and check whether each part already exists in another ability or helper.
+
+- For parts that **exist elsewhere**: call the shared helper or copy the pattern from `card_defs/`.
+- For parts that **do not exist**: ask the user before implementing — should this be a one-off or a reusable helper/effect? If reusable, identify which parameters are likely to vary across abilities (e.g. damage amount, radius, duration, direction) so the interface can be designed correctly from the start.
+
 ## Juicing the game
 
 **Juice** is the presentation and feedback that makes mechanics **readable and satisfying**: telegraph → payoff → read the result. Implementing correct rules is necessary but not sufficient; consider how the cast **feels** in battle.
@@ -26,13 +33,13 @@ Ask for each ability:
 
 - **Anticipation** — Does windup and targeting make the intent obvious? (`prefireTime`, `renderTargetingPreview`, early `abilityTimings` bands.)
 - **Impact** — Is the payoff moment clear? Prefer aligning one-shot `doCardEffect` thresholds with meaningful timing intervals and phases (see **`abilityTimings`** below).
-- **Aftermath** — Is recovery or lingering feedback clear enough that the cadence isn’t muddy? (timeline labels/phases, short effects.)
+- **Aftermath** — Is recovery or lingering feedback clear enough that the cadence isn't muddy? (timeline labels/phases, short effects.)
 
 **Hooks in this codebase**
 
-- **Enemy hitbox telegraph** — For **enemy** abilities whose `renderActivePreview` shows a **non-line** projected hit area, use `previewHelpers` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`, or the same pattern): faint red outer stroke, a more saturated red fill that **grows from the shape’s geometric center** until it matches the final footprint, outer stroke **fully red from `prefireTime` through any short linger** while the strike is still readable (e.g. melee flash). **Do not** change **line / thick-capsule** previews that already encode timing (e.g. slime `EnemyArcherShot` aim lines, `ChargeAttack` lunge capsule). If the correct centering, linger, or geometry for the telegraph is ambiguous, **ask the player**.
+- **Enemy hitbox telegraph** — For **enemy** abilities whose `renderActivePreview` shows a **non-line** projected hit area, use `previewHelpers` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`, or the same pattern): faint red outer stroke, a more saturated red fill that **grows from the shape's geometric center** until it matches the final footprint, outer stroke **fully red from `prefireTime` through any short linger** while the strike is still readable (e.g. melee flash). **Do not** change **line / thick-capsule** previews that already encode timing (e.g. slime `EnemyArcherShot` aim lines, `ChargeAttack` lunge capsule). If the correct centering, linger, or geometry for the telegraph is ambiguous, **ask the player**.
 - **`abilityTimings`** — Defines phase colours and the battle timeline; keep intervals truthful so rings match what the sim does at each second.
-- **Damage feedback** — `GameRenderer` subscribes to `damage_taken` on the event bus and runs a brief **hit flash** on the damaged unit (`game/GameRenderer.ts`). Flows that apply damage through normal paths get this largely “for free.”
+- **Damage feedback** — `GameRenderer` subscribes to `damage_taken` on the event bus and runs a brief **hit flash** on the damaged unit (`game/GameRenderer.ts`). Flows that apply damage through normal paths get this largely "for free."
 - **Battle effects** — Particle bursts, glows, etc. via the effects system. Visual defs live in `game/effect_defs/` (not the old `game/effectDef.ts`). Two distinct types exist — see `game/effects/AGENTS.md` for the full architecture:
   - **`Effect`** — purely visual, render-tick-driven (`renderUpdate` every rAF frame), **not serialized**. Use `engine.addEffect(effect)` for one-off effects at a specific game-state moment (hit position, impact point).
   - **`EffectEmitter`** — game-tick-driven, **serialized**, produces `Effect` instances. Use `engine.addEffectEmitter(emitter)` for imperative emitter creation (e.g. in `beginActiveCast` for per-unit visual data like Afterimage).
@@ -74,9 +81,9 @@ The 4-digit ID is `<group><index>`:
 ## Skill trees and `AbilityGroupId`
 
 - **Do not invent a new leading digit** without adding a matching **`AbilityGroupId`** enum member and using `formatGroupId(thatGroup)` when constructing ids in code.
-- **`05` = Earth / “earth skills”** (`AbilityGroupId.Earth`). **Folder:** `card_defs/05_earth_core/`. **Tree overview & Earth-specific authoring rules:** `card_defs/05_earth_core/EarthCore.md` — read it **before** adding or changing any **`05xx`** card, Resonance/stone/Stonephase/tremorsense behaviour, or shared Earth helpers. It is the canonical place for how Earth diverges from generic ability patterns.
+- **`05` = Earth / "earth skills"** (`AbilityGroupId.Earth`). **Folder:** `card_defs/05_earth_core/`. **Tree overview & Earth-specific authoring rules:** `card_defs/05_earth_core/EarthCore.md` — read it **before** adding or changing any **`05xx`** card, Resonance/stone/Stonephase/tremorsense behaviour, or shared Earth helpers. It is the canonical place for how Earth diverges from generic ability patterns.
 - **`06` = Utility** (`AbilityGroupId.Utility`) for cross-cutting utility cards that are not Earth-specific; keep them under `card_defs/utility/`.
-- **Adding a new thematic tree**: (1) append a new `AbilityGroupId` value, (2) assign ids as `formatGroupId(newGroup) + two-digit index`, (3) place all related ability folders under `card_defs/<NN>_<short_name>/` (match the two-digit group in the folder prefix), and (4) add a **`<Name>Core.md`** inside that folder (same role as `EarthCore.md`) and **link it from this section** with “when to read” guidance.
+- **Adding a new thematic tree**: (1) append a new `AbilityGroupId` value, (2) assign ids as `formatGroupId(newGroup) + two-digit index`, (3) place all related ability folders under `card_defs/<NN>_<short_name>/` (match the two-digit group in the folder prefix), and (4) add a **`<Name>Core.md`** inside that folder (same role as `EarthCore.md`) and **link it from this section** with "when to read" guidance.
 
 ## What goes in the ability file
 
@@ -108,7 +115,7 @@ Implement the rest of `AbilityStatic` (`getDescription`, `getAbilityStates`, `ta
 | `abilityPhase` | `AbilityPhase` for ring UI and timeline colour. |
 | `timelineLabel` / `timelineDescription` | Optional; battle timeline tooltips default from phase if omitted. |
 
-**Order matters** when intervals overlap: the battle timeline’s single merged band uses **first-listed wins** for overlapping time. Total active duration for the engine is **`max(end)`** across intervals (see `getTotalAbilityDuration`).
+**Order matters** when intervals overlap: the battle timeline's single merged band uses **first-listed wins** for overlapping time. Total active duration for the engine is **`max(end)`** across intervals (see `getTotalAbilityDuration`).
 
 Legacy `{ duration, abilityPhase }` remains in the type union for adapters/tests; new card defs should use interval rows only.
 
@@ -168,4 +175,4 @@ While knockback is active, the unit cannot move or act. If it hits a wall, it bo
 - [ ] Windup / impact / recovery line up with **`abilityTimings`** so the timeline matches the sim.
 - [ ] **`renderTargetingPreview`** matches what the ability actually hits where it affects fairness or clarity.
 - [ ] Damage path: if damage goes through usual `takeDamage` / event flow, hit flash applies; otherwise intentional extra feedback (effects / other presentation) was considered.
-- [ ] Tooltip and timeline wording don’t contradict timings (coordinate with narrative skill if needed).
+- [ ] Tooltip and timeline wording don't contradict timings (coordinate with narrative skill if needed).

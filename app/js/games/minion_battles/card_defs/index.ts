@@ -8,6 +8,9 @@ import { EnemyArcherShotCard } from './0001_EnemyArcherShot/0001Ability';
 import { EnemyMeleeAttackCard } from './0002_EnemyMeleeAttack/0002Ability';
 import { PunchCard } from './0102_Punch/0102Ability';
 import { DoublePunchCard } from './0116_DoublePunch/0116Card';
+import { StrongPunchCard } from './0117_StrongPunch/0117Ability';
+import { SneakyPunchCard } from './0118_SneakyPunch/0118Ability';
+import { ChargingPunchCard } from './0119_ChargingPunch/0119Ability';
 import { SwingBatCard } from './0103_SwingBat/0103Ability';
 import { LaserSwordCard } from './0105_LaserSword/0105Ability';
 import { DarkWolfBiteCard } from './dark_animals/0003_DarkWolfBite/0003Ability';
@@ -51,6 +54,9 @@ const cardDefs: CardDef[] = [
     EnemyMeleeAttackCard,
     PunchCard,
     DoublePunchCard,
+    StrongPunchCard,
+    SneakyPunchCard,
+    ChargingPunchCard,
     SwingBatCard,
     LaserSwordCard,
     DarkWolfBiteCard,
