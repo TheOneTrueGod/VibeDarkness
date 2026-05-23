@@ -25,6 +25,8 @@ export interface ResearchNodeCardProps {
     layout?: 'compact' | 'comfortable';
     showCost?: boolean;
     showRequirements?: boolean;
+    /** Show the node's tier in the bottom-right corner (intended for the research tree graph view only). */
+    showTier?: boolean;
     onClick?: () => void;
     selectionReason?: string | null;
     requirementBadges?: ResearchRequirementBadge[];
@@ -67,6 +69,7 @@ export default function ResearchNodeCard({
     layout = 'compact',
     showCost = true,
     showRequirements = true,
+    showTier = false,
     onClick,
     selectionReason = null,
     requirementBadges = [],
@@ -151,6 +154,27 @@ export default function ResearchNodeCard({
     const descSizeClass = layout === 'comfortable' ? 'text-xs leading-snug' : 'text-[11px] leading-tight';
 
     const descClampLines = layout === 'comfortable' ? 4 : 3;
+
+    const tierTextClass =
+        tone === 'muted'
+            ? state === 'researched'
+                ? 'text-zinc-500'
+                : state === 'enabled'
+                  ? 'text-zinc-400'
+                  : 'text-zinc-600'
+            : state === 'researched'
+              ? 'text-green-700'
+              : state === 'enabled'
+                ? 'text-primary'
+                : state === 'blocked'
+                  ? 'text-zinc-500'
+                  : 'text-border-custom';
+
+    const tierBadge = showTier && node.tier != null && (
+        <span className={`absolute bottom-1 right-2 text-[10px] font-semibold leading-none pointer-events-none ${tierTextClass}`}>
+            Tier {node.tier}
+        </span>
+    );
 
     const content = (
         <div className="flex h-full min-h-0 w-full flex-col gap-1 overflow-hidden">
@@ -260,10 +284,12 @@ export default function ResearchNodeCard({
                     aria-label={node.title}
                 >
                     {content}
+                    {tierBadge}
                 </button>
             ) : (
                 <div className={cardClasses} aria-label={node.title}>
                     {content}
+                    {tierBadge}
                 </div>
             )}
             {flavorPortal}

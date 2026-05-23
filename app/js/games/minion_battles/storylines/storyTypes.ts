@@ -34,6 +34,8 @@ export interface DialoguePhrase {
 export interface StoryChoiceActionEquipItem {
     type: 'equip_item';
     itemId: string;
+    /** When set, also grants this research node to the player's campaign character. */
+    alsoGrantResearch?: { treeId: string; nodeId: string };
 }
 
 /** Choice action: grant campaign resources (used in post-mission choices). */

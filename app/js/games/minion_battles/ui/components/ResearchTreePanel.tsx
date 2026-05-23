@@ -385,6 +385,7 @@ export function ResearchTreeContent({
 										state={researched ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
 										showCost
 										showRequirements
+										showTier
 										onClick={() => enabled && onResearchNode(tree.id, n.id)}
 										selectionReason={selectionReason}
 										requirementBadges={requirementBadges}

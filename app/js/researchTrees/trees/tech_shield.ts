@@ -1,6 +1,7 @@
 import type { ResearchTreeDef } from '../types';
 
 export const TECH_SHIELD_TREE_ID = 'tech_shield';
+export const TECH_SHIELD_NODE_BASE = 'raise_shield';
 export const TECH_SHIELD_NODE_STRENGTHENING_LIGHT = 'extra_shields';
 
 export const techShieldTree: ResearchTreeDef = {
@@ -12,12 +13,28 @@ export const techShieldTree: ResearchTreeDef = {
     ],
     nodes: [
         {
+            id: TECH_SHIELD_NODE_BASE,
+            title: 'Raise Shield',
+            description: 'Block incoming attacks with your pot lid.',
+            flavorText: 'Not pretty, but it stops a bite.',
+            order: 5,
+            tier: 1,
+            position: { x: 100, y: 100 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            requirements: [],
+            cost: {},
+            effects: [],
+            modifiesAbility: { from: '0104', to: '0104' },
+        },
+        {
             id: 'crystal_embedded_shield',
             title: 'Crystal Embedded Shield',
             description: 'Embed a crystal into your shield.',
             order: 10,
+            tier: 2,
             position: { x: 340, y: 100 },
-            prereqNodeIds: [],
+            prereqNodeIds: [TECH_SHIELD_NODE_BASE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'characterHasEquippedItem', itemId: '003' }],
             cost: { crystals: 5 },
@@ -29,6 +46,7 @@ export const techShieldTree: ResearchTreeDef = {
             title: 'Shooting Shield',
             description: 'Convert shield into a ranged weapon.',
             order: 20,
+            tier: 3,
             position: { x: 230, y: 240 },
             prereqNodeIds: ['crystal_embedded_shield'],
             exclusiveWithNodeIds: ['extra_shields'],
@@ -45,6 +63,7 @@ export const techShieldTree: ResearchTreeDef = {
             title: 'Strengthening Light',
             description: 'Empower shield defense with crystal light.',
             order: 30,
+            tier: 3,
             position: { x: 470, y: 240 },
             prereqNodeIds: ['crystal_embedded_shield'],
             exclusiveWithNodeIds: ['throwing_crystal_shield'],
@@ -57,4 +76,3 @@ export const techShieldTree: ResearchTreeDef = {
         },
     ],
 };
-

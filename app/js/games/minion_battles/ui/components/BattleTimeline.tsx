@@ -18,11 +18,13 @@ import {
     buildPrimaryTimelineSegments,
     computeVisiblePrimarySegments,
     getEnemyActionWindowFromIntervals,
+    getTotalAbilityDuration,
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
     type AbilityTimingInterval,
     type BattleTimelinePhaseId,
 } from '../../abilities/abilityTimings';
+import { WaitAbility } from '../../abilities/WaitAbility';
 
 /** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
 const ENEMY_CHARACTER_ICONS: Record<string, string> = {
@@ -484,6 +486,7 @@ function renderPlayerUnitTimelineUnified(
     }[] = [];
     let isPreview = false;
 
+    let isWaitLockout = false;
     if (showPreview && previewAbility) {
         const intervals = intervalsForAbility(previewAbility, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
@@ -494,9 +497,16 @@ function renderPlayerUnitTimelineUnified(
         const merged = buildPrimaryTimelineSegments(intervals);
         const elapsed = now - active.startTime;
         segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+    } else if (unit.isInWaitLockout() && unit.waitMaxEndTime !== null) {
+        const waitDuration = getTotalAbilityDuration(WaitAbility);
+        const elapsed = Math.max(0, waitDuration - (unit.waitMaxEndTime - now));
+        const intervals = intervalsForAbility(WaitAbility, unit, engine);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+        isWaitLockout = true;
     }
 
-    const displayAbility = ability ?? (showPreview ? previewAbility : null);
+    const displayAbility = ability ?? (isWaitLockout ? WaitAbility : null) ?? (showPreview ? previewAbility : null);
     const hasTimeline = !!(displayAbility && segments.length > 0 && alive);
 
     const track =
@@ -667,6 +677,7 @@ function renderPlayerRow(
     }[] = [];
     let isPreview = false;
 
+    let isWaitLockout = false;
     if (showPreview && previewAbility) {
         const intervals = intervalsForAbility(previewAbility, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
@@ -677,9 +688,16 @@ function renderPlayerRow(
         const merged = buildPrimaryTimelineSegments(intervals);
         const elapsed = now - active.startTime;
         segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+    } else if (unit.isInWaitLockout() && unit.waitMaxEndTime !== null) {
+        const waitDuration = getTotalAbilityDuration(WaitAbility);
+        const elapsed = Math.max(0, waitDuration - (unit.waitMaxEndTime - now));
+        const intervals = intervalsForAbility(WaitAbility, unit, engine);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+        isWaitLockout = true;
     }
 
-    const displayAbility = ability ?? (showPreview ? previewAbility : null);
+    const displayAbility = ability ?? (isWaitLockout ? WaitAbility : null) ?? (showPreview ? previewAbility : null);
     const hasTimeline = !!(displayAbility && segments.length > 0);
 
     const track =

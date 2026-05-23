@@ -110,7 +110,7 @@ const FIXED_DT = 1 / 60;
 /** Seconds of game time after applying a `wait` order before it may end early (movement done / enemy proximity failsafe / coop cancel). */
 const WAIT_ORDER_MIN_DURATION_SEC = 1.5;
 /** Hard cap (seconds of game time): `wait` always ends by this offset from order application. */
-const WAIT_ORDER_MAX_DURATION_SEC = 2.5;
+const WAIT_ORDER_MAX_DURATION_SEC = 1.5;
 
 /** Save a checkpoint to the server every this many game ticks. */
 export const CHECKPOINT_INTERVAL = 10;
@@ -1157,7 +1157,8 @@ export class GameEngine implements EngineContext {
     shouldPauseForOrders(unit: Unit): boolean {
         if (!unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive()) return false;
         // Still resolving a submitted move path — not yet time for a new command slice.
-        if (unit.movement !== null && unit.movement.path.length > 0) return false;
+        // Exception: movementPaused means the wait expired mid-path and the unit is holding for a new order.
+        if (unit.movement !== null && unit.movement.path.length > 0 && !unit.movementPaused) return false;
         return !this.hasPendingOrderForUnit(unit.id);
     }
 
@@ -1247,6 +1248,7 @@ export class GameEngine implements EngineContext {
 
         unit.waitMinEndTime = null;
         unit.waitMaxEndTime = null;
+        unit.movementPaused = false;
 
         if (order.movePath !== undefined && order.movePath !== null && order.movePath.length > 0) {
             unit.setMovement(order.movePath, undefined, this.gameTick);

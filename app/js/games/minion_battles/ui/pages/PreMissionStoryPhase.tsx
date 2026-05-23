@@ -6,7 +6,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
-import type { PreMissionStoryDef } from '../../storylines/storyTypes';
+import type { PreMissionStoryDef, StoryChoiceActionEquipItem } from '../../storylines/storyTypes';
 import { STORY_BACKGROUNDS } from '../../assets/story';
 import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
@@ -171,8 +171,11 @@ export default function PreMissionStoryPhase({
                 const currentEquipment = playerEquipmentByPlayer?.[playerId] ?? [];
                 let itemId: string | undefined;
                 const replaceItemIds: string[] = [];
+                let alsoGrantResearch: StoryChoiceActionEquipItem['alsoGrantResearch'];
                 if (option?.action?.type === 'equip_item' && option.action.itemId) {
-                    itemId = option.action.itemId;
+                    const equipAction = option.action as StoryChoiceActionEquipItem;
+                    itemId = equipAction.itemId;
+                    alsoGrantResearch = equipAction.alsoGrantResearch;
                     const newItemDef = getItemDef(itemId);
                     const newSlots = new Set(newItemDef?.slots ?? []);
                     if (newSlots.size > 0) {
@@ -188,6 +191,7 @@ export default function PreMissionStoryPhase({
                     choiceId,
                     optionId,
                     ...(itemId !== undefined && { itemId, replaceItemIds }),
+                    ...(alsoGrantResearch && { treeId: alsoGrantResearch.treeId, nodeId: alsoGrantResearch.nodeId }),
                 });
             } catch (error) {
                 console.error('Failed to send story choice:', error);

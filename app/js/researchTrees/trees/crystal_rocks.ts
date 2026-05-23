@@ -1,6 +1,7 @@
 import type { ResearchTreeDef } from '../types';
 
 export const CRYSTAL_ROCKS_TREE_ID = 'crystal_rocks';
+export const CRYSTAL_ROCKS_NODE_BASE = 'throw_rock';
 
 export const crystalRocksTree: ResearchTreeDef = {
     id: CRYSTAL_ROCKS_TREE_ID,
@@ -12,12 +13,28 @@ export const crystalRocksTree: ResearchTreeDef = {
     ],
     nodes: [
         {
+            id: CRYSTAL_ROCKS_NODE_BASE,
+            title: 'Throw Rock',
+            description: 'Hurl rocks at enemies from a distance.',
+            flavorText: 'Rocks are everywhere. Use that.',
+            order: 5,
+            tier: 1,
+            position: { x: 120, y: 280 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            requirements: [],
+            cost: {},
+            effects: [],
+            modifiesAbility: { from: 'throw_rock', to: 'throw_rock' },
+        },
+        {
             id: 'charged_rocks',
             title: 'Charged Rocks',
             description: 'Infuse rocks with unstable crystal energy. Passive: gain {1 lightCharge} at round start.',
             order: 10,
-            position: { x: 240, y: 180 },
-            prereqNodeIds: [],
+            tier: 2,
+            position: { x: 300, y: 180 },
+            prereqNodeIds: [CRYSTAL_ROCKS_NODE_BASE],
             exclusiveWithNodeIds: ['throwing_knives'],
             requirements: [{ type: 'characterHasEquippedItem', itemId: '001' }],
             cost: { crystals: 5 },
@@ -29,8 +46,9 @@ export const crystalRocksTree: ResearchTreeDef = {
             title: 'Throwing Knives',
             description: 'Swap rocks for sharper thrown knives.',
             order: 11,
-            position: { x: 240, y: 380 },
-            prereqNodeIds: [],
+            tier: 2,
+            position: { x: 300, y: 380 },
+            prereqNodeIds: [CRYSTAL_ROCKS_NODE_BASE],
             exclusiveWithNodeIds: ['charged_rocks'],
             requirements: [{ type: 'characterHasEquippedItem', itemId: '001' }],
             cost: { metal: 5 },
@@ -42,7 +60,8 @@ export const crystalRocksTree: ResearchTreeDef = {
             title: 'More Rock',
             description: 'Throw one additional rock or knife.',
             order: 20,
-            position: { x: 470, y: 300 },
+            tier: 3,
+            position: { x: 530, y: 300 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: ['more_power'],
             requirements: [
@@ -58,7 +77,8 @@ export const crystalRocksTree: ResearchTreeDef = {
             title: 'More Power',
             description: 'Increase thrown rock impact damage.',
             order: 30,
-            position: { x: 470, y: 120 },
+            tier: 3,
+            position: { x: 530, y: 120 },
             prereqNodeIds: ['charged_rocks'],
             exclusiveWithNodeIds: ['more_rock'],
             requirements: [{ type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_rock' }],

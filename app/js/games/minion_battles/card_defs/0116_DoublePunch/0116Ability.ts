@@ -51,13 +51,13 @@ const TARGET_DEF: TargetDef = {
 };
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
-    { id: 'windup',   start: 0,    end: 0.15, abilityPhase: AbilityPhase.Windup },
-    { id: 'punch1',   start: 0.15, end: 0.55, abilityPhase: AbilityPhase.Active,
+    { id: 'windup',   start: 0,    end: 0.2, abilityPhase: AbilityPhase.Windup },
+    { id: 'punch1',   start: 0.2, end: 0.4, abilityPhase: AbilityPhase.Active,
       castBehaviours: [{ timingStart: 'start', timingEnd: 'end', targetIndex: 0, behaviour: punchBehaviour }] },
-    { id: 'gap',      start: 0.55, end: 0.65, abilityPhase: AbilityPhase.Active },
-    { id: 'punch2',   start: 0.65, end: 1.10, abilityPhase: AbilityPhase.Active,
+    { id: 'gap',      start: 0.4, end: 0.6, abilityPhase: AbilityPhase.Active },
+    { id: 'punch2',   start: 0.6, end: 0.8, abilityPhase: AbilityPhase.Active,
       castBehaviours: [{ timingStart: 'start', timingEnd: 'end', targetIndex: 1, behaviour: punchBehaviour }] },
-    { id: 'cooldown', start: 1.10, end: 1.40, abilityPhase: AbilityPhase.Cooldown },
+    { id: 'cooldown', start: 0.8, end: 1.0, abilityPhase: AbilityPhase.Cooldown },
 ];
 
 const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">

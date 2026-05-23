@@ -33,6 +33,7 @@ import BattleCanvas from '../components/BattleCanvas';
 import CardHand from '../components/CardHand';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
+import { WaitAbility } from '../../abilities/WaitAbility';
 import BattleSyncStatus from '../components/BattleSyncStatus';
 import BattleHostAnchorBanner from '../components/BattleHostAnchorBanner';
 import BossFightHud from '../components/boss/BossFightHud';
@@ -139,6 +140,7 @@ export default function BattlePhase({
     const [activeLocalWaiter, setActiveLocalWaiter] = useState<OrderWaiter | null>(null);
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
+    const [isWaitHovered, setIsWaitHovered] = useState(false);
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
     const [myAbilityIds, setMyAbilityIds] = useState<string[]>([]);
     const mouseWorldRef = useRef({ x: 0, y: 0 });
@@ -1033,6 +1035,7 @@ export default function BattlePhase({
             selectedCardIndex={selectedCardIndex}
             onSelectCard={handleSelectCard}
             onWait={handleWait}
+            onWaitHoverChange={setIsWaitHovered}
             gameState={engine}
         />
     );
@@ -1050,7 +1053,7 @@ export default function BattlePhase({
                         players={players}
                         localPlayerId={playerId}
                         layout="rail"
-                        previewAbility={canUseOrderUi ? selectedAbility : null}
+                        previewAbility={canUseOrderUi ? (selectedAbility ?? (isWaitHovered ? WaitAbility : null)) : null}
                         previewOrderUnitId={activeLocalWaiter?.unitId ?? null}
                     />
                 </aside>

@@ -22,6 +22,7 @@ import type { TerrainGrid } from '../../terrain/TerrainGrid';
 import { computeForcedDisplacement } from '../forceMove';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
+import { WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
 import { getDefaultHp, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
@@ -160,6 +161,8 @@ export class Unit extends GameObject {
     /** When using the "wait" action: earliest and latest gameTime (seconds) when the wait can end. */
     waitMinEndTime: number | null = null;
     waitMaxEndTime: number | null = null;
+    /** When true, the unit holds position but retains its queued movement path for the next order. */
+    movementPaused: boolean = false;
 
     /** Darkness corruption progress 0..1. Fills only in full darkness; drains when brighter. At 1 in full darkness: escalating damage then reset to 0. */
     corruptionProgress: number = 0;
@@ -526,9 +529,12 @@ export class Unit extends GameObject {
             const enemyProximityFailsafe =
                 afterMin && this.hasEnemyWithinWaitProximityFailsafe(engine, WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID);
 
-            if (afterMax || (afterMin && reachedMovementTarget) || enemyProximityFailsafe) {
+            if (afterMax || (afterMin && WAIT_ENDS_ON_MOVEMENT_COMPLETE && reachedMovementTarget) || enemyProximityFailsafe) {
                 this.waitMinEndTime = null;
                 this.waitMaxEndTime = null;
+                if (!WAIT_ENDS_ON_MOVEMENT_COMPLETE) {
+                    this.movementPaused = true;
+                }
             }
         }
 
@@ -547,7 +553,7 @@ export class Unit extends GameObject {
         }
 
         // Move along grid path
-        if (!this.isAlive() || !this.movement || this.movement.path.length === 0) return;
+        if (!this.isAlive() || !this.movement || this.movement.path.length === 0 || this.movementPaused) return;
 
         // Target: jittered position around the center of the next grid cell in the path
         const nextCell = this.movement.path[0];
@@ -805,6 +811,7 @@ export class Unit extends GameObject {
             moveJitter: this.moveJitter,
             waitMinEndTime: this.waitMinEndTime,
             waitMaxEndTime: this.waitMaxEndTime,
+            movementPaused: this.movementPaused,
             corruptionProgress: this.corruptionProgress,
             crystalCorruptionProgress: this.crystalCorruptionProgress,
             darknessDamageProcCount: this.darknessDamageProcCount,
@@ -947,6 +954,7 @@ export class Unit extends GameObject {
         unit.moveJitter = (data.moveJitter as number) ?? 0;
         unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
         unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;
+        unit.movementPaused = (data.movementPaused as boolean | undefined) ?? false;
         unit.poiseHp = (data.poiseHp as number) ?? 0;
         unit.maxPoiseHp = (data.maxPoiseHp as number) ?? 0;
         unit.ccDurationResistPct = { ...(data.ccDurationResistPct as Partial<Record<CcResistKey, number>> | undefined) };

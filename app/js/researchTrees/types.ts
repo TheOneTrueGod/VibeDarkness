@@ -24,6 +24,8 @@ export interface ResearchNodeDef {
     flavorText?: string;
     /** Stable ordering used for deterministic application. Lower applies first. */
     order: number;
+    /** Display tier shown in the research tree view (1 = base, 2 = first upgrade, etc.). */
+    tier?: number;
     position: { x: number; y: number };
     prereqNodeIds: string[];
     exclusiveWithNodeIds: string[];

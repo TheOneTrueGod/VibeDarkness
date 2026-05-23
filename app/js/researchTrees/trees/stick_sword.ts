@@ -2,6 +2,9 @@ import type { ResearchTreeDef } from '../types';
 
 export const STICK_SWORD_TREE_ID = 'stick_sword';
 
+/** Researched node: base swing stick ability (tier 1). */
+export const STICK_SWORD_NODE_BASE = 'swing_stick';
+
 /** Researched node: Jagged Edge — Swing Sword inflicts bleed. */
 export const STICK_SWORD_NODE_JAGGED_EDGE = 'sword_jagged_edge';
 
@@ -23,12 +26,28 @@ export const stickSwordTree: ResearchTreeDef = {
     ],
     nodes: [
         {
+            id: STICK_SWORD_NODE_BASE,
+            title: 'Swing Stick',
+            description: 'Strike nearby enemies with a thick branch.',
+            flavorText: 'A good heavy branch can break bone.',
+            order: 5,
+            tier: 1,
+            position: { x: 100, y: 290 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            requirements: [],
+            cost: {},
+            effects: [],
+            modifiesAbility: { from: '0103', to: '0103' },
+        },
+        {
             id: 'craft_sword',
             title: 'Craft Sword',
             description: 'Replace stick with a forged sword.',
             order: 10,
+            tier: 2,
             position: { x: 200, y: 200 },
-            prereqNodeIds: [],
+            prereqNodeIds: [STICK_SWORD_NODE_BASE],
             exclusiveWithNodeIds: [STICK_SWORD_NODE_PIPE_BAT],
             requirements: [{ type: 'characterHasEquippedItem', itemId: '002' }],
             cost: { metal: 5 },
@@ -40,6 +59,7 @@ export const stickSwordTree: ResearchTreeDef = {
             title: 'Jagged Edge',
             description: 'Swing Sword inflicts {Bleed} on enemies it hits.',
             order: 20,
+            tier: 3,
             position: { x: 400, y: 100 },
             prereqNodeIds: ['craft_sword'],
             exclusiveWithNodeIds: [],
@@ -55,8 +75,9 @@ export const stickSwordTree: ResearchTreeDef = {
             title: 'Pipe Bat',
             description: 'Replace your stick with a metal pipe bat. Swing Bat stuns and hits up to {3} targets.',
             order: 30,
+            tier: 2,
             position: { x: 200, y: 380 },
-            prereqNodeIds: [],
+            prereqNodeIds: [STICK_SWORD_NODE_BASE],
             exclusiveWithNodeIds: ['craft_sword'],
             requirements: [{ type: 'characterHasEquippedItem', itemId: '002' }],
             cost: { metal: 5 },
@@ -68,6 +89,7 @@ export const stickSwordTree: ResearchTreeDef = {
             title: 'Iron Wrists',
             description: 'Two additional uses before your weapon arm needs to recover.',
             order: 40,
+            tier: 3,
             position: { x: 400, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
@@ -82,6 +104,7 @@ export const stickSwordTree: ResearchTreeDef = {
             title: 'Training Regime',
             description: 'Your bat feels like an extension of your arm. Swing Bat gets a {Medium} damage increase.',
             order: 50,
+            tier: 3,
             position: { x: 400, y: 480 },
             prereqNodeIds: [STICK_SWORD_NODE_PIPE_BAT],
             exclusiveWithNodeIds: [],

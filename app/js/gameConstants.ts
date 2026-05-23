@@ -10,3 +10,9 @@
  * appear once assets finish loading (see GameRenderer unit sprite sync).
  */
 export const WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START = false;
+
+/**
+ * When true, a wait order ends as soon as the unit finishes its movement (after the minimum
+ * wait duration). When false, the wait always runs for its full duration regardless of movement.
+ */
+export const WAIT_ENDS_ON_MOVEMENT_COMPLETE = false;

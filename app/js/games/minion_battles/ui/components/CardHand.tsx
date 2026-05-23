@@ -54,6 +54,8 @@ interface CardHandProps {
     onSelectCard: (handIndex: number, ability: AbilityStatic) => void;
     /** Called when the player clicks the Wait button. */
     onWait?: () => void;
+    /** Called when the wait button is hovered or unhovered. */
+    onWaitHoverChange?: (hovered: boolean) => void;
     /** Current game state for dynamic descriptions. */
     gameState?: unknown;
 }
@@ -68,6 +70,7 @@ export default function CardHand({
     selectedCardIndex,
     onSelectCard,
     onWait,
+    onWaitHoverChange,
     gameState,
 }: CardHandProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
@@ -374,6 +377,8 @@ export default function CardHand({
                             }`}
                             title="Wait (Space)"
                             aria-keyshortcuts="Space"
+                            onPointerEnter={() => onWaitHoverChange?.(true)}
+                            onPointerLeave={() => onWaitHoverChange?.(false)}
                         >
                             <span className="text-sm font-medium">Wait</span>
                             <kbd
