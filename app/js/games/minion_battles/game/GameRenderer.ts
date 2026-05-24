@@ -8,6 +8,7 @@
 
 import { Application, Assets, Container, Graphics, Particle, ParticleContainer, Sprite, Texture } from 'pixi.js';
 import { DarknessLevel } from './darknessLevels';
+import { type FogFilter, tryCreateFogFilter } from './FogFilter';
 import { WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START } from '../../../gameConstants';
 import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
@@ -63,6 +64,7 @@ const Z_INDEX = {
     units: 10,
     projectiles: 11,
     effects: 12,
+    fogTint: 13,
     abilityPreview: 100,
     targetingPreview: 101,
 } as const;
@@ -150,10 +152,16 @@ export class GameRenderer {
     private globalLightLevel: number = 0;
     /** Darkness overlay (above terrain, below special tiles). Only visible when light enabled. */
     private darknessOverlaySprite: Sprite | null = null;
+    /** Unfiltered tint sprite above units — same texture at low alpha for immersive fog feel. */
+    private fogTintSprite: Sprite | null = null;
+    /** Animated fog shader applied to the darkness overlay. Null if GPU doesn't support it. */
+    private fogFilter: FogFilter | null = null;
     /** Full overlay cache key (sources + globalLightLevel + size); when it changes we redraw. */
     private lastOverlayKey: string | null = null;
     /** Current light grid [row][col], for unit visibility. Set when light enabled. */
     private currentLightGrid: number[][] | null = null;
+    /** performance.now() timestamp of the last render call, for fog animation delta-time. */
+    private lastRenderTime: number = 0;
 
     /** Engine ref for damage_taken handler (set each render). */
     private currentEngine: GameEngine | null = null;
@@ -365,12 +373,30 @@ export class GameRenderer {
             canvas.height = 1;
             this.darknessOverlaySprite = new Sprite(Texture.from({ resource: canvas, label: 'darkness-overlay' }));
             this.darknessOverlaySprite.label = 'darknessOverlay';
+
+            this.fogFilter = tryCreateFogFilter();
+            if (this.fogFilter) {
+                this.fogFilter.fogStartAlpha = GameRenderer.lightLevelToAlpha(DarknessLevel.DARKNESS_FOG);
+                this.darknessOverlaySprite.filters = [this.fogFilter];
+            }
+
+            this.fogTintSprite = new Sprite(this.darknessOverlaySprite.texture);
+            this.fogTintSprite.label = 'fogTintOverlay';
+            this.fogTintSprite.alpha = 0.15;
         }
         this.darknessOverlaySprite.zIndex = Z_INDEX.darkness;
         if (!this.darknessOverlaySprite.parent) {
             this.gameContainer.addChildAt(this.darknessOverlaySprite, 1);
         }
         this.darknessOverlaySprite.visible = this.lightLevelEnabled;
+
+        if (this.fogTintSprite) {
+            this.fogTintSprite.zIndex = Z_INDEX.fogTint;
+            if (!this.fogTintSprite.parent) {
+                this.gameContainer.addChild(this.fogTintSprite);
+            }
+            this.fogTintSprite.visible = this.lightLevelEnabled;
+        }
 
         // Crystal aura (blue tint on protected tiles) above terrain, below darkness
         this.crystalAuraGraphics.zIndex = Z_INDEX.crystalAura;
@@ -459,7 +485,7 @@ export class GameRenderer {
                     const level = this.currentLightGrid![row][col];
                     const alpha = GameRenderer.lightLevelToAlpha(level);
                     if (alpha > 0) {
-                        ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+                        ctx.fillStyle = `rgba(20,0,35,${alpha})`;
                         ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
                     }
                 }
@@ -470,6 +496,11 @@ export class GameRenderer {
                 oldTexture.destroy(true);
             }
             this.darknessOverlaySprite.visible = true;
+
+            if (this.fogTintSprite) {
+                this.fogTintSprite.texture = this.darknessOverlaySprite.texture;
+                this.fogTintSprite.visible = true;
+            }
         }
     }
 
@@ -568,9 +599,18 @@ export class GameRenderer {
 
         if (this.lightLevelEnabled && engine.terrainManager && debugSettingsSnapshot.darkOverlayEnabled) {
             this.updateDarknessOverlay(engine);
+            if (this.fogFilter) {
+                const now = performance.now();
+                if (this.lastRenderTime > 0) {
+                    this.fogFilter.advanceTime((now - this.lastRenderTime) * 0.001);
+                }
+                this.lastRenderTime = now;
+            }
         } else {
             this.currentLightGrid = null;
             if (this.darknessOverlaySprite) this.darknessOverlaySprite.visible = false;
+            if (this.fogTintSprite) this.fogTintSprite.visible = false;
+            this.lastRenderTime = 0;
         }
 
         this.renderUnits(engine);
@@ -1549,6 +1589,14 @@ export class GameRenderer {
         }
         this.particleEffects.clear();
         for (const visual of this.specialTileVisuals.values()) visual.destroy();
+        if (this.fogTintSprite) {
+            this.fogTintSprite.destroy();
+            this.fogTintSprite = null;
+        }
+        if (this.fogFilter) {
+            this.fogFilter.destroy();
+            this.fogFilter = null;
+        }
         if (this.darknessOverlaySprite) {
             this.darknessOverlaySprite.destroy();
             this.darknessOverlaySprite = null;
