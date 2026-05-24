@@ -12,13 +12,9 @@ import { BaseMissionDef } from '../../BaseMissionDef';
 import type {
     BattleObjectiveDef,
     LevelEvent,
-    PostMissionChoiceResolveParams,
     SpecialTilePlacement,
 } from '../../types';
-import type { PreMissionStoryDef, PostMissionStoryDef, StoryChoiceAction, StoryChoiceOptionRow } from '../../storyTypes';
-import { CRYSTAL_ROCKS_TREE_ID } from '../../../../../researchTrees/trees/crystal_rocks';
-import { STICK_SWORD_TREE_ID } from '../../../../../researchTrees/trees/stick_sword';
-import { TECH_SHIELD_TREE_ID, techShieldTree } from '../../../../../researchTrees/trees/tech_shield';
+import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
@@ -31,9 +27,6 @@ import {
     crystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
-import { rocksItem } from '../../../character_defs/items/hands/001_rocks';
-import { torchItem } from '../../../character_defs/items/hands/002_torch';
-import { potShieldItem } from '../../../character_defs/items/hands/003_pot_shield';
 import { throwTorchUtilityItem } from '../../../character_defs/items/utility/005_throw_torch';
 
 const COLS = 66;
@@ -43,82 +36,6 @@ const RIGHT_OFFSET_COL = 44;
 const WORLD_WIDTH = COLS * CELL_SIZE;
 const WORLD_HEIGHT = ROWS * CELL_SIZE;
 
-/** Canonical node id from `researchTrees/trees/tech_shield.ts`. */
-const CRYSTAL_EMBEDDED_SHIELD_NODE_ID =
-    techShieldTree.nodes.find((n: { id: string }) => n.id === 'crystal_embedded_shield')?.id ?? '';
-
-function disabledPlaceholderAction(): StoryChoiceAction {
-    return {
-        type: 'grant_research_to_player',
-        treeId: CRYSTAL_ROCKS_TREE_ID,
-        nodeId: '__unavailable_choice__',
-    };
-}
-
-/** Post-mission cave choice: crystal vs metal track, grants depend on equipped items. */
-function getTowardsTheLightCaveChoiceRows(equippedItemIds: readonly string[]): StoryChoiceOptionRow[] {
-    const eq = new Set(equippedItemIds);
-    const has = (id: string) => eq.has(id);
-
-    let crystalAction: StoryChoiceAction;
-    let crystalDisabledLabel: string | undefined;
-    if (has(rocksItem.id)) {
-        crystalAction = {
-            type: 'grant_research_to_player',
-            treeId: CRYSTAL_ROCKS_TREE_ID,
-            nodeId: 'charged_rocks',
-        };
-    } else if (has(potShieldItem.id) && CRYSTAL_EMBEDDED_SHIELD_NODE_ID !== '') {
-        crystalAction = {
-            type: 'grant_research_to_player',
-            treeId: TECH_SHIELD_TREE_ID,
-            nodeId: CRYSTAL_EMBEDDED_SHIELD_NODE_ID,
-        };
-    } else {
-        crystalDisabledLabel = `Requires Rocks (${rocksItem.id}) or Pot Shield (${potShieldItem.id}).`;
-        crystalAction = disabledPlaceholderAction();
-    }
-
-    let metalAction: StoryChoiceAction;
-    let metalDisabledLabel: string | undefined;
-    if (has(rocksItem.id)) {
-        metalAction = {
-            type: 'grant_research_to_player',
-            treeId: CRYSTAL_ROCKS_TREE_ID,
-            nodeId: 'throwing_knives',
-        };
-    } else if (has(torchItem.id)) {
-        metalAction = {
-            type: 'grant_research_to_player',
-            treeId: STICK_SWORD_TREE_ID,
-            nodeId: 'craft_sword',
-        };
-    } else {
-        metalDisabledLabel = `Requires Rocks (${rocksItem.id}) or Stick / Torch (${torchItem.id}).`;
-        metalAction = disabledPlaceholderAction();
-    }
-
-    return [
-        {
-            id: 'crystal_track',
-            label: 'Crystal path',
-            loreTitle: 'Veins of the Hollow',
-            loreDescription:
-                "Trace the cave's restless gleam—shape brittle stone into a spark that refuses to gutter out.",
-            disabledLabel: crystalDisabledLabel,
-            action: crystalAction,
-        },
-        {
-            id: 'metal_track',
-            label: 'Metal path',
-            loreTitle: 'Iron in the Dark',
-            loreDescription:
-                'Salvage edge from scrap and nerve; let the next thrown thing carry your conviction.',
-            disabledLabel: metalDisabledLabel,
-            action: metalAction,
-        },
-    ];
-}
 
 const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
@@ -268,17 +185,26 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             type: 'choice',
             choiceId: 'towards_the_light_cave_choice',
             options: [],
+            researchRewardSlots: [
+                {
+                    minTier: 2,
+                    maxTier: 2,
+                    loreTitle: 'Veins of the Hollow',
+                    loreDescription: "Trace the cave's restless gleam—shape brittle stone into a spark that refuses to gutter out.",
+                },
+                {
+                    minTier: 2,
+                    maxTier: 2,
+                    loreTitle: 'Iron in the Dark',
+                    loreDescription: 'Salvage edge from scrap and nerve; let the next thrown thing carry your conviction.',
+                },
+            ],
         },
     ],
 };
 
 export class TowardsTheLightMission extends BaseMissionDef {
     segmentIds = ['48_50_wakeup', '49_50_path_to_cave', '50_50_crystal_cave'];
-
-    getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams): StoryChoiceOptionRow[] | null {
-        if (params.choiceId !== 'towards_the_light_cave_choice') return null;
-        return getTowardsTheLightCaveChoiceRows(params.equippedItemIds);
-    }
 
     missionId = 'towards_the_light';
     campaignId = 'world_of_darkness';

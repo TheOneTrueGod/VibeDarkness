@@ -19,6 +19,7 @@ import type {
     StoryChoiceActionGrantResources,
 } from '../../storylines/storyTypes';
 import { MISSION_MAP } from '../../storylines';
+import { resolveResearchRewardSlots } from '../../storylines/researchRewardSlots';
 import { getItemDef } from '../../character_defs/items';
 import { SPECTATOR_ID } from '../../state';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
@@ -151,6 +152,15 @@ export default function PostMissionStoryPhase({
 
     const postMissionChoiceOptions = useMemo((): ChoicePhrase['options'] => {
         if (!currentPhrase || currentPhrase.type !== 'choice') return [];
+
+        if (currentPhrase.researchRewardSlots) {
+            return resolveResearchRewardSlots(
+                currentPhrase.researchRewardSlots,
+                playerResearchTreesByPlayer[playerId],
+                playerEquipmentByPlayer[playerId] ?? [],
+            );
+        }
+
         const missionDef = MISSION_MAP[missionId];
         const computed = missionDef?.getPostMissionChoiceOptions?.({
             choiceId: currentPhrase.choiceId,

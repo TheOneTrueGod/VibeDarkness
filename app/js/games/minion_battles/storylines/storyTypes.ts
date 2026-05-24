@@ -83,6 +83,17 @@ export interface StoryChoiceOptionRow {
     disabledLabel?: string;
 }
 
+/**
+ * One option slot for a config-driven research reward choice.
+ * - Specific: `treeId` + `nodeId` — always resolves to that exact node.
+ * - Filter: omit `nodeId`; the resolver picks the first available node matching
+ *   the optional `treeId` and `minTier`/`maxTier` range.
+ * `loreTitle`/`loreDescription` override the node's own title/flavorText in the UI.
+ */
+export type ResearchRewardSlot =
+    | { treeId: string; nodeId: string; loreTitle?: string; loreDescription?: string }
+    | { nodeId?: never; treeId?: string; minTier?: number; maxTier?: number; loreTitle?: string; loreDescription?: string };
+
 /** Choice phrase: player selects one option; action is applied (e.g. equip item). */
 export interface ChoicePhrase {
     type: 'choice';
@@ -90,8 +101,14 @@ export interface ChoicePhrase {
     /**
      * For dynamic rewards, use an empty or placeholder `options` array and implement
      * `MissionBattleConfig.getPostMissionChoiceOptions` on the mission def (see `types.ts`).
+     * Alternatively, set `researchRewardSlots` for config-driven resolution (see below).
      */
     options: StoryChoiceOptionRow[];
+    /**
+     * When set, overrides `options` — each slot resolves to one `StoryChoiceOptionRow`
+     * granting a research node. No `getPostMissionChoiceOptions` override needed.
+     */
+    researchRewardSlots?: ResearchRewardSlot[];
 }
 
 /**
