@@ -6,7 +6,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
-import type { PreMissionStoryDef, StoryChoiceActionEquipItem } from '../../storylines/storyTypes';
+import type { PreMissionStoryDef, StoryChoiceActionEquipItem, StoryChoiceActionGrantResearchToPlayer } from '../../storylines/storyTypes';
 import { STORY_BACKGROUNDS } from '../../assets/story';
 import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
@@ -172,6 +172,7 @@ export default function PreMissionStoryPhase({
                 let itemId: string | undefined;
                 const replaceItemIds: string[] = [];
                 let alsoGrantResearch: StoryChoiceActionEquipItem['alsoGrantResearch'];
+                let grantResearchAction: StoryChoiceActionGrantResearchToPlayer | undefined;
                 if (option?.action?.type === 'equip_item' && option.action.itemId) {
                     const equipAction = option.action as StoryChoiceActionEquipItem;
                     itemId = equipAction.itemId;
@@ -186,12 +187,19 @@ export default function PreMissionStoryPhase({
                             }
                         }
                     }
+                } else if (option?.action?.type === 'grant_research_to_player') {
+                    grantResearchAction = option.action as StoryChoiceActionGrantResearchToPlayer;
                 }
                 await api.sendMessage(MessageType.STORY_CHOICE, {
                     choiceId,
                     optionId,
                     ...(itemId !== undefined && { itemId, replaceItemIds }),
                     ...(alsoGrantResearch && { treeId: alsoGrantResearch.treeId, nodeId: alsoGrantResearch.nodeId }),
+                    ...(grantResearchAction && {
+                        actionType: 'grant_research_to_player' as const,
+                        treeId: grantResearchAction.treeId,
+                        nodeId: grantResearchAction.nodeId,
+                    }),
                 });
             } catch (error) {
                 console.error('Failed to send story choice:', error);

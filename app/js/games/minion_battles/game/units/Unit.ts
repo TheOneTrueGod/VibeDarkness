@@ -22,7 +22,7 @@ import type { TerrainGrid } from '../../terrain/TerrainGrid';
 import { computeForcedDisplacement } from '../forceMove';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
-import { WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
+import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
 import { getDefaultHp, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
@@ -529,10 +529,11 @@ export class Unit extends GameObject {
             const enemyProximityFailsafe =
                 afterMin && this.hasEnemyWithinWaitProximityFailsafe(engine, WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID);
 
-            if (afterMax || (afterMin && WAIT_ENDS_ON_MOVEMENT_COMPLETE && reachedMovementTarget) || enemyProximityFailsafe) {
+            const playerEarlyEnd = this.isPlayerControlled() && PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE && afterMin && reachedMovementTarget;
+            if (afterMax || playerEarlyEnd || enemyProximityFailsafe) {
                 this.waitMinEndTime = null;
                 this.waitMaxEndTime = null;
-                if (!WAIT_ENDS_ON_MOVEMENT_COMPLETE) {
+                if (this.isPlayerControlled() && !PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE) {
                     this.movementPaused = true;
                 }
             }

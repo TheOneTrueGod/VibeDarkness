@@ -1,7 +1,7 @@
 import type { AccountState, CampaignResources } from '../types';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
-import { getCoreFromEquipment } from '../games/minion_battles/character_defs/items';
+import { getCoreFromEquipment, getItemDef } from '../games/minion_battles/character_defs/items';
 import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect } from './types';
 import { RESEARCH_TREES } from './list';
 
@@ -164,8 +164,18 @@ export function applyResearchEffects(tree: ResearchTreeDef, ctx: ResearchContext
     let equipment = [...ctx.character.equipment];
     const extraEquippedItemIds: string[] = [];
 
-    const applyEffect = (effect: ResearchEffect) => {
-        if (effect.type === 'replaceEquippedItem') {
+    const applyEffect = (effect: ResearchEffect, overrideCurrentEquipment: boolean) => {
+        if (effect.type === 'equipItem') {
+            const newDef = getItemDef(effect.itemId);
+            const newSlots = new Set(newDef?.slots ?? []);
+            if (overrideCurrentEquipment && newSlots.size > 0) {
+                equipment = equipment.filter((id) => {
+                    const def = getItemDef(id);
+                    return !def?.slots.some((s) => newSlots.has(s));
+                });
+            }
+            if (!equipment.includes(effect.itemId)) equipment.push(effect.itemId);
+        } else if (effect.type === 'replaceEquippedItem') {
             const hasFrom = equipment.includes(effect.fromItemId);
             if (hasFrom) {
                 equipment = equipment.filter((id) => id !== effect.fromItemId);
@@ -185,7 +195,7 @@ export function applyResearchEffects(tree: ResearchTreeDef, ctx: ResearchContext
 
     for (const node of researchedNodes) {
         for (const eff of node.effects) {
-            applyEffect(eff);
+            applyEffect(eff, node.overrideCurrentEquipment ?? false);
         }
     }
 

@@ -24,7 +24,8 @@ export const techShieldTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [],
             cost: {},
-            effects: [],
+            effects: [{ type: 'equipItem', itemId: '003' }],
+            overrideCurrentEquipment: true,
             modifiesAbility: { from: '0104', to: '0104' },
         },
         {
@@ -36,7 +37,7 @@ export const techShieldTree: ResearchTreeDef = {
             position: { x: 340, y: 100 },
             prereqNodeIds: [TECH_SHIELD_NODE_BASE],
             exclusiveWithNodeIds: [],
-            requirements: [{ type: 'characterHasEquippedItem', itemId: '003' }],
+            requirements: [],
             cost: { crystals: 5 },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '003', toItemId: '011' }],
             modifiesAbility: { from: '0104', to: '0110' },
@@ -51,7 +52,6 @@ export const techShieldTree: ResearchTreeDef = {
             prereqNodeIds: ['crystal_embedded_shield'],
             exclusiveWithNodeIds: ['extra_shields'],
             requirements: [
-                { type: 'characterHasEquippedItem', itemId: '011' }, // Crystal Embedded Shield
                 { type: 'notResearched', treeId: TECH_SHIELD_TREE_ID, nodeId: 'extra_shields' },
             ],
             cost: { crystals: 30 },

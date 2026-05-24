@@ -13,6 +13,7 @@ export type Requirement =
     | { type: 'notResearched'; treeId: string; nodeId: string };
 
 export type ResearchEffect =
+    | { type: 'equipItem'; itemId: string }
     | { type: 'replaceEquippedItem'; fromItemId: string; toItemId: string }
     | { type: 'addExtraCardsFromItem'; itemId: string; cardId: string; count: number }
     | { type: 'replaceCard'; fromCardId: string; toCardId: string };
@@ -32,6 +33,11 @@ export interface ResearchNodeDef {
     requirements: Requirement[];
     cost: CampaignResourceCost;
     effects: ResearchEffect[];
+    /**
+     * When true, `equipItem` effects on this node replace any conflicting same-slot items
+     * instead of skipping. Use for starting-weapon nodes where research defines the item.
+     */
+    overrideCurrentEquipment?: boolean;
     /**
      * Ability IDs to show a before/after card preview in the tooltip.
      * Use the same ID for both when the node modifies rather than replaces an ability.

@@ -13,9 +13,6 @@ import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { rocksItem } from '../../../character_defs/items/hands/001_rocks';
-import { torchItem } from '../../../character_defs/items/hands/002_torch';
-import { potShieldItem } from '../../../character_defs/items/hands/003_pot_shield';
 import { CRYSTAL_ROCKS_TREE_ID, CRYSTAL_ROCKS_NODE_BASE } from '../../../../../researchTrees/trees/crystal_rocks';
 import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_BASE } from '../../../../../researchTrees/trees/stick_sword';
 import { TECH_SHIELD_TREE_ID, TECH_SHIELD_NODE_BASE } from '../../../../../researchTrees/trees/tech_shield';
@@ -211,17 +208,17 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
                 {
                     id: 'rocks',
                     label: 'Grab some nearby rocks',
-                    action: { type: 'equip_item', itemId: rocksItem.id, alsoGrantResearch: { treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: CRYSTAL_ROCKS_NODE_BASE } },
+                    action: { type: 'grant_research_to_player' as const, treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: CRYSTAL_ROCKS_NODE_BASE },
                 },
                 {
                     id: 'torch',
                     label: 'Grab a thick branch',
-                    action: { type: 'equip_item', itemId: torchItem.id, alsoGrantResearch: { treeId: STICK_SWORD_TREE_ID, nodeId: STICK_SWORD_NODE_BASE } },
+                    action: { type: 'grant_research_to_player' as const, treeId: STICK_SWORD_TREE_ID, nodeId: STICK_SWORD_NODE_BASE },
                 },
                 {
                     id: 'pot_shield',
                     label: 'Pick up the lid of a pot from the campfire',
-                    action: { type: 'equip_item', itemId: potShieldItem.id, alsoGrantResearch: { treeId: TECH_SHIELD_TREE_ID, nodeId: TECH_SHIELD_NODE_BASE } },
+                    action: { type: 'grant_research_to_player' as const, treeId: TECH_SHIELD_TREE_ID, nodeId: TECH_SHIELD_NODE_BASE },
                 },
             ],
         },

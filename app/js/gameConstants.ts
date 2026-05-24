@@ -12,7 +12,8 @@
 export const WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START = false;
 
 /**
- * When true, a wait order ends as soon as the unit finishes its movement (after the minimum
- * wait duration). When false, the wait always runs for its full duration regardless of movement.
+ * Player units only. When true, a wait order ends as soon as the unit finishes its movement
+ * (after the minimum wait duration). When false, the wait always runs for its full duration.
+ * AI units always run the full wait duration and never set movementPaused on expiry.
  */
-export const WAIT_ENDS_ON_MOVEMENT_COMPLETE = false;
+export const PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE = false;
