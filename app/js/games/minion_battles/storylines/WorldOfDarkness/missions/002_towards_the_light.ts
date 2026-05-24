@@ -108,6 +108,15 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
             row: CAVE_CAMPFIRE.row,
             maxDistance: 2,
         },
+        showObjectiveMarker: {
+            enable: true,
+            target: {
+                type: 'position',
+                x: (CAVE_CAMPFIRE.col + RIGHT_OFFSET_COL) * CELL_SIZE + CELL_SIZE / 2,
+                y: CAVE_CAMPFIRE.row * CELL_SIZE + CELL_SIZE / 2,
+            },
+            showOffscreen: true,
+        },
     },
 ];
 

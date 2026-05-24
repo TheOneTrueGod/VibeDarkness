@@ -30,6 +30,7 @@ import {
     buildPlayerMovePathThroughWaypoints,
 } from '../../terrain/playerMovePath';
 import BattleCanvas from '../components/BattleCanvas';
+import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
 import CardHand from '../components/CardHand';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
@@ -1090,6 +1091,11 @@ export default function BattlePhase({
                             onCanvasClick={handleCanvasClick}
                             onCanvasRightClick={handleCanvasRightClick}
                             onCanvasMouseMove={handleCanvasMouseMove}
+                        />
+                        <ObjectiveMarkerOverlay
+                            engine={engine}
+                            camera={camera}
+                            battleObjectives={MISSION_MAP[missionId]?.battleObjectives ?? []}
                         />
                         {!isHost && <BattleHostAnchorBanner phase={hostAnchorWaitPhase} />}
                     </div>

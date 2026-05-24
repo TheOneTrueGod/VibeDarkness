@@ -8,6 +8,8 @@ export enum UnitTag {
     ProtectedByCrystal = 'protectedByCrystal',
     /** Boss unit — e.g. arcade boss HP bar in battle UI. */
     Boss = 'boss',
+    /** Boar enemy — used for objective marker targeting. */
+    Boar = 'boar',
 }
 
 const UNIT_TAG_VALUES = new Set<string>(Object.values(UnitTag));

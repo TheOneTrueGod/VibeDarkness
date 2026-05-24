@@ -97,6 +97,19 @@ export type ObjectiveOnCompleteEffect =
     | { type: 'revealObjective'; id: string }
     | { type: 'npcChat'; text: string; npcId?: string };
 
+/** World-position or unit-tag target for an objective marker. */
+export type ObjectiveMarkerTarget =
+    | { type: 'position'; x: number; y: number }
+    | { type: 'unitTag'; tag: UnitTag };
+
+/** Configuration for an in-world exclamation-mark marker shown above an objective target. */
+export interface ShowObjectiveMarker {
+    enable: boolean;
+    target: ObjectiveMarkerTarget;
+    /** When true, show an edge indicator pointing toward the target when it is off-screen. */
+    showOffscreen: boolean;
+}
+
 /** In-battle objective shown in ObjectivePanel; evaluated each tick on the host sim. */
 export interface BattleObjectiveDef {
     id: string;
@@ -110,6 +123,8 @@ export interface BattleObjectiveDef {
     requiresCompletedId?: string;
     toComplete: VictoryCondition;
     onComplete?: ObjectiveOnCompleteEffect[];
+    /** When set, renders a yellow exclamation marker above the target during battle. */
+    showObjectiveMarker?: ShowObjectiveMarker;
 }
 
 /** When creatures enter a world-circle, run bundled effects once (fire-once keyed by level event index). */

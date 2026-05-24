@@ -10,6 +10,7 @@ import { BaseMissionDef } from '../../BaseMissionDef';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF, ENEMY_BOAR, ENEMY_RANGED } from '../../../constants/enemyConstants';
+import { UnitTag } from '../../../game/units/unitTag';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -90,6 +91,7 @@ const ENEMIES = [
 			cliffPathPOI.cave_center.col,
 			cliffPathPOI.cave_center.row + MIDDLE_OFFSET_ROW,
 		),
+		unitTags: [UnitTag.Boar],
 	},
 ];
 
@@ -127,6 +129,11 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
 		id: 'kill_boar',
 		label: 'Hunt and kill the boar',
 		toComplete: { type: 'unitDead', unitCharacterId: 'boar' },
+		showObjectiveMarker: {
+			enable: true,
+			target: { type: 'unitTag', tag: UnitTag.Boar },
+			showOffscreen: true,
+		},
 	},
 	{
 		id: 'return_cave',
