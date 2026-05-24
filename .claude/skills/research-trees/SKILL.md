@@ -17,7 +17,7 @@ All tree and node definitions live in `app/js/researchTrees/`:
 
 - `types.ts` — `ResearchTreeDef`, `ResearchNodeDef`, `Requirement`, `ResearchEffect`
 - `list.ts` — registry of all trees
-- `evaluator.ts` — `canResearchNode`, `applyResearchEffects`, `prereqClosure`, `meetsRequirement`, `computeEffectiveResourcesForTree`
+- `evaluator.ts` — `canResearchNode`, `applyResearchEffects`, `prereqClosure`, `meetsRequirement`, `computeEffectiveResourcesForTree`, `getAvailableResearchNodes`
 - `descriptiveValue.ts` — `DescriptiveValue` magnitude labels (Tiny/Small/Medium/Large/Huge)
 - `trees/` — one file per tree; each exports its tree ID constants and a `ResearchTreeDef`
 
@@ -27,6 +27,15 @@ All tree and node definitions live in `app/js/researchTrees/`:
 
 ### Persistence
 Research is stored on `CampaignCharacter` as `researchTrees: Record<treeId, nodeId[]>` — a map from tree ID to the array of researched node IDs. See `character_defs/CampaignCharacter.ts`.
+
+## Querying available nodes
+
+`getAvailableResearchNodes(researchedTrees, { treeId?, tier? })` in `evaluator.ts` returns nodes the character hasn't researched yet and can structurally unlock:
+- all `prereqNodeIds` are satisfied
+- no `exclusiveWithNodeIds` entry has been researched
+- `anyResearched` / `notResearched` requirements pass
+
+External requirements (accountKnowledge, equipment, costs) are intentionally ignored — the function needs no account or character context. Pass `treeId` to scope to one tree, `tier` to scope to one display tier. Both are optional.
 
 ## Pre-battle application
 

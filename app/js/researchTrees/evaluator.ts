@@ -216,6 +216,64 @@ export function getCardReplacementsFromResearch(
 }
 
 /**
+ * Returns nodes the character has not yet researched and are structurally available:
+ * all prereqNodeIds are satisfied, no exclusive node has been researched, and all
+ * research-state requirements (anyResearched / notResearched) pass. External
+ * requirements (accountKnowledge, equipment, costs) are ignored — no context needed.
+ *
+ * @param researchedTrees  researchTrees map from CampaignCharacter
+ * @param options.treeId   optional: restrict to one tree
+ * @param options.tier     optional: restrict to one display tier
+ */
+export function getAvailableResearchNodes(
+    researchedTrees: Record<string, string[]> | undefined,
+    options: { treeId?: string; tier?: number } = {},
+): ResearchNodeDef[] {
+    const { treeId, tier } = options;
+    const trees = researchedTrees ?? {};
+
+    const treesToSearch = treeId
+        ? RESEARCH_TREES.filter((t) => t.id === treeId)
+        : RESEARCH_TREES;
+
+    const allResearched: Record<string, Set<string>> = {};
+    for (const tree of RESEARCH_TREES) {
+        allResearched[tree.id] = new Set(trees[tree.id] ?? []);
+    }
+
+    const result: ResearchNodeDef[] = [];
+
+    for (const tree of treesToSearch) {
+        const researchedSet = allResearched[tree.id];
+
+        for (const node of tree.nodes) {
+            if (researchedSet.has(node.id)) continue;
+            if (tier !== undefined && node.tier !== tier) continue;
+
+            if (node.exclusiveWithNodeIds.some((exId) => researchedSet.has(exId))) continue;
+            if (!node.prereqNodeIds.every((prereqId) => researchedSet.has(prereqId))) continue;
+
+            const researchReqsMet = node.requirements.every((req) => {
+                if (req.type === 'anyResearched') {
+                    const set = allResearched[req.treeId] ?? new Set<string>();
+                    return req.nodeIds.some((nodeId) => set.has(nodeId));
+                }
+                if (req.type === 'notResearched') {
+                    const set = allResearched[req.treeId] ?? new Set<string>();
+                    return !set.has(req.nodeId);
+                }
+                return true;
+            });
+            if (!researchReqsMet) continue;
+
+            result.push(node);
+        }
+    }
+
+    return result;
+}
+
+/**
  * Applies all trees' deterministic equipment mutations (matches Character Editor layered research effects).
  * Use when building battle deck item lists from persisted equipment plus `researchTrees`.
  */
