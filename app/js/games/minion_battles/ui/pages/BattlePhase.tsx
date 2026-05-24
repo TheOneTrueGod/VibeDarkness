@@ -1054,7 +1054,7 @@ export default function BattlePhase({
                         players={players}
                         localPlayerId={playerId}
                         layout="rail"
-                        previewAbility={canUseOrderUi ? (selectedAbility ?? (isWaitHovered ? WaitAbility : null)) : null}
+                        previewAbility={canUseOrderUi ? (selectedAbility ?? WaitAbility) : null}
                         previewOrderUnitId={activeLocalWaiter?.unitId ?? null}
                     />
                 </aside>

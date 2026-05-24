@@ -12,7 +12,7 @@ export const WaitAbility: AbilityStatic = {
     targets: [],
     prefireTime: 0,
     abilityTimings: [
-        { id: 'wait', start: 0, end: 1.5, abilityPhase: AbilityPhase.Cooldown, timelineLabel: 'Waiting', timelineDescription: 'Holding position.' },
+        { id: 'wait', start: 0, end: 1.5, abilityPhase: AbilityPhase.Waiting, timelineLabel: 'Waiting', timelineDescription: 'Holding position.' },
     ],
     getTooltipText: () => ['Hold position momentarily.'],
     getAbilityStates: () => [],

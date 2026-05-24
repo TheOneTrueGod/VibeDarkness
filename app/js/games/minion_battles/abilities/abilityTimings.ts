@@ -14,6 +14,7 @@ export enum AbilityPhase {
     CoopCooldown = 'coopCooldown',
     Iframe = 'iframe',
     Juggernaut = 'juggernaut',
+    Waiting = 'waiting',
 }
 
 /**
@@ -289,7 +290,7 @@ export function exitedTimingIds(
     return out;
 }
 
-export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown';
+export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting';
 
 export interface PrimaryTimelineSegment {
     start: number;
@@ -314,6 +315,8 @@ function abilityPhaseToTimelinePhaseId(phase: AbilityPhase): BattleTimelinePhase
             return 'cooldown';
         case AbilityPhase.CoopCooldown:
             return 'coopCooldown';
+        case AbilityPhase.Waiting:
+            return 'waiting';
     }
 }
 

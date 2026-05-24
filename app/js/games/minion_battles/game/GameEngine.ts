@@ -7,6 +7,7 @@
  */
 
 import { EventBus, type DamageTakenEvent, type NearbyStoneDamagedEvent } from './EventBus';
+import { DarknessLevel } from './darknessLevels';
 import {
     normalizeWaitingForOrdersFromJSON,
     type ActiveAbility,
@@ -121,8 +122,7 @@ export const WORLD_HEIGHT = 800;
 
 export type EngineStateCallback = () => void;
 
-/** Per-cell light from `getLightGrid` (lower = darker). Corruption fills only in full darkness — see `FULL_DARKNESS_THRESHOLD`. */
-const FULL_DARKNESS_THRESHOLD = -20;
+/** Per-cell light from `getLightGrid` (lower = darker). Corruption fills only in full darkness — see `DarknessLevel.FULL_DARKNESS`. */
 
 function parseGameObjectIdNumber(id: string): number | null {
     const match = /_(\d+)$/.exec(id);
@@ -1851,7 +1851,7 @@ export class GameEngine implements EngineContext {
             const safeCol = Math.max(0, Math.min(width - 1, col));
             const light = lightGrid[safeRow]![safeCol]!;
 
-            const inFullDarkness = light <= FULL_DARKNESS_THRESHOLD;
+            const inFullDarkness = light <= DarknessLevel.FULL_DARKNESS;
             /** Slower fill/drain so damage ticks take noticeably longer to proc (~2.2s to fill vs ~1s). */
             const corruptionRate = 0.45;
             if (inFullDarkness) {

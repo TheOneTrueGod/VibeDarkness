@@ -1,6 +1,6 @@
 import React from 'react';
 
-type PhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown';
+type PhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting';
 
 export interface TimelinePhaseSegmentProps {
     phase: PhaseId;
@@ -49,6 +49,11 @@ const PHASE_STYLE: Record<
         baseHeight: 'h-[4px]',
         hoverHeight: 'group-hover:h-[6px]',
         colorClass: 'bg-yellow-400',
+    },
+    waiting: {
+        baseHeight: 'h-[3px]',
+        hoverHeight: 'group-hover:h-[5px]',
+        colorClass: 'bg-white/70',
     },
 };
 

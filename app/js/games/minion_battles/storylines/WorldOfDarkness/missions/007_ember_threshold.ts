@@ -127,7 +127,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: 'The cave breathes colder air to the south. Somewhere ahead, restless green lanterns drift like wild things—calling you toward a deeper hollow.',
+            text: 'The cave breathes a soft glow from the south. Somewhere ahead, restless green lanterns drift like wild things—calling you toward a deeper hollow.',
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },

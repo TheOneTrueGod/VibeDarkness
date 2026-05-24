@@ -2,8 +2,7 @@
  * Light Empowered - Mission 3: Hungry, need food. Hunt the boar at the cliff inlet,
  * then return to the cave. Wolves spawn outside and from darkness.
  *
- * Map: three segments stacked vertically. Top: path clearing. Middle: cliff path with inlet.
- * Bottom: crystal cave (reused from mission 2).
+ * Map: two segments stacked vertically. Top: cliff path with inlet. Bottom: crystal cave (reused from mission 2).
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
@@ -23,12 +22,11 @@ import {
 	MAP_SEGMENT_50_49_CLIFF_PATH_NORTH,
 	pointsOfInterest as cliffPathPOI,
 } from '../MapSegments/50_49_cliff_path_north';
-import { MAP_SEGMENT_50_48_PATH_TOP } from '../MapSegments/50_48_path_top';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
-const SEGMENTS_VERTICAL = 3;
+const SEGMENTS_VERTICAL = 2;
 const COLS = SEGMENT_COLS;
 const ROWS = SEGMENT_ROWS * SEGMENTS_VERTICAL;
 const WORLD_WIDTH = COLS * CELL_SIZE;
@@ -37,17 +35,16 @@ const WORLD_HEIGHT = ROWS * CELL_SIZE;
 const _ = TerrainType.Grass;
 
 function createTerrain(): TerrainGrid {
-	const top = getTerrainForSegment('50_48_path_top', MAP_SEGMENT_50_48_PATH_TOP);
-	const middle = getTerrainForSegment('50_49_cliff_path_north', MAP_SEGMENT_50_49_CLIFF_PATH_NORTH);
+	const top = getTerrainForSegment('50_49_cliff_path_north', MAP_SEGMENT_50_49_CLIFF_PATH_NORTH);
 	const bottom = getTerrainForSegment('50_50_crystal_cave', MAP_SEGMENT_50_50_CRYSTAL_CAVE);
-	const stitched = stitchTerrain([[top], [middle], [bottom]], _);
+	const stitched = stitchTerrain([[top], [bottom]], _);
 	return TerrainGrid.createTerrainFromArray(COLS, ROWS, CELL_SIZE, stitched, _);
 }
 
-/** Full grid row for segment 50_49 (middle segment, rows 22-43). */
-const MIDDLE_OFFSET_ROW = 22;
-/** Full grid row for segment 50_50 (bottom segment, rows 44-65). */
-const BOTTOM_OFFSET_ROW = 44;
+/** Full grid row for segment 50_49 (top segment, rows 0-21). */
+const MIDDLE_OFFSET_ROW = 0;
+/** Full grid row for segment 50_50 (bottom segment, rows 22-43). */
+const BOTTOM_OFFSET_ROW = 22;
 
 /** World position for a grid cell. */
 function gridToWorld(col: number, row: number): { x: number; y: number } {
@@ -199,7 +196,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 };
 
 export class LightEmpoweredMission extends BaseMissionDef {
-	segmentIds = ['50_48_path_top', '50_49_cliff_path_north', '50_50_crystal_cave'];
+	segmentIds = ['50_49_cliff_path_north', '50_50_crystal_cave'];
 
 	missionId = 'light_empowered';
 	campaignId = 'world_of_darkness';
@@ -218,14 +215,14 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	lightLevelEnabled = true;
 	globalLightLevel = -20;
 	playerSpawnPoints = [
-		{ col: 17, row: 53 },
-		{ col: 18, row: 53 },
-		{ col: 19, row: 53 },
-		{ col: 17, row: 54 },
-		{ col: 19, row: 54 },
-		{ col: 17, row: 55 },
-		{ col: 18, row: 55 },
-		{ col: 19, row: 55 },
+		{ col: 17, row: 31 },
+		{ col: 18, row: 31 },
+		{ col: 19, row: 31 },
+		{ col: 17, row: 32 },
+		{ col: 19, row: 32 },
+		{ col: 17, row: 33 },
+		{ col: 18, row: 33 },
+		{ col: 19, row: 33 },
 	];
 
 	override initializeGameState(engine: Parameters<BaseMissionDef['initializeGameState']>[0], params: Parameters<BaseMissionDef['initializeGameState']>[1]): void {

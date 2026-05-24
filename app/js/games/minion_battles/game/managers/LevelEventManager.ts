@@ -4,6 +4,7 @@
  */
 
 import type { EngineContext } from '../EngineContext';
+import { DarknessLevel } from '../darknessLevels';
 import type { Unit } from '../units/Unit';
 import type {
     LevelEvent,
@@ -250,7 +251,7 @@ export class LevelEventManager {
                     if (behaviour === 'darkness') {
                         if (!lightGrid) continue;
                         const level = lightGrid[row]?.[col];
-                        if (level == null || level > -20) continue;
+                        if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
                     }
 
                     candidates.push({ col, row });
@@ -380,7 +381,7 @@ export class LevelEventManager {
                             continue;
                         }
                         const level = lightGrid[closestPOI.row]?.[closestPOI.col];
-                        if (level == null || level > -20) {
+                        if (level == null || level > DarknessLevel.FULL_DARKNESS) {
                             console.warn('spawnWave: closestEnemySpawnPoint — POI cell is not in darkness; skipping spawn entry.');
                             continue;
                         }
@@ -563,7 +564,7 @@ export class LevelEventManager {
                     if (behaviour === 'darkness') {
                         if (!lightGrid) continue;
                         const level = lightGrid[row]?.[col];
-                        if (level == null || level > -20) continue;
+                        if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
                     }
                     candidates.push({ col, row });
                 }

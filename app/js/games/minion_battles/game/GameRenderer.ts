@@ -7,6 +7,7 @@
  */
 
 import { Application, Assets, Container, Graphics, Particle, ParticleContainer, Sprite, Texture } from 'pixi.js';
+import { DarknessLevel } from './darknessLevels';
 import { WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START } from '../../../gameConstants';
 import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
@@ -821,7 +822,7 @@ export class GameRenderer {
             const row = Math.floor(unit.y / cellSize);
             const light = this.getLightAt(col, row);
             const inFullDarkness =
-                light !== null && light <= -20 && areEnemies(this.localTeamId, unit.teamId);
+                light !== null && light <= DarknessLevel.FULL_DARKNESS && areEnemies(this.localTeamId, unit.teamId);
             const isDebugOutlined = this.debugUnitOutlineId === unit.id;
 
             const body = visual.children.find((c) => c.label === 'body') as Graphics | undefined;
@@ -1159,7 +1160,7 @@ export class GameRenderer {
         const col = Math.floor(unit.x / cellSize);
         const row = Math.floor(unit.y / cellSize);
         const light = this.getLightAt(col, row);
-        return light !== null && light <= -20;
+        return light !== null && light <= DarknessLevel.FULL_DARKNESS;
     }
 
     private mouseWorldForGhostAbilityPreview(

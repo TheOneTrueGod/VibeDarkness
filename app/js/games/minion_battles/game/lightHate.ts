@@ -6,6 +6,7 @@
 
 import type { Unit } from './units/Unit';
 import { getLightGrid, type LightSource } from './LightGrid';
+import { DarknessLevel } from './darknessLevels';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 
 export type LightHateDef = {
@@ -15,8 +16,8 @@ export type LightHateDef = {
 
 /** Per-character Light Hate parameters for enemies that opt in. */
 export const LIGHT_HATE_DEFS: Partial<Record<string, LightHateDef>> = {
-    thornbinder: { threshold: 10 },
-    husk_artillery: { threshold: 10 },
+    thornbinder: { threshold: DarknessLevel.BRIGHT_LIGHT },
+    husk_artillery: { threshold: DarknessLevel.BRIGHT_LIGHT },
 };
 
 export function getLightHateDef(characterId: string): LightHateDef | undefined {
