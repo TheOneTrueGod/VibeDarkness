@@ -36,15 +36,15 @@ interface TerrainCanvasProps {
 export function getBrushCells(
     col: number,
     row: number,
-    brushSize: 1 | 2 | 3 | 4,
+    brushSize: 1 | 2 | 3 | 4 | 5 | 7,
     width: number,
     height: number,
 ): { col: number; row: number }[] {
-    const radius = brushSize - 1; // 0, 1, or 2
+    const half = Math.floor(brushSize / 2);
     const cells: { col: number; row: number }[] = [];
 
-    for (let dc = -radius; dc <= radius; dc++) {
-        for (let dr = -radius; dr <= radius; dr++) {
+    for (let dc = -half; dc < brushSize - half; dc++) {
+        for (let dr = -half; dr < brushSize - half; dr++) {
             const c = col + dc;
             const r = row + dr;
             if (c >= 0 && c < width && r >= 0 && r < height) {
@@ -155,12 +155,15 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
 
                 // Icon
                 ctx.fillStyle = style.color;
+                ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+                ctx.lineWidth = 1.5;
                 ctx.beginPath();
 
                 switch (style.shape) {
                     case 'circle': {
                         ctx.arc(cx, cy, 6, 0, Math.PI * 2);
                         ctx.fill();
+                        ctx.stroke();
                         break;
                     }
                     case 'diamond': {
@@ -172,11 +175,14 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
                         ctx.lineTo(cx - d, cy);
                         ctx.closePath();
                         ctx.fill();
+                        ctx.stroke();
                         break;
                     }
                     case 'square': {
                         // 10×10 square centered at (cx, cy)
-                        ctx.fillRect(cx - 5, cy - 5, 10, 10);
+                        ctx.rect(cx - 5, cy - 5, 10, 10);
+                        ctx.fill();
+                        ctx.stroke();
                         break;
                     }
                     case 'triangle': {
@@ -186,6 +192,7 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
                         ctx.lineTo(cx - 6, cy + 10 * (1 / 3));   // bottom-left
                         ctx.closePath();
                         ctx.fill();
+                        ctx.stroke();
                         break;
                     }
                 }
@@ -336,7 +343,7 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
             ref={canvasRef}
             width={state.segmentData.width * EDITOR_CELL_SIZE}
             height={state.segmentData.height * EDITOR_CELL_SIZE}
-            className={`${cursorClass} border border-border-custom`}
+            className={cursorClass}
             onMouseMove={handleMouseMove}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}

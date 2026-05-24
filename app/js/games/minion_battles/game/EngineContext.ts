@@ -16,6 +16,7 @@ import type { LightSource as GridLightSource } from './LightGrid';
 import type { LightSource } from './lightSources/LightSource';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import type { BramblePatch } from './brambleSlow';
+import type { MapSegmentPOI } from '../terrain/segmentSchema';
 
 export interface EngineContext {
     gameTime: number;
@@ -64,4 +65,7 @@ export interface EngineContext {
 
     /** When implemented (full engine), allocates unique ids for new gameplay objects for this battle instance. */
     allocateObjectId?(prefix?: string): string;
+
+    /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */
+    mapPOIs: MapSegmentPOI[];
 }

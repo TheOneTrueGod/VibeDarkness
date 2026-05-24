@@ -151,7 +151,12 @@ export class LevelEventManager {
         const occupiedCells = new Set<string>();
 
         let lightGrid: number[][] | null = null;
-        const needsDarkness = spawns.some((entry) => (entry.spawnBehaviour ?? 'edgeOfMap') === 'darkness');
+        const needsDarkness = spawns.some(
+            (entry) =>
+                (entry.spawnBehaviour ?? 'edgeOfMap') === 'darkness' ||
+                ((entry.spawnBehaviour ?? 'edgeOfMap') === 'closestEnemySpawnPoint' &&
+                    entry.enemySpawnPointConfig?.inDarkness === true),
+        );
         if (needsDarkness) {
             if (!this.ctx.lightLevelEnabled) {
                 console.error('spawnWave: spawnBehaviour "darkness" requested but light system is disabled; skipping darkness spawns.');
@@ -167,6 +172,7 @@ export class LevelEventManager {
             behaviour: 'edgeOfMap' | 'darkness' | 'anywhere';
             count: number;
         }[] = [];
+        const closestPOIEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
 
         for (const entry of spawns) {
             const cid = entry.characterId;
@@ -178,6 +184,8 @@ export class LevelEventManager {
 
             if (behaviour === 'edgeOfMap') {
                 edgeEntries.push({ base, entry, count });
+            } else if (behaviour === 'closestEnemySpawnPoint') {
+                closestPOIEntries.push({ base, entry, count });
             } else {
                 otherEntries.push({ base, entry, behaviour, count });
             }
@@ -291,6 +299,122 @@ export class LevelEventManager {
             const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);
             for (const idx of chosenIndices) {
                 const cell = candidates[idx]!;
+                const key = `${cell.col},${cell.row}`;
+                occupiedCells.add(key);
+                const pos = grid.gridToWorld(cell.col, cell.row);
+                const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
+                const stats = resolveEnemySpawnStats({ ...base, ...entry });
+                const config = {
+                    ...base,
+                    ...entry,
+                    position: pos,
+                    x: pos.x,
+                    y: pos.y,
+                    ownerId: 'ai' as const,
+                    hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
+                    speed: stats.speed,
+                    unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
+                };
+                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
+                this.applyLanterniteEcologySpawnFields(unit, entry);
+                this.ctx.addUnit(unit);
+            }
+        }
+
+        // Handle 'closestEnemySpawnPoint' entries
+        for (const { base, entry, count } of closestPOIEntries) {
+            const cfg = entry.enemySpawnPointConfig;
+            const matchesTags = cfg?.matchesTags;
+            const poiRadius = cfg?.radius ?? 0;
+            const inDarkness = cfg?.inDarkness === true;
+
+            // Collect all enemySpawn POIs, optionally filtered by tags
+            let eligiblePOIs = this.ctx.mapPOIs.filter((p) => p.type === 'enemySpawn');
+            if (matchesTags && matchesTags.length > 0) {
+                eligiblePOIs = eligiblePOIs.filter((p) =>
+                    matchesTags.every((tag) => p.tags?.includes(tag)),
+                );
+            }
+
+            if (eligiblePOIs.length === 0) {
+                console.warn(
+                    `spawnWave: closestEnemySpawnPoint — no eligible enemySpawn POIs` +
+                        (matchesTags ? ` matching tags [${matchesTags.join(', ')}]` : '') +
+                        '; skipping this spawn entry.',
+                );
+                continue;
+            }
+
+            // Find living player units to measure distance from
+            const livingPlayers = this.ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
+            if (livingPlayers.length === 0) {
+                console.warn('spawnWave: closestEnemySpawnPoint — no living player units; skipping this spawn entry.');
+                continue;
+            }
+
+            // Find the closest eligible POI to any living player unit (world distance)
+            let closestPOI = eligiblePOIs[0]!;
+            let closestDistSq = Infinity;
+            for (const poi of eligiblePOIs) {
+                const poiWorld = grid.gridToWorld(poi.col, poi.row);
+                for (const player of livingPlayers) {
+                    const dx = player.x - poiWorld.x;
+                    const dy = player.y - poiWorld.y;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < closestDistSq) {
+                        closestDistSq = distSq;
+                        closestPOI = poi;
+                    }
+                }
+            }
+
+            // If radius is 0, just spawn on the POI cell itself (if passable)
+            let spawnCells: { col: number; row: number }[];
+            if (poiRadius === 0) {
+                const poiWorld = grid.gridToWorld(closestPOI.col, closestPOI.row);
+                const key = `${closestPOI.col},${closestPOI.row}`;
+                if (!occupiedCells.has(key) && terrainManager.isPassable(poiWorld.x, poiWorld.y)) {
+                    if (inDarkness) {
+                        if (!lightGrid) {
+                            console.warn('spawnWave: closestEnemySpawnPoint inDarkness=true but no lightGrid; skipping spawn entry.');
+                            continue;
+                        }
+                        const level = lightGrid[closestPOI.row]?.[closestPOI.col];
+                        if (level == null || level > -20) {
+                            console.warn('spawnWave: closestEnemySpawnPoint — POI cell is not in darkness; skipping spawn entry.');
+                            continue;
+                        }
+                    }
+                    spawnCells = [{ col: closestPOI.col, row: closestPOI.row }];
+                } else {
+                    console.warn('spawnWave: closestEnemySpawnPoint — POI cell is not passable or occupied; skipping spawn entry.');
+                    continue;
+                }
+            } else {
+                // Build a synthetic SpawnTarget around the chosen POI
+                const poiWorld = grid.gridToWorld(closestPOI.col, closestPOI.row);
+                const syntheticTarget = { x: poiWorld.x, y: poiWorld.y, radius: poiRadius };
+                spawnCells = collectCandidateTiles(inDarkness ? 'darkness' : 'anywhere', syntheticTarget);
+                if (spawnCells.length === 0) {
+                    console.warn(
+                        `spawnWave: closestEnemySpawnPoint — no valid tiles within radius ${poiRadius} of POI "${closestPOI.id}"` +
+                            (inDarkness ? ' (inDarkness filter active)' : '') +
+                            '; skipping this spawn entry.',
+                    );
+                    continue;
+                }
+            }
+
+            const spawnAttempts = Math.min(count, spawnCells.length);
+            if (spawnAttempts < count) {
+                console.warn(
+                    `spawnWave: closestEnemySpawnPoint — requested ${count} spawns but only found ${spawnCells.length} valid tiles.`,
+                );
+            }
+
+            const chosenIndices = chooseRandomIndices(spawnCells.length, spawnAttempts);
+            for (const idx of chosenIndices) {
+                const cell = spawnCells[idx]!;
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);

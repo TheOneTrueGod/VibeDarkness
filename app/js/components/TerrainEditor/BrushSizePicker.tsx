@@ -1,15 +1,17 @@
 import React from 'react';
 
 interface BrushSizePickerProps {
-    brushSize: 1 | 2 | 3 | 4;
-    onChange: (size: 1 | 2 | 3 | 4) => void;
+    brushSize: 1 | 2 | 3 | 4 | 5 | 7;
+    onChange: (size: 1 | 2 | 3 | 4 | 5 | 7) => void;
 }
 
-const BRUSH_OPTIONS: { size: 1 | 2 | 3 | 4; label: string }[] = [
+const BRUSH_OPTIONS: { size: 1 | 2 | 3 | 4 | 5 | 7; label: string }[] = [
     { size: 1, label: '1×1' },
-    { size: 2, label: '3×3' },
-    { size: 3, label: '5×5' },
-    { size: 4, label: '7×7' },
+    { size: 2, label: '2×2' },
+    { size: 3, label: '3×3' },
+    { size: 4, label: '4×4' },
+    { size: 5, label: '5×5' },
+    { size: 7, label: '7×7' },
 ];
 
 export default function BrushSizePicker({ brushSize, onChange }: BrushSizePickerProps) {

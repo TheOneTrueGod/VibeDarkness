@@ -9,6 +9,7 @@ import type { MinionBattlesApi } from '../api/minionBattlesApi';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { SPECTATOR_ID } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
+import { getSegment } from '../terrain/segmentRegistry';
 import { debugLog } from '../../../debugLog';
 import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../lobbyLog';
 import { GameEngine } from './GameEngine';
@@ -274,6 +275,7 @@ export class BattleSession implements BattleSessionHandle {
         if (mission.levelEvents && mission.levelEvents.length > 0) {
             engine.setLevelEvents(mission.levelEvents);
         }
+        const terrainSegmentPOIs = mission.segmentIds.flatMap((id) => getSegment(id)?.pointsOfInterest ?? []);
         mission.initializeGameState(engine, {
             playerUnits,
             characterSelections: selections,
@@ -282,6 +284,7 @@ export class BattleSession implements BattleSessionHandle {
             terrainManager,
             equippedItemsByPlayer,
             playerResearchTreesByPlayer,
+            terrainSegmentPOIs,
         });
         engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
         this.applyPlayerPortraitOverrides(engine, portraitIds);

@@ -271,6 +271,18 @@ export class GameEngine implements EngineContext {
         this.state.terrainManager = v;
     }
 
+    get mapPOIs(): import('../terrain/segmentSchema').MapSegmentPOI[] {
+        return this.state.mapPOIs;
+    }
+    set mapPOIs(v: import('../terrain/segmentSchema').MapSegmentPOI[]) {
+        this.state.mapPOIs = v;
+    }
+
+    /** Register POIs from the loaded terrain segments for use by spawn behaviours. */
+    registerMapPOIs(pois: import('../terrain/segmentSchema').MapSegmentPOI[]): void {
+        this.state.mapPOIs = pois;
+    }
+
     get pendingOrders(): OrderAtTick[] {
         return this.state.pendingOrders;
     }

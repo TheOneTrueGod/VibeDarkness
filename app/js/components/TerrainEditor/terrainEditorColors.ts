@@ -26,7 +26,7 @@ export const POI_STYLES: Record<POIType, POIStyle> = {
     crystal: { color: '#00BCD4', shape: 'diamond', label: 'Crystal' },
     nest: { color: '#4CAF50', shape: 'square', label: 'Nest' },
     patrol_point: { color: '#2196F3', shape: 'triangle', label: 'Patrol' },
-    spawn: { color: '#FFEB3B', shape: 'circle', label: 'Spawn' },
+    enemySpawn: { color: '#FFEB3B', shape: 'circle', label: 'Enemy Spawn Point' },
 };
 
 /** Pixels per grid cell in the editor canvas. */

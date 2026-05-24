@@ -31,6 +31,20 @@ export default function POIEditor({
         onUpdate({ ...selectedPOI, [field]: value });
     }
 
+    function handleTagsChange(raw: string) {
+        if (!selectedPOI) return;
+        const tags = raw
+            .split(',')
+            .map((t) => t.trim())
+            .filter((t) => t.length > 0);
+        if (tags.length === 0) {
+            const { tags: _t, ...rest } = selectedPOI;
+            onUpdate(rest as MapSegmentPOI);
+        } else {
+            onUpdate({ ...selectedPOI, tags });
+        }
+    }
+
     const showList = section === 'list' || section === 'all';
     const showProperties = section === 'properties' || section === 'all';
 
@@ -141,6 +155,17 @@ export default function POIEditor({
                             }}
                             className="w-full px-2 py-1 rounded bg-surface border border-border-custom text-white text-sm focus:outline-none focus:border-primary"
                             placeholder="None"
+                        />
+                    </label>
+
+                    <label className="flex flex-col gap-1">
+                        <span className="text-xs text-muted">Tags (comma-separated)</span>
+                        <input
+                            type="text"
+                            value={(selectedPOI.tags ?? []).join(', ')}
+                            onChange={(e) => handleTagsChange(e.target.value)}
+                            className="w-full px-2 py-1 rounded bg-surface border border-border-custom text-white text-sm focus:outline-none focus:border-primary"
+                            placeholder="e.g. north, ambush"
                         />
                     </label>
 

@@ -19,6 +19,7 @@ import type {
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
+import type { MapSegmentPOI } from '../terrain/segmentSchema';
 import { createPlayerUnit, createUnitFromSpawnConfig } from '../game/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
@@ -68,6 +69,8 @@ export interface InitializeGameStateParams {
     equippedItemsByPlayer?: Record<string, string[]>;
     /** Player research trees (playerId -> treeId -> researched node ids). Used for max health etc. */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
+    /** POIs collected from the fetched terrain segments; passed to the engine for spawn point lookups. */
+    terrainSegmentPOIs?: MapSegmentPOI[];
 }
 
 /** Mission definition extending MissionBattleConfig with initializeGameState. */
@@ -113,6 +116,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         engine.localPlayerId = params.localPlayerId;
         engine.terrainManager = params.terrainManager ?? null;
+        engine.registerMapPOIs(params.terrainSegmentPOIs ?? []);
 
         // Add player units
         const playerCount = params.playerUnits.length;

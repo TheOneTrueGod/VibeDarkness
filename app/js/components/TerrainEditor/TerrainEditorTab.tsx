@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useEditorState } from './useEditorState';
 import SegmentSelector from './SegmentSelector';
 import TerrainCanvas from './TerrainCanvas';
@@ -6,9 +6,14 @@ import ToolPicker from './ToolPicker';
 import TerrainTypePicker from './TerrainTypePicker';
 import BrushSizePicker from './BrushSizePicker';
 import POIEditor from './POIEditor';
+import AdjacentPreviewCanvas from './AdjacentPreviewCanvas';
+import { EDITOR_CELL_SIZE } from './terrainEditorColors';
 import type { MapSegmentData } from '../../games/minion_battles/terrain/segmentSchema';
 
 type RightTab = 'poi';
+
+const PREVIEW_DEPTH = 2;
+const PREVIEW_GAP = 8;
 
 function ChevronUp() {
     return (
@@ -44,45 +49,17 @@ export default function TerrainEditorTab() {
     const [availableSegments, setAvailableSegments] = useState<Map<string, MapSegmentData>>(new Map());
     const [rightTab, setRightTab] = useState<RightTab>('poi');
 
-    function getAdjacentSegment(dCol: number, dRow: number): MapSegmentData | null {
-        if (!state.segmentData) return null;
+    const adjacentSegments = useMemo(() => {
+        if (!state.segmentData) return { north: null, south: null, east: null, west: null };
         const { gridCol, gridRow } = state.segmentData;
-        const targetCol = gridCol + dCol;
-        const targetRow = gridRow + dRow;
-        for (const seg of availableSegments.values()) {
-            if (seg.gridCol === targetCol && seg.gridRow === targetRow) return seg;
-        }
-        return null;
-    }
-
-    function NavButton({
-        dCol,
-        dRow,
-        icon,
-        className,
-    }: {
-        dCol: number;
-        dRow: number;
-        icon: React.ReactNode;
-        className?: string;
-    }) {
-        const target = getAdjacentSegment(dCol, dRow);
-        return (
-            <button
-                type="button"
-                className={`flex w-full h-full items-center justify-center transition-colors ${
-                    target
-                        ? 'text-zinc-400 hover:text-white hover:bg-surface-light cursor-pointer'
-                        : 'text-zinc-800 cursor-not-allowed'
-                } ${className ?? ''}`}
-                disabled={!target}
-                onClick={() => target && actions.loadSegment(target)}
-                title={target ? `Load ${target.id}` : 'No adjacent segment'}
-            >
-                {icon}
-            </button>
-        );
-    }
+        const find = (dCol: number, dRow: number): MapSegmentData | null => {
+            for (const seg of availableSegments.values()) {
+                if (seg.gridCol === gridCol + dCol && seg.gridRow === gridRow + dRow) return seg;
+            }
+            return null;
+        };
+        return { north: find(0, -1), south: find(0, 1), west: find(-1, 0), east: find(1, 0) };
+    }, [state.segmentData, availableSegments]);
 
     async function saveSegment() {
         if (!state.segmentData) return;
@@ -98,6 +75,12 @@ export default function TerrainEditorTab() {
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${JSON.stringify(json)}`);
             actions.setSaveStatus('saved');
             actions.clearDirty();
+            const saved = state.segmentData;
+            setAvailableSegments(prev => {
+                const next = new Map(prev);
+                next.set(saved.id, saved);
+                return next;
+            });
             setTimeout(() => actions.setSaveStatus('idle'), 2000);
         } catch (err) {
             console.error('Failed to save segment:', err);
@@ -110,6 +93,11 @@ export default function TerrainEditorTab() {
         ? 'px-3 py-1.5 rounded text-sm font-medium bg-primary text-white transition-colors disabled:opacity-50'
         : 'px-3 py-1.5 rounded text-sm font-medium bg-surface border border-border-custom text-muted transition-colors disabled:opacity-50';
     const isSaveDisabled = state.saveStatus === 'saving' || !state.segmentData;
+
+    const S = EDITOR_CELL_SIZE;
+    const mainWidth = state.segmentData?.width ?? 0;
+    const mainHeight = state.segmentData?.height ?? 0;
+    const prevPx = PREVIEW_DEPTH * S;
 
     return (
         <div className="flex flex-col h-full bg-surface">
@@ -162,58 +150,83 @@ export default function TerrainEditorTab() {
                     )}
                 </div>
 
-                {/* Center: canvas with nav buttons + properties at bottom */}
-                <div className="flex flex-col flex-1 items-center">
-                    {/*
-                     * Nav layout: left/right buttons are fixed-width columns outside
-                     * the canvas; they use self-stretch so they span the full canvas height.
-                     * The canvas is never clipped — the outer body scrolls if needed.
-                     *
-                     *  [left-col: spacer | Left | spacer]
-                     *  [center-col: Up | Canvas | Down]
-                     *  [right-col: spacer | Right | spacer]
-                     */}
-                    <div className="flex">
-                        {/* Left nav column */}
-                        <div className="w-12 shrink-0 self-stretch flex flex-col">
-                            <div className="h-12 shrink-0" />
-                            <div className="flex-1">
-                                <NavButton dCol={-1} dRow={0} icon={<ChevronLeft />} />
-                            </div>
-                            <div className="h-12 shrink-0" />
-                        </div>
+                {/* Center: canvas with adjacent previews */}
+                <div className="flex flex-col flex-1 items-center justify-start p-3 overflow-auto">
+                    {state.segmentData ? (
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: `${prevPx}px ${mainWidth * S}px ${prevPx}px`,
+                            gridTemplateRows: `${prevPx}px ${mainHeight * S}px ${prevPx}px`,
+                            gap: `${PREVIEW_GAP}px`,
+                        }}>
+                            {/* NW corner */}
+                            <div className="rounded-sm bg-zinc-900" />
 
-                        {/* Center: up + canvas (always full size) + down */}
-                        <div className="flex flex-col">
-                            <div className="h-12">
-                                <NavButton dCol={0} dRow={-1} icon={<ChevronUp />} />
-                            </div>
-                            <div className="p-3">
-                                <TerrainCanvas
-                                    state={state}
-                                    actions={{
-                                        setHoveredCell: actions.setHoveredCell,
-                                        paintCells: actions.paintCells,
-                                        addPOI: actions.addPOI,
-                                        selectPOI: actions.selectPOI,
-                                    }}
-                                />
-                            </div>
-                            <div className="h-12">
-                                <NavButton dCol={0} dRow={1} icon={<ChevronDown />} />
-                            </div>
-                        </div>
+                            {/* North preview */}
+                            <AdjacentPreviewCanvas
+                                segment={adjacentSegments.north}
+                                direction="north"
+                                mainWidth={mainWidth}
+                                mainHeight={mainHeight}
+                                onClick={adjacentSegments.north ? () => actions.loadSegment(adjacentSegments.north!) : null}
+                                icon={<ChevronUp />}
+                            />
 
-                        {/* Right nav column */}
-                        <div className="w-12 shrink-0 self-stretch flex flex-col">
-                            <div className="h-12 shrink-0" />
-                            <div className="flex-1">
-                                <NavButton dCol={1} dRow={0} icon={<ChevronRight />} />
-                            </div>
-                            <div className="h-12 shrink-0" />
-                        </div>
-                    </div>
+                            {/* NE corner */}
+                            <div className="rounded-sm bg-zinc-900" />
 
+                            {/* West preview */}
+                            <AdjacentPreviewCanvas
+                                segment={adjacentSegments.west}
+                                direction="west"
+                                mainWidth={mainWidth}
+                                mainHeight={mainHeight}
+                                onClick={adjacentSegments.west ? () => actions.loadSegment(adjacentSegments.west!) : null}
+                                icon={<ChevronLeft />}
+                            />
+
+                            {/* Main canvas */}
+                            <TerrainCanvas
+                                state={state}
+                                actions={{
+                                    setHoveredCell: actions.setHoveredCell,
+                                    paintCells: actions.paintCells,
+                                    addPOI: actions.addPOI,
+                                    selectPOI: actions.selectPOI,
+                                }}
+                            />
+
+                            {/* East preview */}
+                            <AdjacentPreviewCanvas
+                                segment={adjacentSegments.east}
+                                direction="east"
+                                mainWidth={mainWidth}
+                                mainHeight={mainHeight}
+                                onClick={adjacentSegments.east ? () => actions.loadSegment(adjacentSegments.east!) : null}
+                                icon={<ChevronRight />}
+                            />
+
+                            {/* SW corner */}
+                            <div className="rounded-sm bg-zinc-900" />
+
+                            {/* South preview */}
+                            <AdjacentPreviewCanvas
+                                segment={adjacentSegments.south}
+                                direction="south"
+                                mainWidth={mainWidth}
+                                mainHeight={mainHeight}
+                                onClick={adjacentSegments.south ? () => actions.loadSegment(adjacentSegments.south!) : null}
+                                icon={<ChevronDown />}
+                            />
+
+                            {/* SE corner */}
+                            <div className="rounded-sm bg-zinc-900" />
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center h-64 text-muted">
+                            No segment loaded
+                        </div>
+                    )}
                 </div>
 
                 {/* Right sidebar: tabbed POI list */}

@@ -23,7 +23,7 @@ export type LevelEventTrigger =
     | { afterSeconds: number };
 
 /** Behaviour for where a spawn wave places units. */
-export type SpawnBehaviour = 'edgeOfMap' | 'darkness' | 'anywhere';
+export type SpawnBehaviour = 'edgeOfMap' | 'darkness' | 'anywhere' | 'closestEnemySpawnPoint';
 
 /** Optional target area for spawn placement (world coordinates, radius in tiles). */
 export interface SpawnTarget {
@@ -58,6 +58,26 @@ export interface SpawnWaveEntry {
     lanterniteNestOwnerUnitId?: string;
     lanternPatrolFarWorld?: { x: number; y: number };
     lanternPatrolLeg?: 'toFar' | 'toNest';
+    /**
+     * Config for `spawnBehaviour: 'closestEnemySpawnPoint'`.
+     * Selects the closest enemySpawn POI (by grid distance from any living player unit),
+     * then spawns units near it.
+     */
+    enemySpawnPointConfig?: {
+        /**
+         * Spawn radius around the chosen POI in tiles.
+         * 0 (default) means only the POI cell itself.
+         */
+        radius?: number;
+        /**
+         * If true, the spawn tile must be in darkness (same check as `spawnBehaviour: 'darkness'`).
+         */
+        inDarkness?: boolean;
+        /**
+         * If provided, only POIs whose `tags` array contains ALL of these tags are eligible.
+         */
+        matchesTags?: string[];
+    };
 }
 
 /** Victory condition: eliminate all enemy units. */

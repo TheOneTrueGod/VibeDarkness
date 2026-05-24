@@ -17,6 +17,7 @@ import { LightSourceManager } from './lightSources/LightSourceManager';
 import { EffectEmitterManager } from './effects/EffectEmitterManager';
 import { fingerprintInitial, FingerprintRing, type Fingerprint64 } from './Fingerprint';
 import type { BramblePatch } from './brambleSlow';
+import type { MapSegmentPOI } from '../terrain/segmentSchema';
 
 export class GameState {
     readonly eventBus = new EventBus();
@@ -57,6 +58,9 @@ export class GameState {
 
     /** Active bramble slow zones (game-state objects, not visual effects). */
     bramblePatches: BramblePatch[] = [];
+
+    /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */
+    mapPOIs: MapSegmentPOI[] = [];
 
     /** Orders scheduled to be applied at specific game ticks. */
     pendingOrders: OrderAtTick[] = [];

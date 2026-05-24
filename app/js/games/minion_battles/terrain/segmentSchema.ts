@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TerrainType } from './TerrainType';
 
-export const POI_TYPES = ['generic', 'campfire', 'crystal', 'nest', 'patrol_point', 'spawn'] as const;
+export const POI_TYPES = ['generic', 'campfire', 'crystal', 'nest', 'patrol_point', 'enemySpawn'] as const;
 export type POIType = typeof POI_TYPES[number];
 
 export const MapSegmentPOISchema = z.object({
@@ -11,6 +11,8 @@ export const MapSegmentPOISchema = z.object({
     row: z.number().int().nonnegative(),
     type: z.enum(POI_TYPES).default('generic'),
     radius: z.number().nonnegative().optional(),
+    /** Optional tags for filtering POIs by game logic (e.g. spawnBehaviour: 'closestEnemySpawnPoint'). */
+    tags: z.array(z.string()).optional(),
 });
 export type MapSegmentPOI = z.infer<typeof MapSegmentPOISchema>;
 
