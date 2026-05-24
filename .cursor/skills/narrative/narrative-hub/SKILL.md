@@ -30,6 +30,7 @@ Use the **Read** tool on these paths from the repo root (not optional for the ta
 | Task | Read first |
 |------|------------|
 | Any lore that could contradict setting or history | `.cursor/skills/narrative/lore-primer/LORE.md` |
+| Faction identity, mechanics, and code entry points | `docs/factions/INDEX.md` — then the linked faction doc |
 | Enemy names, factions, bestiary tone | `.cursor/skills/narrative/writing-style-enemies/STYLE.md` (creature types ↔ optional `creatureType` on unit defs; see that skill) |
 | Ability names, descriptions, UI hints, battle wording | `.cursor/skills/narrative/writing-style-abilities/STYLE.md` |
 | Recurring character voice and bios | `.cursor/skills/narrative/writing-style-characters/STYLE.md` (if no sheet for that character: search game data, then **stop and ask** with grounded proposals—see “missing voice sheet” there; **never** invent fixed canon voice with no user check) |
