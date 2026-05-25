@@ -254,6 +254,12 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             if (spawn.lanternPatrolLeg === 'toFar' || spawn.lanternPatrolLeg === 'toNest') {
                 unit.lanternPatrolLeg = spawn.lanternPatrolLeg;
             }
+            if (spawn.lanterniteRole != null) {
+                unit.lanterniteRole = spawn.lanterniteRole;
+            }
+            if (spawn.lanterniteTargetNestPoiId != null) {
+                unit.lanterniteTargetNestPoiId = spawn.lanterniteTargetNestPoiId;
+            }
             initializeAbilityRuntimeForUnit(unit);
             attachAmmoIfNeeded(engine, unit);
             engine.addUnit(unit);

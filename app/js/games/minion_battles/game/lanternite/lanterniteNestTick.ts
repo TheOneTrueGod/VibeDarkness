@@ -63,6 +63,22 @@ export function processLanterniteNests(params: {
             continue;
         }
 
+        // Skip if another scout already built a nest at this POI
+        if (unit.lanterniteTargetNestPoiId != null) {
+            const alreadyOccupied = params.units.some(
+                (u) =>
+                    u.characterId === LANTERNITE_NEST_CHARACTER_ID &&
+                    u.isAlive() &&
+                    u.lanterniteHomeNestPoiId === unit.lanterniteTargetNestPoiId,
+            );
+            if (alreadyOccupied) {
+                unit.hp = 0;
+                unit.active = false;
+                params.eventBus.emit('unit_died', { unitId: unit.id, killerUnitId: null });
+                continue;
+            }
+        }
+
         const parentNestId = unit.lanterniteNestOwnerUnitId;
         const parentNest = parentNestId
             ? params.units.find((u) => u.id === parentNestId)

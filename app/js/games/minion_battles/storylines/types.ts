@@ -106,11 +106,19 @@ export interface VictoryConditionAtLeastRound {
     round: number;
 }
 
+/** True when at least `minCount` alive units with the given characterId exist. */
+export interface VictoryConditionAliveUnitCount {
+    type: 'aliveUnitCount';
+    characterId: string;
+    minCount: number;
+}
+
 export type VictoryCondition =
     | VictoryConditionEliminateAllEnemies
     | VictoryConditionAllUnitsNearPosition
     | VictoryConditionUnitDead
-    | VictoryConditionAtLeastRound;
+    | VictoryConditionAtLeastRound
+    | VictoryConditionAliveUnitCount;
 
 /** When an objective completes, run these in order (host only for npcChat). */
 export type ObjectiveOnCompleteEffect =
@@ -266,6 +274,10 @@ export interface EnemySpawnDef {
     lanterniteNestOwnerUnitId?: string;
     lanternPatrolFarWorld?: { x: number; y: number };
     lanternPatrolLeg?: 'toFar' | 'toNest';
+    /** Assign a role for the lanterniteNetwork AI tree ('scout' heads to targetNestPoiId; 'defender' guards home nest). */
+    lanterniteRole?: 'scout' | 'defender';
+    /** POI id of the nest this scout is traveling to build. Requires lanterniteRole: 'scout'. */
+    lanterniteTargetNestPoiId?: string;
 }
 
 /** Tags that can be applied to special tile placements (e.g. destructible). */
