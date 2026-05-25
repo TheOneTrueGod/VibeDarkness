@@ -5,6 +5,7 @@ import { pathShortCommuteScenario } from '../scenarios/general/pathfinding';
 import { punchBaselineScenario } from '../scenarios/abilities/punchResearch';
 import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordResearch';
 import { absorptionShieldEnergyChargeScenario } from '../scenarios/abilities/absorptionShieldScenario';
+import { lanterniteNestBuildScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
 
 describe('runScenarioHeadless', () => {
     it('passes short pathfinding commute', () => {
@@ -31,5 +32,15 @@ describe('runScenarioHeadless', () => {
     it('getScenarioById returns registered scenario', () => {
         const s = getScenarioById('path_short_commute');
         expect(s?.id).toBe('path_short_commute');
+    });
+
+    it('passes lanternite light-pulse attack scenario', () => {
+        const r = runScenarioHeadless(lanterniteDefenderAttackScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes lanternite nest build scenario', () => {
+        const r = runScenarioHeadless(lanterniteNestBuildScenario);
+        expect(r.passed, r.message).toBe(true);
     });
 });

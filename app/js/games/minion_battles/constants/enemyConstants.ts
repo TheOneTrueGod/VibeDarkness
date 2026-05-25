@@ -92,7 +92,7 @@ export const ALLY_LANTERNITE: EnemySpawnDef = {
     name: 'Lanternite',
     position: { x: 0, y: 0 },
     teamId: 'allied',
-    abilities: [],
+    abilities: ['0010'],
     aiSettings: { minRange: 0, maxRange: 600 },
 };
 

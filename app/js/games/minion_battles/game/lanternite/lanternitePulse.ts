@@ -110,4 +110,5 @@ export function prepareLanterniteNestForMissionStart(unit: Unit, gameTime: numbe
 
 export function hydrateLanterniteNestFromMissionDef(unit: Unit, cfg: LanterniteNestMissionConfig): void {
     unit.lanterniteNestConfig = cfg;
+    if (cfg.nestPoiId) unit.lanterniteHomeNestPoiId = cfg.nestPoiId;
 }

@@ -194,6 +194,9 @@ export class EmberThresholdMission extends BaseMissionDef {
                 maxLanternites: 3,
                 spawnIntervalSec: 14,
                 patrolDestination: { kind: 'world' as const, x: PATROL_WORLD.x, y: PATROL_WORLD.y },
+                networked: true,
+                nestPoiId: 'nest_west',
+                scoutConstructionSec: 12,
             },
         },
         {

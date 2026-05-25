@@ -465,6 +465,13 @@ export class LobbyClient {
         };
     }
 
+    async setEmergencyRecovery(accountId: number | string, action: 'enable' | 'disable'): Promise<void> {
+        await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}/emergency-recovery`, {
+            method: 'POST',
+            body: JSON.stringify({ action }),
+        });
+    }
+
     async grantCampaignResource(
         campaignId: string,
         resourceKey: CampaignResourceKey,

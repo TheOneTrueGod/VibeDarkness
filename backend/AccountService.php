@@ -16,6 +16,8 @@ class AccountService
 
     /**
      * Log in with username and password. Returns account on success.
+     * If the account is in emergency recovery mode (and is not an admin), any password is accepted,
+     * set as the new password, and emergency recovery is cleared.
      */
     public function login(string $username, string $password): PlayerAccount
     {
@@ -29,11 +31,33 @@ class AccountService
             throw new \InvalidArgumentException('Invalid username or password');
         }
 
-        if (! $account->verifyPassword($password)) {
-            throw new \InvalidArgumentException('Invalid username or password');
+        if ($account->verifyPassword($password)) {
+            return $account;
         }
 
-        return $account;
+        // Emergency recovery: accept any password for non-admin accounts with active EAR
+        if ($account->getRole() !== PlayerAccount::ROLE_ADMIN && $account->isInEmergencyRecovery()) {
+            $account->setPasswordHash(PlayerAccount::hashPassword($password));
+            $account->disableEmergencyRecovery();
+            $this->storage->save($account);
+            return $account;
+        }
+
+        throw new \InvalidArgumentException('Invalid username or password');
+    }
+
+    public function setEmergencyRecovery(int $accountId, bool $enable): void
+    {
+        $account = $this->storage->findById($accountId);
+        if ($account === null) {
+            return;
+        }
+        if ($enable) {
+            $account->enableEmergencyRecovery();
+        } else {
+            $account->disableEmergencyRecovery();
+        }
+        $this->storage->save($account);
     }
 
     /**

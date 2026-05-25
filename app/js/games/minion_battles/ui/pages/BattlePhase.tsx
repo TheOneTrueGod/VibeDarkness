@@ -25,6 +25,7 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
+import { getLightGrid } from '../../game/LightGrid';
 import {
     PLAYER_MOVE_WAYPOINT_MAX,
     buildPlayerMovePathThroughWaypoints,
@@ -56,6 +57,7 @@ declare global {
             row: number;
             col: number;
             terrainName: string;
+            lightLevel: number | null;
         };
         /**
          * Debug focus/outline: used by DebugConsole when the user hovers a unit in the UI.
@@ -880,12 +882,24 @@ export default function BattlePhase({
                 const terrain = engine.terrainManager.getTerrainAt(clampedX, clampedY);
                 const terrainName = TERRAIN_PROPERTIES[terrain]?.name ?? String(terrain);
 
+                let lightLevel: number | null = null;
+                if (engine.lightLevelEnabled) {
+                    const lightGrid = getLightGrid(
+                        engine.globalLightLevel,
+                        grid.width,
+                        grid.height,
+                        engine.getAllLightSources(),
+                    );
+                    lightLevel = lightGrid[row]?.[col] ?? null;
+                }
+
                 window.__minionBattlesDebugMouse = {
                     worldX: clampedX,
                     worldY: clampedY,
                     row,
                     col,
                     terrainName,
+                    lightLevel,
                 };
             }
         }

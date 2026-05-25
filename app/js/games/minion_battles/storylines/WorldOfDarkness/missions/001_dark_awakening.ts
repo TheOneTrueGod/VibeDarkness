@@ -112,8 +112,8 @@ function createTerrain(): TerrainGrid {
 }
 
 const ENEMIES = [
-    { ...ENEMY_DARK_WOLF, position: { x: 300, y: 300 } },
-    { ...ENEMY_DARK_WOLF, position: { x: 450, y: 500 } },
+    { ...ENEMY_DARK_WOLF, position: { x: 450, y: 370 } },
+    { ...ENEMY_DARK_WOLF, position: { x: 530, y: 500 } },
     { ...ENEMY_DARK_WOLF, position: { x: 350, y: 600 } },
 ];
 

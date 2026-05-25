@@ -1069,6 +1069,8 @@ export class GameEngine implements EngineContext {
             eventBus: this.eventBus,
             addUnit: (u) => this.addUnit(u),
             idSource: this,
+            mapPOIs: this.mapPOIs,
+            terrainGrid: this.terrainManager?.grid ?? null,
         });
         this.drainLanterniteRespawns();
         this.state.unitManager.cleanupInactive();

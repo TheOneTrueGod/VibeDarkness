@@ -26,6 +26,7 @@ import {
     swingSwordHitsTwoTargetsScenario,
 } from './abilities/swingSwordResearch';
 import { absorptionShieldEnergyChargeScenario } from './abilities/absorptionShieldScenario';
+import { lanterniteNestBuildScenario, lanterniteDefenderAttackScenario } from './general/lanternites';
 
 export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathStraightMoveScenario,
@@ -47,6 +48,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     swingSwordExtraUsesScenario,
     bossStunMechanicsScenario,
     absorptionShieldEnergyChargeScenario,
+    lanterniteNestBuildScenario,
+    lanterniteDefenderAttackScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -62,6 +65,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'movement', section: 'Movement' },
     { slug: 'debuffs', section: 'Debuffs' },
     { slug: 'enemies', section: 'Enemies' },
+    { slug: 'lanternites', section: 'Lanternites' },
 ];
 
 export interface GeneralTestSidebarGroup {

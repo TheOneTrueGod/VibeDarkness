@@ -28,6 +28,8 @@ export interface AccountState {
     campaignIds?: string[];
     inventoryItemIds?: string[];
     knowledge?: Record<string, Record<string, unknown>>;
+    /** Unix timestamp when emergency recovery expires, null/undefined if not active */
+    emergencyRecoveryExpiresAt?: number | null;
 }
 
 export interface CampaignCharacter {

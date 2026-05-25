@@ -2,7 +2,7 @@
  * Admin-only Players panel on the campaign home screen.
  * Lets admins browse ALL accounts, inspect their characters, and grant/equip items.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AccountState } from '../types';
 import { LobbyClient } from '../LobbyClient';
 import CharacterEditor from '../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
@@ -12,6 +12,13 @@ import type { CampaignCharacterData } from '../games/minion_battles/character_de
 import { getPortrait } from '../games/minion_battles/character_defs/portraits';
 import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
 import { useUser } from '../contexts/UserContext';
+
+function formatCountdown(seconds: number): string {
+    if (seconds <= 0) return '0s';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
 
 function getItemName(itemId: string): string {
     return getItemDef(itemId)?.name ?? itemId;
@@ -29,17 +36,26 @@ function AccountCard({
     account,
     selected,
     onSelect,
+    now,
 }: {
     account: AccountState;
     selected: boolean;
     onSelect: () => void;
+    now: number;
 }) {
+    const earSecondsLeft = account.emergencyRecoveryExpiresAt
+        ? Math.max(0, account.emergencyRecoveryExpiresAt - now)
+        : 0;
+    const inEAR = earSecondsLeft > 0;
+
     return (
         <button
             type="button"
             onClick={onSelect}
             className={`w-full rounded-lg border-2 px-4 py-3 text-left transition-colors ${
-                selected
+                inEAR
+                    ? 'border-red-500 bg-surface hover:border-red-400'
+                    : selected
                     ? 'border-primary bg-surface-light shadow-[0_0_0_1px_rgba(78,205,196,0.2)]'
                     : 'border-border-custom bg-surface hover:border-primary'
             }`}
@@ -49,8 +65,15 @@ function AccountCard({
                     <p className="font-semibold text-white truncate">{account.name}</p>
                     <p className="text-xs text-muted">{account.role === 'admin' ? 'Admin' : 'Player'}</p>
                 </div>
-                <div className="rounded-md border border-border-custom bg-dark-700 px-2 py-1 text-xs text-muted shrink-0">
-                    #{account.id}
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                    {inEAR && (
+                        <span className="text-[10px] font-bold text-red-400">
+                            EAR: {formatCountdown(earSecondsLeft)}
+                        </span>
+                    )}
+                    <div className="rounded-md border border-border-custom bg-dark-700 px-2 py-1 text-xs text-muted">
+                        #{account.id}
+                    </div>
                 </div>
             </div>
         </button>
@@ -137,6 +160,8 @@ export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: Lo
     const api = useMemo(() => new MinionBattlesApi(lobbyClient, '', '', ''), [lobbyClient]);
     const [accounts, setAccounts] = useState<AccountState[]>([]);
     const [accountsLoading, setAccountsLoading] = useState(false);
+    const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+    const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
     const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
@@ -270,6 +295,43 @@ export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: Lo
         }
     }, [grantKnowledgeKey, lobbyClient, refreshSelectedAccount, selectedAccountId]);
 
+    const handleSetEmergencyRecovery = useCallback(async (action: 'enable' | 'disable') => {
+        if (selectedAccountId == null) return;
+        try {
+            await lobbyClient.setEmergencyRecovery(selectedAccountId, action);
+            await Promise.all([loadDetails(selectedAccountId), loadAccounts()]);
+        } catch (error) {
+            console.error('Failed to set emergency recovery:', error);
+        }
+    }, [lobbyClient, loadDetails, loadAccounts, selectedAccountId]);
+
+    // Tick every second while any account has an active EAR timer
+    useEffect(() => {
+        const anyEAR =
+            accounts.some((a) => a.emergencyRecoveryExpiresAt && a.emergencyRecoveryExpiresAt > now) ||
+            !!(details?.account.emergencyRecoveryExpiresAt && details.account.emergencyRecoveryExpiresAt > now);
+
+        if (anyEAR) {
+            if (tickerRef.current === null) {
+                tickerRef.current = setInterval(() => {
+                    setNow(Math.floor(Date.now() / 1000));
+                }, 1000);
+            }
+        } else {
+            if (tickerRef.current !== null) {
+                clearInterval(tickerRef.current);
+                tickerRef.current = null;
+            }
+        }
+        return () => {};
+    }, [accounts, details, now]);
+
+    useEffect(() => {
+        return () => {
+            if (tickerRef.current !== null) clearInterval(tickerRef.current);
+        };
+    }, []);
+
     if (selectedAccountId == null) {
         return (
             <div className="w-full h-full overflow-auto p-5">
@@ -301,6 +363,7 @@ export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: Lo
                                 account={account}
                                 selected={false}
                                 onSelect={() => setSelectedAccountId(account.id)}
+                                now={now}
                             />
                         ))}
                     </div>
@@ -315,9 +378,46 @@ export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: Lo
                 <div className="flex items-center justify-between gap-3 shrink-0">
                     <div>
                         <h2 className="text-[32px] font-bold">Players</h2>
-                        <p className="text-sm text-muted">{selectedAccount?.name ?? `Account #${selectedAccountId}`}</p>
+                        <div className="flex items-center gap-3">
+                            <p className="text-sm text-muted">{selectedAccount?.name ?? `Account #${selectedAccountId}`}</p>
+                            {(() => {
+                                const expiresAt = details?.account.emergencyRecoveryExpiresAt;
+                                const secondsLeft = expiresAt ? Math.max(0, expiresAt - now) : 0;
+                                return secondsLeft > 0 ? (
+                                    <p className="text-sm font-semibold text-red-400">
+                                        Emergency Recovery: ({formatCountdown(secondsLeft)})
+                                    </p>
+                                ) : null;
+                            })()}
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {(() => {
+                            const expiresAt = details?.account.emergencyRecoveryExpiresAt;
+                            const secondsLeft = expiresAt ? Math.max(0, expiresAt - now) : 0;
+                            const inEAR = secondsLeft > 0;
+                            const isAdmin = selectedAccount?.role === 'admin';
+                            if (isAdmin) return null;
+                            return inEAR ? (
+                                <button
+                                    type="button"
+                                    onClick={() => void handleSetEmergencyRecovery('disable')}
+                                    className="rounded-lg border border-red-500 bg-surface-light px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-900/30 disabled:opacity-60"
+                                    disabled={detailsLoading}
+                                >
+                                    Disable Recovery
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => void handleSetEmergencyRecovery('enable')}
+                                    className="rounded-lg border border-red-700 bg-surface-light px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-900/30 disabled:opacity-60"
+                                    disabled={detailsLoading}
+                                >
+                                    Emergency Account Recovery
+                                </button>
+                            );
+                        })()}
                         <button
                             type="button"
                             onClick={() => void refreshSelectedAccount()}

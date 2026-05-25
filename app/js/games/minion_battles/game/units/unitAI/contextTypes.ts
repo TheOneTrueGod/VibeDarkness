@@ -12,6 +12,7 @@ import type { DefaultAITreeContext } from './default/context';
 import type { AlphaWolfBossAITreeContext } from './alphaWolfBoss/context';
 import type { AggroWanderAITreeContext } from './aggroWander/context';
 import type { LanternitePatrolAITreeContext } from './lanternitePatrol/context';
+import type { LanterniteNetworkAITreeContext } from './lanterniteNetwork/context';
 
 /** Maps tree IDs to their typed context shape. Extend when adding a new tree. */
 export interface AITreeContextMap {
@@ -20,6 +21,7 @@ export interface AITreeContextMap {
     aggroWander: AggroWanderAITreeContext;
     lanternitePatrol: LanternitePatrolAITreeContext;
     lanterniteNestIdle: UnitAIContextBase & { aiTree: 'lanterniteNestIdle' };
+    lanterniteNetwork: LanterniteNetworkAITreeContext;
 }
 
 export type AITreeId = keyof AITreeContextMap;

@@ -29,6 +29,10 @@ class PlayerAccount
     private array $inventoryItemIds;
     /** @var array<string, array<string, mixed>> */
     private array $knowledge;
+    /** Unix timestamp when emergency recovery expires, or null if not active */
+    private ?int $emergencyRecoveryExpiresAt;
+
+    public const EMERGENCY_RECOVERY_DURATION = 600; // 10 minutes
 
     public function __construct(
         int $id,
@@ -43,7 +47,8 @@ class PlayerAccount
         array $campaignIds = [],
         array $characterIds = [],
         array $inventoryItemIds = [],
-        array $knowledge = []
+        array $knowledge = [],
+        ?int $emergencyRecoveryExpiresAt = null
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -58,6 +63,7 @@ class PlayerAccount
         $this->characterIds = $characterIds;
         $this->inventoryItemIds = array_values($inventoryItemIds);
         $this->knowledge = is_array($knowledge) ? $knowledge : [];
+        $this->emergencyRecoveryExpiresAt = $emergencyRecoveryExpiresAt;
     }
 
     public function getRecentLobbies(): array
@@ -208,6 +214,31 @@ class PlayerAccount
         return password_verify($password, $this->passwordHash);
     }
 
+    public function setPasswordHash(string $hash): void
+    {
+        $this->passwordHash = $hash;
+    }
+
+    public function getEmergencyRecoveryExpiresAt(): ?int
+    {
+        return $this->emergencyRecoveryExpiresAt;
+    }
+
+    public function isInEmergencyRecovery(): bool
+    {
+        return $this->emergencyRecoveryExpiresAt !== null && $this->emergencyRecoveryExpiresAt > time();
+    }
+
+    public function enableEmergencyRecovery(): void
+    {
+        $this->emergencyRecoveryExpiresAt = time() + self::EMERGENCY_RECOVERY_DURATION;
+    }
+
+    public function disableEmergencyRecovery(): void
+    {
+        $this->emergencyRecoveryExpiresAt = null;
+    }
+
     public function getFire(): int
     {
         return $this->fire;
@@ -275,6 +306,7 @@ class PlayerAccount
             'characterIds' => array_values($this->characterIds),
             'inventoryItemIds' => array_values($this->inventoryItemIds),
             'knowledge' => $this->knowledge,
+            'emergencyRecoveryExpiresAt' => $this->emergencyRecoveryExpiresAt,
         ];
     }
 
@@ -303,6 +335,7 @@ class PlayerAccount
         $inventoryItemIds = is_array($inventoryItemIds) ? array_values(array_map('strval', $inventoryItemIds)) : [];
         $knowledge = $data['knowledge'] ?? [];
         $knowledge = is_array($knowledge) ? $knowledge : [];
+        $emergencyRecoveryExpiresAt = isset($data['emergencyRecoveryExpiresAt']) ? (int) $data['emergencyRecoveryExpiresAt'] : null;
         return new self(
             (int) $data['id'],
             $data['name'],
@@ -316,7 +349,8 @@ class PlayerAccount
             $campaignIds,
             $characterIds,
             $inventoryItemIds,
-            $knowledge
+            $knowledge,
+            $emergencyRecoveryExpiresAt
         );
     }
 

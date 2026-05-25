@@ -52,6 +52,7 @@ import { StoneyPunch } from '../card_defs/05_earth_core/0533_StoneyPunch/0533Abi
 import { BoarClawsAbility } from '../card_defs/05_earth_core/0534_BoarClaws/0534Ability';
 import { ThornbinderBrambleAbility } from '../card_defs/0008_ThornbinderBramble/0008Ability';
 import { HuskSeedBarrageAbility } from '../card_defs/0009_HuskSeedBarrage/0009Ability';
+import { LanterniteStrikeAbility } from '../card_defs/0010_LanterniteStrike/0010Ability';
 import { WaitAbility } from './WaitAbility';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
@@ -111,6 +112,7 @@ register(StoneyPunch);
 register(BoarClawsAbility);
 register(ThornbinderBrambleAbility);
 register(HuskSeedBarrageAbility);
+register(LanterniteStrikeAbility);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 

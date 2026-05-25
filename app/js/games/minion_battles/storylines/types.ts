@@ -224,7 +224,14 @@ export interface LanterniteNestMissionConfig {
     maxLanternites: number;
     /** Seconds between spawn attempts while below max alive children. */
     spawnIntervalSec: number;
+    /** Kept for non-networked backward compat; ignored when networked=true. */
     patrolDestination: LanternitePatrolDestination;
+    /** Opt into network behavior: scouts, defender roles, and nest construction. Default false. */
+    networked?: boolean;
+    /** ID of the `nest` POI this nest occupies at mission start. Required when networked=true. */
+    nestPoiId?: string;
+    /** Seconds for a scout to build a new nest on arrival (default 12). */
+    scoutConstructionSec?: number;
 }
 
 /** Config for a single enemy spawn. */

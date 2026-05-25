@@ -41,14 +41,16 @@ export function registerWorldOfDarknessSegments(): void {
         tsTerrainToSegmentData('49_50_path_to_cave', 49, 50, MAP_SEGMENT_49_50_PATH_TO_CAVE),
     );
 
-    // 49_51 West Glade — Lanternite nest focus
+    // 49_51 West Glade — Lanternite nest anchor (origin: col-offset=0, row-offset=22 in mission-007 2×2 world)
+    // POI col/row are stitched-world coordinates for the 44×44 mission-007 grid.
     const westGladePOIs: MapSegmentPOI[] = [
         {
-            id: 'lantern_nest_focus',
-            label: 'Lanternite Nest',
-            col: LANTERN_NEST_FOCUS.col,
-            row: LANTERN_NEST_FOCUS.row,
+            id: 'nest_west',
+            label: 'West Glade Nest',
+            col: LANTERN_NEST_FOCUS.col,           // 7 — same as segment-local (top-left origin)
+            row: 22 + LANTERN_NEST_FOCUS.row,      // 37 — stitched (row offset 22 for bottom segment row)
             type: 'nest',
+            tags: ['connects:nest_south'],
         },
     ];
     registerSegment(
@@ -149,14 +151,23 @@ export function registerWorldOfDarknessSegments(): void {
         ),
     );
 
-    // 50_51 South Gate — patrol draw point
+    // 50_51 South Gate — patrol draw point + second lanternite nest site
+    // POI col/row are stitched-world coordinates (col-offset=22, row-offset=22 in mission-007 2×2 world).
     const southGatePOIs: MapSegmentPOI[] = [
         {
             id: 'patrol_draw_point',
             label: 'Patrol Draw Point',
-            col: PATROL_DRAW_POINT.col,
-            row: PATROL_DRAW_POINT.row,
+            col: 22 + PATROL_DRAW_POINT.col,   // stitched (22+16=38)
+            row: 22 + PATROL_DRAW_POINT.row,   // stitched (22+11=33)
             type: 'patrol_point',
+        },
+        {
+            id: 'nest_south',
+            label: 'South Gate Nest',
+            col: 22 + 9,  // stitched — segment-local (9, 11) on the dirt corridor
+            row: 22 + 11,
+            type: 'nest',
+            tags: ['connects:nest_west'],
         },
     ];
     registerSegment(

@@ -243,6 +243,21 @@ export class Unit extends GameObject {
     /** Spawn pacing + bookkeeping for Lanternites created by this nest. */
     lanterniteNestSpawnState: { spawnedIds: string[]; nextSpawnAtGameTime: number } | null = null;
 
+    /** Role assigned by the nest at spawn for networked behavior. */
+    lanterniteRole: 'scout' | 'defender' | null = null;
+
+    /** Scout: ID of the target `nest` POI this scout is pathfinding toward. */
+    lanterniteTargetNestPoiId: string | null = null;
+
+    /** Nest unit: ID of the `nest` POI this nest occupies. */
+    lanterniteHomeNestPoiId: string | null = null;
+
+    /** Scout: game time when construction completes and a new nest should spawn. */
+    lanterniteConstructionCompleteAtGameTime: number | null = null;
+
+    /** Stagger offset: unit is eligible to attack once gameTime reaches this value. */
+    lanterniteAttackReadyAtGameTime: number = 0;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -872,6 +887,11 @@ export class Unit extends GameObject {
                       },
                   }
                 : {}),
+            ...(this.lanterniteRole != null ? { lanterniteRole: this.lanterniteRole } : {}),
+            ...(this.lanterniteTargetNestPoiId != null ? { lanterniteTargetNestPoiId: this.lanterniteTargetNestPoiId } : {}),
+            ...(this.lanterniteHomeNestPoiId != null ? { lanterniteHomeNestPoiId: this.lanterniteHomeNestPoiId } : {}),
+            ...(this.lanterniteConstructionCompleteAtGameTime != null ? { lanterniteConstructionCompleteAtGameTime: this.lanterniteConstructionCompleteAtGameTime } : {}),
+            ...(this.lanterniteAttackReadyAtGameTime !== 0 ? { lanterniteAttackReadyAtGameTime: this.lanterniteAttackReadyAtGameTime } : {}),
         };
     }
 
@@ -927,6 +947,21 @@ export class Unit extends GameObject {
             if (typeof s.nextSpawnAtGameTime === 'number') {
                 unit.lanterniteNestSpawnState = { spawnedIds: ids, nextSpawnAtGameTime: s.nextSpawnAtGameTime };
             }
+        }
+        if (data.lanterniteRole === 'scout' || data.lanterniteRole === 'defender') {
+            unit.lanterniteRole = data.lanterniteRole;
+        }
+        if (typeof data.lanterniteTargetNestPoiId === 'string') {
+            unit.lanterniteTargetNestPoiId = data.lanterniteTargetNestPoiId;
+        }
+        if (typeof data.lanterniteHomeNestPoiId === 'string') {
+            unit.lanterniteHomeNestPoiId = data.lanterniteHomeNestPoiId;
+        }
+        if (typeof data.lanterniteConstructionCompleteAtGameTime === 'number') {
+            unit.lanterniteConstructionCompleteAtGameTime = data.lanterniteConstructionCompleteAtGameTime;
+        }
+        if (typeof data.lanterniteAttackReadyAtGameTime === 'number') {
+            unit.lanterniteAttackReadyAtGameTime = data.lanterniteAttackReadyAtGameTime;
         }
 
         // Restore movement
