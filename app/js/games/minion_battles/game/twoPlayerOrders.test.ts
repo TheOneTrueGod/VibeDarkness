@@ -111,10 +111,10 @@ describe('Two-player order turns', () => {
         advanceUntilOrderPause(engine);
         expect(engine.waitingForOrders).not.toBeNull();
 
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', 6, 5));
         expect(engine.waitingForOrders).not.toBeNull();
 
-        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p2', 9, 5));
         expect(engine.waitingForOrders).toBeNull();
 
         engine.destroy();
@@ -125,8 +125,8 @@ describe('Two-player order turns', () => {
         const emitSpy = vi.spyOn(engine.eventBus, 'emit');
 
         advanceUntilOrderPause(engine);
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
-        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p2', 9, 5));
 
         const turnEnds = emitSpy.mock.calls.filter((c) => c[0] === 'turn_end');
         expect(turnEnds).toHaveLength(1);
@@ -144,8 +144,8 @@ describe('Two-player order turns', () => {
         advanceUntilOrderPause(engine);
         expect(engine.waitingForOrders!.waiters).toHaveLength(2);
 
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
-        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p2', 9, 5));
         expect(engine.waitingForOrders).toBeNull();
 
         stepEngine(engine, 300);
@@ -171,10 +171,10 @@ describe('Two-player order turns', () => {
         expect(turnLog).toHaveLength(1);
         expect(turnLog[0]!.waiters).toHaveLength(2);
 
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', 6, 5));
         expect(turnLog).toHaveLength(1);
 
-        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p2', 9, 5));
         expect(turnLog).toHaveLength(1);
 
         stepEngine(engine, 300);
@@ -190,8 +190,8 @@ describe('Two-player order turns', () => {
         const tick1 = engine.gameTick;
         const time1 = engine.gameTime;
 
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
-        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p2', 9, 5));
         stepEngine(engine, 5);
 
         expect(engine.gameTick).toBeGreaterThan(tick1);
@@ -206,10 +206,10 @@ describe('Two-player order turns', () => {
         advanceUntilOrderPause(engine);
         const snapPause = engine.snapshotIndex;
 
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', 6, 5));
         expect(engine.snapshotIndex).toBe(snapPause);
 
-        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p2', 9, 5));
         expect(engine.waitingForOrders).toBeNull();
 
         stepEngine(engine, 300);
@@ -224,11 +224,11 @@ describe('Two-player order turns', () => {
         advanceUntilOrderPause(engine);
         expect(engine.waitingForOrders!.waiters.some((w) => w.ownerId === 'p1')).toBe(true);
 
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', 6, 5));
         expect(engine.waitingForOrders).not.toBeNull();
 
         const atTick = engine.waitingForOrders!.atTick;
-        engine.queueOrder(atTick, makeWaitOrder('unit_p2', 9, 5));
+        engine.state.orderMgr.queueOrder(atTick, makeWaitOrder('unit_p2', 9, 5));
         engine.tryResumeParallel();
 
         expect(engine.waitingForOrders).toBeNull();
@@ -250,10 +250,10 @@ describe('Two-player order turns', () => {
         });
         engine.setOnParallelBatchResolved(() => gate);
 
-        engine.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', 6, 5));
         expect(engine.waitingForOrders).not.toBeNull();
 
-        engine.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p2', 9, 5));
 
         await Promise.resolve();
         expect(engine.waitingForOrders).not.toBeNull();
@@ -278,10 +278,10 @@ describe('Two-player order turns', () => {
             for (const waiter of batch!.waiters) {
                 if (waiter.unitId === 'unit_p1') {
                     p1Col++;
-                    engine.applyOrder(makeWaitOrder('unit_p1', p1Col, 5));
+                    engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', p1Col, 5));
                 } else if (waiter.unitId === 'unit_p2') {
                     p2Col++;
-                    engine.applyOrder(makeWaitOrder('unit_p2', p2Col, 5));
+                    engine.state.orderMgr.applyOrder(makeWaitOrder('unit_p2', p2Col, 5));
                 }
             }
             expect(engine.waitingForOrders).toBeNull();
@@ -299,7 +299,7 @@ describe('Two-player order turns', () => {
     it('past-due queueOrder snaps to current gameTick (late multiplayer delivery)', () => {
         const { engine } = createTwoPlayerEngine();
         engine.gameTick = 42;
-        engine.queueOrder(10, makeWaitOrder('unit_p1', 6, 5));
+        engine.state.orderMgr.queueOrder(10, makeWaitOrder('unit_p1', 6, 5));
         expect(engine.pendingOrders.some((o) => o.gameTick === 42)).toBe(true);
         engine.destroy();
     });
@@ -307,9 +307,9 @@ describe('Two-player order turns', () => {
     it('hasPendingOrderForUnit satisfies batch.atTick using clamped-later rows', () => {
         const { engine } = createTwoPlayerEngine();
         engine.gameTick = 100;
-        engine.queueOrder(10, makeWaitOrder('unit_p2', 9, 5));
-        expect(engine.hasPendingOrderForUnit('unit_p2', 10)).toBe(true);
-        expect(engine.hasPendingOrderForUnit('unit_p2', 101)).toBe(false);
+        engine.state.orderMgr.queueOrder(10, makeWaitOrder('unit_p2', 9, 5));
+        expect(engine.state.orderMgr.hasPendingOrderForUnit('unit_p2', 10)).toBe(true);
+        expect(engine.state.orderMgr.hasPendingOrderForUnit('unit_p2', 101)).toBe(false);
         engine.destroy();
     });
 });

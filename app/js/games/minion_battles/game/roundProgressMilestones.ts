@@ -13,21 +13,14 @@ export type RoundProgressMilestone = 'round_start' | 'round_half';
 export interface RoundProgressMilestoneContext {
     units: Unit[];
     eventBus: EventBus;
-    applyStaminaPulse: () => void;
-    applyChargedRocksLightChargePulse: () => void;
-    applyRoundChargePulse: () => void;
     bleedFx?: BleedDamageFxContext;
 }
 
 /**
  * Single entry point for gameplay that should align with round timer thresholds.
  * Call from GameEngine when crossing 0% (round start) and 50% of the current round.
+ * Round-start unit pulses (stamina surge, round charges) are handled by UnitManager.onRoundStart.
  */
 export function onRoundProgressMilestone(milestone: RoundProgressMilestone, ctx: RoundProgressMilestoneContext): void {
-    if (milestone === 'round_start') {
-        ctx.applyStaminaPulse();
-        ctx.applyChargedRocksLightChargePulse();
-        ctx.applyRoundChargePulse();
-    }
     tickBleedForRoundMilestone(ctx.units, ctx.eventBus, ctx.bleedFx);
 }

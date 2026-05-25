@@ -3,7 +3,13 @@ import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abi
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
 import { asCardDefId, type CardDef } from '../../types';
-import { BEDROCK_SCAVENGER_PASSIVE_ID } from '../../../abilities/earthCoreMeleePassives';
+import {
+    BEDROCK_SCAVENGER_PASSIVE_ID,
+    countStoneTilesInTremorsense,
+    getBedrockScavengerRoundStartArmour,
+} from '../../../abilities/earthCoreMeleePassives';
+import { grantEarthCoreArmourFromSource } from '../../../abilities/earthCoreArmour';
+import type { EngineContext } from '../../../game/EngineContext';
 
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'passive', start: 0, end: 0.01, abilityPhase: AbilityPhase.Active },
@@ -26,6 +32,13 @@ export const BedrockScavengerAbility: AbilityStatic = {
     },
     doCardEffect(_engine: unknown, _caster: Unit, _targets: ResolvedTarget[], _prevTime: number, _currentTime: number): void {},
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
+    onRoundStart(unit: Unit, engine: EngineContext): void {
+        if (!engine.terrainManager) return;
+        const stoneTiles = countStoneTilesInTremorsense(unit, engine.terrainManager);
+        const armourGain = getBedrockScavengerRoundStartArmour(stoneTiles);
+        if (armourGain <= 0) return;
+        grantEarthCoreArmourFromSource(unit, 'bedrock_scavenger', armourGain, 3);
+    },
 };
 
 export const BedrockScavengerCard: CardDef = {

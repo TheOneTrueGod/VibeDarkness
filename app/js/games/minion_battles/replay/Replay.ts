@@ -53,7 +53,7 @@ export class Replay {
         const localPlayerId = getDefaultLocalPlayerId(this.players);
         const engine = GameEngine.fromJSON(this.initialState, localPlayerId, terrainManager);
         for (const record of this.orders) {
-            engine.queueOrder(record.atTick, record.order);
+            engine.state.orderMgr.queueOrder(record.atTick, record.order);
         }
         return engine;
     }

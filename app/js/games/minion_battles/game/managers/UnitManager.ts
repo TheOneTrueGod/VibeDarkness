@@ -8,6 +8,8 @@ import { UnitTag } from '../units/unitTag';
 import { areAllies } from '../teams';
 import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
+import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from '../units/unitAI';
+import type { AIContext } from '../units/unitAI';
 import type { Resource } from '../../resources/Resource';
 import { Rage } from '../../resources/Rage';
 import { Mana } from '../../resources/Mana';
@@ -82,6 +84,51 @@ export class UnitManager {
                 unit.tags = unit.tags.filter((t) => t !== UnitTag.ProtectedByCrystal);
             }
         }
+    }
+
+    gameTick(
+        dt: number,
+        engine: EngineContext,
+        onNaturalAbilityCompletion: (unitId: string) => void,
+        aiContext: AIContext,
+        onBeforeEnemyAI?: () => void,
+    ): void {
+        // Phase 1: ability tick for all units before any movement
+        for (const unit of this.units) {
+            if (!unit.active || unit.activeAbilities.length === 0) continue;
+            unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));
+        }
+        // Phase 2: movement + ephemeral expiry
+        for (const unit of this.units) {
+            if (!unit.active) continue;
+            if (unit.pathfindingRetriggerOffset > 0 && engine.gameTick % unit.pathfindingRetriggerOffset === 0) {
+                const tree = getUnitAITree(unit.unitAITreeId);
+                if (tree) runPathfindingRetrigger(unit, tree, aiContext);
+            }
+            unit.tickMovement(dt, engine);
+        }
+        // Phase 3: AI decisions (all positions settled)
+        for (const unit of this.units) {
+            if (!unit.active || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive()) continue;
+            onBeforeEnemyAI?.();
+            const tree = getUnitAITree(unit.unitAITreeId);
+            if (tree) runUnitAI(unit, tree, aiContext);
+        }
+    }
+
+    tickDarknessCorruption(dt: number, engine: EngineContext): void {
+        for (const unit of this.units) {
+            if (!unit.isPlayerControlled() || !unit.isAlive()) continue;
+            unit.tickDarknessCorruption(dt, engine);
+        }
+    }
+
+    onRoundStart(roundNumber: number, engine: EngineContext): void {
+        for (const unit of this.units) unit.onRoundStart(roundNumber, engine);
+    }
+
+    onRoundEnd(roundNumber: number): void {
+        for (const unit of this.units) unit.onRoundEnd(roundNumber);
     }
 
     cleanupInactive(): void {

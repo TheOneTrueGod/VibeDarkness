@@ -175,10 +175,8 @@ export const ShiningBlockAbility: AbilityStatic = {
     getTooltipText(_gameState?: unknown): string[] {
         return [
             'Raise your crystal shield blocking all attacks from the front',
-            'On Block: Deals {5} damage and stuns up to {3} enemies for {2} seconds',
-            'On Block: Allies within {50} gain {2} stamina surges',
-            'On successful block, nearby allies gain {1} light charge',
-            'Strengthening Light: On block, heal yourself and allies within {50} for {5} health',
+            'On Block: Deals {5} damage and stuns up to {3} enemies for {2} seconds.',
+            'Nearby allies gain {2} stamina surges, {1} light charge, and heal for 5',
         ];
     },
 

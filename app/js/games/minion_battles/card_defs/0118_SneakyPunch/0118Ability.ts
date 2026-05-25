@@ -28,7 +28,7 @@ const MAX_RANGE = 30; // px
 const LINE_THICKNESS = 20; // px
 const BASE_DAMAGE = 8;
 // ~30% medium bonus on top of base = 10
-const BONUS_DAMAGE = 2;
+const BONUS_DAMAGE = 12;
 const BONUS_TOTAL = BASE_DAMAGE + BONUS_DAMAGE;
 
 const PUNCH_HITBOX: HitboxDef = { shape: 'meleeLine', range: MAX_RANGE, thickness: LINE_THICKNESS };

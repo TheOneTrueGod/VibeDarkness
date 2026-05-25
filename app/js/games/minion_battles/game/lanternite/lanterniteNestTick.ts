@@ -8,6 +8,7 @@ import type { EngineContext } from '../EngineContext';
 import type { Unit } from '../units/Unit';
 import type { MapSegmentPOI } from '../../terrain/segmentSchema';
 import type { LanterniteNestMissionConfig } from '../../storylines/types';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { createUnitFromSpawnConfig } from '../units/index';
 import {
     LANTERNITE_CHARACTER_ID,
@@ -159,7 +160,7 @@ export function processLanterniteNests(params: {
                 ownerId: 'ai',
                 characterId: LANTERNITE_CHARACTER_ID,
                 name: 'Lanternite',
-                abilities: [],
+                abilities: ['0010'],
                 unitAITreeId: 'lanternitePatrol',
                 aiSettings: { minRange: 0, maxRange: 600 },
                 hp: undefined,
@@ -192,8 +193,10 @@ export function processLanterniteNests(params: {
             lan.lanterniteRole = role;
             lan.unitAITreeId = 'lanterniteNetwork';
 
-            if (role === 'scout' && targetPoi && params.terrainGrid) {
-                const worldPos = params.terrainGrid.gridToWorld(targetPoi.col, targetPoi.row);
+            if (role === 'scout' && targetPoi) {
+                const worldPos = params.terrainGrid
+                    ? params.terrainGrid.gridToWorld(targetPoi.col, targetPoi.row)
+                    : { x: targetPoi.col * CELL_SIZE + CELL_SIZE / 2, y: targetPoi.row * CELL_SIZE + CELL_SIZE / 2 };
                 lan.lanternPatrolFarWorld = worldPos;
                 lan.lanterniteTargetNestPoiId = targetPoi.id;
                 lan.lanterniteNestConfig = cfg;

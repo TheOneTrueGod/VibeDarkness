@@ -39,7 +39,7 @@ interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
     addUnit(unit: Unit): void;
     addEffect(effect: Effect): void;
-    queueOrder(atTick: number, order: { unitId: string; abilityId: string; targets: ResolvedTarget[] }): void;
+    state: { orderMgr: { queueOrder(atTick: number, order: { unitId: string; abilityId: string; targets: ResolvedTarget[] }): void } };
     gameTick: number;
     gameTime: number;
     eventBus: EventBus;
@@ -169,7 +169,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
             if (closest && biteAbility) {
                 wolf.aiContext = { aiTree: 'alphaWolfBoss' as const, targetUnitId: closest.id };
                 const resolvedTargets = buildResolvedTargets(biteAbility, closest);
-                eng.queueOrder(eng.gameTick + 1, {
+                eng.state.orderMgr.queueOrder(eng.gameTick + 1, {
                     unitId: wolf.id,
                     abilityId: DARK_WOLF_BITE_ID,
                     targets: resolvedTargets,

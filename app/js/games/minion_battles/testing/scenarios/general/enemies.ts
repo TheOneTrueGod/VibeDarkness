@@ -73,7 +73,7 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0102'), abilityId: '0102' }]);
 
         // Queue second punch after first cooldown; pendingOrders keeps battle non-idle until it fires.
-        engine.queueOrder(SECOND_PUNCH_TICK, {
+        engine.state.orderMgr.queueOrder(SECOND_PUNCH_TICK, {
             unitId: player.id,
             abilityId: '0102',
             targets: [{ type: 'pixel', position: WOLF_POS }],

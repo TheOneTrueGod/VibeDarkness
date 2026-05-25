@@ -10,6 +10,8 @@ import { getSpecialTileDef } from '../../storylines/specialTileDefs';
 import type { EngineContext } from '../EngineContext';
 import type { LightSource } from '../LightGrid';
 import type { SerializedSpecialTile } from '../types';
+import type { Unit } from '../units/Unit';
+import { Effect } from '../effects/Effect';
 
 const ROUND_DURATION = 10;
 
@@ -145,6 +147,72 @@ export class SpecialTileManager {
                     tile.lightDecayNextAtRound = Number.POSITIVE_INFINITY;
                     break;
                 }
+            }
+        }
+    }
+
+    /** Process enemy-corrupts-defend-point: units at destructible tiles deal 1 HP every 2 seconds and spawn orbs. */
+    gameTick(units: readonly Unit[], engine: EngineContext): void {
+        const grid = engine.terrainManager?.grid;
+        if (!grid) return;
+
+        for (const unit of units) {
+            if (unit.aiContext.aiTree !== 'default') continue;
+            const ctx = unit.aiContext;
+            const tileId = ctx.corruptingTargetId;
+            if (!tileId) {
+                if (unit.crystalCorruptionProgress > 0) unit.crystalCorruptionProgress = 0;
+                continue;
+            }
+
+            const tile = this.specialTiles.find((t) => t.id === tileId);
+            if (!tile || tile.hp <= 0 || !tile.destructible) {
+                ctx.corruptingTargetId = undefined;
+                ctx.corruptingStartedAt = undefined;
+                unit.crystalCorruptionProgress = 0;
+                continue;
+            }
+
+            const unitGrid = grid.worldToGrid(unit.x, unit.y);
+            const atTile =
+                Math.max(
+                    Math.abs(unitGrid.col - tile.col),
+                    Math.abs(unitGrid.row - tile.row),
+                ) <= 1;
+            if (!atTile) {
+                ctx.corruptingTargetId = undefined;
+                ctx.corruptingStartedAt = undefined;
+                unit.crystalCorruptionProgress = 0;
+                continue;
+            }
+
+            const startedAt = ctx.corruptingStartedAt ?? engine.gameTime;
+            const elapsed = engine.gameTime - startedAt;
+            unit.crystalCorruptionProgress = Math.min(1, elapsed / 2);
+
+            if (elapsed >= 2) {
+                this.damageSpecialTile(tileId, 1);
+                ctx.corruptingStartedAt = engine.gameTime;
+
+                const targetWorld = grid.gridToWorld(tile.col, tile.row);
+                const angle = (engine.generateRandomInteger(0, 629) / 100) * Math.PI;
+                const dirX = Math.cos(angle);
+                const dirY = Math.sin(angle);
+                const orb = new Effect({
+                    x: unit.x,
+                    y: unit.y,
+                    duration: 5,
+                    effectType: 'CorruptionOrb',
+                    effectData: {
+                        targetX: targetWorld.x,
+                        targetY: targetWorld.y,
+                        phase: 0,
+                        phase0Elapsed: 0,
+                        dirX,
+                        dirY,
+                    },
+                });
+                engine.addEffect(orb);
             }
         }
     }

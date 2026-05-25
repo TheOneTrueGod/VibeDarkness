@@ -89,11 +89,11 @@ function runScenario(
         const waiting = engine.waitingForOrders;
         if (!waiting) continue;
         for (const waiter of waiting.waiters) {
-            if (engine.hasPendingOrderForUnit(waiter.unitId, waiting.atTick)) continue;
+            if (engine.state.orderMgr.hasPendingOrderForUnit(waiter.unitId, waiting.atTick)) continue;
             if (mode === 'live') {
                 const order = makeScriptedWaitOrder(engine, waiting.atTick, waiter.unitId);
                 captured.push({ atTick: waiting.atTick, order });
-                engine.queueOrder(waiting.atTick, order);
+                engine.state.orderMgr.queueOrder(waiting.atTick, order);
             } else {
                 const rec = replayQueue[replayIdx];
                 if (!rec) {
@@ -102,7 +102,7 @@ function runScenario(
                 replayIdx += 1;
                 expect(rec.atTick).toBe(waiting.atTick);
                 expect(rec.order.unitId).toBe(waiter.unitId);
-                engine.queueOrder(waiting.atTick, rec.order);
+                engine.state.orderMgr.queueOrder(waiting.atTick, rec.order);
             }
         }
         engine.tryResumeParallel();

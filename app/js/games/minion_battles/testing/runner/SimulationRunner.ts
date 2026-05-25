@@ -36,7 +36,7 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
         throw new Error(`Scenario "${scenario.id}" started terminal`);
     }
     for (const order of scenario.getInitialOrders(engine)) {
-        engine.applyOrder(order);
+        engine.state.orderMgr.applyOrder(order);
     }
 
     let ticks = 0;
@@ -123,7 +123,7 @@ export function runScenarioHeadless(scenario: ScenarioDefinition): ScenarioRunRe
         }
 
         for (const order of scenario.getInitialOrders(engine)) {
-            engine.applyOrder(order);
+            engine.state.orderMgr.applyOrder(order);
         }
 
         while (ticks < maxTicks) {

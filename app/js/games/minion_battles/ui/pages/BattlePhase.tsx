@@ -391,7 +391,7 @@ export default function BattlePhase({
     const updateCardStateRef = useRef<((engine: GameEngine) => void) | null>(null);
 
     function updateCardState(engine: GameEngine) {
-        const active = engine.getActiveOrderWaiterForPlayer(playerId);
+        const active = engine.state.orderMgr.getActiveOrderWaiterForPlayer(playerId);
         const unit = active ? engine.getUnit(active.unitId) : engine.getLocalPlayerUnit();
         setMyAbilityIds([...(unit?.abilities ?? [])]);
     }
@@ -407,7 +407,7 @@ export default function BattlePhase({
                 setTeamworkBurstKey((k) => k + 1);
             }
 
-            const active = engine.getActiveOrderWaiterForPlayer(playerId);
+            const active = engine.state.orderMgr.getActiveOrderWaiterForPlayer(playerId);
             setActiveLocalWaiter(active);
             const unit = active ? engine.getUnit(active.unitId) : undefined;
             const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
@@ -453,7 +453,7 @@ export default function BattlePhase({
                 setWaitingForOrders(ev.waitingForOrders);
                 setIsPaused(ev.paused);
                 const eng = sessionRef.current?.getEngine();
-                setActiveLocalWaiter(eng?.getActiveOrderWaiterForPlayer(playerId) ?? null);
+                setActiveLocalWaiter(eng?.state.orderMgr.getActiveOrderWaiterForPlayer(playerId) ?? null);
                 setStoryPauseActive(eng?.storyPauseActive ?? false);
             }
             if (ev.type === 'round_number') {
@@ -464,7 +464,7 @@ export default function BattlePhase({
             }
             if (ev.type === 'card_state') {
                 updateCardState(ev.engine);
-                setActiveLocalWaiter(ev.engine.getActiveOrderWaiterForPlayer(playerId));
+                setActiveLocalWaiter(ev.engine.state.orderMgr.getActiveOrderWaiterForPlayer(playerId));
                 setStoryPauseActive(ev.engine.storyPauseActive);
             }
         });

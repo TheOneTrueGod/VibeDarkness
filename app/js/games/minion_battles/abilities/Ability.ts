@@ -313,6 +313,12 @@ export interface AbilityStatic {
      * Receives the engine, defender (unit holding the shield), and attackInfo (includes attackSourceX/Y for retaliation direction).
      */
     onBlockSuccess?(engine: unknown, defender: Unit, attackInfo: AttackBlockedInfo): void;
+
+    /**
+     * Optional. Called at round start for each alive unit that has this ability.
+     * Use for passive round-start effects (e.g. armour from terrain, resource charges).
+     */
+    onRoundStart?(unit: Unit, engine: import('../game/EngineContext').EngineContext): void;
 }
 
 /** Information about an attack that was blocked. */

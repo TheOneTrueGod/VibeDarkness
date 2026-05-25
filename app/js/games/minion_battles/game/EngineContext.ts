@@ -63,6 +63,21 @@ export interface EngineContext {
     /** Reveal battle objectives that declare `revealedInitially: false`. */
     revealBattleObjectives(ids: readonly string[]): void;
 
+    /** Record that a unit cast an ability this round (for per-round use tracking). */
+    trackAbilityUse(unitId: string, abilityId: string): void;
+
+    /** Mix the ORDER_APPLIED fingerprint event for a given order (called by OrderManager). */
+    mixOrderFingerprint(unitId: string, abilityId: string): void;
+
+    /** Unpause when every frozen waiter has a pending order; called by OrderManager after queueing. */
+    tryResumeParallel(): void;
+
+    /**
+     * Returns the light level (0–1+) at a world position, or null if light is disabled.
+     * Computed lazily and cached per tick.
+     */
+    getLightLevelAt(x: number, y: number): number | null;
+
     /** When implemented (full engine), allocates unique ids for new gameplay objects for this battle instance. */
     allocateObjectId?(prefix?: string): string;
 

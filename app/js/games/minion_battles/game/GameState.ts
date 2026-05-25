@@ -3,7 +3,6 @@
  * GameEngine owns orchestration (tick loop, callbacks); simulation data lives here.
  */
 import { EventBus } from './EventBus';
-import type { WaitingForOrders, OrderAtTick } from './types';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { EngineContext } from './EngineContext';
 import { UnitManager } from './managers/UnitManager';
@@ -18,6 +17,8 @@ import { EffectEmitterManager } from './effects/EffectEmitterManager';
 import { fingerprintInitial, FingerprintRing, type Fingerprint64 } from './Fingerprint';
 import type { BramblePatch } from './brambleSlow';
 import type { MapSegmentPOI } from '../terrain/segmentSchema';
+import { LanterniteRespawnManager } from './lanternite/LanterniteRespawnManager';
+import { OrderManager } from './managers/OrderManager';
 
 export class GameState {
     readonly eventBus = new EventBus();
@@ -35,7 +36,6 @@ export class GameState {
      * until the next natural pause; do not use `gameTick > hostTick` alone to set this.
      */
     multiplayerAwaitHostCatchup = false;
-    waitingForOrders: WaitingForOrders | null = null;
     storyPauseActive = false;
     storyPauseReason: string | null = null;
     storyPauseEndsAt: number | null = null;
@@ -53,6 +53,8 @@ export class GameState {
     readonly levelEventManager: LevelEventManager;
     readonly objectiveManager: ObjectiveManager;
     readonly lightSourceManager: LightSourceManager;
+    readonly lanterniteRespawnManager: LanterniteRespawnManager;
+    readonly orderMgr: OrderManager;
 
     terrainManager: TerrainManager | null = null;
 
@@ -61,9 +63,6 @@ export class GameState {
 
     /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */
     mapPOIs: MapSegmentPOI[] = [];
-
-    /** Orders scheduled to be applied at specific game ticks. */
-    pendingOrders: OrderAtTick[] = [];
 
     /** The local player's ID. */
     localPlayerId = '';
@@ -85,5 +84,7 @@ export class GameState {
         this.levelEventManager = new LevelEventManager(ctx);
         this.objectiveManager = new ObjectiveManager(ctx);
         this.lightSourceManager = new LightSourceManager(ctx);
+        this.lanterniteRespawnManager = new LanterniteRespawnManager();
+        this.orderMgr = new OrderManager(ctx, () => ctx.tryResumeParallel());
     }
 }

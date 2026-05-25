@@ -13,7 +13,20 @@ import type { AbilityNote } from '../AbilityNote';
 import type { Resource } from '../../resources/Resource';
 import type { EventBus } from '../EventBus';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { AbilityState, refundAbilityCost } from '../../abilities/Ability';
+import { AbilityState, refundAbilityCost, spendAbilityCost, type AbilityStatic } from '../../abilities/Ability';
+import {
+    addRecoveryChargeToUnitAbilities,
+    applyStaminaSurgeToUnit,
+    canUseAbilityNow,
+    consumeAbilityUse as consumeAbilityUseUtil,
+    ensureAbilityRuntimeState as ensureAbilityRuntimeStateUtil,
+    grantRoundChargesToEligibleAbilities,
+    syncNestedCardAbilityState,
+} from '../../abilities/abilityUses';
+import type { ResolvedTarget } from '../types';
+import { triggerAbilityEvent } from '../../abilities/events';
+import { AbilityEventType } from '../../abilities/Ability';
+import type { CastBehaviourInterruptContext } from '../../abilities/castBehaviourTypes';
 import type { Buff, BuffSerialized } from '../../buffs/Buff';
 import { buffFromJSON } from '../../buffs/buffRegistry';
 import type { TerrainManager } from '../../terrain/TerrainManager';
@@ -32,6 +45,9 @@ import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import type { CcResistKey } from '../../crowdControl/ccTypes';
 import { getBrambleMovementMultiplier, type BramblePatch } from '../brambleSlow';
 import type { LanterniteNestMissionConfig } from '../../storylines/types';
+import type { EngineContext } from '../EngineContext';
+import { tickUnitActiveAbilities } from './unitAbilityTick';
+import { DarknessLevel } from '../darknessLevels';
 
 /** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
 const WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID = 4;
@@ -257,6 +273,18 @@ export class Unit extends GameObject {
 
     /** Stagger offset: unit is eligible to attack once gameTime reaches this value. */
     lanterniteAttackReadyAtGameTime: number = 0;
+
+    /** Active EffectEmitters created from declarative `emitterDef` on AbilityTimingInterval. Keyed by `intervalId`. Runtime-only. */
+    activeTimingEmitters: Map<string, import('../effects/EffectEmitter').EffectEmitter> = new Map();
+
+    /** Active sustained CastBehaviours for this unit's casts. Keyed by `${intervalId}_${behaviourIdx}`. Runtime-only. */
+    activeCastBehaviours: Map<string, {
+        entry: import('../../abilities/castBehaviourTypes').CastBehaviourEntry;
+        intervalStart: number;
+        intervalEnd: number;
+        caster: Unit;
+        active: ActiveAbility;
+    }> = new Map();
 
     constructor(config: {
         id?: string;
@@ -772,6 +800,190 @@ export class Unit extends GameObject {
         }
         this.activeAbilities = [];
         this.clearAbilityNote();
+    }
+
+    tickActiveAbilities(dt: number, engine: EngineContext, onNaturalCompletion: () => void): void {
+        tickUnitActiveAbilities(this, dt, engine, onNaturalCompletion);
+    }
+
+    onRoundStart(_roundNumber: number, engine: EngineContext): void {
+        if (!this.isAlive()) return;
+        this.applyStaminaSurge(Math.max(0, Math.floor(this.stamina)));
+        this.grantRoundCharges();
+        for (const abilityId of this.abilities) {
+            getAbility(abilityId)?.onRoundStart?.(this, engine);
+        }
+        this.syncNestedCardState();
+    }
+
+    onRoundEnd(_roundNumber: number): void {
+        this.tickHardCcChainDecayAtRoundEnd();
+    }
+
+    tickDarknessCorruption(dt: number, engine: EngineContext): void {
+        const light = engine.getLightLevelAt(this.x, this.y);
+        if (light === null) return;
+        const inFullDarkness = light <= DarknessLevel.FULL_DARKNESS;
+        const corruptionRate = 0.45;
+        if (inFullDarkness) {
+            this.corruptionProgress = Math.min(1, this.corruptionProgress + dt * corruptionRate);
+        } else {
+            this.corruptionProgress = Math.max(0, this.corruptionProgress - dt * corruptionRate);
+            if (this.corruptionProgress <= 0) {
+                this.darknessDamageProcCount = 0;
+            }
+        }
+        if (inFullDarkness && this.corruptionProgress >= 1) {
+            this.corruptionProgress = 0;
+            const hitIndex = this.darknessDamageProcCount + 1;
+            const damage = 2 * hitIndex;
+            this.takeDamage(damage, null, engine.eventBus);
+            this.darknessDamageProcCount += 1;
+        }
+    }
+
+    tickMovement(dt: number, engine: EngineContext): void {
+        this.update(dt, engine);
+        if (this.ephemeralDespawnAtGameTime != null && engine.gameTime >= this.ephemeralDespawnAtGameTime) {
+            this.hp = 0;
+            this.active = false;
+            engine.eventBus.emit('unit_died', { unitId: this.id, killerUnitId: null });
+        }
+    }
+
+    // ---- Ability management OOP wrappers ----
+
+    applyStaminaSurge(surgeAmount: number): void { applyStaminaSurgeToUnit(this, surgeAmount); }
+    addRecoveryCharge(type: import('../../abilities/abilityUses').RecoveryChargeType, amount: number, rng: () => number): void { addRecoveryChargeToUnitAbilities(this, type, amount, rng); }
+    grantRoundCharges(): void { grantRoundChargesToEligibleAbilities(this); }
+    syncNestedCardState(): void { syncNestedCardAbilityState(this); }
+    ensureAbilityRuntimeState(abilityId: string): void { ensureAbilityRuntimeStateUtil(this, abilityId); }
+    canUseAbility(ability: AbilityStatic): boolean { return canUseAbilityNow(this, ability); }
+    consumeAbilityUse(abilityId: string): boolean { return consumeAbilityUseUtil(this, abilityId); }
+    spendAbilityCost(ability: AbilityStatic): boolean { return spendAbilityCost(this, ability); }
+    refundAbilityCost(ability: AbilityStatic): void { refundAbilityCost(this, ability); }
+
+    // ---- cleanupCastBehaviours: private helper for ability cancel / interrupt ----
+
+    private cleanupCastBehavioursForAbility(active: ActiveAbility, engine: EngineContext): void {
+        for (const [key, rec] of this.activeCastBehaviours) {
+            if (rec.active !== active) continue;
+            const targetIdx = rec.entry.targetIndex ?? 0;
+            const target = active.targets[targetIdx] ?? active.targets[0] ?? { type: 'pixel' as const, position: { x: this.x, y: this.y } };
+            const ctx: CastBehaviourInterruptContext = {
+                caster: this,
+                target,
+                allTargets: active.targets,
+                castPayload: active.castPayload,
+                behaviourPayload: active.castBehaviourPayloads?.[key],
+                setBehaviourPayload: (data) => {
+                    if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
+                    active.castBehaviourPayloads[key] = data;
+                },
+                engine,
+            };
+            rec.entry.behaviour.onInterrupt?.(ctx);
+            this.activeCastBehaviours.delete(key);
+        }
+    }
+
+    cancelActiveAbility(abilityId: string, engine: EngineContext): void {
+        const idx = this.activeAbilities.findIndex((a) => a.abilityId === abilityId);
+        if (idx < 0) return;
+        const active = this.activeAbilities[idx];
+        if (!active) return;
+        const ability = getAbility(active.abilityId);
+        if (ability) {
+            const elapsed = Math.max(0, engine.gameTime - active.startTime);
+            triggerAbilityEvent({
+                engine,
+                caster: this,
+                ability,
+                activeAbility: active,
+                targets: active.targets,
+                eventType: AbilityEventType.ON_CAST_END,
+                prevTime: elapsed,
+                currentTime: elapsed,
+            });
+        }
+        this.cleanupCastBehavioursForAbility(active, engine);
+        this.activeAbilities.splice(idx, 1);
+    }
+
+    interruptAndRefundAbilities(engine: EngineContext): void {
+        while (this.activeAbilities.length > 0) {
+            const active = this.activeAbilities[0];
+            if (!active) break;
+            const ability = getAbility(active.abilityId);
+            if (ability) {
+                refundAbilityCost(this, ability);
+                const elapsed = Math.max(0, engine.gameTime - active.startTime);
+                triggerAbilityEvent({
+                    engine,
+                    caster: this,
+                    ability,
+                    activeAbility: active,
+                    targets: active.targets,
+                    eventType: AbilityEventType.ON_CAST_END,
+                    prevTime: elapsed,
+                    currentTime: elapsed,
+                });
+            }
+            this.cleanupCastBehavioursForAbility(active, engine);
+            this.activeAbilities.splice(0, 1);
+        }
+        this.clearAbilityNote();
+    }
+
+    executeAbility(ability: AbilityStatic, targets: ResolvedTarget[], engine: EngineContext): void {
+        ensureAbilityRuntimeStateUtil(this, ability.id);
+        if (!canUseAbilityNow(this, ability)) return;
+        if (!spendAbilityCost(this, ability)) return;
+        if (!consumeAbilityUseUtil(this, ability.id)) return;
+        syncNestedCardAbilityState(this);
+
+        const existing = this.activeAbilities.findIndex((a) => a.abilityId === ability.id);
+        if (existing >= 0) {
+            const existingActive = this.activeAbilities[existing];
+            if (existingActive) {
+                const existingElapsed = Math.max(0, engine.gameTime - existingActive.startTime);
+                triggerAbilityEvent({
+                    engine,
+                    caster: this,
+                    ability,
+                    activeAbility: existingActive,
+                    targets: existingActive.targets,
+                    eventType: AbilityEventType.ON_CAST_END,
+                    prevTime: existingElapsed,
+                    currentTime: existingElapsed,
+                });
+            }
+            this.activeAbilities.splice(existing, 1);
+            this.clearAbilityNote();
+        }
+
+        const active: ActiveAbility = {
+            abilityId: ability.id,
+            startTime: engine.gameTime,
+            targets: targets.map((t) => ({ ...t })),
+            castBehaviourPayloads: {},
+            evadeFired: false,
+        };
+        ability.beginActiveCast?.(engine, this, active.targets, active);
+        this.activeAbilities.push(active);
+        triggerAbilityEvent({
+            engine,
+            caster: this,
+            ability,
+            activeAbility: active,
+            targets: active.targets,
+            eventType: AbilityEventType.ON_CAST_START,
+            prevTime: 0,
+            currentTime: 0,
+        });
+
+        engine.trackAbilityUse(this.id, ability.id);
+        engine.eventBus.emit('ability_used', { unitId: this.id, abilityId: ability.id });
     }
 
     /** Set the ability note (overwrites any existing). Used by abilities during execution. */

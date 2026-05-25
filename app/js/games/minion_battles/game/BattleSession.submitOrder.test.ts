@@ -55,7 +55,7 @@ async function mountSessionAtLocalPlayerTurn(): Promise<{ session: BattleSession
         (live as unknown as { fixedUpdate(dt: number): void }).fixedUpdate(FIXED_DT);
         const batch = live.waitingForOrders;
         if (batch?.waiters.some((w) => w.ownerId === 'p1')) {
-            const unitId = live.getActiveOrderWaiterForPlayer('p1')?.unitId;
+            const unitId = live.state.orderMgr.getActiveOrderWaiterForPlayer('p1')?.unitId;
             if (unitId) return { session, unitId };
         }
     }

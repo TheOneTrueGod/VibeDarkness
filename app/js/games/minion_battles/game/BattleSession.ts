@@ -534,7 +534,7 @@ export class BattleSession implements BattleSessionHandle {
                 continue;
             }
             const order = rec.order;
-            eng.queueOrder(atTick, order as unknown as BattleOrder);
+            eng.state.orderMgr.queueOrder(atTick, order as unknown as BattleOrder);
             this.appliedRemoteOrderKeys.add(key);
             newlyAppliedKeys.push(key);
         }
@@ -605,8 +605,8 @@ export class BattleSession implements BattleSessionHandle {
         for (const waiter of batch.waiters) {
             const unit = engine.getUnit(waiter.unitId);
             if (!unit?.isPlayerControlled()) continue;
-            if (engine.hasPendingOrderForUnit(waiter.unitId, atTick)) continue;
-            engine.queueOrder(atTick, {
+            if (engine.state.orderMgr.hasPendingOrderForUnit(waiter.unitId, atTick)) continue;
+            engine.state.orderMgr.queueOrder(atTick, {
                 unitId: waiter.unitId,
                 abilityId: 'wait',
                 targets: [],
