@@ -1071,6 +1071,9 @@ export class GameEngine implements EngineContext {
             idSource: this,
             mapPOIs: this.mapPOIs,
             terrainGrid: this.terrainManager?.grid ?? null,
+            lightLevelEnabled: this.lightLevelEnabled,
+            addLightSource: (ls) => this.addLightSource(ls),
+            lightSources: this.state.lightSourceManager.lightSources,
         });
         this.drainLanterniteRespawns();
         this.state.unitManager.cleanupInactive();

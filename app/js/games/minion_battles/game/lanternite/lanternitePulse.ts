@@ -13,6 +13,8 @@ export const LANTERNITE_SOUL_SAP_MAX_HP_FRACTION = 0.07;
 export const LANTERNITE_RESPAWN_DELAY_SEC = 3;
 export const LANTERNITE_TORCH_LIGHT = 12;
 export const LANTERNITE_TORCH_RADIUS_TILES = 4.5;
+export const LANTERNITE_NEST_LIGHT = 14;
+export const LANTERNITE_NEST_RADIUS_TILES = 6.5;
 
 function killUnit(unit: Unit, eventBus: EventBus): void {
     if (!unit.isAlive()) return;
@@ -70,6 +72,36 @@ function upsertLanternLightSource(args: {
     );
 }
 
+export function upsertNestLightSource(args: {
+    nest: Unit;
+    addLightSource: (ls: LightSource) => void;
+    lightSources: LightSource[];
+}): void {
+    const nestLightId = `lantern_nest_${args.nest.id}`;
+    for (const ls of args.lightSources) {
+        if (ls.id === nestLightId) {
+            ls.active = true;
+            return;
+        }
+    }
+    args.addLightSource(
+        new LightSource({
+            id: nestLightId,
+            x: args.nest.x,
+            y: args.nest.y,
+            lightAmount: LANTERNITE_NEST_LIGHT,
+            radius: LANTERNITE_NEST_RADIUS_TILES,
+            followUnitId: args.nest.id,
+            decay: {
+                roundCreated: 0,
+                initialLightAmount: LANTERNITE_NEST_LIGHT,
+                initialRadius: LANTERNITE_NEST_RADIUS_TILES,
+                roundsTotal: 999,
+            },
+        }),
+    );
+}
+
 /** One pulse at round_start or round_half milestones. */
 export function processLanternitePulseMilestone(
     _milestone: 'round_start' | 'round_half',
@@ -91,6 +123,17 @@ export function processLanternitePulseMilestone(
         if (ctx.lightLevelEnabled) {
             upsertLanternLightSource({
                 lanternite: lantern,
+                addLightSource: ctx.addLightSource,
+                lightSources: ctx.lightSources,
+            });
+        }
+    }
+
+    if (ctx.lightLevelEnabled) {
+        for (const nest of ctx.units) {
+            if (!nest.isAlive() || nest.characterId !== LANTERNITE_NEST_CHARACTER_ID) continue;
+            upsertNestLightSource({
+                nest,
                 addLightSource: ctx.addLightSource,
                 lightSources: ctx.lightSources,
             });

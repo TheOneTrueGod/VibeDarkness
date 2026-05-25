@@ -182,7 +182,7 @@ export class EmberThresholdMission extends BaseMissionDef {
         // Continuous pressure: 2 wolves + 1 slime spawned every half-round near the south gate.
         {
             type: 'continuousSpawn',
-            trigger: { intervalRounds: 0.75 },
+            trigger: { intervalRounds: 1 },
             spawns: [
                 {
                     characterId: 'dark_wolf',

@@ -13,7 +13,9 @@ import {
     LANTERNITE_CHARACTER_ID,
     LANTERNITE_NEST_CHARACTER_ID,
     prepareLanterniteNestForMissionStart,
+    upsertNestLightSource,
 } from './lanternitePulse';
+import type { LightSource } from '../lightSources/LightSource';
 import { findUnoccupiedConnectedNestPoi, countAliveChildrenByRole } from './lanterniteNetworkUtils';
 
 const ROUND_DURATION_SEC = 10;
@@ -52,6 +54,9 @@ export function processLanterniteNests(params: {
     idSource?: Pick<EngineContext, 'allocateObjectId'> | EngineContext;
     mapPOIs?: readonly MapSegmentPOI[];
     terrainGrid?: TerrainGridLike | null;
+    lightLevelEnabled?: boolean;
+    addLightSource?: (ls: LightSource) => void;
+    lightSources?: LightSource[];
 }): void {
     // --- Construction completion: scouts that have finished building ---
     for (const unit of params.units) {
@@ -121,6 +126,10 @@ export function processLanterniteNests(params: {
         newNest.lanterniteHomeNestPoiId = unit.lanterniteTargetNestPoiId ?? null;
         prepareLanterniteNestForMissionStart(newNest, params.gameTime);
         params.addUnit(newNest);
+
+        if (params.lightLevelEnabled && params.addLightSource && params.lightSources) {
+            upsertNestLightSource({ nest: newNest, addLightSource: params.addLightSource, lightSources: params.lightSources });
+        }
 
         // Kill scout (nest-owned, so no global respawn will trigger)
         unit.hp = 0;
