@@ -310,6 +310,5 @@ export const ThrowRockCard: CardDef = {
     id: asCardDefId('throw_rock'),
     name: 'Throw Rock',
     abilityId: 'throw_rock',
-    durability: 3,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

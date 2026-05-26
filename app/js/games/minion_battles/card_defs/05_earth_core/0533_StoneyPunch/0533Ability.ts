@@ -62,7 +62,6 @@ export const StoneyPunchCard: CardDef = {
     id: asCardDefId('0533'),
     name: 'Stoney Punch',
     abilityId: ABILITY_ID,
-    durability: 2,
     discardDuration: { duration: 1, unit: 'rounds' },
 };
 

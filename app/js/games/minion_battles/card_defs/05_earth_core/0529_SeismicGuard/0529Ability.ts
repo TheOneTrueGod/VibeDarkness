@@ -72,6 +72,5 @@ export const SeismicGuardCard: CardDef = {
     id: asCardDefId('0529'),
     name: 'Seismic Guard',
     abilityId: ABILITY_ID,
-    durability: 999,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

@@ -127,7 +127,6 @@ export const ThrowTorchCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Throw Torch',
     abilityId: CARD_ID,
-    durability: 1,
     discardDuration: { unit: 'never' },
     tags: ['innate'],
 };

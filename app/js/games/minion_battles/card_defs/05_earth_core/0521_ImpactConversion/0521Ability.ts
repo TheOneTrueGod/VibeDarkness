@@ -32,6 +32,5 @@ export const ImpactConversionCard: CardDef = {
     id: asCardDefId(IMPACT_CONVERSION_PASSIVE_ID),
     name: 'Impact Conversion',
     abilityId: IMPACT_CONVERSION_PASSIVE_ID,
-    durability: 999,
     discardDuration: { duration: 999, unit: 'rounds' },
 };

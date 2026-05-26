@@ -187,6 +187,5 @@ export const AlphaWolfSummonCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Summon',
     abilityId: CARD_ID,
-    durability: 1,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

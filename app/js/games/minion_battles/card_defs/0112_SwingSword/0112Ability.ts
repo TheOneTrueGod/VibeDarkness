@@ -352,6 +352,5 @@ export const SwingSwordCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Swing Sword',
     abilityId: CARD_ID,
-    durability: 2,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

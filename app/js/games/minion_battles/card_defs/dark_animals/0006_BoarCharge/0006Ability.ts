@@ -23,7 +23,6 @@ const boarCharge = new ChargeAttack({
     effectDuration: 0.2,
     tooltipText: 'Charge at a target, dealing {4} damage to each enemy crossed (wide hitbox)',
     cardName: 'Charge',
-    durability: 1,
     discardDuration: { duration: 1, unit: 'rounds' },
 });
 

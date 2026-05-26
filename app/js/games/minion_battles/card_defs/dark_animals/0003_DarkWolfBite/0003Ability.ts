@@ -23,7 +23,6 @@ const wolfBite = new ChargeAttack({
     effectDuration: 0.2,
     tooltipText: 'Lunge at a target, dealing {3} damage to each enemy crossed',
     cardName: 'Dark Wolf Bite',
-    durability: 1,
     discardDuration: { duration: 1, unit: 'rounds' },
 });
 

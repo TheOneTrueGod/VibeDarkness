@@ -152,6 +152,5 @@ export const ThornbinderBrambleCard: CardDef = {
     id: asCardDefId(THORNBINDER_ABILITY_ID),
     name: 'Bramble Slam',
     abilityId: THORNBINDER_ABILITY_ID,
-    durability: 1,
     discardDuration: { duration: 2, unit: 'rounds' },
 };

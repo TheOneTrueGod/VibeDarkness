@@ -113,7 +113,6 @@ export const PistolCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Pistol',
     abilityId: CARD_ID,
-    durability: 3,
     discardDuration: { duration: 1, unit: 'rounds' },
 };
 

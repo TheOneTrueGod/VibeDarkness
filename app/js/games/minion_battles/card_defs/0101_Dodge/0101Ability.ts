@@ -169,6 +169,5 @@ export const DodgeCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Dodge',
     abilityId: CARD_ID,
-    durability: 1,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

@@ -141,6 +141,5 @@ export const HuskSeedBarrageCard: CardDef = {
     id: asCardDefId(HUSK_SEED_BARRAGE_ID),
     name: 'Seed Pod Barrage',
     abilityId: HUSK_SEED_BARRAGE_ID,
-    durability: 1,
     discardDuration: { duration: 2, unit: 'rounds' },
 };

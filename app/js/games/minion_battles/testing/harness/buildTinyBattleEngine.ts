@@ -16,7 +16,7 @@ import {
     applyTrainingResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../../abilities/abilityUses';
-import { getCardDef, asCardDefId, type CardDefId } from '../../card_defs';
+import { asCardDefId, type CardDefId } from '../../card_defs';
 import type { CardInstance } from '../../game/managers/CardManager';
 import { createTargetDummyAtWorld } from '../fixtures/targetDummies';
 
@@ -122,16 +122,12 @@ export function spawnTinyPlayerUnit(
     return unit;
 }
 
-/** Replace hand with card instances (durability from card def). */
+/** Replace hand with card instances. */
 export function seedHandWithAbilities(engine: GameEngine, playerId: string, entries: TinyBattleHandEntry[]): void {
     const hand: CardInstance[] = [];
     for (const e of entries) {
         const cardDefId = typeof e.cardDefId === 'string' ? asCardDefId(e.cardDefId) : e.cardDefId;
-        const def = getCardDef(cardDefId);
         const inst = engine.state.cardManager.createCardInstance(cardDefId, e.abilityId, 'hand');
-        if (def?.durability != null) {
-            inst.durability = def.durability;
-        }
         hand.push(inst);
     }
     engine.cards[playerId] = hand;

@@ -2,8 +2,7 @@ import React from 'react';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
 import { getUnitUiDescription } from '../../game/units/unit_defs/unitDef';
-import { getCardDef } from '../../card_defs';
-import { asCardDefId } from '../../card_defs/types';
+import { getAbilityUseConfig } from '../../abilities/abilityUses';
 
 function AbilityIconInBox({ html, className = '' }: { html: string; className?: string }) {
     return (
@@ -46,10 +45,10 @@ function TimelineUnitCard({ unit }: { unit: Unit }) {
     );
 }
 
-function TimelineAbilityPreviewCard({ ability }: { ability: AbilityStatic }) {
-    const cardDef = getCardDef(asCardDefId(ability.id));
-    const maxDurability = Math.max(1, cardDef?.durability ?? 1);
-    const usesLeft = maxDurability;
+function TimelineAbilityPreviewCard({ ability, unit }: { ability: AbilityStatic; unit: Unit }) {
+    const config = getAbilityUseConfig(ability.id);
+    const maxDurability = Math.max(1, config.maxUses);
+    const usesLeft = unit.abilityRuntime[ability.id]?.currentUses ?? maxDurability;
 
     return (
         <div className="w-[104px] shrink-0 rounded-lg border-2 border-dark-500 bg-dark-700 p-2 shadow-lg ring-1 ring-black/30">
@@ -108,7 +107,7 @@ export function TimelineHoverFlyout({ unit, ability, phaseLabel, phaseDescriptio
                 </div>
             )}
             <TimelineUnitCard unit={unit} />
-            <TimelineAbilityPreviewCard ability={ability} />
+            <TimelineAbilityPreviewCard ability={ability} unit={unit} />
         </div>
     );
 }

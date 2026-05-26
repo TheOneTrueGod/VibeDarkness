@@ -22,8 +22,6 @@ export interface CardInstance {
     cardDefId: CardDefId;
     abilityId: string;
     location: 'hand' | 'deck' | 'discard';
-    /** Remaining uses before discard. */
-    durability: number;
     /** Rounds remaining in discard (rounds-based). */
     discardRoundsRemaining?: number;
     /** Game time when added to discard (seconds-based). */
@@ -41,7 +39,7 @@ export class CardManager {
         this.ctx = ctx;
     }
 
-    /** Create a card instance with defaults (durability from card def). Per-engine sequence. */
+    /** Create a card instance. Per-engine sequence. */
     createCardInstance(cardDefId: CardDefId, abilityId: string, location: CardInstance['location']): CardInstance {
         const def = getCardDef(cardDefId);
         if (!def) {
@@ -52,7 +50,6 @@ export class CardManager {
             cardDefId,
             abilityId,
             location,
-            durability: def?.durability ?? 1,
         };
     }
 
@@ -171,13 +168,11 @@ export class CardManager {
                     const rawLoc: string = raw.location ?? 'deck';
                     const loc = rawLoc === 'exile' ? 'deck' : rawLoc;
                     const cardDefId = asCardDefId(raw.abilityId);
-                    const def = getCardDef(cardDefId);
                     return {
                         ...rest,
                         cardDefId,
                         location: loc,
                         instanceId: raw.instanceId ?? `card-${this.cardInstanceSeq++}`,
-                        durability: raw.durability ?? def?.durability ?? 1,
                     } as CardInstance;
                 }),
             ]),

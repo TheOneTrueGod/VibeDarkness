@@ -139,8 +139,6 @@ export interface SerializedCardInstance {
     cardDefId: string;
     abilityId: string;
     location: 'hand' | 'deck' | 'discard';
-    /** Remaining uses before discard. Default 1 if omitted (legacy). */
-    durability?: number;
     /** Rounds remaining in discard (rounds-based). */
     discardRoundsRemaining?: number;
     /** Game time when added to discard (seconds-based). */

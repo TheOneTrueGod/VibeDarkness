@@ -169,6 +169,5 @@ export const EnemyMeleeAttackCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Enemy Melee Attack',
     abilityId: CARD_ID,
-    durability: 1,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

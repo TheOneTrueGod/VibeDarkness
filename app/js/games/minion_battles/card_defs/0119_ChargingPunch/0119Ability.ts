@@ -155,6 +155,5 @@ export const ChargingPunchCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Charging Punch',
     abilityId: CARD_ID,
-    durability: 2,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

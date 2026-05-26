@@ -109,6 +109,5 @@ export const ShatterCard: CardDef = {
     id: asCardDefId(SHATTER_ABILITY_ID),
     name: 'Shatter',
     abilityId: SHATTER_ABILITY_ID,
-    durability: 1,
     discardDuration: { duration: 2, unit: 'rounds' },
 };

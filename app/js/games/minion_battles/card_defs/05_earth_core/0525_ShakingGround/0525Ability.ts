@@ -79,6 +79,5 @@ export const ShakingGroundCard: CardDef = {
     id: asCardDefId(SHAKING_GROUND_ABILITY_ID),
     name: 'Shaking Ground',
     abilityId: SHAKING_GROUND_ABILITY_ID,
-    durability: 1,
     discardDuration: { duration: 2, unit: 'rounds' },
 };

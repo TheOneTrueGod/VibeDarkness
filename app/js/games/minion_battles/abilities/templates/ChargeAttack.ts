@@ -47,7 +47,6 @@ export interface ChargeAttackConfig {
 	effectDuration: number;
 	tooltipText: string;
 	cardName: string;
-	durability: number;
 	discardDuration: { duration: number; unit: 'rounds' };
 }
 
@@ -102,7 +101,6 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			id: asCardDefId(this.config.id),
 			name: this.config.cardName,
 			abilityId: this.config.id,
-			durability: this.config.durability,
 			discardDuration: this.config.discardDuration,
 		};
 	}

@@ -32,8 +32,6 @@ export interface CardDef {
     name: string;
     /** The ability this card activates (looked up in AbilityRegistry). */
     abilityId: string;
-    /** Number of uses before the card is discarded. Default 1. */
-    durability?: number;
     /** How long the card stays in discard before returning to the deck. Default: 1 round. */
     discardDuration?: DiscardDuration;
     /** Optional tags (e.g. 'innate' = drawn first when filling starting hand). */

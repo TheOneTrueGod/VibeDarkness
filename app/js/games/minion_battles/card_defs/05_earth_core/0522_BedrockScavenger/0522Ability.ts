@@ -45,6 +45,5 @@ export const BedrockScavengerCard: CardDef = {
     id: asCardDefId(BEDROCK_SCAVENGER_PASSIVE_ID),
     name: 'Bedrock Scavenger',
     abilityId: BEDROCK_SCAVENGER_PASSIVE_ID,
-    durability: 999,
     discardDuration: { duration: 999, unit: 'rounds' },
 };

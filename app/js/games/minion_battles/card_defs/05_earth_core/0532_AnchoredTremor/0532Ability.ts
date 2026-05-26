@@ -94,6 +94,5 @@ export const AnchoredTremorCard: CardDef = {
     id: asCardDefId('0532'),
     name: 'Anchored Tremor',
     abilityId: ABILITY_ID,
-    durability: 2,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

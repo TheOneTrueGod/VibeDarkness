@@ -296,6 +296,5 @@ export const LaserSwordCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Laser Sword',
     abilityId: CARD_ID,
-    durability: 2,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

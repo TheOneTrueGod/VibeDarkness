@@ -172,6 +172,5 @@ export const EnergyBlastCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Energy Blast',
     abilityId: CARD_ID,
-    durability: 1,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

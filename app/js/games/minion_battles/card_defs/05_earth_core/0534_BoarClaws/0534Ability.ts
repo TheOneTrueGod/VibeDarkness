@@ -408,6 +408,5 @@ export const BoarClawsCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Boar Claws',
     abilityId: CARD_ID,
-    durability: 1,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

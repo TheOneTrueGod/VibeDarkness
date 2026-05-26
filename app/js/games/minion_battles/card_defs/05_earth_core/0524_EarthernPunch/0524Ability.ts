@@ -102,6 +102,5 @@ export const EarthernPunchCard: CardDef = {
     id: asCardDefId(EARTHERN_PUNCH_ABILITY_ID),
     name: 'Earthern Punch',
     abilityId: EARTHERN_PUNCH_ABILITY_ID,
-    durability: 2,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

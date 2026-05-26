@@ -46,6 +46,5 @@ export const FaultHarvestCard: CardDef = {
     id: asCardDefId('0528'),
     name: 'Fault Harvest',
     abilityId: ABILITY_ID,
-    durability: 999,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

@@ -32,6 +32,5 @@ export const DeepResonanceCard: CardDef = {
     id: asCardDefId(DEEP_RESONANCE_PASSIVE_ID),
     name: 'Deep Resonance',
     abilityId: DEEP_RESONANCE_PASSIVE_ID,
-    durability: 999,
     discardDuration: { duration: 999, unit: 'rounds' },
 };

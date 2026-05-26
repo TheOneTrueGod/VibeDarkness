@@ -348,6 +348,5 @@ export const SwingBatCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Swing Stick',
     abilityId: CARD_ID,
-    durability: 2,
     discardDuration: { duration: 1, unit: 'rounds' },
 };
