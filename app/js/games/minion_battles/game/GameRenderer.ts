@@ -426,12 +426,10 @@ export class GameRenderer {
 
     private static lightLevelToAlpha(level: number): number {
         const L = Math.round(level);
-        if (L > 0) return 0;
-        if (L > -5) return 0.15;
-        if (L > -10) return 0.25;
-        if (L > -15) return 0.5;
-        if (L > -20) return 0.75;
-        return 1;
+        if (L >= DarknessLevel.BRIGHT_LIGHT) return 0;
+        if (L <= DarknessLevel.FULL_DARKNESS) return 1;
+        // Linear: 100% opacity at level 0, 10% at level 9
+        return 1.0 - (L / DarknessLevel.MEDIUM_LIGHT_MAX) * 0.9;
     }
 
     private getLightSourcesFromSpecialTiles(specialTiles: SpecialTile[]): LightSource[] {
@@ -486,6 +484,9 @@ export class GameRenderer {
                     const alpha = GameRenderer.lightLevelToAlpha(level);
                     if (alpha > 0) {
                         ctx.fillStyle = `rgba(20,0,35,${alpha})`;
+                        ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    } else if (level >= DarknessLevel.SUNLIGHT) {
+                        ctx.fillStyle = `rgba(255,245,200,0.08)`;
                         ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
                     }
                 }
@@ -1312,7 +1313,7 @@ export class GameRenderer {
                 const col = Math.floor(unit.x / cellSize);
                 const row = Math.floor(unit.y / cellSize);
                 const light = this.getLightAt(col, row);
-                if (light !== null && light <= -20) continue;
+                if (light !== null && light <= DarknessLevel.FULL_DARKNESS) continue;
             }
             for (const active of unit.activeAbilities) {
                 const ability = getAbility(active.abilityId);

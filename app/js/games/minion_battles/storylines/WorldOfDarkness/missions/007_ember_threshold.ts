@@ -220,7 +220,7 @@ export class EmberThresholdMission extends BaseMissionDef {
     playerSpawnPoints: PlayerSpawnPoint[] = [{ col: 36, row: 10 }];
 
     lightLevelEnabled = true;
-    globalLightLevel = -20;
+    globalLightLevel = 0;
 
     specialTiles: SpecialTilePlacement[] = [
         ...crystalSpecialTilesAt(CAVE_ORIGIN_COL, 0),
@@ -229,7 +229,7 @@ export class EmberThresholdMission extends BaseMissionDef {
             col: CAVE_CAMPFIRE_COL,
             row: CAVE_CAMPFIRE_ROW,
             hp: 3,
-            emitsLight: { lightAmount: 15, radius: 6 },
+            emitsLight: { lightAmount: 12, radius: 6 },
         },
     ];
 

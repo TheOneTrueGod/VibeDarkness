@@ -85,7 +85,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         defId: 'DarkCrystal',
         col: WOLF_COL,
         row: WOLF_ROW,
-        emitsLight: { lightAmount: 20, radius: 10 },
+        emitsLight: { lightAmount: 12, radius: 10 },
         colorFilter: { color: 0x6633aa, alpha: 0.35, filterRadius: 8 },
     },
     {
@@ -145,7 +145,7 @@ export class MonsterMission extends BaseMissionDef {
     preMissionStory = PRE_MISSION_STORY;
     postMissionStory = POST_MISSION_STORY;
     lightLevelEnabled = true;
-    globalLightLevel = -20;
+    globalLightLevel = 0;
     /** Spawns in the back of the cave (50_50), same relative layout as prior single-column map. */
     playerSpawnPoints = [
         { col: 17 + RIGHT_SEGMENT_COL, row: 9 },

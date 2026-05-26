@@ -174,7 +174,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         defendPoint: true,
         hp: 5,
         tags: { destructible: true },
-        emitsLight: { lightAmount: 15, radius: 10 },
+        emitsLight: { lightAmount: 12, radius: 10 },
     },
 ];
 
@@ -239,7 +239,7 @@ export class DarkAwakeningMission extends BaseMissionDef {
     aiController = 'stateBased' as const;
     preMissionStory = PRE_MISSION_STORY;
     lightLevelEnabled = true;
-    globalLightLevel = -20;
+    globalLightLevel = 0;
     /** Player spawn points: eight positions around the campfire in a square. */
     playerSpawnPoints = [
         { col: 12, row: 9 },

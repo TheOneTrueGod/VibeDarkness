@@ -164,7 +164,7 @@ export class LastHoldoutMission extends BaseMissionDef {
     specialTiles = SPECIAL_TILES;
     aiController = 'stateBased' as const;
     lightLevelEnabled = true;
-    globalLightLevel = -20;
+    globalLightLevel = 0;
     /** Player spawn points: eight positions inside the C-shaped bunker. */
     playerSpawnPoints = [
         { col: 3, row: 5 },

@@ -152,7 +152,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
 		col: CAVE_CAMPFIRE.col,
 		row: CAVE_CAMPFIRE.row + BOTTOM_OFFSET_ROW,
 		hp: 5,
-		emitsLight: { lightAmount: 20, radius: 8 },
+		emitsLight: { lightAmount: 15, radius: 8 },
 	},
 	...crystalSpecialTilesAt(0, BOTTOM_OFFSET_ROW),
 ];
@@ -213,7 +213,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	preMissionStory = PRE_MISSION_STORY;
 	postMissionStory = POST_MISSION_STORY;
 	lightLevelEnabled = true;
-	globalLightLevel = -20;
+	globalLightLevel = 0;
 	playerSpawnPoints = [
 		{ col: 17, row: 31 },
 		{ col: 18, row: 31 },

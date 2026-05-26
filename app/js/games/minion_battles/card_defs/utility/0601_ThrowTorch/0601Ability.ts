@@ -23,7 +23,7 @@ import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromT
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}01`;
 const PREFIRE_TIME = 0.2;
 const MAX_RANGE = 200;
-const TORCH_LIGHT_AMOUNT = 10;
+const TORCH_LIGHT_AMOUNT = 7;
 const TORCH_RADIUS = 5;
 const TORCH_ROUNDS = 3;
 const TORCH_PROJECTILE_SPEED = 400;

@@ -1,9 +1,12 @@
 /**
  * LightGrid - Per-tile light level computation.
  *
- * Light level is global + sum of source contributions. Each source adds
- * max(0, emission - distance) where distance is Euclidean (circular) distance
- * in tiles (tile center to source center), and only within the source's radius.
+ * Light level is global + combined source contributions. Normal sources
+ * (emission ≤ 15) are summed and capped at 15 total. Sunlight sources
+ * (emission > 15) contribute via max — a single sunlight source can push
+ * tiles above 15 but multiple sunlight sources don't stack.
+ * Each source uses linear falloff: max(0, emission - distance) in tiles,
+ * capped by the source's radius.
  */
 
 export interface LightSource {
@@ -18,9 +21,14 @@ function euclideanDistance(col: number, row: number, sc: number, sr: number): nu
     return Math.sqrt((col - sc) ** 2 + (row - sr) ** 2);
 }
 
+/** Max combined contribution from normal (non-sunlight) sources. */
+const NORMAL_SOURCE_CAP = 15;
+
 /**
  * Compute light level for every tile. Returns grid[row][col].
- * globalLightLevel + sum over sources of max(0, emission - distance), distance capped by radius.
+ * Normal sources (emission ≤ 15) are summed, capped at 15.
+ * Sunlight sources (emission > 15) use max — one source dominates.
+ * Final level = globalLightLevel + max(sunlightMax, min(15, normalSum)).
  */
 export function computeLightGrid(
     globalLightLevel: number,
@@ -32,14 +40,20 @@ export function computeLightGrid(
     for (let row = 0; row < height; row++) {
         const r: number[] = [];
         for (let col = 0; col < width; col++) {
-            let level = globalLightLevel;
+            let normalSum = 0;
+            let sunlightMax = 0;
             for (const s of sources) {
                 const d = euclideanDistance(col, row, s.col, s.row);
                 if (d <= s.radius) {
-                    level += Math.max(0, s.emission - d);
+                    const contrib = Math.max(0, s.emission - d);
+                    if (s.emission > NORMAL_SOURCE_CAP) {
+                        sunlightMax = Math.max(sunlightMax, contrib);
+                    } else {
+                        normalSum += contrib;
+                    }
                 }
             }
-            r.push(level);
+            r.push(globalLightLevel + Math.max(sunlightMax, Math.min(NORMAL_SOURCE_CAP, normalSum)));
         }
         grid.push(r);
     }

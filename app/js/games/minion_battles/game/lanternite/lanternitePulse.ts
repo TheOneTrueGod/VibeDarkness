@@ -11,9 +11,9 @@ export const LANTERNITE_CHARACTER_ID = 'lanternite';
 export const LANTERNITE_NEST_CHARACTER_ID = 'lanternite_nest';
 export const LANTERNITE_SOUL_SAP_MAX_HP_FRACTION = 0.07;
 export const LANTERNITE_RESPAWN_DELAY_SEC = 3;
-export const LANTERNITE_TORCH_LIGHT = 12;
+export const LANTERNITE_TORCH_LIGHT = 7;
 export const LANTERNITE_TORCH_RADIUS_TILES = 4.5;
-export const LANTERNITE_NEST_LIGHT = 14;
+export const LANTERNITE_NEST_LIGHT = 10;
 export const LANTERNITE_NEST_RADIUS_TILES = 6.5;
 
 function killUnit(unit: Unit, eventBus: EventBus): void {

@@ -230,7 +230,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     preMissionStory = PRE_MISSION_STORY;
     postMissionStory = POST_MISSION_STORY;
     lightLevelEnabled = true;
-    globalLightLevel = -20;
+    globalLightLevel = 0;
     playerSpawnPoints = [
         { col: 10, row: 9 },
         { col: 11, row: 9 },
