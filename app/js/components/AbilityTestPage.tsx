@@ -4,15 +4,18 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
-import { getAllAbilities } from '../games/minion_battles/abilities/AbilityRegistry';
-import type { AbilityStatic } from '../games/minion_battles/abilities/Ability';
+import { Dumbbell, Eye, Gem, Pause, Play, Shield, SkipBack, SkipForward, Sword } from 'lucide-react';
 import {
+    type AbilityTreeSidebarGroup,
     type GeneralTestSidebarGroup,
+    getAbilityTreeSidebarGroups,
     getGeneralTestSidebarGroups,
+    getScenarioById,
     getScenariosForSelectorKey,
     isRegisteredGeneralGroupSelectorKey,
 } from '../games/minion_battles/testing/scenarios/registry';
+import ScenarioPreviewModal from './ability-tests/ScenarioPreviewModal';
+import { PlaybackButton } from './ability-tests/PlaybackButton';
 import type { ScenarioDefinition } from '../games/minion_battles/testing/types';
 import { createLiveScenarioRun, type LiveScenarioRun } from '../games/minion_battles/testing/runner/SimulationRunner';
 import { MAX_SELECTED_ABILITY_TEST_ITEMS } from './ability-tests/constants';
@@ -21,15 +24,15 @@ import { useToast } from '../contexts/ToastContext';
 
 const SELECTED_PARAM = 'selected';
 const FILTER_PARAM = 'q';
+const PREVIEW_PARAM = 'preview';
 type PlaybackMode = 'playing' | 'paused';
 
-function showAbilityInTestList(id: string): boolean {
-    if (id.length >= 4 && /^00/.test(id)) {
-        const prefix = Number(id.slice(0, 2));
-        if (prefix === 0) return false;
-    }
-    return true;
-}
+const TREE_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+    training:      Dumbbell,
+    crystal_rocks: Gem,
+    stick_sword:   Sword,
+    tech_shield:   Shield,
+};
 
 function parseSelected(raw: string | null): string[] {
     if (!raw?.trim()) return [];
@@ -48,10 +51,12 @@ function ScenarioPane({
     scenario,
     run,
     renderVersion,
+    onPreview,
 }: {
     scenario: ScenarioDefinition;
     run: LiveScenarioRun | null;
     renderVersion: number;
+    onPreview?: () => void;
 }) {
     const engine = run?.engine;
     const settled = run?.isSettled() ?? false;
@@ -72,7 +77,19 @@ function ScenarioPane({
                 settled ? (passed ? 'border-success' : 'border-danger') : 'border-border-custom'
             }`}
         >
-            <div className="text-sm font-semibold text-white leading-tight">{scenario.title}</div>
+            {onPreview ? (
+                <button
+                    type="button"
+                    className="flex items-start justify-between gap-1 w-full text-left group rounded hover:bg-surface/50 -mx-1 px-1 transition-colors"
+                    onClick={onPreview}
+                    aria-label="Preview in full view"
+                >
+                    <span className="text-sm font-semibold text-white leading-tight">{scenario.title}</span>
+                    <Eye size={13} className="shrink-0 mt-0.5 text-muted group-hover:text-white transition-colors" />
+                </button>
+            ) : (
+                <div className="text-sm font-semibold text-white leading-tight">{scenario.title}</div>
+            )}
             <div className="flex justify-center">
                 {engine ? <MiniTerrainView engine={engine} cellPx={30} renderVersion={renderVersion} /> : (
                     <span className="text-xs text-muted">—</span>
@@ -125,6 +142,26 @@ export default function AbilityTestPage() {
         [searchParams],
     );
 
+    const previewScenario = useMemo(() => {
+        const id = searchParams.get(PREVIEW_PARAM);
+        return id ? (getScenarioById(id) ?? null) : null;
+    }, [searchParams]);
+
+    const openPreview = useCallback(
+        (scenarioId: string) => {
+            const params = new URLSearchParams(searchParams);
+            params.set(PREVIEW_PARAM, scenarioId);
+            setSearchParams(params, { replace: true });
+        },
+        [searchParams, setSearchParams],
+    );
+
+    const closePreview = useCallback(() => {
+        const params = new URLSearchParams(searchParams);
+        params.delete(PREVIEW_PARAM);
+        setSearchParams(params, { replace: true });
+    }, [searchParams, setSearchParams]);
+
     const setSelectedKeys = useCallback(
         (next: string[]) => {
             const params = new URLSearchParams(searchParams);
@@ -153,17 +190,21 @@ export default function AbilityTestPage() {
         [selectedKeys, setSelectedKeys, showToast],
     );
 
-    const abilities = useMemo(() => {
-        const list = getAllAbilities().filter((a) => showAbilityInTestList(a.id));
+    const abilityTreeGroups = useMemo(() => {
         const q = filter.trim().toLowerCase();
+        const all = getAbilityTreeSidebarGroups();
         const filtered = !q
-            ? list.sort((a, b) => a.name.localeCompare(b.name))
-            : list
-                  .filter((a) => a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q))
-                  .sort((a, b) => a.name.localeCompare(b.name));
+            ? all
+            : all.filter((g) => {
+                  if (g.label.toLowerCase().includes(q) || g.treeId.includes(q)) return true;
+                  const scenarios = getScenariosForSelectorKey(g.selectorKey);
+                  return scenarios.some(
+                      (s) => s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q),
+                  );
+              });
         const sel = new Set(selectedKeys);
-        const head = filtered.filter((a) => sel.has(a.id));
-        const tail = filtered.filter((a) => !sel.has(a.id));
+        const head = filtered.filter((g) => sel.has(g.selectorKey));
+        const tail = filtered.filter((g) => !sel.has(g.selectorKey));
         return [...head, ...tail];
     }, [filter, selectedKeys]);
 
@@ -283,6 +324,7 @@ export default function AbilityTestPage() {
     }, [runsById, runsByKey]);
 
     return (
+        <>
         <div className="flex flex-col md:flex-row gap-4 min-h-[480px]">
             <aside className="w-full md:w-56 shrink-0 flex flex-col gap-3 border border-border-custom rounded-lg p-3 bg-surface">
                 <input
@@ -302,7 +344,7 @@ export default function AbilityTestPage() {
                 />
                 <div className="text-xs text-muted uppercase tracking-wide">Abilities</div>
                 <ul className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
-                    {abilities.map((a) => rowForAbility(a, selectedKeys, toggleKey))}
+                    {abilityTreeGroups.map((g) => rowForTreeGroup(g, selectedKeys, toggleKey))}
                 </ul>
                 <div className="text-xs text-muted uppercase tracking-wide">General</div>
                 <ul className="space-y-1 max-h-[28vh] overflow-y-auto pr-1">
@@ -316,6 +358,11 @@ export default function AbilityTestPage() {
                         ? (() => {
                               const g = getGeneralTestSidebarGroups().find((x) => x.selectorKey === key);
                               return g ? `General · ${g.label}` : scenarios[0]?.title ?? key;
+                          })()
+                        : key.startsWith('tree:')
+                        ? (() => {
+                              const g = getAbilityTreeSidebarGroups().find((x) => x.selectorKey === key);
+                              return g ? g.label : key;
                           })()
                         : `Ability · ${key}`;
                     const groupedGeneralCard =
@@ -365,6 +412,7 @@ export default function AbilityTestPage() {
                                                 scenario={s}
                                                 run={runsById.get(s.id) ?? null}
                                                 renderVersion={renderVersion}
+                                                onPreview={() => openPreview(s.id)}
                                             />
                                         ))}
                                     </div>
@@ -377,6 +425,7 @@ export default function AbilityTestPage() {
                                             scenario={s}
                                             run={runsById.get(s.id) ?? null}
                                             renderVersion={renderVersion}
+                                            onPreview={() => openPreview(s.id)}
                                         />
                                     ))}
                                 </div>
@@ -386,54 +435,29 @@ export default function AbilityTestPage() {
                 })}
             </main>
         </div>
+        {previewScenario && (
+            <ScenarioPreviewModal scenario={previewScenario} onClose={closePreview} />
+        )}
+        </>
     );
 }
 
-function PlaybackButton({
-    icon: Icon,
-    title,
-    onClick,
-    disabled = false,
-    invisible = false,
-}: {
-    icon: React.ComponentType<{ size?: number; className?: string }>;
-    title: string;
-    onClick: () => void;
-    disabled?: boolean;
-    invisible?: boolean;
-}) {
-    return (
-        <button
-            type="button"
-            className={`w-7 h-7 rounded border border-border-custom flex items-center justify-center transition-colors ${
-                invisible ? 'opacity-0 pointer-events-none' : disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-surface-light text-primary'
-            }`}
-            title={title}
-            onClick={onClick}
-            disabled={disabled || invisible}
-            aria-label={title}
-        >
-            <Icon size={14} />
-        </button>
-    );
-}
 
-function rowForAbility(a: AbilityStatic, selected: string[], toggle: (k: string) => void) {
-    const sel = selected.includes(a.id);
+function rowForTreeGroup(g: AbilityTreeSidebarGroup, selected: string[], toggle: (k: string) => void) {
+    const sel = selected.includes(g.selectorKey);
     const pinned = sel ? 'ring-2 ring-inset ring-primary bg-primary/10' : 'hover:bg-surface-light';
+    const Icon = TREE_ICONS[g.treeId];
     return (
-        <li key={a.id}>
+        <li key={g.selectorKey}>
             <button
                 type="button"
                 className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded text-sm ${pinned}`}
-                onClick={() => toggle(a.id)}
+                onClick={() => toggle(g.selectorKey)}
             >
-                <span
-                    className="w-8 h-8 shrink-0 rounded border border-border-custom overflow-hidden bg-black/30 [&>svg]:w-full [&>svg]:h-full"
-                    dangerouslySetInnerHTML={{ __html: a.image }}
-                    aria-hidden
-                />
-                <span className="truncate text-white">{a.name}</span>
+                <span className="w-8 h-8 shrink-0 rounded border border-border-custom flex items-center justify-center bg-black/30 text-muted">
+                    {Icon && <Icon size={16} />}
+                </span>
+                <span className="truncate text-white">{g.label}</span>
             </button>
         </li>
     );

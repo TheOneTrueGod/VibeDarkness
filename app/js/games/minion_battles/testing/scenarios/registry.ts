@@ -56,6 +56,33 @@ export function getScenarioById(id: string): ScenarioDefinition | undefined {
     return ALL_ABILITY_TEST_SCENARIOS.find((s) => s.id === id);
 }
 
+export interface AbilityTreeSidebarGroup {
+    treeId: string;
+    label: string;
+    selectorKey: string;
+    /** Ability IDs as returned by inferScenarioAbilityId — used to collect scenarios for this tree. */
+    abilityIds: string[];
+}
+
+const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
+    { treeId: 'training',      label: 'Training',      selectorKey: 'tree:training',      abilityIds: ['0102'] },
+    { treeId: 'crystal_rocks', label: 'Rocks',          selectorKey: 'tree:crystal_rocks', abilityIds: ['throw_rock'] },
+    { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112'] },
+    { treeId: 'tech_shield',   label: 'Tech Shield',    selectorKey: 'tree:tech_shield',   abilityIds: ['0113'] },
+];
+
+export function getAbilityTreeSidebarGroups(): AbilityTreeSidebarGroup[] {
+    return ABILITY_TREE_GROUPS.filter(({ abilityIds }) =>
+        ALL_ABILITY_TEST_SCENARIOS.some(
+            (s) => s.category === 'ability' && abilityIds.includes(inferScenarioAbilityId(s) ?? ''),
+        ),
+    );
+}
+
+export function isRegisteredTreeGroupSelectorKey(key: string): boolean {
+    return ABILITY_TREE_GROUPS.some((g) => g.selectorKey === key);
+}
+
 export function getGeneralTestScenarios(): ScenarioDefinition[] {
     return ALL_ABILITY_TEST_SCENARIOS.filter((s) => s.category === 'general');
 }
@@ -104,10 +131,18 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
 }
 
 /**
- * Selector key from the Ability Test page: raw ability id (e.g. `0102`), `general:<groupSlug>`
- * (e.g. `general:movement`), or legacy `general:<scenarioId>`.
+ * Selector key from the Ability Test page: `tree:<treeId>` (e.g. `tree:training`),
+ * `general:<groupSlug>` (e.g. `general:movement`), or legacy ability id / `general:<scenarioId>`.
  */
 export function getScenariosForSelectorKey(key: string): ScenarioDefinition[] {
+    if (key.startsWith('tree:')) {
+        const treeId = key.slice('tree:'.length);
+        const group = ABILITY_TREE_GROUPS.find((g) => g.treeId === treeId);
+        if (!group) return [];
+        return ALL_ABILITY_TEST_SCENARIOS.filter(
+            (s) => s.category === 'ability' && group.abilityIds.includes(inferScenarioAbilityId(s) ?? ''),
+        );
+    }
     if (key.startsWith('general:')) {
         const rest = key.slice('general:'.length);
         const slug = rest.toLowerCase();
