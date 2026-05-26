@@ -31,6 +31,26 @@ function throwRockEngine(nodes: string[]): GameEngine {
     return engine;
 }
 
+function chargedRockEngine(nodes: string[]): GameEngine {
+    const research = { [P]: { [CRYSTAL_ROCKS_TREE_ID]: nodes } };
+    const engine = buildTinyBattleEngine({
+        gridW: 16,
+        gridH: 10,
+        localPlayerId: P,
+        grass: true,
+        playerResearchTreesByPlayer: research,
+    });
+    placePlayerAndDummy(engine, {
+        playerId: P,
+        playerWorld: { x: 120, y: 200 },
+        dummyWorld: { x: 280, y: 200 },
+        abilities: ['throw_charged_rock'],
+        playerResearchTreesByPlayer: research,
+    });
+    seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('throw_charged_rock'), abilityId: 'throw_charged_rock' }]);
+    return engine;
+}
+
 function throwOrder(engine: GameEngine) {
     const u = engine.getLocalPlayerUnit()!;
     const d = engine.getUnit('target_dummy')!;
@@ -39,6 +59,33 @@ function throwOrder(engine: GameEngine) {
             unitId: u.id,
             abilityId: 'throw_rock',
             targets: [{ type: 'pixel' as const, position: { x: d.x, y: d.y } }],
+        },
+    ];
+}
+
+function chargedThrowOrder(engine: GameEngine) {
+    const u = engine.getLocalPlayerUnit()!;
+    const d = engine.getUnit('target_dummy')!;
+    return [
+        {
+            unitId: u.id,
+            abilityId: 'throw_charged_rock',
+            targets: [{ type: 'pixel' as const, position: { x: d.x, y: d.y } }],
+        },
+    ];
+}
+
+function chargedThrowTwoRockOrder(engine: GameEngine) {
+    const u = engine.getLocalPlayerUnit()!;
+    const d = engine.getUnit('target_dummy')!;
+    return [
+        {
+            unitId: u.id,
+            abilityId: 'throw_charged_rock',
+            targets: [
+                { type: 'pixel' as const, position: { x: d.x, y: d.y } },
+                { type: 'pixel' as const, position: { x: d.x, y: d.y } },
+            ],
         },
     ];
 }
@@ -62,34 +109,34 @@ export const throwRockNoResearchScenario: ScenarioDefinition = {
 
 export const throwRockMorePowerScenario: ScenarioDefinition = {
     id: 'throw_rock_research_more_power',
-    title: 'Throw Rock with more_power deals higher impact',
+    title: 'Throw Charged Rock with more_power deals higher explosion damage',
     category: 'ability',
     maxDurationMs: 5000,
-    buildEngine: () => throwRockEngine(['charged_rocks', 'more_power']),
-    getInitialOrders: throwOrder,
+    buildEngine: () => chargedRockEngine(['charged_rocks', 'more_power']),
+    getInitialOrders: chargedThrowOrder,
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
         return Boolean(d && d.hp < 490);
     },
     failureMessage: (e) => {
         const d = e.getUnit('target_dummy');
-        return `dummy hp=${d?.hp} expected < 490 for more_power bump`;
+        return `dummy hp=${d?.hp} expected < 490 for more_power bump (5 direct + 8 explosion = 13 damage)`;
     },
 };
 
 export const throwRockMoreRockScenario: ScenarioDefinition = {
     id: 'throw_rock_research_more_rock',
-    title: 'Throw Rock with more_rock (two projectiles) extra damage',
+    title: 'Throw Charged Rock with more_rock fires two projectiles',
     category: 'ability',
     maxDurationMs: 5000,
-    buildEngine: () => throwRockEngine(['charged_rocks', 'more_rock']),
-    getInitialOrders: throwOrder,
+    buildEngine: () => chargedRockEngine(['charged_rocks', 'more_rock']),
+    getInitialOrders: chargedThrowTwoRockOrder,
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
-        return Boolean(d && d.hp < 488);
+        return Boolean(d && d.hp < 490);
     },
     failureMessage: (e) => {
         const d = e.getUnit('target_dummy');
-        return `dummy hp=${d?.hp} expected < 488 for two-rock pattern`;
+        return `dummy hp=${d?.hp} expected < 490 for two-rock pattern (rock1: 5+3=8, rock2 explosion clips knockedback dummy: +3 = 11 total)`;
     },
 };

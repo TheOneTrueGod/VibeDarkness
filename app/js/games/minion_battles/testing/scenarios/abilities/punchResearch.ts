@@ -3,13 +3,6 @@ import type { GameEngine } from '../../../game/GameEngine';
 import { asCardDefId } from '../../../card_defs';
 import { StunnedBuff, STUNNED_BUFF_TYPE } from '../../../buffs/StunnedBuff';
 import {
-    TRAINING_NODE_CHARGING_PUNCH,
-    TRAINING_NODE_DOUBLE_PUNCH,
-    TRAINING_NODE_SNEAKY_PUNCH,
-    TRAINING_NODE_STRONG_PUNCH,
-    TRAINING_TREE_ID,
-} from '../../../../../researchTrees/trees/training';
-import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
     seedHandWithAbilities,
@@ -19,44 +12,37 @@ import {
 const P = TINY_BATTLE_PLAYER_ID;
 const TEST_CELL_SIZE = 40;
 const PLAYER_START = { x: 3 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2, y: 2 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2 };
-const DUMMY_START = { x: 5 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2, y: 2 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2 };
+// One cell closer than the old research-based scenarios: new abilities don't add caster.radius
+// to the hitbox range (unlike 0102), so the dummy must be within the 30px hitbox reach.
+const DUMMY_START = { x: 4 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2, y: 2 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2 };
 
-function tinyPunchEngine(researchNodes: string[]): GameEngine {
-    const engine = buildTinyBattleEngine({
-        gridW: 8,
-        gridH: 6,
-        localPlayerId: P,
-        grass: true,
-        playerResearchTreesByPlayer:
-            researchNodes.length > 0 ? { [P]: { [TRAINING_TREE_ID]: researchNodes } } : undefined,
-    });
+function buildPunchEngine(abilityId: string, extraAbilities: string[] = []): GameEngine {
+    const engine = buildTinyBattleEngine({ gridW: 8, gridH: 6, localPlayerId: P, grass: true });
     placePlayerAndDummy(engine, {
         playerId: P,
         playerWorld: PLAYER_START,
         dummyWorld: DUMMY_START,
-        abilities: ['0102'],
-        playerResearchTreesByPlayer:
-            researchNodes.length > 0 ? { [P]: { [TRAINING_TREE_ID]: researchNodes } } : undefined,
+        abilities: [abilityId, ...extraAbilities],
     });
-    seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0102'), abilityId: '0102' }]);
+    seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId(abilityId), abilityId }]);
     return engine;
 }
 
-function punchOrder(engine: GameEngine, extraPixel?: { x: number; y: number }) {
+function punchOrder(engine: GameEngine, abilityId: string, extraPixel?: { x: number; y: number }) {
     const u = engine.getLocalPlayerUnit()!;
     const d = engine.getUnit('target_dummy')!;
     const t0 = { type: 'pixel' as const, position: { x: d.x, y: d.y } };
     const targets = extraPixel ? [t0, { type: 'pixel' as const, position: extraPixel }] : [t0];
-    return [{ unitId: u.id, abilityId: '0102', targets }];
+    return [{ unitId: u.id, abilityId, targets }];
 }
 
 export const punchBaselineScenario: ScenarioDefinition = {
     id: 'punch_research_baseline',
-    title: 'Punch (no training punch upgrades) damages dummy',
+    title: 'Punch (0102) damages dummy',
     category: 'ability',
     maxDurationMs: 5000,
-    buildEngine: () => tinyPunchEngine([]),
-    getInitialOrders: (e) => punchOrder(e),
+    buildEngine: () => buildPunchEngine('0102'),
+    getInitialOrders: (e) => punchOrder(e, '0102'),
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
         return Boolean(d && d.maxHp - d.hp >= 8);
@@ -69,11 +55,11 @@ export const punchBaselineScenario: ScenarioDefinition = {
 
 export const punchStrongScenario: ScenarioDefinition = {
     id: 'punch_research_strong',
-    title: 'Strong Punch applies stun on hit',
+    title: 'Strong Punch (0117) applies stun on hit',
     category: 'ability',
     maxDurationMs: 5000,
-    buildEngine: () => tinyPunchEngine([TRAINING_NODE_STRONG_PUNCH]),
-    getInitialOrders: (e) => punchOrder(e),
+    buildEngine: () => buildPunchEngine('0117'),
+    getInitialOrders: (e) => punchOrder(e, '0117'),
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
         return Boolean(d?.hasBuff(STUNNED_BUFF_TYPE));
@@ -86,13 +72,13 @@ export const punchStrongScenario: ScenarioDefinition = {
 
 export const punchDoubleScenario: ScenarioDefinition = {
     id: 'punch_research_double',
-    title: 'Double Punch lands two strikes on one target line',
+    title: 'Double Punch (0116) lands two strikes on one target line',
     category: 'ability',
     maxDurationMs: 5000,
-    buildEngine: () => tinyPunchEngine([TRAINING_NODE_DOUBLE_PUNCH]),
+    buildEngine: () => buildPunchEngine('0116'),
     getInitialOrders: (e) => {
         const d = e.getUnit('target_dummy')!;
-        return punchOrder(e, { x: d.x + 4, y: d.y });
+        return punchOrder(e, '0116', { x: d.x + 4, y: d.y });
     },
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
@@ -106,18 +92,18 @@ export const punchDoubleScenario: ScenarioDefinition = {
 
 export const punchSneakyScenario: ScenarioDefinition = {
     id: 'punch_research_sneaky',
-    title: 'Sneaky Punch bonus vs pre-stunned dummy',
+    title: 'Sneaky Punch (0118) bonus vs pre-stunned dummy',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine: () => {
-        const engine = tinyPunchEngine([TRAINING_NODE_SNEAKY_PUNCH]);
+        const engine = buildPunchEngine('0118');
         const d = engine.getUnit('target_dummy');
         if (d) {
             d.addBuff(new StunnedBuff(8), engine.gameTime, engine.roundNumber);
         }
         return engine;
     },
-    getInitialOrders: (e) => punchOrder(e),
+    getInitialOrders: (e) => punchOrder(e, '0118'),
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
         if (!d) return false;
@@ -134,33 +120,25 @@ export const punchSneakyScenario: ScenarioDefinition = {
 
 export const punchChargingScenario: ScenarioDefinition = {
     id: 'punch_research_charging',
-    title: 'Charging Punch restores a Throw Charged Rock use on hit',
+    title: 'Charging Punch (0119) grants a Light Charge to throw_charged_rock on hit',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine: () => {
-        const engine = buildTinyBattleEngine({
-            gridW: 8,
-            gridH: 6,
-            localPlayerId: P,
-            grass: true,
-            playerResearchTreesByPlayer: { [P]: { [TRAINING_TREE_ID]: [TRAINING_NODE_CHARGING_PUNCH] } },
-        });
+        const engine = buildTinyBattleEngine({ gridW: 8, gridH: 6, localPlayerId: P, grass: true });
         placePlayerAndDummy(engine, {
             playerId: P,
             playerWorld: PLAYER_START,
             dummyWorld: DUMMY_START,
-            abilities: ['0102', 'throw_charged_rock'],
-            playerResearchTreesByPlayer: { [P]: { [TRAINING_TREE_ID]: [TRAINING_NODE_CHARGING_PUNCH] } },
+            abilities: ['0119', 'throw_charged_rock'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0102'), abilityId: '0102' }]);
+        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0119'), abilityId: '0119' }]);
         const u = engine.getLocalPlayerUnit();
         const rt = u?.abilityRuntime['throw_charged_rock'];
-        // At max uses, throw_charged_rock cannot accept lightCharge (buffer is 0). Deplete uses so
-        // recoverCharge can apply; the runtime then converts light charge into a use immediately.
+        // Deplete uses so recoverCharge can apply; the runtime converts light charge into a use.
         if (rt) rt.currentUses = 0;
         return engine;
     },
-    getInitialOrders: (e) => punchOrder(e),
+    getInitialOrders: (e) => punchOrder(e, '0119'),
     assertPass: (e) => {
         const u = e.getLocalPlayerUnit();
         if (!u) return false;

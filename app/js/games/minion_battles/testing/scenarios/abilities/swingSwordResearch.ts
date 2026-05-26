@@ -46,11 +46,11 @@ export const swingSwordNoneScenario: ScenarioDefinition = {
     },
     assertPass(engine) {
         const d = engine.getUnit('target_dummy');
-        return Boolean(d && d.hp < 490);
+        return Boolean(d && d.maxHp - d.hp >= 10);
     },
     failureMessage(engine) {
         const d = engine.getUnit('target_dummy');
-        return `dummy hp=${d?.hp}`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected at least 10`;
     },
 };
 
