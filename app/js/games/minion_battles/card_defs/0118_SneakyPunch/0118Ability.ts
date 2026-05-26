@@ -12,6 +12,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import type { HitboxDef } from '../../abilities/hitboxDef';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { ThickLineHitbox } from '../../hitboxes';
 import { getAimPointClampedToMaxRange } from '../../abilities/targetHelpers';
@@ -36,12 +37,13 @@ const PUNCH_HITBOX: HitboxDef = { shape: 'meleeLine', range: MAX_RANGE, thicknes
 const punchBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(PUNCH_HITBOX)
     .withImpact('punch')
+    .withSlide({ forwardDistance: 12, backwardDistance: 6 })
     .withDamage((_ctx, hitUnits) => {
         const target = hitUnits[0];
         if (!target) return;
         const isVulnerable = target.hasBuff(STUNNED_BUFF_TYPE) || target.hasBuff(BLEED_BUFF_TYPE);
         const damage = isVulnerable ? BONUS_TOTAL : BASE_DAMAGE;
-        tryDamageOrBlock(target, {
+        const didHit = tryDamageOrBlock(target, {
             engine: _ctx.engine,
             gameTime: _ctx.engine.gameTime,
             eventBus: _ctx.engine.eventBus,
@@ -52,6 +54,14 @@ const punchBehaviour = CastBehaviours.MeleeAttack()
             damage,
             attackType: 'melee',
         });
+        if (didHit && isVulnerable) {
+            _ctx.engine.addEffect(new Effect({
+                x: target.x,
+                y: target.y,
+                duration: 0.3,
+                effectType: 'CritShockwave',
+            }));
+        }
     });
 
 const TARGET_DEF: TargetDef = {

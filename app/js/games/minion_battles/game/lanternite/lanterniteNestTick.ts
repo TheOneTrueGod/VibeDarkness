@@ -18,6 +18,7 @@ import {
 } from './lanternitePulse';
 import type { LightSource } from '../lightSources/LightSource';
 import { findUnoccupiedConnectedNestPoi, countAliveChildrenByRole } from './lanterniteNetworkUtils';
+import { UnitTag } from '../units/unitTag';
 
 const ROUND_DURATION_SEC = 10;
 
@@ -125,6 +126,7 @@ export function processLanterniteNests(params: {
         );
         newNest.lanterniteNestConfig = newNestCfg;
         newNest.lanterniteHomeNestPoiId = unit.lanterniteTargetNestPoiId ?? null;
+        if (unit.isInvincible()) newNest.tags = [UnitTag.Invincible];
         prepareLanterniteNestForMissionStart(newNest, params.gameTime);
         params.addUnit(newNest);
 
@@ -214,6 +216,7 @@ export function processLanterniteNests(params: {
             lan.lanternPatrolLeg = 'toFar';
         }
 
+        if (nest.isInvincible()) lan.tags = [UnitTag.Invincible];
         params.addUnit(lan);
 
         nest.lanterniteNestSpawnState!.spawnedIds.push(lan.id);

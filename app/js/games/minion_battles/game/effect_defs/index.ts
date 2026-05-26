@@ -15,7 +15,7 @@ import { bulletTrailEffectDef, slashTrailEffectDef } from './trailEffects';
 import { afterimageEffectDef } from './movementEffects';
 import { chargedRockExplosionEffectDef, energyBlastExplosionEffectDef } from './explosionEffects';
 import { chargeUpEffectDef } from './chargeEffects';
-import { pulseEffectDef, howlShockwaveEffectDef } from './aoeEffects';
+import { pulseEffectDef, howlShockwaveEffectDef, critShockwaveEffectDef } from './aoeEffects';
 import {
     darkCreatureIconDeathEffectDef,
     alphaWolfStoryRemnantEffectDef,
@@ -47,6 +47,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     ConeFlash: coneFlashEffectDef,
     Pulse: pulseEffectDef,
     HowlShockwave: howlShockwaveEffectDef,
+    CritShockwave: critShockwaveEffectDef,
     ChargeUpEffect: chargeUpEffectDef,
     AlphaWolfStoryRemnant: alphaWolfStoryRemnantEffectDef,
     DarkCreatureIconDeath: darkCreatureIconDeathEffectDef,

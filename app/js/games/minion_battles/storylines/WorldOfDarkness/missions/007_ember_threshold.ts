@@ -22,6 +22,7 @@ import type {
 import type { MapSegmentPOI } from '../../../terrain/segmentSchema';
 import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
 import { ALLY_LANTERNITE, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
+import { UnitTag } from '../../../game/units/unitTag';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -111,6 +112,7 @@ function buildScout(position: { x: number; y: number }) {
         lanterniteRole: 'scout' as const,
         lanterniteTargetNestPoiId: 'nest_50_51',
         lanternPatrolFarWorld: NEST_50_51_WORLD,
+        unitTags: [UnitTag.Invincible],
     };
 }
 
@@ -165,10 +167,8 @@ export class EmberThresholdMission extends BaseMissionDef {
     ];
 
     enemies = [
-        // Three lanternite scouts emerge from the cave heading south to build the first nest.
+        // One lanternite scout emerges from the cave heading south to build the first nest.
         buildScout(SCOUT_A_WORLD),
-        buildScout(SCOUT_B_WORLD),
-        buildScout(SCOUT_C_WORLD),
 
         // Thornbinder guardian — stands in the south-gate corridor between the scouts and their target.
         // TODO: replace with the thorncaster unit once it is created.

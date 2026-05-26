@@ -10,6 +10,8 @@ export enum UnitTag {
     Boss = 'boss',
     /** Boar enemy — used for objective marker targeting. */
     Boar = 'boar',
+    /** Unit cannot be targeted, takes no damage, and shows no health bar. */
+    Invincible = 'invincible',
 }
 
 const UNIT_TAG_VALUES = new Set<string>(Object.values(UnitTag));

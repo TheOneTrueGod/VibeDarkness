@@ -39,8 +39,7 @@ import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants
 import { getDefaultHp, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
-import type { UnitTag } from './unitTag';
-import { parseUnitTagsFromJSON } from './unitTag';
+import { UnitTag, parseUnitTagsFromJSON } from './unitTag';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import type { CcResistKey } from '../../crowdControl/ccTypes';
 import { getBrambleMovementMultiplier, type BramblePatch } from '../brambleSlow';
@@ -361,6 +360,11 @@ export class Unit extends GameObject {
         return this.hp > 0 && this.active;
     }
 
+    /** Whether this unit cannot be damaged, targeted, or shown a health bar. */
+    isInvincible(): boolean {
+        return this.tags.includes(UnitTag.Invincible);
+    }
+
     /**
      * Calculate max health from unit def base + health-affecting research.
      * Loops through RESEARCH_HEALTH_BONUSES for each researched node.
@@ -380,6 +384,7 @@ export class Unit extends GameObject {
     /** Apply damage to this unit. Returns actual damage dealt. */
     takeDamage(amount: number, sourceUnitId: string | null, eventBus: EventBus): number {
         if (!this.isAlive()) return 0;
+        if (this.isInvincible()) return 0;
 
         // God mode: prevent HP loss for player-controlled units.
         if (debugSettingsSnapshot.godModeEnabled && this.isPlayerControlled()) {

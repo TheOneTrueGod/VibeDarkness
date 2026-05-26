@@ -832,7 +832,7 @@ export class GameRenderer {
                         const windowProgress = Math.max(0, Math.min(1, rawProgress));
                         // Only call if the window is active or just past
                         if (elapsed < windowStart - 0.05 || elapsed > windowEnd + 0.05) continue;
-                        const behaviourKey = `${unit.id}_${interval.id}_${bIdx}`;
+                        const behaviourKey = `${interval.id}_${bIdx}`;
                         const behaviourPayload = activeAbility.castBehaviourPayloads[behaviourKey];
                         const targetIdx = entry.targetIndex ?? 0;
                         const target = activeAbility.targets[targetIdx] ?? activeAbility.targets[0];
@@ -905,15 +905,15 @@ export class GameRenderer {
                         body.stroke({ color: 0xfacc15, width: 2 });
                     }
                 }
-                if (hpBg) hpBg.visible = true;
-                if (hpFill) hpFill.visible = true;
+                if (hpBg) hpBg.visible = !unit.isInvincible();
+                if (hpFill) hpFill.visible = !unit.isInvincible();
                 if (characterSprite) characterSprite.visible = true;
                 const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
                 if (darkTint) darkTint.visible = true;
                 if (label) label.visible = true;
                 if (glow) glow.visible = true;
                 if (playerRing) playerRing.visible = true;
-                updateUnitHpBar(visual, unit);
+                if (!unit.isInvincible()) updateUnitHpBar(visual, unit);
             }
 
             // Darkness corruption bar: only visible when progress > 0 (above unit)
@@ -990,7 +990,7 @@ export class GameRenderer {
     private onDamageTaken(data: DamageTakenEvent): void {
         const container = this.unitVisuals.get(data.unitId);
         const unit = this.currentEngine?.getUnit(data.unitId);
-        if (!container || !unit) return;
+        if (!container || !unit || unit.isInvincible()) return;
         this.startHitFlash(data.unitId, container, unit.radius);
     }
 

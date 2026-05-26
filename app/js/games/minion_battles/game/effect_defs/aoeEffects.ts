@@ -34,6 +34,25 @@ export const pulseEffectDef: IEffectDef = {
     },
 };
 
+/** Crit shockwave: compact red rings that burst from a target on a critical/bonus hit. */
+export const critShockwaveEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const rings: RingPulseSpec[] = [
+            { delay: 0,    startRadius: 4, endRadius: 32, width: 3,   opacityMul: 1 },
+            { delay: 0.15, startRadius: 4, endRadius: 22, width: 2,   opacityMul: 0.7 },
+        ];
+        const colors = [0xff3333, 0xcc0000];
+        drawRingBursts(g, effect.progress, colors, rings, (effectiveProgress, ring) =>
+            0.9 * ring.opacityMul * (1 - effectiveProgress * 1.1),
+        );
+    },
+};
+
 /** Howl shockwave: staggered expanding rings (sound pulse) for alpha wolf summon windup. */
 export const howlShockwaveEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
