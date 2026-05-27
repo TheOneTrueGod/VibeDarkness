@@ -18,6 +18,20 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
+import {
+    earthCoreEarthernPunchScenario,
+    earthCoreShakingGroundScenario,
+    earthCoreShatterScenario,
+    earthCoreStoneTombScenario,
+    earthCoreKnockScenario,
+    earthCoreAnchoredTremorScenario,
+    earthCoreStoneyPunchBaselineScenario,
+    earthCoreStoneyPunchArmourScenario,
+    earthCoreBoarClawsScenario,
+    earthCoreImpactConversionScenario,
+    earthCoreBedrockScavengerScenario,
+    earthCoreDeepResonanceScenario,
+} from '../scenarios/abilities/earthCoreScenarios';
 
 describe('runScenarioHeadless', () => {
     it('passes short pathfinding commute', () => {
@@ -33,22 +47,22 @@ describe('runScenarioHeadless', () => {
 
     it('passes strong punch stun scenario', () => {
         const r = runScenarioHeadless(punchStrongScenario);
-        expect(r.passed, r.failureMessage ?? '').toBe(true);
+        expect(r.passed, r.message).toBe(true);
     });
 
     it('passes double punch two-strike scenario', () => {
         const r = runScenarioHeadless(punchDoubleScenario);
-        expect(r.passed, r.failureMessage ?? '').toBe(true);
+        expect(r.passed, r.message).toBe(true);
     });
 
     it('passes sneaky punch bonus damage scenario', () => {
         const r = runScenarioHeadless(punchSneakyScenario);
-        expect(r.passed, r.failureMessage ?? '').toBe(true);
+        expect(r.passed, r.message).toBe(true);
     });
 
     it('passes charging punch light charge scenario', () => {
         const r = runScenarioHeadless(punchChargingScenario);
-        expect(r.passed, r.failureMessage ?? '').toBe(true);
+        expect(r.passed, r.message).toBe(true);
     });
 
     it('passes swing sword extra uses research scenario', () => {
@@ -58,7 +72,7 @@ describe('runScenarioHeadless', () => {
 
     it('passes absorption shield energy charge on block scenario', () => {
         const r = runScenarioHeadless(absorptionShieldEnergyChargeScenario);
-        expect(r.passed, r.failureMessage ?? '').toBe(true);
+        expect(r.passed, r.message).toBe(true);
     });
 
     it('getScenarioById returns registered scenario', () => {
@@ -93,6 +107,66 @@ describe('runScenarioHeadless', () => {
 
     it('passes lanternite nest build scenario', () => {
         const r = runScenarioHeadless(lanterniteNestBuildScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core earthern punch scenario', () => {
+        const r = runScenarioHeadless(earthCoreEarthernPunchScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core shaking ground scenario', () => {
+        const r = runScenarioHeadless(earthCoreShakingGroundScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core shatter with armour bonus scenario', () => {
+        const r = runScenarioHeadless(earthCoreShatterScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core stone tomb scenario', () => {
+        const r = runScenarioHeadless(earthCoreStoneTombScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core knock scenario', () => {
+        const r = runScenarioHeadless(earthCoreKnockScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core anchored tremor scenario', () => {
+        const r = runScenarioHeadless(earthCoreAnchoredTremorScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core stoney punch baseline scenario', () => {
+        const r = runScenarioHeadless(earthCoreStoneyPunchBaselineScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core stoney punch armour bonus scenario', () => {
+        const r = runScenarioHeadless(earthCoreStoneyPunchArmourScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core boar claws dash scenario', () => {
+        const r = runScenarioHeadless(earthCoreBoarClawsScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core impact conversion resonance scenario', () => {
+        const r = runScenarioHeadless(earthCoreImpactConversionScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core bedrock scavenger round start scenario', () => {
+        const r = runScenarioHeadless(earthCoreBedrockScavengerScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core deep resonance tremorsense radius scenario', () => {
+        const r = runScenarioHeadless(earthCoreDeepResonanceScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

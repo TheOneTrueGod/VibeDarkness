@@ -33,6 +33,20 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from './abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteDefenderAttackScenario } from './general/lanternites';
+import {
+    earthCoreEarthernPunchScenario,
+    earthCoreShakingGroundScenario,
+    earthCoreShatterScenario,
+    earthCoreStoneTombScenario,
+    earthCoreKnockScenario,
+    earthCoreAnchoredTremorScenario,
+    earthCoreStoneyPunchBaselineScenario,
+    earthCoreStoneyPunchArmourScenario,
+    earthCoreBoarClawsScenario,
+    earthCoreImpactConversionScenario,
+    earthCoreBedrockScavengerScenario,
+    earthCoreDeepResonanceScenario,
+} from './abilities/earthCoreScenarios';
 
 export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathStraightMoveScenario,
@@ -60,6 +74,18 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     shiningBlockStrengtheningLightScenario,
     lanterniteNestBuildScenario,
     lanterniteDefenderAttackScenario,
+    earthCoreEarthernPunchScenario,
+    earthCoreShakingGroundScenario,
+    earthCoreShatterScenario,
+    earthCoreStoneTombScenario,
+    earthCoreKnockScenario,
+    earthCoreAnchoredTremorScenario,
+    earthCoreStoneyPunchBaselineScenario,
+    earthCoreStoneyPunchArmourScenario,
+    earthCoreBoarClawsScenario,
+    earthCoreImpactConversionScenario,
+    earthCoreBedrockScavengerScenario,
+    earthCoreDeepResonanceScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -79,6 +105,7 @@ const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'crystal_rocks', label: 'Rocks',          selectorKey: 'tree:crystal_rocks', abilityIds: ['throw_rock'] },
     { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112'] },
     { treeId: 'tech_shield',   label: 'Tech Shield',    selectorKey: 'tree:tech_shield',   abilityIds: ['0104', '0110', '0113'] },
+    { treeId: 'earth_core',    label: 'Earth Core',     selectorKey: 'tree:earth_core',    abilityIds: ['earth_core'] },
 ];
 
 export function getAbilityTreeSidebarGroups(): AbilityTreeSidebarGroup[] {
@@ -139,6 +166,7 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('absorption_shield')) return '0113';
     if (id.startsWith('tech_shield_raise_shield')) return '0104';
     if (id.startsWith('tech_shield_shining_block')) return '0110';
+    if (id.startsWith('earth_core_')) return 'earth_core';
     return null;
 }
 

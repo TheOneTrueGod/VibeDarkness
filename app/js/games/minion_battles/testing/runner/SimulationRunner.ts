@@ -3,6 +3,9 @@ import type { ScenarioDefinition } from '../types';
 
 const FIXED_STEP_SEC = 1 / 60;
 
+/** Extra frames to step after assertPass first returns true, so the animation plays out. */
+const EXTRA_FRAMES_AFTER_PASS = 30;
+
 export interface ScenarioRunResult {
     passed: boolean;
     message: string;
@@ -41,6 +44,8 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
 
     let ticks = 0;
     let settled = false;
+    /** Tick at which assertPass first returned true; null until then. */
+    let passedAtTick: number | null = null;
 
     const markSettled = (): void => {
         settled = true;
@@ -60,9 +65,24 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
             const steps = Math.max(0, Math.floor(n));
             for (let i = 0; i < steps; i++) {
                 if (settled) return;
+
+                // After pass: keep stepping extra frames before settling.
+                if (passedAtTick !== null) {
+                    if (ticks >= passedAtTick + EXTRA_FRAMES_AFTER_PASS) {
+                        markSettled();
+                        return;
+                    }
+                    if (!engine.state.levelEventManager.isTerminal) {
+                        engine.stepSimulationFixedTicks(1);
+                    }
+                    ticks++;
+                    continue;
+                }
+
+                // Latch pass but keep going — extra frames will play before settling.
                 if (scenario.assertPass(engine)) {
-                    markSettled();
-                    return;
+                    passedAtTick = ticks;
+                    continue;
                 }
                 if (ticks >= maxTicks) {
                     markSettled();
@@ -79,9 +99,16 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
                 engine.stepSimulationFixedTicks(1);
                 ticks++;
             }
-            if (
+
+            // Post-loop settlement check (covers the case where stepTicks(1) is called repeatedly).
+            if (passedAtTick !== null) {
+                if (ticks >= passedAtTick + EXTRA_FRAMES_AFTER_PASS) {
+                    markSettled();
+                }
+            } else if (scenario.assertPass(engine)) {
+                passedAtTick = ticks;
+            } else if (
                 ticks >= maxTicks ||
-                scenario.assertPass(engine) ||
                 engine.state.levelEventManager.isTerminal ||
                 engine.isScenarioRunnerBattleIdle()
             ) {
@@ -89,7 +116,8 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
             }
         },
         getResult(): ScenarioRunResult {
-            const passed = scenario.assertPass(engine);
+            // Use the latched flag so the result stays "passed" even after the extra frames.
+            const passed = passedAtTick !== null || scenario.assertPass(engine);
             const msg = passed
                 ? 'ok'
                 : scenario.failureMessage(engine) + (scenario.describeState ? ` | ${scenario.describeState(engine)}` : '');
@@ -128,6 +156,12 @@ export function runScenarioHeadless(scenario: ScenarioDefinition): ScenarioRunRe
 
         while (ticks < maxTicks) {
             if (scenario.assertPass(engine)) {
+                // Step extra frames so the animation plays out before reporting done.
+                for (let extra = 0; extra < EXTRA_FRAMES_AFTER_PASS; extra++) {
+                    if (engine.state.levelEventManager.isTerminal) break;
+                    engine.stepSimulationFixedTicks(1);
+                    ticks++;
+                }
                 return { passed: true, message: 'ok', ticks };
             }
             if (engine.state.levelEventManager.isTerminal) {

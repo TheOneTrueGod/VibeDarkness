@@ -4,7 +4,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Dumbbell, Eye, Gem, Pause, Play, Shield, SkipBack, SkipForward, Sword } from 'lucide-react';
+import { Dumbbell, Eye, Gem, Mountain, Pause, Play, Shield, SkipBack, SkipForward, Sword } from 'lucide-react';
 import {
     type AbilityTreeSidebarGroup,
     type GeneralTestSidebarGroup,
@@ -32,6 +32,7 @@ const TREE_ICONS: Record<string, React.ComponentType<{ size?: number; className?
     crystal_rocks: Gem,
     stick_sword:   Sword,
     tech_shield:   Shield,
+    earth_core:    Mountain,
 };
 
 function parseSelected(raw: string | null): string[] {

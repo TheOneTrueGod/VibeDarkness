@@ -426,10 +426,12 @@ export class GameRenderer {
 
     private static lightLevelToAlpha(level: number): number {
         const L = Math.round(level);
-        if (L >= DarknessLevel.BRIGHT_LIGHT) return 0;
+				const lightAtMedium = 0.3
         if (L <= DarknessLevel.FULL_DARKNESS) return 1;
+        if (L >= DarknessLevel.BRIGHT_LIGHT) return 0;
+				if (L >= DarknessLevel.MEDIUM_LIGHT_MIN) return lightAtMedium;
         // Linear: 100% opacity at level 0, 10% at level 9
-        return 1.0 - (L / DarknessLevel.MEDIUM_LIGHT_MAX) * 0.9;
+        return 1.0 - (L / DarknessLevel.MEDIUM_LIGHT_MIN) * lightAtMedium;
     }
 
     private getLightSourcesFromSpecialTiles(specialTiles: SpecialTile[]): LightSource[] {
