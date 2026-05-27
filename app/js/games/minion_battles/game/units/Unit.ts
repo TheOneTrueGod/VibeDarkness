@@ -273,6 +273,19 @@ export class Unit extends GameObject {
     /** Stagger offset: unit is eligible to attack once gameTime reaches this value. */
     lanterniteAttackReadyAtGameTime: number = 0;
 
+    /**
+     * Angle (radians) at which this scout stands relative to the nest build target.
+     * Assigned at spawn using golden-angle distribution so each scout has a unique offset.
+     * Serialized so the scout stays at the same position after a checkpoint restore.
+     */
+    lanterniteConstructionAngle: number | null = null;
+
+    /**
+     * Runtime-only: true once the construction particle emitter has been registered.
+     * Not serialized — the emitter is recreated next tick if needed after a restore.
+     */
+    lanterniteConstructionEmitterStarted: boolean = false;
+
     /** Active EffectEmitters created from declarative `emitterDef` on AbilityTimingInterval. Keyed by `intervalId`. Runtime-only. */
     activeTimingEmitters: Map<string, import('../effects/EffectEmitter').EffectEmitter> = new Map();
 
@@ -1109,6 +1122,7 @@ export class Unit extends GameObject {
             ...(this.lanterniteHomeNestPoiId != null ? { lanterniteHomeNestPoiId: this.lanterniteHomeNestPoiId } : {}),
             ...(this.lanterniteConstructionCompleteAtGameTime != null ? { lanterniteConstructionCompleteAtGameTime: this.lanterniteConstructionCompleteAtGameTime } : {}),
             ...(this.lanterniteAttackReadyAtGameTime !== 0 ? { lanterniteAttackReadyAtGameTime: this.lanterniteAttackReadyAtGameTime } : {}),
+            ...(this.lanterniteConstructionAngle != null ? { lanterniteConstructionAngle: this.lanterniteConstructionAngle } : {}),
         };
     }
 
@@ -1179,6 +1193,9 @@ export class Unit extends GameObject {
         }
         if (typeof data.lanterniteAttackReadyAtGameTime === 'number') {
             unit.lanterniteAttackReadyAtGameTime = data.lanterniteAttackReadyAtGameTime;
+        }
+        if (typeof data.lanterniteConstructionAngle === 'number') {
+            unit.lanterniteConstructionAngle = data.lanterniteConstructionAngle;
         }
 
         // Restore movement

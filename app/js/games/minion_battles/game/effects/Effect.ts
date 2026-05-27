@@ -126,6 +126,21 @@ export class Effect extends GameObject {
                 return;
             }
         }
+        // LanterniteConstParticle: quadratic bezier arc from scout to nest build site
+        if (this.effectType === 'LanterniteConstParticle') {
+            const data = this.effectData as {
+                startX: number;
+                startY: number;
+                controlX: number;
+                controlY: number;
+                endX: number;
+                endY: number;
+            };
+            const t = this.progress;
+            const mt = 1 - t;
+            this.x = mt * mt * data.startX + 2 * mt * t * data.controlX + t * t * data.endX;
+            this.y = mt * mt * data.startY + 2 * mt * t * data.controlY + t * t * data.endY;
+        }
         // Traveling effect: interpolate position from start to end
         if (this.startX !== undefined && this.startY !== undefined && this.effectType !== 'DamageNumber') {
             const t = this.progress;

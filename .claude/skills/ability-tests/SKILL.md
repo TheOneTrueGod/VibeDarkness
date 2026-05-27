@@ -48,6 +48,24 @@ Runner order (simplified): pass check → terminal → **battle idle** (early ex
 - **`getGeneralTestSidebarGroups()`** only lists groups that have at least one scenario with matching **`generalSection`**.
 - Multi-scenario groups get a **single inner card** on the right in `AbilityTestPage` (see `isRegisteredGeneralGroupSelectorKey` + scenario count there).
 
+## Keeping the simulation running
+
+The runner calls `isScenarioRunnerBattleIdle()` after each tick; if every unit is idle it exits early — usually before the scenario completes. The **player unit almost always needs an order** to prevent a premature idle exit.
+
+### Player order patterns
+
+| Goal | Technique |
+|------|-----------|
+| Walk to a fixed point | One `MOVE_ONLY_ABILITY_ID` order; `movePath` from `tm.findGridPath(fromCol, fromRow, toCol, toRow)` |
+| Walk left and right across the map | Build a multi-leg zigzag `movePath` manually — no terrain manager needed on open grass: iterate `startCol → 0 → maxCol → 0`, pushing each cell into an array, then pass the whole array as `movePath` |
+| Stand still without pausing the engine | `{ unitId: player.id, abilityId: 'wait', targets: [] }` |
+
+**Estimating path length**: player speed is ~90 px/s; each grid cell is 40 px. A three-leg zigzag across a 15-wide map covers ~35 steps × 40 px / 90 px/s ≈ 15 s — enough to outlast most scenarios.
+
+### Map sizing
+
+Keep `gridW`/`gridH` just large enough to contain the units involved. Small maps are easier to read in the mini terrain preview, faster to pathfind, and keep the visual frame on the interesting action. Rule of thumb: rightmost/bottommost unit column/row + 2–3 cells of margin.
+
 ## Modifying behaviour safely
 
 - Prefer changing **scenario setup/assertions** before changing core engine idle rules, so battle semantics stay centralized.

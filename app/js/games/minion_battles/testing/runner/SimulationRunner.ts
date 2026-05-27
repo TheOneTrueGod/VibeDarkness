@@ -128,6 +128,8 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
 
 /**
  * Build a scenario engine, apply initial orders, then step fixed ticks until `assertPass` or timeout.
+ * Note: extra frames after pass are intentionally NOT applied here — this runner is a pure validation
+ * path and has no visual display. Extra frames are only meaningful in {@link createLiveScenarioRun}.
  */
 export function runScenarioHeadless(scenario: ScenarioDefinition): ScenarioRunResult {
     const maxMs = scenario.maxDurationMs ?? 5000;
@@ -156,12 +158,6 @@ export function runScenarioHeadless(scenario: ScenarioDefinition): ScenarioRunRe
 
         while (ticks < maxTicks) {
             if (scenario.assertPass(engine)) {
-                // Step extra frames so the animation plays out before reporting done.
-                for (let extra = 0; extra < EXTRA_FRAMES_AFTER_PASS; extra++) {
-                    if (engine.state.levelEventManager.isTerminal) break;
-                    engine.stepSimulationFixedTicks(1);
-                    ticks++;
-                }
                 return { passed: true, message: 'ok', ticks };
             }
             if (engine.state.levelEventManager.isTerminal) {

@@ -19,6 +19,17 @@ import {
 import type { LightSource } from '../lightSources/LightSource';
 import { findUnoccupiedConnectedNestPoi, countAliveChildrenByRole } from './lanterniteNetworkUtils';
 import { UnitTag } from '../units/unitTag';
+import { IntervalEmitter, type EffectEmitter } from '../effects/EffectEmitter';
+import { Effect } from '../effects/Effect';
+
+/**
+ * Golden angle in radians (~137.5°). Used to distribute scout stand angles so each
+ * scout in a nest occupies a distinct direction around the build site.
+ */
+const GOLDEN_ANGLE = 2.399963229728653;
+
+/** Default construction duration if not specified in nest config. */
+const DEFAULT_CONSTRUCTION_SEC = 12;
 
 const ROUND_DURATION_SEC = 10;
 
@@ -59,6 +70,7 @@ export function processLanterniteNests(params: {
     lightLevelEnabled?: boolean;
     addLightSource?: (ls: LightSource) => void;
     lightSources?: LightSource[];
+    addEffectEmitter?: (emitter: EffectEmitter) => void;
 }): void {
     // --- Construction completion: scouts that have finished building ---
     for (const unit of params.units) {
@@ -195,6 +207,11 @@ export function processLanterniteNests(params: {
             lan.lanterniteRole = role;
             lan.unitAITreeId = 'lanterniteNetwork';
 
+            // Assign a unique stand angle using the golden angle so each scout
+            // in a nest stands at a distinct direction around the build site.
+            lan.lanterniteConstructionAngle =
+                (state.spawnedIds.length * GOLDEN_ANGLE) % (Math.PI * 2);
+
             if (role === 'scout' && targetPoi) {
                 const worldPos = params.terrainGrid
                     ? params.terrainGrid.gridToWorld(targetPoi.col, targetPoi.row)
@@ -222,5 +239,73 @@ export function processLanterniteNests(params: {
         nest.lanterniteNestSpawnState!.spawnedIds.push(lan.id);
         nest.lanterniteNestSpawnState!.nextSpawnAtGameTime =
             params.gameTime + Math.max(0.5, cfg.spawnIntervalSec);
+    }
+
+    // --- Construction particle emitters: start once when a scout begins building ---
+    if (params.addEffectEmitter) {
+        for (const unit of params.units) {
+            if (!unit.isAlive()) continue;
+            if (unit.lanterniteRole !== 'scout') continue;
+            if (unit.lanterniteConstructionCompleteAtGameTime == null) continue;
+            if (unit.lanterniteConstructionEmitterStarted) continue;
+
+            unit.lanterniteConstructionEmitterStarted = true;
+            const targetPos = unit.lanternPatrolFarWorld;
+            if (!targetPos) continue;
+
+            const targetX = targetPos.x;
+            const targetY = targetPos.y;
+            const unitId = unit.id;
+            const remaining = Math.max(0, unit.lanterniteConstructionCompleteAtGameTime - params.gameTime);
+
+            // Emit ~2-3 green arc particles per second for the remaining construction duration.
+            const emitter = new IntervalEmitter({
+                x: unit.x,
+                y: unit.y,
+                attachedToUnitId: unitId,
+                lifetime: remaining + 0.5, // slight buffer so last particles finish
+                intervalSeconds: 0.38,
+                fireImmediately: true,
+                factory: (em, engine) => {
+                    const sourceUnit = engine.getUnit(unitId);
+                    if (!sourceUnit?.isAlive()) {
+                        em.active = false;
+                        return [];
+                    }
+                    const sx = sourceUnit.x;
+                    const sy = sourceUnit.y;
+                    const dx = targetX - sx;
+                    const dy = targetY - sy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 4) return [];
+
+                    // Quadratic bezier control point: perpendicular offset for a gentle arc
+                    const arcMag = Math.min(dist * 0.3, 40);
+                    const controlX = (sx + targetX) / 2 + (-dy / dist) * arcMag;
+                    const controlY = (sy + targetY) / 2 + (dx / dist) * arcMag;
+
+                    // Travel speed ~150 px/s
+                    const travelDuration = Math.max(0.3, dist / 150);
+
+                    return [
+                        new Effect({
+                            x: sx,
+                            y: sy,
+                            duration: travelDuration,
+                            effectType: 'LanterniteConstParticle',
+                            effectData: {
+                                startX: sx,
+                                startY: sy,
+                                controlX,
+                                controlY,
+                                endX: targetX,
+                                endY: targetY,
+                            },
+                        }),
+                    ];
+                },
+            });
+            params.addEffectEmitter(emitter);
+        }
     }
 }

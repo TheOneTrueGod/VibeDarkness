@@ -25,30 +25,49 @@ function worldOf(col: number, row: number): { x: number; y: number } {
 // Scenario 1: Networked nest spawns a scout that builds a second nest
 // ---------------------------------------------------------------------------
 
+// Compact map: just wide enough for both nests (col 2 and col 12), short enough to
+// frame the action tightly.
+const NEST_GRID_W = 15;
+const NEST_GRID_H = 8;
+
 const NEST_A_COL = 2;
 const NEST_A_ROW = 3;
 const NEST_B_COL = 12;
 const NEST_B_ROW = 3;
-// Player spawns above nest A and moves south — keeps battle non-idle during scout spawn delay.
-// Path must be long enough that the player is still moving when the scout arrives and builds.
-// Scout travel: ~400px / 70px/s ≈ 5.7s + 2s construction = ~7.7s total.
-// Player path: 22 cells * 40px = 880px / 90px/s ≈ 9.8s — safely covers the full scenario.
+
+// Player starts centred below the nests and walks left/right across the map.
+// Zigzag: col 7 → 0 → 14 → 0 = 35 steps × 40 px = 1400 px / 90 px/s ≈ 15.5 s
+// Total scenario time: ~1 s spawn + ~5 s travel (stands 56 px short) + ~2 s construction ≈ 8 s — safely covered.
 const PLAYER_START_COL = 7;
-const PLAYER_START_ROW = 0;
-const PLAYER_END_ROW = 22;
+const PLAYER_WALK_ROW = 6;
+
+/**
+ * Build a horizontal zigzag path along `row`:
+ *   startCol → 0 → maxCol → 0
+ * Each step is exactly one column, so the path is always valid on open terrain.
+ */
+function buildPlayerZigzagPath(startCol: number, row: number, maxCol: number): { col: number; row: number }[] {
+    const path: { col: number; row: number }[] = [];
+    let col = startCol;
+    path.push({ col, row });
+    while (col > 0)      { col--; path.push({ col, row }); }  // leg 1: left to edge
+    while (col < maxCol) { col++; path.push({ col, row }); }  // leg 2: right to edge
+    while (col > 0)      { col--; path.push({ col, row }); }  // leg 3: left to edge
+    return path;
+}
 
 export const lanterniteNestBuildScenario: ScenarioDefinition = {
     id: 'lanternite_nest_build',
     title: 'Lanternite: scout travels to connected POI and builds a second nest',
     category: 'general',
     generalSection: 'Lanternites',
-    // ~0s spawn (nextSpawnAtGameTime=0) + ~6s travel + ~2s construction + buffer
+    // ~1s spawn + ~5s travel + ~2s construction + buffer
     maxDurationMs: 25000,
 
     buildEngine() {
         const engine = buildTinyBattleEngine({
-            gridW: 15,
-            gridH: 25,
+            gridW: NEST_GRID_W,
+            gridH: NEST_GRID_H,
             localPlayerId: TINY_BATTLE_PLAYER_ID,
             grass: true,
         });
@@ -90,11 +109,12 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
         nestUnit.lanterniteNestSpawnState!.nextSpawnAtGameTime = 0;
         engine.addUnit(nestUnit);
 
-        // Player moves south — provides initial non-idle state while the scout spawns and starts moving
+        // Player spawns below the nest row and walks left/right — keeps battle non-idle
+        // during the full scout-spawn → travel → construction sequence.
         spawnTinyPlayerUnit(engine, {
             playerId: TINY_BATTLE_PLAYER_ID,
-            x: worldOf(PLAYER_START_COL, PLAYER_START_ROW).x,
-            y: worldOf(PLAYER_START_COL, PLAYER_START_ROW).y,
+            x: worldOf(PLAYER_START_COL, PLAYER_WALK_ROW).x,
+            y: worldOf(PLAYER_START_COL, PLAYER_WALK_ROW).y,
             abilities: [],
         });
 
@@ -102,12 +122,10 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
     },
 
     getInitialOrders(engine) {
-        const tm = engine.terrainManager!;
         const player = engine.getLocalPlayerUnit();
         if (!player) return [];
-        // Short southward walk keeps the battle non-idle until the scout spawns and starts moving
-        const path = tm.findGridPath(PLAYER_START_COL, PLAYER_START_ROW, PLAYER_START_COL, PLAYER_END_ROW);
-        if (!path) return [];
+        // Walk left → right → left across the bottom of the map (three legs, ~15 s total)
+        const path = buildPlayerZigzagPath(PLAYER_START_COL, PLAYER_WALK_ROW, NEST_GRID_W - 1);
         return [{ unitId: player.id, abilityId: MOVE_ONLY_ABILITY_ID, targets: [], movePath: path }];
     },
 

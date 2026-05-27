@@ -19,6 +19,12 @@ const ARRIVAL_PX = 36;
 const ROUND_DURATION_SEC = 10;
 const DEFAULT_CONSTRUCTION_SEC = 12;
 
+/**
+ * Distance (px) from the nest build site where the scout stands while constructing.
+ * Using a slight offset so the scout doesn't overlap the future nest sprite.
+ */
+const CONSTRUCTION_STAND_RADIUS = 56;
+
 export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = {
     nodeId: 'lnet_scout_travel',
     actions: {
@@ -33,8 +39,15 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
                 return;
             }
 
-            // Begin construction if arrived
-            if (distance(unit.x, unit.y, far.x, far.y) < ARRIVAL_PX) {
+            // Compute the stand position: offset from the build site at the scout's assigned angle.
+            // Each scout has a unique angle (set at spawn) so multiple scouts from the same nest
+            // encircle the build site rather than piling on top of each other.
+            const angle = unit.lanterniteConstructionAngle ?? 0;
+            const standX = far.x + Math.cos(angle) * CONSTRUCTION_STAND_RADIUS;
+            const standY = far.y + Math.sin(angle) * CONSTRUCTION_STAND_RADIUS;
+
+            // Begin construction if arrived at stand position
+            if (distance(unit.x, unit.y, standX, standY) < ARRIVAL_PX) {
                 const constructionSec =
                     unit.lanterniteNestConfig?.scoutConstructionSec ?? DEFAULT_CONSTRUCTION_SEC;
                 unit.lanterniteConstructionCompleteAtGameTime = context.gameTime + constructionSec;
@@ -42,11 +55,11 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
                 return;
             }
 
-            // Pathfind toward target
+            // Pathfind toward stand position (not directly on top of the build site)
             const grid = context.terrainManager?.grid;
             if (grid) {
                 const from = grid.worldToGrid(unit.x, unit.y);
-                const to = grid.worldToGrid(far.x, far.y);
+                const to = grid.worldToGrid(standX, standY);
                 const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
                 if (path && path.length > 1) {
                     unit.setMovement(path.slice(1), undefined, context.gameTick);

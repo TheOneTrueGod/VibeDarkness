@@ -1053,6 +1053,7 @@ export class GameEngine implements EngineContext {
             lightLevelEnabled: this.lightLevelEnabled,
             addLightSource: (ls) => this.addLightSource(ls),
             lightSources: this.state.lightSourceManager.lightSources,
+            addEffectEmitter: (em) => this.addEffectEmitter(em),
         });
         this.state.lanterniteRespawnManager.gameTick(this.gameTime, this, this.eventBus);
         this.state.unitManager.cleanupInactive();

@@ -28,6 +28,7 @@ import {
     updateUnitHpBar,
     getBodyColorForUnit,
     syncUnitCharacterSpriteIfNeeded,
+    CHARACTER_SPRITE_SCALE,
     type IUnitRenderContext,
 } from './units/unit_defs/unitDef';
 import { getBuffVisualRenderer } from '../buffs/buffVisuals';
@@ -96,6 +97,8 @@ export class GameRenderer {
     /** Particle objects for particle-type effects, keyed by effect ID. */
     private particleEffects: Map<string, Particle> = new Map();
     private lightSourceVisuals: Map<string, Graphics> = new Map();
+    /** Ghost nest visuals for scouts currently building (keyed by scout unit ID). */
+    private constructionGhostVisuals: Map<string, Container> = new Map();
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
     /** Pending orders + enemy movement paths (lighter than live player move targets). */
@@ -617,6 +620,7 @@ export class GameRenderer {
         }
 
         this.renderUnits(engine);
+        this.renderConstructionGhosts(engine);
         this.renderCrystalAura(engine);
         this.renderDarkCrystalAura(engine);
         this.renderSpecialTiles(engine.specialTiles);
@@ -628,6 +632,97 @@ export class GameRenderer {
         this.renderActiveAbilityPreviews(engine);
         this.renderTargetingPreview(engine);
         this.cleanupStaleVisuals(engine);
+    }
+
+    // ========================================================================
+    // Lanternite construction ghosts
+    // ========================================================================
+
+    /**
+     * For each scout currently building a nest, render:
+     * - A translucent nest sprite (30% alpha) at the build site.
+     * - A green hollow circular arc showing construction progress (0→full circle).
+     */
+    private renderConstructionGhosts(engine: GameEngine): void {
+        const activeScoutIds = new Set<string>();
+        /** Explicit radius from lanternite_nest unitDef. */
+        const nestRadius = 28;
+
+        for (const unit of engine.units) {
+            if (!unit.isAlive()) continue;
+            if (unit.lanterniteConstructionCompleteAtGameTime == null) continue;
+            const targetPos = unit.lanternPatrolFarWorld;
+            if (!targetPos) continue;
+
+            activeScoutIds.add(unit.id);
+
+            // Compute 0..1 progress from remaining time and total construction duration
+            const totalSec = unit.lanterniteNestConfig?.scoutConstructionSec ?? 12;
+            const remaining = Math.max(0, unit.lanterniteConstructionCompleteAtGameTime - engine.gameTime);
+            const progress = Math.min(1, Math.max(0, 1 - remaining / totalSec));
+
+            let ghost = this.constructionGhostVisuals.get(unit.id);
+            if (!ghost) {
+                ghost = new Container();
+                ghost.label = 'constructionGhost';
+
+                // Ghost nest sprite (30% alpha so the build site is previewed but not fully visible)
+                const nestSprite = new Sprite(this.lanterniteNestTexture ?? Texture.EMPTY);
+                nestSprite.label = 'ghostNestSprite';
+                nestSprite.anchor.set(0.5, 0.5);
+                const spriteSize = nestRadius * 2 * CHARACTER_SPRITE_SCALE;
+                nestSprite.width = spriteSize;
+                nestSprite.height = spriteSize;
+                nestSprite.alpha = 0.3;
+                ghost.addChild(nestSprite);
+
+                // Circular progress arc drawn on top of the sprite
+                const arcG = new Graphics();
+                arcG.label = 'constructionArc';
+                ghost.addChild(arcG);
+
+                ghost.zIndex = Z_INDEX.units - 1;
+                this.gameContainer.addChild(ghost);
+                this.constructionGhostVisuals.set(unit.id, ghost);
+            }
+
+            ghost.visible = true;
+            ghost.x = targetPos.x;
+            ghost.y = targetPos.y;
+
+            // Sync texture in case it loaded after the ghost was created
+            const nestSprite = ghost.children.find((c) => c.label === 'ghostNestSprite') as Sprite | undefined;
+            if (nestSprite && this.lanterniteNestTexture && nestSprite.texture !== this.lanterniteNestTexture) {
+                nestSprite.texture = this.lanterniteNestTexture;
+            }
+
+            // Redraw progress arc each frame
+            const arcG = ghost.children.find((c) => c.label === 'constructionArc') as Graphics | undefined;
+            if (arcG) {
+                arcG.clear();
+                const arcRadius = nestRadius + 8; // slightly outside the nest body
+                const startAngle = -Math.PI / 2; // 12 o'clock
+
+                // Background ring (dark, so the track is visible in all lighting)
+                arcG.arc(0, 0, arcRadius, 0, Math.PI * 2);
+                arcG.stroke({ color: 0x064e3b, width: 3, alpha: 0.5 });
+
+                // Filled progress arc (bright green, clockwise)
+                if (progress > 0.01) {
+                    arcG.arc(0, 0, arcRadius, startAngle, startAngle + progress * Math.PI * 2);
+                    arcG.stroke({ color: 0x34d399, width: 3 });
+                }
+            }
+        }
+
+        // Remove ghosts whose scouts have finished or died
+        for (const [id, ghost] of this.constructionGhostVisuals) {
+            if (!activeScoutIds.has(id)) {
+                this.gameContainer.removeChild(ghost);
+                ghost.destroy();
+                this.constructionGhostVisuals.delete(id);
+            }
+        }
     }
 
     // ========================================================================
@@ -1592,6 +1687,8 @@ export class GameRenderer {
         }
         this.particleEffects.clear();
         for (const visual of this.specialTileVisuals.values()) visual.destroy();
+        for (const visual of this.constructionGhostVisuals.values()) visual.destroy();
+        this.constructionGhostVisuals.clear();
         if (this.fogTintSprite) {
             this.fogTintSprite.destroy();
             this.fogTintSprite = null;
