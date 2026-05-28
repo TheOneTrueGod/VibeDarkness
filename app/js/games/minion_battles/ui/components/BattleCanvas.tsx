@@ -39,6 +39,7 @@ export default function BattleCanvas({
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
+    const lastRafTimestampRef = useRef<number>(0);
     const dragStateRef = useRef<{
         pointerId: number;
         startX: number;
@@ -80,8 +81,18 @@ export default function BattleCanvas({
         let cancelled = false;
 
         const startRenderLoop = () => {
-            const renderLoop = () => {
+            const renderLoop = (timestamp: number) => {
                 if (cancelled) return;
+
+                // Drive visual effect animation (elapsed time, progress, expiry) when the engine is not
+                // running its own RAF loop (e.g. scenario preview modal steps the engine manually).
+                if (!engine.isRunningLoop) {
+                    const prev = lastRafTimestampRef.current;
+                    const dt = prev > 0 ? Math.min((timestamp - prev) / 1000, 0.1) : 0;
+                    engine.doRenderTick(dt);
+                }
+                lastRafTimestampRef.current = timestamp;
+
                 // WASD / arrow key camera pan
                 const keys = keysHeldRef.current;
                 if (keys.size > 0) {

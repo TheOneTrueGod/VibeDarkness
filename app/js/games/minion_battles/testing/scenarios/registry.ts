@@ -10,6 +10,7 @@ import {
     punchBaselineScenario,
     punchChargingScenario,
     punchDoubleScenario,
+    punchNEWBaselineScenario,
     punchSneakyScenario,
     punchStrongScenario,
 } from './abilities/punchResearch';
@@ -58,6 +59,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     punchDoubleScenario,
     punchSneakyScenario,
     punchChargingScenario,
+    punchNEWBaselineScenario,
     throwRockNoResearchScenario,
     throwRockMorePowerScenario,
     throwRockMoreRockScenario,
@@ -102,6 +104,7 @@ export interface AbilityTreeSidebarGroup {
 
 const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'training',      label: 'Training',      selectorKey: 'tree:training',      abilityIds: ['0102'] },
+    { treeId: 'punch_new',     label: 'PunchNEW',      selectorKey: 'tree:punch_new',     abilityIds: ['0120'] },
     { treeId: 'crystal_rocks', label: 'Rocks',          selectorKey: 'tree:crystal_rocks', abilityIds: ['throw_rock'] },
     { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112'] },
     { treeId: 'tech_shield',   label: 'Tech Shield',    selectorKey: 'tree:tech_shield',   abilityIds: ['0104', '0110', '0113'] },
@@ -160,6 +163,7 @@ export function isRegisteredGeneralGroupSelectorKey(key: string): boolean {
 export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | null {
     if (scenario.category !== 'ability') return null;
     const id = scenario.id;
+    if (id.startsWith('punch_new')) return '0120';
     if (id.startsWith('punch_')) return '0102';
     if (id.startsWith('throw_rock') || id.includes('throw_rock')) return 'throw_rock';
     if (id.startsWith('swing_sword') || id.includes('buff_swing')) return '0112';

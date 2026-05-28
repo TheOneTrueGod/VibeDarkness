@@ -118,6 +118,23 @@ export const punchSneakyScenario: ScenarioDefinition = {
     },
 };
 
+export const punchNEWBaselineScenario: ScenarioDefinition = {
+    id: 'punch_new_baseline',
+    title: 'PunchNEW (0120) damages dummy',
+    category: 'ability',
+    maxDurationMs: 5000,
+    buildEngine: () => buildPunchEngine('0120'),
+    getInitialOrders: (e) => punchOrder(e, '0120'),
+    assertPass: (e) => {
+        const d = e.getUnit('target_dummy');
+        return Boolean(d && d.maxHp - d.hp >= 8);
+    },
+    failureMessage: (e) => {
+        const d = e.getUnit('target_dummy');
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected at least 8`;
+    },
+};
+
 export const punchChargingScenario: ScenarioDefinition = {
     id: 'punch_research_charging',
     title: 'Charging Punch (0119) grants a Light Charge to throw_charged_rock on hit',

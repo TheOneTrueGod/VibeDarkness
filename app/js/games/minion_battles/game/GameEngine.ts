@@ -700,6 +700,28 @@ export class GameEngine implements EngineContext {
         }
     }
 
+    /** True while `start()` has been called and `stop()` / `destroy()` has not. */
+    get isRunningLoop(): boolean {
+        return this.running;
+    }
+
+    /**
+     * Advance purely visual effects (Effect elapsed time, emitter particle bursts) by `realDt` seconds.
+     *
+     * The engine's own `loop()` calls this automatically every rAF frame. External renderers that drive
+     * the engine manually (e.g. scenario-preview modal) should call this once per render frame so effects
+     * animate and expire correctly — but only when the engine is **not** already running its own loop
+     * (i.e. when `isRunningLoop` is false).
+     */
+    doRenderTick(realDt: number): void {
+        this.state.effectManager.renderUpdate(realDt);
+        const posSnapshot = this.getUnitPositionSnapshot();
+        const emitterVisualEffects = this.state.effectEmitterManager.renderUpdate(
+            realDt, posSnapshot, this.isPaused,
+        );
+        for (const fx of emitterVisualEffects) this.state.effectManager.addEffect(fx);
+    }
+
     /** Advance simulation by a wall-clock duration using fixed-step integration at 60 Hz. */
     advanceSimulationSeconds(sec: number): void {
         if (sec <= 0) return;
@@ -780,12 +802,7 @@ export class GameEngine implements EngineContext {
         this.lastTimestamp = timestamp;
 
         // Advance purely visual effects every render frame regardless of game pause.
-        this.state.effectManager.renderUpdate(frameTime);
-        const posSnapshot = this.getUnitPositionSnapshot();
-        const emitterVisualEffects = this.state.effectEmitterManager.renderUpdate(
-            frameTime, posSnapshot, this.isPaused,
-        );
-        for (const fx of emitterVisualEffects) this.state.effectManager.addEffect(fx);
+        this.doRenderTick(frameTime);
 
         const debugPauseModeActive = debugSettingsSnapshot.debugPauseMode;
         const canRunSimulation =

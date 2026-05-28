@@ -4,6 +4,7 @@ import { getScenarioById } from '../scenarios/registry';
 import { pathShortCommuteScenario } from '../scenarios/general/pathfinding';
 import {
     punchBaselineScenario,
+    punchNEWBaselineScenario,
     punchStrongScenario,
     punchDoubleScenario,
     punchSneakyScenario,
@@ -62,6 +63,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes charging punch light charge scenario', () => {
         const r = runScenarioHeadless(punchChargingScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes PunchNEW (0120) baseline damage scenario', () => {
+        const r = runScenarioHeadless(punchNEWBaselineScenario);
         expect(r.passed, r.message).toBe(true);
     });
 
