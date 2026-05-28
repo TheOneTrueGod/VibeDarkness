@@ -31,7 +31,9 @@ const MAX_RANGE = 30; // px
 const LINE_THICKNESS = 20; // px
 const PUNCH_DAMAGE = 8;
 
-const PUNCH_HITBOX: HitboxDef = { shape: 'meleeLine', range: MAX_RANGE, thickness: LINE_THICKNESS };
+// range = MAX_RANGE + DEFAULT_UNIT_RADIUS so the lock-on and hit detection match
+// the targeting preview (which extends the line to MAX_RANGE + caster.radius).
+const PUNCH_HITBOX: HitboxDef = { shape: 'meleeLine', range: MAX_RANGE + DEFAULT_UNIT_RADIUS, thickness: LINE_THICKNESS };
 
 const punchBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(PUNCH_HITBOX)

@@ -12,8 +12,7 @@ import {
 const P = TINY_BATTLE_PLAYER_ID;
 const TEST_CELL_SIZE = 40;
 const PLAYER_START = { x: 3 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2, y: 2 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2 };
-// One cell closer than the old research-based scenarios: new abilities don't add caster.radius
-// to the hitbox range (unlike 0102), so the dummy must be within the 30px hitbox reach.
+// One cell to the right of the player (40px), within the 40px (MAX_RANGE + unit radius) hitbox reach.
 const DUMMY_START = { x: 4 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2, y: 2 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2 };
 
 function buildPunchEngine(abilityId: string, extraAbilities: string[] = []): GameEngine {

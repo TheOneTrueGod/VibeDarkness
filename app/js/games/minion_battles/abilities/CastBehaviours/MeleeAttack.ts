@@ -165,8 +165,21 @@ export class MeleeAttackBehaviour implements CastBehaviour {
                 aimY = ctx.caster.y + payload.aimDirY * FALLBACK_DIST;
             }
         } else if (ctx.target.type === 'pixel' && ctx.target.position != null) {
-            aimX = ctx.target.position.x;
-            aimY = ctx.target.position.y;
+            // Clamp pixel targets to hitbox range so the miss VFX and hitbox check stay
+            // within the displayed preview area rather than at the raw (potentially distant)
+            // click position.
+            if (this.hitboxDef && this.hitboxDef.shape !== 'custom' && this.hitboxDef.shape !== 'cone') {
+                const maxDist = this.hitboxDef.range;
+                const dx = ctx.target.position.x - ctx.caster.x;
+                const dy = ctx.target.position.y - ctx.caster.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const factor = dist > 0 ? Math.min(1, maxDist / dist) : 1;
+                aimX = ctx.caster.x + dx * factor;
+                aimY = ctx.caster.y + dy * factor;
+            } else {
+                aimX = ctx.target.position.x;
+                aimY = ctx.target.position.y;
+            }
         } else {
             const FALLBACK_DIST = 64;
             aimX = ctx.caster.x + payload.aimDirX * FALLBACK_DIST;
