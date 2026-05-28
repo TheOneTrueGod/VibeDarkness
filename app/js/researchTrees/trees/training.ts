@@ -50,8 +50,8 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
             ],
             cost: { food: 20 },
-            effects: [{ type: 'replaceCard', fromCardId: '0102', toCardId: '0116' }],
-            modifiesAbility: { from: '0102', to: '0116' },
+            effects: [{ type: 'replaceCard', fromCardId: '0120', toCardId: '0116' }],
+            modifiesAbility: { from: '0120', to: '0116' },
         },
         {
             id: TRAINING_NODE_STRONG_PUNCH,
@@ -69,8 +69,8 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
             ],
             cost: { food: 20 },
-            effects: [{ type: 'replaceCard', fromCardId: '0102', toCardId: '0117' }],
-            modifiesAbility: { from: '0102', to: '0117' },
+            effects: [{ type: 'replaceCard', fromCardId: '0120', toCardId: '0117' }],
+            modifiesAbility: { from: '0120', to: '0117' },
         },
         {
             id: TRAINING_NODE_SNEAKY_PUNCH,
@@ -88,8 +88,8 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
             ],
             cost: { food: 20 },
-            effects: [{ type: 'replaceCard', fromCardId: '0102', toCardId: '0118' }],
-            modifiesAbility: { from: '0102', to: '0118' },
+            effects: [{ type: 'replaceCard', fromCardId: '0120', toCardId: '0118' }],
+            modifiesAbility: { from: '0120', to: '0118' },
         },
         {
             id: TRAINING_NODE_CHARGING_PUNCH,
@@ -107,8 +107,8 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_SNEAKY_PUNCH },
             ],
             cost: { food: 20 },
-            effects: [{ type: 'replaceCard', fromCardId: '0102', toCardId: '0119' }],
-            modifiesAbility: { from: '0102', to: '0119' },
+            effects: [{ type: 'replaceCard', fromCardId: '0120', toCardId: '0119' }],
+            modifiesAbility: { from: '0120', to: '0119' },
         },
     ],
 };

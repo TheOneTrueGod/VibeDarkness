@@ -4,7 +4,6 @@ import {
     STICK_SWORD_NODE_EXTRA_USES,
     STICK_SWORD_TREE_ID,
 } from '../../../researchTrees/trees/stick_sword';
-import { TRAINING_NODE_CHARGING_PUNCH, TRAINING_TREE_ID } from '../../../researchTrees/trees/training';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 import { getAbility } from './AbilityRegistry';
 
@@ -31,7 +30,8 @@ const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
     '0003': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Dark Wolf Bite
     '0007': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Alpha Charge
     '0101': { maxUses: 2, recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Dodge
-    '0102': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Punch
+    '0102': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Punch (legacy)
+    '0120': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // PunchNEW
     '0116': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Double Punch
     '0117': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Strong Punch
     '0118': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Sneaky Punch
@@ -76,9 +76,6 @@ const SWING_EXTRA_USES = 2;
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
 const CRYSTAL_ROCKS_NODE_CHARGED_ROCKS = 'charged_rocks';
 const THROW_ROCK_USES_PENALTY_WITH_CHARGED = 3;
-const PUNCH_ABILITY_ID = '0102';
-const PUNCH_CHARGING_RESEARCH_USES_PENALTY = 1;
-
 /** Iron Wrists research: +max uses for whichever weapon the unit carries (sword or bat path). */
 export function applyStickSwordResearchToAbilityRuntime(
     unit: Unit,
@@ -112,20 +109,6 @@ export function applyCrystalRocksResearchToAbilityRuntime(
     runtime.currentUses = Math.min(runtime.currentUses, runtime.maxUses);
 }
 
-/** Training(Charging Punch): Punch has fewer max uses. */
-export function applyTrainingResearchToAbilityRuntime(
-    unit: Unit,
-    getResearchNodes: (treeId: string) => string[],
-): void {
-    const nodes = getResearchNodes(TRAINING_TREE_ID);
-    if (!nodes.includes(TRAINING_NODE_CHARGING_PUNCH)) return;
-    if (!unit.abilities.includes(PUNCH_ABILITY_ID)) return;
-    ensureAbilityRuntimeState(unit, PUNCH_ABILITY_ID);
-    const runtime = unit.abilityRuntime[PUNCH_ABILITY_ID];
-    if (!runtime) return;
-    runtime.maxUses = Math.max(0, runtime.maxUses - PUNCH_CHARGING_RESEARCH_USES_PENALTY);
-    runtime.currentUses = Math.min(runtime.currentUses, runtime.maxUses);
-}
 
 export function initializeAbilityRuntimeForUnit(unit: Unit): void {
     for (const abilityId of unit.abilities) {

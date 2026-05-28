@@ -7,7 +7,7 @@ export const coreBasicItem: ItemDef = {
     slots: ['core'],
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
     cardsToAdd: [
-        { cardId: '0102', count: 3 },
+        { cardId: '0120', count: 3 },
         { cardId: '0101', count: 2 },
     ],
     icon: '004_core_basic.svg',

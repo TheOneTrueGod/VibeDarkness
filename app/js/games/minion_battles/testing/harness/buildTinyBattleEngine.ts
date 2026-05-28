@@ -13,7 +13,6 @@ import {
 import {
     applyCrystalRocksResearchToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
-    applyTrainingResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../../abilities/abilityUses';
 import { asCardDefId, type CardDefId } from '../../card_defs';
@@ -117,7 +116,6 @@ export function spawnTinyPlayerUnit(
     initializeAbilityRuntimeForUnit(unit);
     applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
     applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
-    applyTrainingResearchToAbilityRuntime(unit, getResearchNodes);
     engine.addUnit(unit);
     return unit;
 }

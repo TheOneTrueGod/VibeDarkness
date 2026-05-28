@@ -7,7 +7,7 @@ export const coreAirItem: ItemDef = {
     slots: ['core'],
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
     cardsToAdd: [
-        { cardId: '0102', count: 3 }, // Punch
+        { cardId: '0120', count: 3 }, // PunchNEW
         { cardId: '0101', count: 2 }, // Dodge
     ],
     icon: '018_core_air.svg',

@@ -33,7 +33,6 @@ import {
 import {
     applyCrystalRocksResearchToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
-    applyTrainingResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
 import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch } from '../../../researchTrees/evaluator';
@@ -146,7 +145,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             }
             // Fallback if no equipment (should not happen if new characters get a core).
             if (abilities.length === 0) {
-                abilities.push('0101', '0102');
+                abilities.push('0101', '0120');
             }
 
             // Apply card-level replacements from research (e.g. Double Punch replaces Punch).
@@ -213,7 +212,6 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             initializeAbilityRuntimeForUnit(unit);
             applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
-            applyTrainingResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
             engine.addUnit(unit);
         }
