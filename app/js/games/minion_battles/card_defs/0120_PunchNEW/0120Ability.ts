@@ -86,7 +86,7 @@ const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http
 
 export const PunchNEWAbility: AbilityStatic = {
     id: CARD_ID,
-    name: 'PunchNEW',
+    name: 'Bash',
     image: PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
@@ -141,7 +141,7 @@ export const PunchNEWAbility: AbilityStatic = {
 
 export const PunchNEWCard: CardDef = {
     id: asCardDefId(CARD_ID),
-    name: 'PunchNEW',
+    name: 'Bash',
     abilityId: CARD_ID,
     discardDuration: { duration: 1, unit: 'rounds' },
 };

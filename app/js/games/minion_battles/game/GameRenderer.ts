@@ -429,7 +429,7 @@ export class GameRenderer {
 
     private static lightLevelToAlpha(level: number): number {
         const L = Math.round(level);
-				const lightAtMedium = 0.3
+				const lightAtMedium = 0.2
         if (L <= DarknessLevel.FULL_DARKNESS) return 1;
         if (L >= DarknessLevel.BRIGHT_LIGHT) return 0;
 				if (L >= DarknessLevel.MEDIUM_LIGHT_MIN) return lightAtMedium;
