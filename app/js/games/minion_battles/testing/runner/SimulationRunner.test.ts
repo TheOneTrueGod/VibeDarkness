@@ -18,7 +18,7 @@ import {
     shiningBlockRetaliationScenario,
     shiningBlockStrengtheningLightScenario,
 } from '../scenarios/abilities/techShieldScenarios';
-import { lanterniteNestBuildScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
+import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -113,6 +113,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes lanternite nest build scenario', () => {
         const r = runScenarioHeadless(lanterniteNestBuildScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes lanternite nest dual-spawn scenario (scout builds + defender guards)', () => {
+        const r = runScenarioHeadless(lanterniteNestDualSpawnScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

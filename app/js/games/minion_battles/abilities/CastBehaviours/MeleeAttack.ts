@@ -40,7 +40,7 @@ function dirFromTo(
 }
 
 // How many px beyond the hitbox range a locked unit can roam before losing guaranteed-hit status.
-const LOCK_ON_TETHER_EXTRA = 50;
+const LOCK_ON_TETHER_EXTRA = 100;
 
 function getLockOnRange(def: HitboxDef | null): number {
     if (def === null || def.shape === 'custom') return LOCK_ON_TETHER_EXTRA;

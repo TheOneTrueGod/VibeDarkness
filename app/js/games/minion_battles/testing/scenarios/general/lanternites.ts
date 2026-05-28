@@ -154,7 +154,116 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// Scenario 2: Lanternite light-pulse fires at a nearby enemy and deals damage
+// Scenario 2: maxLanternites:2 → first spawn becomes a scout (builds second
+// nest) while the second spawn becomes a defender (guards the original nest)
+// ---------------------------------------------------------------------------
+
+export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
+    id: 'lanternite_nest_dual_spawn',
+    title: 'Lanternite: nest spawns a scout (builds second nest) and a defender (guards original)',
+    category: 'general',
+    generalSection: 'Lanternites',
+    // scout at t=0, defender at t=1, ~5s travel, ~2s construction → ~8s total; 20s is generous
+    maxDurationMs: 20000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({
+            gridW: NEST_GRID_W,
+            gridH: NEST_GRID_H,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        // Use distinct POI IDs from scenario 1 so the two scenarios don't share state
+        engine.registerMapPOIs([
+            { id: 'dual_nest_a', label: 'Nest A', col: NEST_A_COL, row: NEST_A_ROW, type: 'nest', tags: ['connects:dual_nest_b'] },
+            { id: 'dual_nest_b', label: 'Nest B', col: NEST_B_COL, row: NEST_B_ROW, type: 'nest' },
+        ]);
+
+        const pos = worldOf(NEST_A_COL, NEST_A_ROW);
+        const nestUnit = createUnitFromSpawnConfig(
+            {
+                id: 'dual_spawn_nest_a',
+                characterId: 'lanternite_nest',
+                name: 'Dual-Spawn Nest A',
+                x: pos.x,
+                y: pos.y,
+                teamId: 'allied',
+                ownerId: 'ai',
+                abilities: [],
+                unitAITreeId: 'lanterniteNestIdle',
+                aiSettings: { minRange: 0, maxRange: 0 },
+            },
+            engine.eventBus,
+            engine,
+        );
+        // maxLanternites:2 means the nest will produce one scout (first) and one defender (second)
+        nestUnit.lanterniteNestConfig = {
+            maxLanternites: 2,
+            spawnIntervalSec: 1,
+            patrolDestination: { kind: 'world', x: worldOf(NEST_B_COL, NEST_B_ROW).x, y: worldOf(NEST_B_COL, NEST_B_ROW).y },
+            networked: true,
+            nestPoiId: 'dual_nest_a',
+            scoutConstructionSec: 2,
+        };
+        nestUnit.lanterniteHomeNestPoiId = 'dual_nest_a';
+        prepareLanterniteNestForMissionStart(nestUnit, 0);
+        // Trigger the scout on the very first tick rather than waiting spawnIntervalSec
+        nestUnit.lanterniteNestSpawnState!.nextSpawnAtGameTime = 0;
+        engine.addUnit(nestUnit);
+
+        // Player walks a three-leg zigzag so the battle stays non-idle for the full ~8s sequence
+        spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: worldOf(PLAYER_START_COL, PLAYER_WALK_ROW).x,
+            y: worldOf(PLAYER_START_COL, PLAYER_WALK_ROW).y,
+            abilities: [],
+        });
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit();
+        if (!player) return [];
+        const path = buildPlayerZigzagPath(PLAYER_START_COL, PLAYER_WALK_ROW, NEST_GRID_W - 1);
+        return [{ unitId: player.id, abilityId: MOVE_ONLY_ABILITY_ID, targets: [], movePath: path }];
+    },
+
+    assertPass(engine) {
+        const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive()).length;
+        const defenders = engine.units.filter(
+            (u) => u.characterId === 'lanternite' && u.lanterniteRole === 'defender' && u.isAlive(),
+        ).length;
+        // Both halves must be true: scout built the second nest, AND a defender is still on guard
+        return nests >= 2 && defenders >= 1;
+    },
+
+    failureMessage(engine) {
+        const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive()).length;
+        const scouts = engine.units.filter(
+            (u) => u.characterId === 'lanternite' && u.lanterniteRole === 'scout' && u.isAlive(),
+        );
+        const defenders = engine.units.filter(
+            (u) => u.characterId === 'lanternite' && u.lanterniteRole === 'defender' && u.isAlive(),
+        ).length;
+        const buildTime = scouts[0]?.lanterniteConstructionCompleteAtGameTime;
+        return (
+            `alive nests=${nests} scouts=${scouts.length} defenders=${defenders}` +
+            (buildTime != null ? ` constructAt=${buildTime.toFixed(1)} now=${engine.gameTime.toFixed(1)}` : '')
+        );
+    },
+
+    describeState(engine) {
+        const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive()).length;
+        const scouts = engine.units.filter((u) => u.characterId === 'lanternite' && u.lanterniteRole === 'scout').length;
+        const defenders = engine.units.filter((u) => u.characterId === 'lanternite' && u.lanterniteRole === 'defender').length;
+        return `t=${engine.gameTime.toFixed(1)} nests=${nests} scouts=${scouts} defenders=${defenders}`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Scenario 3: Lanternite light-pulse fires at a nearby enemy and deals damage
 // ---------------------------------------------------------------------------
 
 const DEF_LAN_COL = 3;

@@ -17,7 +17,7 @@ const wolfBite = new ChargeAttack({
     baseMaxRange: 100,
     aiMaxRange: 80,
     capsuleRadiusMultiplier: 1.0,
-    knockbackOnBlock: 40,
+    knockbackOnBlock: 25,
     preview: { color: 0xff0000, width: 12 },
     effectType: 'bite',
     effectDuration: 0.2,

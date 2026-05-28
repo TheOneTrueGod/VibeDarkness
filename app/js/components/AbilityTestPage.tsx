@@ -194,38 +194,28 @@ export default function AbilityTestPage() {
     const abilityTreeGroups = useMemo(() => {
         const q = filter.trim().toLowerCase();
         const all = getAbilityTreeSidebarGroups();
-        const filtered = !q
-            ? all
-            : all.filter((g) => {
-                  if (g.label.toLowerCase().includes(q) || g.treeId.includes(q)) return true;
-                  const scenarios = getScenariosForSelectorKey(g.selectorKey);
-                  return scenarios.some(
-                      (s) => s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q),
-                  );
-              });
-        const sel = new Set(selectedKeys);
-        const head = filtered.filter((g) => sel.has(g.selectorKey));
-        const tail = filtered.filter((g) => !sel.has(g.selectorKey));
-        return [...head, ...tail];
-    }, [filter, selectedKeys]);
+        if (!q) return all;
+        return all.filter((g) => {
+            if (g.label.toLowerCase().includes(q) || g.treeId.includes(q)) return true;
+            const scenarios = getScenariosForSelectorKey(g.selectorKey);
+            return scenarios.some(
+                (s) => s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q),
+            );
+        });
+    }, [filter]);
 
     const generalSidebarGroups = useMemo(() => {
         const q = filter.trim().toLowerCase();
         const all = getGeneralTestSidebarGroups();
-        const filtered = !q
-            ? all
-            : all.filter((g) => {
-                  if (g.label.toLowerCase().includes(q) || g.slug.includes(q)) return true;
-                  const scenarios = getScenariosForSelectorKey(g.selectorKey);
-                  return scenarios.some(
-                      (s) => s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q),
-                  );
-              });
-        const sel = new Set(selectedKeys);
-        const head = filtered.filter((g) => sel.has(g.selectorKey));
-        const tail = filtered.filter((g) => !sel.has(g.selectorKey));
-        return [...head, ...tail];
-    }, [filter, selectedKeys]);
+        if (!q) return all;
+        return all.filter((g) => {
+            if (g.label.toLowerCase().includes(q) || g.slug.includes(q)) return true;
+            const scenarios = getScenariosForSelectorKey(g.selectorKey);
+            return scenarios.some(
+                (s) => s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q),
+            );
+        });
+    }, [filter]);
 
     const [runsById, setRunsById] = useState<Map<string, LiveScenarioRun>>(() => new Map());
     const [runsByKey, setRunsByKey] = useState<Map<string, LiveScenarioRun[]>>(() => new Map());
