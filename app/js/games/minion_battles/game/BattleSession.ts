@@ -22,6 +22,7 @@ import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types
 import type { ApplyRemoteOrdersResult, BattleNet, BattleSessionHandle, RemoteOrderWireRow } from './battlenet';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogSummary';
+import { logUserState } from './battlenet/userStateLog';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -131,8 +132,10 @@ export class BattleSession implements BattleSessionHandle {
             }
         });
         engine.setOnTickComplete((gameTick, fingerprintHex, paused, adminReason) => {
-            if (!isHost) return;
-            this.netAdapter?.queueFingerprint(gameTick, fingerprintHex, paused, adminReason);
+            if (isHost) {
+                this.netAdapter?.queueFingerprint(gameTick, fingerprintHex, paused, adminReason);
+            }
+            logUserState({ api, playerId: this.config.playerId, engine });
         });
         if (isHost) {
             engine.setOnParallelBatchResolved((batchAtTick) => {

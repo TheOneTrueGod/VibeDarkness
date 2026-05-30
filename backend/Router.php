@@ -52,6 +52,8 @@ use App\Http\Handlers\SetEmergencyRecoveryHandler;
 use App\Http\Handlers\Terrain\ListTerrainSegmentsHandler;
 use App\Http\Handlers\Terrain\GetTerrainSegmentHandler;
 use App\Http\Handlers\Terrain\SaveTerrainSegmentHandler;
+use App\Http\Handlers\Battle\PostUserStateHandler;
+use App\Http\Handlers\Battle\GetUserStateHandler;
 
 /**
  * Matches request method and path to handler functions.
@@ -105,6 +107,8 @@ class Router
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/initial-state$#', GetInitialStateHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/fingerprints$#', AppendFingerprintsHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/games/([A-Za-z0-9_-]+)/fingerprints$#', GetFingerprintsRangeHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/user-state/([a-zA-Z0-9._-]+)$#', PostUserStateHandler::class],
+            ['GET',  '#^/api/lobbies/([A-Z0-9]+)/user-state/([a-zA-Z0-9._-]+)$#',  GetUserStateHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/messages$#', GetMessagesHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/messages$#', PostMessageHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/join$#', JoinLobbyHandler::class],

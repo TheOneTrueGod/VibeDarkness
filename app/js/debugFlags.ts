@@ -58,3 +58,32 @@ export function subscribeAlwaysShowSyncStatus(onStoreChange: () => void): () => 
         window.removeEventListener('storage', handler);
     };
 }
+
+const USER_STATE_LOGGING_KEY = 'vibedarkness.debug.userStateLogging';
+
+export function getUserStateLogging(): boolean {
+    try {
+        return localStorage.getItem(USER_STATE_LOGGING_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+export function setUserStateLogging(value: boolean): void {
+    try {
+        localStorage.setItem(USER_STATE_LOGGING_KEY, value ? '1' : '0');
+    } catch {
+        /* ignore */
+    }
+    window.dispatchEvent(new Event('vd-debug-flags-changed'));
+}
+
+export function subscribeUserStateLogging(onStoreChange: () => void): () => void {
+    const handler = () => onStoreChange();
+    window.addEventListener('vd-debug-flags-changed', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+        window.removeEventListener('vd-debug-flags-changed', handler);
+        window.removeEventListener('storage', handler);
+    };
+}

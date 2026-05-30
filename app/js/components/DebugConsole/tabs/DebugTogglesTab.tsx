@@ -17,6 +17,9 @@ import {
     setAlwaysShowSyncStatus,
     subscribeShowAllResearchTrees,
     subscribeAlwaysShowSyncStatus,
+    getUserStateLogging,
+    setUserStateLogging,
+    subscribeUserStateLogging,
 } from '../../../debugFlags';
 import {
     LOBBY_LOG_TYPES,
@@ -45,6 +48,12 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
         subscribeAlwaysShowSyncStatus,
         getAlwaysShowSyncStatus,
         getAlwaysShowSyncStatus,
+    );
+
+    const userStateLogging = useSyncExternalStore(
+        subscribeUserStateLogging,
+        getUserStateLogging,
+        getUserStateLogging,
     );
 
     const subscribeDebugLog = useCallback((onStoreChange: () => void) => debugLogState.subscribe(onStoreChange), []);
@@ -102,6 +111,15 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                         onChange={(e) => setLogEveryTick(e.target.checked)}
                     />
                     <span className="leading-snug">Console log every tick</span>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border border-border-custom bg-surface text-primary focus:ring-primary shrink-0"
+                        checked={userStateLogging}
+                        onChange={(e) => setUserStateLogging(e.target.checked)}
+                    />
+                    <span className="leading-snug">Log user state to server</span>
                 </label>
             </div>
 

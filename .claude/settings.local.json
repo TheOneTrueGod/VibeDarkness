@@ -45,7 +45,8 @@
       "Bash(Select-Object -First 50)",
       "Bash(grep -v \"^$\")",
       "Bash(Get-ChildItem -Recurse \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\app\\\\js\\\\games\\\\minion_battles\" -Directory)",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(curl -s \"http://localhost:8080/api/lobbies/991E15/user-state/9?fromTick=145&toTick=175\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness"

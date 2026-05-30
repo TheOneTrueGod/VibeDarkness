@@ -40,6 +40,40 @@ If **both** general and battle-sync floors are **`off`**, you may still see **no
 
 If **on-disk data and existing log lines are not enough** to pin down the failure, **propose new lobby-log events** to add for the next occurrence: what field(s) to record (tick, `gameId`, `playerId`, `rejectedReason`, host vs client, etc.), **where to emit** them (e.g. `app/js/lobbyLog.ts` / `logToLobbyLog`, `AppendLobbyLogHandler`, battle handlers, `BattleNet`), and why each field helps. Treat that as part of the deliverable alongside hypotheses.
 
+## User state logs
+
+When the **"Log user state to server"** toggle is enabled in the Debug Console (Debug Toggles tab), each client writes per-tick snapshots to:
+
+```
+storage/lobbies/<LOBBY_CODE>/user_state/<PLAYER_ID>/user_state_NNN.md
+```
+
+`user_state_001.md` covers ticks 0–99, `user_state_002.md` covers 100–199, and so on. Each file is JSONL — one JSON object per line with this shape (open for future additions):
+
+```json
+{ "tick": 142, "game_state": { /* SerializedGameState */ }, "orders": [], "ts": 1717000000 }
+```
+
+**Prefer the read endpoint over grepping files directly.** The endpoint is faster to call and already handles multi-file spanning:
+
+```
+GET /api/lobbies/{lobbyId}/user-state/{userId}?fromTick=N&toTick=M
+```
+
+- Requires `APP_ENV=development` on the PHP server (returns HTTP 403 otherwise).
+- Returns up to 20 entries in `[fromTick, toTick]` sorted by tick ascending.
+- Max range per call: 2000 ticks. Query multiple ranges to cover longer windows.
+- No player auth required — this is a debug-read endpoint for AIs and investigators.
+
+To write entries the client POSTs to:
+
+```
+POST /api/lobbies/{lobbyId}/user-state/{userId}
+Body: { "playerId": "...", "entries": [...] }
+```
+
+Entries are batched client-side (up to 20 per flush, with a 5-second debounce) and routed automatically to the correct `user_state_NNN.md` file by tick range.
+
 ## Ephemeral lobbies
 
 **Lobby storage and log shapes are ephemeral** — old lobbies are not a migration or compatibility commitment. When proposing code or format changes (new log fields, battle directory layout, handler behaviour), **do not** treat “existing lobbies on disk” as a reason to avoid a root fix. (This is **lobby-scoped** only; do not override project-wide backwards-compatibility rules for **Players, Campaigns**, or other long-lived data in `AGENTS.md`.)
@@ -58,10 +92,15 @@ Implementations worth opening during investigation:
 
 ## Investigation workflow
 
+**Primary source: user state snapshots.** If `storage/lobbies/<LOBBY_CODE>/user_state/` exists with files for any player, start there — these snapshots contain full `SerializedGameState` per tick and are usually sufficient to pinpoint divergence. Only fall back to `fingerprints.jsonl`, `orders.jsonl`, or `lobby_log.jsonl` if the snapshots do not cover the incident window or lack the needed field.
+
+If the user state logs don't contain enough detail to confirm or refute a hypothesis, **stop early** and tell the user what additional fields to log (what field(s), which tick range, which player) so the next occurrence captures it. Do not speculate past what the evidence supports.
+
 1. Confirm **`gameId`** (from **`game_<instanceId>.json`**, heartbeat URLs, or `lobby_log.jsonl`).
-2. Under **`games/<gameId>/`** (or legacy path): compare **tail of `fingerprints.jsonl`** (last completed fingerprint index vs heartbeat **`hostTick`**), **`orders.jsonl`** (`atTick` vs **`waitingForOrders.atTick`**), newest **`snapshots/`** **`state.waitingForOrders`**, snapshot envelope **`tick`**, vs local **`gameTick`** on the browser.
-3. Correlate with **`lobby_log.jsonl`** around the incident window.
-4. If the symptom is multiplayer-only, reason about **host-canonical** state vs optimistic non-host simulation (game-sync skill).
+2. Read user state snapshots for affected players around the incident window (use the GET endpoint or the files directly). Look for diverging `game_state` fields, unexpected order lists, or tick gaps.
+3. Form hypotheses from what the snapshots show. For each hypothesis you check against the code, report it to the user immediately as a **bolded title** followed by one sentence describing what you found (confirmed, ruled out, or inconclusive).
+4. Only if snapshots are missing or insufficient: fall back to **`fingerprints.jsonl`**, **`orders.jsonl`**, and **`lobby_log.jsonl`** (see field descriptions above).
+5. If the symptom is multiplayer-only, reason about **host-canonical** state vs optimistic non-host simulation (game-sync skill).
 
 ## What to deliver to the user
 
