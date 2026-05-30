@@ -6,6 +6,7 @@ use App\AccountService;
 use App\LobbyManager;
 use App\PlayerAccount;
 use App\SessionHelper;
+use App\UserStateStorage;
 
 class GetAdminLobbyUserStateIndexHandler
 {
@@ -41,7 +42,9 @@ class GetAdminLobbyUserStateIndexHandler
             return ['success' => true, 'users' => (object) []];
         }
 
-        $users = [];
+        $users           = [];
+        $userStateHashes = [];
+        $storage         = new UserStateStorage();
 
         $userEntries = scandir($userStateDir);
         foreach ($userEntries as $userId) {
@@ -68,9 +71,14 @@ class GetAdminLobbyUserStateIndexHandler
                 ];
             }
             usort($files, fn(array $a, array $b) => $a['fileNum'] <=> $b['fileNum']);
-            $users[$userId] = $files;
+            $users[$userId]           = $files;
+            $userStateHashes[$userId] = $storage->getUserStateHashes($lobbyId, $userId);
         }
 
-        return ['success' => true, 'users' => $users ?: (object) []];
+        return [
+            'success'         => true,
+            'users'           => $users ?: (object) [],
+            'userStateHashes' => $userStateHashes ?: (object) [],
+        ];
     }
 }

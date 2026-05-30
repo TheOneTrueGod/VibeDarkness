@@ -1,7 +1,41 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import type { LobbyClient, AdminUserStateIndex } from '../../../LobbyClient';
 
 const BATCH_SIZE = 25;
+
+type TickStatus = 'mismatch' | 'missing' | 'ok';
+
+function getTickRangeStatus(index: AdminUserStateIndex, fromTick: number, toTick: number): TickStatus {
+    const userIds = Object.keys(index.users);
+    if (userIds.length < 2) return 'ok';
+    const hostId = userIds[0];
+    let hasMissing = false;
+    for (let tick = fromTick; tick <= toTick; tick++) {
+        const tickStr = String(tick);
+        const hostHash = index.userStateHashes[hostId]?.[tickStr];
+        if (hostHash === undefined) continue;
+        for (let i = 1; i < userIds.length; i++) {
+            const clientHash = index.userStateHashes[userIds[i]]?.[tickStr];
+            if (clientHash === undefined) {
+                hasMissing = true;
+            } else if (clientHash !== hostHash) {
+                return 'mismatch';
+            }
+        }
+    }
+    return hasMissing ? 'missing' : 'ok';
+}
+
+function pillClasses(status: TickStatus, isSelected: boolean): string {
+    if (isSelected) {
+        if (status === 'mismatch') return 'border-red-600 bg-red-950/60 text-red-300';
+        if (status === 'missing')  return 'border-yellow-600 bg-yellow-950/60 text-yellow-300';
+        return 'border-primary bg-surface text-white';
+    }
+    if (status === 'mismatch') return 'border-red-800 bg-surface-light text-red-400 hover:border-red-600 hover:text-red-300';
+    if (status === 'missing')  return 'border-yellow-800 bg-surface-light text-yellow-500 hover:border-yellow-600 hover:text-yellow-300';
+    return 'border-border-custom bg-surface-light text-muted hover:border-primary hover:text-white';
+}
 
 interface ArchiveUserStatesTabProps {
     isActive: boolean;
@@ -100,6 +134,15 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
         [index, lobbyClient, lobbyId],
     );
 
+    const batchStatuses = useMemo(() => {
+        if (!index) return new Map<number, TickStatus>();
+        const map = new Map<number, TickStatus>();
+        for (const b of buildBatches(index)) {
+            map.set(b.fromTick, getTickRangeStatus(index, b.fromTick, b.toTick));
+        }
+        return map;
+    }, [index]);
+
     if (!isActive) return null;
     if (loading) return <div className="text-muted text-sm">Loading…</div>;
     if (error) return <div className="text-danger text-sm">{error}</div>;
@@ -131,15 +174,12 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
                 <div className="flex gap-2 overflow-x-auto pb-1">
                     {batches.map((b) => {
                         const isSelected = selectedBatch?.fromTick === b.fromTick;
+                        const status = batchStatuses.get(b.fromTick) ?? 'ok';
                         return (
                             <button
                                 key={b.fromTick}
                                 type="button"
-                                className={`shrink-0 px-3 py-1.5 text-xs rounded border transition-colors ${
-                                    isSelected
-                                        ? 'border-primary bg-surface text-white'
-                                        : 'border-border-custom bg-surface-light text-muted hover:border-primary hover:text-white'
-                                }`}
+                                className={`shrink-0 px-3 py-1.5 text-xs rounded border transition-colors ${pillClasses(status, isSelected)}`}
                                 onClick={() => {
                                     setSelectedBatch(b);
                                     setSelectedTick(null);
@@ -166,15 +206,12 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
                             )
                             .map((tick) => {
                                 const isSelected = selectedTick === tick;
+                                const status = getTickRangeStatus(index, tick, tick);
                                 return (
                                     <button
                                         key={tick}
                                         type="button"
-                                        className={`shrink-0 px-2 py-1 text-xs rounded border transition-colors ${
-                                            isSelected
-                                                ? 'border-primary bg-surface text-white'
-                                                : 'border-border-custom bg-surface-light text-muted hover:border-primary hover:text-white'
-                                        }`}
+                                        className={`shrink-0 px-2 py-1 text-xs rounded border transition-colors ${pillClasses(status, isSelected)}`}
                                         onClick={() => void handleSelectTick(tick)}
                                     >
                                         {tick}

@@ -154,6 +154,8 @@ export interface AdminUserStateFile {
 
 export interface AdminUserStateIndex {
     users: Record<string, AdminUserStateFile[]>;
+    /** userId → tick (as string) → 8-char canonical hash of game_state */
+    userStateHashes: Record<string, Record<string, string>>;
 }
 
 /** One persisted line for `POST /api/lobbies/:id/lobby-log` (and batch). */
@@ -807,7 +809,8 @@ export class LobbyClient {
 
     async getAdminLobbyUserStateIndex(lobbyId: string): Promise<AdminUserStateIndex> {
         const data = await this.request(`/api/admin/lobbies/${encodeURIComponent(lobbyId)}/user-state-index`);
-        return { users: (data as unknown as { users: AdminUserStateIndex['users'] }).users ?? {} };
+        const d = data as unknown as { users?: AdminUserStateIndex['users']; userStateHashes?: AdminUserStateIndex['userStateHashes'] };
+        return { users: d.users ?? {}, userStateHashes: d.userStateHashes ?? {} };
     }
 
     async getUserStateRange(
