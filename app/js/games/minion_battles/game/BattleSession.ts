@@ -135,7 +135,7 @@ export class BattleSession implements BattleSessionHandle {
             if (isHost) {
                 this.netAdapter?.queueFingerprint(gameTick, fingerprintHex, paused, adminReason);
             }
-            logUserState({ api, playerId: this.config.playerId, engine });
+            logUserState({ api, playerId: this.config.playerId, engine, fingerprintHex });
         });
         if (isHost) {
             engine.setOnParallelBatchResolved((batchAtTick) => {

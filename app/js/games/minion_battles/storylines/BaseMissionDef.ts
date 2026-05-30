@@ -161,20 +161,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             let spawnX = worldW / 4;
             let spawnY = playerSpacing * (i + 1);
             if (spawnPoints && spawnPoints.length > 0) {
-                const numericId = parseInt(pu.playerId, 10);
-                let spawnIndex: number;
-                if (!Number.isNaN(numericId) && numericId > 0) {
-                    // Player IDs are 1-based; map to 0-based index.
-                    spawnIndex = numericId - 1;
-                } else {
-                    // Fallback: use loop index.
-                    spawnIndex = i;
-                }
-                if (spawnIndex < 0 || spawnIndex >= spawnPoints.length) {
-                    // Clamp or wrap if out of range.
-                    spawnIndex = spawnIndex % spawnPoints.length;
-                    if (spawnIndex < 0) spawnIndex += spawnPoints.length;
-                }
+                const spawnIndex = i % spawnPoints.length;
                 const sp: PlayerSpawnPoint = spawnPoints[spawnIndex];
                 const cellSize = grid?.cellSize ?? 40;
                 spawnX = sp.col * cellSize + cellSize / 2;

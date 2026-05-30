@@ -9,9 +9,10 @@ export interface UserStateLogOpts {
     playerId: string;
     engine: GameEngine;
     pendingOrders?: OrderAtTick[];
+    fingerprintHex?: string;
 }
 
-export function logUserState({ api, playerId, engine, pendingOrders = [] }: UserStateLogOpts): void {
+export function logUserState({ api, playerId, engine, pendingOrders = [], fingerprintHex }: UserStateLogOpts): void {
     if (!getUserStateLogging()) {
         return;
     }
@@ -22,5 +23,6 @@ export function logUserState({ api, playerId, engine, pendingOrders = [] }: User
         tick: engine.gameTick,
         game_state: engine.toJSON(),
         orders: pendingOrders,
+        ...(fingerprintHex !== undefined ? { fp: fingerprintHex } : {}),
     });
 }

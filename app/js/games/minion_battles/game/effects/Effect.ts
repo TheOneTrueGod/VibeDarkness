@@ -147,11 +147,8 @@ export class Effect extends GameObject {
             this.x = this.startX + (this.endX - this.startX) * t;
             this.y = this.startY + (this.endY - this.startY) * t;
         }
-        // TorchProjectile: flag landing for EffectManager.gameUpdate to convert to a LightSource; don't expire here
+        // TorchProjectile: lifetime tracked in fixed ticks by EffectManager.gameUpdate; don't expire here via renderUpdate
         if (this.effectType === 'TorchProjectile') {
-            if (this.elapsed >= this.duration) {
-                (this.effectData as { landingPending?: boolean }).landingPending = true;
-            }
             return;
         }
         // Expiry check (TorchProjectile handled above)

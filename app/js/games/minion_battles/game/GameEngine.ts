@@ -319,6 +319,7 @@ export class GameEngine implements EngineContext {
 
     addLightSource(ls: LightSource): void {
         this.state.lightSourceManager.addLightSource(ls);
+        this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(ls.id), Math.floor(ls.x), Math.floor(ls.y));
     }
 
     get effectEmitterManager() { return this.state.effectEmitterManager; }
@@ -1133,6 +1134,7 @@ export class GameEngine implements EngineContext {
             FingerprintEvent.EFFECT_TICK,
             this.projectiles.length >>> 0,
             this.units.length >>> 0,
+            this.state.lightSourceManager.lightSources.length >>> 0,
         );
         if (!this.storyPauseActive) {
             this.state.levelEventManager.runDefeatCheck();
@@ -1453,6 +1455,7 @@ export class GameEngine implements EngineContext {
                 if (!unit.active || !unit.isAlive()) continue;
                 if (!unit.isPlayerControlled() || !unit.canAct()) continue;
                 if (waiterUnitIds.has(unit.id)) continue;
+                if (unit.movement !== null && unit.movement.path.length > 0 && !unit.movementPaused) continue;
                 if (!engine.state.orderMgr.hasPendingOrderForUnit(unit.id, atTick)) {
                     extra.push({ unitId: unit.id, ownerId: unit.ownerId });
                 }

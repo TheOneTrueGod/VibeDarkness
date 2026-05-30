@@ -74,6 +74,18 @@ Body: { "playerId": "...", "entries": [...] }
 
 Entries are batched client-side (up to 20 per flush, with a 5-second debounce) and routed automatically to the correct `user_state_NNN.md` file by tick range.
 
+## desyncDebug scripts
+
+**Prefer these scripts over writing ad-hoc `node` commands.** Run them via `npm run <script> -- <flags>` from the repo root.
+
+| Script | What it does | When to use |
+|--------|-------------|-------------|
+| **`desyncDebug-getTick`** | Extracts per-tick `game_state` snapshots from `user_state` logs for all players (or one), side-by-side; supports `--field <dotPath>` to zoom in and `--full` for raw JSON. | Start here — gives the clearest view of per-player state at any tick range. |
+| **`desyncDebug-diffTick`** | Deep-diffs two players' `game_state` at a **single** tick and prints every diverging dot-path with A/B values. | Use when you know the approximate desync tick and want to pinpoint exactly which fields diverged. |
+| **`desyncDebug-getFingerprints`** | Reads `fingerprints.jsonl` entries within a tick range. | Use to check fingerprint agreement before digging into full state, or when user-state logs are absent. |
+| **`desyncDebug-getLobbyLog`** | Filters `lobby_log.jsonl` by tick range and/or `--keyword` (repeatable); shows all matching structured log events. | Use to surface desync/resync events, rejection reasons, and timestamps in the incident window. |
+| **`desyncDebug-getOrders`** | Reads `applied_orders.jsonl` (or `--file pending`) within a tick range. | Use to correlate which orders were applied at specific ticks with observed state divergence. |
+
 ## Ephemeral lobbies
 
 **Lobby storage and log shapes are ephemeral** — old lobbies are not a migration or compatibility commitment. When proposing code or format changes (new log fields, battle directory layout, handler behaviour), **do not** treat “existing lobbies on disk” as a reason to avoid a root fix. (This is **lobby-scoped** only; do not override project-wide backwards-compatibility rules for **Players, Campaigns**, or other long-lived data in `AGENTS.md`.)

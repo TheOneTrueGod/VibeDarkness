@@ -4,6 +4,7 @@ export interface UserStateEntry {
     tick: number;
     game_state: SerializedGameState;
     orders: OrderAtTick[];
+    fp?: string;
 }
 
 interface QueueKey {

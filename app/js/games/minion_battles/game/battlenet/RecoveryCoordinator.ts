@@ -354,6 +354,14 @@ export class RecoveryCoordinator {
                     tracePhase: 'recovery_post_bootstrap_checkpoint',
                 });
                 synced = syncReconciler.isFingerprintAlignedWithHeartbeat(heartbeat);
+                // Liveness check: fingerprint alignment is necessary but not sufficient.
+                // If the engine is still paused for order sync as a non-host, replayOrdersSince
+                // returned 0 rows (timing race) and we haven't actually unblocked. Force escalation
+                // to the targeted-snapshot tier so the replay is retried.
+                const engineStillPausedAfterBootstrap = !this.ctx.isHost && this.ctx.session.isPausedForOrderSync();
+                if (synced && engineStillPausedAfterBootstrap) {
+                    synced = false;
+                }
                 logToLobbyLogBattleSync({
                     lobbyClient: this.ctx.api as unknown as LobbyClient,
                     lobbyId: this.ctx.lobbyId,
@@ -369,6 +377,7 @@ export class RecoveryCoordinator {
                         bootstrapSnapshotTick: this.ctx.snapshotPersistence.getLastBootstrapSnapshotTick(),
                         lastOrderFetchSince: orderQueue.getLastOrderFetchSince(),
                         fingerprintAligned: synced,
+                        engineStillPausedAfterBootstrap,
                         hostTick: heartbeat.hostTick ?? null,
                         hostPaused: heartbeat.hostPaused === true,
                         orderBatchAtTick: heartbeat.orderBatchAtTick ?? heartbeat.pausedAtTick ?? null,

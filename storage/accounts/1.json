@@ -7,25 +7,31 @@
     "earth": 6,
     "air": 9,
     "recentLobbies": [
+        "782EC9",
+        "14F9D4",
+        "E64C49",
+        "EF6696",
+        "C78CB7",
         "BBB562",
         "9A982B",
         "12926F",
         "0BB95E",
-        "C4B598",
-        "83DC84",
-        "84D638",
-        "F299A5",
-        "DEDC18",
-        "CA06D3"
+        "C4B598"
     ],
     "campaignIds": [
-        "b20ed5832a01070a"
+        "8b01ca4d760bea16"
     ],
     "characterIds": [
         "char_2c1428630628ad7e",
-        "char_4772664f84459de9"
+        "char_4772664f84459de9",
+        "char_9019a3c753c9671a"
     ],
     "inventoryItemIds": [],
-    "knowledge": [],
+    "knowledge": {
+        "Research": {
+            "acquiredAt": 1780092434
+        }
+    },
+    "emergencyRecoveryExpiresAt": 9999999999,
     "passwordHash": "$2y$12$4slaAwe25DxOfE0aPaWI\/evNgycN6sYpupO17CmDakd.wOyzosM\/2"
 }

@@ -53,7 +53,18 @@
       "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" diff *)",
       "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" show *)",
       "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" status *)",
-      "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" branch *)"
+      "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" branch *)",
+      "Bash(node scripts/desyncDebug-getTick.js --lobby 782EC9 --from 460 --to 510)",
+      "PowerShell(node scripts/desyncDebug-getTick.js --lobby 782EC9 --from 460 --to 510 2>&1)",
+      "PowerShell(node scripts/desyncDebug-getLobbyLog.js --lobby 782EC9 --keyword resync --keyword desync --keyword stuck --keyword skipped 2>&1)",
+      "PowerShell(node scripts/desyncDebug-getLobbyLog.js --lobby 782EC9 --from 474 --to 480 2>&1)",
+      "PowerShell(node scripts/desyncDebug-getLobbyLog.js --lobby 782EC9 --from 474 --to 512 --keyword recovery --keyword bootstrap --keyword snapshot --keyword resync --keyword mismatch 2>&1)",
+      "PowerShell(node scripts/desyncDebug-getLobbyLog.js --lobby 782EC9 --from 476 --to 480 --keyword replayOrdersSince --keyword seeded --keyword \"order queue\" 2>&1)",
+      "PowerShell(node scripts/desyncDebug-getOrders.js --lobby 782EC9 --from 477 --to 508 2>&1)",
+      "PowerShell(node scripts/desyncDebug-getOrders.js --lobby 782EC9 --from 477 --to 510 --file pending 2>&1)",
+      "PowerShell(node scripts/desyncDebug-getOrders.js --lobby 782EC9 --from 474 --to 482 --file log --keyword replayOrdersSince 2>&1)",
+      "PowerShell(node scripts/desyncDebug-getOrders.js --lobby 782EC9 --from 474 --to 482 --file log --keyword \"order queue:\" 2>&1)",
+      "PowerShell(node scripts/desyncDebug-getOrders.js --lobby 782EC9 --from 474 --to 520 --file log --keyword \"d2d66d97\" 2>&1)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness"
