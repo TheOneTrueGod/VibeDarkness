@@ -481,6 +481,7 @@ export class GameEngine implements EngineContext {
 
     private registerCoreEventListeners(): void {
         this.eventBus.clear();
+        this.state.unitManager.registerListeners();
 
         this.eventBus.on('unit_died', (data) => {
             const unit = this.getUnit(data.unitId);
@@ -1400,7 +1401,7 @@ export class GameEngine implements EngineContext {
             lightSources: this.state.lightSourceManager.toJSON(),
             bramblePatches: this.state.bramblePatches.map(bramblePatchToJSON),
             lightTileGrid: this.state.lightTileGrid?.toJSON() ?? null,
-            nextObjectId: getCurrentGameObjectIdCounter(),
+            nextObjectId: this.objectIdSeq,
         };
     }
 

@@ -153,12 +153,10 @@ export default function CharacterEditor({
 
     /** Trees the character is allowed to see (gating), used for normal list and for dimming in debug “show all”. */
     const eligibleResearchTrees = useMemo(() => {
-        const res = resolvedCampaign?.resources;
-        if (!res) return [];
         const ctx = {
             account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
             character: { ...character, equipment, researchTrees } as CampaignCharacter,
-            campaignResources: res,
+            campaignResources: resolvedCampaign?.resources ?? {},
         };
         return RESEARCH_TREES.filter((t) => {
             const any = treeHasAnyResearch(ctx.character, t.id);

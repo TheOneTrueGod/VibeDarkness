@@ -22,6 +22,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
+import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario } from '../scenarios/general/enemies';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
@@ -197,6 +198,16 @@ describe('runScenarioHeadless', () => {
 
     it('passes earth core deep resonance tremorsense radius scenario', () => {
         const r = runScenarioHeadless(earthCoreDeepResonanceScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes alpha wolf enrage triggers scenario', () => {
+        const r = runScenarioHeadless(alphaWolfEnrageTriggersScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes alpha wolf summon scenario (spawned wolves attack and damage player)', () => {
+        const r = runScenarioHeadless(alphaWolfSummonScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

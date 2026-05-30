@@ -210,7 +210,7 @@ export const alphaWolfEnrageTriggersScenario: ScenarioDefinition = {
             },
             engine.eventBus,
         );
-        // One tick above 50 % so a single base punch (15 dmg) crosses the threshold.
+        // One tick above 50 % so a single base punch (8 dmg) crosses the threshold.
         wolf.hp = Math.floor(wolf.maxHp * 0.5) + 1;
         initializeAbilityRuntimeForUnit(wolf);
         engine.addUnit(wolf);
@@ -230,5 +230,88 @@ export const alphaWolfEnrageTriggersScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const wolf = engine.getUnit('alpha_wolf_pre_enrage');
         return `wolf tags=${JSON.stringify(wolf?.tags)} hp=${wolf?.hp}/${wolf?.maxHp}`;
+    },
+};
+
+// Alpha wolf at (240, 160); player 40 px to its left at (200, 160).
+// Wolves spawn at (+35, 0) and (-24.5, +24.5) relative to the alpha wolf —
+// both well within DarkWolfBite's 100 px base range.
+const SUMMON_CELL = 40;
+const SUMMON_PLAYER_POS = { x: 5 * SUMMON_CELL, y: 4 * SUMMON_CELL };
+const SUMMON_ALPHA_POS  = { x: 6 * SUMMON_CELL, y: 4 * SUMMON_CELL };
+// Second player wait fires at tick 90 (= 1.5 s), just as the first wait
+// expires, to prevent the engine from pausing for player input before the
+// wolf bites land (~tick 101).
+const SUMMON_SECOND_WAIT_TICK = 90;
+
+/**
+ * Alpha Wolf Summon: the alpha wolf casts Summon (0005), spawning 2 dark wolves
+ * that immediately queue a DarkWolfBite against the player. The player should
+ * receive damage from at least one bite before the scenario ends.
+ */
+export const alphaWolfSummonScenario: ScenarioDefinition = {
+    id: 'enemy_alpha_wolf_summon',
+    title: 'Alpha Wolf Summon: spawned wolves immediately attack and damage the player',
+    category: 'general',
+    generalSection: 'Enemies',
+    maxDurationMs: 4000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 8, localPlayerId: P, grass: true });
+
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: SUMMON_PLAYER_POS.x,
+            y: SUMMON_PLAYER_POS.y,
+            abilities: [],
+        });
+
+        const alphaWolf = createUnitFromSpawnConfig(
+            {
+                id: 'summon_test_alpha_wolf',
+                characterId: 'alpha_wolf',
+                name: 'Beast',
+                x: SUMMON_ALPHA_POS.x,
+                y: SUMMON_ALPHA_POS.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: ['0005'],
+                unitTags: [UnitTag.Boss],
+            },
+            engine.eventBus,
+        );
+        initializeAbilityRuntimeForUnit(alphaWolf);
+        engine.addUnit(alphaWolf);
+
+        // Alpha wolf casts Summon on tick 1.
+        engine.state.orderMgr.queueOrder(1, {
+            unitId: alphaWolf.id,
+            abilityId: '0005',
+            targets: [],
+        });
+
+        // Prevent the engine from pausing for player input while waiting for
+        // wolf bites to land. The first wait expires at t=1.5 s (tick 90);
+        // queuing a second wait at that same tick re-extends the lockout.
+        engine.state.orderMgr.queueOrder(SUMMON_SECOND_WAIT_TICK, {
+            unitId: player.id,
+            abilityId: 'wait',
+            targets: [],
+        });
+
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        return [{ unitId: player.id, abilityId: 'wait', targets: [] }];
+    },
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        return Boolean(player && player.hp < player.maxHp);
+    },
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const wolves = engine.units.filter((u) => u.characterId === 'dark_wolf');
+        const wolfInfo = wolves.map((w) => `id=${w.id} hp=${w.hp} active=${w.activeAbilities.map((a) => a.abilityId).join(',')}`).join(' | ');
+        return `player hp=${player?.hp}/${player?.maxHp} wolves=[${wolfInfo}]`;
     },
 };

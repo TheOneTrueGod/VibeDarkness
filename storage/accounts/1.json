@@ -6,11 +6,20 @@
     "water": 7,
     "earth": 6,
     "air": 9,
-    "recentLobbies": [],
+    "recentLobbies": [
+        "3E5311",
+        "2670CC",
+        "651E6D",
+        "560734",
+        "B62767",
+        "AB0D69"
+    ],
     "campaignIds": [
         "c2fd6eee52b4a0d2"
     ],
-    "characterIds": [],
+    "characterIds": [
+        "char_acd06e8d691fa658"
+    ],
     "inventoryItemIds": [],
     "knowledge": [],
     "emergencyRecoveryExpiresAt": null,

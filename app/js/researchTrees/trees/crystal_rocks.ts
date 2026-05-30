@@ -8,7 +8,6 @@ export const crystalRocksTree: ResearchTreeDef = {
     title: 'Rocks',
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
-        { type: 'accountKnowledge', key: 'Crystals' },
         { type: 'characterHasEquippedItem', itemId: '001' }, // Rocks
     ],
     nodes: [

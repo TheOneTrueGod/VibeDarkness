@@ -8,7 +8,6 @@ export const techShieldTree: ResearchTreeDef = {
     id: TECH_SHIELD_TREE_ID,
     title: 'Tech Shield',
     accessRequirements: [
-        { type: 'accountKnowledge', key: 'Crystals' },
         { type: 'characterHasEquippedItem', itemId: '003' }, // Pot Lid (pot shield)
     ],
     nodes: [

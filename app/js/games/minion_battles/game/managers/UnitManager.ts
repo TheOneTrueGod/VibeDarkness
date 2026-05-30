@@ -34,7 +34,10 @@ export class UnitManager {
 
     constructor(ctx: EngineContext) {
         this.ctx = ctx;
-        ctx.eventBus.on('damage_taken', (event) => this.processEnrageTriggers(event.unitId));
+    }
+
+    registerListeners(): void {
+        this.ctx.eventBus.on('damage_taken', (event) => this.processEnrageTriggers(event.unitId));
     }
 
     private processEnrageTriggers(unitId: string): void {

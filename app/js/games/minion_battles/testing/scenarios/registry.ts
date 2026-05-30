@@ -9,6 +9,7 @@ import {
     bossStunMechanicsScenario,
     alphaWolfTripleChargeScenario,
     alphaWolfEnrageTriggersScenario,
+    alphaWolfSummonScenario,
 } from './general/enemies';
 import {
     punchBaselineScenario,
@@ -82,6 +83,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     bossStunMechanicsScenario,
     alphaWolfTripleChargeScenario,
     alphaWolfEnrageTriggersScenario,
+    alphaWolfSummonScenario,
     absorptionShieldEnergyChargeScenario,
     raiseShieldBlocksScenario,
     raiseShieldAllyStaminaSurgeScenario,
