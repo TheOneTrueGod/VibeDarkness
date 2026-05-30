@@ -139,6 +139,23 @@ interface PollMessage {
     data: Record<string, unknown>;
 }
 
+export interface AdminLobbyEntry {
+    id: string;
+    createdAt: number | null;
+    playerIds: string[];
+    hostId: string | null;
+}
+
+export interface AdminUserStateFile {
+    fileNum: number;
+    fromTick: number;
+    toTick: number;
+}
+
+export interface AdminUserStateIndex {
+    users: Record<string, AdminUserStateFile[]>;
+}
+
 /** One persisted line for `POST /api/lobbies/:id/lobby-log` (and batch). */
 export interface AppendLobbyLogBody {
     playerId: string;
@@ -770,6 +787,43 @@ export class LobbyClient {
             method: 'POST',
             body: JSON.stringify({ playerId }),
         });
+    }
+
+    async listAdminLobbies(): Promise<AdminLobbyEntry[]> {
+        const data = await this.request('/api/admin/lobbies');
+        return (data as unknown as { lobbies: AdminLobbyEntry[] }).lobbies ?? [];
+    }
+
+    async getAdminLobbyLog(lobbyId: string): Promise<object[]> {
+        const data = await this.request(`/api/admin/lobbies/${encodeURIComponent(lobbyId)}/log`);
+        return (data as unknown as { lines: object[] }).lines ?? [];
+    }
+
+    async deleteAdminLobbyLog(lobbyId: string): Promise<void> {
+        await this.request(`/api/admin/lobbies/${encodeURIComponent(lobbyId)}/log`, {
+            method: 'DELETE',
+        });
+    }
+
+    async getAdminLobbyUserStateIndex(lobbyId: string): Promise<AdminUserStateIndex> {
+        const data = await this.request(`/api/admin/lobbies/${encodeURIComponent(lobbyId)}/user-state-index`);
+        return { users: (data as unknown as { users: AdminUserStateIndex['users'] }).users ?? {} };
+    }
+
+    async getUserStateRange(
+        lobbyId: string,
+        userId: string,
+        fromTick: number,
+        toTick: number
+    ): Promise<object[]> {
+        const params = new URLSearchParams({
+            fromTick: String(fromTick),
+            toTick: String(toTick),
+        });
+        const data = await this.request(
+            `/api/lobbies/${encodeURIComponent(lobbyId)}/user-state/${encodeURIComponent(userId)}?${params}`
+        );
+        return (data as unknown as { entries: object[] }).entries ?? [];
     }
 
     // ---- Player ID tracking (set by the app after join) ----

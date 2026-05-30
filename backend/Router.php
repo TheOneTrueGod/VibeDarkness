@@ -49,6 +49,10 @@ use App\Http\Handlers\GrantCampaignResourceHandler;
 use App\Http\Handlers\RemoveAccountItemHandler;
 use App\Http\Handlers\ListAdminAccountsHandler;
 use App\Http\Handlers\SetEmergencyRecoveryHandler;
+use App\Http\Handlers\Admin\ListAdminLobbiesHandler;
+use App\Http\Handlers\Admin\GetAdminLobbyLogHandler;
+use App\Http\Handlers\Admin\DeleteAdminLobbyLogHandler;
+use App\Http\Handlers\Admin\GetAdminLobbyUserStateIndexHandler;
 use App\Http\Handlers\Terrain\ListTerrainSegmentsHandler;
 use App\Http\Handlers\Terrain\GetTerrainSegmentHandler;
 use App\Http\Handlers\Terrain\SaveTerrainSegmentHandler;
@@ -73,6 +77,10 @@ class Router
             ['POST', '#^/api/account/logout$#', LogoutHandler::class],
             ['GET', '#^/api/account/characters$#', ListCharactersHandler::class],
             ['POST', '#^/api/account/characters$#', CreateCharacterHandler::class],
+            ['GET',    '#^/api/admin/lobbies$#',                                      ListAdminLobbiesHandler::class],
+            ['GET',    '#^/api/admin/lobbies/([A-Z0-9]+)/log$#',                      GetAdminLobbyLogHandler::class],
+            ['DELETE', '#^/api/admin/lobbies/([A-Z0-9]+)/log$#',                      DeleteAdminLobbyLogHandler::class],
+            ['GET',    '#^/api/admin/lobbies/([A-Z0-9]+)/user-state-index$#',         GetAdminLobbyUserStateIndexHandler::class],
             ['GET', '#^/api/admin/accounts$#', ListAdminAccountsHandler::class],
             ['GET', '#^/api/admin/accounts/(\d+)$#', GetAdminAccountDetailsHandler::class],
             ['POST', '#^/api/admin/accounts/(\d+)/items$#', GrantAccountItemHandler::class],
