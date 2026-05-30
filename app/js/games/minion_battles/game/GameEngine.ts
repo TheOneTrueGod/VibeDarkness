@@ -68,6 +68,7 @@ import {
 } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 import { bramblePatchFromJSON, bramblePatchToJSON, type BramblePatch } from './brambleSlow';
+import { resetGameObjectIdCounter, getCurrentGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import { AlphaWolfStoryEmitter } from './effects/AlphaWolfStoryEmitter';
 
@@ -305,11 +306,13 @@ export class GameEngine implements EngineContext {
     getAllies(caster: Unit): Unit[] { return this.state.unitManager.getAllies(caster); }
 
     addProjectile(projectile: Projectile): void {
+        projectile.id = this.allocateObjectId('proj');
         this.state.projectileManager.addProjectile(projectile);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(projectile.id), Math.floor(projectile.x), Math.floor(projectile.y));
     }
 
     addEffect(effect: Effect): void {
+        effect.id = this.allocateObjectId('fx');
         this.state.effectManager.addEffect(effect);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(effect.id), Math.floor(effect.x), Math.floor(effect.y));
     }
@@ -814,6 +817,12 @@ export class GameEngine implements EngineContext {
      * numeric suffixes from restored ids.
      */
     syncObjectIdsFromSnapshot(data: SerializedGameState): void {
+        if (data.nextObjectId != null) {
+            this.resetObjectIdSequence(data.nextObjectId);
+            resetGameObjectIdCounter(data.nextObjectId);
+            return;
+        }
+        // Legacy snapshots without nextObjectId: derive from max serialized ID.
         let maxN = 0;
         for (const u of data.units ?? []) {
             const id = (u as { id?: string }).id;
@@ -831,6 +840,7 @@ export class GameEngine implements EngineContext {
         }
         if (maxN > 0) {
             this.resetObjectIdSequence(maxN + 1);
+            resetGameObjectIdCounter(maxN + 1);
         }
     }
 
@@ -1389,6 +1399,7 @@ export class GameEngine implements EngineContext {
             lightSources: this.state.lightSourceManager.toJSON(),
             bramblePatches: this.state.bramblePatches.map(bramblePatchToJSON),
             lightTileGrid: this.state.lightTileGrid?.toJSON() ?? null,
+            nextObjectId: getCurrentGameObjectIdCounter(),
         };
     }
 

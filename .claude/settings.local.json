@@ -46,7 +46,14 @@
       "Bash(grep -v \"^$\")",
       "Bash(Get-ChildItem -Recurse \"c:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\app\\\\js\\\\games\\\\minion_battles\" -Directory)",
       "Bash(Select-Object -First 20)",
-      "Bash(curl -s \"http://localhost:8080/api/lobbies/991E15/user-state/9?fromTick=145&toTick=175\")"
+      "Bash(curl -s \"http://localhost:8080/api/lobbies/991E15/user-state/9?fromTick=145&toTick=175\")",
+      "Bash(curl -s \"http://localhost*/api/lobbies/*/user-state/*\")",
+      "Read(storage/lobbies/**)",
+      "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" log *)",
+      "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" diff *)",
+      "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" show *)",
+      "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" status *)",
+      "Bash(git -C \"c:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness\" branch *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness"

@@ -293,4 +293,30 @@ describe('SyncReconciler.isFingerprintAlignedWithHeartbeat', () => {
             r.isFingerprintAlignedWithHeartbeat({ hostTick: 5, hostFingerprint: 'fp', hostPaused: true }),
         ).toBe(false);
     });
+
+    it('returns true when client is ahead of host but fingerprint history matches at host tick', () => {
+        // Client replayed orders past a paused host: local tick 1661, host committed tick 1657.
+        const ctx = makeCtx({
+            session: {
+                getLatestFingerprint: () => ({ tick: 1661, fp: 'fp1661', paused: false }),
+                getFingerprintRange: (from: number, to: number) =>
+                    from === 1657 && to === 1657 ? [{ tick: 1657, fp: 'fp1657', paused: true }] : [],
+            },
+        });
+        const r = new SyncReconciler(ctx);
+        expect(
+            r.isFingerprintAlignedWithHeartbeat({ hostTick: 1657, hostFingerprint: 'fp1657', hostPaused: true }),
+        ).toBe(true);
+    });
+
+    it('returns false when client is ahead of host and fingerprint history has no record at host tick', () => {
+        const ctx = makeCtx({
+            session: {
+                getLatestFingerprint: () => ({ tick: 1661, fp: 'fp1661', paused: false }),
+                getFingerprintRange: () => [],
+            },
+        });
+        const r = new SyncReconciler(ctx);
+        expect(r.isFingerprintAlignedWithHeartbeat({ hostTick: 1657, hostFingerprint: 'fp1657' })).toBe(false);
+    });
 });

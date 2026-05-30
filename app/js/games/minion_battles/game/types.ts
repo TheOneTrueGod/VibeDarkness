@@ -128,6 +128,8 @@ export interface SerializedGameState {
     bramblePatches?: Record<string, unknown>[];
     /** Serialized effect emitters (runtime-only factories not included; short-lived, safe to drop on reconnect). */
     effectEmitters?: Record<string, unknown>[];
+    /** Value of the global generateGameObjectId counter at snapshot time. Restored on load so replayed effects/projectiles get identical IDs. */
+    nextObjectId?: number;
 }
 
 /** Optional args when hydrating {@link GameEngine} from JSON (e.g. server checkpoint `synchash`). */

@@ -138,16 +138,19 @@ export class SyncReconciler {
         hostFingerprint: string | null;
         hostPaused?: boolean | null;
     }): boolean {
-        const local = this.ctx.session.getLatestFingerprint();
-        if (!local || heartbeat.hostTick == null || heartbeat.hostFingerprint == null) {
-            return false;
+        if (heartbeat.hostTick == null || heartbeat.hostFingerprint == null) return false;
+        let local = this.ctx.session.getLatestFingerprint();
+        if (!local) return false;
+        // Client may have replayed pending orders past the host's committed tick (e.g. host paused
+        // waiting for the next order batch). Look up the fingerprint recorded at the host's tick
+        // rather than rejecting alignment outright.
+        if (local.tick > heartbeat.hostTick) {
+            const range = this.ctx.session.getFingerprintRange(heartbeat.hostTick, heartbeat.hostTick);
+            if (range.length === 0) return false;
+            local = range[0];
         }
-        if (local.tick !== heartbeat.hostTick || local.fp !== heartbeat.hostFingerprint) {
-            return false;
-        }
-        if (heartbeat.hostPaused != null && local.paused !== heartbeat.hostPaused) {
-            return false;
-        }
+        if (local.tick !== heartbeat.hostTick || local.fp !== heartbeat.hostFingerprint) return false;
+        if (heartbeat.hostPaused != null && local.paused !== heartbeat.hostPaused) return false;
         return true;
     }
 }

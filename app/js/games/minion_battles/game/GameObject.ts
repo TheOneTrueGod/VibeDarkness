@@ -16,6 +16,10 @@ export function resetGameObjectIdCounter(value: number = 1): void {
     nextId = value;
 }
 
+export function getCurrentGameObjectIdCounter(): number {
+    return nextId;
+}
+
 export abstract class GameObject {
     id: string;
     x: number;

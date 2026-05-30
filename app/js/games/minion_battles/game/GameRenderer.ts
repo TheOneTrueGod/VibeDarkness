@@ -64,6 +64,7 @@ const Z_INDEX = {
 	specialTiles: 6,
 	moveTargets: 7,
 	ghostPreview: 8,
+	knockbackShadow: 9,
 	units: 10,
 	projectiles: 11,
 	effects: 12,
@@ -91,6 +92,7 @@ export class GameRenderer {
 	app: Application;
 	private gameContainer: Container;
 	private unitVisuals: Map<string, Container> = new Map();
+	private knockbackShadowVisuals: Map<string, Graphics> = new Map();
 	private moveTargetVisuals: Map<string, Graphics> = new Map();
 	private projectileVisuals: Map<string, Graphics> = new Map();
 	private effectVisuals: Map<string, Container> = new Map();
@@ -908,8 +910,45 @@ export class GameRenderer {
 					}
 				}
 			}
+			// Knockback air arc: quadratic Y lift during the airborne phase only.
+			let knockupYOffset = 0;
+			if (unit.knockback !== null) {
+				const kb = unit.knockback;
+				const airTime = kb.knockbackAirTime;
+				if (airTime > 0 && kb.knockbackElapsed < airTime) {
+					const progress = kb.knockbackElapsed / airTime;
+					const arcFactor = 4 * progress * (1 - progress);
+					const vx = kb.knockbackVector.x;
+					const vy = kb.knockbackVector.y;
+					const magnitude = Math.sqrt(vx * vx + vy * vy);
+					const maxHeight = Math.min(magnitude * 0.25, 25);
+					knockupYOffset = -arcFactor * maxHeight;
+				}
+			}
+
+			// Shadow: rendered at ground level while unit is airborne.
+			let knockbackShadow = this.knockbackShadowVisuals.get(unit.id);
+			if (knockupYOffset < 0 && unit.active) {
+				if (!knockbackShadow) {
+					knockbackShadow = new Graphics();
+					knockbackShadow.zIndex = Z_INDEX.knockbackShadow;
+					this.knockbackShadowVisuals.set(unit.id, knockbackShadow);
+					this.gameContainer.addChild(knockbackShadow);
+				}
+				knockbackShadow.visible = true;
+				knockbackShadow.clear();
+				const shadowRx = unit.radius * 1.1;
+				const shadowRy = unit.radius * 0.35;
+				knockbackShadow.ellipse(0, 0, shadowRx, shadowRy);
+				knockbackShadow.fill({ color: 0x222222, alpha: 0.55 });
+				knockbackShadow.x = unit.x;
+				knockbackShadow.y = unit.y + unit.radius - 4;
+			} else {
+				if (knockbackShadow) knockbackShadow.visible = false;
+			}
+
 			visual.x = unit.x + renderOffsetX;
-			visual.y = unit.y + renderOffsetY;
+			visual.y = unit.y + renderOffsetY + knockupYOffset;
 			visual.visible = unit.active;
 
 			const col = Math.floor(unit.x / cellSize);
@@ -1634,6 +1673,15 @@ export class GameRenderer {
 			}
 		}
 
+		// Clean up knockback shadow visuals for dead/removed units
+		for (const [id, shadow] of this.knockbackShadowVisuals) {
+			if (!activeUnitIds.has(id)) {
+				this.gameContainer.removeChild(shadow);
+				shadow.destroy();
+				this.knockbackShadowVisuals.delete(id);
+			}
+		}
+
 		// Clean up move target visuals for dead/removed units
 		for (const [key, visual] of this.moveTargetVisuals) {
 			const unitId = key.replace('mt_', '');
@@ -1690,6 +1738,8 @@ export class GameRenderer {
 		this.targetingPreviewGraphics.destroy();
 		this.ghostPreviewGraphics.destroy();
 		for (const visual of this.unitVisuals.values()) visual.destroy();
+		for (const shadow of this.knockbackShadowVisuals.values()) shadow.destroy();
+		this.knockbackShadowVisuals.clear();
 		for (const visual of this.moveTargetVisuals.values()) visual.destroy();
 		for (const visual of this.projectileVisuals.values()) visual.destroy();
 		for (const visual of this.effectVisuals.values()) visual.destroy();
