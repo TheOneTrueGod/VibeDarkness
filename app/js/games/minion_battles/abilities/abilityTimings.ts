@@ -559,3 +559,21 @@ export function getCoveringAbilityPhaseAtElapsed(
 export function elapsedIsInCoopCooldown(elapsed: number, intervals: AbilityTimingInterval[]): boolean {
     return getCoveringAbilityPhaseAtElapsed(elapsed, intervals) === AbilityPhase.CoopCooldown;
 }
+
+/**
+ * Returns the effective cast behaviour entries for a timing interval.
+ * Handles both the explicit `castBehaviours` array and the single-behaviour
+ * `behaviour` shorthand (which is treated as a full-window entry at bIdx=0).
+ *
+ * The returned indices (bIdx) correspond 1-to-1 with the behaviour payload keys
+ * used by unitAbilityTick: `${interval.id}_${bIdx}`.
+ */
+export function getEffectiveCastBehaviours(
+    interval: AbilityTimingInterval,
+): CastBehaviourEntry[] | undefined {
+    if (interval.castBehaviours) return interval.castBehaviours;
+    if (interval.behaviour) {
+        return [{ timingStart: 'start', timingEnd: 'end', behaviour: interval.behaviour }];
+    }
+    return undefined;
+}

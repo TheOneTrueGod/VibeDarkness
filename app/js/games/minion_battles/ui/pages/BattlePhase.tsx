@@ -19,7 +19,7 @@ import {
     type BattleNetSyncTerminalStatus,
     BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
 } from '../../game/battlenet';
-import { resolveClick, validateAndResolveTarget, getSelectTargetDefsFromTimings } from '../../abilities/targeting';
+import { resolveClick, validateAndResolveTarget, getSelectTargetDefsFromTimings, filterSelectTargetCandidates } from '../../abilities/targeting';
 import { resolveHitbox } from '../../abilities/hitboxDef';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
@@ -896,7 +896,8 @@ export default function BattlePhase({
                         if (cacheStale) {
                             const caster = state.previewOrderUnitId ? engine.getUnit(state.previewOrderUnitId) : null;
                             if (caster) {
-                                const hitUnits = selectDef.hitbox.resolveTargets(caster, worldPos, engine.units);
+                                const rawHitUnits = selectDef.hitbox.resolveTargets(caster, worldPos, engine.units);
+                                const hitUnits = filterSelectTargetCandidates(rawHitUnits, caster, selectDef.filter);
                                 hitUnits.sort((a, b) => {
                                     const da = (a.x - worldPos.x) ** 2 + (a.y - worldPos.y) ** 2;
                                     const db = (b.x - worldPos.x) ** 2 + (b.y - worldPos.y) ** 2;

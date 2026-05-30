@@ -14,10 +14,11 @@ import type { GameEngine } from './GameEngine';
 import type { Camera } from './Camera';
 import type { Unit } from './units/Unit';
 import { getAbility } from '../abilities/AbilityRegistry';
-import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries } from '../abilities/abilityTimings';
+import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries, getEffectiveCastBehaviours } from '../abilities/abilityTimings';
 import { resolveBehaviourTimingRef } from '../abilities/castBehaviourTypes';
 import type { AbilityStatic } from '../abilities/Ability';
-import { getSelectTargetDefsFromTimings } from '../abilities/targeting';
+import { getSelectTargetDefsFromTimings, filterSelectTargetCandidates } from '../abilities/targeting';
+import { renderMeleeTrackingHighlights } from '../abilities/meleeTrackingHelpers';
 import { Projectile } from './projectiles/Projectile';
 import type { Effect } from './effects/Effect';
 import { areEnemies } from './teams';
@@ -870,9 +871,10 @@ export class GameRenderer {
 				);
 				for (let iIdx = 0; iIdx < intervals.length; iIdx++) {
 					const interval = intervals[iIdx]!;
-					if (!interval.castBehaviours) continue;
-					for (let bIdx = 0; bIdx < interval.castBehaviours.length; bIdx++) {
-						const entry = interval.castBehaviours[bIdx]!;
+					const effectiveBehaviours = getEffectiveCastBehaviours(interval);
+					if (!effectiveBehaviours) continue;
+					for (let bIdx = 0; bIdx < effectiveBehaviours.length; bIdx++) {
+						const entry = effectiveBehaviours[bIdx]!;
 						if (!entry.behaviour.getCasterRenderOffset) continue;
 						const elapsed = engine.gameTime - activeAbility.startTime;
 						const windowStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
@@ -1428,7 +1430,16 @@ export class GameRenderer {
 			const targetIndex = ts.currentTargets.length;
 			const selectDef = selectTargetDefs[targetIndex];
 			if (selectDef) {
-				selectDef.hitbox.renderTargetingPreview(gr, caster, ts.mouseWorld, engine.units);
+				const rawCandidates = selectDef.hitbox.renderTargetingPreview(gr, caster, ts.mouseWorld, engine.units);
+				// Apply team filter + self-exclusion, then highlight the closest valid candidate.
+				const candidates = filterSelectTargetCandidates(rawCandidates, caster, selectDef.filter);
+				if (candidates.length > 0) {
+					const mw = ts.mouseWorld;
+					candidates.sort((a, b) =>
+						(a.x - mw.x) ** 2 + (a.y - mw.y) ** 2 - ((b.x - mw.x) ** 2 + (b.y - mw.y) ** 2),
+					);
+					renderMeleeTrackingHighlights(gr, [candidates[0]!]);
+				}
 			}
 			// Also highlight already-committed targets for this ability (using the legacy selected-targets helper if present).
 			if (ability.renderTargetingPreviewSelectedTargets) {

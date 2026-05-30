@@ -15,6 +15,7 @@ import {
     exitedTimingIds,
     getTotalAbilityDurationForCast,
     AbilityPhase,
+    getEffectiveCastBehaviours,
 } from '../../abilities/abilityTimings';
 import { createEmitterFromDef } from '../../abilities/createEmitterFromDef';
 import { AbilityEventType, abilityHasTag } from '../../abilities/Ability';
@@ -58,24 +59,6 @@ function resolveTargetForBehaviour(
         return fallback;
     }
     return fallback;
-}
-
-/**
- * Expand `interval.behaviour` shorthand into a synthetic CastBehaviourEntry[]
- * spanning the full timing window, but only when `interval.castBehaviours` is absent.
- */
-function getEffectiveCastBehaviours(
-    interval: import('../../abilities/abilityTimings').AbilityTimingInterval,
-): CastBehaviourEntry[] | undefined {
-    if (interval.castBehaviours) return interval.castBehaviours;
-    if (interval.behaviour) {
-        return [{
-            timingStart: 'start',
-            timingEnd: 'end',
-            behaviour: interval.behaviour,
-        }];
-    }
-    return undefined;
 }
 
 /**

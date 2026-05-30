@@ -10,7 +10,6 @@ import type { Unit } from '../game/units/Unit';
 import type { IAbilityPreviewGraphics } from '../abilities/Ability';
 import type { HitboxEngineContext, HitboxPreviewCaster } from './Hitbox';
 import { ThickLineHitbox } from './ThickLineHitbox';
-import { clampToMaxRange } from '../abilities/previewHelpers';
 import { resolveHitbox } from '../abilities/hitboxDef';
 import { DEFAULT_UNIT_RADIUS } from '../game/units/unit_defs/unitConstants';
 
@@ -73,7 +72,23 @@ export class MeleeLineHitboxSpec extends HitboxSpec {
     }
 
     /**
-     * Render a thick-line preview from caster toward mouse (clamped to maxRange).
+     * Project a target point to exactly `maxRange` from the caster in the aim direction.
+     * Melee line attacks always swing the full arc regardless of how close the aim is.
+     */
+    private _projectToMax(
+        caster: { x: number; y: number },
+        target: { x: number; y: number },
+    ): { x: number; y: number } {
+        const dx = target.x - caster.x;
+        const dy = target.y - caster.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 1e-6) return { x: caster.x + this.maxRange, y: caster.y };
+        const scale = this.maxRange / dist;
+        return { x: caster.x + dx * scale, y: caster.y + dy * scale };
+    }
+
+    /**
+     * Render a thick-line preview from caster toward mouse, always at full maxRange.
      * Returns all units whose center lies within the line's hit area.
      */
     renderTargetingPreview(
@@ -82,14 +97,14 @@ export class MeleeLineHitboxSpec extends HitboxSpec {
         mouseWorld: { x: number; y: number },
         units: Unit[],
     ): Unit[] {
-        ThickLineHitbox.renderTargetingPreview(gr, caster, mouseWorld, this.maxRange, this.lineThickness);
-
-        const { endX, endY } = clampToMaxRange(caster, mouseWorld, this.maxRange);
-        return this._getUnitsInLine(caster, endX, endY, units);
+        const aimAtMax = this._projectToMax(caster, mouseWorld);
+        ThickLineHitbox.renderTargetingPreview(gr, caster, aimAtMax, this.maxRange, this.lineThickness);
+        return this._getUnitsInLine(caster, aimAtMax.x, aimAtMax.y, units);
     }
 
     /**
      * Resolve lock-on candidates using the same geometry as renderTargetingPreview.
+     * Always projects to full maxRange so the candidate area matches the preview.
      * Does NOT filter by team — callers apply `SelectTargetDef.filter` as needed.
      * Always excludes the caster itself.
      */
@@ -98,12 +113,13 @@ export class MeleeLineHitboxSpec extends HitboxSpec {
         aimPoint: { x: number; y: number },
         units: Unit[],
     ): Unit[] {
-        const { endX, endY } = clampToMaxRange(caster, aimPoint, this.maxRange);
-        return this._getUnitsInLine(caster, endX, endY, units).filter(u => u.id !== caster.id);
+        const aimAtMax = this._projectToMax(caster, aimPoint);
+        return this._getUnitsInLine(caster, aimAtMax.x, aimAtMax.y, units).filter(u => u.id !== caster.id);
     }
 
     /**
      * Resolve actual hits at impact time via the existing `resolveHitbox` dispatcher.
+     * Always projects the aim to full maxRange so close clicks still sweep the full arc.
      * If lockOnId is provided the priority unit must be in range for any hits to land.
      */
     resolveHits(
@@ -113,6 +129,7 @@ export class MeleeLineHitboxSpec extends HitboxSpec {
         aimY: number,
         lockOnId?: string,
     ): Unit[] {
+        const aimAtMax = this._projectToMax(caster, { x: aimX, y: aimY });
         // maxRange already includes DEFAULT_UNIT_RADIUS, but resolveHitbox's meleeLine
         // shape does NOT add it — so subtract it back to get the bare geometry range.
         const geometryRange = this.maxRange - DEFAULT_UNIT_RADIUS;
@@ -123,8 +140,8 @@ export class MeleeLineHitboxSpec extends HitboxSpec {
                 caster,
                 originX: caster.x,
                 originY: caster.y,
-                aimX,
-                aimY,
+                aimX: aimAtMax.x,
+                aimY: aimAtMax.y,
                 priorityUnitId: lockOnId,
             },
         );

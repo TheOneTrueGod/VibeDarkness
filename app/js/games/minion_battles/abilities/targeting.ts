@@ -13,6 +13,7 @@ import type { AbilityStatic } from './Ability';
 import type { SelectTargetDef } from './timingTargetDef';
 import { isSelectTargetDef } from './timingTargetDef';
 import { isAbilityTimingInterval } from './abilityTimings';
+import { areEnemies, areAllies } from '../game/teams';
 
 /** The types of targets an ability can require. */
 export type TargetType = 'player' | 'unit' | 'pixel';
@@ -146,4 +147,24 @@ export function validateAndResolveTarget(
         default:
             return null;
     }
+}
+
+/**
+ * Filter a candidate unit list by a `SelectTargetDef.filter` value and exclude the caster.
+ *
+ * Call this after `HitboxSpec.renderTargetingPreview` (which does NOT self-exclude) and
+ * after `HitboxSpec.resolveTargets` (which self-excludes but does NOT team-filter).
+ * Safe to call on already-self-excluded lists — the caster check is a no-op in that case.
+ */
+export function filterSelectTargetCandidates(
+    units: Unit[],
+    caster: Pick<Unit, 'id' | 'teamId'>,
+    filter: SelectTargetDef['filter'],
+): Unit[] {
+    return units.filter(u => {
+        if (u.id === caster.id) return false;
+        if (filter === 'enemy') return areEnemies(caster.teamId, u.teamId);
+        if (filter === 'ally')  return areAllies(caster.teamId, u.teamId);
+        return true; // 'any'
+    });
 }
