@@ -614,7 +614,7 @@ export class GameEngine implements EngineContext {
     setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
         this.lightLevelEnabled = lightLevelEnabled;
         this.globalLightLevel = globalLightLevel;
-        if (lightLevelEnabled && this.terrainManager?.grid) this.initLightGrid();
+        if (lightLevelEnabled && this.terrainManager?.grid && !this.state.lightTileGrid) this.initLightGrid();
     }
 
     applyInstantLightingPass(): void {
@@ -1121,7 +1121,6 @@ export class GameEngine implements EngineContext {
         );
         this.mixRuntimeFingerprint(
             FingerprintEvent.EFFECT_TICK,
-            this.effects.length >>> 0,
             this.projectiles.length >>> 0,
             this.units.length >>> 0,
         );
