@@ -152,7 +152,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
 		col: CAVE_CAMPFIRE.col,
 		row: CAVE_CAMPFIRE.row + BOTTOM_OFFSET_ROW,
 		hp: 5,
-		emitsLight: { lightAmount: 15, radius: 8 },
+		emitsLight: { lightAmount: 4, radius: 4 },
 	},
 	...crystalSpecialTilesAt(0, BOTTOM_OFFSET_ROW),
 ];

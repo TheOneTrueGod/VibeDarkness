@@ -188,7 +188,7 @@ export class Unit extends GameObject {
 
     /**
      * How many darkness damage procs this unit has taken since last full reset.
-     * Next proc deals `2 * (darknessDamageProcCount + 1)` damage. Reset when corruption drains to 0 outside full darkness.
+     * Next proc deals `5 * (darknessDamageProcCount + 2)` damage (10 on first, +5 each subsequent). Reset when corruption drains to 0 outside full darkness.
      */
     darknessDamageProcCount: number = 0;
 
@@ -857,7 +857,7 @@ export class Unit extends GameObject {
         if (inFullDarkness && this.corruptionProgress >= 1) {
             this.corruptionProgress = 0;
             const hitIndex = this.darknessDamageProcCount + 1;
-            const damage = 2 * hitIndex;
+            const damage = 5 * (hitIndex + 1);
             this.takeDamage(damage, null, engine.eventBus);
             this.darknessDamageProcCount += 1;
         }

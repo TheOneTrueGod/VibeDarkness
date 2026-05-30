@@ -215,7 +215,7 @@ function createCampfireDecayScenario(): ScenarioDefinition {
         category: 'general',
         generalSection: 'Lighting',
         renderLighting: true,
-        maxDurationMs: 10000,
+        maxDurationMs: 25000,
 
         buildEngine() {
             prevCenterLevel = -Infinity;
@@ -261,8 +261,9 @@ function createCampfireDecayScenario(): ScenarioDefinition {
         getInitialOrders(engine) {
             const player = engine.units.find((u) => u.ownerId === TINY_BATTLE_PLAYER_ID);
             if (!player) return [];
-            const path = buildPlayerZigzag(1, 1, DECAY_GRID_W - 1);
-            return [{ unitId: player.id, abilityId: MOVE_ONLY_ABILITY_ID, targets: [], movePath: path }];
+            const leg1 = buildPlayerZigzag(1, 1, DECAY_GRID_W - 1);
+            const leg2 = buildPlayerZigzag(0, 1, DECAY_GRID_W - 1).slice(1);
+            return [{ unitId: player.id, abilityId: MOVE_ONLY_ABILITY_ID, targets: [], movePath: [...leg1, ...leg2] }];
         },
 
         assertPass(engine) {

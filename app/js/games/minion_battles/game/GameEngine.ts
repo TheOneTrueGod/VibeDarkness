@@ -402,8 +402,13 @@ export class GameEngine implements EngineContext {
                 // Round target to integer — fractional emission/radius produces float targets
                 // which would cause cur to oscillate between floor(tgt) and ceil(tgt) forever.
                 const tgt = Math.round(target[row][col]);
-                if (cur < tgt) grid.set(row, col, cur + 1);
-                else if (cur > tgt) grid.set(row, col, cur - 1);
+                // Proportional step: moves 10% of the remaining delta each tick.
+                // Snap to target when the step is negligible to avoid asymptotic drift
+                // (important for integer threshold checks like corruption at light <= 0).
+                const delta = tgt - cur;
+                const step = 0.1 * delta;
+                if (Math.abs(step) < 0.01) grid.set(row, col, tgt);
+                else if (delta !== 0) grid.set(row, col, cur + step);
             }
         }
     }

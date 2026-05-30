@@ -13,9 +13,13 @@ export interface LightSource {
     radius: number;
 }
 
-/** Manhattan distance in tiles — all cells at the same ring distance get identical contributions. */
-function manhattanDistance(col: number, row: number, sc: number, sr: number): number {
-    return Math.abs(col - sc) + Math.abs(row - sr);
+/**
+ * Rounded Euclidean distance in tiles. Rounding groups cells into integer rings so all
+ * cells at the same ring distance get identical contributions — no diagonal brightness
+ * inconsistency — while producing a circular (rather than diamond) light shape.
+ */
+function roundedEuclideanDistance(col: number, row: number, sc: number, sr: number): number {
+    return Math.round(Math.sqrt((col - sc) ** 2 + (row - sr) ** 2));
 }
 
 /**
@@ -51,7 +55,7 @@ export function computeLightGrid(
                 const emission = Math.round(s.emission * 4) / 4;
                 const radius   = Math.round(s.radius   * 4) / 4;
                 const range = radius + Math.abs(emission);
-                const d = manhattanDistance(col, row, s.col, s.row);
+                const d = roundedEuclideanDistance(col, row, s.col, s.row);
                 if (d > range) continue;
                 const contrib = sourceContribution(emission, radius, d);
                 if (Math.abs(contrib) > Math.abs(best)) best = contrib;

@@ -56,7 +56,7 @@ export const CRYSTAL_POINTS = {
 /** Shared gameplay fields for the five cave crystals (position added per mission via offset). */
 export const CRYSTAL_TILE_DEFAULTS: Omit<SpecialTilePlacement, 'col' | 'row'> = {
     defId: 'Crystal',
-    emitsLight: { lightAmount: 20, radius: 3 },
+    emitsLight: { lightAmount: 10, radius: 3 },
     protectRadius: 3,
 };
 
