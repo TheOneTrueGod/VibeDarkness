@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { LobbyClient, AdminUserStateIndex } from '../../../LobbyClient';
 
 const BATCH_SIZE = 25;
@@ -76,24 +77,31 @@ function userHasTicksInRange(index: AdminUserStateIndex, userId: string, fromTic
 }
 
 export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }: ArchiveUserStatesTabProps) {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [index, setIndex] = useState<AdminUserStateIndex | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const [selectedBatch, setSelectedBatch] = useState<{ fromTick: number; toTick: number } | null>(null);
-    const [selectedTick, setSelectedTick] = useState<number | null>(null);
-
     const [tickData, setTickData] = useState<UserTickData[] | null>(null);
     const [tickLoading, setTickLoading] = useState(false);
+    // Tracks which tick is currently loaded/loading to prevent double-fetches on restore.
+    const [loadedForTick, setLoadedForTick] = useState<number | null>(null);
+
+    // Derive selection from URL params.
+    const batchParam = searchParams.get('batch');
+    const tickParam  = searchParams.get('tick');
+    const selectedTick = tickParam != null && tickParam !== '' ? parseInt(tickParam, 10) : null;
+    // If batch is absent but tick is set, derive the batch start from the tick.
+    const batchFromTick = selectedTick != null ? Math.floor(selectedTick / BATCH_SIZE) * BATCH_SIZE : null;
+    const selectedBatchFromTick =
+        batchParam != null && batchParam !== '' ? parseInt(batchParam, 10) : batchFromTick;
 
     useEffect(() => {
         if (!isActive) return;
         let cancelled = false;
         setLoading(true);
         setError(null);
-        setSelectedBatch(null);
-        setSelectedTick(null);
         setTickData(null);
+        setLoadedForTick(null);
         lobbyClient
             .getAdminLobbyUserStateIndex(lobbyId)
             .then((idx) => {
@@ -113,7 +121,17 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
     const handleSelectTick = useCallback(
         async (tick: number) => {
             if (!index) return;
-            setSelectedTick(tick);
+            const batchStart = Math.floor(tick / BATCH_SIZE) * BATCH_SIZE;
+            setLoadedForTick(tick);
+            setSearchParams(
+                (prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set('batch', String(batchStart));
+                    next.set('tick', String(tick));
+                    return next;
+                },
+                { replace: true },
+            );
             setTickData(null);
             setTickLoading(true);
             const userIds = Object.keys(index.users);
@@ -131,28 +149,38 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
             setTickData(results);
             setTickLoading(false);
         },
-        [index, lobbyClient, lobbyId],
+        [index, lobbyClient, lobbyId, setSearchParams],
     );
 
-    const batchStatuses = useMemo(() => {
-        if (!index) return new Map<number, TickStatus>();
+    // Auto-load tick data when the index becomes available and a tick is already in the URL.
+    useEffect(() => {
+        if (!isActive || !index || selectedTick === null || loadedForTick === selectedTick) return;
+        void handleSelectTick(selectedTick);
+    }, [isActive, index, selectedTick, loadedForTick, handleSelectTick]);
+
+    const { batches, batchStatuses, selectedBatch } = useMemo(() => {
+        if (!index) return { batches: [], batchStatuses: new Map<number, TickStatus>(), selectedBatch: null };
+        const computedBatches = buildBatches(index);
         const map = new Map<number, TickStatus>();
-        for (const b of buildBatches(index)) {
+        for (const b of computedBatches) {
             map.set(b.fromTick, getTickRangeStatus(index, b.fromTick, b.toTick));
         }
-        return map;
-    }, [index]);
+        const batch =
+            selectedBatchFromTick != null
+                ? (computedBatches.find((b) => b.fromTick === selectedBatchFromTick) ?? null)
+                : null;
+        return { batches: computedBatches, batchStatuses: map, selectedBatch: batch };
+    }, [index, selectedBatchFromTick]);
 
     if (!isActive) return null;
-    if (loading) return <div className="text-muted text-sm">Loading…</div>;
-    if (error) return <div className="text-danger text-sm">{error}</div>;
+
+    if (loading) return <div className="flex-1 flex items-start p-4 text-muted text-sm">Loading…</div>;
+    if (error) return <div className="flex-1 flex items-start p-4 text-danger text-sm">{error}</div>;
     if (!index || Object.keys(index.users).length === 0) {
-        return <div className="text-muted text-sm">No user state data for this lobby.</div>;
+        return <div className="flex-1 flex items-start p-4 text-muted text-sm">No user state data for this lobby.</div>;
     }
 
-    const batches = buildBatches(index);
     const userIds = Object.keys(index.users);
-
     const hostUserId = userIds[0] ?? null;
     const hostEntry = tickData?.find((d) => d.userId === hostUserId)?.entry ?? null;
     const hostLines =
@@ -160,97 +188,119 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
             ? JSON.stringify(hostEntry.game_state, null, 2).split('\n')
             : null;
 
-    const sortedTickData = tickData
+    // Pre-compute per-user display data so the sticky header and content rows share it.
+    const sortedUserIds = tickData
         ? [
-              ...(tickData.filter((d) => d.userId === hostUserId)),
-              ...(tickData.filter((d) => d.userId !== hostUserId)),
+              ...(tickData.filter((d) => d.userId === hostUserId).map((d) => d.userId)),
+              ...(tickData.filter((d) => d.userId !== hostUserId).map((d) => d.userId)),
           ]
         : null;
 
-    return (
-        <div className="flex flex-col gap-4">
-            <div>
-                <div className="text-xs text-muted uppercase tracking-wide mb-2 font-semibold">Tick Batches</div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                    {batches.map((b) => {
-                        const isSelected = selectedBatch?.fromTick === b.fromTick;
-                        const status = batchStatuses.get(b.fromTick) ?? 'ok';
-                        return (
-                            <button
-                                key={b.fromTick}
-                                type="button"
-                                className={`shrink-0 px-3 py-1.5 text-xs rounded border transition-colors ${pillClasses(status, isSelected)}`}
-                                onClick={() => {
-                                    setSelectedBatch(b);
-                                    setSelectedTick(null);
-                                    setTickData(null);
-                                }}
-                            >
-                                {b.fromTick}–{b.toTick}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+    const processedColumns = tickData && sortedUserIds
+        ? sortedUserIds.map((userId) => {
+              const entry = tickData.find((d) => d.userId === userId)?.entry ?? null;
+              const isHost = userId === hostUserId;
+              const stateLines =
+                  entry?.game_state != null
+                      ? JSON.stringify(entry.game_state, null, 2).split('\n')
+                      : null;
+              const hasMismatch =
+                  !isHost &&
+                  hostLines != null &&
+                  stateLines != null &&
+                  (hostLines.length !== stateLines.length ||
+                      stateLines.some((line, i) => line !== hostLines[i]));
+              return { userId, isHost, stateLines, hasMismatch };
+          })
+        : null;
 
-            {selectedBatch != null && (
+    return (
+        <div className="flex flex-col flex-1 min-h-0">
+
+            {/* ── Tick section: always visible above the scroll area ────────── */}
+            <div className="shrink-0 flex flex-col gap-3 px-4 pt-4 pb-3 border-b border-border-custom">
                 <div>
-                    <div className="text-xs text-muted uppercase tracking-wide mb-2 font-semibold">Ticks</div>
-                    <div className="flex gap-1.5 overflow-x-auto pb-1 flex-wrap">
-                        {Array.from(
-                            { length: selectedBatch.toTick - selectedBatch.fromTick + 1 },
-                            (_, i) => selectedBatch.fromTick + i,
-                        )
-                            .filter((tick) =>
-                                userIds.some((uid) => userHasTicksInRange(index, uid, tick, tick)),
-                            )
-                            .map((tick) => {
-                                const isSelected = selectedTick === tick;
-                                const status = getTickRangeStatus(index, tick, tick);
-                                return (
-                                    <button
-                                        key={tick}
-                                        type="button"
-                                        className={`shrink-0 px-2 py-1 text-xs rounded border transition-colors ${pillClasses(status, isSelected)}`}
-                                        onClick={() => void handleSelectTick(tick)}
-                                    >
-                                        {tick}
-                                    </button>
-                                );
-                            })}
+                    <div className="text-xs text-muted uppercase tracking-wide mb-2 font-semibold">Tick Batches</div>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                        {batches.map((b) => {
+                            const isSelected = selectedBatch?.fromTick === b.fromTick;
+                            const status = batchStatuses.get(b.fromTick) ?? 'ok';
+                            return (
+                                <button
+                                    key={b.fromTick}
+                                    type="button"
+                                    className={`shrink-0 px-3 py-1.5 text-xs rounded border transition-colors ${pillClasses(status, isSelected)}`}
+                                    onClick={() => {
+                                        setSearchParams(
+                                            (prev) => {
+                                                const next = new URLSearchParams(prev);
+                                                next.set('batch', String(b.fromTick));
+                                                next.delete('tick');
+                                                return next;
+                                            },
+                                            { replace: true },
+                                        );
+                                        setTickData(null);
+                                        setLoadedForTick(null);
+                                    }}
+                                >
+                                    {b.fromTick}–{b.toTick}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
-            )}
 
-            {tickLoading && <div className="text-muted text-sm">Loading tick data…</div>}
+                {selectedBatch != null && (
+                    <div>
+                        <div className="text-xs text-muted uppercase tracking-wide mb-2 font-semibold">Ticks</div>
+                        <div className="flex gap-1.5 overflow-x-auto pb-1 flex-wrap">
+                            {Array.from(
+                                { length: selectedBatch.toTick - selectedBatch.fromTick + 1 },
+                                (_, i) => selectedBatch.fromTick + i,
+                            )
+                                .filter((tick) =>
+                                    userIds.some((uid) => userHasTicksInRange(index, uid, tick, tick)),
+                                )
+                                .map((tick) => {
+                                    const isSelected = selectedTick === tick;
+                                    const status = getTickRangeStatus(index, tick, tick);
+                                    return (
+                                        <button
+                                            key={tick}
+                                            type="button"
+                                            className={`shrink-0 px-2 py-1 text-xs rounded border transition-colors ${pillClasses(status, isSelected)}`}
+                                            onClick={() => void handleSelectTick(tick)}
+                                        >
+                                            {tick}
+                                        </button>
+                                    );
+                                })}
+                        </div>
+                    </div>
+                )}
+            </div>
 
-            {sortedTickData != null && !tickLoading && selectedTick != null && (
-                <div className="flex gap-3 overflow-x-auto pb-2 items-start">
-                    {sortedTickData.map(({ userId, entry }) => {
-                        const isHost = userId === hostUserId;
-                        const stateLines =
-                            entry?.game_state != null
-                                ? JSON.stringify(entry.game_state, null, 2).split('\n')
-                                : null;
-                        const hasMismatch =
-                            !isHost &&
-                            hostLines != null &&
-                            stateLines != null &&
-                            (hostLines.length !== stateLines.length ||
-                                stateLines.some((line, i) => line !== hostLines[i]));
+            {/* ── User states: bounded scroll container ────────────────────── */}
+            {/* overflow-x-auto + overflow-y-auto + flex-1 min-h-0 gives this  */}
+            {/* section a fixed height so `sticky top-0` works inside it.       */}
+            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto">
+                {tickLoading && (
+                    <div className="px-4 pt-4 text-muted text-sm">Loading tick data…</div>
+                )}
 
-                        return (
-                            <div
-                                key={userId}
-                                className={`shrink-0 w-96 flex flex-col rounded border bg-surface-light/30 ${
-                                    hasMismatch ? 'border-red-600' : 'border-border-custom'
-                                }`}
-                            >
+                {processedColumns != null && !tickLoading && selectedTick != null && (
+                    // min-w-max ensures the sticky header row is always as wide as the
+                    // data columns, so they stay aligned when horizontal scroll activates.
+                    <div className="min-w-max flex flex-col">
+
+                        {/* Sticky user ID header row */}
+                        <div className="sticky top-0 z-10 flex gap-3 bg-surface border-b border-border-custom px-4 py-2">
+                            {processedColumns.map(({ userId, isHost, hasMismatch }) => (
                                 <div
-                                    className={`px-3 py-2 border-b font-mono text-sm font-semibold ${
-                                        hasMismatch
-                                            ? 'text-red-400 border-red-600'
-                                            : 'text-white border-border-custom'
+                                    key={userId}
+                                    className={`shrink-0 w-96 font-mono text-sm font-semibold text-center border-r border-border-custom last:border-r-0 ${
+                                        hasMismatch ? 'text-red-400' : 'text-white'
                                     }`}
                                 >
                                     {userId}
@@ -261,39 +311,52 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
                                         <span className="ml-2 text-xs text-red-400 font-normal">⚠ mismatch</span>
                                     )}
                                 </div>
-                                <div className="overflow-x-auto p-2">
-                                    {stateLines != null ? (
-                                        <pre className="text-[11px] font-mono leading-[1.4]">
-                                            {stateLines.map((line, i) => {
-                                                const isDiff =
-                                                    !isHost &&
-                                                    hostLines != null &&
-                                                    hostLines[i] !== line;
-                                                return (
-                                                    <div
-                                                        key={i}
-                                                        className={
-                                                            isDiff
-                                                                ? 'text-red-400 bg-red-950/40'
-                                                                : 'text-zinc-300'
-                                                        }
-                                                    >
-                                                        {line}
-                                                    </div>
-                                                );
-                                            })}
-                                        </pre>
-                                    ) : (
-                                        <span className="text-xs text-muted">
-                                            No data at tick {selectedTick}
-                                        </span>
-                                    )}
+                            ))}
+                        </div>
+
+                        {/* JSON content columns */}
+                        <div className="flex gap-3 p-4">
+                            {processedColumns.map(({ userId, isHost, stateLines, hasMismatch }) => (
+                                <div
+                                    key={userId}
+                                    className={`shrink-0 w-96 rounded border bg-surface-light/30 overflow-x-auto ${
+                                        hasMismatch ? 'border-red-600' : 'border-border-custom'
+                                    }`}
+                                >
+                                    <div className="p-2">
+                                        {stateLines != null ? (
+                                            <pre className="text-[11px] font-mono leading-[1.4]">
+                                                {stateLines.map((line, i) => {
+                                                    const isDiff =
+                                                        !isHost &&
+                                                        hostLines != null &&
+                                                        hostLines[i] !== line;
+                                                    return (
+                                                        <div
+                                                            key={i}
+                                                            className={
+                                                                isDiff
+                                                                    ? 'text-red-400 bg-red-950/40'
+                                                                    : 'text-zinc-300'
+                                                            }
+                                                        >
+                                                            {line}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </pre>
+                                        ) : (
+                                            <span className="text-xs text-muted">
+                                                No data at tick {selectedTick}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

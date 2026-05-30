@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { LobbyClient } from '../../LobbyClient';
 import ArchiveGameStateTab from './tabs/ArchiveGameStateTab';
 import ArchiveLobbyLogTab from './tabs/ArchiveLobbyLogTab';
 import ArchiveUserStatesTab from './tabs/ArchiveUserStatesTab';
 
 type DetailTab = 'game_state' | 'lobby_log' | 'user_states';
+
+const VALID_TABS: DetailTab[] = ['game_state', 'lobby_log', 'user_states'];
 
 interface LobbyDetailProps {
     lobbyId: string;
@@ -19,10 +22,26 @@ const TABS: { id: DetailTab; label: string }[] = [
 ];
 
 export default function LobbyDetail({ lobbyId, lobbyClient, onJoinLobby }: LobbyDetailProps) {
-    const [activeTab, setActiveTab] = useState<DetailTab>('game_state');
+    const [searchParams, setSearchParams] = useSearchParams();
     const [clearingLog, setClearingLog] = useState(false);
     const [logCleared, setLogCleared] = useState(false);
     const [joining, setJoining] = useState(false);
+
+    const tabParam = searchParams.get('tab');
+    const activeTab: DetailTab = VALID_TABS.includes(tabParam as DetailTab) ? (tabParam as DetailTab) : 'game_state';
+
+    const handleSetTab = (tab: DetailTab) => {
+        setSearchParams(
+            (prev) => {
+                const next = new URLSearchParams(prev);
+                next.set('tab', tab);
+                next.delete('batch');
+                next.delete('tick');
+                return next;
+            },
+            { replace: true },
+        );
+    };
 
     const handleClearLog = async () => {
         const confirmed = window.confirm(`Delete lobby log for ${lobbyId}? This cannot be undone.`);
@@ -80,31 +99,27 @@ export default function LobbyDetail({ lobbyId, lobbyClient, onJoinLobby }: Lobby
                                 ? 'text-primary border-primary'
                                 : 'text-muted border-transparent hover:text-white'
                         }`}
-                        onClick={() => setActiveTab(id)}
+                        onClick={() => handleSetTab(id)}
                     >
                         {label}
                     </button>
                 ))}
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-4">
-                <ArchiveGameStateTab
-                    isActive={activeTab === 'game_state'}
-                    lobbyId={lobbyId}
-                    lobbyClient={lobbyClient}
-                />
-                <ArchiveLobbyLogTab
-                    isActive={activeTab === 'lobby_log'}
-                    lobbyId={lobbyId}
-                    lobbyClient={lobbyClient}
-                    logCleared={logCleared}
-                />
-                <ArchiveUserStatesTab
-                    isActive={activeTab === 'user_states'}
-                    lobbyId={lobbyId}
-                    lobbyClient={lobbyClient}
-                />
-            </div>
+            {/* Each tab manages its own scroll so ArchiveUserStatesTab can have sticky inner headers. */}
+            {activeTab === 'game_state' && (
+                <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                    <ArchiveGameStateTab isActive lobbyId={lobbyId} lobbyClient={lobbyClient} />
+                </div>
+            )}
+            {activeTab === 'lobby_log' && (
+                <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                    <ArchiveLobbyLogTab isActive lobbyId={lobbyId} lobbyClient={lobbyClient} logCleared={logCleared} />
+                </div>
+            )}
+            {activeTab === 'user_states' && (
+                <ArchiveUserStatesTab isActive lobbyId={lobbyId} lobbyClient={lobbyClient} />
+            )}
         </div>
     );
 }

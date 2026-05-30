@@ -12,7 +12,12 @@
     "php": "nodemon --watch backend --watch index.php --ext php --exec \"php -S localhost:8000 index.php\"",
     "lint": "eslint .",
     "test": "npx vitest run",
-    "test:watch": "npx vitest"
+    "test:watch": "npx vitest",
+    "desyncDebug-getTick": "node scripts/desyncDebug-getTick.js",
+    "desyncDebug-getFingerprints": "node scripts/desyncDebug-getFingerprints.js",
+    "desyncDebug-getLobbyLog": "node scripts/desyncDebug-getLobbyLog.js",
+    "desyncDebug-diffTick": "node scripts/desyncDebug-diffTick.js",
+    "desyncDebug-getOrders": "node scripts/desyncDebug-getOrders.js"
   },
   "dependencies": {
     "@types/react": "^19.0.10",

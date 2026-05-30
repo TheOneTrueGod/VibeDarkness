@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { LobbyClient } from '../../LobbyClient';
 import LobbyList from './LobbyList';
 import LobbyDetail from './LobbyDetail';
@@ -9,7 +10,22 @@ interface LobbyArchiveTabProps {
 }
 
 export default function LobbyArchiveTab({ lobbyClient, onJoinLobby }: LobbyArchiveTabProps) {
-    const [selectedLobbyId, setSelectedLobbyId] = useState<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedLobbyId = searchParams.get('lobby');
+
+    const handleSelect = (lobbyId: string) => {
+        setSearchParams(
+            (prev) => {
+                const next = new URLSearchParams(prev);
+                next.set('lobby', lobbyId);
+                next.delete('tab');
+                next.delete('batch');
+                next.delete('tick');
+                return next;
+            },
+            { replace: true },
+        );
+    };
 
     return (
         <div className="flex flex-row overflow-hidden rounded-lg border border-border-custom bg-surface" style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
@@ -20,7 +36,7 @@ export default function LobbyArchiveTab({ lobbyClient, onJoinLobby }: LobbyArchi
                 <LobbyList
                     lobbyClient={lobbyClient}
                     selectedLobbyId={selectedLobbyId}
-                    onSelect={setSelectedLobbyId}
+                    onSelect={handleSelect}
                 />
             </div>
             <div className="flex-1 min-w-0 flex flex-col">
