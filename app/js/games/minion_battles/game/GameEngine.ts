@@ -399,7 +399,9 @@ export class GameEngine implements EngineContext {
         for (let row = 0; row < height; row++) {
             for (let col = 0; col < width; col++) {
                 const cur = grid.get(row, col);
-                const tgt = target[row][col];
+                // Round target to integer — fractional emission/radius produces float targets
+                // which would cause cur to oscillate between floor(tgt) and ceil(tgt) forever.
+                const tgt = Math.round(target[row][col]);
                 if (cur < tgt) grid.set(row, col, cur + 1);
                 else if (cur > tgt) grid.set(row, col, cur - 1);
             }

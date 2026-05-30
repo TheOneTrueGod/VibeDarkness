@@ -22,7 +22,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
-import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario } from '../scenarios/general/lightingSystem';
+import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -207,6 +207,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes light delayed fade scenario', () => {
         const r = runScenarioHeadless(lightDelayedFadeScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes campfire light decay scenario', () => {
+        const r = runScenarioHeadless(campfireDecayScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

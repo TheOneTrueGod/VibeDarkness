@@ -10,6 +10,8 @@ export interface ScenarioDefinition {
     generalSection?: string;
     /** Wall-clock budget converted to max fixed ticks at 60 Hz (default 5000 ms). */
     maxDurationMs?: number;
+    /** Render a per-cell darkness overlay in test previews (use for scenarios that exercise the lighting system). */
+    renderLighting?: boolean;
     buildEngine(): GameEngine | Promise<GameEngine>;
     getInitialOrders(engine: GameEngine): BattleOrder[];
     assertPass(engine: GameEngine): boolean;

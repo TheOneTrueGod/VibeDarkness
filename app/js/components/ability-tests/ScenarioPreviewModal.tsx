@@ -18,8 +18,10 @@ function makeRunState(scenario: ScenarioDefinition, renderer: GameRenderer): Run
     const grid = run.engine.terrainManager?.grid;
     if (grid) {
         renderer.setTerrain(grid);
-        // Disable the darkness overlay — tiny battle engines run with no light layer
-        renderer.setMissionLightConfig(false, 0);
+        if (!scenario.renderLighting) {
+            // Disable the darkness overlay for scenarios that don't use the lighting system
+            renderer.setMissionLightConfig(false, 0);
+        }
         const camera = new Camera(800, 600, grid.worldWidth, grid.worldHeight);
         const playerUnit = run.engine.getLocalPlayerUnit();
         if (playerUnit) camera.snapTo(playerUnit.x, playerUnit.y);

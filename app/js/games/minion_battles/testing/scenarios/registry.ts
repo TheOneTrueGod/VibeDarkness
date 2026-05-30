@@ -37,7 +37,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from './abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from './general/lanternites';
-import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario } from './general/lightingSystem';
+import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from './general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -86,6 +86,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     lanterniteDefenderAttackScenario,
     lightingIlluminatesAreaScenario,
     lightDelayedFadeScenario,
+    campfireDecayScenario,
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
     earthCoreShatterScenario,

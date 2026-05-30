@@ -55,6 +55,7 @@ export const lightingIlluminatesAreaScenario: ScenarioDefinition = {
     title: 'Lighting: illuminates area',
     category: 'general',
     generalSection: 'Lighting',
+    renderLighting: true,
 
     buildEngine() {
         const engine = buildTinyBattleEngine({
@@ -131,6 +132,7 @@ function createLightDelayedFadeScenario(): ScenarioDefinition {
         category: 'general',
         generalSection: 'Lighting',
         maxDurationMs: 5000,
+        renderLighting: true,
 
         buildEngine() {
             const engine = buildTinyBattleEngine({
@@ -188,3 +190,101 @@ function createLightDelayedFadeScenario(): ScenarioDefinition {
 }
 
 export const lightDelayedFadeScenario = createLightDelayedFadeScenario();
+
+// ============================================================================
+// Scenario C — campfire_light_decay
+// Verifies that a decaying campfire's light level strictly decreases over time
+// without oscillating. The oscillation bug (pre-fix) occurs because the light
+// smoothing step compares an integer cur against a fractional tgt, causing the
+// grid value to bounce between floor(tgt) and ceil(tgt) each light tick.
+// ============================================================================
+
+const DECAY_GRID_W = 12;
+const DECAY_GRID_H = 10;
+const DECAY_COL = 6;
+const DECAY_ROW = 5;
+
+function createCampfireDecayScenario(): ScenarioDefinition {
+    let prevCenterLevel = -Infinity;
+    let oscillationCount = 0;
+    let decayStarted = false;
+
+    return {
+        id: 'campfire_light_decay',
+        title: 'Lighting: campfire decays without oscillation',
+        category: 'general',
+        generalSection: 'Lighting',
+        renderLighting: true,
+        maxDurationMs: 10000,
+
+        buildEngine() {
+            prevCenterLevel = -Infinity;
+            oscillationCount = 0;
+            decayStarted = false;
+
+            const engine = buildTinyBattleEngine({
+                gridW: DECAY_GRID_W,
+                gridH: DECAY_GRID_H,
+                localPlayerId: TINY_BATTLE_PLAYER_ID,
+            });
+
+            const playerPos = worldCenter(1, 1);
+            spawnTinyPlayerUnit(engine, {
+                playerId: TINY_BATTLE_PLAYER_ID,
+                x: playerPos.x,
+                y: playerPos.y,
+                abilities: [],
+            });
+
+            // Fast-decaying campfire: decayRate 1.5 per decayInterval 0.1 rounds (= 1 s).
+            // radiusLoss = 0.5 * 1.5 = 0.75 — produces fractional radius, which causes
+            // non-integer tgt values in runLightGameTick and triggers the oscillation bug.
+            engine.addSpecialTile({
+                id: 'campfire_decay_test',
+                defId: 'Campfire',
+                col: DECAY_COL,
+                row: DECAY_ROW,
+                hp: 5,
+                maxHp: 5,
+                emitsLight: {
+                    lightAmount: 10,
+                    radius: 3,
+                    decayRate: 1.5,
+                    decayInterval: 0.1,
+                },
+            });
+
+            engine.setMissionLightConfig(true, 0);
+            return engine;
+        },
+
+        getInitialOrders(engine) {
+            const player = engine.units.find((u) => u.ownerId === TINY_BATTLE_PLAYER_ID);
+            if (!player) return [];
+            const path = buildPlayerZigzag(1, 1, DECAY_GRID_W - 1);
+            return [{ unitId: player.id, abilityId: MOVE_ONLY_ABILITY_ID, targets: [], movePath: path }];
+        },
+
+        assertPass(engine) {
+            const pos = worldCenter(DECAY_COL, DECAY_ROW);
+            const level = engine.getLightLevelAt(pos.x, pos.y) ?? 0;
+
+            if (decayStarted && level > prevCenterLevel) oscillationCount++;
+            if (!decayStarted && prevCenterLevel !== -Infinity && level < prevCenterLevel) decayStarted = true;
+            prevCenterLevel = level;
+
+            return level <= 0 && oscillationCount === 0;
+        },
+
+        failureMessage(engine) {
+            const pos = worldCenter(DECAY_COL, DECAY_ROW);
+            const level = engine.getLightLevelAt(pos.x, pos.y) ?? 0;
+            if (oscillationCount > 0) {
+                return `Light level oscillated ${oscillationCount} time(s) during decay (last center=${level})`;
+            }
+            return `Expected center light ≤ 0 after full decay, got ${level}`;
+        },
+    };
+}
+
+export const campfireDecayScenario = createCampfireDecayScenario();

@@ -40,12 +40,16 @@ interface MiniTerrainViewProps {
     cellPx?: number;
     /** Bump when the parent steps the engine so layout refreshes. */
     renderVersion: number;
+    /** Overlay per-cell darkness based on the engine's light tile grid. */
+    renderLighting?: boolean;
 }
 
 /**
  * Read-only terrain, active effects, projectiles, and unit dots for ability test previews (no Pixi / controls).
  */
-export default function MiniTerrainView({ engine, cellPx = 6, renderVersion: _rv }: MiniTerrainViewProps) {
+const BRIGHT_LIGHT = 10; // DarknessLevel.BRIGHT_LIGHT — no overlay at or above this level
+
+export default function MiniTerrainView({ engine, cellPx = 6, renderVersion: _rv, renderLighting = false }: MiniTerrainViewProps) {
     void _rv;
     const tm = engine.terrainManager;
     let snapshot: {
@@ -88,6 +92,19 @@ export default function MiniTerrainView({ engine, cellPx = 6, renderVersion: _rv
     const w = g.width * cellPx;
     const h = g.height * cellPx;
 
+    const lightCells: { key: string; opacity: number }[] = [];
+    if (renderLighting) {
+        for (let row = 0; row < g.height; row++) {
+            for (let col = 0; col < g.width; col++) {
+                const cx = col * g.cellSize + g.cellSize / 2;
+                const cy = row * g.cellSize + g.cellSize / 2;
+                const level = engine.getLightLevelAt(cx, cy) ?? 0;
+                const opacity = Math.max(0, (BRIGHT_LIGHT - level) / BRIGHT_LIGHT) * 0.9;
+                lightCells.push({ key: `${col},${row}`, opacity });
+            }
+        }
+    }
+
     return (
         <div
             className="relative mx-auto rounded border border-border-custom overflow-hidden bg-black/40"
@@ -104,6 +121,19 @@ export default function MiniTerrainView({ engine, cellPx = 6, renderVersion: _rv
                     <div key={c.key} className="shrink-0" style={{ backgroundColor: c.bg }} title="" />
                 ))}
             </div>
+            {lightCells.length > 0 && (
+                <div
+                    className="grid absolute inset-0 pointer-events-none z-[5]"
+                    style={{
+                        gridTemplateColumns: `repeat(${g.width}, ${cellPx}px)`,
+                        gridTemplateRows: `repeat(${g.height}, ${cellPx}px)`,
+                    }}
+                >
+                    {lightCells.map((c) => (
+                        <div key={c.key} className="shrink-0" style={{ backgroundColor: `rgba(0,0,0,${c.opacity.toFixed(3)})` }} />
+                    ))}
+                </div>
+            )}
             {effects.map((e) => {
                 const scale = cellPx / g.cellSize;
                 const d = miniEffectDiameterPx(e, cellPx, g.cellSize);

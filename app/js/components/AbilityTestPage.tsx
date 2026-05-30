@@ -92,7 +92,7 @@ function ScenarioPane({
                 <div className="text-sm font-semibold text-white leading-tight">{scenario.title}</div>
             )}
             <div className="flex justify-center">
-                {engine ? <MiniTerrainView engine={engine} cellPx={30} renderVersion={renderVersion} /> : (
+                {engine ? <MiniTerrainView engine={engine} cellPx={30} renderVersion={renderVersion} renderLighting={scenario.renderLighting} /> : (
                     <span className="text-xs text-muted">—</span>
                 )}
             </div>
