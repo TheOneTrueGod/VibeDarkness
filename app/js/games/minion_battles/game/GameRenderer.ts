@@ -16,6 +16,8 @@ import type { Unit } from './units/Unit';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries } from '../abilities/abilityTimings';
 import { resolveBehaviourTimingRef } from '../abilities/castBehaviourTypes';
+import type { AbilityStatic } from '../abilities/Ability';
+import { getSelectTargetDefsFromTimings } from '../abilities/targeting';
 import { Projectile } from './projectiles/Projectile';
 import type { Effect } from './effects/Effect';
 import { areEnemies } from './teams';
@@ -379,7 +381,9 @@ export class GameRenderer {
 			this.fogFilter = tryCreateFogFilter();
 			if (this.fogFilter) {
 				for (let i = DarknessLevel.FULL_DARKNESS; i <= DarknessLevel.SUNLIGHT; i++) {
-					console.log(`JERTEST - Light Level: ${i} -> alpha:  ${GameRenderer.lightLevelToAlpha(i)}`)
+					console.log(`JERTEST - Light Level: ${i + 0.25} -> alpha:  ${GameRenderer.lightLevelToAlpha(i + 0.25)}`)
+					console.log(`JERTEST - Light Level: ${i + 0.5} -> alpha:  ${GameRenderer.lightLevelToAlpha(i + 0.5)}`)
+					console.log(`JERTEST - Light Level: ${i + 0.75} -> alpha:  ${GameRenderer.lightLevelToAlpha(i + 0.75)}`)
 				}
 				this.fogFilter.fogStartAlpha = GameRenderer.lightLevelToAlpha(DarknessLevel.DARKNESS_FOG);
 				this.darknessOverlaySprite.filters = [this.fogFilter];
@@ -506,25 +510,8 @@ export class GameRenderer {
 
 	/** Targeting state for preview (range rings, crosshair, selected targets). */
 	private targetingState: {
-		selectedAbility: {
-			renderTargetingPreview?: (
-				gr: unknown,
-				caster: unknown,
-				currentTargets: unknown[],
-				mouseWorld: { x: number; y: number },
-				units: unknown[],
-				gameState?: unknown,
-			) => void;
-			renderTargetingPreviewSelectedTargets?: (
-				gr: unknown,
-				caster: unknown,
-				currentTargets: unknown[],
-				mouseWorld: { x: number; y: number },
-				units: unknown[],
-				gameState?: unknown,
-			) => void;
-		} | null;
-		currentTargets: unknown[];
+		selectedAbility: AbilityStatic | null;
+		currentTargets: ResolvedTarget[];
 		mouseWorld: { x: number; y: number };
 		waitingForOrders: { unitId?: string } | null;
 		previewOrderUnitId?: string | null;
@@ -535,25 +522,8 @@ export class GameRenderer {
 		engine: GameEngine,
 		camera: Camera,
 		targetingState?: {
-			selectedAbility: {
-				renderTargetingPreview?: (
-					gr: unknown,
-					caster: unknown,
-					currentTargets: unknown[],
-					mouseWorld: { x: number; y: number },
-					units: unknown[],
-					gameState?: unknown,
-				) => void;
-				renderTargetingPreviewSelectedTargets?: (
-					gr: unknown,
-					caster: unknown,
-					currentTargets: unknown[],
-					mouseWorld: { x: number; y: number },
-					units: unknown[],
-					gameState?: unknown,
-				) => void;
-			} | null;
-			currentTargets: unknown[];
+			selectedAbility: AbilityStatic | null;
+			currentTargets: ResolvedTarget[];
 			mouseWorld: { x: number; y: number };
 			waitingForOrders: { unitId?: string } | null;
 			previewOrderUnitId?: string | null;
@@ -1252,7 +1222,7 @@ export class GameRenderer {
 			if (abilityId === 'wait') continue;
 
 			const ability = getAbility(abilityId);
-			if (!ability?.renderTargetingPreview) continue;
+			if (!ability) continue;
 			if (areEnemies(this.localTeamId, unit.teamId) && this.enemyUnitHiddenInFullDarkness(unit, cellSize)) {
 				continue;
 			}
@@ -1263,6 +1233,26 @@ export class GameRenderer {
 				unit.x,
 				unit.y,
 			);
+
+			// New-style: ability declares per-timing SelectTargetDef entries — auto-derive preview.
+			const selectTargetDefs = getSelectTargetDefsFromTimings(ability);
+			if (selectTargetDefs.length > 0) {
+				// Render each committed target's hitbox.
+				for (let i = 0; i < selectTargetDefs.length; i++) {
+					const selectDef = selectTargetDefs[i]!;
+					const target = entry.order.targets[i];
+					if (!target) continue;
+					const targetPos = target.type === 'unit' && target.unitId
+						? (() => { const u = engine.getUnit(target.unitId!); return u ? { x: u.x, y: u.y } : null; })()
+						: (target.type === 'pixel' && target.position ? target.position : null);
+					if (!targetPos) continue;
+					selectDef.hitbox.renderTargetingPreview(previewGr, unit, targetPos, engine.units);
+				}
+				continue;
+			}
+
+			// Legacy: fall through to ability.renderTargetingPreview.
+			if (!ability.renderTargetingPreview) continue;
 			ability.renderTargetingPreview(previewGr, unit, entry.order.targets, mouseWorld, engine.units, engine);
 			if (ability.renderTargetingPreviewSelectedTargets) {
 				ability.renderTargetingPreviewSelectedTargets(
@@ -1418,7 +1408,7 @@ export class GameRenderer {
 		}
 		const ability = ts.selectedAbility;
 		const previewUnitId = ts.previewOrderUnitId ?? ts.waitingForOrders?.unitId;
-		if (!ability?.renderTargetingPreview || !previewUnitId) {
+		if (!ability || !previewUnitId) {
 			this.targetingPreviewGraphics.clear();
 			return;
 		}
@@ -1430,8 +1420,34 @@ export class GameRenderer {
 		}
 
 		this.targetingPreviewGraphics.clear();
-		ability.renderTargetingPreview!(
-			this.targetingPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics,
+		const gr = this.targetingPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics;
+
+		// New-style: ability declares per-timing SelectTargetDef entries — auto-derive preview.
+		const selectTargetDefs = getSelectTargetDefsFromTimings(ability);
+		if (selectTargetDefs.length > 0) {
+			const targetIndex = ts.currentTargets.length;
+			const selectDef = selectTargetDefs[targetIndex];
+			if (selectDef) {
+				selectDef.hitbox.renderTargetingPreview(gr, caster, ts.mouseWorld, engine.units);
+			}
+			// Also highlight already-committed targets for this ability (using the legacy selected-targets helper if present).
+			if (ability.renderTargetingPreviewSelectedTargets) {
+				ability.renderTargetingPreviewSelectedTargets(
+					gr,
+					caster,
+					ts.currentTargets,
+					ts.mouseWorld,
+					engine.units,
+					engine,
+				);
+			}
+			return;
+		}
+
+		// Legacy: fall through to ability.renderTargetingPreview.
+		if (!ability.renderTargetingPreview) return;
+		ability.renderTargetingPreview(
+			gr,
 			caster,
 			ts.currentTargets,
 			ts.mouseWorld,
@@ -1441,7 +1457,7 @@ export class GameRenderer {
 
 		if (ability.renderTargetingPreviewSelectedTargets) {
 			ability.renderTargetingPreviewSelectedTargets(
-				this.targetingPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics,
+				gr,
 				caster,
 				ts.currentTargets,
 				ts.mouseWorld,

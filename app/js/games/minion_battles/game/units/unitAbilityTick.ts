@@ -21,8 +21,62 @@ import { AbilityEventType, abilityHasTag } from '../../abilities/Ability';
 import {
     resolveBehaviourTimingRef,
     type CastBehaviourBaseContext,
+    type CastBehaviourEntry,
 } from '../../abilities/castBehaviourTypes';
+import { isSelectTargetDef, isHitTargetDef } from '../../abilities/timingTargetDef';
 import { triggerAbilityEvent } from '../../abilities/events';
+
+/**
+ * Resolve the `target` for a castBehaviour entry, preferring `targetsByLabel`
+ * when the parent timing interval has a `targetDef`.
+ *
+ * Falls back to `active.targets[targetIdx]` → `active.targets[0]` → pixel at
+ * the caster position (same as the legacy path).
+ */
+function resolveTargetForBehaviour(
+    entry: CastBehaviourEntry,
+    interval: import('../../abilities/abilityTimings').AbilityTimingInterval,
+    active: import('../types').ActiveAbility,
+    unit: Unit,
+): import('../types').ResolvedTarget {
+    const fallback =
+        active.targets[entry.targetIndex ?? 0] ??
+        active.targets[0] ??
+        ({ type: 'pixel' as const, position: { x: unit.x, y: unit.y } });
+
+    const { targetDef } = interval;
+    if (!targetDef) return fallback;
+
+    if (isSelectTargetDef(targetDef)) {
+        return active.targetsByLabel?.[targetDef.label] ?? fallback;
+    }
+    if (isHitTargetDef(targetDef)) {
+        for (const label of targetDef.labels) {
+            const resolved = active.targetsByLabel?.[label];
+            if (resolved !== undefined) return resolved;
+        }
+        return fallback;
+    }
+    return fallback;
+}
+
+/**
+ * Expand `interval.behaviour` shorthand into a synthetic CastBehaviourEntry[]
+ * spanning the full timing window, but only when `interval.castBehaviours` is absent.
+ */
+function getEffectiveCastBehaviours(
+    interval: import('../../abilities/abilityTimings').AbilityTimingInterval,
+): CastBehaviourEntry[] | undefined {
+    if (interval.castBehaviours) return interval.castBehaviours;
+    if (interval.behaviour) {
+        return [{
+            timingStart: 'start',
+            timingEnd: 'end',
+            behaviour: interval.behaviour,
+        }];
+    }
+    return undefined;
+}
 
 /**
  * Advance all active abilities for `unit` by `dt` seconds.
@@ -84,9 +138,10 @@ export function tickUnitActiveAbilities(
 
         // castBehaviours: interval enter
         for (const interval of intervals) {
-            if (!interval.castBehaviours) continue;
-            for (let bIdx = 0; bIdx < interval.castBehaviours.length; bIdx++) {
-                const entry = interval.castBehaviours[bIdx]!;
+            const effectiveBehaviours = getEffectiveCastBehaviours(interval);
+            if (!effectiveBehaviours) continue;
+            for (let bIdx = 0; bIdx < effectiveBehaviours.length; bIdx++) {
+                const entry = effectiveBehaviours[bIdx]!;
                 if (!entered.has(interval.id)) continue;
                 const behaviourKey = `${interval.id}_${bIdx}`;
                 const resolvedStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
@@ -94,8 +149,7 @@ export function tickUnitActiveAbilities(
                     ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
                     : null;
 
-                const targetIdx = entry.targetIndex ?? 0;
-                const target = active.targets[targetIdx] ?? active.targets[0] ?? { type: 'pixel' as const, position: { x: unit.x, y: unit.y } };
+                const target = resolveTargetForBehaviour(entry, interval, active, unit);
 
                 if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
 
@@ -117,6 +171,7 @@ export function tickUnitActiveAbilities(
                         intervalEnd: resolvedEnd,
                         caster: unit,
                         active,
+                        targetDef: interval.targetDef,
                     });
                 } else {
                     const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
@@ -139,15 +194,15 @@ export function tickUnitActiveAbilities(
 
         // castBehaviours: interval exit (sustained)
         for (const interval of intervals) {
-            if (!interval.castBehaviours) continue;
-            for (let bIdx = 0; bIdx < interval.castBehaviours.length; bIdx++) {
-                const entry = interval.castBehaviours[bIdx]!;
+            const effectiveBehavioursExit = getEffectiveCastBehaviours(interval);
+            if (!effectiveBehavioursExit) continue;
+            for (let bIdx = 0; bIdx < effectiveBehavioursExit.length; bIdx++) {
+                const entry = effectiveBehavioursExit[bIdx]!;
                 if (!exited.has(interval.id)) continue;
                 const behaviourKey = `${interval.id}_${bIdx}`;
                 const rec = unit.activeCastBehaviours.get(behaviourKey);
                 if (!rec) continue;
-                const targetIdx = entry.targetIndex ?? 0;
-                const target = active.targets[targetIdx] ?? active.targets[0] ?? { type: 'pixel' as const, position: { x: unit.x, y: unit.y } };
+                const target = resolveTargetForBehaviour(entry, interval, active, unit);
                 const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
                     caster: unit,
                     target,
@@ -181,7 +236,20 @@ export function tickUnitActiveAbilities(
             for (const otherUnit of engine.units) {
                 if (otherUnit.id === unit.id) continue;
                 for (const [behaviourKey, rec] of otherUnit.activeCastBehaviours) {
-                    const behaviourTarget = rec.active.targets[rec.entry.targetIndex ?? 0];
+                    // Resolve the target for this behaviour, checking targetsByLabel first.
+                    const evadeFallback = rec.active.targets[rec.entry.targetIndex ?? 0];
+                    let behaviourTarget = evadeFallback;
+                    const evadeTargetDef = rec.targetDef;
+                    if (evadeTargetDef) {
+                        if (isSelectTargetDef(evadeTargetDef)) {
+                            behaviourTarget = rec.active.targetsByLabel?.[evadeTargetDef.label] ?? evadeFallback;
+                        } else if (isHitTargetDef(evadeTargetDef)) {
+                            for (const label of evadeTargetDef.labels) {
+                                const r = rec.active.targetsByLabel?.[label];
+                                if (r !== undefined) { behaviourTarget = r; break; }
+                            }
+                        }
+                    }
                     if (behaviourTarget?.type !== 'unit' || behaviourTarget.unitId !== unit.id) continue;
                     const baseCtx: CastBehaviourBaseContext = {
                         caster: otherUnit,
@@ -205,8 +273,22 @@ export function tickUnitActiveAbilities(
             const windowLen = rec.intervalEnd - rec.intervalStart;
             const rawProgress = windowLen > 0 ? (currentTime - rec.intervalStart) / windowLen : 1;
             const rawPrevProgress = windowLen > 0 ? (safePrevTime - rec.intervalStart) / windowLen : 0;
-            const targetIdx = rec.entry.targetIndex ?? 0;
-            const target = active.targets[targetIdx] ?? active.targets[0] ?? { type: 'pixel' as const, position: { x: unit.x, y: unit.y } };
+            const fallbackTarget =
+                active.targets[rec.entry.targetIndex ?? 0] ??
+                active.targets[0] ??
+                ({ type: 'pixel' as const, position: { x: unit.x, y: unit.y } });
+            let target = fallbackTarget;
+            const recTargetDef = rec.targetDef;
+            if (recTargetDef) {
+                if (isSelectTargetDef(recTargetDef)) {
+                    target = active.targetsByLabel?.[recTargetDef.label] ?? fallbackTarget;
+                } else if (isHitTargetDef(recTargetDef)) {
+                    for (const label of recTargetDef.labels) {
+                        const resolved = active.targetsByLabel?.[label];
+                        if (resolved !== undefined) { target = resolved; break; }
+                    }
+                }
+            }
             const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
                 caster: unit,
                 target,

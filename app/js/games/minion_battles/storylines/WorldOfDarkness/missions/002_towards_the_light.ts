@@ -128,7 +128,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         row: 10,
         defendPoint: true,
         hp: 5,
-        emitsLight: { lightAmount: 8, radius: 12, decayRate: 0.5, decayInterval: 0.25 },
+        emitsLight: { lightAmount: 6, radius: 4, decayRate: 0.5, decayInterval: 0.25 },
     },
     // Campfire at back of cave — reach within 1 tile to win (light only, not a defend point)
     {

@@ -13,6 +13,9 @@ import {
     punchNEWBaselineScenario,
     punchSneakyScenario,
     punchStrongScenario,
+    bashRangeBoundaryHitScenario,
+    bashRangeBoundaryMissScenario,
+    doublePunchTwoTargetsScenario,
 } from './abilities/punchResearch';
 import {
     throwRockMorePowerScenario,
@@ -61,6 +64,9 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     punchSneakyScenario,
     punchChargingScenario,
     punchNEWBaselineScenario,
+    bashRangeBoundaryHitScenario,
+    bashRangeBoundaryMissScenario,
+    doublePunchTwoTargetsScenario,
     throwRockNoResearchScenario,
     throwRockMorePowerScenario,
     throwRockMoreRockScenario,

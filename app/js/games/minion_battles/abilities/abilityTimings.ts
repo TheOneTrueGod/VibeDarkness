@@ -4,7 +4,8 @@
  * intervals `[start, end)` with stable `id` for overlap and simulation hooks.
  */
 
-import type { CastBehaviourEntry } from './castBehaviourTypes';
+import type { CastBehaviourEntry, CastBehaviour } from './castBehaviourTypes';
+import type { TimingTargetDef } from './timingTargetDef';
 
 /** Phase of an ability's execution (for segment coloring). */
 export enum AbilityPhase {
@@ -75,12 +76,24 @@ export interface AbilityTimingInterval {
     emitterDef?: AbilityTimingEmitterDef;
     castBehaviours?: CastBehaviourEntry[];
     /**
+     * Per-timing target acquisition definition.
+     * - `kind: 'select'` — the player must click to select a target using the specified hitbox.
+     * - `kind: 'hit'`    — reuse a target already committed by a prior SelectTargetDef timing.
+     */
+    targetDef?: TimingTargetDef;
+    /**
+     * Shorthand for a single CastBehaviourEntry spanning the full timing window
+     * (`timingStart: 'start'`, `timingEnd: 'end'`). Ignored if `castBehaviours` is also set.
+     */
+    behaviour?: CastBehaviour;
+    /**
      * When true, the engine fires evade-break logic for the caster as soon as this
      * interval is entered. Use on the first Active/Iframe interval of any new evade ability.
      *
      * WARNING: applyCoopTailSplit creates new interval objects that do NOT preserve
-     * castBehaviours, emitterDef, evadeEffect, or any other extension fields.
-     * CoopCooldown intervals must always be last and must have no behavioral effects.
+     * castBehaviours, emitterDef, evadeEffect, targetDef, behaviour, or any other
+     * extension fields. CoopCooldown intervals must always be last and must have no
+     * behavioral effects.
      */
     evadeEffect?: boolean;
 }
@@ -164,13 +177,13 @@ function isTailBoundaryEffectPhase(phase: AbilityPhase): boolean {
 /**
  * WARNING: This function creates new interval objects preserving only:
  * id, start, end, abilityPhase, timelineLabel, timelineDescription.
- * Fields castBehaviours, emitterDef, evadeEffect, and any future extension
- * fields are NOT carried through to split intervals.
+ * Fields castBehaviours, emitterDef, evadeEffect, targetDef, behaviour, and
+ * any future extension fields are NOT carried through to split intervals.
  *
  * Rule: CoopCooldown intervals must always be the last timing entries in an
  * ability, and must carry no behavioral effects (no castBehaviours, no
- * emitterDef, no evadeEffect). Any interval subject to tail splitting must
- * be free of these fields.
+ * emitterDef, no evadeEffect, no targetDef, no behaviour). Any interval
+ * subject to tail splitting must be free of these fields.
  */
 /**
  * Second half of the terminal tail (after the last Active/Juggernaut/Iframe segment) becomes

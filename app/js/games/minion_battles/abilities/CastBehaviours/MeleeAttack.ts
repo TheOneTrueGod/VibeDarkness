@@ -3,6 +3,7 @@ import type { HitboxEngineContext } from '../../hitboxes/Hitbox';
 import { Effect } from '../../game/effects/Effect';
 import type { HitboxDef } from '../hitboxDef';
 import { resolveHitbox } from '../hitboxDef';
+import type { HitboxSpec } from '../../hitboxes/HitboxSpec';
 import type {
     CastBehaviour,
     CastBehaviourSetupContext,
@@ -42,8 +43,24 @@ function dirFromTo(
 // How many px beyond the hitbox range a locked unit can roam before losing guaranteed-hit status.
 const LOCK_ON_TETHER_EXTRA = 100;
 
-function getLockOnRange(def: HitboxDef | null): number {
-    if (def === null || def.shape === 'custom') return LOCK_ON_TETHER_EXTRA;
+/**
+ * Returns the effective max range for pixel-target clamping.
+ * Returns null when the hitbox has no meaningful range (custom shape or absent).
+ */
+function getHitboxMaxRange(def: HitboxDef | HitboxSpec | null): number | null {
+    if (def === null) return null;
+    // HitboxSpec exposes .maxRange directly.
+    if ('maxRange' in def) return def.maxRange;
+    // HitboxDef plain-object: custom shape has no range.
+    if (def.shape === 'custom' || def.shape === 'cone') return null;
+    return def.range;
+}
+
+function getLockOnRange(def: HitboxDef | HitboxSpec | null): number {
+    if (def === null) return LOCK_ON_TETHER_EXTRA;
+    // HitboxSpec exposes .maxRange directly; HitboxDef.shape === 'custom' has no meaningful range.
+    if ('maxRange' in def) return def.maxRange + LOCK_ON_TETHER_EXTRA;
+    if (def.shape === 'custom') return LOCK_ON_TETHER_EXTRA;
     return def.range + LOCK_ON_TETHER_EXTRA;
 }
 
@@ -65,14 +82,14 @@ interface MeleeAttackPayload {
 // ---- Behaviour class ----
 
 export class MeleeAttackBehaviour implements CastBehaviour {
-    private hitboxDef: HitboxDef | null = null;
+    private hitboxDef: HitboxDef | HitboxSpec | null = null;
     private impactEffectType: string = 'punch';
     private damageCallback: ((ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void) | null = null;
     private impactAt: number = 0.4;
     private slideConfig = { forwardDistance: 12, backwardDistance: 0 };
     private maxHits: number = 1;
 
-    withHitbox(def: HitboxDef): this {
+    withHitbox(def: HitboxDef | HitboxSpec): this {
         this.hitboxDef = def;
         return this;
     }
@@ -168,12 +185,12 @@ export class MeleeAttackBehaviour implements CastBehaviour {
             // Clamp pixel targets to hitbox range so the miss VFX and hitbox check stay
             // within the displayed preview area rather than at the raw (potentially distant)
             // click position.
-            if (this.hitboxDef && this.hitboxDef.shape !== 'custom' && this.hitboxDef.shape !== 'cone') {
-                const maxDist = this.hitboxDef.range;
+            const clampRange = getHitboxMaxRange(this.hitboxDef);
+            if (clampRange !== null) {
                 const dx = ctx.target.position.x - ctx.caster.x;
                 const dy = ctx.target.position.y - ctx.caster.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                const factor = dist > 0 ? Math.min(1, maxDist / dist) : 1;
+                const factor = dist > 0 ? Math.min(1, clampRange / dist) : 1;
                 aimX = ctx.caster.x + dx * factor;
                 aimY = ctx.caster.y + dy * factor;
             } else {
@@ -207,14 +224,24 @@ export class MeleeAttackBehaviour implements CastBehaviour {
         // --- Hitbox check fills any remaining slots ---
         let hitboxUnits: Unit[] = [];
         if (this.hitboxDef != null) {
-            hitboxUnits = resolveHitbox(this.hitboxDef, {
-                engine: ctx.engine as unknown as HitboxEngineContext,
-                caster: ctx.caster,
-                originX: ctx.caster.x,
-                originY: ctx.caster.y,
-                aimX,
-                aimY,
-            });
+            if ('maxRange' in this.hitboxDef) {
+                // HitboxSpec path — delegate to spec's resolveHits.
+                hitboxUnits = this.hitboxDef.resolveHits(
+                    ctx.engine as unknown as HitboxEngineContext,
+                    ctx.caster,
+                    aimX,
+                    aimY,
+                );
+            } else {
+                hitboxUnits = resolveHitbox(this.hitboxDef, {
+                    engine: ctx.engine as unknown as HitboxEngineContext,
+                    caster: ctx.caster,
+                    originX: ctx.caster.x,
+                    originY: ctx.caster.y,
+                    aimX,
+                    aimY,
+                });
+            }
         }
 
         // Final list: guaranteed hits first, then hitbox extras (no duplicates).

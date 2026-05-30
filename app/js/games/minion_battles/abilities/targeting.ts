@@ -9,6 +9,10 @@ import type { Unit } from '../game/units/Unit';
 import type { Camera } from '../game/Camera';
 import type { ResolvedTarget } from '../game/types';
 import type { HitboxDef } from './hitboxDef';
+import type { AbilityStatic } from './Ability';
+import type { SelectTargetDef } from './timingTargetDef';
+import { isSelectTargetDef } from './timingTargetDef';
+import { isAbilityTimingInterval } from './abilityTimings';
 
 /** The types of targets an ability can require. */
 export type TargetType = 'player' | 'unit' | 'pixel';
@@ -81,6 +85,28 @@ export function getUnitAtPosition(worldPos: { x: number; y: number }, units: Uni
     }
 
     return closestUnit;
+}
+
+/**
+ * Collect all `SelectTargetDef` entries from an ability's timing intervals, in declaration order.
+ *
+ * For new-style abilities that declare per-timing `targetDef: { kind: 'select', ... }`, this gives
+ * the ordered click sequence to drive target collection in the UI (replacing `getAbilityTargets`).
+ * Returns an empty array for legacy abilities that do not use per-timing target defs.
+ */
+export function getSelectTargetDefsFromTimings(ability: AbilityStatic): SelectTargetDef[] {
+    // Use raw timing entries (before normalisation/coop-tail-split) so that
+    // targetDef fields are never accidentally stripped by applyCoopTailSplit.
+    const entries = ability.getAbilityTimings
+        ? ability.getAbilityTimings()
+        : ability.abilityTimings;
+    const result: SelectTargetDef[] = [];
+    for (const entry of entries) {
+        if (isAbilityTimingInterval(entry) && entry.targetDef && isSelectTargetDef(entry.targetDef)) {
+            result.push(entry.targetDef);
+        }
+    }
+    return result;
 }
 
 /**

@@ -9,6 +9,9 @@ import {
     punchDoubleScenario,
     punchSneakyScenario,
     punchChargingScenario,
+    bashRangeBoundaryHitScenario,
+    bashRangeBoundaryMissScenario,
+    doublePunchTwoTargetsScenario,
 } from '../scenarios/abilities/punchResearch';
 import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordResearch';
 import { absorptionShieldEnergyChargeScenario } from '../scenarios/abilities/absorptionShieldScenario';
@@ -69,6 +72,21 @@ describe('runScenarioHeadless', () => {
 
     it('passes PunchNEW (0120) baseline damage scenario', () => {
         const r = runScenarioHeadless(punchNEWBaselineScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Bash range boundary hit scenario (dummy at maxRange-1)', () => {
+        const r = runScenarioHeadless(bashRangeBoundaryHitScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Bash range boundary miss scenario (dummy at maxRange+5)', () => {
+        const r = runScenarioHeadless(bashRangeBoundaryMissScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Double Punch two-targets scenario (each timing hits a different dummy)', () => {
+        const r = runScenarioHeadless(doublePunchTwoTargetsScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

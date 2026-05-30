@@ -154,6 +154,12 @@ export interface BattleOrder {
     targets: ResolvedTarget[];
     /** Grid-cell path for movement (from pathfinding). Null clears movement. */
     movePath?: { col: number; row: number }[] | null;
+    /**
+     * Named targets from per-timing `SelectTargetDef` entries (new-style abilities).
+     * Keyed by `SelectTargetDef.label`. NOT serialized into checkpoints — runtime only.
+     * Coexists with `targets[]` for backward compatibility.
+     */
+    targetsByLabel?: Record<string, ResolvedTarget>;
 }
 
 /** An order scheduled to be applied at a specific game tick. */
@@ -190,6 +196,12 @@ export interface ActiveAbility {
     castPayload?: unknown;
     /** Per-behaviour per-cast runtime state. Keyed by `${intervalId}_${behaviourIndex}`. NOT serialized. */
     castBehaviourPayloads?: Record<string, unknown>;
+    /**
+     * Named targets collected via per-timing `SelectTargetDef` entries, keyed by
+     * `SelectTargetDef.label`. Coexists with (and never replaces) `targets[]`.
+     * NOT serialized.
+     */
+    targetsByLabel?: Record<string, ResolvedTarget>;
     /** Guards legacy evade-break firing to once per cast. NOT serialized. */
     evadeFired?: boolean;
 }

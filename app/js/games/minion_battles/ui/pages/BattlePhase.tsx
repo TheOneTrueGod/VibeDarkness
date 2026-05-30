@@ -19,7 +19,7 @@ import {
     type BattleNetSyncTerminalStatus,
     BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
 } from '../../game/battlenet';
-import { resolveClick, validateAndResolveTarget } from '../../abilities/targeting';
+import { resolveClick, validateAndResolveTarget, getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { resolveHitbox } from '../../abilities/hitboxDef';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
@@ -145,6 +145,12 @@ export default function BattlePhase({
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
     const [isWaitHovered, setIsWaitHovered] = useState(false);
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
+    /**
+     * Named targets keyed by `SelectTargetDef.label` for new-style abilities.
+     * Populated in parallel with `currentTargets` during the target-collection loop.
+     * Passed to BattleOrder.targetsByLabel on submit for engine-side resolution.
+     */
+    const targetsByLabelRef = useRef<Record<string, ResolvedTarget>>({});
     const [myAbilityIds, setMyAbilityIds] = useState<string[]>([]);
     const mouseWorldRef = useRef({ x: 0, y: 0 });
     const lockOnCacheRef = useRef<{
@@ -739,15 +745,21 @@ export default function BattlePhase({
             setSelectedCardIndex(null);
             setSelectedAbility(null);
             setCurrentTargets([]);
+            targetsByLabelRef.current = {};
             return;
         }
 
         setSelectedCardIndex(handIndex);
         setSelectedAbility(ability);
         setCurrentTargets([]);
+        targetsByLabelRef.current = {};
     }, [selectedCardIndex, canUseOrderUi]);
 
-    const submitOrder = useCallback((abilityId: string, targets: ResolvedTarget[]) => {
+    const submitOrder = useCallback((
+        abilityId: string,
+        targets: ResolvedTarget[],
+        targetsByLabel?: Record<string, ResolvedTarget>,
+    ) => {
         if (!waitingForOrders || !activeLocalWaiter || !canUseOrderUi) return;
 
         const movePath = pendingMovePathRef.current;
@@ -757,11 +769,13 @@ export default function BattlePhase({
             abilityId,
             targets,
             movePath: movePath ?? undefined,
+            ...(targetsByLabel && Object.keys(targetsByLabel).length > 0 ? { targetsByLabel } : {}),
         };
 
         targetingStateRef.current.selectedAbility = null;
         targetingStateRef.current.currentTargets = [];
         targetingStateRef.current.waitingForOrders = null;
+        targetsByLabelRef.current = {};
         pendingMovePathRef.current = null;
         pendingMoveWaypointsRef.current = [];
 
@@ -786,9 +800,43 @@ export default function BattlePhase({
         if (!engine || !camera || !selectedAbility || !canUseOrderUi || !activeLocalWaiter) return;
 
         const clickResult = resolveClick(screenX, screenY, camera, engine.units);
-
         const targetIndex = currentTargets.length;
         const caster = engine.getUnit(activeLocalWaiter.unitId);
+
+        // --- New-style: per-timing SelectTargetDef ---
+        const selectTargetDefs = getSelectTargetDefsFromTimings(selectedAbility);
+        if (selectTargetDefs.length > 0) {
+            const selectDef = selectTargetDefs[targetIndex];
+            if (!selectDef) return;
+
+            let resolved: ResolvedTarget | null;
+            const cache = lockOnCacheRef.current;
+            const candidate = cache?.targetIdx === targetIndex ? cache.candidate : null;
+
+            if (candidate) {
+                resolved = { type: 'unit', unitId: candidate.unitId };
+            } else if (selectDef.allowMiss !== false) {
+                resolved = { type: 'pixel', position: clickResult.worldPosition };
+            } else {
+                return;
+            }
+
+            const newTargets = [...currentTargets, resolved];
+            const newTargetsByLabel = { ...targetsByLabelRef.current, [selectDef.label]: resolved };
+            targetsByLabelRef.current = newTargetsByLabel;
+            setCurrentTargets(newTargets);
+
+            if (newTargets.length >= selectTargetDefs.length) {
+                submitOrder(selectedAbility.id, newTargets, newTargetsByLabel);
+                setSelectedCardIndex(null);
+                setSelectedAbility(null);
+                setCurrentTargets([]);
+                targetsByLabelRef.current = {};
+            }
+            return;
+        }
+
+        // --- Legacy: ability-level targets[] ---
         const resolvedTargets = getAbilityTargets(selectedAbility, caster, engine);
         const targetDef = resolvedTargets[targetIndex];
         if (!targetDef) return;
@@ -834,41 +882,76 @@ export default function BattlePhase({
             if (selectedAbility && engine) {
                 const state = targetingStateRef.current;
                 const targetIndex = state.currentTargets.length;
-                const resolvedTargets = getAbilityTargets(selectedAbility, engine.getUnit(state.previewOrderUnitId ?? '') ?? undefined, engine);
-                const targetDef = resolvedTargets[targetIndex];
-                if (targetDef?.lockOn) {
-                    const cache = lockOnCacheRef.current;
-                    const cacheStale =
-                        !cache ||
-                        cache.targetIdx !== targetIndex ||
-                        Math.sqrt((worldPos.x - cache.mouseWorldPos.x) ** 2 + (worldPos.y - cache.mouseWorldPos.y) ** 2) > 2;
-                    if (cacheStale) {
-                        const caster = state.previewOrderUnitId ? engine.getUnit(state.previewOrderUnitId) : null;
-                        if (caster) {
-                            const hitUnits = resolveHitbox(targetDef.lockOn.hitbox, {
-                                engine: engine as unknown as import('../../hitboxes/Hitbox').HitboxEngineContext,
-                                caster,
-                                originX: caster.x,
-                                originY: caster.y,
-                                aimX: worldPos.x,
-                                aimY: worldPos.y,
-                            });
-                            hitUnits.sort((a, b) => {
-                                const da = (a.x - worldPos.x) ** 2 + (a.y - worldPos.y) ** 2;
-                                const db = (b.x - worldPos.x) ** 2 + (b.y - worldPos.y) ** 2;
-                                return da - db;
-                            });
-                            lockOnCacheRef.current = {
-                                targetIdx: targetIndex,
-                                mouseWorldPos: { x: worldPos.x, y: worldPos.y },
-                                candidate: hitUnits[0] ? { unitId: hitUnits[0].id } : null,
-                            };
-                        } else {
-                            lockOnCacheRef.current = null;
+
+                // New-style: check per-timing SelectTargetDef first
+                const selectTargetDefs = getSelectTargetDefsFromTimings(selectedAbility);
+                if (selectTargetDefs.length > 0) {
+                    const selectDef = selectTargetDefs[targetIndex];
+                    if (selectDef) {
+                        const cache = lockOnCacheRef.current;
+                        const cacheStale =
+                            !cache ||
+                            cache.targetIdx !== targetIndex ||
+                            Math.sqrt((worldPos.x - cache.mouseWorldPos.x) ** 2 + (worldPos.y - cache.mouseWorldPos.y) ** 2) > 2;
+                        if (cacheStale) {
+                            const caster = state.previewOrderUnitId ? engine.getUnit(state.previewOrderUnitId) : null;
+                            if (caster) {
+                                const hitUnits = selectDef.hitbox.resolveTargets(caster, worldPos, engine.units);
+                                hitUnits.sort((a, b) => {
+                                    const da = (a.x - worldPos.x) ** 2 + (a.y - worldPos.y) ** 2;
+                                    const db = (b.x - worldPos.x) ** 2 + (b.y - worldPos.y) ** 2;
+                                    return da - db;
+                                });
+                                lockOnCacheRef.current = {
+                                    targetIdx: targetIndex,
+                                    mouseWorldPos: { x: worldPos.x, y: worldPos.y },
+                                    candidate: hitUnits[0] ? { unitId: hitUnits[0].id } : null,
+                                };
+                            } else {
+                                lockOnCacheRef.current = null;
+                            }
                         }
+                    } else {
+                        lockOnCacheRef.current = null;
                     }
                 } else {
-                    lockOnCacheRef.current = null;
+                    // Legacy: ability-level targets[] with lockOn
+                    const resolvedTargets = getAbilityTargets(selectedAbility, engine.getUnit(state.previewOrderUnitId ?? '') ?? undefined, engine);
+                    const targetDef = resolvedTargets[targetIndex];
+                    if (targetDef?.lockOn) {
+                        const cache = lockOnCacheRef.current;
+                        const cacheStale =
+                            !cache ||
+                            cache.targetIdx !== targetIndex ||
+                            Math.sqrt((worldPos.x - cache.mouseWorldPos.x) ** 2 + (worldPos.y - cache.mouseWorldPos.y) ** 2) > 2;
+                        if (cacheStale) {
+                            const caster = state.previewOrderUnitId ? engine.getUnit(state.previewOrderUnitId) : null;
+                            if (caster) {
+                                const hitUnits = resolveHitbox(targetDef.lockOn.hitbox, {
+                                    engine: engine as unknown as import('../../hitboxes/Hitbox').HitboxEngineContext,
+                                    caster,
+                                    originX: caster.x,
+                                    originY: caster.y,
+                                    aimX: worldPos.x,
+                                    aimY: worldPos.y,
+                                });
+                                hitUnits.sort((a, b) => {
+                                    const da = (a.x - worldPos.x) ** 2 + (a.y - worldPos.y) ** 2;
+                                    const db = (b.x - worldPos.x) ** 2 + (b.y - worldPos.y) ** 2;
+                                    return da - db;
+                                });
+                                lockOnCacheRef.current = {
+                                    targetIdx: targetIndex,
+                                    mouseWorldPos: { x: worldPos.x, y: worldPos.y },
+                                    candidate: hitUnits[0] ? { unitId: hitUnits[0].id } : null,
+                                };
+                            } else {
+                                lockOnCacheRef.current = null;
+                            }
+                        }
+                    } else {
+                        lockOnCacheRef.current = null;
+                    }
                 }
             }
 
@@ -927,6 +1010,7 @@ export default function BattlePhase({
                 setSelectedCardIndex(null);
                 setSelectedAbility(null);
                 setCurrentTargets([]);
+                targetsByLabelRef.current = {};
                 return;
             }
             const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key, 10) : 0;

@@ -5,26 +5,21 @@
  * Built entirely on the CastBehaviours system (no doCardEffect / beginActiveCast).
  */
 
-import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
-import type { TargetDef } from '../../abilities/targeting';
-import type { HitboxDef } from '../../abilities/hitboxDef';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { ThickLineHitbox } from '../../hitboxes';
-import { getAimPointClampedToMaxRange } from '../../abilities/targetHelpers';
-import { buildHitboxContext, renderMeleeTrackingHighlights } from '../../abilities/meleeTrackingHelpers';
+import { meleeLineHitbox } from '../../hitboxes';
 import type { Unit } from '../../game/units/Unit';
-import type { ResolvedTarget } from '../../game/types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}16`;
 const MAX_RANGE = 30; // px
 const LINE_THICKNESS = 20; // px
 const PUNCH_DAMAGE = 8;
 
-const PUNCH_HITBOX: HitboxDef = { shape: 'meleeLine', range: MAX_RANGE, thickness: LINE_THICKNESS };
+const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
 
 const punchBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(PUNCH_HITBOX)
@@ -45,18 +40,15 @@ const punchBehaviour = CastBehaviours.MeleeAttack()
         });
     });
 
-const TARGET_DEF: TargetDef = {
-    label: 'Target point',
-    lockOn: { hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
-};
-
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,    end: 0.2, abilityPhase: AbilityPhase.Windup },
     { id: 'punch1',   start: 0.2, end: 0.4, abilityPhase: AbilityPhase.Active,
-      castBehaviours: [{ timingStart: 'start', timingEnd: 'end', targetIndex: 0, behaviour: punchBehaviour }] },
+      targetDef: { kind: 'select', label: 'Target 1', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
+      behaviour: punchBehaviour },
     { id: 'gap',      start: 0.4, end: 0.6, abilityPhase: AbilityPhase.Active },
     { id: 'punch2',   start: 0.6, end: 0.8, abilityPhase: AbilityPhase.Active,
-      castBehaviours: [{ timingStart: 'start', timingEnd: 'end', targetIndex: 1, behaviour: punchBehaviour }] },
+      targetDef: { kind: 'select', label: 'Target 2', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
+      behaviour: punchBehaviour },
     { id: 'cooldown', start: 0.8, end: 1.0, abilityPhase: AbilityPhase.Cooldown },
 ];
 
@@ -98,7 +90,7 @@ export const DoublePunchAbility: AbilityStatic = {
     rechargeTurns: 1,
     tags: [],
     prefireTime: 0.15,
-    targets: [TARGET_DEF, TARGET_DEF],
+    targets: [],
     abilityTimings: ABILITY_TIMINGS,
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
 
@@ -114,30 +106,8 @@ export const DoublePunchAbility: AbilityStatic = {
         return [];
     },
 
-    getRange(caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: MAX_RANGE + caster.radius };
-    },
-
-    renderTargetingPreview(
-        gr: IAbilityPreviewGraphics,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-        units: Unit[],
-    ): void {
-        const maxR = MAX_RANGE + caster.radius;
-        const aimAtMax = getAimPointClampedToMaxRange(caster, mouseWorld, maxR);
-        ThickLineHitbox.renderTargetingPreview(gr, caster, aimAtMax, maxR, LINE_THICKNESS);
-        const ctx = buildHitboxContext(units);
-        const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, caster.x, caster.y, aimAtMax.x, aimAtMax.y, LINE_THICKNESS);
-        if (hits.length > 0) {
-            hits.sort((a, b) => {
-                const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
-                const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
-                return da - db;
-            });
-            renderMeleeTrackingHighlights(gr, [hits[0]!]);
-        }
+    getRange(_caster: Unit): { minRange: number; maxRange: number } {
+        return { minRange: 0, maxRange: PUNCH_HITBOX.maxRange };
     },
 
     onAttackBlocked(): void {

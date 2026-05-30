@@ -27,6 +27,7 @@ import type { ResolvedTarget } from '../types';
 import { triggerAbilityEvent } from '../../abilities/events';
 import { AbilityEventType } from '../../abilities/Ability';
 import type { CastBehaviourInterruptContext } from '../../abilities/castBehaviourTypes';
+import { isSelectTargetDef, isHitTargetDef } from '../../abilities/timingTargetDef';
 import type { Buff, BuffSerialized } from '../../buffs/Buff';
 import { buffFromJSON } from '../../buffs/buffRegistry';
 import type { TerrainManager } from '../../terrain/TerrainManager';
@@ -296,6 +297,8 @@ export class Unit extends GameObject {
         intervalEnd: number;
         caster: Unit;
         active: ActiveAbility;
+        /** targetDef from the parent timing interval, for resolving targetsByLabel. */
+        targetDef?: import('../../abilities/timingTargetDef').TimingTargetDef;
     }> = new Map();
 
     constructor(config: {
@@ -886,8 +889,22 @@ export class Unit extends GameObject {
     private cleanupCastBehavioursForAbility(active: ActiveAbility, engine: EngineContext): void {
         for (const [key, rec] of this.activeCastBehaviours) {
             if (rec.active !== active) continue;
-            const targetIdx = rec.entry.targetIndex ?? 0;
-            const target = active.targets[targetIdx] ?? active.targets[0] ?? { type: 'pixel' as const, position: { x: this.x, y: this.y } };
+            const fallback =
+                active.targets[rec.entry.targetIndex ?? 0] ??
+                active.targets[0] ??
+                ({ type: 'pixel' as const, position: { x: this.x, y: this.y } });
+            let target = fallback;
+            const cleanupTargetDef = rec.targetDef;
+            if (cleanupTargetDef) {
+                if (isSelectTargetDef(cleanupTargetDef)) {
+                    target = active.targetsByLabel?.[cleanupTargetDef.label] ?? fallback;
+                } else if (isHitTargetDef(cleanupTargetDef)) {
+                    for (const label of cleanupTargetDef.labels) {
+                        const r = active.targetsByLabel?.[label];
+                        if (r !== undefined) { target = r; break; }
+                    }
+                }
+            }
             const ctx: CastBehaviourInterruptContext = {
                 caster: this,
                 target,

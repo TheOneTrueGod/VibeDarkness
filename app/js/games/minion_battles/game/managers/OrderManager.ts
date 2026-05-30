@@ -142,5 +142,13 @@ export class OrderManager {
         if (!ability) return;
 
         unit.executeAbility(ability, order.targets, this.ctx);
+
+        // Populate targetsByLabel (non-serialized, new-style targeting) from the order payload.
+        if (order.targetsByLabel) {
+            const active = unit.activeAbilities.find((a) => a.abilityId === ability.id);
+            if (active) {
+                active.targetsByLabel = { ...order.targetsByLabel };
+            }
+        }
     }
 }
