@@ -286,6 +286,7 @@ export class BattleSession implements BattleSessionHandle {
             playerResearchTreesByPlayer,
             terrainSegmentPOIs,
         });
+        engine.applyInstantLightingPass();
         engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
         this.applyPlayerPortraitOverrides(engine, portraitIds);
         this.initialFingerprint = engine.computeInitialFingerprint();

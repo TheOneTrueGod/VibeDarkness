@@ -612,6 +612,11 @@ export class GameEngine implements EngineContext {
         if (lightLevelEnabled && this.terrainManager?.grid) this.initLightGrid();
     }
 
+    applyInstantLightingPass(): void {
+        if (!this.lightLevelEnabled || !this.terrainManager?.grid) return;
+        this.initLightGrid();
+    }
+
     setOnWaitingForOrders(cb: (info: WaitingForOrders) => void): void {
         this.onWaitingForOrders = cb;
     }
