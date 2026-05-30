@@ -1431,14 +1431,15 @@ export class GameRenderer {
 			const selectDef = selectTargetDefs[targetIndex];
 			if (selectDef) {
 				const rawCandidates = selectDef.hitbox.renderTargetingPreview(gr, caster, ts.mouseWorld, engine.units);
-				// Apply team filter + self-exclusion, then highlight the closest valid candidate.
+				// Apply team filter + self-exclusion, then highlight the N closest valid candidates.
 				const candidates = filterSelectTargetCandidates(rawCandidates, caster, selectDef.filter);
 				if (candidates.length > 0) {
 					const mw = ts.mouseWorld;
 					candidates.sort((a, b) =>
 						(a.x - mw.x) ** 2 + (a.y - mw.y) ** 2 - ((b.x - mw.x) ** 2 + (b.y - mw.y) ** 2),
 					);
-					renderMeleeTrackingHighlights(gr, [candidates[0]!]);
+					const maxHighlights = selectDef.numTargets ?? selectDef.hitbox.numTargets;
+					renderMeleeTrackingHighlights(gr, candidates.slice(0, maxHighlights));
 				}
 			}
 			// Also highlight already-committed targets for this ability (using the legacy selected-targets helper if present).

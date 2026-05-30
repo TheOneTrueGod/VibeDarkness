@@ -74,6 +74,12 @@ interface LockedUnit {
 interface MeleeAttackPayload {
     aimDirX: number;
     aimDirY: number;
+    /**
+     * Original click world position, appended by the UI for multi-target HitboxSpec abilities.
+     * When set, `onTick` uses it as the aim point instead of the locked-on unit's live position,
+     * so the perpendicular bar keeps the angle the player intended even if units shift slightly.
+     */
+    aimPixel: { x: number; y: number } | null;
     lockedUnits: LockedUnit[];
     interrupted: boolean;
     impactFired: boolean;
@@ -85,6 +91,7 @@ export class MeleeAttackBehaviour implements CastBehaviour {
     private hitboxDef: HitboxDef | HitboxSpec | null = null;
     private impactEffectType: string = 'punch';
     private damageCallback: ((ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void) | null = null;
+    private impactVFXCallback: ((ctx: CastBehaviourTickContext, hitUnits: Unit[], aimX: number, aimY: number) => void) | null = null;
     private impactAt: number = 0.4;
     private slideConfig = { forwardDistance: 12, backwardDistance: 0 };
     private maxHits: number = 1;
@@ -109,6 +116,18 @@ export class MeleeAttackBehaviour implements CastBehaviour {
         return this;
     }
 
+    /**
+     * Override the default point-impact VFX with a custom spawner.
+     * Called at impact time regardless of whether any units were hit.
+     * `aimX/aimY` is the resolved aim point (already clamped to hitbox range).
+     */
+    withImpactVFX(
+        fn: (ctx: CastBehaviourTickContext, hitUnits: Unit[], aimX: number, aimY: number) => void,
+    ): this {
+        this.impactVFXCallback = fn;
+        return this;
+    }
+
     withSlide(cfg: { forwardDistance: number; backwardDistance: number }): this {
         this.slideConfig = cfg;
         return this;
@@ -122,10 +141,42 @@ export class MeleeAttackBehaviour implements CastBehaviour {
 
     onSetup(ctx: CastBehaviourSetupContext): void {
         const target = ctx.target;
+
+        // How many units to collect as lock-ons. For HitboxSpec-based abilities, defer to
+        // the hitbox's own numTargets so multi-hit specs (e.g. perpendicular swing) lock on
+        // to all highlighted units automatically. Fall back to this.maxHits for legacy HitboxDef.
+        const numLockOns = (this.hitboxDef && 'numTargets' in this.hitboxDef)
+            ? (this.hitboxDef as HitboxSpec).numTargets
+            : this.maxHits;
+
+        // Collect locked units starting at the primary target's slot, up to numLockOns.
+        const startIdx = Math.max(0, ctx.allTargets.indexOf(ctx.target));
+        const lockedUnits: LockedUnit[] = [];
+        for (let i = startIdx; i < Math.min(ctx.allTargets.length, startIdx + numLockOns); i++) {
+            const t = ctx.allTargets[i];
+            if (t?.type === 'unit' && t.unitId != null) {
+                lockedUnits.push({ unitId: t.unitId, lockedPosition: null });
+            }
+        }
+
+        // For multi-target HitboxSpec abilities, the UI appends the original click world
+        // position as a pixel entry after all unit lock-ons. Find it here so onTick can
+        // use it to preserve the player's intended swing direction rather than drifting
+        // toward the locked-on unit's live position.
+        const aimPixelTarget = ctx.allTargets.slice(startIdx + numLockOns).find(t => t.type === 'pixel');
+        const aimPixel = (aimPixelTarget?.type === 'pixel' && aimPixelTarget.position != null)
+            ? aimPixelTarget.position
+            : null;
+
+        // Aim direction: prefer the explicit aim pixel (original click) over the primary
+        // locked unit's position, so the slide animation stays consistent with the swing.
         let aimDirX = 0;
         let aimDirY = 0;
-
-        if (target.type === 'unit' && target.unitId != null) {
+        if (aimPixel) {
+            const dir = dirFromTo(ctx.caster.x, ctx.caster.y, aimPixel.x, aimPixel.y);
+            aimDirX = dir.dirX;
+            aimDirY = dir.dirY;
+        } else if (target.type === 'unit' && target.unitId != null) {
             const targetUnit = ctx.engine.getUnit(target.unitId);
             const tx = targetUnit?.x ?? ctx.caster.x;
             const ty = targetUnit?.y ?? ctx.caster.y;
@@ -138,19 +189,10 @@ export class MeleeAttackBehaviour implements CastBehaviour {
             aimDirY = dir.dirY;
         }
 
-        // Collect locked units starting at the primary target's slot, up to maxHits.
-        const startIdx = Math.max(0, ctx.allTargets.indexOf(ctx.target));
-        const lockedUnits: LockedUnit[] = [];
-        for (let i = startIdx; i < Math.min(ctx.allTargets.length, startIdx + this.maxHits); i++) {
-            const t = ctx.allTargets[i];
-            if (t?.type === 'unit' && t.unitId != null) {
-                lockedUnits.push({ unitId: t.unitId, lockedPosition: null });
-            }
-        }
-
         const payload: MeleeAttackPayload = {
             aimDirX,
             aimDirY,
+            aimPixel,
             lockedUnits,
             interrupted: false,
             impactFired: false,
@@ -162,16 +204,35 @@ export class MeleeAttackBehaviour implements CastBehaviour {
         const payload = ctx.behaviourPayload as MeleeAttackPayload | undefined;
         if (!payload || payload.interrupted || payload.impactFired) return;
 
-        const crossedImpact =
-            ctx.prevWindowProgress < this.impactAt && ctx.windowProgress >= this.impactAt;
+        // impactAt = 0 fires on the very first tick (can't use < 0 comparison).
+        const crossedImpact = this.impactAt <= 0
+            ? ctx.isFirstTick
+            : ctx.prevWindowProgress < this.impactAt && ctx.windowProgress >= this.impactAt;
         if (!crossedImpact) return;
 
         ctx.setBehaviourPayload({ ...payload, impactFired: true });
 
-        // Resolve aim point from primary target (used for hitbox direction and fallback VFX).
+        // Resolve aim point (used for hitbox direction and fallback VFX).
+        // Priority: explicit aim pixel stored at cast time → live unit position → pixel target → fallback.
+        // The aim pixel is appended by the UI for multi-target HitboxSpec abilities so the swing
+        // bar keeps the player's original click angle rather than drifting with the primary unit.
         let aimX: number;
         let aimY: number;
-        if (ctx.target.type === 'unit' && ctx.target.unitId != null) {
+        if (payload.aimPixel) {
+            // Clamp to hitbox range so the bar centre stays within the displayed area.
+            const clampRange = getHitboxMaxRange(this.hitboxDef);
+            if (clampRange !== null) {
+                const dx = payload.aimPixel.x - ctx.caster.x;
+                const dy = payload.aimPixel.y - ctx.caster.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const factor = dist > 0 ? Math.min(1, clampRange / dist) : 1;
+                aimX = ctx.caster.x + dx * factor;
+                aimY = ctx.caster.y + dy * factor;
+            } else {
+                aimX = payload.aimPixel.x;
+                aimY = payload.aimPixel.y;
+            }
+        } else if (ctx.target.type === 'unit' && ctx.target.unitId != null) {
             const liveUnit = ctx.engine.getUnit(ctx.target.unitId);
             if (liveUnit) {
                 aimX = liveUnit.x;
@@ -252,8 +313,16 @@ export class MeleeAttackBehaviour implements CastBehaviour {
             }
         }
 
-        // Spawn impact VFX on first hit (or at aim point on a full miss).
-        if (hitUnits.length > 0) {
+        // Cap to the hitbox's numTargets so damage callbacks never need to slice.
+        if (this.hitboxDef != null && 'maxRange' in this.hitboxDef) {
+            const cap = (this.hitboxDef as HitboxSpec).numTargets;
+            if (hitUnits.length > cap) hitUnits.length = cap;
+        }
+
+        // Spawn impact VFX — custom callback takes full control when set.
+        if (this.impactVFXCallback) {
+            this.impactVFXCallback(ctx, hitUnits, aimX, aimY);
+        } else if (hitUnits.length > 0) {
             ctx.engine.addEffect(new Effect({
                 x: hitUnits[0].x,
                 y: hitUnits[0].y,

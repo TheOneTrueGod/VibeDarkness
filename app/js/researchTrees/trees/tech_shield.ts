@@ -37,7 +37,7 @@ export const techShieldTree: ResearchTreeDef = {
             position: { x: 340, y: 100 },
             prereqNodeIds: [TECH_SHIELD_NODE_BASE],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [{ type: 'anyResearched', treeId: TECH_SHIELD_TREE_ID, nodeIds: [TECH_SHIELD_NODE_BASE] }],
             cost: { crystals: 5 },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '003', toItemId: '011' }],
             modifiesAbility: { from: '0104', to: '0110' },

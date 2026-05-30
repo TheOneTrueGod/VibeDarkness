@@ -157,6 +157,8 @@ export default function BattlePhase({
         targetIdx: number;
         mouseWorldPos: { x: number; y: number };
         candidate: { unitId: string } | null;
+        /** All highlighted candidates sorted by proximity to mouse, up to hitbox numTargets. */
+        allCandidates: Array<{ unitId: string }>;
     } | null>(null);
     const targetingStateRef = useRef<{
         selectedAbility: AbilityStatic | null;
@@ -809,25 +811,43 @@ export default function BattlePhase({
             const selectDef = selectTargetDefs[targetIndex];
             if (!selectDef) return;
 
-            let resolved: ResolvedTarget | null;
             const cache = lockOnCacheRef.current;
-            const candidate = cache?.targetIdx === targetIndex ? cache.candidate : null;
+            const allCandidates = cache?.targetIdx === targetIndex ? (cache.allCandidates ?? []) : [];
+            const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
 
-            if (candidate) {
-                resolved = { type: 'unit', unitId: candidate.unitId };
+            let resolved: ResolvedTarget;
+            if (allCandidates.length > 0) {
+                resolved = { type: 'unit', unitId: allCandidates[0].unitId };
             } else if (selectDef.allowMiss !== false) {
                 resolved = { type: 'pixel', position: clickResult.worldPosition };
             } else {
                 return;
             }
 
+            // `newTargets` tracks one entry per click step so the next targetIndex is correct.
             const newTargets = [...currentTargets, resolved];
             const newTargetsByLabel = { ...targetsByLabelRef.current, [selectDef.label]: resolved };
             targetsByLabelRef.current = newTargetsByLabel;
             setCurrentTargets(newTargets);
 
             if (newTargets.length >= selectTargetDefs.length) {
-                submitOrder(selectedAbility.id, newTargets, newTargetsByLabel);
+                // Build the order's targets array.  For multi-target hitboxes we append:
+                //   1. Additional lock-on units (candidates 1..numTargets-1) so MeleeAttack
+                //      can guarantee all highlighted units, not just the primary.
+                //   2. The raw click world position as a pixel entry so MeleeAttack can
+                //      preserve the player's original swing direction at impact time.
+                let orderTargets = newTargets;
+                if (numTargets > 1) {
+                    const additionalLockOns: ResolvedTarget[] = allCandidates
+                        .slice(1, numTargets)
+                        .map(c => ({ type: 'unit' as const, unitId: c.unitId }));
+                    const aimPixelEntry: ResolvedTarget = {
+                        type: 'pixel',
+                        position: clickResult.worldPosition,
+                    };
+                    orderTargets = [...newTargets, ...additionalLockOns, aimPixelEntry];
+                }
+                submitOrder(selectedAbility.id, orderTargets, newTargetsByLabel);
                 setSelectedCardIndex(null);
                 setSelectedAbility(null);
                 setCurrentTargets([]);
@@ -903,10 +923,12 @@ export default function BattlePhase({
                                     const db = (b.x - worldPos.x) ** 2 + (b.y - worldPos.y) ** 2;
                                     return da - db;
                                 });
+                                const maxCandidates = selectDef.numTargets ?? selectDef.hitbox.numTargets;
                                 lockOnCacheRef.current = {
                                     targetIdx: targetIndex,
                                     mouseWorldPos: { x: worldPos.x, y: worldPos.y },
                                     candidate: hitUnits[0] ? { unitId: hitUnits[0].id } : null,
+                                    allCandidates: hitUnits.slice(0, maxCandidates).map(u => ({ unitId: u.id })),
                                 };
                             } else {
                                 lockOnCacheRef.current = null;
@@ -945,6 +967,7 @@ export default function BattlePhase({
                                     targetIdx: targetIndex,
                                     mouseWorldPos: { x: worldPos.x, y: worldPos.y },
                                     candidate: hitUnits[0] ? { unitId: hitUnits[0].id } : null,
+                                    allCandidates: [],
                                 };
                             } else {
                                 lockOnCacheRef.current = null;

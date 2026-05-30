@@ -65,7 +65,7 @@ export function resolveResearchRewardSlots(
                 if (slot.minTier !== undefined && (node.tier ?? 0) < slot.minTier) continue;
                 if (slot.maxTier !== undefined && (node.tier ?? 0) > slot.maxTier) continue;
                 if (claimedKeys.has(`${tree.id}:${node.id}`)) continue;
-                if (!equipmentRequirementsMet(node, equippedSet)) continue;
+                if (!nodeRequirementsMet(node, equippedSet, researched)) continue;
                 candidates.push({ treeId: tree.id, node });
             }
         }
@@ -89,9 +89,17 @@ export function resolveResearchRewardSlots(
     });
 }
 
-function equipmentRequirementsMet(node: ResearchNodeDef, equippedSet: Set<string>): boolean {
+function nodeRequirementsMet(
+    node: ResearchNodeDef,
+    equippedSet: Set<string>,
+    researched: Record<string, string[]>,
+): boolean {
     for (const req of node.requirements) {
         if (req.type === 'characterHasEquippedItem' && !equippedSet.has(req.itemId)) return false;
+        if (req.type === 'anyResearched') {
+            const researchedSet = new Set(researched[req.treeId] ?? []);
+            if (!req.nodeIds.some((id) => researchedSet.has(id))) return false;
+        }
     }
     return true;
 }

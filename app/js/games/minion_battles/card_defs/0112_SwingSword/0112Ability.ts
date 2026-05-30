@@ -1,72 +1,64 @@
 /**
  * Swing Sword — Warrior melee (crafted sword).
  *
- * Perpendicular slash, up to 2 targets, metallic gray trail.
- * Slightly shorter reach than Laser Sword. Small knockback, no stun.
- * Bleed only applies when Jagged Edge is researched.
+ * Perpendicular slash up to 2 targets, small knockback, metallic gray slash trail.
+ * Bleed applies when Jagged Edge is researched.
+ * Composition-based refactor: all combat logic lives in CastBehaviours;
+ * `beginActiveCast` survives only for the charge-up VFX.
+ *
+ * Timings:
+ *   0.00–0.20  windup
+ *   0.20–0.30  active slash (impact fires at window start, impactAt=0)
+ *   0.30–1.30  cooldown
  */
 
+import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityState } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
-import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { Unit } from '../../game/units/Unit';
-import type { TargetDef } from '../../abilities/targeting';
-import type { ActiveAbility, ResolvedTarget } from '../../game/types';
-import { asCardDefId, type CardDef } from '../types';
-import { createSlashTrailEffect } from '../../abilities/effectHelpers';
-import type { Effect } from '../../game/effects/Effect';
-import type { EventBus } from '../../game/EventBus';
+import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import { getDirectionFromTo } from '../../abilities/targetHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import { perpendicularSwingHitbox } from '../../hitboxes';
+import { createSlashTrailEffect } from '../../abilities/effectHelpers';
 import { applyBleedStack } from '../../buffs/bleedRuntime';
-import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
-import { ThickLineHitbox } from '../../hitboxes';
 import {
-    buildHitboxContext,
-    buildMeleeTrackingEntries,
-    getMeleeTrackingAimPoint,
-    renderMeleeTrackingHighlights,
-    updateMeleeTrackingEntry,
-    type MeleeTrackingEntry,
-} from '../../abilities/meleeTrackingHelpers';
+    createChargeUpConfig,
+    spawnMeleeChargeUpEffect,
+    type MeleeAnimationProfile,
+} from '../../abilities/meleeAnimationProfile';
 import {
     STICK_SWORD_TREE_ID,
     STICK_SWORD_NODE_JAGGED_EDGE,
 } from '../../../../researchTrees/trees/stick_sword';
-import {
-    createChargeUpConfig,
-    getMeleeAnimationOffset,
-    spawnMeleeChargeUpEffect,
-    type MeleeAnimationProfile,
-} from '../../abilities/meleeAnimationProfile';
+import type { Unit } from '../../game/units/Unit';
+import type { ActiveAbility, ResolvedTarget } from '../../game/types';
+import { asCardDefId, type CardDef } from '../types';
+import { Effect } from '../../game/effects/Effect';
+import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}12`;
-const PREFIRE_TIME = 0.2;
-const BASE_MIN_RANGE = 0;
-/** Slightly closer reach than Laser Sword (56). */
+
 const BASE_MAX_RANGE = 48;
 const DAMAGE = 10;
-const SLASH_TRAIL_DURATION = 0.35;
-const SLASH_TRAIL_THICKNESS = 14;
-const SLASH_TRAIL_COLOR = 0xc0c8d0;
 const POISE_DAMAGE = 5;
-/** Small nudge — sword slices rather than bludgeons. */
 const KNOCKBACK_MAGNITUDE = 18;
 const KNOCKBACK_AIR_TIME = 0.2;
 const KNOCKBACK_SLIDE_TIME = 0.15;
 const MAX_TARGETS = 2;
-/** Line thickness for hitbox and preview (px). */
 const LINE_THICKNESS = 36;
 const SWING_LENGTH = 80;
-const SWING_SWORD_MELEE_ANIMATION: MeleeAnimationProfile = {
-    slide: {
-        startTime: 0.1,
-        impactTime: 0.2,
-        backstepEndTime: 0.3,
-        forwardDistance: 9,
-        backwardDistance: 4,
-    },
+const SLASH_TRAIL_DURATION = 0.35;
+const SLASH_TRAIL_THICKNESS = 14;
+const SLASH_TRAIL_COLOR = 0xc0c8d0;
+
+const SWING_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
+
+// ---- Charge-up VFX profile (used in beginActiveCast only) ----
+
+const BASE_PROFILE: MeleeAnimationProfile = {
+    slide: { startTime: 0.1, impactTime: 0.2, backstepEndTime: 0.3, forwardDistance: 9, backwardDistance: 4 },
     chargeUp: createChargeUpConfig('medium', {
         startTime: 0.04,
         endTime: 0.1,
@@ -75,73 +67,99 @@ const SWING_SWORD_MELEE_ANIMATION: MeleeAnimationProfile = {
     }),
 };
 
-type SwingSwordCastPayload = {
-    meleeAnimationProfile: MeleeAnimationProfile;
-    meleeTracking: MeleeTrackingEntry[];
+function spawnChargeUp(engine: { addEffect(effect: Effect): void }, caster: Unit): void {
+    if (!BASE_PROFILE.chargeUp) return;
+    const chargeUp = {
+        ...BASE_PROFILE.chargeUp,
+        pulses: BASE_PROFILE.chargeUp.pulses.map(p => ({
+            ...p,
+            startRadius: p.startRadius + caster.radius - DEFAULT_UNIT_RADIUS,
+            endRadius:   p.endRadius   + caster.radius - DEFAULT_UNIT_RADIUS,
+        })),
+    };
+    spawnMeleeChargeUpEffect(engine, caster, { ...BASE_PROFILE, chargeUp });
+}
+
+// ---- Research helpers ----
+
+type SwingSwordEngineExt = AbilityEngineContext & {
+    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
+    roundNumber?: number;
+    localPlayerId?: string;
 };
 
-function getMinRange(_caster: Unit): number {
-    return BASE_MIN_RANGE;
-}
-
-function getMaxRange(caster: Unit): number {
-    return BASE_MAX_RANGE + caster.radius;
-}
-
-function getPerpendicularLine(
-    caster: { x: number; y: number },
-    target: { x: number; y: number },
-    minRange: number,
-    maxRange: number,
-): {
-    leftX: number;
-    leftY: number;
-    rightX: number;
-    rightY: number;
-    centerX: number;
-    centerY: number;
-    aimDirX: number;
-    aimDirY: number;
-} {
-    const dx = target.x - caster.x;
-    const dy = target.y - caster.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const aimDirX = dist > 0 ? dx / dist : 1;
-    const aimDirY = dist > 0 ? dy / dist : 0;
-    const clampedDist = Math.max(minRange, Math.min(maxRange, dist || maxRange));
-    const centerX = caster.x + aimDirX * clampedDist;
-    const centerY = caster.y + aimDirY * clampedDist;
-    const half = SWING_LENGTH / 2;
-    const perpX = -aimDirY * half;
-    const perpY = aimDirX * half;
-    return {
-        leftX: centerX - perpX,
-        leftY: centerY - perpY,
-        rightX: centerX + perpX,
-        rightY: centerY + perpY,
-        centerX,
-        centerY,
-        aimDirX,
-        aimDirY,
-    };
-}
-
-interface GameEngineLike {
-    units: Unit[];
-    getUnit(id: string): Unit | undefined;
-    addEffect(effect: Effect): void;
-    gameTime: number;
-    roundNumber: number;
-    eventBus: EventBus;
-    interruptUnitAndRefundAbilities(unit: Unit): void;
-    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
-    localPlayerId?: string;
-}
-
-function hasJaggedEdge(engine: GameEngineLike | undefined, caster: Unit): boolean {
-    const nodes = engine?.getPlayerResearchNodes?.(caster.ownerId, STICK_SWORD_TREE_ID) ?? [];
+function hasJaggedEdge(engine: SwingSwordEngineExt, caster: Unit): boolean {
+    const nodes = engine.getPlayerResearchNodes?.(caster.ownerId, STICK_SWORD_TREE_ID) ?? [];
     return nodes.includes(STICK_SWORD_NODE_JAGGED_EDGE);
 }
+
+// ---- Behaviour ----
+
+const swingSwordBehaviour = CastBehaviours.MeleeAttack()
+    .withHitbox(SWING_SWORD_HITBOX)
+    .withSlide({ forwardDistance: 9, backwardDistance: 4 })
+    .withImpactAt(0)
+    .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
+        const ep = SWING_SWORD_HITBOX.getEndpoints(ctx.caster, aimX, aimY);
+        ctx.engine.addEffect(
+            createSlashTrailEffect(
+                ep.leftX, ep.leftY,
+                ep.rightX, ep.rightY,
+                SLASH_TRAIL_DURATION,
+                SLASH_TRAIL_THICKNESS,
+                SLASH_TRAIL_COLOR,
+            ),
+        );
+    })
+    .withDamage((ctx, hitUnits) => {
+        if (hitUnits.length === 0) return;
+        const eng = ctx.engine as SwingSwordEngineExt;
+        const applyBleed = hasJaggedEdge(eng, ctx.caster);
+        const roundNumber = eng.roundNumber ?? 0;
+
+        for (const targetUnit of hitUnits) {
+            const blocked = !tryDamageOrBlock(targetUnit, {
+                engine: eng,
+                gameTime: eng.gameTime,
+                eventBus: eng.eventBus,
+                attackerX: ctx.caster.x,
+                attackerY: ctx.caster.y,
+                attackerId: ctx.caster.id,
+                abilityId: CARD_ID,
+                damage: DAMAGE,
+                attackType: 'melee',
+            });
+            if (blocked) continue;
+
+            if (applyBleed) {
+                applyBleedStack(targetUnit, eng.gameTime, roundNumber);
+            }
+
+            const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, targetUnit.x, targetUnit.y);
+            targetUnit.applyKnockback(
+                POISE_DAMAGE,
+                {
+                    knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
+                    knockbackAirTime: KNOCKBACK_AIR_TIME,
+                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
+                    knockbackSource: { unitId: ctx.caster.id, abilityId: CARD_ID },
+                },
+                eng.eventBus,
+            );
+        }
+    });
+
+// ---- Timings ----
+
+const ABILITY_TIMINGS: AbilityTimingInterval[] = [
+    { id: 'windup',   start: 0,   end: 0.2,  abilityPhase: AbilityPhase.Windup },
+    { id: 'slash',    start: 0.2, end: 0.3,  abilityPhase: AbilityPhase.Active,
+      targetDef: { kind: 'select', label: 'Target', hitbox: SWING_SWORD_HITBOX, filter: 'enemy', allowMiss: true },
+      behaviour: swingSwordBehaviour },
+    { id: 'cooldown', start: 0.3, end: 1.3,  abilityPhase: AbilityPhase.Cooldown },
+];
+
+// ---- Image ----
 
 const SWING_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs><linearGradient id="swblade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9ca3af"/><stop offset="0.5" stop-color="#d1d5db"/><stop offset="1" stop-color="#e5e7eb"/></linearGradient></defs>
@@ -150,6 +168,8 @@ const SWING_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
   <ellipse cx="32" cy="32" rx="5" ry="5" fill="#d1d5db" opacity="0.5"/>
 </svg>`;
 
+// ---- Ability export ----
+
 export const SwingSwordAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Swing Sword',
@@ -157,18 +177,14 @@ export const SwingSwordAbility: AbilityStatic = {
     resourceCost: null,
     resourceCosts: [],
     rechargeTurns: 1,
-    tags: ['meleeTracking'],
-    prefireTime: PREFIRE_TIME,
-    abilityTimings: [
-        { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
-        { id: 'slash', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
-        { id: 'cooldown', start: 0.3, end: 1.3, abilityPhase: AbilityPhase.Cooldown },
-    ],
-    targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
-    aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
+    tags: [],
+    prefireTime: 0.2,
+    targets: [],
+    abilityTimings: ABILITY_TIMINGS,
+    aiSettings: { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange },
 
     getTooltipText(gameState?: unknown): string[] {
-        const engine = gameState as GameEngineLike | undefined;
+        const engine = gameState as SwingSwordEngineExt | undefined;
         const ownerId = engine?.localPlayerId ?? '';
         const nodes = engine?.getPlayerResearchNodes?.(ownerId, STICK_SWORD_TREE_ID) ?? [];
         const bleedLine = nodes.includes(STICK_SWORD_NODE_JAGGED_EDGE) ? ' Inflicts {Bleed}.' : '';
@@ -177,174 +193,23 @@ export const SwingSwordAbility: AbilityStatic = {
         ];
     },
 
-    getRange(caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: getMinRange(caster), maxRange: getMaxRange(caster) };
+    getRange(_caster: Unit): { minRange: number; maxRange: number } {
+        return { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange };
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < PREFIRE_TIME) {
+        if (currentTime < 0.2) {
             return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
         }
         return [];
     },
-    beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
-        const eng = engine as GameEngineLike;
-        const meleeAnimationProfile: MeleeAnimationProfile = {
-            ...SWING_SWORD_MELEE_ANIMATION,
-            chargeUp: SWING_SWORD_MELEE_ANIMATION.chargeUp
-                ? { ...SWING_SWORD_MELEE_ANIMATION.chargeUp }
-                : undefined,
-        };
-        if (meleeAnimationProfile.chargeUp) {
-            meleeAnimationProfile.chargeUp = {
-                ...meleeAnimationProfile.chargeUp,
-                pulses: meleeAnimationProfile.chargeUp.pulses.map((pulse) => ({ ...pulse })),
-            };
-            for (const pulse of meleeAnimationProfile.chargeUp.pulses) {
-                pulse.startRadius += caster.radius - DEFAULT_UNIT_RADIUS;
-                pulse.endRadius += caster.radius - DEFAULT_UNIT_RADIUS;
-            }
-        }
-        const pos = getPixelTargetPosition(targets, 0);
-        let trackedUnits: (Unit | null)[] = [];
-        if (pos) {
-            const minR = getMinRange(caster);
-            const maxR = getMaxRange(caster);
-            const line = getPerpendicularLine(caster, pos, minR, maxR);
-            const ctx = buildHitboxContext(eng.units);
-            const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
-            hits.sort((a, b) => {
-                const da = (a.x - pos.x) ** 2 + (a.y - pos.y) ** 2;
-                const db = (b.x - pos.x) ** 2 + (b.y - pos.y) ** 2;
-                return da - db;
-            });
-            trackedUnits = hits.slice(0, MAX_TARGETS).map((u) => u);
-        }
-        const payload: SwingSwordCastPayload = {
-            meleeAnimationProfile,
-            meleeTracking: buildMeleeTrackingEntries(trackedUnits),
-        };
-        active.castPayload = payload;
-        spawnMeleeChargeUpEffect(eng, caster, meleeAnimationProfile);
-    },
-    getCasterRenderOffset(caster: Unit, activeAbility: ActiveAbility, gameTime: number): { x: number; y: number } | null {
-        const payload = activeAbility.castPayload as SwingSwordCastPayload | undefined;
-        if (!payload?.meleeAnimationProfile) return null;
-        return getMeleeAnimationOffset(caster, activeAbility, gameTime, payload.meleeAnimationProfile);
+
+    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {
+        spawnChargeUp(engine as { addEffect(effect: Effect): void }, caster);
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number, active?: ActiveAbility): void {
-        const eng = engine as GameEngineLike;
-        const payload = active?.castPayload as SwingSwordCastPayload | undefined;
-        const tracking = payload?.meleeTracking;
-        const maxR = getMaxRange(caster);
-
-        if (tracking) {
-            for (const entry of tracking) {
-                updateMeleeTrackingEntry(eng, caster, entry, maxR);
-            }
-        }
-
-        if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
-
-        const fallbackPos = getPixelTargetPosition(targets, 0);
-        if (!fallbackPos && !tracking?.length) return;
-
-        const primaryEntry = tracking?.[0];
-        const vfxPos = primaryEntry && fallbackPos
-            ? getMeleeTrackingAimPoint(eng, primaryEntry, fallbackPos)
-            : (fallbackPos ?? null);
-
-        if (vfxPos) {
-            const minR = getMinRange(caster);
-            const line = getPerpendicularLine(caster, vfxPos, minR, maxR);
-            eng.addEffect(createSlashTrailEffect(line.leftX, line.leftY, line.rightX, line.rightY, SLASH_TRAIL_DURATION, SLASH_TRAIL_THICKNESS, SLASH_TRAIL_COLOR));
-        }
-
-        if (!tracking || tracking.length === 0) return;
-
-        const applyBleed = hasJaggedEdge(eng, caster);
-
-        for (const entry of tracking) {
-            if (entry.lockedPosition !== null) continue;
-            if (entry.unitId === null) continue;
-            const targetUnit = eng.getUnit(entry.unitId);
-            if (!targetUnit || !targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) continue;
-
-            const blocked = !tryDamageOrBlock(targetUnit, {
-                engine: eng,
-                gameTime: eng.gameTime,
-                eventBus: eng.eventBus,
-                attackerX: caster.x,
-                attackerY: caster.y,
-                attackerId: caster.id,
-                abilityId: CARD_ID,
-                damage: DAMAGE,
-                attackType: 'melee',
-            });
-            if (blocked) continue;
-
-            if (applyBleed) {
-                applyBleedStack(targetUnit, eng.gameTime, eng.roundNumber);
-            }
-
-            const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
-            targetUnit.applyKnockback(
-                POISE_DAMAGE,
-                {
-                    knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
-                    knockbackAirTime: KNOCKBACK_AIR_TIME,
-                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                    knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-                },
-                eng.eventBus,
-            );
-        }
-    },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
-
-    renderTargetingPreview(
-        gr: IAbilityPreviewGraphics,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-        units: Unit[],
-    ): void {
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        const line = getPerpendicularLine(caster, mouseWorld, minR, maxR);
-        const half = LINE_THICKNESS / 2;
-        const offX = line.aimDirX * half;
-        const offY = line.aimDirY * half;
-
-        const leftTopX = line.leftX + offX;
-        const leftTopY = line.leftY + offY;
-        const leftBotX = line.leftX - offX;
-        const leftBotY = line.leftY - offY;
-        const rightBotX = line.rightX - offX;
-        const rightBotY = line.rightY - offY;
-        const rightTopX = line.rightX + offX;
-        const rightTopY = line.rightY + offY;
-        gr.clear();
-        gr.moveTo(leftTopX, leftTopY);
-        gr.lineTo(leftBotX, leftBotY);
-        gr.lineTo(rightBotX, rightBotY);
-        gr.lineTo(rightTopX, rightTopY);
-        gr.lineTo(leftTopX, leftTopY);
-        gr.fill({ color: 0x9ca3af, alpha: 0.5 });
-        gr.stroke({ color: 0x9ca3af, width: 2, alpha: 0.95 });
-
-        const ctx = buildHitboxContext(units);
-        const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
-        if (hits.length > 0) {
-            hits.sort((a, b) => {
-                const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
-                const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
-                return da - db;
-            });
-            renderMeleeTrackingHighlights(gr, hits.slice(0, MAX_TARGETS));
-        }
+    onAttackBlocked(): void {
+        // Melee blocked: no additional behaviour.
     },
 };
 

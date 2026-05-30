@@ -7,6 +7,13 @@ export interface SelectTargetDef {
     hitbox: HitboxSpec;
     filter: 'enemy' | 'ally' | 'any';
     allowMiss?: boolean;
+    /**
+     * How many targets this timing window is expected to hit simultaneously.
+     * Drives the preview highlight count. Defaults to the hitbox's own `numTargets`
+     * (i.e. `selectDef.hitbox.numTargets`), which is itself 1 unless overridden.
+     * Set explicitly only when the targetDef highlight count should differ from the hitbox default.
+     */
+    numTargets?: number;
 }
 
 /** Reuse a target that was committed by an earlier SelectTargetDef timing. */

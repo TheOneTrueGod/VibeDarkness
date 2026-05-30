@@ -18,6 +18,13 @@ export abstract class HitboxSpec {
     abstract get maxRange(): number;
 
     /**
+     * Maximum number of targets this hitbox delivers to the damage system (default 1).
+     * `MeleeAttackBehaviour` caps `hitUnits` at this value before invoking `withDamage`.
+     * Override in subclasses that are designed to hit multiple targets simultaneously.
+     */
+    get numTargets(): number { return 1; }
+
+    /**
      * Render the targeting overlay for the in-progress target selection.
      * Returns the units that would be highlighted — callers do not need to re-query.
      */
@@ -204,7 +211,7 @@ function pointToSegmentDistance(
 }
 
 // ---------------------------------------------------------------------------
-// Factory
+// Factory (melee line)
 // ---------------------------------------------------------------------------
 
 /**
@@ -218,4 +225,181 @@ function pointToSegmentDistance(
  */
 export function meleeLineHitbox(maxRange: number, thickness: number): MeleeLineHitboxSpec {
     return new MeleeLineHitboxSpec(maxRange + DEFAULT_UNIT_RADIUS, thickness);
+}
+
+// ---------------------------------------------------------------------------
+// PerpendicularSwingHitboxSpec
+// ---------------------------------------------------------------------------
+
+/**
+ * HitboxSpec for perpendicular-swing melee abilities (e.g. Swing Stick, Swing Sword).
+ *
+ * The hitbox is a thick bar placed PERPENDICULAR to the aim direction, centred at
+ * `maxRange` (or the clamped click distance) from the caster. Unlike a forward melee
+ * line, the bar sweeps sideways across the aim point.
+ *
+ * `maxRange` already includes `DEFAULT_UNIT_RADIUS` padding (added by the factory).
+ */
+export class PerpendicularSwingHitboxSpec extends HitboxSpec {
+    /** Distance from caster to bar centre (includes DEFAULT_UNIT_RADIUS). */
+    readonly maxRange: number;
+    /** Full length of the perpendicular bar (px). */
+    readonly swingLength: number;
+    /** Hitbox band thickness — how wide the hit area is along the aim axis (px). */
+    readonly thickness: number;
+    private readonly _numTargets: number;
+
+    override get numTargets(): number { return this._numTargets; }
+
+    constructor(maxRange: number, swingLength: number, thickness: number, numTargets: number = 1) {
+        super();
+        this.maxRange = maxRange;
+        this.swingLength = swingLength;
+        this.thickness = thickness;
+        this._numTargets = numTargets;
+    }
+
+    /**
+     * Compute left/right endpoints of the perpendicular bar for a given aim direction.
+     * The bar centre is clamped to [0, maxRange] from the caster.
+     */
+    getEndpoints(
+        caster: { x: number; y: number },
+        aimX: number,
+        aimY: number,
+    ): {
+        leftX: number; leftY: number;
+        rightX: number; rightY: number;
+        centerX: number; centerY: number;
+        aimDirX: number; aimDirY: number;
+    } {
+        const dx = aimX - caster.x;
+        const dy = aimY - caster.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const aimDirX = dist > 1e-6 ? dx / dist : 1;
+        const aimDirY = dist > 1e-6 ? dy / dist : 0;
+        const clampedDist = dist > 1e-6 ? Math.min(this.maxRange, dist) : this.maxRange;
+        const centerX = caster.x + aimDirX * clampedDist;
+        const centerY = caster.y + aimDirY * clampedDist;
+        const half = this.swingLength / 2;
+        const perpX = -aimDirY * half;
+        const perpY =  aimDirX * half;
+        return {
+            leftX: centerX - perpX,
+            leftY: centerY - perpY,
+            rightX: centerX + perpX,
+            rightY: centerY + perpY,
+            centerX,
+            centerY,
+            aimDirX,
+            aimDirY,
+        };
+    }
+
+    renderTargetingPreview(
+        gr: IAbilityPreviewGraphics,
+        caster: HitboxPreviewCaster,
+        mouseWorld: { x: number; y: number },
+        units: Unit[],
+    ): Unit[] {
+        const ep = this.getEndpoints(caster, mouseWorld.x, mouseWorld.y);
+        const half = this.thickness / 2;
+        // Offset corners along the aim direction to give the bar its depth.
+        const offX = ep.aimDirX * half;
+        const offY = ep.aimDirY * half;
+        gr.clear();
+        gr.moveTo(ep.leftX + offX, ep.leftY + offY);
+        gr.lineTo(ep.leftX - offX, ep.leftY - offY);
+        gr.lineTo(ep.rightX - offX, ep.rightY - offY);
+        gr.lineTo(ep.rightX + offX, ep.rightY + offY);
+        gr.lineTo(ep.leftX + offX, ep.leftY + offY);
+        gr.fill({ color: 0xa0a0a0, alpha: 0.5 });
+        gr.stroke({ color: 0x505050, width: 2, alpha: 0.9 });
+        return this._getUnitsInBar(caster, mouseWorld.x, mouseWorld.y, units);
+    }
+
+    resolveTargets(
+        caster: Unit,
+        aimPoint: { x: number; y: number },
+        units: Unit[],
+    ): Unit[] {
+        return this._getUnitsInBar(caster, aimPoint.x, aimPoint.y, units)
+            .filter(u => u.id !== caster.id);
+    }
+
+    resolveHits(
+        engine: HitboxEngineContext,
+        caster: Unit,
+        aimX: number,
+        aimY: number,
+        lockOnId?: string,
+    ): Unit[] {
+        const ep = this.getEndpoints(caster, aimX, aimY);
+        const hits = ThickLineHitbox.getUnitsInHitbox(
+            engine,
+            caster,
+            ep.leftX, ep.leftY,
+            ep.rightX, ep.rightY,
+            this.thickness / 2,
+        );
+        if (lockOnId) {
+            const priorityIdx = hits.findIndex(u => u.id === lockOnId);
+            if (priorityIdx === -1) return [];
+            if (priorityIdx !== 0) {
+                const [priorityUnit] = hits.splice(priorityIdx, 1);
+                hits.unshift(priorityUnit!);
+            }
+        }
+        return hits;
+    }
+
+    // -----------------------------------------------------------------------
+
+    private _getUnitsInBar(
+        caster: { x: number; y: number },
+        aimX: number,
+        aimY: number,
+        units: Unit[],
+    ): Unit[] {
+        const ep = this.getEndpoints(caster, aimX, aimY);
+        const bdx = ep.rightX - ep.leftX;
+        const bdy = ep.rightY - ep.leftY;
+        const lenSq = bdx * bdx + bdy * bdy;
+        const result: Unit[] = [];
+        for (const unit of units) {
+            if (!unit.active || !unit.isAlive()) continue;
+            const dist = pointToSegmentDistance(
+                ep.leftX, ep.leftY, ep.rightX, ep.rightY,
+                bdx, bdy, lenSq,
+                unit.x, unit.y,
+            );
+            if (dist <= unit.radius + this.thickness / 2) {
+                result.push(unit);
+            }
+        }
+        return result;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Factory (perpendicular swing)
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a `PerpendicularSwingHitboxSpec` for a sweep/swing melee ability.
+ *
+ * `swingRange` is the distance from caster to bar centre *before* unit-radius padding.
+ * `DEFAULT_UNIT_RADIUS` is added automatically.
+ *
+ * @param swingRange   Distance from caster to bar centre in px (exclusive of unit radius).
+ * @param swingLength  Full length of the perpendicular bar in px.
+ * @param thickness    Hit band thickness along the aim axis in px.
+ */
+export function perpendicularSwingHitbox(
+    swingRange: number,
+    swingLength: number,
+    thickness: number,
+    numTargets: number = 1,
+): PerpendicularSwingHitboxSpec {
+    return new PerpendicularSwingHitboxSpec(swingRange + DEFAULT_UNIT_RADIUS, swingLength, thickness, numTargets);
 }
