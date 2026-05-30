@@ -8,7 +8,8 @@
  *
  * Timings:
  *   0.00–0.20  windup
- *   0.20–0.30  active slash (impact fires at window start, impactAt=0)
+ *   0.20–0.24  lunge forward (impactAt=0.4 → fires 40% through the active window)
+ *   0.24–0.30  backstep
  *   0.30–1.30  cooldown
  */
 
@@ -98,7 +99,6 @@ function hasJaggedEdge(engine: SwingSwordEngineExt, caster: Unit): boolean {
 const swingSwordBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(SWING_SWORD_HITBOX)
     .withSlide({ forwardDistance: 9, backwardDistance: 4 })
-    .withImpactAt(0)
     .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
         const ep = SWING_SWORD_HITBOX.getEndpoints(ctx.caster, aimX, aimY);
         ctx.engine.addEffect(

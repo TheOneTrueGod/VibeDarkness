@@ -7,7 +7,8 @@
  *
  * Timings:
  *   0.00–0.20  windup
- *   0.20–0.30  active strike (impact fires at window start, impactAt=0)
+ *   0.20–0.24  lunge forward (impactAt=0.4 → fires 40% through the active window)
+ *   0.24–0.30  backstep
  *   0.30–1.55  cooldown
  */
 
@@ -80,7 +81,6 @@ type SwingStickEngineExt = AbilityEngineContext & {
 const swingStickBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(SWING_STICK_HITBOX)
     .withSlide({ forwardDistance: 16, backwardDistance: 0 })
-    .withImpactAt(0)
     .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
         const ep = SWING_STICK_HITBOX.getEndpoints(ctx.caster, aimX, aimY);
         ctx.engine.addEffect(new Effect({

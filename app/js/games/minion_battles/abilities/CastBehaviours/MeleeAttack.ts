@@ -405,9 +405,13 @@ export class MeleeAttackBehaviour implements CastBehaviour {
             return { x: payload.aimDirX * forward, y: payload.aimDirY * forward };
         }
 
+        // Backstep: interpolate from +forwardDistance (at impact) → -backwardDistance (end of window).
+        // Starting from +forwardDistance ensures continuity with the forward phase so there
+        // is no position snap at impact, even when impactAt = 0.
         const remaining = 1 - this.impactAt;
         const t = remaining > 0 ? (p - this.impactAt) / remaining : 1;
-        const back = easeInOutQuad(t) * this.slideConfig.backwardDistance;
-        return { x: -payload.aimDirX * back, y: -payload.aimDirY * back };
+        const totalSlide = this.slideConfig.forwardDistance + this.slideConfig.backwardDistance;
+        const offsetMagnitude = this.slideConfig.forwardDistance - easeInOutQuad(t) * totalSlide;
+        return { x: payload.aimDirX * offsetMagnitude, y: payload.aimDirY * offsetMagnitude };
     }
 }
