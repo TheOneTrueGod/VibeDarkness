@@ -37,7 +37,7 @@ describe('ShakingGroundAbility', () => {
             },
         };
 
-        ShakingGroundAbility.doCardEffect(engine, caster, [], 0.3, 0.36);
+        ShakingGroundAbility.doCardEffect!(engine, caster, [], 0.3, 0.36);
 
         expect(nearEnemy.hp).toBe(90);
         expect(farEnemy.hp).toBe(100);

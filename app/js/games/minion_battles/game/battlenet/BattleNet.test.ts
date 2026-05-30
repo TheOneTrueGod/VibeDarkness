@@ -1891,7 +1891,7 @@ describe('BattleNet', () => {
         await flushLobbyLogBatchQueueForTests();
 
         const detectorLogged = appendLobbyLogBatch.mock.calls.some((call) => {
-            const lines = (call[1] as { lines?: Array<{ message?: string }> } | undefined)?.lines;
+            const lines = ((call as unknown[])[1] as { lines?: Array<{ message?: string }> } | undefined)?.lines;
             return lines?.some((row) => row.message === 'stuck-paused host ahead: forcing order rescan from tick 0');
         });
         expect(detectorLogged).toBe(true);

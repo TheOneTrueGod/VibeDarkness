@@ -7,7 +7,7 @@ describe('shield ability use configs', () => {
         ['0106', 'Laser Shield'],
         ['0110', 'Shining Block'],
         ['0113', 'Absorption Shield'],
-    ] as const)('gives %s (%s) three max uses (base + two extra)', (id) => {
+    ] as const)('gives %s (%s) three max uses (base + two extra)', (id, _name) => {
         expect(getAbilityUseConfig(id).maxUses).toBe(3);
     });
 });

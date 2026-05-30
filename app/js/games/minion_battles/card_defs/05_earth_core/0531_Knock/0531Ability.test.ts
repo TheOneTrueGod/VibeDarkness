@@ -33,7 +33,7 @@ describe('Knock', () => {
         };
         const targets: ResolvedTarget[] = [{ type: 'pixel', position: { x: 140, y: 0 } }];
 
-        ability!.doCardEffect(engine, caster, targets, 0.1, 0.26);
+        ability!.doCardEffect!(engine, caster, targets, 0.1, 0.26);
 
         expect(projectiles).toHaveLength(1);
         expect(projectiles[0]?.modifiers).toContain('stonephase');

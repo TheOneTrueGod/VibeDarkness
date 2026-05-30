@@ -21,7 +21,7 @@ interface CharacterCreatorProps {
         missionId: string;
         name?: string;
         equipment?: string[];
-    }) => Promise<{ id: string; portraitId: string }>;
+    }) => Promise<{ id: string; portraitId: string; name?: string }>;
     anchorRef: React.RefObject<HTMLElement | null>;
     /** Account ID of the local player; used to restrict which portraits are selectable. */
     localPlayerId?: number;

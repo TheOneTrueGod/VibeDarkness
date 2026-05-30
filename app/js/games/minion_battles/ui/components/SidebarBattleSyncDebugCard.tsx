@@ -12,7 +12,7 @@ type SyncDebugWindow = {
 export default function SidebarBattleSyncDebugCard() {
     const [, forceRerender] = useReducer((x: number, _action: unknown) => x + 1, 0);
     useEffect(() => {
-        const id = window.setInterval(() => forceRerender(), 100);
+        const id = window.setInterval(() => forceRerender(undefined), 100);
         return () => window.clearInterval(id);
     }, []);
 

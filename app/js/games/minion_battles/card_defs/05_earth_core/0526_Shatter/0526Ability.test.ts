@@ -41,7 +41,7 @@ describe('ShatterAbility', () => {
             },
         };
 
-        ShatterAbility.doCardEffect(
+        ShatterAbility.doCardEffect!(
             engine,
             caster,
             [{ type: 'pixel', position: { x: target.x, y: target.y } }],

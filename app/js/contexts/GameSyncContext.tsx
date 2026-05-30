@@ -88,7 +88,7 @@ export function GameSyncProvider({
       debugLog('sync tracking', 'info', 'fetchFullState start');
       setSyncStatus((prev) => (prev === 'loading' ? 'loading' : 'resyncing'));
       try {
-        const { gameState: gs } = await lobbyClient.getLobbyState(lobbyId, playerId, gameId ?? undefined);
+        const { gameState: gs } = await lobbyClient.getLobbyState(lobbyId, playerId);
         setGameState(gs as GameStatePayload);
         setSyncStatus('synced');
       } catch (err) {

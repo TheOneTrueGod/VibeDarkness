@@ -7,6 +7,7 @@ import type { PlayerState } from '../../../types';
 import { BattleSession } from './BattleSession';
 import type { BattleOrder } from './types';
 import { GameEngine } from './GameEngine';
+import { OrderManager } from './managers/OrderManager';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 
 const FIXED_DT = 1 / 60;
@@ -89,7 +90,7 @@ describe('BattleSession.applyRemoteOrders', () => {
         const row = Math.floor(unit.y / 40);
         const order = makeWaitOrder(unitId, col + 1, row);
 
-        const spy = vi.spyOn(GameEngine.prototype, 'queueOrder');
+        const spy = vi.spyOn(OrderManager.prototype, 'queueOrder');
         session.applyRemoteOrders([
             { atTick, order, idHash: 'wire-dedupe-1', playerId: 'p2' },
             { atTick, order, idHash: 'wire-dedupe-1', playerId: 'p2' },
@@ -111,7 +112,7 @@ describe('BattleSession.applyRemoteOrders', () => {
         const order = makeWaitOrder(unitId, col + 2, row);
         const playerId = 'p2';
 
-        const spy = vi.spyOn(GameEngine.prototype, 'queueOrder');
+        const spy = vi.spyOn(OrderManager.prototype, 'queueOrder');
         session.applyRemoteOrders([{ atTick, order, playerId }]);
         session.applyRemoteOrders([{ atTick, order, playerId }]);
         expect(spy).toHaveBeenCalledTimes(1);
@@ -134,7 +135,7 @@ describe('BattleSession.applyRemoteOrders', () => {
         const row = Math.floor(unit.y / 40);
         const order = makeWaitOrder(unitId, col + 1, row);
 
-        const spy = vi.spyOn(GameEngine.prototype, 'queueOrder');
+        const spy = vi.spyOn(OrderManager.prototype, 'queueOrder');
         session.seedRemoteOrderDedupeKeys(['pre-seeded']);
         const r = session.applyRemoteOrders([{ atTick, order, idHash: 'pre-seeded', playerId: 'p2' }]);
         expect(spy).not.toHaveBeenCalled();

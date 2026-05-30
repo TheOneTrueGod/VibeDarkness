@@ -110,8 +110,8 @@ describe('Reconnect / resync during order pause', () => {
         expect(restored.waitingForOrders).not.toBeNull();
         expect(restored.gameTick).toBe(tickAtPause);
         expect(restored.waitingForOrders!.atTick).toBe(snap.waitingForOrders!.atTick);
-        expect(restored.getActiveOrderWaiterForPlayer('p1')?.unitId).toBe('unit_p1');
-        expect(restored.getActiveOrderWaiterForPlayer('p2')?.unitId).toBe('unit_p2');
+        expect(restored.state.orderMgr.getActiveOrderWaiterForPlayer('p1')?.unitId).toBe('unit_p1');
+        expect(restored.state.orderMgr.getActiveOrderWaiterForPlayer('p2')?.unitId).toBe('unit_p2');
         restored.tryResumeParallel();
         expect(restored.waitingForOrders).not.toBeNull();
 
@@ -129,9 +129,9 @@ describe('Reconnect / resync during order pause', () => {
         const restored = GameEngine.fromJSON(engine.toJSON() as SerializedGameState, 'p1', null);
         engine.destroy();
 
-        restored.applyOrder(makeWaitOrder('unit_p1', 6, 5));
+        restored.state.orderMgr.applyOrder(makeWaitOrder('unit_p1', 6, 5));
         expect(restored.waitingForOrders).not.toBeNull();
-        restored.applyOrder(makeWaitOrder('unit_p2', 9, 5));
+        restored.state.orderMgr.applyOrder(makeWaitOrder('unit_p2', 9, 5));
         expect(restored.waitingForOrders).toBeNull();
         expect(restored.isPaused).toBe(false);
 
@@ -192,7 +192,7 @@ describe('Reconnect / resync during order pause', () => {
         expect(restored.isPaused).toBe(true);
         expect(restored.waitingForOrders).not.toBeNull();
         expect(restored.waitingForOrders!.waiters.map((w) => w.unitId).sort()).toEqual(['unit_p1', 'unit_p2']);
-        expect(restored.getActiveOrderWaiterForPlayer('p2')?.unitId).toBe('unit_p2');
+        expect(restored.state.orderMgr.getActiveOrderWaiterForPlayer('p2')?.unitId).toBe('unit_p2');
         restored.destroy();
     });
 });

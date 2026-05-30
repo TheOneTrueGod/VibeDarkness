@@ -42,8 +42,6 @@ function makeApi(overrides: Partial<BattleApi> = {}): BattleApi {
         saveBattleSnapshot: vi.fn(async () => {}) as unknown as BattleApi['saveBattleSnapshot'],
         appendBattleFingerprints: vi.fn(async () => ({ appended: 0 })) as unknown as BattleApi['appendBattleFingerprints'],
         getBattleFingerprintsRange: vi.fn(async () => ({ records: [] })) as unknown as BattleApi['getBattleFingerprintsRange'],
-        appendLobbyLog: vi.fn(async () => undefined),
-        appendLobbyLogBatch: vi.fn(async () => undefined),
         ...overrides,
     };
 }

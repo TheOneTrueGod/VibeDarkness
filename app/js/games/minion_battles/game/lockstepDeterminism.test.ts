@@ -59,13 +59,13 @@ describe('lockstep determinism', () => {
                 const waiting = engine.waitingForOrders;
                 if (waiting) {
                     for (const waiter of waiting.waiters) {
-                        if (engine.hasPendingOrderForUnit(waiter.unitId, waiting.atTick)) continue;
+                        if (engine.state.orderMgr.hasPendingOrderForUnit(waiter.unitId, waiting.atTick)) continue;
                         const unit = engine.getUnit(waiter.unitId);
                         if (!unit) continue;
                         const baseCol = Math.floor(unit.x / 40);
                         const baseRow = Math.floor(unit.y / 40);
                         const moveDelta = (waiting.atTick + waiter.unitId.length) % 2 === 0 ? 1 : -1;
-                        engine.queueOrder(waiting.atTick, {
+                        engine.state.orderMgr.queueOrder(waiting.atTick, {
                             unitId: waiter.unitId,
                             abilityId: 'wait',
                             targets: [],

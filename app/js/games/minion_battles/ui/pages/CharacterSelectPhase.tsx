@@ -378,7 +378,7 @@ export default function CharacterSelectPhase({
                 );
                 setMyCharacters(mapped);
             }
-            return { id: character.id, portraitId: character.portraitId };
+            return { id: character.id, portraitId: character.portraitId, name: character.name };
         },
         [api],
     );

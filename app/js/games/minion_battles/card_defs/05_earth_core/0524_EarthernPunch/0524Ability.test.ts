@@ -32,7 +32,7 @@ describe('EarthernPunchAbility', () => {
             },
         };
 
-        EarthernPunchAbility.doCardEffect(
+        EarthernPunchAbility.doCardEffect!(
             engine,
             caster,
             [{ type: 'pixel', position: { x: target.x, y: target.y } }],

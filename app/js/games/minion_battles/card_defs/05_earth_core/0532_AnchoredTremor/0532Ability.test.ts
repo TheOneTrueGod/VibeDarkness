@@ -36,7 +36,7 @@ describe('Anchored Tremor', () => {
         };
         const targets: ResolvedTarget[] = [{ type: 'pixel', position: { x: 0, y: 0 } }];
 
-        AnchoredTremor.doCardEffect(engine, caster, targets, 0.2, 0.91);
+        AnchoredTremor.doCardEffect!(engine, caster, targets, 0.2, 0.91);
 
         // Two pulses (3 + 5) and stone bonus per pulse (+2 each).
         expect(enemyOnStone.hp).toBe(100 - (3 + 2) - (5 + 2));

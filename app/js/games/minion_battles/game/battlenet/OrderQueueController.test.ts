@@ -99,7 +99,7 @@ function makeCtx(): BattleNetContext & { requestResync: ReturnType<typeof vi.fn>
         events,
         syncStatus,
         get syncReconciler() {
-            return syncReconciler;
+            return syncReconcilerRef.current!;
         },
         heartbeatHttp,
         heartbeatState,

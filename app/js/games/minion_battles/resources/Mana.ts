@@ -22,7 +22,7 @@ export class Mana extends Resource {
     protected subscribe(unit: Unit, eventBus: EventBus): void {
         this.boundOnTurnEnd = (data: TurnEndEvent) => {
             const ids = data.unitIds ?? (data.unitId != null ? [data.unitId] : []);
-            if (ids.includes(this.unitId)) {
+            if (this.unitId !== null && ids.includes(this.unitId)) {
                 this.add(15);
             }
         };

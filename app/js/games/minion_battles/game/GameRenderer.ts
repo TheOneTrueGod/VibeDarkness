@@ -383,11 +383,6 @@ export class GameRenderer {
 
 			this.fogFilter = tryCreateFogFilter();
 			if (this.fogFilter) {
-				for (let i = DarknessLevel.FULL_DARKNESS; i <= DarknessLevel.SUNLIGHT; i++) {
-					console.log(`JERTEST - Light Level: ${i + 0.25} -> alpha:  ${GameRenderer.lightLevelToAlpha(i + 0.25)}`)
-					console.log(`JERTEST - Light Level: ${i + 0.5} -> alpha:  ${GameRenderer.lightLevelToAlpha(i + 0.5)}`)
-					console.log(`JERTEST - Light Level: ${i + 0.75} -> alpha:  ${GameRenderer.lightLevelToAlpha(i + 0.75)}`)
-				}
 				this.fogFilter.fogStartAlpha = GameRenderer.lightLevelToAlpha(DarknessLevel.DARKNESS_FOG);
 				this.darknessOverlaySprite.filters = [this.fogFilter];
 			}

@@ -537,6 +537,7 @@ export const ABILITY_PHASE_COLORS: Record<AbilityPhase, string> = {
     [AbilityPhase.CoopCooldown]: '#facc15', // brighter yellow (timeline / ring)
     [AbilityPhase.Iframe]: '#ffffff', // white
     [AbilityPhase.Juggernaut]: '#d1d5db', // light gray
+    [AbilityPhase.Waiting]: '#6b7280', // gray
 };
 
 /** Earliest-declared covering interval at `elapsed` wins (same as timeline merge). */

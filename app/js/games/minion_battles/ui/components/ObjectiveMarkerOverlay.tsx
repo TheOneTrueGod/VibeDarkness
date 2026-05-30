@@ -61,7 +61,7 @@ export default function ObjectiveMarkerOverlay({
                     displayY = targetY;
                 } else {
                     const unit = engine.units.find(
-                        (u) => u.isAlive() && u.tags.includes(markerConfig.target.tag as UnitTag),
+                        (u) => u.isAlive() && u.tags.includes((markerConfig.target as { tag: UnitTag }).tag),
                     );
                     if (!unit) {
                         el.style.display = 'none';
