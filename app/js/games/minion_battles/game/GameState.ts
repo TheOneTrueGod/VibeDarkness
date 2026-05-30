@@ -2,7 +2,6 @@
  * GameState — authoritative battle data: managers, terrain, timing scalars, and queues.
  * GameEngine owns orchestration (tick loop, callbacks); simulation data lives here.
  */
-import { EventBus } from './EventBus';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { EngineContext } from './EngineContext';
 import { UnitManager } from './managers/UnitManager';
@@ -22,7 +21,6 @@ import { OrderManager } from './managers/OrderManager';
 import type { LightTileGrid } from './lightTileGrid/LightTileGrid';
 
 export class GameState {
-    readonly eventBus = new EventBus();
 
     /** Deterministic RNG seed (host-generated before initial sync). */
     randomSeed = 0;

@@ -106,6 +106,9 @@ function parseGameObjectIdNumber(id: string): number | null {
 }
 
 export class GameEngine implements EngineContext {
+    /** Initialized before GameState so managers can subscribe during their constructors. */
+    readonly eventBus = new EventBus();
+
     /** Simulation data: managers, terrain, queues, timing scalars. */
     readonly state = new GameState(this);
 
@@ -137,10 +140,6 @@ export class GameEngine implements EngineContext {
     private pendingAdminReason: string | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
-
-    get eventBus(): EventBus {
-        return this.state.eventBus;
-    }
 
     get randomSeed(): number {
         return this.state.randomSeed;

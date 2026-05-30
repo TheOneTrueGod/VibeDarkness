@@ -30,9 +30,9 @@ See each manager's file for its public API and `toJSON`/`restoreFromJSON` method
 
 ## What lives on `GameState` vs `GameEngine`
 
-**`GameState`** holds: `eventBus`, timing scalars (`gameTime`, `gameTick`, `roundNumber`, `snapshotIndex`, `randomSeed`, pause/waiting, `synchash`), `terrainManager`, `pendingOrders`, `localPlayerId`, `aiControllerId`, light config, and all **manager instances**.
+**`GameState`** holds: timing scalars (`gameTime`, `gameTick`, `roundNumber`, `snapshotIndex`, `randomSeed`, pause/waiting, `synchash`), `terrainManager`, `pendingOrders`, `localPlayerId`, `aiControllerId`, light config, and all **manager instances**.
 
-**`GameEngine`** holds: **loop state** (`accumulator`, `lastTimestamp`, `animFrameId`, `running`, `synchashUpdateSeq`), **callbacks** (`onWaitingForOrders`, `onCheckpoint`, etc.), and implements the tick loop, RNG methods, turn/order logic, ability execution, AI context, cross-cutting tick helpers, facade API, and `toJSON` / `fromJSON` orchestration.
+**`GameEngine`** holds: `eventBus` (initialized before `GameState` so managers can subscribe during their constructors), **loop state** (`accumulator`, `lastTimestamp`, `animFrameId`, `running`, `synchashUpdateSeq`), **callbacks** (`onWaitingForOrders`, `onCheckpoint`, etc.), and implements the tick loop, RNG methods, turn/order logic, ability execution, AI context, cross-cutting tick helpers, facade API, and `toJSON` / `fromJSON` orchestration.
 
 ## fixedUpdate Flow
 
