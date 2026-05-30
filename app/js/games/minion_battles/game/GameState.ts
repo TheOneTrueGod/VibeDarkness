@@ -19,6 +19,7 @@ import type { BramblePatch } from './brambleSlow';
 import type { MapSegmentPOI } from '../terrain/segmentSchema';
 import { LanterniteRespawnManager } from './lanternite/LanterniteRespawnManager';
 import { OrderManager } from './managers/OrderManager';
+import type { LightTileGrid } from './lightTileGrid/LightTileGrid';
 
 export class GameState {
     readonly eventBus = new EventBus();
@@ -57,6 +58,9 @@ export class GameState {
     readonly orderMgr: OrderManager;
 
     terrainManager: TerrainManager | null = null;
+
+    /** Stored per-tile light levels, updated every LIGHT_TICK_INTERVAL engine ticks. */
+    lightTileGrid: LightTileGrid | null = null;
 
     /** Active bramble slow zones (game-state objects, not visual effects). */
     bramblePatches: BramblePatch[] = [];

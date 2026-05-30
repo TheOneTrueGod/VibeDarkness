@@ -34,6 +34,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from './abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from './general/lanternites';
+import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario } from './general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -77,6 +78,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     lanterniteNestBuildScenario,
     lanterniteNestDualSpawnScenario,
     lanterniteDefenderAttackScenario,
+    lightingIlluminatesAreaScenario,
+    lightDelayedFadeScenario,
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
     earthCoreShatterScenario,
@@ -133,6 +136,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'debuffs', section: 'Debuffs' },
     { slug: 'enemies', section: 'Enemies' },
     { slug: 'lanternites', section: 'Lanternites' },
+    { slug: 'lighting', section: 'Lighting' },
 ];
 
 export interface GeneralTestSidebarGroup {

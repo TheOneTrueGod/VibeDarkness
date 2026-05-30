@@ -19,6 +19,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
+import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario } from '../scenarios/general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -178,6 +179,16 @@ describe('runScenarioHeadless', () => {
 
     it('passes earth core deep resonance tremorsense radius scenario', () => {
         const r = runScenarioHeadless(earthCoreDeepResonanceScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes lighting illuminates area scenario', () => {
+        const r = runScenarioHeadless(lightingIlluminatesAreaScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes light delayed fade scenario', () => {
+        const r = runScenarioHeadless(lightDelayedFadeScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

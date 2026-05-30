@@ -122,6 +122,8 @@ export interface SerializedGameState {
     objectives?: { completedIds: string[]; revealedIds: string[] };
     /** Persistent in-game light sources (thrown torches, etc.). */
     lightSources?: Record<string, unknown>[];
+    /** Stored per-tile light levels (quadrant-organized). */
+    lightTileGrid?: { w: number; h: number; q: number[][] } | null;
     /** Active bramble slow zones. */
     bramblePatches?: Record<string, unknown>[];
     /** Serialized effect emitters (runtime-only factories not included; short-lived, safe to drop on reconnect). */

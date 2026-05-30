@@ -35,7 +35,8 @@ import type { BattleObjectiveDef, LevelEvent } from '../storylines/types';
 import type { SpecialTile } from './specialTiles/SpecialTile';
 import { isTileDefendPoint } from './specialTiles/SpecialTile';
 import type { AIContext, AILightSource } from './units/unitAI';
-import { getLightGrid, type LightSource as GridLightInput } from './LightGrid';
+import { computeLightGrid, type LightSource as GridLightInput } from './LightGrid';
+import { LightTileGrid } from './lightTileGrid/LightTileGrid';
 import { LightSource } from './lightSources/LightSource';
 import { DarkCreatureIconDeathEffect } from './deathEffects/DarkCreatureIconDeathEffect';
 import { getDeathEffectDef } from './units/unit_defs/unitDef';
@@ -87,6 +88,9 @@ const FIXED_DT = 1 / 60;
 /** Save a checkpoint to the server every this many game ticks. */
 export const CHECKPOINT_INTERVAL = 10;
 
+/** Engine ticks between each lightGameTick (60/s → 10 ≈ 6 light updates/s). */
+export const LIGHT_TICK_INTERVAL = 10;
+
 /** Game world dimensions. */
 export const WORLD_WIDTH = 1200;
 export const WORLD_HEIGHT = 800;
@@ -132,7 +136,6 @@ export class GameEngine implements EngineContext {
     private pendingAdminReason: string | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
-    private cachedLightGrid: number[][] | null = null;
 
     get eventBus(): EventBus {
         return this.state.eventBus;
@@ -368,16 +371,39 @@ export class GameEngine implements EngineContext {
     }
 
     getLightLevelAt(x: number, y: number): number | null {
-        if (!this.lightLevelEnabled || !this.terrainManager?.grid) return null;
-        if (!this.cachedLightGrid) {
-            const { width, height } = this.terrainManager.grid;
-            this.cachedLightGrid = getLightGrid(this.globalLightLevel, width, height, this.getAllLightSources());
-        }
+        const grid = this.state.lightTileGrid;
+        if (!grid || !this.lightLevelEnabled || !this.terrainManager?.grid) return null;
         const { col, row } = this.terrainManager.grid.worldToGrid(x, y);
-        const grid = this.cachedLightGrid;
-        const safeRow = Math.max(0, Math.min(grid.length - 1, row));
-        const safeCol = Math.max(0, Math.min((grid[0]?.length ?? 0) - 1, col));
-        return grid[safeRow]?.[safeCol] ?? null;
+        return grid.get(
+            Math.max(0, Math.min(grid.gridHeight - 1, row)),
+            Math.max(0, Math.min(grid.gridWidth - 1, col)),
+        );
+    }
+
+    private initLightGrid(): void {
+        if (!this.terrainManager?.grid) return;
+        const { width, height } = this.terrainManager.grid;
+        const tileGrid = LightTileGrid.create(width, height);
+        const target = computeLightGrid(this.globalLightLevel, width, height, this.getAllLightSources());
+        for (let row = 0; row < height; row++)
+            for (let col = 0; col < width; col++)
+                tileGrid.set(row, col, target[row][col]);
+        this.state.lightTileGrid = tileGrid;
+    }
+
+    private runLightGameTick(): void {
+        const grid = this.state.lightTileGrid;
+        if (!grid || !this.terrainManager?.grid) return;
+        const { width, height } = this.terrainManager.grid;
+        const target = computeLightGrid(this.globalLightLevel, width, height, this.getAllLightSources());
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                const cur = grid.get(row, col);
+                const tgt = target[row][col];
+                if (cur < tgt) grid.set(row, col, cur + 1);
+                else if (cur > tgt) grid.set(row, col, cur - 1);
+            }
+        }
     }
 
     setOnEmitMessage(cb: (text: string, npcId?: string) => void): void {
@@ -581,6 +607,7 @@ export class GameEngine implements EngineContext {
     setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
         this.lightLevelEnabled = lightLevelEnabled;
         this.globalLightLevel = globalLightLevel;
+        if (lightLevelEnabled && this.terrainManager?.grid) this.initLightGrid();
     }
 
     setOnWaitingForOrders(cb: (info: WaitingForOrders) => void): void {
@@ -997,7 +1024,6 @@ export class GameEngine implements EngineContext {
         this.gameTime += dt;
         this.gameTick++;
         this.naturalAbilityCompletionUnitIdsThisTick.clear();
-        this.cachedLightGrid = null;
 
         const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
         this.processRoundProgressMilestones(roundTime);
@@ -1059,6 +1085,7 @@ export class GameEngine implements EngineContext {
         for (const fx of emitterEffects) this.state.effectManager.addEffect(fx);
         this.state.effectManager.gameUpdate(dt);
         this.state.lightSourceManager.update(dt);
+        if (this.gameTick % LIGHT_TICK_INTERVAL === 0) this.runLightGameTick();
         processLanterniteNests({
             gameTime: this.gameTime,
             units: this.units,
@@ -1350,6 +1377,7 @@ export class GameEngine implements EngineContext {
             objectives: this.state.objectiveManager.toJSON(),
             lightSources: this.state.lightSourceManager.toJSON(),
             bramblePatches: this.state.bramblePatches.map(bramblePatchToJSON),
+            lightTileGrid: this.state.lightTileGrid?.toJSON() ?? null,
         };
     }
 
@@ -1454,6 +1482,9 @@ export class GameEngine implements EngineContext {
 
         // Restore light sources
         engine.state.lightSourceManager.restoreFromJSON(data.lightSources ?? []);
+
+        // Restore light tile grid
+        engine.state.lightTileGrid = data.lightTileGrid ? LightTileGrid.fromJSON(data.lightTileGrid) : null;
 
         // Restore bramble patches
         engine.state.bramblePatches = (data.bramblePatches ?? []).map(

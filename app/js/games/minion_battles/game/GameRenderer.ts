@@ -36,7 +36,6 @@ import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } fro
 import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from './effectImages';
 import { getSpecialTileDef } from '../storylines/specialTileDefs';
 import type { SpecialTile } from './specialTiles/SpecialTile';
-import { getLightGrid, clearLightGridCache, type LightSource } from './LightGrid';
 import type { DamageTakenEvent } from './EventBus';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 import { getPortraitIds, PORTRAITS } from '../character_defs/portraitLoader';
@@ -159,8 +158,8 @@ export class GameRenderer {
 	private fogTintSprite: Sprite | null = null;
 	/** Animated fog shader applied to the darkness overlay. Null if GPU doesn't support it. */
 	private fogFilter: FogFilter | null = null;
-	/** Full overlay cache key (sources + globalLightLevel + size); when it changes we redraw. */
-	private lastOverlayKey: string | null = null;
+	/** gameTick of the last darkness overlay redraw; redraw whenever tick advances. */
+	private lastOverlayTick: number = -1;
 	/** Current light grid [row][col], for unit visibility. Set when light enabled. */
 	private currentLightGrid: number[][] | null = null;
 	/** performance.now() timestamp of the last render call, for fog animation delta-time. */
@@ -207,7 +206,7 @@ export class GameRenderer {
 		engine.eventBus.off('damage_taken', this.damageTakenBound);
 		this.eventBusSource = null;
 		this.clearHitFlashes();
-		this.lastOverlayKey = null;
+		this.lastOverlayTick = -1;
 		this.currentLightGrid = null;
 	}
 
@@ -443,46 +442,25 @@ export class GameRenderer {
 		return 1 - (baseDarkness + remainingDarkness * lightPctLerp);
 	}
 
-	private getLightSourcesFromSpecialTiles(specialTiles: SpecialTile[]): LightSource[] {
-		const sources: LightSource[] = [];
-		for (const tile of specialTiles) {
-			if (tile.hp <= 0) continue;
-			const light = tile.emitsLight;
-			if (light != null && tile.maxHp > 0) {
-				// 100% HP => 100% emission; 1% HP => 50% emission; 0% => no light (tile removed)
-				const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
-				sources.push({ col: tile.col, row: tile.row, emission: light.lightAmount * scale, radius: light.radius });
-			}
-		}
-		return sources;
-	}
-
-	/** Build light sources from LightSourceManager. */
-	private getLightSourcesFromEffects(engine: GameEngine): LightSource[] {
-		return engine.state.lightSourceManager.buildGridLightInputs();
-	}
-
-	private static lightSourcesKey(sources: LightSource[]): string {
-		const parts = sources
-			.slice()
-			.sort((a, b) => a.col - b.col || a.row - b.row)
-			.map((s) => `${s.col},${s.row},${s.emission},${s.radius}`);
-		return parts.join('|');
-	}
-
 	private updateDarknessOverlay(engine: GameEngine): void {
-		const grid = engine.terrainManager!.grid;
-		const width = grid.width;
-		const height = grid.height;
-		const sources = [
-			...this.getLightSourcesFromSpecialTiles(engine.specialTiles),
-			...this.getLightSourcesFromEffects(engine),
-		];
-		this.currentLightGrid = getLightGrid(this.globalLightLevel, width, height, sources);
+		const tileGrid = engine.state.lightTileGrid;
+		const terrainGrid = engine.terrainManager!.grid;
+		const width = terrainGrid.width;
+		const height = terrainGrid.height;
 
-		const overlayKey = `${GameRenderer.lightSourcesKey(sources)}|${this.globalLightLevel}|${width}|${height}`;
-		if (overlayKey !== this.lastOverlayKey && this.darknessOverlaySprite) {
-			this.lastOverlayKey = overlayKey;
+		if (tileGrid) {
+			if (!this.currentLightGrid || this.currentLightGrid.length !== height) {
+				this.currentLightGrid = Array.from({ length: height }, () => new Array(width).fill(0));
+			}
+			for (let row = 0; row < height; row++)
+				for (let col = 0; col < width; col++)
+					this.currentLightGrid[row][col] = tileGrid.get(row, col);
+		} else {
+			this.currentLightGrid = null;
+		}
+
+		if (engine.state.gameTick !== this.lastOverlayTick && this.darknessOverlaySprite) {
+			this.lastOverlayTick = engine.state.gameTick;
 			const worldW = width * CELL_SIZE;
 			const worldH = height * CELL_SIZE;
 			const canvas = document.createElement('canvas');
@@ -491,7 +469,7 @@ export class GameRenderer {
 			const ctx = canvas.getContext('2d')!;
 			for (let row = 0; row < height; row++) {
 				for (let col = 0; col < width; col++) {
-					const level = this.currentLightGrid![row][col];
+					const level = this.currentLightGrid ? this.currentLightGrid[row][col] : this.globalLightLevel;
 					const alpha = GameRenderer.lightLevelToAlpha(level);
 					if (alpha > 0) {
 						ctx.fillStyle = `rgba(20,0,35,${alpha})`;
@@ -593,7 +571,7 @@ export class GameRenderer {
 				engine.eventBus.on('damage_taken', this.damageTakenBound);
 			}
 			this.clearHitFlashes();
-			this.lastOverlayKey = null;
+			this.lastOverlayTick = -1;
 			this.currentLightGrid = null;
 		}
 
@@ -1717,7 +1695,6 @@ export class GameRenderer {
 		this.gameContainer.destroy();
 		this.initInFlight = null;
 		this.app.destroy();
-		clearLightGridCache();
 		this.initialized = false;
 	}
 }
