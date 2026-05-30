@@ -13,9 +13,9 @@ export interface LightSource {
     radius: number;
 }
 
-/** Euclidean distance in tiles (tile center to source center). */
-function euclideanDistance(col: number, row: number, sc: number, sr: number): number {
-    return Math.sqrt((col - sc) ** 2 + (row - sr) ** 2);
+/** Manhattan distance in tiles — all cells at the same ring distance get identical contributions. */
+function manhattanDistance(col: number, row: number, sc: number, sr: number): number {
+    return Math.abs(col - sc) + Math.abs(row - sr);
 }
 
 /**
@@ -46,10 +46,14 @@ export function computeLightGrid(
         for (let col = 0; col < width; col++) {
             let best = 0;
             for (const s of sources) {
-                const range = s.radius + Math.abs(s.emission);
-                const d = euclideanDistance(col, row, s.col, s.row);
+                // Snap to 0.25 increments so ring boundaries transition atomically for all
+                // cells at the same distance rather than drifting cell-by-cell as values decay.
+                const emission = Math.round(s.emission * 4) / 4;
+                const radius   = Math.round(s.radius   * 4) / 4;
+                const range = radius + Math.abs(emission);
+                const d = manhattanDistance(col, row, s.col, s.row);
                 if (d > range) continue;
-                const contrib = sourceContribution(s.emission, s.radius, d);
+                const contrib = sourceContribution(emission, radius, d);
                 if (Math.abs(contrib) > Math.abs(best)) best = contrib;
             }
             r.push(globalLightLevel + best);
