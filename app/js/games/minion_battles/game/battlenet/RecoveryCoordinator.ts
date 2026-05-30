@@ -155,6 +155,11 @@ export class RecoveryCoordinator {
         }
     }
 
+    /** Debug: load initial state and replay all orders from tick 0. */
+    async replayMissionFromStart(): Promise<void> {
+        await this.performInitialStateReplay();
+    }
+
     /** Host-persisted battle start + full order log replay (tick 0 baseline). */
     private async performInitialStateReplay(): Promise<boolean> {
         const initial = await this.ctx.api.getBattleInitialState(
@@ -301,6 +306,9 @@ export class RecoveryCoordinator {
                     isHost: this.ctx.isHost,
                     engineTick: tickAtRecoveryEntry,
                     deferredRows,
+                    // H2 probe: stale pre-recovery fingerprints still in pendingBatch at recovery entry.
+                    // If > 0 on host, these will be flushed to server after recovery and may overwrite correct hashes.
+                    pendingFingerprintCountAtEntry: this.ctx.fingerprintBatcher.getPendingCount(),
                 },
             });
             if (reason === 'initial-state-mismatch') {
@@ -364,6 +372,9 @@ export class RecoveryCoordinator {
                         hostTick: heartbeat.hostTick ?? null,
                         hostPaused: heartbeat.hostPaused === true,
                         orderBatchAtTick: heartbeat.orderBatchAtTick ?? heartbeat.pausedAtTick ?? null,
+                        // H2 probe: fingerprints queued by the new engine during recovery, not yet flushed.
+                        // These will be posted to the server shortly after _isRecovering = false.
+                        pendingFingerprintCountAfterBootstrap: this.ctx.fingerprintBatcher.getPendingCount(),
                     },
                 });
             }
@@ -420,42 +431,19 @@ export class RecoveryCoordinator {
                     });
                 }
                 if (!synced) {
-                    const beforeInitialReplayTick = this.ctx.session.getEngineTick();
-                    const beforeInitialReplayFingerprint = this.ctx.session.getLatestFingerprint();
-                    synced = await this.performInitialStateReplay();
-                    const afterInitialReplayTick = this.ctx.session.getEngineTick();
-                    const afterInitialReplayFingerprint = this.ctx.session.getLatestFingerprint();
-                    // Safety patch: if we're still not aligned and the last attempt left the client on tick 0,
-                    // restore the latest snapshot so the user doesn't appear stuck at the start of the battle.
-                    if (!synced && afterInitialReplayTick === 0) {
-                        const restoredLatest = await this.tryBootstrapFromLatestCheckpoint();
-                        if (restoredLatest) {
-                            const hbAfterRestore = await this.ctx.heartbeatHttp.getBattleHeartbeatThrottled({
-                                tracePhase: 'recovery_after_restore_latest',
-                            });
-                            synced = syncReconciler.isFingerprintAlignedWithHeartbeat(hbAfterRestore);
-                            logToLobbyLogBattleSync({
-                                lobbyClient: this.ctx.api as unknown as LobbyClient,
-                                lobbyId: this.ctx.lobbyId,
-                                playerId: this.ctx.playerId,
-                                tick: beforeInitialReplayTick,
-                                severity: 'warn',
-                                logType: 'desync',
-                                gameId: this.ctx.gameId,
-                                message:
-                                    'safety patch: restored latest snapshot after initial-state replay failed alignment (client stuck at tick 0)',
-                                context: {
-                                    localTickBeforeInitialReplay: beforeInitialReplayTick,
-                                    localHashBeforeInitialReplay: beforeInitialReplayFingerprint?.fp ?? null,
-                                    initialStateTick: afterInitialReplayTick,
-                                    initialStateHash: afterInitialReplayFingerprint?.fp ?? null,
-                                    restoredSnapshotTick: this.ctx.snapshotPersistence.getLastBootstrapSnapshotTick(),
-                                    alignedAfterRestore: synced,
-                                    reason,
-                                },
-                            });
-                        }
-                    }
+                    logToLobbyLogBattleSync({
+                        lobbyClient: this.ctx.api as unknown as LobbyClient,
+                        lobbyId: this.ctx.lobbyId,
+                        playerId: this.ctx.playerId,
+                        tick: this.ctx.session.getEngineTick(),
+                        severity: 'warn',
+                        logType: 'desync',
+                        gameId: this.ctx.gameId,
+                        message: 'runDesyncRecovery: all recovery tiers failed; reloading page',
+                        context: { reason, isHost: this.ctx.isHost },
+                    });
+                    window.location.reload();
+                    return;
                 }
             }
 

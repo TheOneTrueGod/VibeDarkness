@@ -1862,6 +1862,10 @@ export class BattleNet implements BattleNetContext {
 		return this.recovery.recoverFromLobbyInitialFingerprintMismatch();
 	}
 
+	async replayMissionFromStart(): Promise<void> {
+		return this.recovery.replayMissionFromStart();
+	}
+
 	private async runDesyncRecovery(reason: string): Promise<void> {
 		return this.recovery.runDesyncRecovery(reason);
 	}

@@ -78,6 +78,8 @@ declare global {
          * Battle Actions debug button sets this one-shot flag; BattlePhase consumes and clears it.
          */
         __minionBattlesDebugTriggerDesyncRequested?: boolean;
+        /** Battle Actions debug button: replay the battle from initial state + full order replay. */
+        __minionBattlesDebugReplayFromStartRequested?: boolean;
         /** Debug Console → BattleNet: lobby_log (critical) + host snapshot POST from live engine. */
         __minionBattlesDebugLogLocalStateToLobby?: () => Promise<void>;
         /** Admin command: fully heal a unit (debug/host only). */
@@ -334,6 +336,10 @@ export default function BattlePhase({
                 if (window.__minionBattlesDebugTriggerDesyncRequested === true) {
                     sessionRef.current?.triggerDebugDesyncOnce();
                     window.__minionBattlesDebugTriggerDesyncRequested = false;
+                }
+                if (window.__minionBattlesDebugReplayFromStartRequested === true) {
+                    void sessionRef.current?.replayMissionFromStart();
+                    window.__minionBattlesDebugReplayFromStartRequested = false;
                 }
                 const seq = ++hashSeq;
                 void computeSynchash(state).then((h: string) => {

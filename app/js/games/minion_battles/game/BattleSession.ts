@@ -378,6 +378,11 @@ export class BattleSession implements BattleSessionHandle {
         this.forceNextFingerprintMismatch = true;
     }
 
+    /** Debug helper: reload the battle from the initial state and replay all orders. */
+    async replayMissionFromStart(): Promise<void> {
+        await this.netAdapter?.replayMissionFromStart();
+    }
+
     getEngineTick(): number {
         return this.engine?.gameTick ?? 0;
     }

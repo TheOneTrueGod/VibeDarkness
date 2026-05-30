@@ -146,10 +146,10 @@ function spawnProjectile(
     caster: Unit,
     targetPos: { x: number; y: number },
     damage: number,
+    range: number,
 ): void {
     const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, targetPos.x, targetPos.y);
     if (dist === 0) return;
-    const travelDistance = Math.min(dist, RANGE);
     const speed = 900;
 
     engine.addProjectile(
@@ -162,7 +162,7 @@ function spawnProjectile(
             sourceTeamId: caster.teamId,
             sourceUnitId: caster.id,
             sourceAbilityId: ABILITY_ID,
-            maxDistance: travelDistance,
+            maxDistance: range,
         }),
     );
 }
@@ -179,9 +179,10 @@ const THROW_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2
   <path d="M16 20 L24 16 L26 24 L18 28 Z" fill="#525252"/>
 </svg>`;
 
-export const ThrowRock: AbilityStatic = {
+export const ThrowRock: AbilityStatic & { range: number } = {
     id: ABILITY_ID,
     name: 'Throw Rock',
+    range: RANGE,
     image: THROW_ROCK_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
@@ -247,11 +248,11 @@ export const ThrowRock: AbilityStatic = {
         if (hasMoreRock) {
             if (prevTime < MORE_ROCK_FIRST_THROW && currentTime >= MORE_ROCK_FIRST_THROW) {
                 const firstTarget = getPixelTargetPosition(targets, 0);
-                if (firstTarget) spawnProjectile(eng, caster, firstTarget, damage);
+                if (firstTarget) spawnProjectile(eng, caster, firstTarget, damage, ThrowRock.range);
             }
             if (prevTime < MORE_ROCK_SECOND_THROW && currentTime >= MORE_ROCK_SECOND_THROW) {
                 const secondTarget = getPixelTargetPosition(targets, 1);
-                if (secondTarget) spawnProjectile(eng, caster, secondTarget, damage);
+                if (secondTarget) spawnProjectile(eng, caster, secondTarget, damage, ThrowRock.range);
             }
             return;
         }
@@ -259,7 +260,7 @@ export const ThrowRock: AbilityStatic = {
         if (prevTime >= 0.3 || currentTime < 0.3) return;
         const firstTarget = getPixelTargetPosition(targets, 0);
         if (!firstTarget) return;
-        spawnProjectile(eng, caster, firstTarget, damage);
+        spawnProjectile(eng, caster, firstTarget, damage, ThrowRock.range);
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {

@@ -4,6 +4,17 @@ Clarence:  Crystal + Crystal
 Kerry: Bleeding sword.  Likes shotgun builds
 Voen: metal
 
+Feedback May 28
+[] Rocks should travel the full distance, not be limited by the targeter
+[] The gradual light changing system is client side, so refreshing fixes it
+[] LOTS of desyncs today.  Gobi's on brave
+[] Gobi winds up resynching to the start fo the game frequently
+[] Gobi got stuck in the rock too
+  - It might be because I queue up a move that uses the line of sight and takes 
+[] Enemies in mission 3 walk past players frequently
+[] Put the exclamation mark out on mission 3 when returning to the cave
+[] Gobi wants pets as a mechanic
+
 Feedback May 18
 [] Turn indicator says "stamina surge recovers 3 stamina".  Pot lid says "get 2 stamina surges"
 [] Darkness damage is a little too low, and it's possible to speedrun the second mission
@@ -12,6 +23,7 @@ Ammo shows up for swing sword.  It shouldn't.
 Something's slightly off with the target locking.  It seems 
 Put the boar on the path
 Adjust enemy AI in the find some food mission.  They don't spawn enough.
+Add wilhelm scream for kerry
 
 
 Feedback May 14, 2026

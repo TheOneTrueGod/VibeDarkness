@@ -3,10 +3,12 @@ import { useDebugSettings } from '../../../contexts/DebugSettingsContext';
 import DebugOnOffButton from '../DebugOnOffButton';
 
 const DEBUG_TRIGGER_DESYNC_FLAG = '__minionBattlesDebugTriggerDesyncRequested';
+const DEBUG_REPLAY_FROM_START_FLAG = '__minionBattlesDebugReplayFromStartRequested';
 
 declare global {
     interface Window {
         __minionBattlesDebugTriggerDesyncRequested?: boolean;
+        __minionBattlesDebugReplayFromStartRequested?: boolean;
     }
 }
 
@@ -49,6 +51,18 @@ export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isH
                     Trigger desync
                 </button>
                 <span className="text-[11px] text-muted">One-shot: forces the next host/client hash compare to mismatch.</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    className="px-3 py-2 bg-warning text-secondary text-xs font-medium rounded hover:bg-warning/80 transition-colors"
+                    onClick={() => {
+                        window[DEBUG_REPLAY_FROM_START_FLAG] = true;
+                    }}
+                >
+                    Replay from start
+                </button>
+                <span className="text-[11px] text-muted">Reload initial state and replay all orders from tick 0.</span>
             </div>
             <div className="flex items-center gap-2">
                 <span>Darkness layer</span>
