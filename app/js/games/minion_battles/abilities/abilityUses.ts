@@ -29,6 +29,7 @@ const DEFAULT_USE_CONFIG: AbilityUseConfig = {
 const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
     '0003': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Dark Wolf Bite
     '0007': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Alpha Charge
+    '0011': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Alpha Frenzied Charge (post-enrage)
     '0101': { maxUses: 2, recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Dodge
     '0102': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Punch (legacy)
     '0120': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // PunchNEW
@@ -120,6 +121,13 @@ export function initializeAbilityRuntimeForUnit(unit: Unit): void {
 export function canUseAbilityNow(unit: Unit, ability: AbilityStatic): boolean {
     ensureAbilityRuntimeState(unit, ability.id);
     return (unit.abilityRuntime[ability.id]?.currentUses ?? 0) > 0;
+}
+
+/** Returns false if the unit is missing any requiredTags or has any forbiddenTags for this ability. */
+export function meetsTagRequirements(unit: Unit, ability: AbilityStatic): boolean {
+    if (ability.requiredTags?.some((t) => !unit.tags.includes(t))) return false;
+    if (ability.forbiddenTags?.some((t) => unit.tags.includes(t))) return false;
+    return true;
 }
 
 export function consumeAbilityUse(unit: Unit, abilityId: string): boolean {

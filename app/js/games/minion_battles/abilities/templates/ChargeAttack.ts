@@ -1,6 +1,7 @@
 import { AbilityBase } from '../AbilityBase';
 import { AbilityPhase, type AbilityTimingInterval, activeTimingIds } from '../abilityTimings';
 import type { AbilityStatic, IAbilityPreviewGraphics, AttackBlockedInfo } from '../Ability';
+import type { UnitTag } from '../../game/units/unitTag';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import type { Unit } from '../../game/units/Unit';
 import type { TargetDef } from '../targeting';
@@ -48,6 +49,8 @@ export interface ChargeAttackConfig {
 	tooltipText: string;
 	cardName: string;
 	discardDuration: { duration: number; unit: 'rounds' };
+	requiredTags?: readonly UnitTag[];
+	forbiddenTags?: readonly UnitTag[];
 }
 
 export class ChargeAttack extends AbilityBase<ChargeNote> {
@@ -61,6 +64,8 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	readonly targets: TargetDef[];
 	readonly aiSettings: { minRange: number; maxRange: number };
 	readonly renderTargetingPreview: AbilityStatic['renderTargetingPreview'];
+	readonly requiredTags?: readonly UnitTag[];
+	readonly forbiddenTags?: readonly UnitTag[];
 
 	private readonly config: ChargeAttackConfig;
 	private readonly lunge: LungeMovement;
@@ -94,6 +99,8 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			getMinRange: () => 0,
 			getMaxRange: (caster: Unit) => config.baseMaxRange + caster.radius,
 		});
+		if (config.requiredTags) this.requiredTags = config.requiredTags;
+		if (config.forbiddenTags) this.forbiddenTags = config.forbiddenTags;
 	}
 
 	get cardDef(): CardDef {

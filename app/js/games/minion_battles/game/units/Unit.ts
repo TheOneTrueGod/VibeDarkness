@@ -41,6 +41,7 @@ import { getDefaultHp, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
 import { UnitTag, parseUnitTagsFromJSON } from './unitTag';
+import type { EnrageDef } from './enrageDef';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import type { CcResistKey } from '../../crowdControl/ccTypes';
 import { getBrambleMovementMultiplier, type BramblePatch } from '../brambleSlow';
@@ -170,6 +171,9 @@ export class Unit extends GameObject {
 
     /** Optional tags (crystal aura, boss UI, etc.). Serialized for checkpoints when non-empty. */
     tags: UnitTag[] = [];
+
+    /** If set, unit will gain a tag when enrage conditions are met (e.g. HP falls below threshold). */
+    enrageDef?: EnrageDef;
 
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;

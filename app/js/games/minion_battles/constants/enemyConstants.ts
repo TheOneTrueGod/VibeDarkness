@@ -54,16 +54,22 @@ export const ENEMY_BOAR: EnemySpawnDef = {
     unitAITreeId: 'aggroWander',
 };
 
-/** Alpha Wolf: boss — baseline hp/speed in unit defs. Claw (0004), Summon (0005), Charge (0007). radius 26. */
+/** Alpha Wolf: boss — baseline hp/speed in unit defs. Summon (0005), Charge (0007, pre-enrage), Frenzied Charge (0011, post-enrage). radius 26. */
 export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     characterId: 'alpha_wolf',
     name: 'Beast',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['0005', '0007'],
+    abilities: ['0005', '0007', '0011'],
     aiSettings: { minRange: 0, maxRange: 100 },
     radius: 26,
     unitTags: [UnitTag.Boss],
+    enrageDef: {
+        conditionType: 'health_below_percent',
+        threshold: 0.5,
+        tag: UnitTag.Enraged,
+        oneShot: true,
+    },
 };
 
 /** Thornbinder crawler — bramble AoE zoning; Light Hate. */

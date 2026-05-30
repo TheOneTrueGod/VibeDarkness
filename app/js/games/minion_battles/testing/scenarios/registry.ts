@@ -5,7 +5,11 @@ import {
     pathStraightMoveScenario,
 } from './general/pathfinding';
 import { swingSwordAppliesBleedScenario } from './general/buffs';
-import { bossStunMechanicsScenario } from './general/enemies';
+import {
+    bossStunMechanicsScenario,
+    alphaWolfTripleChargeScenario,
+    alphaWolfEnrageTriggersScenario,
+} from './general/enemies';
 import {
     punchBaselineScenario,
     punchChargingScenario,
@@ -76,6 +80,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     swingSwordHitsTwoTargetsScenario,
     swingSwordExtraUsesScenario,
     bossStunMechanicsScenario,
+    alphaWolfTripleChargeScenario,
+    alphaWolfEnrageTriggersScenario,
     absorptionShieldEnergyChargeScenario,
     raiseShieldBlocksScenario,
     raiseShieldAllyStaminaSurgeScenario,

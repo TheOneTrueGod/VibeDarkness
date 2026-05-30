@@ -26,6 +26,7 @@ import { AlphaWolfClawAbility } from '../card_defs/dark_animals/0004_AlphaWolfCl
 import { AlphaWolfSummonAbility } from '../card_defs/dark_animals/0005_AlphaWolfSummon/0005Ability';
 import { BoarChargeAbility } from '../card_defs/dark_animals/0006_BoarCharge/0006Ability';
 import { AlphaWolfChargeAbility } from '../card_defs/dark_animals/0007_AlphaWolfCharge/0007Ability';
+import { AlphaWolfTripleChargeAbility } from '../card_defs/dark_animals/0011_AlphaWolfTripleCharge/0011Ability';
 import { RaiseShieldAbility } from '../card_defs/0104_RaiseShield/0104Ability';
 import { LaserShieldAbility } from '../card_defs/0106_LaserShield/0106Ability';
 import { ThrowTorchAbility } from '../card_defs/utility/0601_ThrowTorch/0601Ability';
@@ -87,6 +88,7 @@ register(AlphaWolfClawAbility);
 register(AlphaWolfSummonAbility);
 register(BoarChargeAbility);
 register(AlphaWolfChargeAbility);
+register(AlphaWolfTripleChargeAbility);
 register(RaiseShieldAbility);
 register(LaserShieldAbility);
 register(ThrowTorchAbility);

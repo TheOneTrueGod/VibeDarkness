@@ -3,6 +3,8 @@
  * Serialized on checkpoints when present; unknown strings from JSON are dropped.
  */
 
+import type { Unit } from './Unit';
+
 export enum UnitTag {
     /** Player near a living Crystal; enemies treat this unit as not visible for targeting. */
     ProtectedByCrystal = 'protectedByCrystal',
@@ -12,6 +14,8 @@ export enum UnitTag {
     Boar = 'boar',
     /** Unit cannot be targeted, takes no damage, and shows no health bar. */
     Invincible = 'invincible',
+    /** Boss is enraged — triggers alternate ability set and increased aggression. */
+    Enraged = 'enraged',
 }
 
 const UNIT_TAG_VALUES = new Set<string>(Object.values(UnitTag));
@@ -29,4 +33,18 @@ export function parseUnitTagsFromJSON(raw: unknown): UnitTag[] {
         if (typeof item === 'string' && isUnitTag(item)) out.push(item);
     }
     return out;
+}
+
+export function hasUnitTag(unit: Unit, tag: UnitTag): boolean {
+    return unit.tags.includes(tag);
+}
+
+export function addUnitTag(unit: Unit, tag: UnitTag): void {
+    if (!unit.tags.includes(tag)) {
+        unit.tags = [...unit.tags, tag];
+    }
+}
+
+export function removeUnitTag(unit: Unit, tag: UnitTag): void {
+    unit.tags = unit.tags.filter((t) => t !== tag);
 }

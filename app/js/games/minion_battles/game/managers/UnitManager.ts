@@ -4,7 +4,7 @@
  */
 
 import { Unit } from '../units/Unit';
-import { UnitTag } from '../units/unitTag';
+import { UnitTag, addUnitTag, hasUnitTag } from '../units/unitTag';
 import { areAllies } from '../teams';
 import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
@@ -34,6 +34,24 @@ export class UnitManager {
 
     constructor(ctx: EngineContext) {
         this.ctx = ctx;
+        ctx.eventBus.on('damage_taken', (event) => this.processEnrageTriggers(event.unitId));
+    }
+
+    private processEnrageTriggers(unitId: string): void {
+        const unit = this.getUnit(unitId);
+        if (!unit?.isAlive() || !unit.enrageDef) return;
+
+        const { enrageDef } = unit;
+        if (hasUnitTag(unit, enrageDef.tag)) return;
+
+        const triggered =
+            enrageDef.conditionType === 'health_below_percent' &&
+            unit.hp / unit.maxHp <= enrageDef.threshold;
+
+        if (triggered) {
+            addUnitTag(unit, enrageDef.tag);
+            this.ctx.eventBus.emit('unit_enraged', { unitId: unit.id, tag: enrageDef.tag });
+        }
     }
 
     addUnit(unit: Unit): void {

@@ -11,6 +11,7 @@ import {
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { UnitTag } from '../../../game/units/unitTag';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
+import type { EnrageDef } from '../../../game/units/enrageDef';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -92,5 +93,142 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
         const wolf = engine.getUnit('alpha_wolf_boss');
         const exposed = wolf?.buffs.find((b) => b._type === EXPOSED_BUFF_TYPE);
         return `exposed=${wolf?.hasBuff(EXPOSED_BUFF_TYPE)} duration=${exposed?.duration.value ?? '—'} consumed=${wolf?.hardCcArmourConsumed} hp=${wolf?.hp}`;
+    },
+};
+
+// Wolf at column 6, player 80 px to its left — well within the 120 px lunge range.
+const TRIPLE_CHARGE_WOLF_POS = { x: 6 * 40 + 20, y: 3 * 40 + 20 };   // (260, 140)
+const TRIPLE_CHARGE_PLAYER_POS = { x: TRIPLE_CHARGE_WOLF_POS.x - 80, y: TRIPLE_CHARGE_WOLF_POS.y };
+
+/**
+ * Enraged Alpha Wolf: Frenzied Charge (0011) executes 3 lunge dashes and hits the player.
+ * Wolf has UnitTag.Enraged pre-applied; its order is queued in buildEngine so it fires
+ * on the first engine tick. Player waits so the battle does not exit idle before the
+ * first dash lands.
+ */
+export const alphaWolfTripleChargeScenario: ScenarioDefinition = {
+    id: 'enemy_alpha_wolf_triple_charge',
+    title: 'Enraged Alpha Wolf: Frenzied Charge hits player across 3 dashes',
+    category: 'general',
+    generalSection: 'Enemies',
+    maxDurationMs: 6000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 8, localPlayerId: P, grass: true });
+
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: TRIPLE_CHARGE_PLAYER_POS.x,
+            y: TRIPLE_CHARGE_PLAYER_POS.y,
+            abilities: [],
+        });
+
+        const wolf = createUnitFromSpawnConfig(
+            {
+                id: 'alpha_wolf_enraged',
+                characterId: 'alpha_wolf',
+                name: 'Beast',
+                x: TRIPLE_CHARGE_WOLF_POS.x,
+                y: TRIPLE_CHARGE_WOLF_POS.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: ['0011'],
+                unitTags: [UnitTag.Boss, UnitTag.Enraged],
+            },
+            engine.eventBus,
+        );
+        initializeAbilityRuntimeForUnit(wolf);
+        engine.addUnit(wolf);
+
+        engine.state.orderMgr.queueOrder(1, {
+            unitId: wolf.id,
+            abilityId: '0011',
+            targets: [{ type: 'unit', unitId: player.id }],
+        });
+
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        return [{ unitId: player.id, abilityId: 'wait', targets: [] }];
+    },
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        return Boolean(player && player.hp < player.maxHp);
+    },
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const wolf = engine.getUnit('alpha_wolf_enraged');
+        const active = wolf?.activeAbilities.map((a) => a.abilityId).join(',') ?? '—';
+        return `player hp=${player?.hp}/${player?.maxHp} wolf activeAbilities=[${active}]`;
+    },
+};
+
+// Wolf just above 50 % HP so one base punch (15 dmg) tips it into the enrage threshold.
+const ENRAGE_WOLF_POS = { x: 5 * 40 + 20, y: 2 * 40 + 20 };   // (220, 100)
+// Player 45 px to the left — inside punch range (BASE_MAX_RANGE=30 + player radius=20 = 50 px).
+const ENRAGE_PLAYER_POS = { x: ENRAGE_WOLF_POS.x - 45, y: ENRAGE_WOLF_POS.y };
+
+const WOLF_ENRAGE_DEF: EnrageDef = {
+    conditionType: 'health_below_percent',
+    threshold: 0.5,
+    tag: UnitTag.Enraged,
+    oneShot: true,
+};
+
+/**
+ * Alpha Wolf enrage trigger: wolf starts just above 50 % HP; one player punch
+ * drops it below the threshold, which should apply UnitTag.Enraged via UnitManager.
+ */
+export const alphaWolfEnrageTriggersScenario: ScenarioDefinition = {
+    id: 'enemy_alpha_wolf_enrage_triggers',
+    title: 'Alpha Wolf: UnitTag.Enraged is applied when HP drops below 50%',
+    category: 'general',
+    generalSection: 'Enemies',
+    maxDurationMs: 4000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 10, gridH: 6, localPlayerId: P, grass: true });
+
+        spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: ENRAGE_PLAYER_POS.x,
+            y: ENRAGE_PLAYER_POS.y,
+            abilities: ['0102'],
+        });
+
+        const wolf = createUnitFromSpawnConfig(
+            {
+                id: 'alpha_wolf_pre_enrage',
+                characterId: 'alpha_wolf',
+                name: 'Beast',
+                x: ENRAGE_WOLF_POS.x,
+                y: ENRAGE_WOLF_POS.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: [],
+                unitTags: [UnitTag.Boss],
+                enrageDef: WOLF_ENRAGE_DEF,
+            },
+            engine.eventBus,
+        );
+        // One tick above 50 % so a single base punch (15 dmg) crosses the threshold.
+        wolf.hp = Math.floor(wolf.maxHp * 0.5) + 1;
+        initializeAbilityRuntimeForUnit(wolf);
+        engine.addUnit(wolf);
+
+        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0102'), abilityId: '0102' }]);
+
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        return [{ unitId: player.id, abilityId: '0102', targets: [{ type: 'pixel', position: ENRAGE_WOLF_POS }] }];
+    },
+    assertPass(engine) {
+        const wolf = engine.getUnit('alpha_wolf_pre_enrage');
+        return Boolean(wolf?.tags.includes(UnitTag.Enraged));
+    },
+    failureMessage(engine) {
+        const wolf = engine.getUnit('alpha_wolf_pre_enrage');
+        return `wolf tags=${JSON.stringify(wolf?.tags)} hp=${wolf?.hp}/${wolf?.maxHp}`;
     },
 };

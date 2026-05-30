@@ -13,6 +13,7 @@ import { areEnemies } from '../../teams';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { getAbilityTargets } from '../../../abilities/Ability';
 import { UnitTag } from '../unitTag';
+import { meetsTagRequirements } from '../../../abilities/abilityUses';
 
 /** Euclidean distance between two points. */
 export function distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -246,6 +247,7 @@ export function pickBestAbility(
             const used = context.getAbilityUsesThisRound(unit.id, ability.id);
             if (used >= ai.maxUsesPerRound) continue;
         }
+        if (!meetsTagRequirements(unit, ability)) continue;
 
         if (ability.targets.length === 0) {
             if (candidateEnemies.length > 0) {

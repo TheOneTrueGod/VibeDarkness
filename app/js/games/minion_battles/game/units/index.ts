@@ -20,6 +20,7 @@ import {
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import type { UnitTag } from './unitTag';
 import type { UnitCombatSettings } from './Unit';
+import type { EnrageDef } from './enrageDef';
 import { generateGameObjectId } from '../GameObject';
 import { applyCombatCrowdControlProfile } from './combatCcSpawn';
 
@@ -100,6 +101,7 @@ export function createUnitFromSpawnConfig(
         combatSettings?: UnitCombatSettings;
         /** Absolute gameTime after which this unit despawns (ephemeral summons). */
         ephemeralDespawnAtGameTime?: number | null;
+        enrageDef?: EnrageDef;
     },
     _eventBus: EventBus,
     idSource?: Pick<EngineContext, 'allocateObjectId'>,
@@ -130,6 +132,10 @@ export function createUnitFromSpawnConfig(
 
     if (config.unitTags && config.unitTags.length > 0) {
         unit.tags = [...config.unitTags];
+    }
+
+    if (config.enrageDef) {
+        unit.enrageDef = config.enrageDef;
     }
 
     applyCombatCrowdControlProfile(unit);

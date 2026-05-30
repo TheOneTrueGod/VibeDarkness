@@ -12,6 +12,7 @@ import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import type { AbilityTimingEntry } from './abilityTimings';
 import type { AbilityEventRule } from './events/AbilityEventRule';
+import type { UnitTag } from '../game/units/unitTag';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
 export interface IAbilityPreviewGraphics {
@@ -137,6 +138,10 @@ export interface AbilityStatic {
     getTargets?(caster?: Unit, gameState?: unknown): TargetDef[];
     /** AI settings controlling when this ability is used (range check). */
     readonly aiSettings?: AbilityAISettings;
+    /** Caster must have ALL of these unit tags for the AI to consider using this ability. */
+    readonly requiredTags?: readonly UnitTag[];
+    /** Caster must have NONE of these unit tags for the AI to consider using this ability. */
+    readonly forbiddenTags?: readonly UnitTag[];
     /**
      * Multiplies the attacker's flat damage bonus contribution for this ability.
      * Default behavior is 1; use lower values for multi-hit abilities.

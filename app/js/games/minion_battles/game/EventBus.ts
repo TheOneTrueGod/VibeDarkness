@@ -12,6 +12,7 @@ export type GameEventType =
     | 'turn_end'
     | 'round_end'
     | 'unit_died'
+    | 'unit_enraged'
     | 'ability_used'
     | 'projectile_hit'
     | 'terrain_stone_damaged'
@@ -51,6 +52,11 @@ export interface RoundEndEvent {
 export interface UnitDiedEvent {
     unitId: string;
     killerUnitId: string | null;
+}
+
+export interface UnitEnragedEvent {
+    unitId: string;
+    tag: string;
 }
 
 export interface AbilityUsedEvent {
@@ -94,6 +100,7 @@ export type GameEventDataMap = {
     turn_end: TurnEndEvent;
     round_end: RoundEndEvent;
     unit_died: UnitDiedEvent;
+    unit_enraged: UnitEnragedEvent;
     ability_used: AbilityUsedEvent;
     projectile_hit: ProjectileHitEvent;
     terrain_stone_damaged: TerrainStoneDamagedEvent;

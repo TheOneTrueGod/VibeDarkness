@@ -8,6 +8,7 @@
 import type { TeamId } from '../game/teams';
 import type { AISettings } from '../game/units/Unit';
 import type { UnitTag } from '../game/units/unitTag';
+import type { EnrageDef } from '../game/units/enrageDef';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type {
     InBattleStoryDef,
@@ -270,6 +271,8 @@ export interface EnemySpawnDef {
     unitId?: string;
     /** When spawning a `lanternite_nest`, wires spawn pacing and patrol corridor for Lanternites from this nest. */
     lanterniteNest?: LanterniteNestMissionConfig;
+    /** If set, this unit will enrage (gain a tag) when the specified condition is met during battle. */
+    enrageDef?: EnrageDef;
     /** Optional Lanternite ecology wiring beyond nest auto-spawns (e.g. proximity reinforcements). */
     lanterniteNestOwnerUnitId?: string;
     lanternPatrolFarWorld?: { x: number; y: number };
