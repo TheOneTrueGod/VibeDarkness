@@ -87,6 +87,7 @@ The 4-digit ID is `<group><index>`:
 
 ## What goes in the ability file
 
+- **Design comment**: A short block comment at the very top of the file (before imports) describing the ability's intent. Write it as a prose paragraph — not a bulleted list. Keep it to 4 lines or fewer. Cover: what the ability looks like to use, the role it plays in the unit's kit, and how it's meant to play out in battle. This is the canonical place to capture design intent so it's visible while editing the implementation.
 - **Ability**: An object implementing `AbilityStatic` (from `abilities/Ability.ts`). Use the same 4-digit id so cards and abilities match.
 - **CardDef**: An object implementing `CardDef` (from `card_defs/types.ts`) with the same `id` and `abilityId` pointing at the ability.
 - Static values used in multiple places should be defined as constants at the top of the file.
@@ -162,6 +163,7 @@ While knockback is active, the unit cannot move or act. If it hits a wall, it bo
 
 ## Checklist
 
+- [ ] Design comment at the top of the file: a short prose paragraph (≤ 4 lines) covering what the ability looks like, its role in the kit, and how it plays out in battle.
 - [ ] Folder `card_defs/####_ABILITY_NAME` and file `####_ABILITY_NAME.ts` created.
 - [ ] Ability ID uses group (2 digits) + index (2 digits); group from `AbilityGroupId`.
 - [ ] Same file exports both the ability and the `CardDef` with matching `id` / `abilityId`.

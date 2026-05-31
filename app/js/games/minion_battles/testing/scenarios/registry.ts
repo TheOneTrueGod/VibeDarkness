@@ -10,6 +10,7 @@ import {
     alphaWolfTripleChargeScenario,
     alphaWolfEnrageTriggersScenario,
     alphaWolfSummonScenario,
+    exposedDurationExtensionScenario,
 } from './general/enemies';
 import {
     punchBaselineScenario,
@@ -84,6 +85,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     alphaWolfTripleChargeScenario,
     alphaWolfEnrageTriggersScenario,
     alphaWolfSummonScenario,
+    exposedDurationExtensionScenario,
     absorptionShieldEnergyChargeScenario,
     raiseShieldBlocksScenario,
     raiseShieldAllyStaminaSurgeScenario,

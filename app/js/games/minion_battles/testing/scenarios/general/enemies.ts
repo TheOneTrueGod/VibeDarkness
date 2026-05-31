@@ -1,6 +1,6 @@
 import type { ScenarioDefinition } from '../../types';
 import { asCardDefId } from '../../../card_defs';
-import { EXPOSED_BUFF_TYPE } from '../../../buffs/ExposedBuff';
+import { ExposedBuff, EXPOSED_BUFF_TYPE } from '../../../buffs/ExposedBuff';
 import { TRAINING_NODE_STRONG_PUNCH, TRAINING_TREE_ID } from '../../../../../researchTrees/trees/training';
 import {
     buildTinyBattleEngine,
@@ -304,5 +304,120 @@ export const alphaWolfSummonScenario: ScenarioDefinition = {
         const wolves = engine.units.filter((u) => u.characterId === 'dark_wolf');
         const wolfInfo = wolves.map((w) => `id=${w.id} hp=${w.hp} active=${w.activeAbilities.map((a) => a.abilityId).join(',')}`).join(' | ');
         return `player hp=${player?.hp}/${player?.maxHp} wolves=[${wolfInfo}]`;
+    },
+};
+
+// ─── Exposed duration extension ───────────────────────────────────────────────
+
+const P1 = TINY_BATTLE_PLAYER_ID; // 'tiny_p1'
+const P2 = 'tiny_p2';
+
+const EXT_WOLF_POS = { x: 5 * CELL + 20, y: 3 * CELL + 20 }; // (220, 140)
+const EXT_P1_POS   = { x: EXT_WOLF_POS.x - 50, y: EXT_WOLF_POS.y }; // within StrongPunch + SwingBat range
+const EXT_P2_POS   = { x: EXT_WOLF_POS.x + 50, y: EXT_WOLF_POS.y }; // within StrongPunch range
+
+const EXT_EXPOSED_DURATION = 3; // seconds
+const EXT_P2_PUNCH_TICK    = 60;  // ~1 s
+const EXT_P1_BAT_TICK      = 120; // ~2 s
+
+/**
+ * Exposed duration extension test.
+ *
+ * The alpha wolf starts in the Exposed state (3 s).  Without any extension it
+ * would expire exactly at t=3 s.  Two players land Strong Punches during the
+ * window; each absorbed stun extends the remaining duration.  After 3 s the
+ * wolf must still carry the Exposed buff.
+ *
+ * Sequence:
+ *   t=0   P1 casts StrongPunch → stun absorbed → extends ~+elapsed_at_impact s
+ *   t≈1 s P2 casts StrongPunch → stun absorbed → may extend further
+ *   t≈2 s P1 casts SwingBat   → knockback launches wolf (applied, not absorbed)
+ *   t≥3 s assertPass: hasBuff('exposed') must be true
+ */
+export const exposedDurationExtensionScenario: ScenarioDefinition = {
+    id: 'exposed_duration_extension',
+    title: 'Exposed boss: absorbed stuns extend the exposed window beyond its base duration',
+    category: 'general',
+    generalSection: 'Enemies',
+    maxDurationMs: 5000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 8,
+            localPlayerId: P1,
+            grass: true,
+        });
+
+        const p1 = spawnTinyPlayerUnit(engine, {
+            playerId: P1,
+            x: EXT_P1_POS.x,
+            y: EXT_P1_POS.y,
+            abilities: ['0117', '0115'],
+        });
+        seedHandWithAbilities(engine, P1, [
+            { cardDefId: asCardDefId('0117'), abilityId: '0117' },
+            { cardDefId: asCardDefId('0115'), abilityId: '0115' },
+        ]);
+
+        const p2 = spawnTinyPlayerUnit(engine, {
+            playerId: P2,
+            x: EXT_P2_POS.x,
+            y: EXT_P2_POS.y,
+            abilities: ['0117'],
+        });
+        seedHandWithAbilities(engine, P2, [
+            { cardDefId: asCardDefId('0117'), abilityId: '0117' },
+        ]);
+
+        const wolf = createUnitFromSpawnConfig(
+            {
+                id: 'alpha_wolf_exposed_ext',
+                characterId: 'alpha_wolf',
+                name: 'Beast',
+                x: EXT_WOLF_POS.x,
+                y: EXT_WOLF_POS.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: [],
+                unitTags: [UnitTag.Boss],
+            },
+            engine.eventBus,
+        );
+        initializeAbilityRuntimeForUnit(wolf);
+        engine.addUnit(wolf);
+        wolf.addBuff(new ExposedBuff(EXT_EXPOSED_DURATION), 0, 1);
+
+        engine.state.orderMgr.queueOrder(EXT_P2_PUNCH_TICK, {
+            unitId: p2.id,
+            abilityId: '0117',
+            targets: [{ type: 'pixel', position: EXT_WOLF_POS }],
+        });
+        engine.state.orderMgr.queueOrder(EXT_P1_BAT_TICK, {
+            unitId: p1.id,
+            abilityId: '0115',
+            targets: [{ type: 'pixel', position: EXT_WOLF_POS }],
+        });
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const p1 = engine.getLocalPlayerUnit()!;
+        return [{ unitId: p1.id, abilityId: '0117', targets: [{ type: 'pixel', position: EXT_WOLF_POS }] }];
+    },
+
+    assertPass(engine) {
+        if (engine.gameTime < EXT_EXPOSED_DURATION) return false;
+        return Boolean(engine.getUnit('alpha_wolf_exposed_ext')?.hasBuff(EXPOSED_BUFF_TYPE));
+    },
+
+    failureMessage(engine) {
+        const wolf = engine.getUnit('alpha_wolf_exposed_ext');
+        const buff = wolf?.buffs.find(b => b._type === EXPOSED_BUFF_TYPE) as ExposedBuff | undefined;
+        const remaining = buff
+            ? (buff.duration.value - (engine.gameTime - buff.appliedAtTime)).toFixed(2)
+            : '—';
+        return `t=${engine.gameTime.toFixed(2)} exposed=${wolf?.hasBuff(EXPOSED_BUFF_TYPE)} remaining=${remaining} resistance=${buff?.exposedResistance.toFixed(2) ?? '—'}`;
     },
 };

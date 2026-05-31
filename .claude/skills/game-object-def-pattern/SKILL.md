@@ -51,3 +51,21 @@ When removing a previously serialized field (e.g. `enrageDef` migration):
 - Delete it from `toJSON` so new checkpoints omit it.
 - Remove the restore block from `fromJSON` — old payloads that still carry the field are silently ignored; the getter provides the value from the def.
 - No explicit migration needed for existing saves.
+
+## Static constructor for serialized data (`fromSerialized`)
+
+When constructing a client-side game object from data received from the server (checkpoint, sync packet, JSON roundtrip), use a static factory method named `fromSerialized`:
+
+```typescript
+static fromSerialized(data: SomeSerialized): SomeClass { … }
+```
+
+- The method name is `fromSerialized` (not `fromJSON`, not `fromData`).
+- It accepts the serialized shape, performs any type narrowing needed (e.g. `data as SomeSubtype`), and returns a fully-constructed instance.
+- Use `?? fallback` for fields added after initial release to ensure backward compatibility with older saves.
+- The registry or deserializer that wires this into the broader system calls `SomeClass.fromSerialized(data)`.
+
+**Pre-existing examples:**
+- `ExposedBuff.fromSerialized` (`app/js/games/minion_battles/buffs/ExposedBuff.ts`) — restores `maxExposedDuration` and `exposedResistance` from the serialized buff payload.
+
+Existing buffs (`StunnedBuff`, `BleedBuff`, `CantDieBuff`) still use `fromJSON`; migrate them to `fromSerialized` when touched.

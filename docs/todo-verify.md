@@ -14,6 +14,7 @@
 
 | Todo | Notes | Date |
 |------|-------|------|
+| Migrate LaserSword (0105) to castBehaviours | Replaced `doCardEffect`, `beginActiveCast`, `renderTargetingPreview`, and `meleeTrackingHelpers` usage with `CastBehaviours.MeleeAttack().withHitbox().withSlide().withImpactVFX().withDamage()`. Added `targetDef` on the slash timing interval; set `targets: []` and removed `meleeTracking` tag. | 2026-05-31 |
 
 ## Medium
 

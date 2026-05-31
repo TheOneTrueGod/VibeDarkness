@@ -30,7 +30,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Migrate LaserSword (0105) to castBehaviours | Same melee swing family as SwingSword (0112) which is already on `castBehaviours`. Replace `doCardEffect` and `targets` with a `behaviour: MeleeAttackBehaviour` on the active timing interval plus a `targetDef` for lock-on. Use 0112 as the template. |
 | Migrate SwingBat / 0115 to castBehaviours | Same melee swing family as SwingBat/0103 which is already on `castBehaviours`. Replace `doCardEffect` and `targets` with `MeleeAttackBehaviour` on the hit interval plus a `targetDef`. Use 0103 as the template. |
 | Migrate Punch (0102) to castBehaviours | Basic punch in the same family as StrongPunch/SneakyPunch (0117–0120) which are all on `castBehaviours`. Replace `doCardEffect` with the `MeleeAttackBehaviour` pattern those abilities use. |
 | Migrate RaiseShield (0104) to castBehaviours | `doCardEffect` only sets an ability note at t = 0.05 s. Replace with an `ON_CAST_START` `abilityEvents` rule that initialises the block-count note; no new CastBehaviour class needed. |

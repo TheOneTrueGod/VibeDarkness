@@ -16,7 +16,7 @@ const registry: Record<string, BuffDeserializer> = {
     [STUNNED_BUFF_TYPE]: StunnedBuff.fromJSON as BuffDeserializer,
     [BLEED_BUFF_TYPE]: BleedBuff.fromJSON as BuffDeserializer,
     [CANT_DIE_BUFF_TYPE]: CantDieBuff.fromJSON as BuffDeserializer,
-    [EXPOSED_BUFF_TYPE]: ExposedBuff.fromJSON as BuffDeserializer,
+    [EXPOSED_BUFF_TYPE]: ExposedBuff.fromSerialized as BuffDeserializer,
 };
 
 /** Deserialize a buff from JSON. Returns the buff instance or throws if type unknown. */

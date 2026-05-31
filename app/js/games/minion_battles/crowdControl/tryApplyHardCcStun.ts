@@ -1,5 +1,5 @@
 import { StunnedBuff } from '../buffs/StunnedBuff';
-import { ExposedBuff } from '../buffs/ExposedBuff';
+import { ExposedBuff, EXPOSED_BUFF_TYPE } from '../buffs/ExposedBuff';
 import type { Unit } from '../game/units/Unit';
 import { CC_MIN_POTENCY_SEC } from './ccConstants';
 import { resolveCcDuration } from './resolveCcDuration';
@@ -20,8 +20,10 @@ export function tryApplyHardCcStun(
     gameTime: number,
     roundNumber: number,
 ): HardCcStunAttemptResult {
-    // Exposed units are immune to further hard CC; counter does not advance.
+    // Exposed units are immune to further hard CC; absorbed CC extends the exposed window instead.
     if (target.hasBuff('exposed')) {
+        const exposedBuff = target.buffs.find(b => b._type === EXPOSED_BUFF_TYPE) as ExposedBuff | undefined;
+        exposedBuff?.extendDuration(baseSeconds, gameTime);
         return { outcome: 'absorbed' };
     }
 

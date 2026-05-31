@@ -1,39 +1,27 @@
-/**
- * Laser Sword - Warrior melee ability.
+/*
+ * Laser Sword — a resource-gated melee burst that costs Ammo.
  *
- * Like Swing Bat: thick line perpendicular to aim. Hits up to 2 targets, slightly wider line,
- * double damage. Slashing sword impact effect + thick fading slash trail (light cyan).
- * Effect and trail play even when no targets are hit.
+ * Wider perpendicular slash than Swing Sword, hitting up to 2 enemies for double damage with a
+ * strong knockback and a distinctive light-cyan slash trail. Intended as an occasional power swing
+ * the player holds for grouped targets or finish attempts rather than a rotation filler.
  */
 
+import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityState } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
-import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { Unit } from '../../game/units/Unit';
-import type { TargetDef } from '../../abilities/targeting';
-import type { ResolvedTarget } from '../../game/types';
-import { asCardDefId, type CardDef } from '../types';
-import { createSlashTrailEffect } from '../../abilities/effectHelpers';
-import type { Effect } from '../../game/effects/Effect';
-import type { EventBus } from '../../game/EventBus';
+import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import { getDirectionFromTo } from '../../abilities/targetHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
-import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
-import { ThickLineHitbox } from '../../hitboxes';
-import {
-    buildHitboxContext,
-    buildMeleeTrackingEntries,
-    getMeleeTrackingAimPoint,
-    renderMeleeTrackingHighlights,
-    updateMeleeTrackingEntry,
-    type MeleeTrackingEntry,
-} from '../../abilities/meleeTrackingHelpers';
-import type { ActiveAbility } from '../../game/types';
+import { perpendicularSwingHitbox } from '../../hitboxes';
+import { createSlashTrailEffect } from '../../abilities/effectHelpers';
+import type { Unit } from '../../game/units/Unit';
+import { asCardDefId, type CardDef } from '../types';
+import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}05`;
 const PREFIRE_TIME = 0.2;
-const BASE_MIN_RANGE = 0;
 const BASE_MAX_RANGE = 56;
 const DAMAGE = 20;
 const SLASH_TRAIL_DURATION = 0.35;
@@ -43,66 +31,63 @@ const KNOCKBACK_MAGNITUDE = 80;
 const KNOCKBACK_AIR_TIME = 0.3;
 const KNOCKBACK_SLIDE_TIME = 0.2;
 const MAX_TARGETS = 2;
-/** Line thickness for hitbox and preview (px) - slightly wider than Swing Bat. */
 const LINE_THICKNESS = 36;
-/** Length of the perpendicular swing line (px). */
 const SWING_LENGTH = 80;
 
-function getMinRange(_caster: Unit): number {
-    return BASE_MIN_RANGE;
-}
+const LASER_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
 
-function getMaxRange(caster: Unit): number {
-    return BASE_MAX_RANGE + caster.radius;
-}
+type LaserSwordEngineExt = AbilityEngineContext & {
+    interruptUnitAndRefundAbilities?(unit: Unit): void;
+};
 
-/** Perpendicular line: centre at clamped distance along aim; left/right ends for hitbox. */
-function getPerpendicularLine(
-    caster: { x: number; y: number },
-    target: { x: number; y: number },
-    minRange: number,
-    maxRange: number,
-): {
-    leftX: number;
-    leftY: number;
-    rightX: number;
-    rightY: number;
-    centerX: number;
-    centerY: number;
-    aimDirX: number;
-    aimDirY: number;
-} {
-    const dx = target.x - caster.x;
-    const dy = target.y - caster.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const aimDirX = dist > 0 ? dx / dist : 1;
-    const aimDirY = dist > 0 ? dy / dist : 0;
-    const clampedDist = Math.max(minRange, Math.min(maxRange, dist || maxRange));
-    const centerX = caster.x + aimDirX * clampedDist;
-    const centerY = caster.y + aimDirY * clampedDist;
-    const half = SWING_LENGTH / 2;
-    const perpX = -aimDirY * half;
-    const perpY = aimDirX * half;
-    return {
-        leftX: centerX - perpX,
-        leftY: centerY - perpY,
-        rightX: centerX + perpX,
-        rightY: centerY + perpY,
-        centerX,
-        centerY,
-        aimDirX,
-        aimDirY,
-    };
-}
+const laserSwordBehaviour = CastBehaviours.MeleeAttack()
+    .withHitbox(LASER_SWORD_HITBOX)
+    .withSlide({ forwardDistance: 9, backwardDistance: 4 })
+    .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
+        const ep = LASER_SWORD_HITBOX.getEndpoints(ctx.caster, aimX, aimY);
+        ctx.engine.addEffect(
+            createSlashTrailEffect(ep.leftX, ep.leftY, ep.rightX, ep.rightY, SLASH_TRAIL_DURATION, SLASH_TRAIL_THICKNESS),
+        );
+    })
+    .withDamage((ctx, hitUnits) => {
+        if (hitUnits.length === 0) return;
+        const eng = ctx.engine as LaserSwordEngineExt;
+        for (const targetUnit of hitUnits) {
+            const blocked = !tryDamageOrBlock(targetUnit, {
+                engine: eng,
+                gameTime: eng.gameTime,
+                eventBus: eng.eventBus,
+                attackerX: ctx.caster.x,
+                attackerY: ctx.caster.y,
+                attackerId: ctx.caster.id,
+                abilityId: CARD_ID,
+                damage: DAMAGE,
+                attackType: 'melee',
+            });
+            if (blocked) continue;
 
-interface GameEngineLike {
-    units: Unit[];
-    getUnit(id: string): Unit | undefined;
-    addEffect(effect: Effect): void;
-    gameTime: number;
-    eventBus: EventBus;
-    interruptUnitAndRefundAbilities(unit: Unit): void;
-}
+            const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, targetUnit.x, targetUnit.y);
+            targetUnit.applyKnockback(
+                POISE_DAMAGE,
+                {
+                    knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
+                    knockbackAirTime: KNOCKBACK_AIR_TIME,
+                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
+                    knockbackSource: { unitId: ctx.caster.id, abilityId: CARD_ID },
+                },
+                eng.eventBus,
+                (u) => eng.interruptUnitAndRefundAbilities?.(u),
+            );
+        }
+    });
+
+const ABILITY_TIMINGS: AbilityTimingInterval[] = [
+    { id: 'windup',   start: 0,   end: 0.2, abilityPhase: AbilityPhase.Windup },
+    { id: 'slash',    start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active,
+      targetDef: { kind: 'select', label: 'Target', hitbox: LASER_SWORD_HITBOX, filter: 'enemy', allowMiss: true },
+      behaviour: laserSwordBehaviour },
+    { id: 'cooldown', start: 0.3, end: 2.3, abilityPhase: AbilityPhase.Cooldown },
+];
 
 const LASER_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs><linearGradient id="lsblade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4fb8c8"/><stop offset="0.5" stop-color="#7fdfef"/><stop offset="1" stop-color="#afffff"/></linearGradient></defs>
@@ -118,24 +103,20 @@ export const LaserSwordAbility: AbilityStatic = {
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 8, allowPartialIfPositive: true }],
     rechargeTurns: 1,
-    tags: ['meleeTracking'],
+    tags: [],
     prefireTime: PREFIRE_TIME,
-    abilityTimings: [
-        { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
-        { id: 'slash', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
-        { id: 'cooldown', start: 0.3, end: 2.3, abilityPhase: AbilityPhase.Cooldown },
-    ],
-    targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
-    aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
+    targets: [],
+    abilityTimings: ABILITY_TIMINGS,
+    aiSettings: { minRange: 0, maxRange: LASER_SWORD_HITBOX.maxRange },
 
-    getTooltipText(_gameState?: unknown): string[] {
+    getTooltipText(): string[] {
         return [
             `Slash with the laser sword dealing {${DAMAGE}} damage to up to ${MAX_TARGETS} enemies, interrupting and knocking them back.`,
         ];
     },
 
-    getRange(caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: getMinRange(caster), maxRange: getMaxRange(caster) };
+    getRange(_caster: Unit): { minRange: number; maxRange: number } {
+        return { minRange: 0, maxRange: LASER_SWORD_HITBOX.maxRange };
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
@@ -145,150 +126,8 @@ export const LaserSwordAbility: AbilityStatic = {
         return [];
     },
 
-    beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
-        const eng = engine as GameEngineLike;
-        const pos = getPixelTargetPosition(targets, 0);
-        let trackedUnits: (Unit | null)[] = [];
-        if (pos) {
-            const minR = getMinRange(caster);
-            const maxR = getMaxRange(caster);
-            const line = getPerpendicularLine(caster, pos, minR, maxR);
-            const ctx = buildHitboxContext(eng.units);
-            const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
-            hits.sort((a, b) => {
-                const da = (a.x - pos.x) ** 2 + (a.y - pos.y) ** 2;
-                const db = (b.x - pos.x) ** 2 + (b.y - pos.y) ** 2;
-                return da - db;
-            });
-            trackedUnits = hits.slice(0, MAX_TARGETS).map((u) => u);
-        }
-        active.castPayload = { meleeTracking: buildMeleeTrackingEntries(trackedUnits) };
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number, active?: ActiveAbility): void {
-        const eng = engine as GameEngineLike;
-        const tracking = (active?.castPayload as { meleeTracking?: MeleeTrackingEntry[] } | undefined)?.meleeTracking;
-        const maxR = getMaxRange(caster);
-
-        if (tracking) {
-            for (const entry of tracking) {
-                updateMeleeTrackingEntry(eng, caster, entry, maxR);
-            }
-        }
-
-        if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
-
-        const fallbackPos = getPixelTargetPosition(targets, 0);
-        if (!fallbackPos && !tracking?.length) return;
-
-        // Determine VFX aim point from first tracked unit (or fallback pixel).
-        const primaryEntry = tracking?.[0];
-        const vfxPos = primaryEntry && fallbackPos
-            ? getMeleeTrackingAimPoint(eng, primaryEntry, fallbackPos)
-            : (fallbackPos ?? null);
-
-        if (vfxPos) {
-            const minR = getMinRange(caster);
-            const line = getPerpendicularLine(caster, vfxPos, minR, maxR);
-            eng.addEffect(createSlashTrailEffect(line.leftX, line.leftY, line.rightX, line.rightY, SLASH_TRAIL_DURATION, SLASH_TRAIL_THICKNESS));
-        }
-
-        if (!tracking || tracking.length === 0) return;
-
-        for (const entry of tracking) {
-            // Locked = unit evaded or left tether range — skip.
-            if (entry.lockedPosition !== null) continue;
-            if (entry.unitId === null) continue;
-            const targetUnit = eng.getUnit(entry.unitId);
-            if (!targetUnit || !targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) continue;
-
-            const blocked = !tryDamageOrBlock(targetUnit, {
-                engine: eng,
-                gameTime: eng.gameTime,
-                eventBus: eng.eventBus,
-                attackerX: caster.x,
-                attackerY: caster.y,
-                attackerId: caster.id,
-                abilityId: CARD_ID,
-                damage: DAMAGE,
-                attackType: 'melee',
-            });
-            if (blocked) continue;
-
-            const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
-            targetUnit.applyKnockback(
-                POISE_DAMAGE,
-                {
-                    knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
-                    knockbackAirTime: KNOCKBACK_AIR_TIME,
-                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                    knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-                },
-                eng.eventBus,
-                (u) => eng.interruptUnitAndRefundAbilities(u),
-            );
-        }
-    },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
+    onAttackBlocked(): void {
         // Melee blocked: no additional behaviour.
-    },
-
-    renderTargetingPreview(
-        gr: IAbilityPreviewGraphics,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-        units: Unit[],
-    ): void {
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        const line = getPerpendicularLine(caster, mouseWorld, minR, maxR);
-        const half = LINE_THICKNESS / 2;
-        const offX = line.aimDirX * half;
-        const offY = line.aimDirY * half;
-
-        const leftTopX = line.leftX + offX;
-        const leftTopY = line.leftY + offY;
-        const leftBotX = line.leftX - offX;
-        const leftBotY = line.leftY - offY;
-        const rightBotX = line.rightX - offX;
-        const rightBotY = line.rightY - offY;
-        const rightTopX = line.rightX + offX;
-        const rightTopY = line.rightY + offY;
-        const midX = line.centerX;
-        const midY = line.centerY;
-
-        gr.clear();
-        gr.moveTo(leftTopX, leftTopY);
-        gr.lineTo(leftBotX, leftBotY);
-        gr.lineTo(midX - offX, midY - offY);
-        gr.lineTo(midX + offX, midY + offY);
-        gr.lineTo(leftTopX, leftTopY);
-        gr.fill({ color: 0x4a9099, alpha: 0.5 });
-        gr.moveTo(midX + offX, midY + offY);
-        gr.lineTo(midX - offX, midY - offY);
-        gr.lineTo(rightBotX, rightBotY);
-        gr.lineTo(rightTopX, rightTopY);
-        gr.lineTo(midX + offX, midY + offY);
-        gr.fill({ color: 0x7fdfef, alpha: 0.6 });
-        gr.moveTo(leftTopX, leftTopY);
-        gr.lineTo(leftBotX, leftBotY);
-        gr.lineTo(rightBotX, rightBotY);
-        gr.lineTo(rightTopX, rightTopY);
-        gr.lineTo(leftTopX, leftTopY);
-        gr.stroke({ color: 0x4fb8c8, width: 2, alpha: 0.9 });
-
-        const ctx = buildHitboxContext(units);
-        const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, line.leftX, line.leftY, line.rightX, line.rightY, LINE_THICKNESS);
-        if (hits.length > 0) {
-            hits.sort((a, b) => {
-                const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
-                const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
-                return da - db;
-            });
-            renderMeleeTrackingHighlights(gr, hits.slice(0, MAX_TARGETS));
-        }
     },
 };
 
