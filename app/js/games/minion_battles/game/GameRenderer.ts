@@ -909,6 +909,7 @@ export class GameRenderer {
 			}
 			// Knockback air arc: quadratic Y lift during the airborne phase only.
 			let knockupYOffset = 0;
+			let knockupMaxHeight = 0;
 			if (unit.knockback !== null) {
 				const kb = unit.knockback;
 				const airTime = kb.knockbackAirTime;
@@ -918,12 +919,12 @@ export class GameRenderer {
 					const vx = kb.knockbackVector.x;
 					const vy = kb.knockbackVector.y;
 					const magnitude = Math.sqrt(vx * vx + vy * vy);
-					const maxHeight = Math.min(magnitude * 0.25, 25);
-					knockupYOffset = -arcFactor * maxHeight;
+					knockupMaxHeight = Math.min(magnitude * 0.25, 25);
+					knockupYOffset = -arcFactor * knockupMaxHeight;
 				}
 			}
 
-			// Shadow: rendered at ground level while unit is airborne.
+			// Shadow: rendered at ground level while unit is airborne, shrinking as unit rises.
 			let knockbackShadow = this.knockbackShadowVisuals.get(unit.id);
 			if (knockupYOffset < 0 && unit.active) {
 				if (!knockbackShadow) {
@@ -934,8 +935,10 @@ export class GameRenderer {
 				}
 				knockbackShadow.visible = true;
 				knockbackShadow.clear();
-				const shadowRx = unit.radius * 1.1;
-				const shadowRy = unit.radius * 0.35;
+				const heightFraction = knockupMaxHeight > 0 ? -knockupYOffset / knockupMaxHeight : 0;
+				const shadowScale = 1 - heightFraction * 0.65;
+				const shadowRx = unit.radius * 1.1 * shadowScale;
+				const shadowRy = unit.radius * 0.35 * shadowScale;
 				knockbackShadow.ellipse(0, 0, shadowRx, shadowRy);
 				knockbackShadow.fill({ color: 0x222222, alpha: 0.55 });
 				knockbackShadow.x = unit.x;
