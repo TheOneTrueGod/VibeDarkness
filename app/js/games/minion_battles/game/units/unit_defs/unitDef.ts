@@ -427,12 +427,23 @@ export function getBodyColor(characterId: string): number {
     return def?.bodyColor ?? DEFAULT_BODY_COLOR;
 }
 
+/** Additive color blend clamping each channel at 255. */
+function blendAdditive(base: number, add: number): number {
+    const r = Math.min(255, ((base >> 16) & 0xff) + ((add >> 16) & 0xff));
+    const g = Math.min(255, ((base >> 8) & 0xff) + ((add >> 8) & 0xff));
+    const b = Math.min(255, (base & 0xff) + (add & 0xff));
+    return (r << 16) | (g << 8) | b;
+}
+
 /** Body color for a unit instance (player tokens use portrait overrides). */
 export function getBodyColorForUnit(unit: Unit): number {
-    if (unit.characterId === PLAYER_CHARACTER_ID) {
-        return resolvePlayerBodyColor(unit.portraitId);
+    const base = unit.characterId === PLAYER_CHARACTER_ID
+        ? resolvePlayerBodyColor(unit.portraitId)
+        : getBodyColor(unit.characterId);
+    if (unit.tags.includes(UnitTag.Enraged)) {
+        return blendAdditive(base, 0x550000);
     }
-    return getBodyColor(unit.characterId);
+    return base;
 }
 
 /** Default HP for a character ID. Used when creating units without explicit hp. Returns 50 if not configured. */

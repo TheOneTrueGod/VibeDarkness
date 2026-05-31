@@ -1,5 +1,9 @@
 import type { UnitTag } from './unitTag';
 
+// TODO: Once units can look up their associated unitDef at runtime, move enrageDef
+// off the Unit instance and onto the unitDef instead. Units would resolve it on demand
+// rather than carrying (and serializing) a copy. Unit.toJSON/fromJSON can drop the field at that point.
+
 export type EnrageConditionType = 'health_below_percent';
 
 export interface EnrageDef {

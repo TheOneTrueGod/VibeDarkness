@@ -1144,6 +1144,7 @@ export class Unit extends GameObject {
             ...(this.lanterniteConstructionCompleteAtGameTime != null ? { lanterniteConstructionCompleteAtGameTime: this.lanterniteConstructionCompleteAtGameTime } : {}),
             ...(this.lanterniteAttackReadyAtGameTime !== 0 ? { lanterniteAttackReadyAtGameTime: this.lanterniteAttackReadyAtGameTime } : {}),
             ...(this.lanterniteConstructionAngle != null ? { lanterniteConstructionAngle: this.lanterniteConstructionAngle } : {}),
+            ...(this.enrageDef ? { enrageDef: { ...this.enrageDef } } : {}),
         };
     }
 
@@ -1294,6 +1295,18 @@ export class Unit extends GameObject {
                 },
             ]),
         );
+
+        if (data.enrageDef && typeof data.enrageDef === 'object') {
+            const raw = data.enrageDef as Record<string, unknown>;
+            if (raw.conditionType === 'health_below_percent' && typeof raw.threshold === 'number' && typeof raw.tag === 'string') {
+                unit.enrageDef = {
+                    conditionType: 'health_below_percent',
+                    threshold: raw.threshold,
+                    tag: raw.tag as UnitTag,
+                    ...(raw.oneShot === true ? { oneShot: true } : {}),
+                };
+            }
+        }
 
         // Resources are reattached by the unit subclass factory
         return unit;

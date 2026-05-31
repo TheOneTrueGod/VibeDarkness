@@ -22,6 +22,7 @@ import { renderMeleeTrackingHighlights } from '../abilities/meleeTrackingHelpers
 import { Projectile } from './projectiles/Projectile';
 import type { Effect } from './effects/Effect';
 import { areEnemies } from './teams';
+import { UnitTag } from './units/unitTag';
 import type { TeamId } from './teams';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
@@ -993,15 +994,16 @@ export class GameRenderer {
 						body.stroke({ color: 0xfacc15, width: 2 });
 					}
 				}
-				if (hpBg) hpBg.visible = !unit.isInvincible();
-				if (hpFill) hpFill.visible = !unit.isInvincible();
+				const showHpBar = !unit.isInvincible() && !unit.tags.includes(UnitTag.Boss);
+				if (hpBg) hpBg.visible = showHpBar;
+				if (hpFill) hpFill.visible = showHpBar;
 				if (characterSprite) characterSprite.visible = true;
 				const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
 				if (darkTint) darkTint.visible = true;
 				if (label) label.visible = true;
 				if (glow) glow.visible = true;
 				if (playerRing) playerRing.visible = true;
-				if (!unit.isInvincible()) updateUnitHpBar(visual, unit);
+				if (showHpBar) updateUnitHpBar(visual, unit);
 			}
 
 			// Darkness corruption bar: only visible when progress > 0 (above unit)
