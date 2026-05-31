@@ -42,6 +42,7 @@ export interface KnockbackEngineCtx {
  * - Effective tier = tier − target.knockbackResistance.
  * - Effective tier ≤ 0 → fully resisted; CC armour is NOT consumed.
  * - Effective tier > 0 → treated as hard CC (shares hardCcArmourConsumed with stun).
+ *   - Target already exposed: physically launch (break-stun window is the payoff; no armour change).
  *   - No armour: knockback launches the target.
  *   - Absorbed: nothing happens.
  *   - Armour break, ccArmourBreakStunDuration > 0: ExposedBuff + break stun (no physical launch).
@@ -61,7 +62,12 @@ export function tryApplyKnockbackByTier(
     const tierDef = getKnockbackTierDef(effectiveTier);
     if (!tierDef) return { outcome: 'fully_resisted' };
 
-    if (target.hasBuff('exposed')) return { outcome: 'absorbed' };
+    if (target.hasBuff('exposed')) {
+        // Boss is in their break-stun window — physically launch them without
+        // touching the armour counter or stacking another ExposedBuff.
+        _launchKnockback(target, tierDef, source, casterX, casterY, engine);
+        return { outcome: 'applied' };
+    }
 
     const threshold = target.getEffectiveHardCcThreshold();
 
