@@ -66,6 +66,14 @@ The runner calls `isScenarioRunnerBattleIdle()` after each tick; if every unit i
 
 Keep `gridW`/`gridH` just large enough to contain the units involved. Small maps are easier to read in the mini terrain preview, faster to pathfind, and keep the visual frame on the interesting action. Rule of thumb: rightmost/bottommost unit column/row + 2–3 cells of margin.
 
+## Test design principles
+
+**One scenario per ability, maximum.** Ability tests are expensive to run; a single well-designed scenario should be sufficient to confirm an ability works as intended.
+
+- Combine multiple assertions in one scenario (damage dealt, status effects applied, positioning, cooldowns, etc.) rather than writing separate scenarios for each condition.
+- If a second scenario is genuinely necessary (e.g. testing a research-variant branch that alters the ability's core behaviour), add a comment to the scenario explaining why one scenario is not enough.
+- General scenarios (movement, debuffs, etc.) follow the same rule per logical group, not per ability.
+
 ## Modifying behaviour safely
 
 - Prefer changing **scenario setup/assertions** before changing core engine idle rules, so battle semantics stay centralized.

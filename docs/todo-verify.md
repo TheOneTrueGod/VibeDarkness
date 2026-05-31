@@ -4,6 +4,7 @@
 
 | Todo | Notes | Date |
 |------|-------|------|
+| Modify your ability tests skill. One test per ability | Added "Test design principles" section to ability-tests SKILL.md: one scenario per ability max, combine multiple assertions, require comment if a second scenario is needed. | 2026-05-31 |
 | Migrate ImpactConversion (0521) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0521Ability.ts`. | 2026-05-31 |
 | Migrate BedrockScavenger (0522) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0522Ability.ts`. | 2026-05-31 |
 | Migrate DeepResonance (0523) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0523Ability.ts`. | 2026-05-31 |
