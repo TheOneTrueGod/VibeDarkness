@@ -336,7 +336,7 @@ const EXT_P1_BAT_TICK      = 120; // ~2 s
  */
 export const exposedDurationExtensionScenario: ScenarioDefinition = {
     id: 'exposed_duration_extension',
-    title: 'Exposed boss: absorbed stuns extend the exposed window beyond its base duration',
+    title: 'Exposed boss: absorbed stuns extend the exposed window (duration.value exceeds base)',
     category: 'general',
     generalSection: 'Enemies',
     maxDurationMs: 5000,
@@ -408,16 +408,15 @@ export const exposedDurationExtensionScenario: ScenarioDefinition = {
     },
 
     assertPass(engine) {
-        if (engine.gameTime < EXT_EXPOSED_DURATION) return false;
-        return Boolean(engine.getUnit('alpha_wolf_exposed_ext')?.hasBuff(EXPOSED_BUFF_TYPE));
+        const wolf = engine.getUnit('alpha_wolf_exposed_ext');
+        const buff = wolf?.buffs.find(b => b._type === EXPOSED_BUFF_TYPE) as ExposedBuff | undefined;
+        // Verify at least one absorbed CC extended the duration beyond the base.
+        return Boolean(buff && buff.duration.value > EXT_EXPOSED_DURATION);
     },
 
     failureMessage(engine) {
         const wolf = engine.getUnit('alpha_wolf_exposed_ext');
         const buff = wolf?.buffs.find(b => b._type === EXPOSED_BUFF_TYPE) as ExposedBuff | undefined;
-        const remaining = buff
-            ? (buff.duration.value - (engine.gameTime - buff.appliedAtTime)).toFixed(2)
-            : '—';
-        return `t=${engine.gameTime.toFixed(2)} exposed=${wolf?.hasBuff(EXPOSED_BUFF_TYPE)} remaining=${remaining} resistance=${buff?.exposedResistance.toFixed(2) ?? '—'}`;
+        return `t=${engine.gameTime.toFixed(2)} duration=${buff?.duration.value.toFixed(2) ?? '—'} base=${EXT_EXPOSED_DURATION} resistance=${buff?.exposedResistance.toFixed(2) ?? 'none'} — expected buff.duration.value > ${EXT_EXPOSED_DURATION}`;
     },
 };

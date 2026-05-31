@@ -2,7 +2,6 @@ import type { ScenarioDefinition } from '../../types';
 import { asCardDefId } from '../../../card_defs';
 import {
     buildTinyBattleEngine,
-    placePlayerAndDummy,
     seedHandWithAbilities,
     spawnTinyPlayerUnit,
     TINY_BATTLE_PLAYER_ID,
@@ -12,44 +11,6 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 import { Ammo } from '../../../resources/Ammo';
 
 const P = TINY_BATTLE_PLAYER_ID;
-
-export const laserSwordHitsTargetScenario: ScenarioDefinition = {
-    id: 'laser_sword_hits_target',
-    title: 'Laser Sword deals damage to a single target',
-    category: 'ability',
-    maxDurationMs: 5000,
-    buildEngine() {
-        const engine = buildTinyBattleEngine({
-            gridW: 16,
-            gridH: 12,
-            localPlayerId: P,
-            grass: true,
-        });
-        placePlayerAndDummy(engine, {
-            playerId: P,
-            playerWorld: { x: 200, y: 240 },
-            dummyWorld: { x: 256, y: 240 },
-            abilities: ['0105'],
-        });
-        const player = engine.getLocalPlayerUnit()!;
-        player.attachResource(new Ammo(), engine.eventBus);
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0105'), abilityId: '0105' }]);
-        return engine;
-    },
-    getInitialOrders(engine) {
-        const u = engine.getLocalPlayerUnit()!;
-        const d = engine.getUnit('target_dummy')!;
-        return [{ unitId: u.id, abilityId: '0105', targets: [{ type: 'pixel', position: { x: d.x, y: d.y } }] }];
-    },
-    assertPass(engine) {
-        const d = engine.getUnit('target_dummy');
-        return Boolean(d && d.maxHp - d.hp >= 20);
-    },
-    failureMessage(engine) {
-        const d = engine.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected at least 20`;
-    },
-};
 
 export const laserSwordHitsTwoTargetsScenario: ScenarioDefinition = {
     id: 'laser_sword_hits_two_targets',

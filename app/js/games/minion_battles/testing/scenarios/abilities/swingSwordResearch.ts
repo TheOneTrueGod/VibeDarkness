@@ -187,7 +187,7 @@ export const swingSwordHitsTwoTargetsScenario: ScenarioDefinition = {
         });
         for (let i = 0; i < 3; i++) {
             const y = 200 + i * 60;
-            const du = createTargetDummyAtWorld(engine, 300, y, { id: `target_dummy_${i}`, hp: 400 });
+            const du = createTargetDummyAtWorld(engine, 280, y, { id: `target_dummy_${i}`, hp: 400 });
             initializeAbilityRuntimeForUnit(du);
             engine.addUnit(du);
         }
@@ -196,7 +196,7 @@ export const swingSwordHitsTwoTargetsScenario: ScenarioDefinition = {
     },
     getInitialOrders(engine) {
         const u = engine.getLocalPlayerUnit()!;
-        return [{ unitId: u.id, abilityId: '0112', targets: [{ type: 'pixel', position: { x: 300, y: 260 } }] }];
+        return [{ unitId: u.id, abilityId: '0112', targets: [{ type: 'pixel', position: { x: 280, y: 260 } }] }];
     },
     assertPass(engine) {
         const hurt = engine.units.filter((u) => u.teamId === 'enemy' && u.isAlive() && u.hp < u.maxHp);

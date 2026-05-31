@@ -22,7 +22,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
-import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario } from '../scenarios/general/enemies';
+import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario, exposedDurationExtensionScenario } from '../scenarios/general/enemies';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
@@ -208,6 +208,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes alpha wolf summon scenario (spawned wolves attack and damage player)', () => {
         const r = runScenarioHeadless(alphaWolfSummonScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes exposed duration extension scenario (absorbed stuns extend the exposed window)', () => {
+        const r = runScenarioHeadless(exposedDurationExtensionScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

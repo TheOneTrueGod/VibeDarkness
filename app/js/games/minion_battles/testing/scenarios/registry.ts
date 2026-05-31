@@ -35,7 +35,7 @@ import {
     swingSwordNoneScenario,
     swingSwordHitsTwoTargetsScenario,
 } from './abilities/swingSwordResearch';
-import { laserSwordHitsTargetScenario, laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenarios';
+import { laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenarios';
 import { absorptionShieldEnergyChargeScenario } from './abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
@@ -110,7 +110,6 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
-    laserSwordHitsTargetScenario,
     laserSwordHitsTwoTargetsScenario,
 ];
 

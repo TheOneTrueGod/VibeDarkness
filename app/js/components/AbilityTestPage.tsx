@@ -109,12 +109,14 @@ function ScenarioPane({
                 <HpBar hp={playerHp} maxHp={playerMaxHp} tone="player" />
                 <HpBar hp={dummyHp} maxHp={dummyMaxHp} tone="dummy" />
             </div>
-            {settled && (
-                <div className={`text-[11px] ${passed ? 'text-success' : 'text-danger'}`}>
-                    {passed ? 'Passed' : 'Failed'}
-                    {!passed && msg ? ` · ${msg}` : ''}
-                </div>
-            )}
+            <div className={`text-[11px] ${settled ? (passed ? 'text-success' : 'text-danger') : 'invisible'}`}>
+                {settled ? (
+                    <>
+                        {passed ? 'Passed' : 'Failed'}
+                        {!passed && msg ? ` · ${msg}` : ''}
+                    </>
+                ) : ' '}
+            </div>
         </div>
     );
 }
@@ -374,13 +376,17 @@ export default function AbilityTestPage() {
                                             onClick={() => replayGroup(key)}
                                         />
                                         <PlaybackButton
-                                            icon={mode === 'playing' ? Pause : Play}
-                                            title={mode === 'playing' ? 'Pause' : 'Play'}
+                                            icon={!allFinished && mode === 'playing' ? Pause : Play}
+                                            title={allFinished ? 'Restart' : mode === 'playing' ? 'Pause' : 'Play'}
                                             onClick={() => {
-                                                setPlaybackByKey((prev) => ({
-                                                    ...prev,
-                                                    [key]: mode === 'playing' ? 'paused' : 'playing',
-                                                }));
+                                                if (allFinished) {
+                                                    replayGroup(key);
+                                                } else {
+                                                    setPlaybackByKey((prev) => ({
+                                                        ...prev,
+                                                        [key]: mode === 'playing' ? 'paused' : 'playing',
+                                                    }));
+                                                }
                                             }}
                                         />
                                         <PlaybackButton
