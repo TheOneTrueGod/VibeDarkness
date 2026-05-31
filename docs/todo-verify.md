@@ -4,6 +4,11 @@
 
 | Todo | Notes | Date |
 |------|-------|------|
+| Migrate ImpactConversion (0521) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0521Ability.ts`. | 2026-05-31 |
+| Migrate BedrockScavenger (0522) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0522Ability.ts`. | 2026-05-31 |
+| Migrate DeepResonance (0523) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0523Ability.ts`. | 2026-05-31 |
+| Migrate FaultHarvest (0528) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0528Ability.ts`. | 2026-05-31 |
+| Migrate SeismicGuard (0529) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0529Ability.ts`. | 2026-05-31 |
 
 ## Easy
 

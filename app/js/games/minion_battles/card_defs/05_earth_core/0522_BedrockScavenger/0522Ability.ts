@@ -1,7 +1,6 @@
 import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
-import type { ResolvedTarget } from '../../../game/types';
 import { asCardDefId, type CardDef } from '../../types';
 import {
     BEDROCK_SCAVENGER_PASSIVE_ID,
@@ -30,7 +29,6 @@ export const BedrockScavengerAbility: AbilityStatic = {
     getAbilityStates(): [] {
         return [];
     },
-    doCardEffect(_engine: unknown, _caster: Unit, _targets: ResolvedTarget[], _prevTime: number, _currentTime: number): void {},
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
     onRoundStart(unit: Unit, engine: EngineContext): void {
         if (!engine.terrainManager) return;

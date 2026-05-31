@@ -1,6 +1,5 @@
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { AbilityStatic } from '../../../abilities/Ability';
-import type { ResolvedTarget } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { areAllies } from '../../../game/teams';
@@ -61,7 +60,6 @@ export const SeismicGuard: AbilityStatic = {
     getTooltipText(): string[] {
         return ['Passive: attack start on a nearby ally grants that ally {1} armour.'];
     },
-    doCardEffect(_engine: unknown, _caster: Unit, _targets: ResolvedTarget[]): void {},
     getAbilityStates(): [] {
         return [];
     },

@@ -1,6 +1,5 @@
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { AbilityStatic } from '../../../abilities/Ability';
-import type { ResolvedTarget } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { asCardDefId, type CardDef } from '../../types';
 import { EARTH_CORE_RESONANCE_GAIN_ON_OWN_ARMOUR_BREAK } from '../earthCoreConstants';
@@ -35,7 +34,6 @@ export const FaultHarvest: AbilityStatic = {
     getTooltipText(): string[] {
         return ['Passive: when your armour breaks, gain {12} Resonance.'];
     },
-    doCardEffect(_engine: unknown, _caster: Unit, _targets: ResolvedTarget[]): void {},
     getAbilityStates(): [] {
         return [];
     },

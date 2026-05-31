@@ -1,7 +1,6 @@
 import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
-import type { ResolvedTarget } from '../../../game/types';
 import { asCardDefId, type CardDef } from '../../types';
 import { IMPACT_CONVERSION_PASSIVE_ID } from '../../../abilities/earthCoreMeleePassives';
 
@@ -24,7 +23,6 @@ export const ImpactConversionAbility: AbilityStatic = {
     getAbilityStates(): [] {
         return [];
     },
-    doCardEffect(_engine: unknown, _caster: Unit, _targets: ResolvedTarget[], _prevTime: number, _currentTime: number): void {},
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
 };
 

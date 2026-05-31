@@ -25,11 +25,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Migrate ImpactConversion (0521) to castBehaviours | Passive ability with empty `doCardEffect` stub. Delete the method from `0521Ability.ts`; the ability's actual logic lives in `onRoundStart`. No behavioral change expected. |
-| Migrate BedrockScavenger (0522) to castBehaviours | Passive ability with empty `doCardEffect` stub. Delete the method from `0522Ability.ts`; the ability's logic is driven by `onRoundStart`. No behavioral change expected. |
-| Migrate DeepResonance (0523) to castBehaviours | Passive ability with empty `doCardEffect` stub. Delete the method from `0523Ability.ts`. No behavioral change expected. |
-| Migrate FaultHarvest (0528) to castBehaviours | Passive ability with empty `doCardEffect` stub. Delete the method from `0528Ability.ts`. No behavioral change expected. |
-| Migrate SeismicGuard (0529) to castBehaviours | Passive ability with empty `doCardEffect` stub. Delete the method from `0529Ability.ts`. No behavioral change expected. |
 
 ## Easy
 
