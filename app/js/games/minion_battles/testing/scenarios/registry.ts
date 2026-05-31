@@ -35,6 +35,7 @@ import {
     swingSwordNoneScenario,
     swingSwordHitsTwoTargetsScenario,
 } from './abilities/swingSwordResearch';
+import { laserSwordHitsTargetScenario, laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenarios';
 import { absorptionShieldEnergyChargeScenario } from './abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
@@ -109,6 +110,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
+    laserSwordHitsTargetScenario,
+    laserSwordHitsTwoTargetsScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -126,7 +129,7 @@ export interface AbilityTreeSidebarGroup {
 const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'training',      label: 'Training',      selectorKey: 'tree:training',      abilityIds: ['0102'] },
     { treeId: 'crystal_rocks', label: 'Rocks',          selectorKey: 'tree:crystal_rocks', abilityIds: ['throw_rock'] },
-    { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112'] },
+    { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112', '0105'] },
     { treeId: 'tech_shield',   label: 'Tech Shield',    selectorKey: 'tree:tech_shield',   abilityIds: ['0104', '0110', '0113'] },
     { treeId: 'earth_core',    label: 'Earth Core',     selectorKey: 'tree:earth_core',    abilityIds: ['earth_core'] },
 ];
@@ -186,6 +189,7 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     const id = scenario.id;
     if (id.startsWith('punch_')) return '0102';
     if (id.startsWith('throw_rock') || id.includes('throw_rock')) return 'throw_rock';
+    if (id.startsWith('laser_sword')) return '0105';
     if (id.startsWith('swing_sword') || id.includes('buff_swing')) return '0112';
     if (id.startsWith('absorption_shield')) return '0113';
     if (id.startsWith('tech_shield_raise_shield')) return '0104';
