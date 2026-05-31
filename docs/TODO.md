@@ -45,7 +45,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Move enrageDef from Unit instance onto unitDef | Once units can look up their associated unitDef at runtime, declare `enrageDef` on the unitDef entry rather than carrying a copy on each `Unit`. The unit resolves it on demand, removing the `enrageDef` field, its `toJSON`/`fromJSON` handling, and the spawn-time copy in `units/index.ts`. |
 | Migrate Dodge (0101) to castBehaviours | `doCardEffect` handles per-tick movement displacement, afterimage effect spawning, and a one-shot recovery-charge grant. Movement and afterimage emission should be expressed via a dash CastBehaviour or `emitterDef` on the iframe interval; the recovery charge can move to an `ON_CAST_START` abilityEvents rule. |
 | Migrate ShiningBlock (0110) to castBehaviours | `doCardEffect` manages a blocking window with a counter-attack AoE on block success. The counter-attack may need a new CastBehaviour or an `ON_ATTACK_BLOCKED` abilityEvents rule; the blocking window itself is already driven by `getBlockingArc`. |
 | Migrate Claw (0111) to castBehaviours | `doCardEffect` applies forced-displacement movement each tick and spawns collision effects. Needs a dash/movement CastBehaviour (similar approach to Dodge); the iframe window is already declared in `abilityTimings`. |

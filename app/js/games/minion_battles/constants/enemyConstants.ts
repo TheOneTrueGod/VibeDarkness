@@ -67,12 +67,6 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     aiSettings: { minRange: 0, maxRange: 100 },
     radius: 26,
     unitTags: [UnitTag.Boss],
-    enrageDef: {
-        conditionType: 'health_below_percent',
-        threshold: ALPHA_WOLF_ENRAGE_THRESHOLD,
-        tag: UnitTag.Enraged,
-        oneShot: true,
-    },
 };
 
 /** Thornbinder crawler — bramble AoE zoning; Light Hate. */

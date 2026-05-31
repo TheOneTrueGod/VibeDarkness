@@ -37,7 +37,7 @@ import { computeForcedDisplacement } from '../forceMove';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
-import { getDefaultHp, getUnitCombatCcDef, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
+import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
 import { UnitTag, parseUnitTagsFromJSON } from './unitTag';
@@ -172,8 +172,10 @@ export class Unit extends GameObject {
     /** Optional tags (crystal aura, boss UI, etc.). Serialized for checkpoints when non-empty. */
     tags: UnitTag[] = [];
 
-    /** If set, unit will gain a tag when enrage conditions are met (e.g. HP falls below threshold). */
-    enrageDef?: EnrageDef;
+    /** Enrage trigger sourced from the unit def — no backing field or serialization needed. */
+    get enrageDef(): EnrageDef | undefined {
+        return getUnitEnrageDef(this.characterId);
+    }
 
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;
@@ -1153,7 +1155,6 @@ export class Unit extends GameObject {
             ...(this.lanterniteConstructionCompleteAtGameTime != null ? { lanterniteConstructionCompleteAtGameTime: this.lanterniteConstructionCompleteAtGameTime } : {}),
             ...(this.lanterniteAttackReadyAtGameTime !== 0 ? { lanterniteAttackReadyAtGameTime: this.lanterniteAttackReadyAtGameTime } : {}),
             ...(this.lanterniteConstructionAngle != null ? { lanterniteConstructionAngle: this.lanterniteConstructionAngle } : {}),
-            ...(this.enrageDef ? { enrageDef: { ...this.enrageDef } } : {}),
         };
     }
 
@@ -1304,18 +1305,6 @@ export class Unit extends GameObject {
                 },
             ]),
         );
-
-        if (data.enrageDef && typeof data.enrageDef === 'object') {
-            const raw = data.enrageDef as Record<string, unknown>;
-            if (raw.conditionType === 'health_below_percent' && typeof raw.threshold === 'number' && typeof raw.tag === 'string') {
-                unit.enrageDef = {
-                    conditionType: 'health_below_percent',
-                    threshold: raw.threshold,
-                    tag: raw.tag as UnitTag,
-                    ...(raw.oneShot === true ? { oneShot: true } : {}),
-                };
-            }
-        }
 
         // Resources are reattached by the unit subclass factory
         return unit;

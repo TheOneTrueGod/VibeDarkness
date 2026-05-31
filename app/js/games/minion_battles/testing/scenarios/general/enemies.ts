@@ -11,7 +11,6 @@ import {
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { UnitTag } from '../../../game/units/unitTag';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
-import type { EnrageDef } from '../../../game/units/enrageDef';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -168,13 +167,6 @@ const ENRAGE_WOLF_POS = { x: 5 * 40 + 20, y: 2 * 40 + 20 };   // (220, 100)
 // Player 45 px to the left — inside punch range (BASE_MAX_RANGE=30 + player radius=20 = 50 px).
 const ENRAGE_PLAYER_POS = { x: ENRAGE_WOLF_POS.x - 45, y: ENRAGE_WOLF_POS.y };
 
-const WOLF_ENRAGE_DEF: EnrageDef = {
-    conditionType: 'health_below_percent',
-    threshold: 0.5,
-    tag: UnitTag.Enraged,
-    oneShot: true,
-};
-
 /**
  * Alpha Wolf enrage trigger: wolf starts just above 50 % HP; one player punch
  * drops it below the threshold, which should apply UnitTag.Enraged via UnitManager.
@@ -206,7 +198,6 @@ export const alphaWolfEnrageTriggersScenario: ScenarioDefinition = {
                 ownerId: 'ai',
                 abilities: [],
                 unitTags: [UnitTag.Boss],
-                enrageDef: WOLF_ENRAGE_DEF,
             },
             engine.eventBus,
         );

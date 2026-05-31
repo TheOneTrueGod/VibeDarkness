@@ -17,6 +17,7 @@ import { getPortrait } from '../../../character_defs/portraitLoader';
 import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
 import type { CcResistKey } from '../../../crowdControl/ccTypes';
 import { UnitTag } from '../unitTag';
+import type { EnrageDef } from '../enrageDef';
 
 type HpBarSize = 'large' | 'small' | 'hidden';
 
@@ -92,27 +93,32 @@ export type CreatureType = 'dark_creature' | 'beast';
 /** Serialized on units; all players share baseline stats from UNIT_DEFS.player. */
 export const PLAYER_CHARACTER_ID: PlayerUnitDefId = 'player';
 
-/** Body color, optional character sprite key, default HP/speed, size, and perception range (px) for AI. */
-const UNIT_DEFS: Record<
-    UnitDefId,
-    {
-        bodyColor: number;
-        characterSpriteKey?: string;
-        hp?: number;
-        speed?: number;
-        /** Size category; radius derived from UNIT_SIZE_MAP. Overrides radius if both set. */
-        size?: UnitSize;
-        radius?: number;
-        stamina?: number;
-        perceptionRange?: number;
-        deathEffect?: UnitDeathEffectDef;
-        /** Darkness vs natural beast; drives expectations for death/damage presentation and copy. */
-        creatureType?: CreatureType;
-        /** Short flavor text for battle UI (e.g. timeline hover). */
-        uiDescription?: string;
-        combatCc?: UnitCombatCcDef;
-    }
-> = {
+/**
+ * Per-character static definition. Properties here are universal for all units of that characterId.
+ * Add a property here (not on Unit) when its value is the same for every spawn of a given character type.
+ * Expose it via a typed accessor function and a getter on Unit (see `knockbackResistance` for the pattern).
+ */
+export interface UnitDefEntry {
+    bodyColor: number;
+    characterSpriteKey?: string;
+    hp?: number;
+    speed?: number;
+    /** Size category; radius derived from UNIT_SIZE_MAP. Overrides radius if both set. */
+    size?: UnitSize;
+    radius?: number;
+    stamina?: number;
+    perceptionRange?: number;
+    deathEffect?: UnitDeathEffectDef;
+    /** Darkness vs natural beast; drives expectations for death/damage presentation and copy. */
+    creatureType?: CreatureType;
+    /** Short flavor text for battle UI (e.g. timeline hover). */
+    uiDescription?: string;
+    combatCc?: UnitCombatCcDef;
+    /** If set, units of this character type gain a tag when the enrage condition is met at runtime. */
+    enrageDef?: EnrageDef;
+}
+
+const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     // All player units: baseline stats; portrait defs may override body color and size on the token.
     player: {
         bodyColor: 0x4b5563,
@@ -174,6 +180,12 @@ const UNIT_DEFS: Record<
             chainCcDecayRounds: 0,
             ccArmourBreakStunDuration: 5,
             knockbackResistance: 1,
+        },
+        enrageDef: {
+            conditionType: 'health_below_percent',
+            threshold: 0.5,
+            tag: UnitTag.Enraged,
+            oneShot: true,
         },
     },
     boar: {
@@ -255,6 +267,11 @@ const UNIT_DEFS: Record<
 /** Optional CC spawn data for a character id (undefined when none). */
 export function getUnitCombatCcDef(characterId: string): UnitCombatCcDef | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.combatCc;
+}
+
+/** Enrage trigger def for a character id (undefined when the character does not enrage). */
+export function getUnitEnrageDef(characterId: string): EnrageDef | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.enrageDef;
 }
 
 function unitIsDarkCreature(unit: Unit): boolean {
