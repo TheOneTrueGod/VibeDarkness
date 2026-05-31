@@ -12,6 +12,7 @@ import type {
     CastBehaviourBaseContext,
     CastBehaviourRenderContext,
 } from '../castBehaviourTypes';
+import { BaseAttackBehaviour } from './BaseAttackBehaviour';
 
 // ---- Easing (mirrored from meleeAnimationProfile.ts) ----
 
@@ -87,7 +88,7 @@ interface MeleeAttackPayload {
 
 // ---- Behaviour class ----
 
-export class MeleeAttackBehaviour implements CastBehaviour {
+export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBehaviour {
     private hitboxDef: HitboxDef | HitboxSpec | null = null;
     private impactEffectType: string = 'punch';
     private damageCallback: ((ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void) | null = null;
@@ -365,6 +366,9 @@ export class MeleeAttackBehaviour implements CastBehaviour {
         if (hitUnits.length > 0 && this.damageCallback != null) {
             this.damageCallback(ctx, hitUnits);
         }
+
+        // Apply tier-based knockback (if configured via withKnockback).
+        this.applyKnockbackToHits(hitUnits, ctx);
 
         // Hit pause.
         ctx.engine.requestHitPause?.(3);

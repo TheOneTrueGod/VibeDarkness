@@ -1,5 +1,26 @@
 # TODO
 
+## Uncategorised
+
+| Todo | Notes |
+|------|-------|
+| Migrate 0105_LaserSword to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0108_ThrowChargedRock to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0111_Claw to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0112_SwingSword to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0114_EnergyBlast to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0102_Punch (base punch knockback path) to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0006_BoarCharge to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0007_AlphaWolfCharge to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0003_DarkWolfBite to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0004_AlphaWolfClaw to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0534_BoarClaws to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0530_StoneTomb to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate 0611_BeastClaw to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
+| Migrate ChargeAttack template to knockback tier system | Replace `applyKnockback` in `abilities/templates/ChargeAttack.ts` with `tryApplyKnockbackByTier` |
+| Migrate LungeMovement behaviour to knockback tier system | Replace `applyKnockback` in `abilities/behaviors/LungeMovement.ts` with `tryApplyKnockbackByTier` |
+| Clean up poiseHp / maxPoiseHp system | Once all knockback callers are migrated to the tier system, remove `poiseHp`, `maxPoiseHp` fields from `Unit.ts` and the stability gate from `applyKnockback` |
+
 ## Trivial
 
 | Todo | Notes |
@@ -24,6 +45,7 @@
 
 | Todo | Notes |
 |------|-------|
+| Move enrageDef from Unit instance onto unitDef | Once units can look up their associated unitDef at runtime, declare `enrageDef` on the unitDef entry rather than carrying a copy on each `Unit`. The unit resolves it on demand, removing the `enrageDef` field, its `toJSON`/`fromJSON` handling, and the spawn-time copy in `units/index.ts`. |
 | Migrate Dodge (0101) to castBehaviours | `doCardEffect` handles per-tick movement displacement, afterimage effect spawning, and a one-shot recovery-charge grant. Movement and afterimage emission should be expressed via a dash CastBehaviour or `emitterDef` on the iframe interval; the recovery charge can move to an `ON_CAST_START` abilityEvents rule. |
 | Migrate ShiningBlock (0110) to castBehaviours | `doCardEffect` manages a blocking window with a counter-attack AoE on block success. The counter-attack may need a new CastBehaviour or an `ON_ATTACK_BLOCKED` abilityEvents rule; the blocking window itself is already driven by `getBlockingArc`. |
 | Migrate Claw (0111) to castBehaviours | `doCardEffect` applies forced-displacement movement each tick and spawns collision effects. Needs a dash/movement CastBehaviour (similar approach to Dodge); the iframe window is already declared in `abilityTimings`. |

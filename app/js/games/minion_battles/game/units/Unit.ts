@@ -37,7 +37,7 @@ import { computeForcedDisplacement } from '../forceMove';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
-import { getDefaultHp, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
+import { getDefaultHp, getUnitCombatCcDef, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
 import { UnitTag, parseUnitTagsFromJSON } from './unitTag';
@@ -203,6 +203,14 @@ export class Unit extends GameObject {
     poiseHp: number = 0;
     /** Maximum knockback stability. Units with 0 skip the stability gate (knockback always applies). */
     maxPoiseHp: number = 0;
+
+    /**
+     * Reduces the effective tier of incoming tier-based knockback (see tryApplyKnockbackByTier).
+     * Sourced from the unit def on demand — no backing field or serialization needed.
+     */
+    get knockbackResistance(): number {
+        return getUnitCombatCcDef(this.characterId)?.knockbackResistance ?? 0;
+    }
 
     /** Per-type CC duration resist; specific entry overrides `ALL`. Values 0–1 (fraction reduced). */
     ccDurationResistPct: Partial<Record<CcResistKey, number>> = {};
@@ -911,6 +919,7 @@ export class Unit extends GameObject {
             }
             const ctx: CastBehaviourInterruptContext = {
                 caster: this,
+                abilityId: active.abilityId,
                 target,
                 allTargets: active.targets,
                 castPayload: active.castPayload,

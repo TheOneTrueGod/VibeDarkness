@@ -8,3 +8,11 @@ export {
     type HardCcStunAttemptOutcome,
     type HardCcStunAttemptResult,
 } from './tryApplyHardCcStun';
+export {
+    tryApplyKnockbackByTier,
+    getKnockbackTierDef,
+    type KnockbackTierDef,
+    type KnockbackAttemptOutcome,
+    type KnockbackAttemptResult,
+    type KnockbackEngineCtx,
+} from './knockbackKeywords';

@@ -34,6 +34,8 @@ export interface CastBehaviourEntry {
 // ---- Context types ----
 export interface CastBehaviourBaseContext {
     caster: Unit;
+    /** ID of the ability being executed. Useful for knockback source attribution and event dispatch. */
+    abilityId: string;
     target: ResolvedTarget;
     allTargets: ResolvedTarget[];
     castPayload: unknown;

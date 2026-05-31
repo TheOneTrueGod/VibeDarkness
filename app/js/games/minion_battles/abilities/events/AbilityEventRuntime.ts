@@ -1,7 +1,7 @@
 import { grantRecoveryChargeToRandomAbility } from '../abilityUses';
 import { getAbility } from '../AbilityRegistry';
-import { getDirectionFromTo } from '../targetHelpers';
 import type { AbilityEventType, AbilityStatic, AttackBlockedInfo } from '../Ability';
+import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
 import type { GameEngine } from '../../game/GameEngine';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
@@ -171,17 +171,13 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
         case 'applyKnockbackToPrimaryTarget': {
             const target = context.primaryTarget;
             if (!target) return;
-            const { dirX, dirY } = getDirectionFromTo(context.caster.x, context.caster.y, target.x, target.y);
-            target.applyKnockback(
-                effect.poiseDamage,
-                {
-                    knockbackVector: { x: dirX * effect.magnitude, y: dirY * effect.magnitude },
-                    knockbackAirTime: effect.airTime,
-                    knockbackSlideTime: effect.slideTime,
-                    knockbackSource: { unitId: context.caster.id, abilityId: effect.sourceAbilityId },
-                },
-                context.engine.eventBus,
-                (unit) => context.engine.interruptUnitAndRefundAbilities?.(unit),
+            tryApplyKnockbackByTier(
+                target,
+                effect.tier,
+                { unitId: context.caster.id, abilityId: effect.sourceAbilityId },
+                context.caster.x,
+                context.caster.y,
+                context.engine,
             );
             return;
         }

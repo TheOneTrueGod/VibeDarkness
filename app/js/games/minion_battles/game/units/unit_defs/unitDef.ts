@@ -35,6 +35,8 @@ export type UnitCombatCcDef = {
     chainCcDecayRounds?: number;
     /** Fixed stun duration (seconds) applied when CC armour breaks. Overrides the incoming hit's duration. */
     ccArmourBreakStunDuration?: number;
+    /** Subtracts from the incoming knockback tier before CC armour is checked. Default 0. */
+    knockbackResistance?: number;
 };
 
 /** Color for allied unit glows. */
@@ -171,6 +173,7 @@ const UNIT_DEFS: Record<
             hardCcArmourFloor: 2,
             chainCcDecayRounds: 0,
             ccArmourBreakStunDuration: 5,
+            knockbackResistance: 1,
         },
     },
     boar: {

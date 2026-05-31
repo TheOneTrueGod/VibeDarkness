@@ -20,10 +20,6 @@ const MAX_RANGE = 30; // px
 const LINE_THICKNESS = 20; // px
 // 8 base + ~20% small bonus = 10
 const PUNCH_DAMAGE = 10;
-const KNOCKBACK_MAGNITUDE = 12;
-const KNOCKBACK_AIR_TIME = 0.03;
-const KNOCKBACK_SLIDE_TIME = 0.06;
-const KNOCKBACK_POISE_DAMAGE = 1;
 const STUN_DURATION = 1.2; // seconds
 
 const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
@@ -95,14 +91,7 @@ export const StrongPunchAbility: AbilityStatic = {
                 id: 'strong_punch_cc',
                 conditions: [{ type: 'hitResultIs', result: 'hit' }],
                 effects: [
-                    {
-                        type: 'applyKnockbackToPrimaryTarget',
-                        poiseDamage: KNOCKBACK_POISE_DAMAGE,
-                        magnitude: KNOCKBACK_MAGNITUDE,
-                        airTime: KNOCKBACK_AIR_TIME,
-                        slideTime: KNOCKBACK_SLIDE_TIME,
-                        sourceAbilityId: CARD_ID,
-                    },
+                    { type: 'applyKnockbackToPrimaryTarget', tier: 1, sourceAbilityId: CARD_ID },
                     { type: 'applyStunnedToPrimaryTarget', duration: STUN_DURATION },
                     { type: 'interruptPrimaryTargetAbilities' },
                 ],
@@ -112,8 +101,8 @@ export const StrongPunchAbility: AbilityStatic = {
 
     getTooltipText(): string[] {
         return [
-            `Hit {1} enemy for {${PUNCH_DAMAGE}} damage`,
-            `On hit: knockback and {${STUN_DURATION}s} stun`,
+            `Hit {1} enemy for {${PUNCH_DAMAGE}} damage.`,
+            `{knockback 1} and {${STUN_DURATION}s} stun.`,
         ];
     },
 

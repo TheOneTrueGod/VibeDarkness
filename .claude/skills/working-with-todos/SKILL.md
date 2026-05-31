@@ -1,6 +1,6 @@
 ---
 name: working-with-todos
-description: Instructions for creating, categorizing, and completing project todos in docs/TODO.md. Use when asked to add a todo, work on a todo, or mark a todo as done.
+description: Instructions for creating, categorizing, and completing project todos in docs/TODO.md. Invoke whenever the user says "add a todo", "add this to the todo list", "note this for later", "remember to …", "we should …" (about future work), or asks to complete/remove a todo. Also invoke when a code comment says "TODO" and the user asks to track it.
 ---
 
 # Working with Todos

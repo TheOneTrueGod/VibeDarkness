@@ -56,3 +56,35 @@ See `GameEngine.ts` `fixedUpdate()` for the full tick order. The high-level flow
 ## Backward Compatibility
 
 Some types are re-exported from `GameEngine.ts` for backward compatibility. See the file for details.
+
+---
+
+## Patterns
+
+### Static unit properties from unit def
+
+For unit properties that are fixed at spawn and never change at runtime, prefer a **getter on `Unit` that reads the unit def** over copying the value in `combatCcSpawn.ts`:
+
+```typescript
+// In Unit.ts
+get knockbackResistance(): number {
+    return getUnitCombatCcDef(this.characterId)?.knockbackResistance ?? 0;
+}
+```
+
+- `characterId` is already serialized — no new field or serialization needed.
+- The unit def remains the single source of truth.
+- No `combatCcSpawn.ts` wiring required.
+
+Use this pattern for any stat that is set once from the def and never mutated at runtime. Stats that *do* change at runtime (e.g. `hardCcArmourConsumed`, `bonusHardCcArmour`) still live as fields on `Unit`.
+
+### Keyword tooltip format
+
+Keyworded effects on cards use `{value}` stat-highlight notation, same as damage/duration values:
+
+```typescript
+// Good — keyword effects go on their own tooltip-array line, no "On hit:" prefix
+[`Deal {${DAMAGE}} damage.`, `{knockback 1}, {${STUN_DURATION}s} stun.`]
+```
+
+The `{...}` wrapper signals to the tooltip renderer that the enclosed text is a highlighted stat or keyword. Use `{knockback N}` for tier-based knockback, `{Ns}` for durations. Put keyword effects on a separate array entry rather than appending ". On hit: ..." to the description string.

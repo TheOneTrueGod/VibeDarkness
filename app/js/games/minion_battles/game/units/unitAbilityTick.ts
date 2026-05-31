@@ -138,6 +138,7 @@ export function tickUnitActiveAbilities(
 
                 const setupCtx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext = {
                     caster: unit,
+                    abilityId: active.abilityId,
                     target,
                     allTargets: active.targets,
                     castPayload: active.castPayload,
@@ -159,6 +160,7 @@ export function tickUnitActiveAbilities(
                 } else {
                     const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
                         caster: unit,
+                        abilityId: active.abilityId,
                         target,
                         allTargets: active.targets,
                         castPayload: active.castPayload,
@@ -188,6 +190,7 @@ export function tickUnitActiveAbilities(
                 const target = resolveTargetForBehaviour(entry, interval, active, unit);
                 const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
                     caster: unit,
+                    abilityId: active.abilityId,
                     target,
                     allTargets: active.targets,
                     castPayload: active.castPayload,
@@ -236,6 +239,7 @@ export function tickUnitActiveAbilities(
                     if (behaviourTarget?.type !== 'unit' || behaviourTarget.unitId !== unit.id) continue;
                     const baseCtx: CastBehaviourBaseContext = {
                         caster: otherUnit,
+                        abilityId: rec.active.abilityId,
                         target: behaviourTarget,
                         allTargets: rec.active.targets,
                         castPayload: rec.active.castPayload,
@@ -274,6 +278,7 @@ export function tickUnitActiveAbilities(
             }
             const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
                 caster: unit,
+                abilityId: active.abilityId,
                 target,
                 allTargets: active.targets,
                 castPayload: active.castPayload,

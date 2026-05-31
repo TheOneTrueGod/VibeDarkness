@@ -17,7 +17,8 @@ import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
-import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
+import { getPixelTargetPosition } from '../../abilities/targetHelpers';
+import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { ThickLineHitbox } from '../../hitboxes';
 import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 import {
@@ -47,11 +48,6 @@ const BASE_MAX_RANGE = 56;
 const BASE_DAMAGE = 10;
 const DAMAGE_RESEARCH_BONUS = getApproxIntegerIncrease(BASE_DAMAGE, DescriptiveValue.Medium);
 const SWING_BAT_EFFECT_DURATION = 0.4;
-const POISE_DAMAGE = 10;
-const KNOCKBACK_MAGNITUDE = 45;
-/** Longer air/slide time than the basic stick for a heavier-feeling stun. */
-const KNOCKBACK_AIR_TIME = 0.5;
-const KNOCKBACK_SLIDE_TIME = 0.3;
 const MAX_TARGETS = 3;
 const LINE_THICKNESS = 26;
 const SWING_LENGTH = 80;
@@ -127,6 +123,7 @@ interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
     addEffect(effect: Effect): void;
     gameTime: number;
+    roundNumber: number;
     eventBus: EventBus;
     interruptUnitAndRefundAbilities(unit: Unit): void;
     getPlayerResearchNodes?(playerId: string, treeId: string): string[];
@@ -164,7 +161,8 @@ export const SwingBatAbility_0115: AbilityStatic = {
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
-            `Swing your pipe bat dealing {${BASE_DAMAGE}} damage to up to ${MAX_TARGETS} enemies, interrupting and knocking them back hard.`,
+            `Swing your pipe bat dealing {${BASE_DAMAGE}} damage to up to ${MAX_TARGETS} enemies.`,
+            `{knockback 3}.`,
         ];
     },
 
@@ -289,17 +287,13 @@ export const SwingBatAbility_0115: AbilityStatic = {
             });
             if (blocked) continue;
 
-            const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
-            targetUnit.applyKnockback(
-                POISE_DAMAGE,
-                {
-                    knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
-                    knockbackAirTime: KNOCKBACK_AIR_TIME,
-                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                    knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-                },
-                eng.eventBus,
-                (u) => eng.interruptUnitAndRefundAbilities(u),
+            tryApplyKnockbackByTier(
+                targetUnit,
+                3,
+                { unitId: caster.id, abilityId: CARD_ID },
+                caster.x,
+                caster.y,
+                eng,
             );
         }
     },

@@ -52,10 +52,6 @@ const SNEAKY_PUNCH_BONUS_DAMAGE = getApproxIntegerIncrease(BASE_DAMAGE, Descript
 const PUNCH_EFFECT_DURATION = 0.2;
 /** Line thickness for hitbox and preview (px). Enemies within (unit.radius + this) of the line are hit. */
 const LINE_THICKNESS = 20;
-const POISE_DAMAGE = 1;
-const KNOCKBACK_MAGNITUDE = 12;
-const KNOCKBACK_AIR_TIME = 0.03;
-const KNOCKBACK_SLIDE_TIME = 0.06;
 const STRONG_PUNCH_STUN_DURATION = 1.2;
 const DOUBLE_PUNCH_SECOND_STRIKE_TIME = 0.42;
 const MOVEMENT_LOCK_BASE_END = 0.2;
@@ -360,14 +356,7 @@ export const PunchAbility: AbilityStatic = {
                     { type: 'casterHasResearchNode', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_STRONG_PUNCH },
                 ],
                 effects: [
-                    {
-                        type: 'applyKnockbackToPrimaryTarget',
-                        poiseDamage: POISE_DAMAGE,
-                        magnitude: KNOCKBACK_MAGNITUDE,
-                        airTime: KNOCKBACK_AIR_TIME,
-                        slideTime: KNOCKBACK_SLIDE_TIME,
-                        sourceAbilityId: CARD_ID,
-                    },
+                    { type: 'applyKnockbackToPrimaryTarget', tier: 1, sourceAbilityId: CARD_ID },
                     { type: 'applyStunnedToPrimaryTarget', duration: STRONG_PUNCH_STUN_DURATION },
                     { type: 'interruptPrimaryTargetAbilities' },
                 ],

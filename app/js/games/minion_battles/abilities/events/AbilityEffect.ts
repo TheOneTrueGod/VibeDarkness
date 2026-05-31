@@ -14,10 +14,8 @@ export type AbilityEffect =
     | { type: 'setFlag'; flag: string; value: boolean }
     | {
         type: 'applyKnockbackToPrimaryTarget';
-        poiseDamage: number;
-        magnitude: number;
-        airTime: number;
-        slideTime: number;
+        /** Knockback tier (1 = light, 3 = heavy). Unit knockbackResistance subtracts before applying. */
+        tier: number;
         sourceAbilityId: string;
     }
     | { type: 'applyStunnedToPrimaryTarget'; duration: number }

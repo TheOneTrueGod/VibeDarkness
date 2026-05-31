@@ -891,6 +891,7 @@ export class GameRenderer {
 						if (!target) continue;
 						const offset = entry.behaviour.getCasterRenderOffset({
 							caster: unit,
+							abilityId: activeAbility.abilityId,
 							target,
 							allTargets: activeAbility.targets,
 							castPayload: activeAbility.castPayload,

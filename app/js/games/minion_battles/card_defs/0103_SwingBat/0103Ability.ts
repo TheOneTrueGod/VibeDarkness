@@ -13,11 +13,10 @@
  */
 
 import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
-import { AbilityState } from '../../abilities/Ability';
+import { AbilityEventType, AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
-import { getDirectionFromTo } from '../../abilities/targetHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
@@ -38,10 +37,7 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
 const BASE_MAX_RANGE = 56;
 const DAMAGE = 10;
 const SWING_BAT_EFFECT_DURATION = 0.4;
-const POISE_DAMAGE = 10;
-const KNOCKBACK_MAGNITUDE = 45;
-const KNOCKBACK_AIR_TIME = 0.3;
-const KNOCKBACK_SLIDE_TIME = 0.2;
+const STUN_DURATION = 1.0;
 const LINE_THICKNESS = 26;
 const SWING_LENGTH = 80;
 
@@ -74,10 +70,6 @@ function spawnChargeUp(engine: { addEffect(effect: Effect): void }, caster: Unit
 
 // ---- Behaviour ----
 
-type SwingStickEngineExt = AbilityEngineContext & {
-    interruptUnitAndRefundAbilities?(u: Unit): void;
-};
-
 const swingStickBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(SWING_STICK_HITBOX)
     .withSlide({ forwardDistance: 16, backwardDistance: 0 })
@@ -95,14 +87,14 @@ const swingStickBehaviour = CastBehaviours.MeleeAttack()
     .withDamage((ctx, hitUnits) => {
         if (hitUnits.length === 0) return;
         const targetUnit = hitUnits[0]!;
-        const eng = ctx.engine as SwingStickEngineExt;
+        const eng = ctx.engine as AbilityEngineContext;
 
         let hitDamage = DAMAGE;
         if (isSinglePlayerBattle(eng.units) && targetUnit.characterId === 'dark_wolf') {
             hitDamage = Math.max(DAMAGE, targetUnit.maxHp);
         }
 
-        const blocked = !tryDamageOrBlock(targetUnit, {
+        tryDamageOrBlock(targetUnit, {
             engine: eng,
             gameTime: eng.gameTime,
             eventBus: eng.eventBus,
@@ -113,20 +105,6 @@ const swingStickBehaviour = CastBehaviours.MeleeAttack()
             damage: hitDamage,
             attackType: 'melee',
         });
-        if (blocked) return;
-
-        const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, targetUnit.x, targetUnit.y);
-        targetUnit.applyKnockback(
-            POISE_DAMAGE,
-            {
-                knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
-                knockbackAirTime: KNOCKBACK_AIR_TIME,
-                knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                knockbackSource: { unitId: ctx.caster.id, abilityId: CARD_ID },
-            },
-            eng.eventBus,
-            (u) => eng.interruptUnitAndRefundAbilities?.(u),
-        );
     });
 
 // ---- Timings ----
@@ -161,9 +139,24 @@ export const SwingBatAbility_0103: AbilityStatic = {
     abilityTimings: ABILITY_TIMINGS,
     aiSettings: { minRange: 0, maxRange: SWING_STICK_HITBOX.maxRange },
 
+    abilityEvents: {
+        [AbilityEventType.ON_ATTACK_HIT]: [
+            {
+                id: 'swing_stick_hit',
+                conditions: [{ type: 'hitResultIs', result: 'hit' }],
+                effects: [
+                    { type: 'applyKnockbackToPrimaryTarget', tier: 1, sourceAbilityId: CARD_ID },
+                    { type: 'applyStunnedToPrimaryTarget', duration: STUN_DURATION },
+                    { type: 'interruptPrimaryTargetAbilities' },
+                ],
+            },
+        ],
+    },
+
     getTooltipText(): string[] {
         return [
-            `Swing your stick dealing {${DAMAGE}} damage to an enemy, interrupting them and knocking them back.`,
+            `Swing your stick dealing {${DAMAGE}} damage.`,
+            `{knockback 1}, {${STUN_DURATION}s} stun.`,
         ];
     },
 
