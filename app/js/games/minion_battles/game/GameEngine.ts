@@ -540,6 +540,17 @@ export class GameEngine implements EngineContext {
                 this.hashString32(data.targetUnitId),
             );
         });
+
+        this.eventBus.on('unit_enraged', (data) => {
+            const unit = this.getUnit(data.unitId);
+            if (!unit) return;
+            this.addEffect(new Effect({
+                x: unit.x,
+                y: unit.y,
+                duration: 0.75,
+                effectType: 'EnrageBurst',
+            }));
+        });
     }
 
     private startStoryPause(reason: string, durationSeconds: number): void {

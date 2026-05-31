@@ -54,6 +54,9 @@ export const ENEMY_BOAR: EnemySpawnDef = {
     unitAITreeId: 'aggroWander',
 };
 
+/** HP fraction at which the Alpha Wolf enrages (gains UnitTag.Enraged). */
+export const ALPHA_WOLF_ENRAGE_THRESHOLD = 0.5;
+
 /** Alpha Wolf: boss — baseline hp/speed in unit defs. Summon (0005), Charge (0007, pre-enrage), Frenzied Charge (0011, post-enrage). radius 26. */
 export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     characterId: 'alpha_wolf',
@@ -66,7 +69,7 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     unitTags: [UnitTag.Boss],
     enrageDef: {
         conditionType: 'health_below_percent',
-        threshold: 0.5,
+        threshold: ALPHA_WOLF_ENRAGE_THRESHOLD,
         tag: UnitTag.Enraged,
         oneShot: true,
     },

@@ -21,23 +21,22 @@ import { UnitTag } from '../../../game/units/unitTag';
 
 const ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}11`;
 
-const WINDUP_TIME = 1.0;
-const LUNGE_DURATION = 0.3;
-const PAUSE_DURATION = 0.125;
+// First windup is slow (telegraphs intent); the two follow-up windups are fast (quick combos).
+const WINDUP1_TIME = 0.8;
+const WINDUP23_TIME = 0.25;
+const LUNGE_DURATION = 0.2;
 const COOLDOWN_DURATION = 3.0;
 const MAX_RANGE = 120;
 const CAPSULE_RADIUS_MULTIPLIER = 2.0;
 const DAMAGE = 5;
 
-const DASH1_START = WINDUP_TIME;
-const DASH1_END = DASH1_START + LUNGE_DURATION;   // 1.3
-const PAUSE1_END = DASH1_END + PAUSE_DURATION;     // 1.425
-const DASH2_START = PAUSE1_END;
-const DASH2_END = DASH2_START + LUNGE_DURATION;    // 1.725
-const PAUSE2_END = DASH2_END + PAUSE_DURATION;     // 1.85
-const DASH3_START = PAUSE2_END;
-const DASH3_END = DASH3_START + LUNGE_DURATION;    // 2.15
-const ACTIVE_END = DASH3_END;
+const DASH1_START = WINDUP1_TIME;                          // 0.80
+const DASH1_END   = DASH1_START + LUNGE_DURATION;          // 1.00
+const DASH2_START = DASH1_END   + WINDUP23_TIME;           // 1.25
+const DASH2_END   = DASH2_START + LUNGE_DURATION;          // 1.45
+const DASH3_START = DASH2_END   + WINDUP23_TIME;           // 1.70
+const DASH3_END   = DASH3_START + LUNGE_DURATION;          // 1.90
+const ACTIVE_END  = DASH3_END;
 
 interface DashNote extends LungeTarget {
     hitTargetIds: string[];
@@ -66,13 +65,13 @@ class TripleChargeAbilityDef extends AbilityBase<TripleChargeNote> {
     readonly renderTargetingPreview: AbilityStatic['renderTargetingPreview'];
 
     readonly abilityTimings: AbilityTimingInterval[] = [
-        { id: 'windup', start: 0,           end: WINDUP_TIME,  abilityPhase: AbilityPhase.Windup },
-        { id: 'dash1',  start: DASH1_START,  end: DASH1_END,    abilityPhase: AbilityPhase.Active },
-        { id: 'pause1', start: DASH1_END,    end: PAUSE1_END,   abilityPhase: AbilityPhase.Cooldown },
-        { id: 'dash2',  start: DASH2_START,  end: DASH2_END,    abilityPhase: AbilityPhase.Active },
-        { id: 'pause2', start: DASH2_END,    end: PAUSE2_END,   abilityPhase: AbilityPhase.Cooldown },
-        { id: 'dash3',  start: DASH3_START,  end: DASH3_END,    abilityPhase: AbilityPhase.Active },
-        { id: 'cooldown', start: ACTIVE_END, end: ACTIVE_END + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
+        { id: 'windup1', start: 0,            end: DASH1_START,  abilityPhase: AbilityPhase.Windup },
+        { id: 'dash1',   start: DASH1_START,  end: DASH1_END,    abilityPhase: AbilityPhase.Active },
+        { id: 'windup2', start: DASH1_END,    end: DASH2_START,  abilityPhase: AbilityPhase.Windup },
+        { id: 'dash2',   start: DASH2_START,  end: DASH2_END,    abilityPhase: AbilityPhase.Active },
+        { id: 'windup3', start: DASH2_END,    end: DASH3_START,  abilityPhase: AbilityPhase.Windup },
+        { id: 'dash3',   start: DASH3_START,  end: DASH3_END,    abilityPhase: AbilityPhase.Active },
+        { id: 'cooldown', start: ACTIVE_END,  end: ACTIVE_END + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
     ];
 
     private readonly lunge1 = new LungeMovement({ maxRange: MAX_RANGE, lungeDuration: LUNGE_DURATION, windupTime: DASH1_START });
@@ -156,7 +155,8 @@ class TripleChargeAbilityDef extends AbilityBase<TripleChargeNote> {
             this.damageInPath(eng, caster, seg, note.dash1.hitTargetIds);
         }
 
-        if (currentTime >= DASH2_START && note.dash2 === null) {
+        // Build dash2 note at start of windup2 so the telegraph can track the live target.
+        if (currentTime >= DASH1_END && note.dash2 === null) {
             note.dash2 = this.buildDashNote(eng, caster, note.targetId);
         }
 
@@ -169,7 +169,8 @@ class TripleChargeAbilityDef extends AbilityBase<TripleChargeNote> {
             this.damageInPath(eng, caster, seg, note.dash2.hitTargetIds);
         }
 
-        if (currentTime >= DASH3_START && note.dash3 === null) {
+        // Build dash3 note at start of windup3.
+        if (currentTime >= DASH2_END && note.dash3 === null) {
             note.dash3 = this.buildDashNote(eng, caster, note.targetId);
         }
 
@@ -200,31 +201,60 @@ class TripleChargeAbilityDef extends AbilityBase<TripleChargeNote> {
         const note = this.getNote(caster, activeAbility);
         if (!note) return;
 
-        let ux: number;
-        let uy: number;
-        if (note.dash1.chargeDirX !== undefined && note.dash1.chargeDirY !== undefined) {
-            ux = note.dash1.chargeDirX;
-            uy = note.dash1.chargeDirY;
-        } else {
+        const capsuleThickness = caster.radius * CAPSULE_RADIUS_MULTIPLIER;
+        const lineLen = caster.radius + MAX_RANGE;
+
+        // Show telegraph only during windup phases; skip during the actual dashes.
+        let windupLocalElapsed: number;
+        let windupDuration: number;
+        let dirX: number;
+        let dirY: number;
+
+        if (elapsed < DASH1_START) {
+            // Windup 1: slow fill toward initial target
+            windupLocalElapsed = elapsed;
+            windupDuration = WINDUP1_TIME;
             const d = getDirectionFromTo(
                 note.dash1.lungeStartX, note.dash1.lungeStartY,
                 note.dash1.targetX, note.dash1.targetY,
             );
             if (d.dist === 0) return;
-            ux = d.dirX;
-            uy = d.dirY;
+            dirX = note.dash1.chargeDirX ?? d.dirX;
+            dirY = note.dash1.chargeDirY ?? d.dirY;
+        } else if (elapsed >= DASH1_END && elapsed < DASH2_START && note.dash2) {
+            // Windup 2: fast fill toward refreshed target
+            windupLocalElapsed = elapsed - DASH1_END;
+            windupDuration = WINDUP23_TIME;
+            const d = getDirectionFromTo(
+                note.dash2.lungeStartX, note.dash2.lungeStartY,
+                note.dash2.targetX, note.dash2.targetY,
+            );
+            if (d.dist === 0) return;
+            dirX = note.dash2.chargeDirX ?? d.dirX;
+            dirY = note.dash2.chargeDirY ?? d.dirY;
+        } else if (elapsed >= DASH2_END && elapsed < DASH3_START && note.dash3) {
+            // Windup 3: fast fill toward refreshed target
+            windupLocalElapsed = elapsed - DASH2_END;
+            windupDuration = WINDUP23_TIME;
+            const d = getDirectionFromTo(
+                note.dash3.lungeStartX, note.dash3.lungeStartY,
+                note.dash3.targetX, note.dash3.targetY,
+            );
+            if (d.dist === 0) return;
+            dirX = note.dash3.chargeDirX ?? d.dirX;
+            dirY = note.dash3.chargeDirY ?? d.dirY;
+        } else {
+            return; // mid-dash: no telegraph
         }
 
-        const capsuleThickness = caster.radius * CAPSULE_RADIUS_MULTIPLIER;
-        const lineLen = caster.radius + MAX_RANGE;
         drawChargeCapsuleTimingTelegraph(
             gr,
             caster.x, caster.y,
-            caster.x + ux * lineLen,
-            caster.y + uy * lineLen,
+            caster.x + dirX * lineLen,
+            caster.y + dirY * lineLen,
             capsuleThickness,
-            elapsed,
-            WINDUP_TIME,
+            windupLocalElapsed,
+            windupDuration,
             0xff6600,
         );
     }

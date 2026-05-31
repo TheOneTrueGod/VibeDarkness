@@ -1,9 +1,18 @@
 import React from 'react';
-import { BossArcadeHpBar } from './BossArcadeHpBar';
+import { BossArcadeHpBar, type BossArcadeHpBarProps } from './BossArcadeHpBar';
+import { AlphaWolfHpBar } from './AlphaWolfHpBar';
 import { BossCcArmourRow } from './BossCcArmourRow';
 import { BossExposedTimerBar } from './BossExposedTimerBar';
 import { BossSpecialMoveChargesBar } from './BossSpecialMoveCharges';
 import type { BossSpecialMoveCharges } from './bossSignatureHud';
+
+const BOSS_HP_BAR_REGISTRY: Readonly<Record<string, React.ComponentType<BossArcadeHpBarProps>>> = {
+    alpha_wolf: AlphaWolfHpBar,
+};
+
+function getBossHpBar(characterId: string): React.ComponentType<BossArcadeHpBarProps> {
+    return BOSS_HP_BAR_REGISTRY[characterId] ?? BossArcadeHpBar;
+}
 
 export type BossHudSlice = {
     name: string;
@@ -16,6 +25,8 @@ export type BossHudSlice = {
     specialMoveCharges: BossSpecialMoveCharges | null;
     exposedSecondsRemaining: number | null;
     exposedTotalDuration: number | null;
+    isEnraged: boolean;
+    characterId: string;
 } | null;
 
 type BossFightHudProps = {
@@ -28,6 +39,8 @@ type BossFightHudProps = {
 export default function BossFightHud({ boss }: BossFightHudProps) {
     if (!boss) return null;
 
+    const HpBar = getBossHpBar(boss.characterId);
+
     return (
         <div
             className="pointer-events-none absolute left-1/2 top-2 z-30 w-[min(28rem,calc(100%-1rem))] -translate-x-1/2"
@@ -36,7 +49,7 @@ export default function BossFightHud({ boss }: BossFightHudProps) {
         >
             <div className="px-2 pt-1 pb-4">
                 <div className="relative w-full">
-                    <BossArcadeHpBar name={boss.name} hp={boss.hp} maxHp={boss.maxHp} />
+                    <HpBar name={boss.name} hp={boss.hp} maxHp={boss.maxHp} isEnraged={boss.isEnraged} />
 
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-[55%] flex-row items-center justify-between gap-2">
                         <div className="flex min-w-0 flex-1 justify-start">

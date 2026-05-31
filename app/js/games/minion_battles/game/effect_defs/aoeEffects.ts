@@ -53,6 +53,34 @@ export const critShockwaveEffectDef: IEffectDef = {
     },
 };
 
+/**
+ * Enrage burst: all rings fire simultaneously with different expansion speeds.
+ * Slower rings have a lower fade rate so they stay visible longer.
+ */
+export const enrageBurstEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const p = effect.progress;
+        const rings = [
+            { startR: 12, endR: 65,  width: 5,   fadeRate: 1.45 }, // fast: gone at p≈0.69
+            { startR: 12, endR: 110, width: 3.5,  fadeRate: 1.0  }, // medium: gone at p=1.0
+            { startR: 12, endR: 155, width: 2.5,  fadeRate: 0.78 }, // slow: fades last
+        ] as const;
+        const colors = [0xff5555, 0xff2222, 0xcc0000] as const;
+        for (let i = 0; i < rings.length; i++) {
+            const r = rings[i]!;
+            const radius = r.startR + (r.endR - r.startR) * p;
+            const alpha = Math.max(0, 0.88 * (1 - p * r.fadeRate));
+            g.circle(0, 0, radius);
+            g.stroke({ color: colors[i]!, width: r.width, alpha });
+        }
+    },
+};
+
 /** Howl shockwave: staggered expanding rings (sound pulse) for alpha wolf summon windup. */
 export const howlShockwaveEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {

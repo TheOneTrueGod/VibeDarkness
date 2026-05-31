@@ -712,6 +712,8 @@ export default function BattlePhase({
                 specialMoveCharges: getBossSpecialMoveCharges(b),
                 exposedSecondsRemaining,
                 exposedTotalDuration,
+                isEnraged: b.tags.includes(UnitTag.Enraged),
+                characterId: b.characterId,
             };
             setBossHud((prev) => {
                 const smPrev = prev?.specialMoveCharges;
@@ -735,6 +737,8 @@ export default function BattlePhase({
                     Math.round((prev.exposedSecondsRemaining ?? -1) * 10) ===
                         Math.round((next.exposedSecondsRemaining ?? -1) * 10) &&
                     prev.exposedTotalDuration === next.exposedTotalDuration &&
+                    prev.isEnraged === next.isEnraged &&
+                    prev.characterId === next.characterId &&
                     smEqual
                     ? prev
                     : next;
