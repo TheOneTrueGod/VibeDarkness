@@ -181,6 +181,22 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
             );
             return;
         }
+        case 'applyKnockbackToAllTargets': {
+            for (const t of context.targets) {
+                if (t.type !== 'unit' || t.unitId == null) continue;
+                const target = context.engine.getUnit(t.unitId);
+                if (!target) continue;
+                tryApplyKnockbackByTier(
+                    target,
+                    effect.tier,
+                    { unitId: context.caster.id, abilityId: effect.sourceAbilityId },
+                    context.caster.x,
+                    context.caster.y,
+                    context.engine,
+                );
+            }
+            return;
+        }
         case 'applyStunnedToPrimaryTarget': {
             const target = context.primaryTarget;
             if (!target) return;

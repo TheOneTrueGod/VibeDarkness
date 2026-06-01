@@ -24,7 +24,7 @@ import { Effect } from '../../game/effects/Effect';
 import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 import {
     createChargeUpConfig,
-    spawnMeleeChargeUpEffect,
+    spawnRadiusScaledChargeUp,
     type MeleeAnimationProfile,
 } from '../../abilities/meleeAnimationProfile';
 import type { Unit } from '../../game/units/Unit';
@@ -55,18 +55,6 @@ const BASE_PROFILE: MeleeAnimationProfile = {
     }),
 };
 
-function spawnChargeUp(engine: { addEffect(effect: Effect): void }, caster: Unit): void {
-    if (!BASE_PROFILE.chargeUp) return;
-    const chargeUp = {
-        ...BASE_PROFILE.chargeUp,
-        pulses: BASE_PROFILE.chargeUp.pulses.map(p => ({
-            ...p,
-            startRadius: p.startRadius + caster.radius - DEFAULT_UNIT_RADIUS,
-            endRadius:   p.endRadius   + caster.radius - DEFAULT_UNIT_RADIUS,
-        })),
-    };
-    spawnMeleeChargeUpEffect(engine, caster, { ...BASE_PROFILE, chargeUp });
-}
 
 // ---- Behaviour ----
 
@@ -172,7 +160,7 @@ export const SwingBatAbility_0103: AbilityStatic = {
     },
 
     beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {
-        spawnChargeUp(engine as { addEffect(effect: Effect): void }, caster);
+        spawnRadiusScaledChargeUp(engine as { addEffect(effect: Effect): void }, caster, BASE_PROFILE);
     },
 
     onAttackBlocked(): void {

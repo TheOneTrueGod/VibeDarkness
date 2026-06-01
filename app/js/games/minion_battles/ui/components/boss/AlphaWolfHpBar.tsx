@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Skull } from 'lucide-react';
+import { Skull } from 'lucide-react';
 import type { BossArcadeHpBarProps } from './BossArcadeHpBar';
 import { ALPHA_WOLF_ENRAGE_THRESHOLD } from '../../../constants/enemyConstants';
 
@@ -34,13 +34,13 @@ export function AlphaWolfHpBar({ name, hp, maxHp, isEnraged }: BossArcadeHpBarPr
                 />
                 <div className="relative z-10 flex h-full items-center justify-center gap-1.5 px-3">
                     {isEnraged && (
-                        <Flame className="h-4 w-4 shrink-0 text-orange-400 drop-shadow-[0_0_4px_rgba(251,146,60,0.9)]" aria-hidden />
+                        <Skull className="h-4 w-4 shrink-0 text-red-400 drop-shadow-[0_0_4px_rgba(248,113,113,0.9)]" aria-hidden />
                     )}
                     <span className="max-w-full truncate text-center text-xs font-bold uppercase tracking-[0.18em] text-gray-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] sm:text-sm">
                         {name}
                     </span>
                     {isEnraged && (
-                        <Flame className="h-4 w-4 shrink-0 text-orange-400 drop-shadow-[0_0_4px_rgba(251,146,60,0.9)]" aria-hidden />
+                        <Skull className="h-4 w-4 shrink-0 text-red-400 drop-shadow-[0_0_4px_rgba(248,113,113,0.9)]" aria-hidden />
                     )}
                 </div>
             </div>

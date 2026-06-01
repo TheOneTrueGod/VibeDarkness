@@ -18,6 +18,12 @@ export type AbilityEffect =
         tier: number;
         sourceAbilityId: string;
     }
+    | {
+        type: 'applyKnockbackToAllTargets';
+        /** Knockback tier (1 = light, 3 = heavy). Applied to every unit in context.targets. */
+        tier: number;
+        sourceAbilityId: string;
+    }
     | { type: 'applyStunnedToPrimaryTarget'; duration: number }
     | { type: 'interruptPrimaryTargetAbilities' }
     | AbilityCustomEffect;

@@ -14,6 +14,7 @@ import {
     doublePunchTwoTargetsScenario,
 } from '../scenarios/abilities/punchResearch';
 import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordResearch';
+import { swingBatHitsThreeTargetsScenario } from '../scenarios/abilities/swingBatScenarios';
 import { absorptionShieldEnergyChargeScenario } from '../scenarios/abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
@@ -94,6 +95,11 @@ describe('runScenarioHeadless', () => {
     it('passes swing sword extra uses research scenario', () => {
         const r = runScenarioHeadless(swingSwordExtraUsesScenario);
         expect(r.passed).toBe(true);
+    });
+
+    it('passes swing bat hits 3 of 4 targets with knockback scenario', () => {
+        const r = runScenarioHeadless(swingBatHitsThreeTargetsScenario);
+        expect(r.passed, r.message).toBe(true);
     });
 
     it('passes absorption shield energy charge on block scenario', () => {

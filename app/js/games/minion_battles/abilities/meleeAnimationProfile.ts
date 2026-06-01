@@ -2,6 +2,7 @@ import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import { Effect } from '../game/effects/Effect';
 import { getDirectionFromTo } from './targetHelpers';
+import { DEFAULT_UNIT_RADIUS } from '../game/units/unit_defs/unitConstants';
 
 export interface ChargeUpPulseConfig {
     startRadius: number;
@@ -119,6 +120,28 @@ export function spawnMeleeChargeUpEffect(
         effectData: payload,
         delay: profile.chargeUp.startTime,
     }));
+}
+
+/**
+ * Spawn the charge-up VFX for a melee cast, scaling pulse radii to match the caster's actual radius.
+ * Replaces the copy-paste scaling pattern used across individual ability files.
+ */
+export function spawnRadiusScaledChargeUp(
+    engine: { addEffect(effect: Effect): void },
+    caster: Unit,
+    profile: MeleeAnimationProfile,
+): void {
+    if (!profile.chargeUp) return;
+    const radiusDelta = caster.radius - DEFAULT_UNIT_RADIUS;
+    const chargeUp: ChargeUpVisualConfig = {
+        ...profile.chargeUp,
+        pulses: profile.chargeUp.pulses.map(p => ({
+            ...p,
+            startRadius: p.startRadius + radiusDelta,
+            endRadius:   p.endRadius   + radiusDelta,
+        })),
+    };
+    spawnMeleeChargeUpEffect(engine, caster, { ...profile, chargeUp });
 }
 
 export function getMeleeAnimationOffset(
