@@ -296,6 +296,9 @@ export class GameEngine implements EngineContext {
     }
 
     addUnit(unit: Unit): void {
+        if (!unit.isPlayerControlled()) {
+            unit.spawnTimer = 0.5;
+        }
         this.state.unitManager.addUnit(unit);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(unit.id), Math.floor(unit.x), Math.floor(unit.y));
     }

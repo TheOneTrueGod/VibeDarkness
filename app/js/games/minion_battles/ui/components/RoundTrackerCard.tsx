@@ -5,6 +5,7 @@ interface RoundTrackerCardProps {
     roundNumber: number;
     progress: number;
     isPaused: boolean;
+    staminaSurge?: number;
     onRootRef?: (el: HTMLDivElement | null) => void;
 }
 
@@ -17,6 +18,7 @@ export default function RoundTrackerCard({
     roundNumber,
     progress,
     isPaused,
+    staminaSurge = DEFAULT_PLAYER_ROUND_STAMINA_SURGE,
     onRootRef,
 }: RoundTrackerCardProps) {
     const [showTooltip, setShowTooltip] = useState(false);
@@ -35,8 +37,8 @@ export default function RoundTrackerCard({
                     role="tooltip"
                 >
                     At the start of each round, a stamina surge restores{' '}
-                    <span className="text-yellow-400 font-semibold">{DEFAULT_PLAYER_ROUND_STAMINA_SURGE}</span> stamina to{' '}
-                    <span className="text-yellow-400 font-semibold">each</span> of your abilities (before research bonuses).
+                    <span className="text-yellow-400 font-semibold">{staminaSurge}</span> stamina to{' '}
+                    <span className="text-yellow-400 font-semibold">each</span> of your abilities.
                 </div>
             )}
             <div className="relative">

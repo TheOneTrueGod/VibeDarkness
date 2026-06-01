@@ -180,6 +180,11 @@ export class Unit extends GameObject {
     /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
     moveJitter: number = 0;
 
+    /** Seconds remaining in spawn animation (0 = not spawning). Unit is invisible and untargetable while > 0. */
+    spawnTimer: number = 0;
+    spawnParticleAcc1: number = 0;
+    spawnParticleAcc2: number = 0;
+
     /** When using the "wait" action: earliest and latest gameTime (seconds) when the wait can end. */
     waitMinEndTime: number | null = null;
     waitMaxEndTime: number | null = null;
@@ -395,6 +400,11 @@ export class Unit extends GameObject {
         return this.tags.includes(UnitTag.Invincible);
     }
 
+    /** Whether this unit is in its spawn animation (invisible and untargetable). */
+    isSpawning(): boolean {
+        return this.spawnTimer > 0;
+    }
+
     /**
      * Calculate max health from unit def base + health-affecting research.
      * Loops through RESEARCH_HEALTH_BONUSES for each researched node.
@@ -415,6 +425,7 @@ export class Unit extends GameObject {
     takeDamage(amount: number, sourceUnitId: string | null, eventBus: EventBus): number {
         if (!this.isAlive()) return 0;
         if (this.isInvincible()) return 0;
+        if (this.isSpawning()) return 0;
 
         // God mode: prevent HP loss for player-controlled units.
         if (debugSettingsSnapshot.godModeEnabled && this.isPlayerControlled()) {
@@ -1087,6 +1098,7 @@ export class Unit extends GameObject {
             aiContext: this.aiContext,
             unitAITreeId: this.unitAITreeId,
             moveJitter: this.moveJitter,
+            spawnTimer: this.spawnTimer,
             waitMinEndTime: this.waitMinEndTime,
             waitMaxEndTime: this.waitMaxEndTime,
             movementPaused: this.movementPaused,
@@ -1254,6 +1266,7 @@ export class Unit extends GameObject {
         unit.aiContext = rawCtx as UnitAIContext;
         unit.unitAITreeId = (data.unitAITreeId as string) ?? 'default';
         unit.moveJitter = (data.moveJitter as number) ?? 0;
+        unit.spawnTimer = (data.spawnTimer as number | undefined) ?? 0;
         unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
         unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;
         unit.movementPaused = (data.movementPaused as boolean | undefined) ?? false;

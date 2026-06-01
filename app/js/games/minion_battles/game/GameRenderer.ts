@@ -949,7 +949,7 @@ export class GameRenderer {
 
 			visual.x = unit.x + renderOffsetX;
 			visual.y = unit.y + renderOffsetY + knockupYOffset;
-			visual.visible = unit.active;
+			visual.visible = unit.active && !unit.isSpawning();
 
 			const col = Math.floor(unit.x / cellSize);
 			const row = Math.floor(unit.y / cellSize);
@@ -998,7 +998,7 @@ export class GameRenderer {
 						body.stroke({ color: 0xfacc15, width: 2 });
 					}
 				}
-				const showHpBar = !unit.isInvincible() && !unit.tags.includes(UnitTag.Boss);
+				const showHpBar = !unit.isInvincible() && !unit.tags.includes(UnitTag.Boss) && !unit.isSpawning();
 				if (hpBg) hpBg.visible = showHpBar;
 				if (hpFill) hpFill.visible = showHpBar;
 				if (characterSprite) characterSprite.visible = true;
@@ -1615,7 +1615,8 @@ export class GameRenderer {
 		const texH = pc.texture.height || 1;
 
 		if (effect.effectType === 'ParticleImage') {
-			const data = effect.effectData as { scale?: number };
+			const data = effect.effectData as { scale?: number; tint?: number };
+			particle.tint = data.tint ?? 0xffffff;
 			const life = 1 - effect.progress;
 			particle.alpha = life * life;
 			const base = (data.scale ?? 1) * 18;

@@ -159,6 +159,27 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
 
             const wolf = createUnitFromSpawnConfig(config, eng.eventBus, eng);
             eng.addUnit(wolf);
+            // Skip spawn animation — wolves should be ready to act immediately.
+            wolf.spawnTimer = 0;
+
+            // Instant burst at the summon position to replace the skipped spawn animation.
+            for (let p = 0; p < 10; p++) {
+                const angle = Math.random() * 2 * Math.PI;
+                const speed = 80 + Math.random() * 100;
+                eng.addEffect(new Effect({
+                    x: spawnX + (Math.random() - 0.5) * 12,
+                    y: spawnY + (Math.random() - 0.5) * 12,
+                    duration: 0.45 + Math.random() * 0.15,
+                    effectType: 'ParticleImage',
+                    effectData: {
+                        imageKey: 'darkBlob',
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        scale: 0.4 + Math.random() * 0.35,
+                        tint: 0x9933cc,
+                    },
+                }));
+            }
 
             const closest = enemies.reduce<Unit | null>((best, e) => {
                 const d = distance(wolf.x, wolf.y, e.x, e.y);

@@ -25,6 +25,7 @@ import {
     type BattleTimelinePhaseId,
 } from '../../abilities/abilityTimings';
 import { WaitAbility } from '../../abilities/WaitAbility';
+import { EXPOSED_BUFF_TYPE } from '../../buffs/ExposedBuff';
 
 /** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
 const ENEMY_CHARACTER_ICONS: Record<string, string> = {
@@ -214,6 +215,20 @@ function UnitRailIcon({
     );
 }
 
+function collectExposedMarkers(engine: GameEngine): { unit: Unit; endFromNow: number }[] {
+    const now = engine.gameTime;
+    const result: { unit: Unit; endFromNow: number }[] = [];
+    for (const unit of engine.units) {
+        if (!unit.isAlive() || unit.teamId !== 'enemy') continue;
+        const exposed = unit.buffs.find((b) => b._type === EXPOSED_BUFF_TYPE);
+        if (!exposed) continue;
+        const remaining = exposed.duration.value - (now - exposed.appliedAtTime);
+        if (remaining <= 0) continue;
+        result.push({ unit, endFromNow: remaining });
+    }
+    return result;
+}
+
 function renderEnemyTimelineTrack(
     windowSeconds: number,
     markers: {
@@ -222,12 +237,48 @@ function renderEnemyTimelineTrack(
         startFromNow: number;
         endFromNow: number;
     }[],
+    exposedMarkers: { unit: Unit; endFromNow: number }[],
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
     return (
         <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
             <TimelineTimeRuler windowSeconds={windowSeconds} />
             <div className="absolute inset-0 overflow-hidden rounded-md">
+                {exposedMarkers.map((m) => {
+                    const clampedEnd = Math.min(m.endFromNow, windowSeconds);
+                    const widthPercent = (clampedEnd / windowSeconds) * 100;
+                    const iconUrl = ENEMY_CHARACTER_ICONS[m.unit.characterId];
+                    const markerDark = isDarkCreatureCharacterId(m.unit.characterId);
+                    const nameInitial = m.unit.name?.[0]?.toUpperCase() ?? '?';
+                    return (
+                        <React.Fragment key={`exposed-${m.unit.id}`}>
+                            <div
+                                className="pointer-events-none absolute left-0 top-[25%] h-[50%] z-10"
+                                style={{ width: `${widthPercent}%` }}
+                                title={`${m.unit.name} exposed for ${clampedEnd.toFixed(1)}s`}
+                            >
+                                <div className="absolute inset-0 bg-amber-400/20" />
+                                <div className="absolute inset-y-0 right-0 w-0.5 bg-amber-400/80" />
+                            </div>
+                            <div
+                                className="absolute top-1/2 z-30 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 pointer-events-none items-center justify-center overflow-hidden rounded-sm border border-black bg-amber-500"
+                                style={{ left: `clamp(8px, ${widthPercent}%, calc(100% - 8px))` }}
+                                title={`${m.unit.name} exposed for ${clampedEnd.toFixed(1)}s`}
+                            >
+                                {iconUrl ? (
+                                    <span className="relative block h-full w-full">
+                                        <img src={iconUrl} alt="" className="h-full w-full object-contain" />
+                                        {markerDark && (
+                                            <span className="pointer-events-none absolute inset-0 mix-blend-multiply bg-[#9966cc]/20" />
+                                        )}
+                                    </span>
+                                ) : (
+                                    <span className="text-[10px] font-bold text-white">{nameInitial}</span>
+                                )}
+                            </div>
+                        </React.Fragment>
+                    );
+                })}
                 {markers.map((marker, idx) => {
                     const startPercent = (marker.startFromNow / windowSeconds) * 100;
                     const duration = marker.endFromNow - marker.startFromNow;
@@ -339,6 +390,7 @@ function renderEnemyRow(
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
     const markers = collectEnemyMarkers(engine, windowSeconds);
+    const exposedMarkers = collectExposedMarkers(engine);
 
     const labelRow = (
         <div className="flex min-w-0 items-center gap-2 text-xs">
@@ -355,7 +407,7 @@ function renderEnemyRow(
         </div>
     );
 
-    const track = renderEnemyTimelineTrack(windowSeconds, markers, setHover);
+    const track = renderEnemyTimelineTrack(windowSeconds, markers, exposedMarkers, setHover);
 
     if (layout === 'rail') {
         return (

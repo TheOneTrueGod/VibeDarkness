@@ -12,7 +12,7 @@ export abstract class CircleHitbox extends Hitbox {
     ): Unit[] {
         const result: Unit[] = [];
         for (const unit of engine.units) {
-            if (!unit.active || !unit.isAlive()) continue;
+            if (!unit.active || !unit.isAlive() || unit.isSpawning()) continue;
             if (!areEnemies(caster.teamId, unit.teamId)) continue;
             if (unit.id === caster.id) continue;
             const dx = unit.x - cx;

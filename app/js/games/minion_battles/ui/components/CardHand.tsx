@@ -14,6 +14,7 @@ import CardComponent from './CardComponent';
 import CardTooltip from './CardTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
+import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../game/GameEngine';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
 
@@ -307,6 +308,7 @@ export default function CardHand({
                     roundNumber={roundNumber}
                     progress={roundProgress}
                     isPaused={isPaused}
+                    staminaSurge={playerUnit?.stamina ?? DEFAULT_PLAYER_ROUND_STAMINA_SURGE}
                     onRootRef={(el) => {
                         roundTrackerRef.current = el;
                     }}

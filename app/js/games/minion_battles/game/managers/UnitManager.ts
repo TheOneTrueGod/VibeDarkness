@@ -9,6 +9,7 @@ import { areAllies } from '../teams';
 import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
 import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from '../units/unitAI';
+import { tickSpawnAnimation } from '../units/spawnAnimation';
 import type { AIContext } from '../units/unitAI';
 import type { Resource } from '../../resources/Resource';
 import { Rage } from '../../resources/Rage';
@@ -122,6 +123,10 @@ export class UnitManager {
         // Phase 2: movement + ephemeral expiry
         for (const unit of this.units) {
             if (!unit.active) continue;
+            if (unit.isSpawning()) {
+                tickSpawnAnimation(unit, dt, engine);
+                continue;
+            }
             if (unit.pathfindingRetriggerOffset > 0 && engine.gameTick % unit.pathfindingRetriggerOffset === 0) {
                 const tree = getUnitAITree(unit.unitAITreeId);
                 if (tree) runPathfindingRetrigger(unit, tree, aiContext);
@@ -130,7 +135,7 @@ export class UnitManager {
         }
         // Phase 3: AI decisions (all positions settled)
         for (const unit of this.units) {
-            if (!unit.active || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive()) continue;
+            if (!unit.active || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive() || unit.isSpawning()) continue;
             onBeforeEnemyAI?.();
             const tree = getUnitAITree(unit.unitAITreeId);
             if (tree) runUnitAI(unit, tree, aiContext);
