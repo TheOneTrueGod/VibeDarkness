@@ -37,7 +37,7 @@ function distance(x1: number, y1: number, x2: number, y2: number): number {
 interface GameEngineLike {
     units: Unit[];
     getUnit(id: string): Unit | undefined;
-    addUnit(unit: Unit): void;
+    addUnit(unit: Unit, spawnSource?: import('../../../game/types').SpawnSource): void;
     addEffect(effect: Effect): void;
     state: { orderMgr: { queueOrder(atTick: number, order: { unitId: string; abilityId: string; targets: ResolvedTarget[] }): void } };
     gameTick: number;
@@ -158,9 +158,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
             };
 
             const wolf = createUnitFromSpawnConfig(config, eng.eventBus, eng);
-            eng.addUnit(wolf);
-            // Skip spawn animation — wolves should be ready to act immediately.
-            wolf.spawnTimer = 0;
+            eng.addUnit(wolf, 'abilitySpawn');
 
             // Instant burst at the summon position to replace the skipped spawn animation.
             for (let p = 0; p < 10; p++) {

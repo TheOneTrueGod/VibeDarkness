@@ -5,6 +5,14 @@
 import type { EnemySpawnDef } from '../storylines/types';
 import type { SerializedStoneTileMutation } from '../terrain/TerrainGrid';
 
+/**
+ * Describes how a unit entered the battle, used to determine whether to play a spawn animation.
+ * - `'darknessSpawn'`  — mid-battle wave or darkness spawn; plays the 0.5 s condensing animation.
+ * - `'initialGameSpawn'` — placed at mission start; appears immediately with no animation.
+ * - `'abilitySpawn'` — created by an ability; appears immediately; the ability provides its own VFX.
+ */
+export type SpawnSource = 'darknessSpawn' | 'initialGameSpawn' | 'abilitySpawn';
+
 /** Snapshot of engine timing state. */
 export interface GameTime {
     /** Total elapsed game time in seconds (only advances when unpaused). */

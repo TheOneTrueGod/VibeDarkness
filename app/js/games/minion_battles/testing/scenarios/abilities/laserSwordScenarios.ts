@@ -1,4 +1,4 @@
-import type { ScenarioDefinition } from '../../types';
+﻿import type { ScenarioDefinition } from '../../types';
 import { asCardDefId } from '../../../card_defs';
 import {
     buildTinyBattleEngine,
@@ -36,7 +36,7 @@ export const laserSwordHitsTwoTargetsScenario: ScenarioDefinition = {
             const y = 200 + i * 60;
             const du = createTargetDummyAtWorld(engine, 280, y, { id: `target_dummy_${i}`, hp: 400 });
             initializeAbilityRuntimeForUnit(du);
-            engine.addUnit(du);
+            engine.addUnit(du, 'initialGameSpawn');
         }
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0105'), abilityId: '0105' }]);
         return engine;

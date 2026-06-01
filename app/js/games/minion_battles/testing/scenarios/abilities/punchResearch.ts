@@ -1,4 +1,4 @@
-import type { ScenarioDefinition } from '../../types';
+﻿import type { ScenarioDefinition } from '../../types';
 import type { GameEngine } from '../../../game/GameEngine';
 import { asCardDefId } from '../../../card_defs';
 import { StunnedBuff, STUNNED_BUFF_TYPE } from '../../../buffs/StunnedBuff';
@@ -171,7 +171,7 @@ export const punchChargingScenario: ScenarioDefinition = {
     failureMessage: (e) => {
         const u = e.getLocalPlayerUnit();
         const rt = u?.abilityRuntime['throw_charged_rock'];
-        return `throw_charged_rock uses=${rt?.currentUses ?? '—'} (expected ≥1 after hit)`;
+        return `throw_charged_rock uses=${rt?.currentUses ?? 'â€”'} (expected â‰¥1 after hit)`;
     },
 };
 
@@ -192,7 +192,7 @@ export const bashRangeBoundaryHitScenario: ScenarioDefinition = {
         spawnTinyPlayerUnit(engine, { playerId: P, x: PLAYER_START.x, y: PLAYER_START.y, abilities: ['0120'] });
         const dummy = createTargetDummyAtWorld(engine, PLAYER_START.x + hitDistance, PLAYER_START.y, { id: 'target_dummy' });
         initializeAbilityRuntimeForUnit(dummy);
-        engine.addUnit(dummy);
+        engine.addUnit(dummy, 'initialGameSpawn');
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0120'), abilityId: '0120' }]);
         return engine;
     },
@@ -218,12 +218,12 @@ export const bashRangeBoundaryMissScenario: ScenarioDefinition = {
     maxDurationMs: 5000,
     buildEngine: () => {
         const engine = buildTinyBattleEngine({ gridW: 10, gridH: 6, localPlayerId: P, grass: true });
-        // Place dummy exactly (PUNCH_MAX_RANGE + DEFAULT_UNIT_RADIUS + 5) px away — just outside range.
+        // Place dummy exactly (PUNCH_MAX_RANGE + DEFAULT_UNIT_RADIUS + 5) px away â€” just outside range.
         const missDistance = PUNCH_MAX_RANGE + DEFAULT_UNIT_RADIUS + 5;
         spawnTinyPlayerUnit(engine, { playerId: P, x: PLAYER_START.x, y: PLAYER_START.y, abilities: ['0120'] });
         const dummy = createTargetDummyAtWorld(engine, PLAYER_START.x + missDistance, PLAYER_START.y, { id: 'target_dummy' });
         initializeAbilityRuntimeForUnit(dummy);
-        engine.addUnit(dummy);
+        engine.addUnit(dummy, 'initialGameSpawn');
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0120'), abilityId: '0120' }]);
         return engine;
     },
@@ -234,7 +234,7 @@ export const bashRangeBoundaryMissScenario: ScenarioDefinition = {
     },
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
-        // Dummy should take no damage — it is outside the effective range.
+        // Dummy should take no damage â€” it is outside the effective range.
         return Boolean(d && d.maxHp - d.hp === 0);
     },
     failureMessage: (e) => {
@@ -259,10 +259,10 @@ export const doublePunchTwoTargetsScenario: ScenarioDefinition = {
         // Two dummies side by side, each within punch range.
         const dummy1 = createTargetDummyAtWorld(engine, PLAYER_START.x + 40, PLAYER_START.y - 15, { id: 'target_dummy_1' });
         initializeAbilityRuntimeForUnit(dummy1);
-        engine.addUnit(dummy1);
+        engine.addUnit(dummy1, 'initialGameSpawn');
         const dummy2 = createTargetDummyAtWorld(engine, PLAYER_START.x + 40, PLAYER_START.y + 15, { id: 'target_dummy_2' });
         initializeAbilityRuntimeForUnit(dummy2);
-        engine.addUnit(dummy2);
+        engine.addUnit(dummy2, 'initialGameSpawn');
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0116'), abilityId: '0116' }]);
         return engine;
     },

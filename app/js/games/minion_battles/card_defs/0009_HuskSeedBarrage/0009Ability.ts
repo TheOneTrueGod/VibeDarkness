@@ -29,7 +29,7 @@ interface EngineLike {
     roundNumber: number;
     eventBus: import('../../game/EventBus').EventBus;
     addProjectile(projectile: Projectile): void;
-    addUnit(unit: Unit): void;
+    addUnit(unit: Unit, spawnSource?: import('../../game/types').SpawnSource): void;
     getUnit(id: string): Unit | undefined;
     allocateObjectId?(prefix?: string): string;
     lightLevelEnabled: boolean;
@@ -127,7 +127,7 @@ export const HuskSeedBarrageAbility: AbilityStatic = {
                 eng.eventBus,
                 eng,
             );
-            eng.addUnit(husk);
+            eng.addUnit(husk, 'abilitySpawn');
         }
     },
 

@@ -17,6 +17,7 @@ import type { LightSource } from './lightSources/LightSource';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import type { BramblePatch } from './brambleSlow';
 import type { MapSegmentPOI } from '../terrain/segmentSchema';
+import type { SpawnSource } from './types';
 
 export interface EngineContext {
     gameTime: number;
@@ -42,7 +43,7 @@ export interface EngineContext {
     readonly specialTiles: SpecialTile[];
     readonly bramblePatches: readonly BramblePatch[];
 
-    addUnit(unit: Unit): void;
+    addUnit(unit: Unit, spawnSource?: SpawnSource): void;
     addEffect(effect: Effect): void;
     addProjectile(projectile: Projectile): void;
     addBramblePatch(patch: BramblePatch): void;

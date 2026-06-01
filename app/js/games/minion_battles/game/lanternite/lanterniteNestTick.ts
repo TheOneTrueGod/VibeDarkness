@@ -63,7 +63,7 @@ export function processLanterniteNests(params: {
     gameTime: number;
     units: Unit[];
     eventBus: EventBus;
-    addUnit: (unit: Unit) => void;
+    addUnit: (unit: Unit, spawnSource?: import('../types').SpawnSource) => void;
     idSource?: Pick<EngineContext, 'allocateObjectId'> | EngineContext;
     mapPOIs?: readonly MapSegmentPOI[];
     terrainGrid?: TerrainGridLike | null;

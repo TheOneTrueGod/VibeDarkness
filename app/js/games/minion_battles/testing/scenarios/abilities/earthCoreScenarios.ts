@@ -1,4 +1,4 @@
-import type { ScenarioDefinition } from '../../types';
+﻿import type { ScenarioDefinition } from '../../types';
 import type { EngineContext } from '../../../game/EngineContext';
 import { asCardDefId } from '../../../card_defs';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -37,7 +37,7 @@ const PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (140, 
 const DUMMY_POS  = { x: 5 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (220, 220)
 
 // ---------------------------------------------------------------------------
-// 0524 — Earthern Punch
+// 0524 â€” Earthern Punch
 // ---------------------------------------------------------------------------
 
 export const earthCoreEarthernPunchScenario: ScenarioDefinition = {
@@ -67,12 +67,12 @@ export const earthCoreEarthernPunchScenario: ScenarioDefinition = {
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected ≥12`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected â‰¥12`;
     },
 };
 
 // ---------------------------------------------------------------------------
-// 0525 — Shaking Ground (requires Resonance ≥ 25)
+// 0525 â€” Shaking Ground (requires Resonance â‰¥ 25)
 // ---------------------------------------------------------------------------
 
 export const earthCoreShakingGroundScenario: ScenarioDefinition = {
@@ -105,17 +105,17 @@ export const earthCoreShakingGroundScenario: ScenarioDefinition = {
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected ≥10`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected â‰¥10`;
     },
 };
 
 // ---------------------------------------------------------------------------
-// 0526 — Shatter (scales with caster armour; requires Resonance ≥ 35)
+// 0526 â€” Shatter (scales with caster armour; requires Resonance â‰¥ 35)
 // ---------------------------------------------------------------------------
 
 export const earthCoreShatterScenario: ScenarioDefinition = {
     id: 'earth_core_0526_shatter_armour_bonus',
-    title: 'Shatter (0526) deals 6 + 2× armour damage',
+    title: 'Shatter (0526) deals 6 + 2Ã— armour damage',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine() {
@@ -131,7 +131,7 @@ export const earthCoreShatterScenario: ScenarioDefinition = {
         const res = new Resonance();
         player.attachResource(res, engine.eventBus);
         res.add(50);
-        // 5 armour → 6 + 2×5 = 16 damage expected
+        // 5 armour â†’ 6 + 2Ã—5 = 16 damage expected
         grantEarthCoreArmourFromSource(player, 'test', 5, 10);
         return engine;
     },
@@ -142,12 +142,12 @@ export const earthCoreShatterScenario: ScenarioDefinition = {
     },
     assertPass(e) {
         const d = e.getUnit('target_dummy');
-        // Base 6 + 2×5 armour = 16; assert more than plain base
+        // Base 6 + 2Ã—5 armour = 16; assert more than plain base
         return Boolean(d && d.maxHp - d.hp >= 16);
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected ≥16 (6 + 2×5 armour)`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected â‰¥16 (6 + 2Ã—5 armour)`;
     },
     describeState(e) {
         const p = e.getLocalPlayerUnit();
@@ -160,7 +160,7 @@ export const earthCoreShatterScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// 0530 — Stone Tomb (projectile deals 5 damage on hit)
+// 0530 â€” Stone Tomb (projectile deals 5 damage on hit)
 // ---------------------------------------------------------------------------
 
 export const earthCoreStoneTombScenario: ScenarioDefinition = {
@@ -190,12 +190,12 @@ export const earthCoreStoneTombScenario: ScenarioDefinition = {
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected ≥5`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected â‰¥5`;
     },
 };
 
 // ---------------------------------------------------------------------------
-// 0531 — Knock (stonephase projectile deals 6 damage)
+// 0531 â€” Knock (stonephase projectile deals 6 damage)
 // ---------------------------------------------------------------------------
 
 export const earthCoreKnockScenario: ScenarioDefinition = {
@@ -225,7 +225,7 @@ export const earthCoreKnockScenario: ScenarioDefinition = {
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected ≥6`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected â‰¥6`;
     },
     describeState(e) {
         const p = e.getLocalPlayerUnit();
@@ -236,7 +236,7 @@ export const earthCoreKnockScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// 0532 — Anchored Tremor (ramping pulse damage; 4 pulses = 3+5+7+9 = 24)
+// 0532 â€” Anchored Tremor (ramping pulse damage; 4 pulses = 3+5+7+9 = 24)
 // ---------------------------------------------------------------------------
 
 export const earthCoreAnchoredTremorScenario: ScenarioDefinition = {
@@ -268,12 +268,12 @@ export const earthCoreAnchoredTremorScenario: ScenarioDefinition = {
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected ≥8 (at least 2 ramping pulses)`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected â‰¥8 (at least 2 ramping pulses)`;
     },
 };
 
 // ---------------------------------------------------------------------------
-// 0533 — Stoney Punch (baseline: 4 damage with no armour)
+// 0533 â€” Stoney Punch (baseline: 4 damage with no armour)
 // ---------------------------------------------------------------------------
 
 export const earthCoreStoneyPunchBaselineScenario: ScenarioDefinition = {
@@ -308,7 +308,7 @@ export const earthCoreStoneyPunchBaselineScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// 0533 — Stoney Punch (with armour: consumes 4 armour for +8 bonus = 12 total)
+// 0533 â€” Stoney Punch (with armour: consumes 4 armour for +8 bonus = 12 total)
 // ---------------------------------------------------------------------------
 
 export const earthCoreStoneyPunchArmourScenario: ScenarioDefinition = {
@@ -326,7 +326,7 @@ export const earthCoreStoneyPunchArmourScenario: ScenarioDefinition = {
         });
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0533'), abilityId: '0533' }]);
         const player = engine.getLocalPlayerUnit()!;
-        addEarthCoreArmour(player, 4); // 4 × 2 = 8 bonus → 4 + 8 = 12 total
+        addEarthCoreArmour(player, 4); // 4 Ã— 2 = 8 bonus â†’ 4 + 8 = 12 total
         return engine;
     },
     getInitialOrders(engine) {
@@ -342,12 +342,12 @@ export const earthCoreStoneyPunchArmourScenario: ScenarioDefinition = {
     failureMessage(e) {
         const player = e.getLocalPlayerUnit();
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp (expected ≥12), armour remaining=${player ? getEarthCoreArmour(player) : '?'} (expected 0)`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp (expected â‰¥12), armour remaining=${player ? getEarthCoreArmour(player) : '?'} (expected 0)`;
     },
 };
 
 // ---------------------------------------------------------------------------
-// 0534 — Boar Claws (dash through dummy deals 5 damage)
+// 0534 â€” Boar Claws (dash through dummy deals 5 damage)
 // ---------------------------------------------------------------------------
 
 export const earthCoreBoarClawsScenario: ScenarioDefinition = {
@@ -377,12 +377,12 @@ export const earthCoreBoarClawsScenario: ScenarioDefinition = {
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected ≥5 from dash contact`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected â‰¥5 from dash contact`;
     },
 };
 
 // ---------------------------------------------------------------------------
-// 0521 — Impact Conversion (resonance gained when armour is removed by damage)
+// 0521 â€” Impact Conversion (resonance gained when armour is removed by damage)
 // ---------------------------------------------------------------------------
 
 export const earthCoreImpactConversionScenario: ScenarioDefinition = {
@@ -402,7 +402,7 @@ export const earthCoreImpactConversionScenario: ScenarioDefinition = {
         // Attach resonance so the listener can add to it
         const res = new Resonance();
         player.attachResource(res, engine.eventBus);
-        // Give player 5 armour (sources system — consumed by takeDamage)
+        // Give player 5 armour (sources system â€” consumed by takeDamage)
         grantEarthCoreArmourFromSource(player, 'test', 5, 10);
 
         // Attacker positioned close enough to punch
@@ -421,7 +421,7 @@ export const earthCoreImpactConversionScenario: ScenarioDefinition = {
             engine,
         );
         initializeAbilityRuntimeForUnit(attacker);
-        engine.addUnit(attacker);
+        engine.addUnit(attacker, 'initialGameSpawn');
 
         return engine;
     },
@@ -444,7 +444,7 @@ export const earthCoreImpactConversionScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// 0522 — Bedrock Scavenger (armour granted at round start from nearby stone)
+// 0522 â€” Bedrock Scavenger (armour granted at round start from nearby stone)
 // ---------------------------------------------------------------------------
 
 export const earthCoreBedrockScavengerScenario: ScenarioDefinition = {
@@ -461,8 +461,8 @@ export const earthCoreBedrockScavengerScenario: ScenarioDefinition = {
             abilities: [BEDROCK_SCAVENGER_PASSIVE_ID],
         });
         // Player at grid cell (3,5); set two adjacent cells to Rock (within 1.5-tile tremorsense)
-        engine.terrainManager!.grid.set(3, 4, TerrainType.Rock); // dx=0, dy=-1 → dist=1
-        engine.terrainManager!.grid.set(4, 4, TerrainType.Rock); // dx=1, dy=-1 → dist≈1.41
+        engine.terrainManager!.grid.set(3, 4, TerrainType.Rock); // dx=0, dy=-1 â†’ dist=1
+        engine.terrainManager!.grid.set(4, 4, TerrainType.Rock); // dx=1, dy=-1 â†’ distâ‰ˆ1.41
 
         // Manually fire round-start on the player to trigger the passive
         const player = engine.getLocalPlayerUnit()!;
@@ -478,12 +478,12 @@ export const earthCoreBedrockScavengerScenario: ScenarioDefinition = {
     },
     failureMessage(e) {
         const player = e.getLocalPlayerUnit();
-        return `armour=${player ? getEarthCoreArmourBySources(player) : '?'}, expected ≥1 from bedrock_scavenger`;
+        return `armour=${player ? getEarthCoreArmourBySources(player) : '?'}, expected â‰¥1 from bedrock_scavenger`;
     },
 };
 
 // ---------------------------------------------------------------------------
-// 0523 — Deep Resonance (extends tremorsense radius by 1 tile)
+// 0523 â€” Deep Resonance (extends tremorsense radius by 1 tile)
 // ---------------------------------------------------------------------------
 
 export const earthCoreDeepResonanceScenario: ScenarioDefinition = {
@@ -507,7 +507,7 @@ export const earthCoreDeepResonanceScenario: ScenarioDefinition = {
     assertPass(e) {
         const player = e.getLocalPlayerUnit();
         if (!player) return false;
-        // Base radius = 1.5 tiles; Deep Resonance adds 1 → 2.5
+        // Base radius = 1.5 tiles; Deep Resonance adds 1 â†’ 2.5
         return getTremorsenseRadiusTilesForUnit(player) === 2.5;
     },
     failureMessage(e) {

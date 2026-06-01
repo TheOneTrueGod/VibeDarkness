@@ -156,7 +156,9 @@ export class LevelEventManager {
             (entry) =>
                 (entry.spawnBehaviour ?? 'edgeOfMap') === 'darkness' ||
                 ((entry.spawnBehaviour ?? 'edgeOfMap') === 'closestEnemySpawnPoint' &&
-                    entry.enemySpawnPointConfig?.inDarkness === true),
+                    entry.enemySpawnPointConfig?.inDarkness === true) ||
+                ((entry.spawnBehaviour ?? 'edgeOfMap') === 'closest' &&
+                    entry.closestConfig?.inDarkness === true),
         );
         if (needsDarkness) {
             if (!this.ctx.lightLevelEnabled) {
@@ -170,10 +172,11 @@ export class LevelEventManager {
         const otherEntries: {
             base: EnemySpawnDef;
             entry: SpawnWaveEntry;
-            behaviour: 'edgeOfMap' | 'darkness' | 'anywhere';
+            behaviour: 'darkness' | 'anywhere';
             count: number;
         }[] = [];
         const closestPOIEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
+        const closestEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
 
         for (const entry of spawns) {
             const cid = entry.characterId;
@@ -187,6 +190,8 @@ export class LevelEventManager {
                 edgeEntries.push({ base, entry, count });
             } else if (behaviour === 'closestEnemySpawnPoint') {
                 closestPOIEntries.push({ base, entry, count });
+            } else if (behaviour === 'closest') {
+                closestEntries.push({ base, entry, count });
             } else {
                 otherEntries.push({ base, entry, behaviour, count });
             }
@@ -221,6 +226,48 @@ export class LevelEventManager {
                 }
             }
         }
+
+        const getRingCells = (
+            originCol: number,
+            originRow: number,
+            r: number,
+        ): { col: number; row: number }[] => {
+            if (r === 0) {
+                return originCol >= 0 && originCol < width && originRow >= 0 && originRow < height
+                    ? [{ col: originCol, row: originRow }]
+                    : [];
+            }
+            const cells: { col: number; row: number }[] = [];
+            const topRow = originRow - r;
+            const bottomRow = originRow + r;
+            const leftCol = originCol - r;
+            const rightCol = originCol + r;
+            if (topRow >= 0 && topRow < height) {
+                for (let dc = -r; dc <= r; dc++) {
+                    const col = originCol + dc;
+                    if (col >= 0 && col < width) cells.push({ col, row: topRow });
+                }
+            }
+            if (bottomRow >= 0 && bottomRow < height) {
+                for (let dc = -r; dc <= r; dc++) {
+                    const col = originCol + dc;
+                    if (col >= 0 && col < width) cells.push({ col, row: bottomRow });
+                }
+            }
+            if (leftCol >= 0 && leftCol < width) {
+                for (let dr = -r + 1; dr <= r - 1; dr++) {
+                    const row = originRow + dr;
+                    if (row >= 0 && row < height) cells.push({ col: leftCol, row });
+                }
+            }
+            if (rightCol >= 0 && rightCol < width) {
+                for (let dr = -r + 1; dr <= r - 1; dr++) {
+                    const row = originRow + dr;
+                    if (row >= 0 && row < height) cells.push({ col: rightCol, row });
+                }
+            }
+            return cells;
+        };
 
         const collectCandidateTiles = (
             behaviour: 'darkness' | 'anywhere',
@@ -300,6 +347,74 @@ export class LevelEventManager {
             const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);
             for (const idx of chosenIndices) {
                 const cell = candidates[idx]!;
+                const key = `${cell.col},${cell.row}`;
+                occupiedCells.add(key);
+                const pos = grid.gridToWorld(cell.col, cell.row);
+                const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
+                const stats = resolveEnemySpawnStats({ ...base, ...entry });
+                const config = {
+                    ...base,
+                    ...entry,
+                    position: pos,
+                    x: pos.x,
+                    y: pos.y,
+                    ownerId: 'ai' as const,
+                    hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
+                    speed: stats.speed,
+                    unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
+                };
+                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
+                this.applyLanterniteEcologySpawnFields(unit, entry);
+                this.ctx.addUnit(unit);
+            }
+        }
+
+        // Handle 'closest' entries — scans Chebyshev rings outward from avg player position
+        for (const { base, entry, count } of closestEntries) {
+            const inDarkness = entry.closestConfig?.inDarkness === true;
+
+            if (inDarkness && (!this.ctx.lightLevelEnabled || !lightGrid)) {
+                console.error('spawnWave: closest inDarkness=true but no valid light grid; skipping this spawn entry.');
+                continue;
+            }
+
+            const livingPlayers = this.ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
+            if (livingPlayers.length === 0) {
+                console.error('spawnWave: closest — no living player units; skipping this spawn entry.');
+                continue;
+            }
+
+            const avgX = livingPlayers.reduce((s, u) => s + u.x, 0) / livingPlayers.length;
+            const avgY = livingPlayers.reduce((s, u) => s + u.y, 0) / livingPlayers.length;
+            const { col: originCol, row: originRow } = grid.worldToGrid(avgX, avgY);
+
+            const spawnCells: { col: number; row: number }[] = [];
+            outer: for (let r = 0; r <= width + height; r++) {
+                const ringCells = getRingCells(originCol, originRow, r);
+                if (ringCells.length === 0 && r > 0) break;
+                for (const cell of ringCells) {
+                    const key = `${cell.col},${cell.row}`;
+                    if (occupiedCells.has(key)) continue;
+                    const { x, y } = grid.gridToWorld(cell.col, cell.row);
+                    if (!terrainManager.isPassable(x, y)) continue;
+                    if (inDarkness) {
+                        const level = lightGrid![cell.row]?.[cell.col];
+                        if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
+                    }
+                    spawnCells.push(cell);
+                    if (spawnCells.length >= count) break outer;
+                }
+            }
+
+            if (spawnCells.length === 0) {
+                console.error('spawnWave: closest — no valid tiles found; skipping this spawn entry.');
+                continue;
+            }
+            if (spawnCells.length < count) {
+                console.error(`spawnWave: closest — requested ${count} spawns but only found ${spawnCells.length} valid tiles.`);
+            }
+
+            for (const cell of spawnCells) {
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);

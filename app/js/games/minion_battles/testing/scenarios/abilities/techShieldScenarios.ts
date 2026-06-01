@@ -1,4 +1,4 @@
-import type { ScenarioDefinition } from '../../types';
+﻿import type { ScenarioDefinition } from '../../types';
 import { asCardDefId } from '../../../card_defs';
 import {
     TECH_SHIELD_TREE_ID,
@@ -17,9 +17,9 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
 const PLAYER_POS = { x: 4 * CELL + CELL / 2, y: 3 * CELL + CELL / 2 };
-// Attacker 30 px to the right — within 0102 punch range (BASE_MAX_RANGE=30 + attacker radius)
+// Attacker 30 px to the right â€” within 0102 punch range (BASE_MAX_RANGE=30 + attacker radius)
 const ATTACKER_POS = { x: PLAYER_POS.x + 30, y: PLAYER_POS.y };
-// Ally 40 px above player — within the 50 px on-block stamina-surge radius
+// Ally 40 px above player â€” within the 50 px on-block stamina-surge radius
 const ALLY_POS = { x: PLAYER_POS.x, y: PLAYER_POS.y - 40 };
 
 function buildShieldEngine(
@@ -53,7 +53,7 @@ function buildShieldEngine(
         engine.eventBus,
     );
     initializeAbilityRuntimeForUnit(attacker);
-    engine.addUnit(attacker);
+    engine.addUnit(attacker, 'initialGameSpawn');
     seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId(abilityId), abilityId }]);
     return { engine, player };
 }
@@ -109,7 +109,7 @@ export const raiseShieldAllyStaminaSurgeScenario: ScenarioDefinition = {
         initializeAbilityRuntimeForUnit(ally);
         const punchRt = ally.abilityRuntime['0102'];
         if (punchRt) punchRt.currentUses = 0;
-        engine.addUnit(ally);
+        engine.addUnit(ally, 'initialGameSpawn');
         return engine;
     },
     getInitialOrders(engine) {
@@ -128,7 +128,7 @@ export const raiseShieldAllyStaminaSurgeScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const ally = engine.getUnit('shield_ally');
         const rt = ally?.abilityRuntime['0102'];
-        return `ally punch uses=${rt?.currentUses ?? 0} (expected ≥1 from 2 stamina surges on block)`;
+        return `ally punch uses=${rt?.currentUses ?? 0} (expected â‰¥1 from 2 stamina surges on block)`;
     },
 };
 
@@ -191,6 +191,6 @@ export const shiningBlockStrengtheningLightScenario: ScenarioDefinition = {
     },
     failureMessage(engine) {
         const player = engine.getLocalPlayerUnit();
-        return `player hp=${player?.hp} maxHp=${player?.maxHp} (expected heal to ≥maxHp-5 via Strengthening Light)`;
+        return `player hp=${player?.hp} maxHp=${player?.maxHp} (expected heal to â‰¥maxHp-5 via Strengthening Light)`;
     },
 };

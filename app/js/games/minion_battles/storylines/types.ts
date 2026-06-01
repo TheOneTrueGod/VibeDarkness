@@ -23,7 +23,7 @@ export type LevelEventTrigger =
     | { afterSeconds: number };
 
 /** Behaviour for where a spawn wave places units. */
-export type SpawnBehaviour = 'edgeOfMap' | 'darkness' | 'anywhere' | 'closestEnemySpawnPoint';
+export type SpawnBehaviour = 'edgeOfMap' | 'darkness' | 'anywhere' | 'closestEnemySpawnPoint' | 'closest';
 
 /** Optional target area for spawn placement (world coordinates, radius in tiles). */
 export interface SpawnTarget {
@@ -58,6 +58,15 @@ export interface SpawnWaveEntry {
     lanterniteNestOwnerUnitId?: string;
     lanternPatrolFarWorld?: { x: number; y: number };
     lanternPatrolLeg?: 'toFar' | 'toNest';
+    /**
+     * Config for `spawnBehaviour: 'closest'`.
+     * Scans Chebyshev rings outward from the average position of living player units,
+     * picking the N nearest passable, unoccupied tiles that match the optional filters.
+     */
+    closestConfig?: {
+        /** If true, tiles must be in full darkness (same check as `spawnBehaviour: 'darkness'`). */
+        inDarkness?: boolean;
+    };
     /**
      * Config for `spawnBehaviour: 'closestEnemySpawnPoint'`.
      * Selects the closest enemySpawn POI (by grid distance from any living player unit),

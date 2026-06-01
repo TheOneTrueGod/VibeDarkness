@@ -1,4 +1,4 @@
-import type { ScenarioDefinition } from '../../types';
+﻿import type { ScenarioDefinition } from '../../types';
 import { asCardDefId } from '../../../card_defs';
 import {
     buildTinyBattleEngine,
@@ -21,7 +21,7 @@ const DUMMY_POSITIONS = [
     { x: 280, y: 240 },
     { x: 280, y: 260 },
     { x: 280, y: 280 },
-    { x: 280, y: 360 }, // outside the bar — should NOT be hit
+    { x: 280, y: 360 }, // outside the bar â€” should NOT be hit
 ] as const;
 
 export const swingBatHitsThreeTargetsScenario: ScenarioDefinition = {
@@ -47,7 +47,7 @@ export const swingBatHitsThreeTargetsScenario: ScenarioDefinition = {
             const { x, y } = DUMMY_POSITIONS[i];
             const du = createTargetDummyAtWorld(engine, x, y, { id: `target_dummy_${i}`, hp: 400 });
             initializeAbilityRuntimeForUnit(du);
-            engine.addUnit(du);
+            engine.addUnit(du, 'initialGameSpawn');
         }
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0115'), abilityId: '0115' }]);
         return engine;

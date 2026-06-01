@@ -1,4 +1,4 @@
-import type { ScenarioDefinition } from '../../types';
+﻿import type { ScenarioDefinition } from '../../types';
 import { asCardDefId } from '../../../card_defs';
 import { ExposedBuff, EXPOSED_BUFF_TYPE } from '../../../buffs/ExposedBuff';
 import { TRAINING_NODE_STRONG_PUNCH, TRAINING_TREE_ID } from '../../../../../researchTrees/trees/training';
@@ -15,7 +15,7 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
 const PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 2 * CELL + CELL / 2 };
-// Wolf is 50 px away — at punch max range (BASE_MAX_RANGE=30 + player radius=20).
+// Wolf is 50 px away â€” at punch max range (BASE_MAX_RANGE=30 + player radius=20).
 const WOLF_POS = { x: PLAYER_POS.x + 50, y: PLAYER_POS.y };
 // Second punch fires after the first ability cooldown (~96 ticks at 60 Hz).
 const SECOND_PUNCH_TICK = 100;
@@ -23,8 +23,8 @@ const SECOND_PUNCH_TICK = 100;
 /**
  * Alpha Wolf boss CC armor: one hit already absorbed before the scenario starts.
  * The player lands two Strong Punches in sequence:
- *   - Punch 1 (tick 0): consumed 1 → 2, absorbed (armor at threshold).
- *   - Punch 2 (tick 100): consumed 2 ≥ threshold → armor breaks → 5 s exposed.
+ *   - Punch 1 (tick 0): consumed 1 â†’ 2, absorbed (armor at threshold).
+ *   - Punch 2 (tick 100): consumed 2 â‰¥ threshold â†’ armor breaks â†’ 5 s exposed.
  */
 export const bossStunMechanicsScenario: ScenarioDefinition = {
     id: 'enemy_boss_stun_mechanics',
@@ -65,10 +65,10 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
             engine.eventBus,
         );
         // Alpha wolf has hardCcArmourFloor=2 (threshold=2) and ccArmourBreakStunDuration=5.
-        // Pre-consume 1 hit so the two scenario punches fill and break the armor → exposed for 5 s.
+        // Pre-consume 1 hit so the two scenario punches fill and break the armor â†’ exposed for 5 s.
         wolf.hardCcArmourConsumed = 1;
         initializeAbilityRuntimeForUnit(wolf);
-        engine.addUnit(wolf);
+        engine.addUnit(wolf, 'initialGameSpawn');
 
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0102'), abilityId: '0102' }]);
 
@@ -91,11 +91,11 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const wolf = engine.getUnit('alpha_wolf_boss');
         const exposed = wolf?.buffs.find((b) => b._type === EXPOSED_BUFF_TYPE);
-        return `exposed=${wolf?.hasBuff(EXPOSED_BUFF_TYPE)} duration=${exposed?.duration.value ?? '—'} consumed=${wolf?.hardCcArmourConsumed} hp=${wolf?.hp}`;
+        return `exposed=${wolf?.hasBuff(EXPOSED_BUFF_TYPE)} duration=${exposed?.duration.value ?? 'â€”'} consumed=${wolf?.hardCcArmourConsumed} hp=${wolf?.hp}`;
     },
 };
 
-// Wolf at column 6, player 80 px to its left — well within the 120 px lunge range.
+// Wolf at column 6, player 80 px to its left â€” well within the 120 px lunge range.
 const TRIPLE_CHARGE_WOLF_POS = { x: 6 * 40 + 20, y: 3 * 40 + 20 };   // (260, 140)
 const TRIPLE_CHARGE_PLAYER_POS = { x: TRIPLE_CHARGE_WOLF_POS.x - 80, y: TRIPLE_CHARGE_WOLF_POS.y };
 
@@ -136,7 +136,7 @@ export const alphaWolfTripleChargeScenario: ScenarioDefinition = {
             engine.eventBus,
         );
         initializeAbilityRuntimeForUnit(wolf);
-        engine.addUnit(wolf);
+        engine.addUnit(wolf, 'initialGameSpawn');
 
         engine.state.orderMgr.queueOrder(1, {
             unitId: wolf.id,
@@ -157,14 +157,14 @@ export const alphaWolfTripleChargeScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const player = engine.getLocalPlayerUnit();
         const wolf = engine.getUnit('alpha_wolf_enraged');
-        const active = wolf?.activeAbilities.map((a) => a.abilityId).join(',') ?? '—';
+        const active = wolf?.activeAbilities.map((a) => a.abilityId).join(',') ?? 'â€”';
         return `player hp=${player?.hp}/${player?.maxHp} wolf activeAbilities=[${active}]`;
     },
 };
 
 // Wolf just above 50 % HP so one base punch (15 dmg) tips it into the enrage threshold.
 const ENRAGE_WOLF_POS = { x: 5 * 40 + 20, y: 2 * 40 + 20 };   // (220, 100)
-// Player 45 px to the left — inside punch range (BASE_MAX_RANGE=30 + player radius=20 = 50 px).
+// Player 45 px to the left â€” inside punch range (BASE_MAX_RANGE=30 + player radius=20 = 50 px).
 const ENRAGE_PLAYER_POS = { x: ENRAGE_WOLF_POS.x - 45, y: ENRAGE_WOLF_POS.y };
 
 /**
@@ -204,7 +204,7 @@ export const alphaWolfEnrageTriggersScenario: ScenarioDefinition = {
         // One tick above 50 % so a single base punch (8 dmg) crosses the threshold.
         wolf.hp = Math.floor(wolf.maxHp * 0.5) + 1;
         initializeAbilityRuntimeForUnit(wolf);
-        engine.addUnit(wolf);
+        engine.addUnit(wolf, 'initialGameSpawn');
 
         seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0102'), abilityId: '0102' }]);
 
@@ -225,7 +225,7 @@ export const alphaWolfEnrageTriggersScenario: ScenarioDefinition = {
 };
 
 // Alpha wolf at (240, 160); player 40 px to its left at (200, 160).
-// Wolves spawn at (+35, 0) and (-24.5, +24.5) relative to the alpha wolf —
+// Wolves spawn at (+35, 0) and (-24.5, +24.5) relative to the alpha wolf â€”
 // both well within DarkWolfBite's 100 px base range.
 const SUMMON_CELL = 40;
 const SUMMON_PLAYER_POS = { x: 5 * SUMMON_CELL, y: 4 * SUMMON_CELL };
@@ -271,7 +271,7 @@ export const alphaWolfSummonScenario: ScenarioDefinition = {
             engine.eventBus,
         );
         initializeAbilityRuntimeForUnit(alphaWolf);
-        engine.addUnit(alphaWolf);
+        engine.addUnit(alphaWolf, 'initialGameSpawn');
 
         // Alpha wolf casts Summon on tick 1.
         engine.state.orderMgr.queueOrder(1, {
@@ -307,7 +307,7 @@ export const alphaWolfSummonScenario: ScenarioDefinition = {
     },
 };
 
-// ─── Exposed duration extension ───────────────────────────────────────────────
+// â”€â”€â”€ Exposed duration extension â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const P1 = TINY_BATTLE_PLAYER_ID; // 'tiny_p1'
 const P2 = 'tiny_p2';
@@ -329,10 +329,10 @@ const EXT_P1_BAT_TICK      = 120; // ~2 s
  * wolf must still carry the Exposed buff.
  *
  * Sequence:
- *   t=0   P1 casts StrongPunch → stun absorbed → extends ~+elapsed_at_impact s
- *   t≈1 s P2 casts StrongPunch → stun absorbed → may extend further
- *   t≈2 s P1 casts SwingBat   → knockback launches wolf (applied, not absorbed)
- *   t≥3 s assertPass: hasBuff('exposed') must be true
+ *   t=0   P1 casts StrongPunch â†’ stun absorbed â†’ extends ~+elapsed_at_impact s
+ *   tâ‰ˆ1 s P2 casts StrongPunch â†’ stun absorbed â†’ may extend further
+ *   tâ‰ˆ2 s P1 casts SwingBat   â†’ knockback launches wolf (applied, not absorbed)
+ *   tâ‰¥3 s assertPass: hasBuff('exposed') must be true
  */
 export const exposedDurationExtensionScenario: ScenarioDefinition = {
     id: 'exposed_duration_extension',
@@ -385,7 +385,7 @@ export const exposedDurationExtensionScenario: ScenarioDefinition = {
             engine.eventBus,
         );
         initializeAbilityRuntimeForUnit(wolf);
-        engine.addUnit(wolf);
+        engine.addUnit(wolf, 'initialGameSpawn');
         wolf.addBuff(new ExposedBuff(EXT_EXPOSED_DURATION), 0, 1);
 
         engine.state.orderMgr.queueOrder(EXT_P2_PUNCH_TICK, {
@@ -417,6 +417,6 @@ export const exposedDurationExtensionScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const wolf = engine.getUnit('alpha_wolf_exposed_ext');
         const buff = wolf?.buffs.find(b => b._type === EXPOSED_BUFF_TYPE) as ExposedBuff | undefined;
-        return `t=${engine.gameTime.toFixed(2)} duration=${buff?.duration.value.toFixed(2) ?? '—'} base=${EXT_EXPOSED_DURATION} resistance=${buff?.exposedResistance.toFixed(2) ?? 'none'} — expected buff.duration.value > ${EXT_EXPOSED_DURATION}`;
+        return `t=${engine.gameTime.toFixed(2)} duration=${buff?.duration.value.toFixed(2) ?? 'â€”'} base=${EXT_EXPOSED_DURATION} resistance=${buff?.exposedResistance.toFixed(2) ?? 'none'} â€” expected buff.duration.value > ${EXT_EXPOSED_DURATION}`;
     },
 };

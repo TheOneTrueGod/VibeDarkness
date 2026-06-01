@@ -200,7 +200,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
-            engine.addUnit(unit);
+            engine.addUnit(unit, 'initialGameSpawn');
         }
 
         // Register level events (if any)
@@ -247,7 +247,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             }
             initializeAbilityRuntimeForUnit(unit);
             attachAmmoIfNeeded(engine, unit);
-            engine.addUnit(unit);
+            engine.addUnit(unit, 'initialGameSpawn');
         }
 
         for (const u of engine.units) {

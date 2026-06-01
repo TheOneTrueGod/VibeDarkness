@@ -17,6 +17,7 @@ import {
     type GameEngineFromJSONOpts,
     type BattleOrder,
     type OrderAtTick,
+    type SpawnSource,
 } from './types';
 import { Unit } from './units/Unit';
 import { Projectile } from './projectiles/Projectile';
@@ -295,8 +296,8 @@ export class GameEngine implements EngineContext {
         this.state.cardManager.playerResearchTreesByPlayer = value;
     }
 
-    addUnit(unit: Unit): void {
-        if (!unit.isPlayerControlled()) {
+    addUnit(unit: Unit, spawnSource: SpawnSource = 'darknessSpawn'): void {
+        if (!unit.isPlayerControlled() && spawnSource === 'darknessSpawn') {
             unit.spawnTimer = 0.5;
         }
         this.state.unitManager.addUnit(unit);
@@ -1127,7 +1128,7 @@ export class GameEngine implements EngineContext {
             gameTime: this.gameTime,
             units: this.units,
             eventBus: this.eventBus,
-            addUnit: (u) => this.addUnit(u),
+            addUnit: (u, src) => this.addUnit(u, src),
             idSource: this,
             mapPOIs: this.mapPOIs,
             terrainGrid: this.terrainManager?.grid ?? null,

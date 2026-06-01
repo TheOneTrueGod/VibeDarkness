@@ -1,4 +1,4 @@
-import { TerrainType } from '../../terrain/TerrainType';
+﻿import { TerrainType } from '../../terrain/TerrainType';
 import { TerrainGrid } from '../../terrain/TerrainGrid';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { GameEngine } from '../../game/GameEngine';
@@ -116,7 +116,7 @@ export function spawnTinyPlayerUnit(
     initializeAbilityRuntimeForUnit(unit);
     applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
     applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
-    engine.addUnit(unit);
+    engine.addUnit(unit, 'initialGameSpawn');
     return unit;
 }
 
@@ -154,6 +154,6 @@ export function placePlayerAndDummy(engine: GameEngine, opts: PlacePlayerAndDumm
         id: opts.dummyId ?? 'target_dummy',
     });
     initializeAbilityRuntimeForUnit(dummy);
-    engine.addUnit(dummy);
+    engine.addUnit(dummy, 'initialGameSpawn');
     return { player, dummy };
 }

@@ -1,4 +1,4 @@
-import type { ScenarioDefinition } from '../../types';
+﻿import type { ScenarioDefinition } from '../../types';
 import { asCardDefId } from '../../../card_defs';
 import {
     buildTinyBattleEngine,
@@ -12,7 +12,7 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
 const PLAYER_POS = { x: 4 * CELL + CELL / 2, y: 3 * CELL + CELL / 2 };
-// Attacker is 30 px to the right — within punch range (BASE_MAX_RANGE=30 + attacker radius)
+// Attacker is 30 px to the right â€” within punch range (BASE_MAX_RANGE=30 + attacker radius)
 const ATTACKER_POS = { x: PLAYER_POS.x + 30, y: PLAYER_POS.y };
 
 function buildAbsorptionShieldEngine() {
@@ -50,7 +50,7 @@ function buildAbsorptionShieldEngine() {
         engine.eventBus,
     );
     initializeAbilityRuntimeForUnit(attacker);
-    engine.addUnit(attacker);
+    engine.addUnit(attacker, 'initialGameSpawn');
 
     seedHandWithAbilities(engine, P, [
         { cardDefId: asCardDefId('0113'), abilityId: '0113' },
@@ -62,7 +62,7 @@ function buildAbsorptionShieldEngine() {
 
 export const absorptionShieldEnergyChargeScenario: ScenarioDefinition = {
     id: 'absorption_shield_energy_charge_on_block',
-    title: 'Absorption Shield: blocking grants energy charge (3 charges → 1 Energy Blast use)',
+    title: 'Absorption Shield: blocking grants energy charge (3 charges â†’ 1 Energy Blast use)',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine: () => buildAbsorptionShieldEngine(),
@@ -76,7 +76,7 @@ export const absorptionShieldEnergyChargeScenario: ScenarioDefinition = {
                 abilityId: '0113',
                 targets: [{ type: 'pixel' as const, position: ATTACKER_POS }],
             },
-            // Attacker punches — blocked by the shield, triggering the 3rd energy charge
+            // Attacker punches â€” blocked by the shield, triggering the 3rd energy charge
             {
                 unitId: attacker.id,
                 abilityId: '0102',
@@ -94,6 +94,6 @@ export const absorptionShieldEnergyChargeScenario: ScenarioDefinition = {
         const player = engine.getLocalPlayerUnit();
         const rt = player?.abilityRuntime['0114'];
         const charges = rt?.recoveryChargesByType['energyCharge'] ?? 0;
-        return `energy_blast uses=${rt?.currentUses ?? 0} energyCharges=${charges} (expected ≥1 use after 3 blocks)`;
+        return `energy_blast uses=${rt?.currentUses ?? 0} energyCharges=${charges} (expected â‰¥1 use after 3 blocks)`;
     },
 };

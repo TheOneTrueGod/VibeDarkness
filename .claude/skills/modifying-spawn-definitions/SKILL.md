@@ -43,6 +43,14 @@ When you introduce a **new** `characterId`, add its baseline row in `game/units/
   - Darkness is computed from mission light config and `specialTiles`.
   - A tile counts as "full darkness" when its light level is very low, matching how the renderer hides enemies in the darkness overlay.
 
+- **`spawnBehaviour: 'closest'`**
+  - Scans Chebyshev rings outward from the **average position of all living player units**.
+  - Returns the N nearest passable, unoccupied tiles (one per unit when `spawnCount > 1`).
+  - Stops scanning when the ring is entirely off the map.
+  - Optional `closestConfig: { inDarkness?: boolean }` restricts candidates to full-darkness tiles.
+  - Does **not** use `spawnTarget`. Not randomised — always picks the geometrically closest tiles.
+  - Use this for "spawn near the players" patterns (ambushes, reinforcements that close in).
+
 ## spawnTarget and spawnCount details
 
 - **`spawnTarget`**

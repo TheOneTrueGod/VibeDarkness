@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Lanternite network scenarios:
- *   1. Nest build — networked nest spawns a scout, scout travels to a connected POI and constructs a second nest.
- *   2. Defender attack — lanternite light-pulse ability fires at an enemy and deals damage.
+ *   1. Nest build â€” networked nest spawns a scout, scout travels to a connected POI and constructs a second nest.
+ *   2. Defender attack â€” lanternite light-pulse ability fires at an enemy and deals damage.
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -36,14 +36,14 @@ const NEST_B_COL = 12;
 const NEST_B_ROW = 3;
 
 // Player starts centred below the nests and walks left/right across the map.
-// Zigzag: col 7 → 0 → 14 → 0 = 35 steps × 40 px = 1400 px / 90 px/s ≈ 15.5 s
-// Total scenario time: ~1 s spawn + ~5 s travel (stands 56 px short) + ~2 s construction ≈ 8 s — safely covered.
+// Zigzag: col 7 â†’ 0 â†’ 14 â†’ 0 = 35 steps Ã— 40 px = 1400 px / 90 px/s â‰ˆ 15.5 s
+// Total scenario time: ~1 s spawn + ~5 s travel (stands 56 px short) + ~2 s construction â‰ˆ 8 s â€” safely covered.
 const PLAYER_START_COL = 7;
 const PLAYER_WALK_ROW = 6;
 
 /**
  * Build a horizontal zigzag path along `row`:
- *   startCol → 0 → maxCol → 0
+ *   startCol â†’ 0 â†’ maxCol â†’ 0
  * Each step is exactly one column, so the path is always valid on open terrain.
  */
 function buildPlayerZigzagPath(startCol: number, row: number, maxCol: number): { col: number; row: number }[] {
@@ -107,10 +107,10 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
         prepareLanterniteNestForMissionStart(nestUnit, 0);
         // Override to spawn the scout on the very first tick rather than after spawnIntervalSec
         nestUnit.lanterniteNestSpawnState!.nextSpawnAtGameTime = 0;
-        engine.addUnit(nestUnit);
+        engine.addUnit(nestUnit, 'initialGameSpawn');
 
-        // Player spawns below the nest row and walks left/right — keeps battle non-idle
-        // during the full scout-spawn → travel → construction sequence.
+        // Player spawns below the nest row and walks left/right â€” keeps battle non-idle
+        // during the full scout-spawn â†’ travel â†’ construction sequence.
         spawnTinyPlayerUnit(engine, {
             playerId: TINY_BATTLE_PLAYER_ID,
             x: worldOf(PLAYER_START_COL, PLAYER_WALK_ROW).x,
@@ -124,7 +124,7 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
     getInitialOrders(engine) {
         const player = engine.getLocalPlayerUnit();
         if (!player) return [];
-        // Walk left → right → left across the bottom of the map (three legs, ~15 s total)
+        // Walk left â†’ right â†’ left across the bottom of the map (three legs, ~15 s total)
         const path = buildPlayerZigzagPath(PLAYER_START_COL, PLAYER_WALK_ROW, NEST_GRID_W - 1);
         return [{ unitId: player.id, abilityId: MOVE_ONLY_ABILITY_ID, targets: [], movePath: path }];
     },
@@ -154,7 +154,7 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// Scenario 2: maxLanternites:2 → first spawn becomes a scout (builds second
+// Scenario 2: maxLanternites:2 â†’ first spawn becomes a scout (builds second
 // nest) while the second spawn becomes a defender (guards the original nest)
 // ---------------------------------------------------------------------------
 
@@ -163,7 +163,7 @@ export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
     title: 'Lanternite: nest spawns a scout (builds second nest) and a defender (guards original)',
     category: 'general',
     generalSection: 'Lanternites',
-    // scout at t=0, defender at t=1, ~5s travel, ~2s construction → ~8s total; 20s is generous
+    // scout at t=0, defender at t=1, ~5s travel, ~2s construction â†’ ~8s total; 20s is generous
     maxDurationMs: 20000,
 
     buildEngine() {
@@ -210,7 +210,7 @@ export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
         prepareLanterniteNestForMissionStart(nestUnit, 0);
         // Trigger the scout on the very first tick rather than waiting spawnIntervalSec
         nestUnit.lanterniteNestSpawnState!.nextSpawnAtGameTime = 0;
-        engine.addUnit(nestUnit);
+        engine.addUnit(nestUnit, 'initialGameSpawn');
 
         // Player walks a three-leg zigzag so the battle stays non-idle for the full ~8s sequence
         spawnTinyPlayerUnit(engine, {
@@ -308,7 +308,7 @@ export const lanterniteDefenderAttackScenario: ScenarioDefinition = {
         );
         lanternite.lanterniteRole = 'defender';
         initializeAbilityRuntimeForUnit(lanternite);
-        engine.addUnit(lanternite);
+        engine.addUnit(lanternite, 'initialGameSpawn');
 
         // Stationary enemy within range (4 cells = 160 px < 200 px max range)
         const enemyPos = worldOf(ENEMY_COL, ENEMY_ROW);
@@ -328,7 +328,7 @@ export const lanterniteDefenderAttackScenario: ScenarioDefinition = {
             engine.eventBus,
             engine,
         );
-        engine.addUnit(enemy);
+        engine.addUnit(enemy, 'initialGameSpawn');
 
         // Player unit is required to prevent immediate defeat check
         spawnTinyPlayerUnit(engine, {
@@ -364,7 +364,7 @@ export const lanterniteDefenderAttackScenario: ScenarioDefinition = {
         const enemy = engine.getUnit('test_enemy');
         const lan = engine.getUnit('test_lanternite');
         return (
-            `enemy hp=${enemy?.hp ?? '—'}/${ENEMY_HP} ` +
+            `enemy hp=${enemy?.hp ?? 'â€”'}/${ENEMY_HP} ` +
             `lan activeAbilities=${lan?.activeAbilities.length ?? 0} ` +
             `t=${engine.gameTime.toFixed(1)}`
         );
@@ -373,6 +373,6 @@ export const lanterniteDefenderAttackScenario: ScenarioDefinition = {
     describeState(engine) {
         const enemy = engine.getUnit('test_enemy');
         const lan = engine.getUnit('test_lanternite');
-        return `t=${engine.gameTime.toFixed(1)} enemyHp=${enemy?.hp ?? '—'} lanState=${lan?.aiContext?.aiState ?? '?'}`;
+        return `t=${engine.gameTime.toFixed(1)} enemyHp=${enemy?.hp ?? 'â€”'} lanState=${lan?.aiContext?.aiState ?? '?'}`;
     },
 };
