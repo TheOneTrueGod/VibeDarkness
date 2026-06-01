@@ -74,7 +74,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
 			type: 'continuousSpawn',
 			trigger: { intervalRounds: 1.5, startRound: 1 },
 			maxUnits: 4,
-			spawns: [{ characterId: 'enemy_ranged', spawnBehaviour: 'darkness', spawnCount: 1 }],
+			spawns: [{ characterId: 'enemy_ranged', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
 		},
     {
         type: 'victoryCheck',

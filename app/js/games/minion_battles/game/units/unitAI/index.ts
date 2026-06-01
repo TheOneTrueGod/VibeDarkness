@@ -9,11 +9,13 @@ import { AGGRO_WANDER_AI_TREE } from './aggroWander';
 import { LANTERNITE_PATROL_AI_TREE } from './lanternitePatrol/index';
 import { LANTERNITE_NEST_IDLE_TREE } from './lanterniteNestIdle/index';
 import { LANTERNITE_NETWORK_AI_TREE } from './lanterniteNetwork/index';
+import { HUNT_AI_TREE } from './hunt/index';
 
 export type { AIContext, AILightSource, UnitAITree, AINode, AIEdgeCondition, AINodeId } from './types';
 export { isNodeInTree } from './types';
 export { runUnitAI, runPathfindingRetrigger, getCurrentNodeId, setCurrentNodeId } from './runner';
 export {
+    ROUND_DURATION,
     distance,
     findEnemies,
     getEnemiesInPerceptionAndLOS,
@@ -48,6 +50,8 @@ export { LANTERNITE_PATROL_AI_TREE } from './lanternitePatrol/index';
 export type { LanternitePatrolAITreeContext } from './lanternitePatrol/context';
 export { LANTERNITE_NETWORK_AI_TREE } from './lanterniteNetwork/index';
 export type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './lanterniteNetwork/context';
+export { HUNT_AI_TREE } from './hunt/index';
+export type { HuntNodeId, HuntAITreeContext } from './hunt/index';
 
 /** Registry: tree ID -> tree. */
 const TREE_REGISTRY: Record<string, UnitAITree> = {
@@ -57,6 +61,7 @@ const TREE_REGISTRY: Record<string, UnitAITree> = {
     lanternitePatrol: LANTERNITE_PATROL_AI_TREE,
     lanterniteNestIdle: LANTERNITE_NEST_IDLE_TREE,
     lanterniteNetwork: LANTERNITE_NETWORK_AI_TREE,
+    hunt: HUNT_AI_TREE,
 };
 
 export function getUnitAITree(treeId: string): UnitAITree | null {
