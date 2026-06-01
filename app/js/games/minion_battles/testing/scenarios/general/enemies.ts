@@ -4,6 +4,7 @@ import { ExposedBuff, EXPOSED_BUFF_TYPE } from '../../../buffs/ExposedBuff';
 import { TRAINING_NODE_STRONG_PUNCH, TRAINING_TREE_ID } from '../../../../../researchTrees/trees/training';
 import {
     buildTinyBattleEngine,
+    MOVE_ONLY_ABILITY_ID,
     spawnTinyPlayerUnit,
     seedHandWithAbilities,
     TINY_BATTLE_PLAYER_ID,
@@ -418,5 +419,103 @@ export const exposedDurationExtensionScenario: ScenarioDefinition = {
         const wolf = engine.getUnit('alpha_wolf_exposed_ext');
         const buff = wolf?.buffs.find(b => b._type === EXPOSED_BUFF_TYPE) as ExposedBuff | undefined;
         return `t=${engine.gameTime.toFixed(2)} duration=${buff?.duration.value.toFixed(2) ?? 'â€”'} base=${EXT_EXPOSED_DURATION} resistance=${buff?.exposedResistance.toFixed(2) ?? 'none'} â€” expected buff.duration.value > ${EXT_EXPOSED_DURATION}`;
+    },
+};
+
+// ─── Alpha Wolf Scratch ─────────────────────────────────────────────────────
+
+// Player at col 2 (x=100); wolf starts at col 11 (x=460) — 360 px away, well outside scratch range (70 px).
+// Wolf walks 8 cells (320 px) to col 3 (x=140). At wolf speed 135 px/s ≈ 142 ticks; scratch queued at 150.
+const SCRATCH_PLAYER_POS = { x: 2 * CELL + CELL / 2, y: 4 * CELL + CELL / 2 };  // (100, 180)
+const SCRATCH_WOLF_START = { x: 11 * CELL + CELL / 2, y: 4 * CELL + CELL / 2 }; // (460, 180)
+const SCRATCH_FIRE_TICK = 150;
+
+/**
+ * Alpha Wolf Scratch: wolf spawns out of scratch range, walks to the player, then uses Scratch (0012).
+ * Verifies that the wolf can close distance and deal scratch damage.
+ */
+export const alphaWolfScratchScenario: ScenarioDefinition = {
+    id: 'enemy_alpha_wolf_scratch',
+    title: 'Alpha Wolf Scratch: wolf closes from out of range and damages the player',
+    category: 'general',
+    generalSection: 'Enemies',
+    maxDurationMs: 6000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 14, gridH: 8, localPlayerId: P, grass: true });
+
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: SCRATCH_PLAYER_POS.x,
+            y: SCRATCH_PLAYER_POS.y,
+            abilities: [],
+        });
+
+        const wolf = createUnitFromSpawnConfig(
+            {
+                id: 'alpha_wolf_scratch_test',
+                characterId: 'alpha_wolf',
+                name: 'Beast',
+                x: SCRATCH_WOLF_START.x,
+                y: SCRATCH_WOLF_START.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: ['0012'],
+                unitTags: [UnitTag.Boss],
+            },
+            engine.eventBus,
+        );
+        initializeAbilityRuntimeForUnit(wolf);
+        engine.addUnit(wolf, 'initialGameSpawn');
+
+        // Walk wolf from col 11 to col 3 (one cell right of player), putting it within scratch range.
+        const tm = engine.terrainManager!;
+        const wolfPath = tm.findGridPath(11, 4, 3, 4);
+        if (wolfPath) {
+            engine.state.orderMgr.queueOrder(1, {
+                unitId: wolf.id,
+                abilityId: MOVE_ONLY_ABILITY_ID,
+                targets: [],
+                movePath: wolfPath,
+            });
+        }
+
+        // After the wolf arrives (~142 ticks), trigger the scratch.
+        engine.state.orderMgr.queueOrder(SCRATCH_FIRE_TICK, {
+            unitId: wolf.id,
+            abilityId: '0012',
+            targets: [{ type: 'unit', unitId: player.id }],
+        });
+
+        // Keep player non-idle so the battle does not exit early (wait ≈ 1.5 s = 90 ticks each).
+        for (const tick of [90, 180, 270]) {
+            engine.state.orderMgr.queueOrder(tick, {
+                unitId: player.id,
+                abilityId: 'wait',
+                targets: [],
+            });
+        }
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        return [{ unitId: player.id, abilityId: 'wait', targets: [] }];
+    },
+
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        return Boolean(player && player.hp < player.maxHp);
+    },
+
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const wolf = engine.getUnit('alpha_wolf_scratch_test');
+        const wolfActive = wolf?.activeAbilities.map(a => a.abilityId).join(',') ?? '—';
+        const dist = player && wolf
+            ? Math.hypot(wolf.x - player.x, wolf.y - player.y).toFixed(0)
+            : '—';
+        return `player hp=${player?.hp}/${player?.maxHp} wolf pos=(${wolf?.x.toFixed(0)},${wolf?.y.toFixed(0)}) dist=${dist} wolf active=[${wolfActive}]`;
     },
 };

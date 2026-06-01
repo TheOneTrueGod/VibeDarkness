@@ -29,7 +29,7 @@ import { Effect } from '../effects/Effect';
 const GOLDEN_ANGLE = 2.399963229728653;
 
 /** Default construction duration if not specified in nest config. */
-const DEFAULT_CONSTRUCTION_SEC = 12;
+const DEFAULT_CONSTRUCTION_SEC = 10;
 
 const ROUND_DURATION_SEC = 10;
 
@@ -59,6 +59,9 @@ interface TerrainGridLike {
  * Advances nest spawn timers once per simulation tick (host).
  * Also handles scout construction completion — spawns a new nest and removes the scout.
  */
+/** Extra px beyond the nest's own radius that lanternites may spawn within. */
+const NEST_SPAWN_EXTRA_RADIUS = 70;
+
 export function processLanterniteNests(params: {
     gameTime: number;
     units: Unit[];
@@ -71,6 +74,8 @@ export function processLanterniteNests(params: {
     addLightSource?: (ls: LightSource) => void;
     lightSources?: LightSource[];
     addEffectEmitter?: (emitter: EffectEmitter) => void;
+    /** Seeded RNG — must be passed from the engine so spawn positions are deterministic across clients. */
+    generateRandomNumber?: () => number;
 }): void {
     // --- Construction completion: scouts that have finished building ---
     for (const unit of params.units) {
@@ -116,7 +121,7 @@ export function processLanterniteNests(params: {
             patrolDestination: { kind: 'world', x: unit.x, y: unit.y },
             networked: true,
             nestPoiId: unit.lanterniteTargetNestPoiId ?? undefined,
-            scoutConstructionSec: parentCfg?.scoutConstructionSec ?? 12,
+            scoutConstructionSec: parentCfg?.scoutConstructionSec ?? 10,
         };
 
         const newNest = createUnitFromSpawnConfig(
@@ -146,7 +151,10 @@ export function processLanterniteNests(params: {
             upsertNestLightSource({ nest: newNest, addLightSource: params.addLightSource, lightSources: params.lightSources });
         }
 
-        // Kill scout (nest-owned, so no global respawn will trigger)
+        // Claim the scout as owned by the new nest before killing it so the global
+        // respawn manager (which only respawns ownerless lanternites) does not queue
+        // a replacement. Pre-spawned scouts start with no owner.
+        unit.lanterniteNestOwnerUnitId = newNest.id;
         unit.hp = 0;
         unit.active = false;
         params.eventBus.emit('unit_died', { unitId: unit.id, killerUnitId: null });
@@ -166,10 +174,15 @@ export function processLanterniteNests(params: {
         if (aliveKids >= cfg.maxLanternites) continue;
         if (params.gameTime < state.nextSpawnAtGameTime) continue;
 
+        // Spawn at a random position in a ring around the nest using the seeded RNG.
+        const rng = params.generateRandomNumber ?? (() => Math.floor(Math.random() * 0x7fffffff));
+        const INT31 = 0x7fffffff;
+        const spawnAngle = (rng() / INT31) * Math.PI * 2;
+        const spawnDist = nest.radius + (rng() / INT31) * NEST_SPAWN_EXTRA_RADIUS;
         const lan = createUnitFromSpawnConfig(
             {
-                x: nest.x + (state.spawnedIds.length === 0 ? 0 : 16),
-                y: nest.y,
+                x: nest.x + Math.cos(spawnAngle) * spawnDist,
+                y: nest.y + Math.sin(spawnAngle) * spawnDist,
                 teamId: 'allied' as const,
                 ownerId: 'ai',
                 characterId: LANTERNITE_CHARACTER_ID,
@@ -234,7 +247,7 @@ export function processLanterniteNests(params: {
         }
 
         if (nest.isInvincible()) lan.tags = [UnitTag.Invincible];
-        params.addUnit(lan);
+        params.addUnit(lan, 'nestSpawn');
 
         nest.lanterniteNestSpawnState!.spawnedIds.push(lan.id);
         nest.lanterniteNestSpawnState!.nextSpawnAtGameTime =

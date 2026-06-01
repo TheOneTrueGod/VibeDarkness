@@ -57,13 +57,13 @@ export const ENEMY_BOAR: EnemySpawnDef = {
 /** HP fraction at which the Alpha Wolf enrages (gains UnitTag.Enraged). */
 export const ALPHA_WOLF_ENRAGE_THRESHOLD = 0.5;
 
-/** Alpha Wolf: boss — baseline hp/speed in unit defs. Summon (0005), Charge (0007, pre-enrage), Frenzied Charge (0011, post-enrage). radius 26. */
+/** Alpha Wolf: boss — baseline hp/speed in unit defs. Summon (0005), Charge (0007, pre-enrage), Frenzied Charge (0011, post-enrage), Scratch (0012, lowest-priority fallback). radius 26. */
 export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     characterId: 'alpha_wolf',
     name: 'Beast',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['0005', '0007', '0011'],
+    abilities: ['0005', '0007', '0011', '0012'],
     aiSettings: { minRange: 0, maxRange: 100 },
     radius: 26,
     unitTags: [UnitTag.Boss],

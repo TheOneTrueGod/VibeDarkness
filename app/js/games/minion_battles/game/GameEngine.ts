@@ -300,6 +300,9 @@ export class GameEngine implements EngineContext {
         if (!unit.isPlayerControlled() && spawnSource === 'darknessSpawn') {
             unit.spawnTimer = 0.5;
         }
+        if (spawnSource === 'nestSpawn') {
+            unit.growAnimTimer = 0.3;
+        }
         this.state.unitManager.addUnit(unit);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(unit.id), Math.floor(unit.x), Math.floor(unit.y));
     }
@@ -1136,6 +1139,7 @@ export class GameEngine implements EngineContext {
             addLightSource: (ls) => this.addLightSource(ls),
             lightSources: this.state.lightSourceManager.lightSources,
             addEffectEmitter: (em) => this.addEffectEmitter(em),
+            generateRandomNumber: () => this.generateRandomNumber(),
         });
         this.state.lanterniteRespawnManager.gameTick(this.gameTime, this, this.eventBus);
         this.state.unitManager.cleanupInactive();

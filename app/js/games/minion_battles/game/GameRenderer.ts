@@ -598,8 +598,8 @@ export class GameRenderer {
 	 */
 	private renderConstructionGhosts(engine: GameEngine): void {
 		const activeScoutIds = new Set<string>();
-		/** Explicit radius from lanternite_nest unitDef. */
-		const nestRadius = 28;
+		/** Radius matching lanternite_nest Extra Large size. */
+		const nestRadius = 26;
 
 		for (const unit of engine.units) {
 			if (!unit.isAlive()) continue;
@@ -610,7 +610,7 @@ export class GameRenderer {
 			activeScoutIds.add(unit.id);
 
 			// Compute 0..1 progress from remaining time and total construction duration
-			const totalSec = unit.lanterniteNestConfig?.scoutConstructionSec ?? 12;
+			const totalSec = unit.lanterniteNestConfig?.scoutConstructionSec ?? 10;
 			const remaining = Math.max(0, unit.lanterniteConstructionCompleteAtGameTime - engine.gameTime);
 			const progress = Math.min(1, Math.max(0, 1 - remaining / totalSec));
 
@@ -951,6 +951,16 @@ export class GameRenderer {
 			visual.y = unit.y + renderOffsetY + knockupYOffset;
 			visual.visible = unit.active && !unit.isSpawning();
 
+			// Grow-in animation: scale from 0 → 1 over growAnimTimer duration (nestSpawn units)
+			if (unit.growAnimTimer > 0) {
+				const growProgress = 1 - unit.growAnimTimer / 0.3;
+				// easeOutCubic for a snappy pop
+				const eased = 1 - Math.pow(1 - Math.min(1, growProgress), 3);
+				visual.scale.set(eased);
+			} else {
+				visual.scale.set(1);
+			}
+
 			const col = Math.floor(unit.x / cellSize);
 			const row = Math.floor(unit.y / cellSize);
 			const light = this.getLightAt(col, row);
@@ -1073,6 +1083,37 @@ export class GameRenderer {
 				}
 			} else {
 				if (buffEffects) buffEffects.visible = false;
+			}
+
+			// Lanternite nest spawn progress arc — drawn as a child of the nest's own visual
+			if (unit.characterId === 'lanternite_nest') {
+				let nestSpawnArc = visual.children.find((c) => c.label === 'nestSpawnArc') as Graphics | undefined;
+				const nestCfg = unit.lanterniteNestConfig;
+				const nestState = unit.lanterniteNestSpawnState;
+				const showArc = nestCfg != null && nestState != null
+					&& nestState.spawnedIds.length < nestCfg.maxLanternites
+					&& gameTime < nestState.nextSpawnAtGameTime;
+				if (showArc) {
+					if (!nestSpawnArc) {
+						nestSpawnArc = new Graphics();
+						nestSpawnArc.label = 'nestSpawnArc';
+						visual.addChild(nestSpawnArc);
+					}
+					nestSpawnArc.visible = true;
+					const arcR = unit.radius + 8;
+					const remaining = nestState!.nextSpawnAtGameTime - gameTime;
+					const arcProgress = Math.min(1, Math.max(0, 1 - remaining / Math.max(0.1, nestCfg!.spawnIntervalSec)));
+					const startAngle = -Math.PI / 2;
+					nestSpawnArc.clear();
+					nestSpawnArc.arc(0, 0, arcR, 0, Math.PI * 2);
+					nestSpawnArc.stroke({ color: 0x064e3b, width: 2, alpha: 0.5 });
+					if (arcProgress > 0.01) {
+						nestSpawnArc.arc(0, 0, arcR, startAngle, startAngle + arcProgress * Math.PI * 2);
+						nestSpawnArc.stroke({ color: 0x34d399, width: 2 });
+					}
+				} else {
+					if (nestSpawnArc) nestSpawnArc.visible = false;
+				}
 			}
 		}
 	}

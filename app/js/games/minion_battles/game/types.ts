@@ -10,8 +10,9 @@ import type { SerializedStoneTileMutation } from '../terrain/TerrainGrid';
  * - `'darknessSpawn'`  — mid-battle wave or darkness spawn; plays the 0.5 s condensing animation.
  * - `'initialGameSpawn'` — placed at mission start; appears immediately with no animation.
  * - `'abilitySpawn'` — created by an ability; appears immediately; the ability provides its own VFX.
+ * - `'nestSpawn'` — born from a lanternite nest; plays a 0.3 s grow-in scale animation.
  */
-export type SpawnSource = 'darknessSpawn' | 'initialGameSpawn' | 'abilitySpawn';
+export type SpawnSource = 'darknessSpawn' | 'initialGameSpawn' | 'abilitySpawn' | 'nestSpawn';
 
 /** Snapshot of engine timing state. */
 export interface GameTime {

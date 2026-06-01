@@ -17,7 +17,7 @@ import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './
 
 const ARRIVAL_PX = 36;
 const ROUND_DURATION_SEC = 10;
-const DEFAULT_CONSTRUCTION_SEC = 12;
+const DEFAULT_CONSTRUCTION_SEC = 10;
 
 /**
  * Distance (px) from the nest build site where the scout stands while constructing.

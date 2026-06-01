@@ -127,6 +127,9 @@ export class UnitManager {
                 tickSpawnAnimation(unit, dt, engine);
                 continue;
             }
+            if (unit.growAnimTimer > 0) {
+                unit.growAnimTimer = Math.max(0, unit.growAnimTimer - dt);
+            }
             if (unit.pathfindingRetriggerOffset > 0 && engine.gameTick % unit.pathfindingRetriggerOffset === 0) {
                 const tree = getUnitAITree(unit.unitAITreeId);
                 if (tree) runPathfindingRetrigger(unit, tree, aiContext);

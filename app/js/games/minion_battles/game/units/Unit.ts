@@ -184,6 +184,8 @@ export class Unit extends GameObject {
     spawnTimer: number = 0;
     spawnParticleAcc1: number = 0;
     spawnParticleAcc2: number = 0;
+    /** Seconds remaining in grow-in scale animation (0 = not growing). Set when spawned via nestSpawn. */
+    growAnimTimer: number = 0;
 
     /** When using the "wait" action: earliest and latest gameTime (seconds) when the wait can end. */
     waitMinEndTime: number | null = null;
@@ -1099,6 +1101,7 @@ export class Unit extends GameObject {
             unitAITreeId: this.unitAITreeId,
             moveJitter: this.moveJitter,
             spawnTimer: this.spawnTimer,
+            growAnimTimer: this.growAnimTimer,
             waitMinEndTime: this.waitMinEndTime,
             waitMaxEndTime: this.waitMaxEndTime,
             movementPaused: this.movementPaused,
@@ -1267,6 +1270,7 @@ export class Unit extends GameObject {
         unit.unitAITreeId = (data.unitAITreeId as string) ?? 'default';
         unit.moveJitter = (data.moveJitter as number) ?? 0;
         unit.spawnTimer = (data.spawnTimer as number | undefined) ?? 0;
+        unit.growAnimTimer = (data.growAnimTimer as number | undefined) ?? 0;
         unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
         unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;
         unit.movementPaused = (data.movementPaused as boolean | undefined) ?? false;
