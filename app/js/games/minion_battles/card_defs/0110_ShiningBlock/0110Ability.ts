@@ -7,6 +7,7 @@
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
 import type { TargetDef } from '../../abilities/targeting';
 import { createArcTargetPreview, drawArcWedge } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../game/types';
@@ -167,6 +168,7 @@ export const ShiningBlockAbility: AbilityStatic = {
             start: 0,
             end: DURATION,
             abilityPhase: AbilityPhase.Juggernaut,
+            behaviour: CastBehaviours.InitAbilityNote({ retaliationCount: 0 }),
         },
     ],
     targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
@@ -198,11 +200,6 @@ export const ShiningBlockAbility: AbilityStatic = {
             arcStartAngle: centerAngle - SHIELD_HALF_ARC_RAD,
             arcEndAngle: centerAngle + SHIELD_HALF_ARC_RAD,
         };
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= 0.05 || currentTime < 0.05) return;
-        caster.setAbilityNote({ abilityId: CARD_ID, abilityNote: { retaliationCount: 0 } });
     },
 
     renderActivePreview(
