@@ -90,7 +90,6 @@ const ENEMIES = [
 			cliffPathPOI.cave_center.row + MIDDLE_OFFSET_ROW,
 		),
 		unitTags: [UnitTag.Boar],
-		unitAITreeId: 'hunt',
 	},
 ];
 
