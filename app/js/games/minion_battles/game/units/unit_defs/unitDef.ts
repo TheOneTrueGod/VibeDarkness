@@ -166,7 +166,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     alpha_wolf: {
         bodyColor: 0x1a1a2e,
         characterSpriteKey: 'alpha_wolf',
-        hp: 240,
+        hp: 192,
         speed: 135,
         size: 'Extra Large',
         stamina: 2,

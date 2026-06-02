@@ -27,8 +27,8 @@ const WINDUP23_TIME = 0.5;
 const LUNGE_DURATION = 0.3;
 const COOLDOWN_DURATION = 2.0;
 const MAX_RANGE = 120;
-const CAPSULE_RADIUS_MULTIPLIER = 2.0;
-const DAMAGE = 5;
+const CAPSULE_RADIUS_MULTIPLIER = 1.6;
+const DAMAGE = 3;
 
 const DASH1_START = WINDUP1_TIME;                          // 0.80
 const DASH1_END   = DASH1_START + LUNGE_DURATION;          // 1.00
@@ -96,7 +96,7 @@ class TripleChargeAbilityDef extends AbilityBase<TripleChargeNote> {
     }
 
     getTooltipText(): string[] {
-        return ['The enraged Alpha charges three times in quick succession, dealing {5} damage per hit'];
+        return ['The enraged Alpha charges three times in quick succession, dealing {3} damage per hit'];
     }
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {

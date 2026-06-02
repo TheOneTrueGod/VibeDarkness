@@ -1,15 +1,5 @@
 # TODO
 
-## GameRenderer refactor
-
-| Todo | Notes |
-|------|-------|
-| Implement `SpecialTileRenderer` | Migrate `renderSpecialTiles` and `createSpecialTileVisual`; owns `specialTilesContainer` and `specialTileVisuals` map. See `game/GameRenderer/renderers/SpecialTileRenderer.ts` |
-| Implement `ProjectileRenderer` | Migrate `renderProjectiles`; owns `projectileVisuals` map. See `game/GameRenderer/renderers/ProjectileRenderer.ts` |
-| Implement `EffectRenderer` | Migrate `renderEffects` and `syncParticleEffect`; owns `effectVisuals`, `particleEffects`, and `ParticleContainer`. See `game/GameRenderer/renderers/EffectRenderer.ts` |
-| Implement `LightSourceRenderer` | Migrate `renderLightSources`; owns `lightSourceVisuals` map. See `game/GameRenderer/renderers/LightSourceRenderer.ts` |
-| Implement `PreviewRenderer` | Migrate `renderMoveTargets`, `renderGhostPreviews`, `renderActiveAbilityPreviews`, `renderTargetingPreview`, and path-drawing helpers; owns `moveTargetVisuals`, `abilityPreviewGraphics`, `targetingPreviewGraphics`, `ghostPreviewGraphics`. See `game/GameRenderer/renderers/PreviewRenderer.ts` |
-
 ## Uncategorised
 
 | Todo | Notes |
