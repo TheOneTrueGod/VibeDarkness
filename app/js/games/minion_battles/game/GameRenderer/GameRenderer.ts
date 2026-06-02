@@ -6,43 +6,31 @@
  * engine objects with camera offsets applied.
  */
 
-import { Application, Assets, Container, Graphics, Particle, ParticleContainer, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Graphics, Particle, ParticleContainer, Sprite, Texture } from 'pixi.js';
 import { DarknessLevel } from '../darknessLevels';
-import { type FogFilter, tryCreateFogFilter } from '../FogFilter';
 import { WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START } from '../../../../gameConstants';
 import type { GameEngine } from '../GameEngine';
 import type { Camera } from '../Camera';
 import type { Unit } from '../units/Unit';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries, getEffectiveCastBehaviours } from '../../abilities/abilityTimings';
-import { resolveBehaviourTimingRef } from '../../abilities/castBehaviourTypes';
-import type { AbilityStatic } from '../../abilities/Ability';
 import { getSelectTargetDefsFromTimings, filterSelectTargetCandidates } from '../../abilities/targeting';
 import { renderMeleeTrackingHighlights } from '../../abilities/meleeTrackingHelpers';
 import { Projectile } from '../projectiles/Projectile';
 import type { Effect } from '../effects/Effect';
 import { areEnemies } from '../teams';
-import { UnitTag } from '../units/unitTag';
 import type { TeamId } from '../teams';
 import type { TerrainGrid } from '../../terrain/TerrainGrid';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { TerrainRenderer } from '../../terrain/TerrainRenderer';
 import {
-	renderUnit,
-	updateUnitHpBar,
-	getBodyColorForUnit,
-	syncUnitCharacterSpriteIfNeeded,
-	CHARACTER_SPRITE_SCALE,
 	type IUnitRenderContext,
 } from '../units/unit_defs/unitDef';
-import { getBuffVisualRenderer } from '../../buffs/buffVisuals';
 import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from '../effect_defs/index';
-import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from '../effectImages';
+import { type EffectImageKey } from '../effectImages';
 import { getSpecialTileDef } from '../../storylines/specialTileDefs';
 import type { SpecialTile } from '../specialTiles/SpecialTile';
 import type { DamageTakenEvent } from '../EventBus';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
-import { getPortraitIds, PORTRAITS } from '../../character_defs/portraitLoader';
 import type { ResolvedTarget } from '../types';
 import { AssetRegistry } from './AssetRegistry';
 import { UnitRenderer } from './renderers/UnitRenderer';
@@ -52,9 +40,7 @@ import { ProjectileRenderer } from './renderers/ProjectileRenderer';
 import { EffectRenderer } from './renderers/EffectRenderer';
 import { LightSourceRenderer } from './renderers/LightSourceRenderer';
 import { PreviewRenderer } from './renderers/PreviewRenderer';
-
-/** Hit flash duration in seconds (real time, not affected by pause). */
-const HIT_FLASH_DURATION = 0.3;
+import type { AbilityStatic } from '../../abilities/Ability';
 
 /** Color for move target markers (dark gray so visible in darkness). */
 const MOVE_TARGET_COLOR = 0x333333;
@@ -82,26 +68,9 @@ const Z_INDEX = {
 	targetingPreview: 101,
 } as const;
 
-/** Ranged enemy character sprite (slime): displayed slightly smaller than the unit hitbox circle. */
-const SLIME_SVG_URL = new URL('../../assets/characters/slime.svg', import.meta.url).href;
-/** Melee enemy character sprite (swordwoman). */
-const SWORDWOMAN_SVG_URL = new URL('../../assets/characters/swordwoman.svg', import.meta.url).href;
-/** Wolf (dark_wolf) character sprite (wolf head). */
-const WOLF_HEAD_SVG_URL = new URL('../../assets/characters/dark_animals/wolf-head.svg', import.meta.url).href;
-/** Alpha Wolf boss character sprite (wolf howl). */
-const WOLF_HOWL_SVG_URL = new URL('../../assets/characters/dark_animals/wolf-howl.svg', import.meta.url).href;
-/** Boar character sprite. */
-const BOAR_SVG_URL = new URL('../../assets/characters/dark_animals/boar.svg', import.meta.url).href;
-/** Lanternite character sprite (venus flytrap motif). */
-const LANTERNITE_SVG_URL = new URL('../../assets/characters/lanternite.svg', import.meta.url).href;
-/** Lanternite nest character sprite (bud motif). */
-const LANTERNITE_NEST_SVG_URL = new URL('../../assets/characters/lanternite_nest.svg', import.meta.url).href;
-
 export class GameRenderer {
 	app: Application;
 	private gameContainer: Container;
-	private unitVisuals: Map<string, Container> = new Map();
-	private knockbackShadowVisuals: Map<string, Graphics> = new Map();
 	private moveTargetVisuals: Map<string, Graphics> = new Map();
 	private projectileVisuals: Map<string, Graphics> = new Map();
 	private effectVisuals: Map<string, Container> = new Map();
@@ -110,8 +79,6 @@ export class GameRenderer {
 	/** Particle objects for particle-type effects, keyed by effect ID. */
 	private particleEffects: Map<string, Particle> = new Map();
 	private lightSourceVisuals: Map<string, Graphics> = new Map();
-	/** Ghost nest visuals for scouts currently building (keyed by scout unit ID). */
-	private constructionGhostVisuals: Map<string, Container> = new Map();
 	private abilityPreviewGraphics: Graphics = new Graphics();
 	private targetingPreviewGraphics: Graphics = new Graphics();
 	/** Pending orders + enemy movement paths (lighter than live player move targets). */
@@ -143,59 +110,15 @@ export class GameRenderer {
 	/** Container for special tiles (above terrain, below units). */
 	private specialTilesContainer: Container = new Container();
 	private specialTileVisuals: Map<string, Container> = new Map();
-	/** Soft blue overlay on tiles in crystal light radius (10% opacity). */
-	private crystalAuraGraphics: Graphics = new Graphics();
-	/** Purple overlay on tiles in dark crystal filter radius (arena effect). */
-	private darkCrystalAuraGraphics: Graphics = new Graphics();
-
-	/** Cached texture for ranged enemy (slime) character sprite. */
-	private slimeTexture: Texture | null = null;
-	/** Cached texture for melee enemy (swordwoman) character sprite. */
-	private swordwomanTexture: Texture | null = null;
-	/** After deferred asset load, re-apply textures to unit visuals that were created with letter fallbacks. */
-	private pendingUnitCharacterSpriteSync: boolean = false;
-
-	/** Cached texture for dark_wolf (wolf head) character sprite. */
-	private wolfHeadTexture: Texture | null = null;
-	/** Cached texture for alpha_wolf (wolf howl) character sprite. */
-	private wolfHowlTexture: Texture | null = null;
-	/** Cached texture for boar character sprite. */
-	private boarTexture: Texture | null = null;
-	/** Cached texture for lanternite character sprite. */
-	private lanterniteTexture: Texture | null = null;
-	/** Cached texture for lanternite nest character sprite. */
-	private lanterniteNestTexture: Texture | null = null;
-	/** Preloaded player portrait textures (portrait ID → texture). */
-	private playerPortraitTextures: Map<string, Texture> = new Map();
-	/** Cached texture for Campfire. */
-	private campfireTexture: Texture | null = null;
-
-	/** Cached textures for effect sprites (ParticleImage, etc.). */
-	private effectTextures: Partial<Record<EffectImageKey, Texture>> = {};
 
 	/** Mission light config. Defaults: enabled true, global 0. */
 	private lightLevelEnabled: boolean = true;
-	private globalLightLevel: number = 0;
-	/** Darkness overlay (above terrain, below special tiles). Only visible when light enabled. */
-	private darknessOverlaySprite: Sprite | null = null;
-	/** Unfiltered tint sprite above units — same texture at low alpha for immersive fog feel. */
-	private fogTintSprite: Sprite | null = null;
-	/** Animated fog shader applied to the darkness overlay. Null if GPU doesn't support it. */
-	private fogFilter: FogFilter | null = null;
-	/** gameTick of the last darkness overlay redraw; redraw whenever tick advances. */
-	private lastOverlayTick: number = -1;
-	/** Whether the light system is currently active (set by engine during render). */
-	private lightSystemActive: boolean = false;
-	/** performance.now() timestamp of the last render call, for fog animation delta-time. */
-	private lastRenderTime: number = 0;
 
 	/** Engine ref for damage_taken handler (set each render). */
 	private currentEngine: GameEngine | null = null;
 	/** Engine whose eventBus is subscribed to `damage_taken` (must rebind when the engine instance changes). */
 	private eventBusSource: GameEngine | null = null;
-	private readonly damageTakenBound = (data: DamageTakenEvent) => this.onDamageTaken(data);
-	/** Active hit flashes: unitId -> { startTime (ms), rafId }. Animation uses real time so it is not paused. */
-	private hitFlashState: Map<string, { startTime: number; rafId: number }> = new Map();
+	private readonly damageTakenBound = (data: DamageTakenEvent) => this.unitRenderer.onDamageTaken(data);
 
 	constructor() {
 		this.app = new Application();
@@ -205,6 +128,7 @@ export class GameRenderer {
 	/** Set the debug unit outline target (or null to clear). */
 	setDebugUnitOutline(unitId: string | null): void {
 		this.debugUnitOutlineId = unitId;
+		if (this.initialized) this.unitRenderer.setDebugUnitOutline(unitId);
 	}
 
 	/** True after `init` completes successfully (Pixi app is bound to a canvas). */
@@ -229,16 +153,12 @@ export class GameRenderer {
 		if (!engine || this.eventBusSource !== engine) return;
 		engine.eventBus.off('damage_taken', this.damageTakenBound);
 		this.eventBusSource = null;
-		this.clearHitFlashes();
-		this.lastOverlayTick = -1;
-		this.lightSystemActive = false;
+		this.unitRenderer.clearHitFlashes();
+		this.overlayRenderer.reset();
 	}
 
 	private clearHitFlashes(): void {
-		for (const [, s] of this.hitFlashState) {
-			cancelAnimationFrame(s.rafId);
-		}
-		this.hitFlashState.clear();
+		this.unitRenderer.clearHitFlashes();
 	}
 
 	async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
@@ -285,18 +205,26 @@ export class GameRenderer {
 		this.gameContainer.addChild(this.particleContainer);
 
 		this.assetRegistry = new AssetRegistry();
-		this.unitRenderer = new UnitRenderer(this.gameContainer, this.assetRegistry);
 		this.overlayRenderer = new OverlayRenderer(this.gameContainer, this.assetRegistry);
+		this.unitRenderer = new UnitRenderer(this.gameContainer, this.assetRegistry, this.overlayRenderer);
 		this.specialTileRenderer = new SpecialTileRenderer(this.gameContainer, this.assetRegistry);
 		this.projectileRenderer = new ProjectileRenderer(this.gameContainer, this.assetRegistry);
 		this.effectRenderer = new EffectRenderer(this.gameContainer, this.assetRegistry);
 		this.lightSourceRenderer = new LightSourceRenderer(this.gameContainer, this.assetRegistry);
 		this.previewRenderer = new PreviewRenderer(this.gameContainer, this.assetRegistry);
 
+		const afterLoad = (): void => {
+			const tex = this.assetRegistry.getEffectTexture('darkBlob');
+			if (this.particleContainer && tex) {
+				this.particleContainer.texture = tex;
+			}
+		};
+
 		if (WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START) {
-			await this.loadBattleAssets();
+			await this.assetRegistry.load();
+			afterLoad();
 		} else {
-			void this.loadBattleAssets();
+			void this.assetRegistry.load().then(afterLoad);
 		}
 
 		this.initialized = true;
@@ -306,70 +234,6 @@ export class GameRenderer {
 			this.buildTerrainSprite(this.pendingTerrainGrid);
 			this.pendingTerrainGrid = null;
 		}
-	}
-
-	/** Loads character SVGs, campfire, and effect textures. Logs failures (non-fatal). */
-	private async loadBattleAssets(): Promise<void> {
-		const load = async (label: string, url: string, assign: (t: Texture) => void): Promise<void> => {
-			try {
-				assign((await Assets.load(url)) as Texture);
-			} catch (err) {
-				console.warn('[GameRenderer] Failed to load battle asset:', label, err);
-			}
-		};
-
-		await load('enemy_ranged (slime SVG)', SLIME_SVG_URL, (t) => {
-			this.slimeTexture = t;
-		});
-		await load('enemy_melee (swordwoman SVG)', SWORDWOMAN_SVG_URL, (t) => {
-			this.swordwomanTexture = t;
-		});
-		await load('dark_wolf (wolf-head SVG)', WOLF_HEAD_SVG_URL, (t) => {
-			this.wolfHeadTexture = t;
-		});
-		await load('alpha_wolf (wolf-howl SVG)', WOLF_HOWL_SVG_URL, (t) => {
-			this.wolfHowlTexture = t;
-		});
-		await load('boar SVG', BOAR_SVG_URL, (t) => {
-			this.boarTexture = t;
-		});
-		await load('lanternite SVG', LANTERNITE_SVG_URL, (t) => {
-			this.lanterniteTexture = t;
-		});
-		await load('lanternite_nest SVG', LANTERNITE_NEST_SVG_URL, (t) => {
-			this.lanterniteNestTexture = t;
-		});
-
-		const campfireDef = getSpecialTileDef('Campfire');
-		if (campfireDef?.image) {
-			await load('Campfire tile', campfireDef.image, (t) => {
-				this.campfireTexture = t;
-			});
-		}
-
-		for (const [key, src] of Object.entries(EFFECT_IMAGE_SOURCES) as [EffectImageKey, string][]) {
-			try {
-				this.effectTextures[key] = (await Assets.load(src)) as Texture;
-			} catch (err) {
-				console.warn('[GameRenderer] Failed to load effect texture:', key, src, err);
-			}
-		}
-		if (this.particleContainer && this.effectTextures.darkBlob) {
-			this.particleContainer.texture = this.effectTextures.darkBlob;
-		}
-
-		for (const portraitId of getPortraitIds()) {
-			const url = PORTRAITS[portraitId]?.battleModel.modelImageUrl;
-			if (!url) continue;
-			try {
-				const tex = (await Assets.load(url)) as Texture;
-				this.playerPortraitTextures.set(portraitId, tex);
-			} catch (err) {
-				console.warn('[GameRenderer] Failed to load portrait texture:', portraitId, err);
-			}
-		}
-
-		this.pendingUnitCharacterSpriteSync = true;
 	}
 
 	/**
@@ -387,7 +251,8 @@ export class GameRenderer {
 	/** Set mission light config. Defaults: enabled true, global 0. */
 	setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
 		this.lightLevelEnabled = lightLevelEnabled;
-		this.globalLightLevel = globalLightLevel;
+		this.overlayRenderer.setLightConfig(lightLevelEnabled);
+		void globalLightLevel; // engine.state.globalLightLevel is used in the overlay directly
 	}
 
 	/** Build the cached terrain sprite and add it at the bottom of the scene. */
@@ -401,48 +266,9 @@ export class GameRenderer {
 		// Insert terrain at the very bottom of the game container
 		this.gameContainer.addChildAt(this.terrainSprite, 0);
 
-		// Darkness overlay (index 1): above terrain, below special tiles and previews
-		if (!this.darknessOverlaySprite) {
-			const canvas = document.createElement('canvas');
-			canvas.width = 1;
-			canvas.height = 1;
-			this.darknessOverlaySprite = new Sprite(Texture.from({ resource: canvas, label: 'darkness-overlay' }));
-			this.darknessOverlaySprite.label = 'darknessOverlay';
+		this.overlayRenderer.initSprites(this.lightLevelEnabled);
 
-			this.fogFilter = tryCreateFogFilter();
-			if (this.fogFilter) {
-				this.fogFilter.fogStartAlpha = GameRenderer.lightLevelToAlpha(DarknessLevel.DARKNESS_FOG);
-				this.darknessOverlaySprite.filters = [this.fogFilter];
-			}
-
-			this.fogTintSprite = new Sprite(this.darknessOverlaySprite.texture);
-			this.fogTintSprite.label = 'fogTintOverlay';
-			this.fogTintSprite.alpha = 0.15;
-		}
-		this.darknessOverlaySprite.zIndex = Z_INDEX.darkness;
-		if (!this.darknessOverlaySprite.parent) {
-			this.gameContainer.addChildAt(this.darknessOverlaySprite, 1);
-		}
-		this.darknessOverlaySprite.visible = this.lightLevelEnabled;
-
-		if (this.fogTintSprite) {
-			this.fogTintSprite.zIndex = Z_INDEX.fogTint;
-			if (!this.fogTintSprite.parent) {
-				this.gameContainer.addChild(this.fogTintSprite);
-			}
-			this.fogTintSprite.visible = this.lightLevelEnabled;
-		}
-
-		// Crystal aura (blue tint on protected tiles) above terrain, below darkness
-		this.crystalAuraGraphics.zIndex = Z_INDEX.crystalAura;
-		if (!this.crystalAuraGraphics.parent) {
-			this.gameContainer.addChildAt(this.crystalAuraGraphics, 1);
-		}
-		this.darkCrystalAuraGraphics.zIndex = Z_INDEX.crystalAura + 1;
-		if (!this.darkCrystalAuraGraphics.parent) {
-			this.gameContainer.addChildAt(this.darkCrystalAuraGraphics, 1);
-		}
-		// Special tiles container above darkness overlay (index 2)
+		// Special tiles container above darkness overlay
 		if (!this.specialTilesContainer.parent) {
 			this.gameContainer.addChildAt(this.specialTilesContainer, 2);
 		}
@@ -455,69 +281,9 @@ export class GameRenderer {
 		this.app.renderer.resize(width, height);
 	}
 
-	// ========================================================================
-	// Light / darkness overlay
-	// ========================================================================
-
-	private static lightLevelToAlpha(level: number): number {
-		const LightLevel = Math.round(level);
-		const lightAtMedium = 0.8
-		
-		if (LightLevel <= DarknessLevel.FULL_DARKNESS) return 1;
-		if (LightLevel >= DarknessLevel.BRIGHT_LIGHT) return 0;
-		if (LightLevel >= DarknessLevel.MEDIUM_LIGHT_MIN) return (1 - lightAtMedium);
-		const baseDarkness = 0.2;
-		const remainingDarkness = 1 - baseDarkness;
-		const lightPctLerp = (LightLevel - DarknessLevel.FULL_DARKNESS) / (DarknessLevel.MEDIUM_LIGHT_MIN - DarknessLevel.FULL_DARKNESS);
-		return 1 - (baseDarkness + remainingDarkness * lightPctLerp);
-	}
-
-	private updateDarknessOverlay(engine: GameEngine): void {
-		const tileGrid = engine.state.lightTileGrid;
-		const terrainGrid = engine.terrainManager!.grid;
-		const width = terrainGrid.width;
-		const height = terrainGrid.height;
-
-		this.lightSystemActive = engine.state.lightLevelEnabled;
-
-		if (engine.state.gameTick !== this.lastOverlayTick && this.darknessOverlaySprite) {
-			this.lastOverlayTick = engine.state.gameTick;
-			const worldW = width * CELL_SIZE;
-			const worldH = height * CELL_SIZE;
-			const canvas = document.createElement('canvas');
-			canvas.width = worldW;
-			canvas.height = worldH;
-			const ctx = canvas.getContext('2d')!;
-			for (let row = 0; row < height; row++) {
-				for (let col = 0; col < width; col++) {
-					const level = tileGrid ? tileGrid.get(row, col) : engine.state.globalLightLevel;
-					const alpha = GameRenderer.lightLevelToAlpha(level);
-					if (alpha > 0) {
-						ctx.fillStyle = `rgba(20,0,35,${alpha})`;
-						ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-					} else if (level >= DarknessLevel.SUNLIGHT) {
-						ctx.fillStyle = `rgba(255,245,200,0.08)`;
-						ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-					}
-				}
-			}
-			const oldTexture = this.darknessOverlaySprite.texture;
-			this.darknessOverlaySprite.texture = Texture.from({ resource: canvas, label: 'darkness-overlay' });
-			if (oldTexture && oldTexture !== this.darknessOverlaySprite.texture) {
-				oldTexture.destroy(true);
-			}
-			this.darknessOverlaySprite.visible = true;
-
-			if (this.fogTintSprite) {
-				this.fogTintSprite.texture = this.darknessOverlaySprite.texture;
-				this.fogTintSprite.visible = true;
-			}
-		}
-	}
-
 	/** Light level at grid cell; returns null if light system disabled or out of bounds. */
 	private getLightAt(col: number, row: number): number | null {
-		return this.currentEngine?.getLightAt(col, row) ?? null;
+		return this.overlayRenderer.getLightAt(col, row);
 	}
 
 	/** Targeting state for preview (range rings, crosshair, selected targets). */
@@ -553,8 +319,7 @@ export class GameRenderer {
 				engine.eventBus.on('damage_taken', this.damageTakenBound);
 			}
 			this.clearHitFlashes();
-			this.lastOverlayTick = -1;
-			this.lightSystemActive = false;
+			this.overlayRenderer.reset();
 		}
 
 		this.targetingState = targetingState ?? null;
@@ -564,31 +329,9 @@ export class GameRenderer {
 		this.gameContainer.x = -camera.x * camera.zoom + camera.viewportWidth / 2;
 		this.gameContainer.y = -camera.y * camera.zoom + camera.viewportHeight / 2;
 
-		if (this.pendingUnitCharacterSpriteSync) {
-			this.syncAllUnitCharacterSprites(engine);
-			this.pendingUnitCharacterSpriteSync = false;
-		}
+		this.overlayRenderer.render(engine);
+		this.unitRenderer.render(engine, this.localTeamId, this.debugUnitOutlineId);
 
-		if (this.lightLevelEnabled && engine.terrainManager && debugSettingsSnapshot.darkOverlayEnabled) {
-			this.updateDarknessOverlay(engine);
-			if (this.fogFilter) {
-				const now = performance.now();
-				if (this.lastRenderTime > 0) {
-					this.fogFilter.advanceTime((now - this.lastRenderTime) * 0.001);
-				}
-				this.lastRenderTime = now;
-			}
-		} else {
-			this.lightSystemActive = false;
-			if (this.darknessOverlaySprite) this.darknessOverlaySprite.visible = false;
-			if (this.fogTintSprite) this.fogTintSprite.visible = false;
-			this.lastRenderTime = 0;
-		}
-
-		this.renderUnits(engine);
-		this.renderConstructionGhosts(engine);
-		this.renderCrystalAura(engine);
-		this.renderDarkCrystalAura(engine);
 		this.renderSpecialTiles(engine.specialTiles);
 		this.renderMoveTargets(engine.units);
 		this.renderGhostPreviews(engine);
@@ -601,134 +344,8 @@ export class GameRenderer {
 	}
 
 	// ========================================================================
-	// Lanternite construction ghosts
-	// ========================================================================
-
-	/**
-	 * For each scout currently building a nest, render:
-	 * - A translucent nest sprite (30% alpha) at the build site.
-	 * - A green hollow circular arc showing construction progress (0→full circle).
-	 */
-	private renderConstructionGhosts(engine: GameEngine): void {
-		const activeScoutIds = new Set<string>();
-		/** Radius matching lanternite_nest Extra Large size. */
-		const nestRadius = 26;
-
-		for (const unit of engine.units) {
-			if (!unit.isAlive()) continue;
-			if (unit.lanterniteConstructionCompleteAtGameTime == null) continue;
-			const targetPos = unit.lanternPatrolFarWorld;
-			if (!targetPos) continue;
-
-			activeScoutIds.add(unit.id);
-
-			// Compute 0..1 progress from remaining time and total construction duration
-			const totalSec = unit.lanterniteNestConfig?.scoutConstructionSec ?? 10;
-			const remaining = Math.max(0, unit.lanterniteConstructionCompleteAtGameTime - engine.gameTime);
-			const progress = Math.min(1, Math.max(0, 1 - remaining / totalSec));
-
-			let ghost = this.constructionGhostVisuals.get(unit.id);
-			if (!ghost) {
-				ghost = new Container();
-				ghost.label = 'constructionGhost';
-
-				// Ghost nest sprite (30% alpha so the build site is previewed but not fully visible)
-				const nestSprite = new Sprite(this.lanterniteNestTexture ?? Texture.EMPTY);
-				nestSprite.label = 'ghostNestSprite';
-				nestSprite.anchor.set(0.5, 0.5);
-				const spriteSize = nestRadius * 2 * CHARACTER_SPRITE_SCALE;
-				nestSprite.width = spriteSize;
-				nestSprite.height = spriteSize;
-				nestSprite.alpha = 0.3;
-				ghost.addChild(nestSprite);
-
-				// Circular progress arc drawn on top of the sprite
-				const arcG = new Graphics();
-				arcG.label = 'constructionArc';
-				ghost.addChild(arcG);
-
-				ghost.zIndex = Z_INDEX.units - 1;
-				this.gameContainer.addChild(ghost);
-				this.constructionGhostVisuals.set(unit.id, ghost);
-			}
-
-			ghost.visible = true;
-			ghost.x = targetPos.x;
-			ghost.y = targetPos.y;
-
-			// Sync texture in case it loaded after the ghost was created
-			const nestSprite = ghost.children.find((c) => c.label === 'ghostNestSprite') as Sprite | undefined;
-			if (nestSprite && this.lanterniteNestTexture && nestSprite.texture !== this.lanterniteNestTexture) {
-				nestSprite.texture = this.lanterniteNestTexture;
-			}
-
-			// Redraw progress arc each frame
-			const arcG = ghost.children.find((c) => c.label === 'constructionArc') as Graphics | undefined;
-			if (arcG) {
-				arcG.clear();
-				const arcRadius = nestRadius + 8; // slightly outside the nest body
-				const startAngle = -Math.PI / 2; // 12 o'clock
-
-				// Background ring (dark, so the track is visible in all lighting)
-				arcG.arc(0, 0, arcRadius, 0, Math.PI * 2);
-				arcG.stroke({ color: 0x064e3b, width: 3, alpha: 0.5 });
-
-				// Filled progress arc (bright green, clockwise)
-				if (progress > 0.01) {
-					arcG.arc(0, 0, arcRadius, startAngle, startAngle + progress * Math.PI * 2);
-					arcG.stroke({ color: 0x34d399, width: 3 });
-				}
-			}
-		}
-
-		// Remove ghosts whose scouts have finished or died
-		for (const [id, ghost] of this.constructionGhostVisuals) {
-			if (!activeScoutIds.has(id)) {
-				this.gameContainer.removeChild(ghost);
-				ghost.destroy();
-				this.constructionGhostVisuals.delete(id);
-			}
-		}
-	}
-
-	// ========================================================================
 	// Crystal aura & Special Tiles
 	// ========================================================================
-
-	/** Draw a soft blue filter (10% opacity) on each tile in crystal light radius. */
-	private renderCrystalAura(engine: GameEngine): void {
-		this.crystalAuraGraphics.clear();
-		const grid = engine.terrainManager?.grid;
-		if (!grid) return;
-		const protectedSet = engine.getCrystalProtectedSet();
-		if (protectedSet.size === 0) return;
-		for (const key of protectedSet) {
-			const [col, row] = key.split(',').map(Number);
-			if (Number.isNaN(col) || Number.isNaN(row)) continue;
-			this.crystalAuraGraphics.rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-			this.crystalAuraGraphics.fill({ color: 0x4488ff, alpha: 0.15 });
-		}
-	}
-
-	/** Draw a purple filter on each tile in dark crystal filter radius (arena effect). */
-	private renderDarkCrystalAura(engine: GameEngine): void {
-		this.darkCrystalAuraGraphics.clear();
-		const grid = engine.terrainManager?.grid;
-		if (!grid) return;
-		const filterSet = engine.getDarkCrystalFilterSet();
-		if (filterSet.size === 0) return;
-		const darkCrystals = engine.specialTiles.filter(
-			(t) => t.defId === 'DarkCrystal' && t.hp > 0 && t.colorFilter,
-		);
-		const alpha = darkCrystals[0]?.colorFilter?.alpha ?? 0.2;
-		const color = darkCrystals[0]?.colorFilter?.color ?? 0x6633aa;
-		for (const key of filterSet) {
-			const [col, row] = key.split(',').map(Number);
-			if (Number.isNaN(col) || Number.isNaN(row)) continue;
-			this.darkCrystalAuraGraphics.rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-			this.darkCrystalAuraGraphics.fill({ color, alpha });
-		}
-	}
 
 	private renderSpecialTiles(specialTiles: SpecialTile[]): void {
 		for (const tile of specialTiles) {
@@ -778,8 +395,8 @@ export class GameRenderer {
 		const def = getSpecialTileDef(tile.defId);
 		if (!def) return undefined;
 		const container = new Container();
-		if (tile.defId === 'Campfire' && this.campfireTexture) {
-			const sprite = new Sprite(this.campfireTexture);
+		if (tile.defId === 'Campfire' && this.assetRegistry.getCampfireTexture()) {
+			const sprite = new Sprite(this.assetRegistry.getCampfireTexture()!);
 			sprite.anchor.set(0.5, 1);
 			sprite.width = 32;
 			sprite.height = 32;
@@ -821,374 +438,6 @@ export class GameRenderer {
 	}
 
 	// ========================================================================
-	// Units
-	// ========================================================================
-
-	private syncAllUnitCharacterSprites(engine: GameEngine): void {
-		const context = this.getUnitRenderContext();
-		for (const unit of engine.units) {
-			const visual = this.unitVisuals.get(unit.id);
-			if (!visual) continue;
-			syncUnitCharacterSpriteIfNeeded(visual, unit, context);
-		}
-	}
-
-	private getUnitRenderContext(): IUnitRenderContext {
-		return {
-			localTeamId: this.localTeamId,
-			getCharacterTexture: (characterId: string) => {
-				if (characterId === 'enemy_ranged') return this.slimeTexture;
-				if (characterId === 'enemy_melee') return this.swordwomanTexture;
-				if (characterId === 'dark_wolf') return this.wolfHeadTexture;
-				if (characterId === 'alpha_wolf') return this.wolfHowlTexture;
-				if (characterId === 'boar') return this.boarTexture;
-				if (characterId === 'lanternite') return this.lanterniteTexture;
-				if (characterId === 'lanternite_nest') return this.lanterniteNestTexture;
-				return null;
-			},
-			getPlayerPortraitTexture: (portraitId: string) => this.playerPortraitTextures.get(portraitId) ?? null,
-		};
-	}
-
-	private renderUnits(engine: GameEngine): void {
-		const units = engine.units;
-		const context = this.getUnitRenderContext();
-		const cellSize = CELL_SIZE;
-		const gameTime = engine.gameTime;
-		for (const unit of units) {
-			let visual = this.unitVisuals.get(unit.id);
-			if (!visual) {
-				visual = renderUnit(unit, context);
-				visual.zIndex = Z_INDEX.units;
-				this.unitVisuals.set(unit.id, visual);
-				this.gameContainer.addChild(visual);
-			}
-			let renderOffsetX = 0;
-			let renderOffsetY = 0;
-			for (const activeAbility of unit.activeAbilities) {
-				const ability = getAbility(activeAbility.abilityId);
-				if (!ability?.getCasterRenderOffset) continue;
-				const offset = ability.getCasterRenderOffset(unit, activeAbility, engine.gameTime, engine);
-				if (!offset) continue;
-				renderOffsetX += offset.x;
-				renderOffsetY += offset.y;
-			}
-			for (const activeAbility of unit.activeAbilities) {
-				if (!activeAbility.castBehaviourPayloads) continue;
-				const ability = getAbility(activeAbility.abilityId);
-				if (!ability) continue;
-				const intervals = normalizeAbilityTimingsToIntervals(
-					resolveAbilityTimingEntries(ability, unit, engine),
-				);
-				for (let iIdx = 0; iIdx < intervals.length; iIdx++) {
-					const interval = intervals[iIdx]!;
-					const effectiveBehaviours = getEffectiveCastBehaviours(interval);
-					if (!effectiveBehaviours) continue;
-					for (let bIdx = 0; bIdx < effectiveBehaviours.length; bIdx++) {
-						const entry = effectiveBehaviours[bIdx]!;
-						if (!entry.behaviour.getCasterRenderOffset) continue;
-						const elapsed = engine.gameTime - activeAbility.startTime;
-						const windowStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
-						const windowEnd = entry.timingEnd !== undefined
-							? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
-							: windowStart;
-						const windowLen = windowEnd - windowStart;
-						const rawProgress = windowLen > 0 ? (elapsed - windowStart) / windowLen : 0;
-						const windowProgress = Math.max(0, Math.min(1, rawProgress));
-						// Only call if the window is active or just past
-						if (elapsed < windowStart - 0.05 || elapsed > windowEnd + 0.05) continue;
-						const behaviourKey = `${interval.id}_${bIdx}`;
-						const behaviourPayload = activeAbility.castBehaviourPayloads[behaviourKey];
-						const targetIdx = entry.targetIndex ?? 0;
-						const target = activeAbility.targets[targetIdx] ?? activeAbility.targets[0];
-						if (!target) continue;
-						const offset = entry.behaviour.getCasterRenderOffset({
-							caster: unit,
-							abilityId: activeAbility.abilityId,
-							target,
-							allTargets: activeAbility.targets,
-							castPayload: activeAbility.castPayload,
-							behaviourPayload,
-							setBehaviourPayload: () => { }, // no-op: render must not mutate simulation state
-							gameTime: engine.gameTime,
-							windowProgress,
-						});
-						if (offset) {
-							renderOffsetX += offset.x;
-							renderOffsetY += offset.y;
-						}
-					}
-				}
-			}
-			// Knockback air arc: quadratic Y lift during the airborne phase only.
-			let knockupYOffset = 0;
-			let knockupMaxHeight = 0;
-			if (unit.knockback !== null) {
-				const kb = unit.knockback;
-				const airTime = kb.knockbackAirTime;
-				if (airTime > 0 && kb.knockbackElapsed < airTime) {
-					const progress = kb.knockbackElapsed / airTime;
-					const arcFactor = 4 * progress * (1 - progress);
-					const vx = kb.knockbackVector.x;
-					const vy = kb.knockbackVector.y;
-					const magnitude = Math.sqrt(vx * vx + vy * vy);
-					knockupMaxHeight = Math.min(magnitude * 0.25, 25);
-					knockupYOffset = -arcFactor * knockupMaxHeight;
-				}
-			}
-
-			// Shadow: rendered at ground level while unit is airborne, shrinking as unit rises.
-			let knockbackShadow = this.knockbackShadowVisuals.get(unit.id);
-			if (knockupYOffset < 0 && unit.active) {
-				if (!knockbackShadow) {
-					knockbackShadow = new Graphics();
-					knockbackShadow.zIndex = Z_INDEX.knockbackShadow;
-					this.knockbackShadowVisuals.set(unit.id, knockbackShadow);
-					this.gameContainer.addChild(knockbackShadow);
-				}
-				knockbackShadow.visible = true;
-				knockbackShadow.clear();
-				const heightFraction = knockupMaxHeight > 0 ? -knockupYOffset / knockupMaxHeight : 0;
-				const shadowScale = 1 - heightFraction * 0.65;
-				const shadowRx = unit.radius * 1.1 * shadowScale;
-				const shadowRy = unit.radius * 0.35 * shadowScale;
-				knockbackShadow.ellipse(0, 0, shadowRx, shadowRy);
-				knockbackShadow.fill({ color: 0x222222, alpha: 0.55 });
-				knockbackShadow.x = unit.x;
-				knockbackShadow.y = unit.y + unit.radius - 4;
-			} else {
-				if (knockbackShadow) knockbackShadow.visible = false;
-			}
-
-			visual.x = unit.x + renderOffsetX;
-			visual.y = unit.y + renderOffsetY + knockupYOffset;
-			visual.visible = unit.active && !unit.isSpawning();
-
-			// Grow-in animation: scale from 0 → 1 over growAnimTimer duration (nestSpawn units)
-			if (unit.growAnimTimer > 0) {
-				const growProgress = 1 - unit.growAnimTimer / 0.3;
-				// easeOutCubic for a snappy pop
-				const eased = 1 - Math.pow(1 - Math.min(1, growProgress), 3);
-				visual.scale.set(eased);
-			} else {
-				visual.scale.set(1);
-			}
-
-			const col = Math.floor(unit.x / cellSize);
-			const row = Math.floor(unit.y / cellSize);
-			const light = this.getLightAt(col, row);
-			const inFullDarkness =
-				light !== null && light <= DarknessLevel.FULL_DARKNESS && areEnemies(this.localTeamId, unit.teamId);
-			const isDebugOutlined = this.debugUnitOutlineId === unit.id;
-
-			const body = visual.children.find((c) => c.label === 'body') as Graphics | undefined;
-			const hpBg = visual.children.find((c) => c.label === 'hpBg');
-			const hpFill = visual.children.find((c) => c.label === 'hpFill');
-			const characterSprite = visual.children.find((c) => c.label === 'characterSprite');
-			const label = visual.children.find((c) => c.label === 'label');
-			const glow = visual.children.find((c) => c.label === 'glow');
-			const playerRing = visual.children.find((c) => c.label === 'playerRing');
-
-			if (inFullDarkness && body) {
-				body.clear();
-				body.circle(0, 0, unit.radius);
-				body.fill({ color: 0xef4444 });
-				body.stroke({ color: 0xef4444, width: 1 });
-				if (isDebugOutlined) {
-					// Yellow outline for debug focus (even in full darkness).
-					body.stroke({ color: 0xfacc15, width: 3 });
-					body.circle(0, 0, unit.radius + 4);
-					body.stroke({ color: 0xfacc15, width: 2 });
-				}
-				if (hpBg) hpBg.visible = false;
-				if (hpFill) hpFill.visible = false;
-				if (characterSprite) characterSprite.visible = false;
-				const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
-				if (darkTint) darkTint.visible = false;
-				if (label) label.visible = false;
-				if (glow) glow.visible = false;
-				if (playerRing) playerRing.visible = false;
-			} else {
-				if (body) {
-					body.clear();
-					body.circle(0, 0, unit.radius);
-					body.fill(getBodyColorForUnit(unit));
-					body.stroke({ color: 0x000000, width: 1 });
-					if (isDebugOutlined) {
-						// Yellow outline for debug focus.
-						body.stroke({ color: 0xfacc15, width: 3 });
-						body.circle(0, 0, unit.radius + 4);
-						body.stroke({ color: 0xfacc15, width: 2 });
-					}
-				}
-				const showHpBar = !unit.isInvincible() && !unit.tags.includes(UnitTag.Boss) && !unit.isSpawning();
-				if (hpBg) hpBg.visible = showHpBar;
-				if (hpFill) hpFill.visible = showHpBar;
-				if (characterSprite) characterSprite.visible = true;
-				const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
-				if (darkTint) darkTint.visible = true;
-				if (label) label.visible = true;
-				if (glow) glow.visible = true;
-				if (playerRing) playerRing.visible = true;
-				if (showHpBar) updateUnitHpBar(visual, unit);
-			}
-
-			// Darkness corruption bar: only visible when progress > 0 (above unit)
-			let corruptionBar = visual.children.find((c) => c.label === 'corruptionBar') as Graphics | undefined;
-			if (unit.corruptionProgress > 0) {
-				if (!corruptionBar) {
-					corruptionBar = new Graphics();
-					corruptionBar.label = 'corruptionBar';
-					visual.addChild(corruptionBar);
-				}
-				corruptionBar.visible = true;
-				corruptionBar.clear();
-				const w = 24;
-				const h = 4;
-				const y = -unit.radius - 14;
-				corruptionBar.rect(-w / 2, y, w, h);
-				corruptionBar.fill({ color: 0x332244 });
-				corruptionBar.rect(-w / 2, y, w * unit.corruptionProgress, h);
-				corruptionBar.fill({ color: 0x663399 });
-				corruptionBar.rect(-w / 2, y, w, h);
-				corruptionBar.stroke({ color: 0x9966cc, width: 1 });
-			} else {
-				if (corruptionBar) corruptionBar.visible = false;
-			}
-
-			// Crystal corruption bar: shows while unit is actively corrupting a crystal
-			let crystalCorruptBar = visual.children.find((c) => c.label === 'crystalCorruptBar') as Graphics | undefined;
-			if (unit.crystalCorruptionProgress > 0) {
-				if (!crystalCorruptBar) {
-					crystalCorruptBar = new Graphics();
-					crystalCorruptBar.label = 'crystalCorruptBar';
-					visual.addChild(crystalCorruptBar);
-				}
-				crystalCorruptBar.visible = true;
-				crystalCorruptBar.clear();
-				const w = 24;
-				const h = 4;
-				const y = -unit.radius - 20;
-				crystalCorruptBar.rect(-w / 2, y, w, h);
-				crystalCorruptBar.fill({ color: 0x332244 });
-				crystalCorruptBar.rect(-w / 2, y, w * unit.crystalCorruptionProgress, h);
-				crystalCorruptBar.fill({ color: 0x663399 });
-				crystalCorruptBar.rect(-w / 2, y, w, h);
-				crystalCorruptBar.stroke({ color: 0x9966cc, width: 1 });
-			} else {
-				if (crystalCorruptBar) crystalCorruptBar.visible = false;
-			}
-
-			// Buff effects: each buff renders its own visual (e.g. stunned stars)
-			let buffEffects = visual.children.find((c) => c.label === 'buffEffects') as Graphics | undefined;
-			if (unit.buffs.length > 0 && !inFullDarkness) {
-				if (!buffEffects) {
-					buffEffects = new Graphics();
-					buffEffects.label = 'buffEffects';
-					visual.addChild(buffEffects);
-				}
-				buffEffects.visible = true;
-				buffEffects.clear();
-				const buffCtx = { gameTime };
-				for (const buff of unit.buffs) {
-					const renderer = getBuffVisualRenderer(buff._type);
-					renderer(buffEffects, unit, buff, buffCtx);
-				}
-			} else {
-				if (buffEffects) buffEffects.visible = false;
-			}
-
-			// Lanternite nest spawn progress arc — drawn as a child of the nest's own visual
-			if (unit.characterId === 'lanternite_nest') {
-				let nestSpawnArc = visual.children.find((c) => c.label === 'nestSpawnArc') as Graphics | undefined;
-				const nestCfg = unit.lanterniteNestConfig;
-				const nestState = unit.lanterniteNestSpawnState;
-				const showArc = nestCfg != null && nestState != null
-					&& nestState.spawnedIds.length < nestCfg.maxLanternites
-					&& gameTime < nestState.nextSpawnAtGameTime;
-				if (showArc) {
-					if (!nestSpawnArc) {
-						nestSpawnArc = new Graphics();
-						nestSpawnArc.label = 'nestSpawnArc';
-						visual.addChild(nestSpawnArc);
-					}
-					nestSpawnArc.visible = true;
-					const arcR = unit.radius + 8;
-					const remaining = nestState!.nextSpawnAtGameTime - gameTime;
-					const arcProgress = Math.min(1, Math.max(0, 1 - remaining / Math.max(0.1, nestCfg!.spawnIntervalSec)));
-					const startAngle = -Math.PI / 2;
-					nestSpawnArc.clear();
-					nestSpawnArc.arc(0, 0, arcR, 0, Math.PI * 2);
-					nestSpawnArc.stroke({ color: 0x064e3b, width: 2, alpha: 0.5 });
-					if (arcProgress > 0.01) {
-						nestSpawnArc.arc(0, 0, arcR, startAngle, startAngle + arcProgress * Math.PI * 2);
-						nestSpawnArc.stroke({ color: 0x34d399, width: 2 });
-					}
-				} else {
-					if (nestSpawnArc) nestSpawnArc.visible = false;
-				}
-			}
-		}
-	}
-
-	// ========================================================================
-	// Hit flash (real-time, not paused)
-	// ========================================================================
-
-	private onDamageTaken(data: DamageTakenEvent): void {
-		const container = this.unitVisuals.get(data.unitId);
-		const unit = this.currentEngine?.getUnit(data.unitId);
-		if (!container || !unit || unit.isInvincible()) return;
-		this.startHitFlash(data.unitId, container, unit.radius);
-	}
-
-	/**
-	 * Run a 0.3s red flash on the unit using real time (Date.now()).
-	 * Fades from transparent to full opacity over first half, then back to transparent.
-	 */
-	private startHitFlash(unitId: string, container: Container, radius: number): void {
-		const existing = this.hitFlashState.get(unitId);
-		if (existing) {
-			cancelAnimationFrame(existing.rafId);
-		}
-
-		let hitFlash = container.children.find((c) => c.label === 'hitFlash') as Graphics | undefined;
-		if (!hitFlash) {
-			hitFlash = new Graphics();
-			hitFlash.label = 'hitFlash';
-			hitFlash.eventMode = 'none';
-			container.addChild(hitFlash);
-		}
-		hitFlash.visible = true;
-
-		const startTime = Date.now();
-		this.hitFlashState.set(unitId, { startTime, rafId: 0 });
-
-		const tick = (): void => {
-			const state = this.hitFlashState.get(unitId);
-			if (!state) return;
-			const elapsed = (Date.now() - state.startTime) / 1000;
-			if (elapsed >= HIT_FLASH_DURATION) {
-				this.hitFlashState.delete(unitId);
-				hitFlash!.visible = false;
-				hitFlash!.clear();
-				return;
-			}
-			// First half: 0 -> 1, second half: 1 -> 0
-			const alpha = elapsed < HIT_FLASH_DURATION / 2
-				? (elapsed / (HIT_FLASH_DURATION / 2))
-				: (1 - (elapsed - HIT_FLASH_DURATION / 2) / (HIT_FLASH_DURATION / 2));
-			hitFlash!.clear();
-			hitFlash!.circle(0, 0, radius);
-			hitFlash!.fill({ color: 0xff0000, alpha: 1 });
-			hitFlash!.alpha = alpha;
-			state.rafId = requestAnimationFrame(tick);
-		};
-		const state = this.hitFlashState.get(unitId)!;
-		state.rafId = requestAnimationFrame(tick);
-	}
-
-	// ========================================================================
 	// Move Targets
 	// ========================================================================
 
@@ -1209,7 +458,7 @@ export class GameRenderer {
 				visual.zIndex = Z_INDEX.moveTargets;
 				this.moveTargetVisuals.set(key, visual);
 				// Insert above terrain (and darkness overlay + special tiles when present) but below units
-				const insertIndex = this.darknessOverlaySprite ? 3 : this.terrainSprite ? 1 : 0;
+				const insertIndex = this.overlayRenderer.hasDarknessOverlay() ? 3 : this.terrainSprite ? 1 : 0;
 				this.gameContainer.addChildAt(visual, insertIndex);
 			}
 
@@ -1364,7 +613,7 @@ export class GameRenderer {
 	}
 
 	private enemyUnitHiddenInFullDarkness(unit: Unit, cellSize: number): boolean {
-		if (!areEnemies(this.localTeamId, unit.teamId) || !this.lightSystemActive) return false;
+		if (!areEnemies(this.localTeamId, unit.teamId) || !this.overlayRenderer.isLightSystemActive()) return false;
 		const col = Math.floor(unit.x / cellSize);
 		const row = Math.floor(unit.y / cellSize);
 		const light = this.getLightAt(col, row);
@@ -1476,7 +725,7 @@ export class GameRenderer {
 		const cellSize = CELL_SIZE;
 		for (const unit of engine.units) {
 			if (!unit.isAlive()) continue;
-			if (areEnemies(this.localTeamId, unit.teamId) && this.lightSystemActive) {
+			if (areEnemies(this.localTeamId, unit.teamId) && this.overlayRenderer.isLightSystemActive()) {
 				const col = Math.floor(unit.x / cellSize);
 				const row = Math.floor(unit.y / cellSize);
 				const light = this.getLightAt(col, row);
@@ -1613,10 +862,18 @@ export class GameRenderer {
 
 	private static readonly PARTICLE_EFFECT_TYPES = new Set(['ParticleImage', 'StoryHomingParticle']);
 
+	private getUnitRenderContext(): IUnitRenderContext {
+		return {
+			localTeamId: this.localTeamId,
+			getCharacterTexture: (characterId: string) => this.assetRegistry.getCharacterTexture(characterId),
+			getPlayerPortraitTexture: (portraitId: string) => this.assetRegistry.getPlayerPortraitTexture(portraitId),
+		};
+	}
+
 	private renderEffects(effects: Effect[]): void {
 		const unitContext = this.getUnitRenderContext();
 		const context: IEffectRenderContext = {
-			getEffectTexture: (imageKey: EffectImageKey) => this.effectTextures[imageKey] ?? null,
+			getEffectTexture: (imageKey: EffectImageKey) => this.assetRegistry.getEffectTexture(imageKey),
 			getCharacterTexture: (characterId: string) => unitContext.getCharacterTexture(characterId),
 		};
 		for (const effect of effects) {
@@ -1720,25 +977,10 @@ export class GameRenderer {
 	// ========================================================================
 
 	private cleanupStaleVisuals(engine: GameEngine): void {
-		const activeUnitIds = new Set(engine.units.map((u) => u.id));
-		for (const [id, visual] of this.unitVisuals) {
-			if (!activeUnitIds.has(id)) {
-				this.gameContainer.removeChild(visual);
-				visual.destroy();
-				this.unitVisuals.delete(id);
-			}
-		}
-
-		// Clean up knockback shadow visuals for dead/removed units
-		for (const [id, shadow] of this.knockbackShadowVisuals) {
-			if (!activeUnitIds.has(id)) {
-				this.gameContainer.removeChild(shadow);
-				shadow.destroy();
-				this.knockbackShadowVisuals.delete(id);
-			}
-		}
+		// Unit and knockback shadow cleanup is handled by UnitRenderer.
 
 		// Clean up move target visuals for dead/removed units
+		const activeUnitIds = new Set(engine.units.map((u) => u.id));
 		for (const [key, visual] of this.moveTargetVisuals) {
 			const unitId = key.replace('mt_', '');
 			if (!activeUnitIds.has(unitId)) {
@@ -1789,13 +1031,9 @@ export class GameRenderer {
 			this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
 			this.eventBusSource = null;
 		}
-		this.clearHitFlashes();
 		this.abilityPreviewGraphics.destroy();
 		this.targetingPreviewGraphics.destroy();
 		this.ghostPreviewGraphics.destroy();
-		for (const visual of this.unitVisuals.values()) visual.destroy();
-		for (const shadow of this.knockbackShadowVisuals.values()) shadow.destroy();
-		this.knockbackShadowVisuals.clear();
 		for (const visual of this.moveTargetVisuals.values()) visual.destroy();
 		for (const visual of this.projectileVisuals.values()) visual.destroy();
 		for (const visual of this.effectVisuals.values()) visual.destroy();
@@ -1805,37 +1043,20 @@ export class GameRenderer {
 		}
 		this.particleEffects.clear();
 		for (const visual of this.specialTileVisuals.values()) visual.destroy();
-		for (const visual of this.constructionGhostVisuals.values()) visual.destroy();
-		this.constructionGhostVisuals.clear();
-		if (this.fogTintSprite) {
-			this.fogTintSprite.destroy();
-			this.fogTintSprite = null;
-		}
-		if (this.fogFilter) {
-			this.fogFilter.destroy();
-			this.fogFilter = null;
-		}
-		if (this.darknessOverlaySprite) {
-			this.darknessOverlaySprite.destroy();
-			this.darknessOverlaySprite = null;
-		}
-		this.unitVisuals.clear();
 		this.moveTargetVisuals.clear();
 		this.projectileVisuals.clear();
 		this.effectVisuals.clear();
 		this.specialTileVisuals.clear();
 		this.terrainRenderer.destroy();
 		this.terrainSprite = null;
-		if (this.initialized) {
-			this.assetRegistry.destroy();
-			this.unitRenderer.destroy();
-			this.overlayRenderer.destroy();
-			this.specialTileRenderer.destroy();
-			this.projectileRenderer.destroy();
-			this.effectRenderer.destroy();
-			this.lightSourceRenderer.destroy();
-			this.previewRenderer.destroy();
-		}
+		this.assetRegistry.destroy();
+		this.unitRenderer.destroy();
+		this.overlayRenderer.destroy();
+		this.specialTileRenderer.destroy();
+		this.projectileRenderer.destroy();
+		this.effectRenderer.destroy();
+		this.lightSourceRenderer.destroy();
+		this.previewRenderer.destroy();
 		this.gameContainer.destroy();
 		this.initInFlight = null;
 		this.app.destroy();
