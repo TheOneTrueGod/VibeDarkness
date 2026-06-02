@@ -157,6 +157,7 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
                         context.caster,
                         effect.chargeType,
                         (min, max) => context.engine.generateRandomInteger(min, max),
+                        effect.excludeSelf ? { excludeAbilityId: context.ability.id } : undefined,
                     );
                 }
             }
@@ -205,6 +206,9 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
         }
         case 'interruptPrimaryTargetAbilities':
             context.primaryTarget?.interruptAllAbilities();
+            return;
+        case 'setAbilityNote':
+            context.caster.setAbilityNote({ abilityId: effect.abilityId, abilityNote: effect.note });
             return;
         case 'custom':
             context.customEffectHandlers?.[effect.effectId]?.(effect.params, context);

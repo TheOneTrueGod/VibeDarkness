@@ -4,7 +4,7 @@
  * Single use directional block.
  */
 
-import { AbilityState } from '../../abilities/Ability';
+import { AbilityState, AbilityEventType } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
@@ -89,6 +89,15 @@ export const RaiseShieldAbility: AbilityStatic = {
     ],
     targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
     aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },
+    abilityEvents: {
+        [AbilityEventType.ON_CAST_START]: [
+            {
+                id: 'init-block-count',
+                conditions: [{ type: 'always' }],
+                effects: [{ type: 'setAbilityNote', abilityId: '0104', note: { blockCount: 0 } }],
+            },
+        ],
+    },
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
@@ -116,11 +125,6 @@ export const RaiseShieldAbility: AbilityStatic = {
             arcStartAngle: centerAngle - SHIELD_HALF_ARC_RAD,
             arcEndAngle: centerAngle + SHIELD_HALF_ARC_RAD,
         };
-    },
-
-    doCardEffect(_engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= 0.05 || currentTime < 0.05) return;
-        caster.setAbilityNote({ abilityId: '0104', abilityNote: { blockCount: 0 } });
     },
 
     renderActivePreview(

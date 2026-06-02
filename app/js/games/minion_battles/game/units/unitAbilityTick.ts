@@ -18,6 +18,7 @@ import {
     getEffectiveCastBehaviours,
 } from '../../abilities/abilityTimings';
 import { createEmitterFromDef } from '../../abilities/createEmitterFromDef';
+import { getBodyColorForUnit, getCharacterSpriteKey } from './unit_defs/unitDef';
 import { AbilityEventType, abilityHasTag } from '../../abilities/Ability';
 import {
     resolveBehaviourTimingRef,
@@ -99,7 +100,19 @@ export function tickUnitActiveAbilities(
 
         for (const interval of intervals) {
             if (interval.emitterDef && entered.has(interval.id)) {
-                const emitter = createEmitterFromDef(interval.emitterDef, {
+                let emitterDef = interval.emitterDef;
+                if (emitterDef.useCasterVisualData) {
+                    const visualData = {
+                        bodyColor: getBodyColorForUnit(unit),
+                        radius: unit.radius,
+                        characterSpriteKey: getCharacterSpriteKey(unit.characterId),
+                    };
+                    emitterDef = {
+                        ...emitterDef,
+                        effectData: { ...visualData, ...emitterDef.effectData },
+                    };
+                }
+                const emitter = createEmitterFromDef(emitterDef, {
                     x: unit.x,
                     y: unit.y,
                     attachedToUnitId: unit.id,

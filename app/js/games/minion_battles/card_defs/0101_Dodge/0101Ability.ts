@@ -1,23 +1,19 @@
 /**
- * Dodge - Warrior card. Move toward target up to {@link DODGE_MAX_DISTANCE}px over 0.4s at constant rate (terrain may shorten travel).
- * Spawns afterimages every 2 ticks during the dodge.
+ * Dodge - Warrior card. Move toward target up to DODGE_MAX_DISTANCE px over 0.4 s at constant rate
+ * (terrain may shorten travel). The iframe window grants invincibility; a stamina charge is given
+ * to a random other ability on cast. An afterimage trail follows the unit throughout the dash.
  */
 
-import { AbilityState } from '../../abilities/Ability';
+import { AbilityState, AbilityEventType } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../../game/forceMove';
-import { Effect } from '../../game/effects/Effect';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { applyForcedDisplacementToward } from '../../abilities/effectHelpers';
-import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
-import { getBodyColorForUnit, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
-import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const DODGE_DURATION = 0.4;
@@ -25,14 +21,6 @@ const DODGE_DURATION = 0.4;
 export const DODGE_MAX_DISTANCE = 140;
 /** Step size (px) when testing passability along the dodge path to avoid moving into terrain. */
 export const DODGE_COLLISION_STEP = 4;
-
-/** Duration of each afterimage in seconds (6 frames at 60 fps). */
-const AFTERIMAGE_DURATION = 6 / 60;
-
-interface DodgeEngineLike {
-    addEffect(e: Effect): void;
-    generateRandomInteger(min: number, max: number): number;
-}
 
 const DODGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <ellipse cx="32" cy="32" rx="24" ry="28" fill="none" stroke="#8B4513" stroke-width="3"/>
@@ -54,10 +42,24 @@ export const DodgeAbility: AbilityStatic = {
             start: 0,
             end: DODGE_DURATION,
             abilityPhase: AbilityPhase.Iframe,
+            behaviour: CastBehaviours.Dash()
+                .withMaxDistance(DODGE_MAX_DISTANCE)
+                .withCollisionStep(DODGE_COLLISION_STEP)
+                .withAfterimages(true),
         },
     ],
     targets: [{ type: 'pixel', label: 'Direction to dodge' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: DODGE_MAX_DISTANCE },
+
+    abilityEvents: {
+        [AbilityEventType.ON_CAST_START]: [
+            {
+                id: 'dodge-stamina-charge',
+                conditions: [{ type: 'always' }],
+                effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, excludeSelf: true }],
+            },
+        ],
+    },
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
@@ -70,74 +72,6 @@ export const DodgeAbility: AbilityStatic = {
             return [{ state: AbilityState.IFRAMES }];
         }
         return [];
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        const eng = engine as DodgeEngineLike;
-        // onUse: grant one stamina recovery charge immediately when dodge begins.
-        if (prevTime <= 0 && currentTime > 0) {
-            grantRecoveryChargeToRandomAbility(
-                caster,
-                'staminaCharge',
-                (min, max) => eng.generateRandomInteger(min, max),
-                { excludeAbilityId: CARD_ID },
-            );
-        }
-        if (currentTime >= DODGE_DURATION) return;
-
-        const pos = getPixelTargetPosition(targets, 0);
-        const dirResult = pos ? getDirectionFromTo(caster.x, caster.y, pos.x, pos.y) : null;
-        const distToTarget = dirResult?.dist ?? 0;
-        const moveDistance =
-            distToTarget > 0
-                ? Math.min(
-                      ((currentTime - prevTime) / DODGE_DURATION) * DODGE_MAX_DISTANCE,
-                      distToTarget,
-                  )
-                : 0;
-
-        // Spawn afterimages every 2 ticks
-        const twoTickPeriods = Math.floor(currentTime * 30);
-        const prevTwoTickPeriods = prevTime < 0 ? -1 : Math.floor(prevTime * 30);
-        const isMoving = moveDistance > 0;
-
-        for (let i = prevTwoTickPeriods + 1; i <= twoTickPeriods; i++) {
-            const effectData: Record<string, unknown> = {
-                bodyColor: getBodyColorForUnit(caster),
-                radius: caster.radius,
-                characterSpriteKey: getCharacterSpriteKey(caster.characterId),
-            };
-            if (isMoving && dirResult && dirResult.dist > 0) {
-                // Opposite of movement direction, with slight random variance
-                const baseAngle = Math.atan2(-dirResult.dirY, -dirResult.dirX);
-                // cosmetic-only: not part of synced state
-                const angleVariance = (Math.random() - 0.5) * 0.6;
-                // cosmetic-only: not part of synced state
-                const speed = 30 + Math.random() * 20;
-                effectData.vx = Math.cos(baseAngle + angleVariance) * speed;
-                effectData.vy = Math.sin(baseAngle + angleVariance) * speed;
-            } else if (!isMoving) {
-                // cosmetic-only: not part of synced state
-                const angle = Math.random() * Math.PI * 2;
-                // cosmetic-only: not part of synced state
-                const speed = 30 + Math.random() * 20;
-                effectData.vx = Math.cos(angle) * speed;
-                effectData.vy = Math.sin(angle) * speed;
-            }
-            eng.addEffect(
-                new Effect({
-                    x: caster.x,
-                    y: caster.y,
-                    duration: AFTERIMAGE_DURATION,
-                    effectType: 'Afterimage',
-                    effectData,
-                }),
-            );
-        }
-
-        if (!pos || distToTarget === 0 || moveDistance <= 0) return;
-
-        applyForcedDisplacementToward(engine, caster, pos.x, pos.y, moveDistance, { step: DODGE_COLLISION_STEP });
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {

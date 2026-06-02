@@ -42,7 +42,7 @@ export function createEmitterFromDef(
                     effects.push(new Effect({
                         x: emitter.x,
                         y: emitter.y,
-                        duration: 1,
+                        duration: def.effectDuration ?? 1,
                         effectType: def.effectType,
                         effectData: def.effectData ? { ...def.effectData } : {},
                     }));
@@ -64,7 +64,7 @@ export function createEmitterFromDef(
                 new Effect({
                     x: emitter.x,
                     y: emitter.y,
-                    duration: 1,
+                    duration: def.effectDuration ?? 1,
                     effectType: def.effectType,
                     effectRadius: def.effectRadius,
                     effectData: def.effectData ? { ...def.effectData } : {},
@@ -85,7 +85,7 @@ export function createEmitterFromDef(
             new Effect({
                 x: emitter.x,
                 y: emitter.y,
-                duration: 1,
+                duration: def.effectDuration ?? 1,
                 effectType: def.effectType,
                 effectData: def.effectData ? { ...def.effectData } : {},
             }),

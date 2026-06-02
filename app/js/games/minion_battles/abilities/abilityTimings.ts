@@ -31,7 +31,23 @@ export interface AbilityTiming {
  * When the timing window opens the engine automatically creates and registers
  * the appropriate EffectEmitter; when it closes the emitter is deactivated.
  */
-export type AbilityTimingEmitterDef =
+/** Fields shared across all emitter modes. */
+type EmitterDefShared = {
+    /**
+     * Duration in seconds of each spawned Effect. Default 1.
+     * Use this instead of hardcoding duration inside effectData.
+     */
+    effectDuration?: number;
+    /**
+     * When true, the engine merges { bodyColor, radius, characterSpriteKey } from the
+     * caster unit into effectData at window-open time. Useful for afterimage-style trails
+     * where the visual must match the specific unit running the ability.
+     * Static effectData fields take precedence over auto-resolved values.
+     */
+    useCasterVisualData?: boolean;
+};
+
+export type AbilityTimingEmitterDef = EmitterDefShared & (
     | {
         mode: 'instant';
         /** effectType string matching an effectDefRegistry key */
@@ -57,7 +73,8 @@ export type AbilityTimingEmitterDef =
         emitWhilePaused?: boolean;
         /** Emit every N render frames. Default 1. */
         emitIntervalFrames?: number;
-      };
+      }
+);
 
 /**
  * Half-open interval [start, end) from ability start, seconds.

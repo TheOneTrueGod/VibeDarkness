@@ -10,6 +10,8 @@ export type AbilityEffect =
         chargeType: RecoveryChargeType;
         amount: number;
         recipient?: 'randomAbility';
+        /** When true, the caster's own ability is excluded from the random selection. */
+        excludeSelf?: boolean;
     }
     | { type: 'setFlag'; flag: string; value: boolean }
     | {
@@ -26,6 +28,7 @@ export type AbilityEffect =
     }
     | { type: 'applyStunnedToPrimaryTarget'; duration: number }
     | { type: 'interruptPrimaryTargetAbilities' }
+    | { type: 'setAbilityNote'; abilityId: string; note: Record<string, unknown> }
     | AbilityCustomEffect;
 
 /**

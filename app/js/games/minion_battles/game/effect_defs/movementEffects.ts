@@ -38,8 +38,10 @@ export const afterimageEffectDef: IEffectDef = {
         return container;
     },
     updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
-        const progress = effect.progress;
-        const alpha = Math.max(0, 1 - progress);
+        const data = effect.effectData as { initialAlpha?: number };
+        const initialAlpha = data.initialAlpha ?? 1;
+        // Concave curve: stays more opaque through mid-life, fades sharply at the end.
+        const alpha = Math.max(0, initialAlpha * Math.pow(1 - effect.progress, 0.5));
         for (const child of visual.children) {
             child.alpha = alpha;
         }

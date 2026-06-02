@@ -188,6 +188,10 @@ export class ContinuousEmitter extends EffectEmitter {
     override renderUpdate(realDt: number, posSnapshot: Map<string, Vec2>): Effect[] {
         void realDt;
         if (!this.active) return [];
+        if (this.attachedToUnitId) {
+            const pos = posSnapshot.get(this.attachedToUnitId);
+            if (pos) { this.x = pos.x; this.y = pos.y; }
+        }
         this.frameCount++;
         if (this.frameCount % this.emitIntervalFrames !== 0) return [];
         return this.factory(this, posSnapshot);

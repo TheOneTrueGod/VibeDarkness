@@ -14,15 +14,11 @@
 
 | Todo | Notes |
 |------|-------|
-| Migrate SwingBat / 0115 to castBehaviours | Same melee swing family as SwingBat/0103 which is already on `castBehaviours`. Replace `doCardEffect` and `targets` with `MeleeAttackBehaviour` on the hit interval plus a `targetDef`. Use 0103 as the template. |
-| Migrate RaiseShield (0104) to castBehaviours | `doCardEffect` only sets an ability note at t = 0.05 s. Replace with an `ON_CAST_START` `abilityEvents` rule that initialises the block-count note; no new CastBehaviour class needed. |
-| Migrate LaserShield (0106) to castBehaviours | Identical structure to RaiseShield — `doCardEffect` sets an ability note at t = 0.05 s. Replace with an `ON_CAST_START` `abilityEvents` rule that initialises the block-count note. |
 
 ## Medium
 
 | Todo | Notes |
 |------|-------|
-| Migrate Dodge (0101) to castBehaviours | `doCardEffect` handles per-tick movement displacement, afterimage effect spawning, and a one-shot recovery-charge grant. Movement and afterimage emission should be expressed via a dash CastBehaviour or `emitterDef` on the iframe interval; the recovery charge can move to an `ON_CAST_START` abilityEvents rule. |
 | Migrate ShiningBlock (0110) to castBehaviours | `doCardEffect` manages a blocking window with a counter-attack AoE on block success. The counter-attack may need a new CastBehaviour or an `ON_ATTACK_BLOCKED` abilityEvents rule; the blocking window itself is already driven by `getBlockingArc`. |
 | Migrate Claw (0111) to castBehaviours | `doCardEffect` applies forced-displacement movement each tick and spawns collision effects. Needs a dash/movement CastBehaviour (similar approach to Dodge); the iframe window is already declared in `abilityTimings`. |
 | Migrate AbsorptionShield (0113) to castBehaviours | `doCardEffect` runs absorption logic each tick during the shield window. Convert to a CastBehaviour that manages the absorption phase, or map to abilityEvents hooks that fire on each incoming hit during the active timing window. |
