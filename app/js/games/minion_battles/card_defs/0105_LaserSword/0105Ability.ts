@@ -11,8 +11,8 @@ import { AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
-import { getDirectionFromTo } from '../../abilities/targetHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
+import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
@@ -26,10 +26,7 @@ const BASE_MAX_RANGE = 56;
 const DAMAGE = 20;
 const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
-const POISE_DAMAGE = 20;
-const KNOCKBACK_MAGNITUDE = 80;
-const KNOCKBACK_AIR_TIME = 0.3;
-const KNOCKBACK_SLIDE_TIME = 0.2;
+const KNOCKBACK_TIER = 3;
 const MAX_TARGETS = 2;
 const LINE_THICKNESS = 36;
 const SWING_LENGTH = 80;
@@ -37,6 +34,7 @@ const SWING_LENGTH = 80;
 const LASER_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
 
 type LaserSwordEngineExt = AbilityEngineContext & {
+    roundNumber?: number;
     interruptUnitAndRefundAbilities?(unit: Unit): void;
 };
 
@@ -66,17 +64,18 @@ const laserSwordBehaviour = CastBehaviours.MeleeAttack()
             });
             if (blocked) continue;
 
-            const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, targetUnit.x, targetUnit.y);
-            targetUnit.applyKnockback(
-                POISE_DAMAGE,
+            tryApplyKnockbackByTier(
+                targetUnit,
+                KNOCKBACK_TIER,
+                { unitId: ctx.caster.id, abilityId: CARD_ID },
+                ctx.caster.x,
+                ctx.caster.y,
                 {
-                    knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
-                    knockbackAirTime: KNOCKBACK_AIR_TIME,
-                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                    knockbackSource: { unitId: ctx.caster.id, abilityId: CARD_ID },
+                    gameTime: eng.gameTime,
+                    roundNumber: eng.roundNumber ?? 1,
+                    eventBus: eng.eventBus,
+                    interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities,
                 },
-                eng.eventBus,
-                (u) => eng.interruptUnitAndRefundAbilities?.(u),
             );
         }
     });

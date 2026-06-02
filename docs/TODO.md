@@ -4,20 +4,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Migrate 0105_LaserSword to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0108_ThrowChargedRock to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0111_Claw to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0112_SwingSword to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0114_EnergyBlast to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0102_Punch (base punch knockback path) to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0006_BoarCharge to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0007_AlphaWolfCharge to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0003_DarkWolfBite to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0004_AlphaWolfClaw to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0534_BoarClaws to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0530_StoneTomb to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate 0611_BeastClaw to knockback tier system | Replace `applyKnockback` direct call with `tryApplyKnockbackByTier` |
-| Migrate ChargeAttack template to knockback tier system | Replace `applyKnockback` in `abilities/templates/ChargeAttack.ts` with `tryApplyKnockbackByTier` |
 | Migrate LungeMovement behaviour to knockback tier system | Replace `applyKnockback` in `abilities/behaviors/LungeMovement.ts` with `tryApplyKnockbackByTier` |
 | Clean up poiseHp / maxPoiseHp system | Once all knockback callers are migrated to the tier system, remove `poiseHp`, `maxPoiseHp` fields from `Unit.ts` and the stability gate from `applyKnockback` |
 
@@ -31,7 +17,6 @@
 | Todo | Notes |
 |------|-------|
 | Migrate SwingBat / 0115 to castBehaviours | Same melee swing family as SwingBat/0103 which is already on `castBehaviours`. Replace `doCardEffect` and `targets` with `MeleeAttackBehaviour` on the hit interval plus a `targetDef`. Use 0103 as the template. |
-| Migrate Punch (0102) to castBehaviours | Basic punch in the same family as StrongPunch/SneakyPunch (0117–0120) which are all on `castBehaviours`. Replace `doCardEffect` with the `MeleeAttackBehaviour` pattern those abilities use. |
 | Migrate RaiseShield (0104) to castBehaviours | `doCardEffect` only sets an ability note at t = 0.05 s. Replace with an `ON_CAST_START` `abilityEvents` rule that initialises the block-count note; no new CastBehaviour class needed. |
 | Migrate LaserShield (0106) to castBehaviours | Identical structure to RaiseShield — `doCardEffect` sets an ability note at t = 0.05 s. Replace with an `ON_CAST_START` `abilityEvents` rule that initialises the block-count note. |
 

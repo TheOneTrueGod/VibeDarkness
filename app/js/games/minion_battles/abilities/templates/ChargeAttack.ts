@@ -11,7 +11,7 @@ import { computeLungeChargeDirection, LungeMovement } from '../behaviors/LungeMo
 import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';
 import { Effect } from '../../game/effects/Effect';
 import { tryDamageOrBlock } from '../blockingHelpers';
-import { applyChargingBlockKnockback } from '../effectHelpers';
+import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { createUnitTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
 
@@ -41,7 +41,7 @@ export interface ChargeAttackConfig {
 	baseMaxRange: number;
 	aiMaxRange: number;
 	capsuleRadiusMultiplier: number;
-	knockbackOnBlock: number;
+	knockbackTierOnBlock?: number;
 	/** Active cast capsule tint; width is unused (preview thickness follows `capsuleRadiusMultiplier`). */
 	preview: { color: number; width: number };
 	effectType: string;
@@ -211,7 +211,33 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	}
 
 	onAttackBlocked(engine: unknown, defender: Unit, attackInfo: AttackBlockedInfo): void {
-		applyChargingBlockKnockback(engine, defender, attackInfo, this.config.knockbackOnBlock, this.config.id);
+		const tier = this.config.knockbackTierOnBlock;
+		if (tier != null) {
+			if (attackInfo.type !== 'charging' || !attackInfo.sourceUnitId) return;
+			const eng = engine as {
+				getUnit?(id: string): Unit | undefined;
+				eventBus: unknown;
+				gameTime?: number;
+				roundNumber?: number;
+				cancelActiveAbility?(unitId: string, abilityId: string): void;
+			};
+			const attacker = eng.getUnit?.(attackInfo.sourceUnitId);
+			if (!attacker) return;
+			tryApplyKnockbackByTier(
+				attacker,
+				tier,
+				{ unitId: defender.id, abilityId: this.config.id },
+				defender.x,
+				defender.y,
+				{
+					gameTime: eng.gameTime ?? 0,
+					roundNumber: eng.roundNumber ?? 1,
+					eventBus: eng.eventBus,
+				},
+			);
+			eng.cancelActiveAbility?.(attackInfo.sourceUnitId, this.config.id);
+			attacker.clearAbilityNote();
+		}
 	}
 
 	/** Prefer `active.castPayload`; fall back to unit ability note (older checkpoints). */

@@ -10,6 +10,7 @@ import { Effect } from '../../game/effects/Effect';
 import { areEnemies } from '../../game/teams';
 import type { EventBus } from '../../game/EventBus';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
+import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { asCardDefId, type CardDef } from '../types';
 
 const CARD_ID = '0114';
@@ -22,10 +23,7 @@ const PROJECTILE_SPEED = 600;
 const PROJECTILE_RADIUS = 12;
 const PREVIEW_COLOR = 0x8be9ff;
 
-const KNOCKBACK_MAGNITUDE = 20;
-const KNOCKBACK_POISE_DAMAGE = 2;
-const KNOCKBACK_AIR_TIME = 0.08;
-const KNOCKBACK_SLIDE_TIME = 0.06;
+const KNOCKBACK_TIER = 1;
 
 interface EnergyBlastEngineLike {
     addProjectile(projectile: Projectile): void;
@@ -33,6 +31,8 @@ interface EnergyBlastEngineLike {
     getUnit(id: string): Unit | undefined;
     getUnits(): Unit[];
     eventBus: EventBus;
+    gameTime?: number;
+    roundNumber?: number;
 }
 
 const ENERGY_BLAST_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -138,16 +138,17 @@ export const EnergyBlastAbility: AbilityStatic = {
         for (const unit of units) {
             const modifiedDamage = getModifiedAbilityDamage(sourceUnit, EXPLOSION_DAMAGE);
             unit.takeDamage(modifiedDamage, sourceUnit.id, eng.eventBus);
-            const { dirX, dirY } = getDirectionFromTo(projectile.x, projectile.y, unit.x, unit.y);
-            unit.applyKnockback(
-                KNOCKBACK_POISE_DAMAGE,
+            tryApplyKnockbackByTier(
+                unit,
+                KNOCKBACK_TIER,
+                { unitId: sourceUnit.id, abilityId: CARD_ID },
+                projectile.x,
+                projectile.y,
                 {
-                    knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
-                    knockbackAirTime: KNOCKBACK_AIR_TIME,
-                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                    knockbackSource: { unitId: sourceUnit.id, abilityId: CARD_ID },
+                    gameTime: eng.gameTime ?? 0,
+                    roundNumber: eng.roundNumber ?? 1,
+                    eventBus: eng.eventBus,
                 },
-                eng.eventBus,
             );
         }
     },

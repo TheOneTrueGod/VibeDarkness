@@ -18,6 +18,7 @@ import { areEnemies } from '../../game/teams';
 import type { EventBus } from '../../game/EventBus';
 import { asCardDefId, type CardDef } from '../types';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
+import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 
 const THROW_CHARGED_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <path d="M20 4 L32 12 L36 24 L28 36 L12 34 L4 20 Z" fill="#6b6b6b" stroke="#5a5a5a" stroke-width="1"/>
@@ -124,10 +125,7 @@ const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
     },
 ];
 
-const KNOCKBACK_MAGNITUDE = 24;
-const KNOCKBACK_POISE_DAMAGE = 3;
-const KNOCKBACK_AIR_TIME = 0.1;
-const KNOCKBACK_SLIDE_TIME = 0.08;
+const KNOCKBACK_TIER = 1;
 const PREVIEW_TEAL = 0x2dd4bf;
 
 interface GameEngineLike {
@@ -137,6 +135,8 @@ interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
     getUnits(): Unit[];
     eventBus: EventBus;
+    gameTime?: number;
+    roundNumber?: number;
     getPlayerResearchNodes?(playerId: string, treeId: string): string[];
     localPlayerId?: string;
 }
@@ -332,16 +332,17 @@ export const ThrowChargedRock: AbilityStatic = {
         for (const unit of units) {
             const modifiedDamage = getModifiedAbilityDamage(sourceUnit, explosionDamage);
             unit.takeDamage(modifiedDamage, sourceUnit.id, eng.eventBus);
-            const { dirX, dirY } = getDirectionFromTo(projectile.x, projectile.y, unit.x, unit.y);
-            unit.applyKnockback(
-                KNOCKBACK_POISE_DAMAGE,
+            tryApplyKnockbackByTier(
+                unit,
+                KNOCKBACK_TIER,
+                { unitId: sourceUnit.id, abilityId: CARD_ID },
+                projectile.x,
+                projectile.y,
                 {
-                    knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
-                    knockbackAirTime: KNOCKBACK_AIR_TIME,
-                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                    knockbackSource: { unitId: sourceUnit.id, abilityId: CARD_ID },
+                    gameTime: eng.gameTime ?? 0,
+                    roundNumber: eng.roundNumber ?? 1,
+                    eventBus: eng.eventBus,
                 },
-                eng.eventBus,
             );
         }
     },

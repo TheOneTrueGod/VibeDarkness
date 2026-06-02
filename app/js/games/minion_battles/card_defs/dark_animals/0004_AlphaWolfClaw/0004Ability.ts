@@ -19,7 +19,8 @@ import { asCardDefId, type CardDef } from '../../types';
 import { Effect } from '../../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
-import { getPixelTargetPosition, getDirectionFromTo } from '../../../abilities/targetHelpers';
+import { getPixelTargetPosition } from '../../../abilities/targetHelpers';
+import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import { drawEnemyConvexQuadHitboxTelegraph } from '../../../abilities/previewHelpers';
 import { areEnemies } from '../../../game/teams';
 import type { EventBus } from '../../../game/EventBus';
@@ -30,10 +31,7 @@ const BASE_MIN_RANGE = 0;
 const BASE_MAX_RANGE = 40;
 const DAMAGE = 15;
 const CLAW_EFFECT_DURATION = 0.4;
-const POISE_DAMAGE = 8;
-const KNOCKBACK_MAGNITUDE = 60;
-const KNOCKBACK_AIR_TIME = 0.25;
-const KNOCKBACK_SLIDE_TIME = 0.15;
+const KNOCKBACK_TIER = 2;
 /** Square side length (px) for hitbox and preview. */
 const BOX_SIZE = 44;
 /** Match brief active phase after prefire so the outline stays fully red through impact. */
@@ -97,6 +95,7 @@ interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
     addEffect(effect: Effect): void;
     gameTime: number;
+    roundNumber?: number;
     eventBus: EventBus;
     interruptUnitAndRefundAbilities(unit: Unit): void;
 }
@@ -198,17 +197,11 @@ export const AlphaWolfClawAbility: AbilityStatic = {
             });
             if (blocked) continue;
 
-            const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
-            targetUnit.applyKnockback(
-                POISE_DAMAGE,
-                {
-                    knockbackVector: { x: tX * KNOCKBACK_MAGNITUDE, y: tY * KNOCKBACK_MAGNITUDE },
-                    knockbackAirTime: KNOCKBACK_AIR_TIME,
-                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                    knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-                },
-                eng.eventBus,
-                (u) => eng.interruptUnitAndRefundAbilities(u),
+            tryApplyKnockbackByTier(
+                targetUnit, KNOCKBACK_TIER,
+                { unitId: caster.id, abilityId: CARD_ID },
+                caster.x, caster.y,
+                { gameTime: eng.gameTime, roundNumber: eng.roundNumber ?? 1, eventBus: eng.eventBus, interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities.bind(eng) },
             );
         }
     },

@@ -1,7 +1,7 @@
 /**
  * BeastClaw - Player melee ability from BeastCore.
  * Box in front of caster, slashing effect. Swings twice in opposite directions.
- * First swing knocks back away; second swing knocks back toward caster.
+ * Knocks back away from caster on both swings.
  * Smaller knockback than Swing Bat, interrupt on hit.
  */
 
@@ -17,7 +17,8 @@ import type { Effect } from '../../../game/effects/Effect';
 import type { EventBus } from '../../../game/EventBus';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
-import { getPixelTargetPosition, getDirectionFromTo } from '../../../abilities/targetHelpers';
+import { getPixelTargetPosition } from '../../../abilities/targetHelpers';
+import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import {
     ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES,
@@ -33,10 +34,7 @@ const BASE_MAX_RANGE = 10;
 const DAMAGE = 8;
 const CLAW_EFFECT_DURATION = 0.3;
 const CLAW_SLASH_DELAY = 0.03;
-const POISE_DAMAGE = 6;
-const KNOCKBACK_MAGNITUDE = 40;
-const KNOCKBACK_AIR_TIME = 0.2;
-const KNOCKBACK_SLIDE_TIME = 0.12;
+const KNOCKBACK_TIER = 2;
 const BOX_SIZE = 28;
 
 function getMinRange(_caster: Unit): number {
@@ -95,6 +93,7 @@ interface GameEngineLike {
     getUnit(id: string): Unit | undefined;
     addEffect(effect: Effect): void;
     gameTime: number;
+    roundNumber?: number;
     eventBus: EventBus;
     interruptUnitAndRefundAbilities(unit: Unit): void;
 }
@@ -221,21 +220,11 @@ export const BeastClawAbility: AbilityStatic = {
                 });
                 if (blocked) continue;
 
-                const { dirX: tX, dirY: tY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
-                const flip = isSecondSwing ? -1 : 1;
-                targetUnit.applyKnockback(
-                    POISE_DAMAGE,
-                    {
-                        knockbackVector: {
-                            x: tX * KNOCKBACK_MAGNITUDE * flip,
-                            y: tY * KNOCKBACK_MAGNITUDE * flip,
-                        },
-                        knockbackAirTime: KNOCKBACK_AIR_TIME,
-                        knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                        knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-                    },
-                    eng.eventBus,
-                    (u) => eng.interruptUnitAndRefundAbilities(u),
+                tryApplyKnockbackByTier(
+                    targetUnit, KNOCKBACK_TIER,
+                    { unitId: caster.id, abilityId: CARD_ID },
+                    caster.x, caster.y,
+                    { gameTime: eng.gameTime, roundNumber: eng.roundNumber ?? 1, eventBus: eng.eventBus, interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities.bind(eng) },
                 );
             }
         };

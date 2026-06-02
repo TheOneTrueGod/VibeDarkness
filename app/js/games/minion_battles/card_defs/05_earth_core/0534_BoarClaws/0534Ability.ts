@@ -22,6 +22,7 @@ import type { EventBus } from '../../../game/EventBus';
 import { grantRecoveryChargeToRandomAbility } from '../../../abilities/abilityUses';
 import { ContinuousEmitter } from '../../../game/effects/EffectEmitter';
 import type { EngineContext } from '../../../game/EngineContext';
+import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
 const DASH_DURATION = 0.4;
@@ -29,10 +30,7 @@ const SLINGSHOT_PHASE = 0.3;
 const COOLDOWN_DURATION = 0.8;
 const MAX_DISTANCE = 160;
 const DAMAGE = 5;
-const POISE_DAMAGE = 4;
-const KNOCKBACK_MAGNITUDE = 40;
-const KNOCKBACK_AIR_TIME = 0.2;
-const KNOCKBACK_SLIDE_TIME = 0.12;
+const KNOCKBACK_TIER = 2;
 const SLINGSHOT_SPEED = 400; // px/s
 const SLINGSHOT_LAUNCH_MAGNITUDE = 160;
 const SLINGSHOT_LAUNCH_AIR_TIME = 0.4;
@@ -346,9 +344,6 @@ export const BoarClawsAbility: AbilityStatic = {
         if (isAbilityNote(caster.abilityNote, CARD_ID) && dirResult && dirResult.dist > 0) {
             const note = caster.abilityNote.abilityNote;
             const touchRadius = caster.radius;
-            const moveDirX = dirResult.dirX;
-            const moveDirY = dirResult.dirY;
-
             for (const unit of eng.units) {
                 if (!unit.active || !unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
                 if (unit.id === caster.id) continue;
@@ -375,23 +370,11 @@ export const BoarClawsAbility: AbilityStatic = {
 
                 note.hitTargetIds.push(unit.id);
 
-                const cross = moveDirX * dy - moveDirY * dx;
-                const perpX = cross > 0 ? -moveDirY : moveDirY;
-                const perpY = cross > 0 ? moveDirX : -moveDirX;
-                const perpLen = Math.sqrt(perpX * perpX + perpY * perpY);
-                const knockX = perpLen > 0 ? (perpX / perpLen) * KNOCKBACK_MAGNITUDE : KNOCKBACK_MAGNITUDE;
-                const knockY = perpLen > 0 ? (perpY / perpLen) * KNOCKBACK_MAGNITUDE : 0;
-
-                unit.applyKnockback(
-                    POISE_DAMAGE,
-                    {
-                        knockbackVector: { x: knockX, y: knockY },
-                        knockbackAirTime: KNOCKBACK_AIR_TIME,
-                        knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                        knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-                    },
-                    eng.eventBus,
-                    (u) => eng.interruptUnitAndRefundAbilities(u),
+                tryApplyKnockbackByTier(
+                    unit, KNOCKBACK_TIER,
+                    { unitId: caster.id, abilityId: CARD_ID },
+                    caster.x, caster.y,
+                    { gameTime: eng.gameTime, roundNumber: eng.roundNumber, eventBus: eng.eventBus, interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities.bind(eng) },
                 );
             }
         }

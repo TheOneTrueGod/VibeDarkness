@@ -18,8 +18,8 @@ import { AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
-import { getDirectionFromTo } from '../../abilities/targetHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
+import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
@@ -43,10 +43,7 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}12`;
 
 const BASE_MAX_RANGE = 48;
 const DAMAGE = 10;
-const POISE_DAMAGE = 5;
-const KNOCKBACK_MAGNITUDE = 18;
-const KNOCKBACK_AIR_TIME = 0.2;
-const KNOCKBACK_SLIDE_TIME = 0.15;
+const KNOCKBACK_TIER = 1;
 const MAX_TARGETS = 2;
 const LINE_THICKNESS = 36;
 const SWING_LENGTH = 80;
@@ -135,16 +132,17 @@ const swingSwordBehaviour = CastBehaviours.MeleeAttack()
                 applyBleedStack(targetUnit, eng.gameTime, roundNumber);
             }
 
-            const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, targetUnit.x, targetUnit.y);
-            targetUnit.applyKnockback(
-                POISE_DAMAGE,
+            tryApplyKnockbackByTier(
+                targetUnit,
+                KNOCKBACK_TIER,
+                { unitId: ctx.caster.id, abilityId: CARD_ID },
+                ctx.caster.x,
+                ctx.caster.y,
                 {
-                    knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
-                    knockbackAirTime: KNOCKBACK_AIR_TIME,
-                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                    knockbackSource: { unitId: ctx.caster.id, abilityId: CARD_ID },
+                    gameTime: eng.gameTime,
+                    roundNumber: roundNumber,
+                    eventBus: eng.eventBus,
                 },
-                eng.eventBus,
             );
         }
     });

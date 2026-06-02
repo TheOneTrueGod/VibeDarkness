@@ -8,15 +8,13 @@ import { Projectile } from '../../../game/projectiles/Projectile';
 import { Effect } from '../../../game/effects/Effect';
 import type { ResolvedTarget } from '../../../game/types';
 import { asCardDefId, type CardDef } from '../../types';
+import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 
 const ABILITY_ID = '0530';
 const RANGE = 220;
 const DAMAGE = 5;
 const IMPACT_RADIUS = 55;
-const KNOCKBACK_MAGNITUDE = 30;
-const KNOCKBACK_POISE_DAMAGE = 3;
-const KNOCKBACK_AIR_TIME = 0.12;
-const KNOCKBACK_SLIDE_TIME = 0.09;
+const KNOCKBACK_TIER = 1;
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.3, abilityPhase: AbilityPhase.Windup },
     { id: 'active', start: 0.3, end: 1.0, abilityPhase: AbilityPhase.Active },
@@ -33,6 +31,8 @@ interface GameEngineLike {
     addEffect(effect: Effect): void;
     getUnit(id: string): Unit | undefined;
     getUnits(): Unit[];
+    gameTime?: number;
+    roundNumber?: number;
     eventBus: EventBus;
     terrainManager?: {
         grid: {
@@ -107,16 +107,11 @@ export const StoneTomb: AbilityStatic = {
             const dist = Math.hypot(unit.x - projectile.x, unit.y - projectile.y);
             if (dist > IMPACT_RADIUS + unit.radius) continue;
             unit.takeDamage(DAMAGE, source.id, eng.eventBus);
-            const { dirX, dirY } = getDirectionFromTo(projectile.x, projectile.y, unit.x, unit.y);
-            unit.applyKnockback(
-                KNOCKBACK_POISE_DAMAGE,
-                {
-                    knockbackVector: { x: dirX * KNOCKBACK_MAGNITUDE, y: dirY * KNOCKBACK_MAGNITUDE },
-                    knockbackAirTime: KNOCKBACK_AIR_TIME,
-                    knockbackSlideTime: KNOCKBACK_SLIDE_TIME,
-                    knockbackSource: { unitId: source.id, abilityId: ABILITY_ID },
-                },
-                eng.eventBus,
+            tryApplyKnockbackByTier(
+                unit, KNOCKBACK_TIER,
+                { unitId: source.id, abilityId: ABILITY_ID },
+                projectile.x, projectile.y,
+                { gameTime: eng.gameTime ?? 0, roundNumber: eng.roundNumber ?? 1, eventBus: eng.eventBus },
             );
         }
     },

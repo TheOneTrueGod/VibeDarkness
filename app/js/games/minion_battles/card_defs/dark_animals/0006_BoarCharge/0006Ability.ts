@@ -17,7 +17,7 @@ const boarCharge = new ChargeAttack({
     baseMaxRange: 100,
     aiMaxRange: 90,
     capsuleRadiusMultiplier: 1.5,
-    knockbackOnBlock: 30,
+    knockbackTierOnBlock: 2,
     preview: { color: 0xff6600, width: 16 },
     effectType: 'bite',
     effectDuration: 0.2,
