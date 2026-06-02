@@ -225,11 +225,30 @@ export interface LevelEventContinuousSpawn extends LevelEventBase {
     spawns: SpawnWaveEntry[];
 }
 
+/** Convert a special tile mid-battle: remove Crystal at (col, row) and place a replacement at the same position. */
+export interface LevelEventConvertSpecialTile extends LevelEventBase {
+    type: 'convertSpecialTile';
+    trigger: { atRound: number };
+    /** Global grid column of the tile to remove. */
+    col: number;
+    row: number;
+    /** defId for the replacement tile (e.g. 'DarkCrystal'). */
+    replacementDefId: string;
+    /** Optional overrides for the replacement tile's runtime properties. */
+    replacementTile?: {
+        hp?: number;
+        maxHp?: number;
+        emitsLight?: SpecialTilePlacement['emitsLight'];
+        colorFilter?: SpecialTilePlacement['colorFilter'];
+    };
+}
+
 export type LevelEvent =
     | LevelEventSpawnWave
     | LevelEventVictoryCheck
     | LevelEventContinuousSpawn
-    | LevelEventProximitySpawn;
+    | LevelEventProximitySpawn
+    | LevelEventConvertSpecialTile;
 
 /** Patrol endpoint for Lanternites spawned from a {@link lanterniteNest} nest. */
 export type LanternitePatrolDestination =

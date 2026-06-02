@@ -13,6 +13,7 @@ import type {
     VictoryCondition,
     LevelEventContinuousSpawn,
     LevelEventProximitySpawn,
+    LevelEventConvertSpecialTile,
     EnemySpawnDef,
     SpawnWaveEntry,
 } from '../../storylines/types';
@@ -114,6 +115,8 @@ export class LevelEventManager {
                 this.processContinuousSpawnEvent(i, evt);
             } else if (evt.type === 'proximitySpawn') {
                 this.processProximitySpawnEvent(i, evt);
+            } else if (evt.type === 'convertSpecialTile') {
+                this.processConvertSpecialTileEvent(i, evt);
             } else if (evt.type === 'victoryCheck') {
                 if (this.ctx.roundNumber >= evt.trigger.afterRound && this.ctx.gameTick % 10 === 0) {
                     this.runVictoryCheck(i, evt);
@@ -598,6 +601,32 @@ export class LevelEventManager {
         }
 
         if (evt.revealObjectiveIds?.length) this.ctx.revealBattleObjectives(evt.revealObjectiveIds);
+    }
+
+    private processConvertSpecialTileEvent(i: number, evt: LevelEventConvertSpecialTile): void {
+        if (this.firedEventIndices.has(i)) return;
+        if (this.ctx.roundNumber < evt.trigger.atRound) return;
+
+        this.firedEventIndices.add(i);
+        if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
+
+        const existing = this.ctx.specialTiles.find((t) => t.col === evt.col && t.row === evt.row);
+        if (existing) {
+            this.ctx.damageSpecialTile(existing.id, existing.hp + 1);
+        }
+
+        const rep = evt.replacementTile ?? {};
+        const hp = rep.hp ?? 1;
+        this.ctx.addSpecialTile({
+            id: this.ctx.allocateObjectId?.('dark_crystal') ?? `dark_crystal_${i}`,
+            defId: evt.replacementDefId,
+            col: evt.col,
+            row: evt.row,
+            hp,
+            maxHp: rep.maxHp ?? hp,
+            emitsLight: rep.emitsLight,
+            colorFilter: rep.colorFilter,
+        });
     }
 
     private processSpawnWaveEvent(i: number, evt: LevelEventSpawnWave): void {

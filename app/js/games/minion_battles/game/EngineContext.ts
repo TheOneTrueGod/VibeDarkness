@@ -49,6 +49,7 @@ export interface EngineContext {
     addBramblePatch(patch: BramblePatch): void;
     getUnit(id: string): Unit | undefined;
     getAllies(caster: Unit): Unit[];
+    addSpecialTile(tile: SpecialTile): void;
     damageSpecialTile(tileId: string, amount: number): boolean;
     getCrystalProtectedSet(): Set<string>;
     getCrystalProtectionMap(): Map<string, number>;
