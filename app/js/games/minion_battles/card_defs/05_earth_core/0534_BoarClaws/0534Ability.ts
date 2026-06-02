@@ -93,7 +93,6 @@ function applySlingshotLaunch(
     eventBus: EventBus,
 ): void {
     caster.applyKnockback(
-        0,
         {
             knockbackVector: {
                 x: dirX * SLINGSHOT_LAUNCH_MAGNITUDE,

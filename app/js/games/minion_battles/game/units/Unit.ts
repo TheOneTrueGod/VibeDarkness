@@ -206,14 +206,6 @@ export class Unit extends GameObject {
     darknessDamageProcCount: number = 0;
 
     /**
-     * Knockback stability pool (legacy field name `poiseHp`). Depleted by knockback attempts;
-     * unrelated to hard CC armour — see {@link Unit.applyKnockback}.
-     */
-    poiseHp: number = 0;
-    /** Maximum knockback stability. Units with 0 skip the stability gate (knockback always applies). */
-    maxPoiseHp: number = 0;
-
-    /**
      * Reduces the effective tier of incoming tier-based knockback (see tryApplyKnockbackByTier).
      * Sourced from the unit def on demand — no backing field or serialization needed.
      */
@@ -343,8 +335,6 @@ export class Unit extends GameObject {
         unitAITreeId?: string;
         /** Visual/collision radius. Defaults to DEFAULT_UNIT_RADIUS. */
         radius?: number;
-        /** Max Poise HP. Default 0 (no poise). */
-        maxPoiseHp?: number;
         /** Stamina stat. */
         stamina?: number;
         /** Optional per-unit combat tuning values. */
@@ -364,8 +354,6 @@ export class Unit extends GameObject {
         this.aiSettings = config.aiSettings ?? null;
         this.unitAITreeId = config.unitAITreeId ?? 'default';
         this.radius = config.radius ?? DEFAULT_UNIT_RADIUS;
-        this.maxPoiseHp = config.maxPoiseHp ?? 0;
-        this.poiseHp = this.maxPoiseHp;
         this.stamina = config.stamina ?? 1;
         this.combatSettings = config.combatSettings;
         this.ephemeralDespawnAtGameTime = config.ephemeralDespawnAtGameTime ?? null;
@@ -528,21 +516,12 @@ export class Unit extends GameObject {
         }
     }
 
-    /**
-     * Attempt to apply physical knockback. This uses **knockback stability** (`poiseHp` / `maxPoiseHp` only) —
-     * not hard CC armour, stun resistance, or chain CC. Do not conflate with crowd control protection.
-     * When stability blocks knockback, poise is reduced; when knockback applies, the unit is launched.
-     */
+    /** Launch the unit with a knockback impulse. CC resistance is handled upstream by `tryApplyKnockbackByTier`. */
     applyKnockback(
-        poiseDamage: number,
         params: ApplyKnockbackParams,
         _eventBus: EventBus,
         onApplied?: (unit: Unit) => void,
     ): boolean {
-        if (poiseDamage > 0) {
-            this.poiseHp = Math.max(0, this.poiseHp - poiseDamage);
-            if (this.maxPoiseHp > 0 && this.poiseHp > 0) return false;
-        }
         this.knockback = {
             knockbackVector: { ...params.knockbackVector },
             knockbackAirTime: params.knockbackAirTime,
@@ -1158,8 +1137,6 @@ export class Unit extends GameObject {
             corruptionProgress: this.corruptionProgress,
             crystalCorruptionProgress: this.crystalCorruptionProgress,
             darknessDamageProcCount: this.darknessDamageProcCount,
-            poiseHp: this.poiseHp,
-            maxPoiseHp: this.maxPoiseHp,
             ccDurationResistPct: { ...this.ccDurationResistPct },
             ccDurationFlatSec: { ...this.ccDurationFlatSec },
             hardCcArmourFloor: this.hardCcArmourFloor,
@@ -1324,8 +1301,6 @@ export class Unit extends GameObject {
         unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
         unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;
         unit.movementPaused = (data.movementPaused as boolean | undefined) ?? false;
-        unit.poiseHp = (data.poiseHp as number) ?? 0;
-        unit.maxPoiseHp = (data.maxPoiseHp as number) ?? 0;
         unit.ccDurationResistPct = { ...(data.ccDurationResistPct as Partial<Record<CcResistKey, number>> | undefined) };
         unit.ccDurationFlatSec = { ...(data.ccDurationFlatSec as Partial<Record<CcResistKey, number>> | undefined) };
         unit.hardCcArmourFloor = (data.hardCcArmourFloor as number | undefined) ?? 0;

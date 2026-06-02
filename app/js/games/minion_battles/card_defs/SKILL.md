@@ -145,19 +145,9 @@ To avoid name collisions when importing multiple abilities, suffix the exported 
 
 - **Range**: Always calculate based on the range value plus the size of the source object plus the size of the target object.
 
-## Poise
-
-Units can have **Poise HP** (`poiseHp`, `maxPoiseHp` on `Unit`). Poise resists stuns and knockback:
-
-- When an attack inflicts knockback with poise damage, the unit loses Poise HP equal to the poise damage (clamped to 0).
-- If the unit still has Poise HP left, the knockback is **ignored**.
-- If the unit is out of Poise HP (or has no max poise), the knockback is **applied**.
-
-To apply knockback from an ability, call `targetUnit.applyKnockback(poiseDamage, params, eventBus)`. It returns `true` if knockback was applied, `false` if resisted.
-
 ## Knockback
 
-Use `unit.applyKnockback(poiseDamage, params, eventBus)` (see Poise above). The `params` object must be serializable and include `knockbackVector`, `knockbackAirTime`, `knockbackSlideTime`, and `knockbackSource`. See existing abilities for knockback examples and `Unit.ts` for the full params interface.
+Use `tryApplyKnockbackByTier(target, tier, source, casterX, casterY, engine)` from `crowdControl/knockbackKeywords.ts`. Tier 1 = light, 2 = medium, 3 = heavy. The function handles CC-armour gating, ExposedBuff, and hard-CC threshold logic internally.
 
 While knockback is active, the unit cannot move or act. If it hits a wall, it bounces. All knockback state is serialized for save/restore.
 

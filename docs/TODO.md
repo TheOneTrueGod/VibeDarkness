@@ -4,8 +4,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Migrate LungeMovement behaviour to knockback tier system | Replace `applyKnockback` in `abilities/behaviors/LungeMovement.ts` with `tryApplyKnockbackByTier` |
-| Clean up poiseHp / maxPoiseHp system | Once all knockback callers are migrated to the tier system, remove `poiseHp`, `maxPoiseHp` fields from `Unit.ts` and the stability gate from `applyKnockback` |
 
 ## Trivial
 

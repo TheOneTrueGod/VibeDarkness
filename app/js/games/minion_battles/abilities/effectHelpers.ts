@@ -4,7 +4,6 @@
  */
 
 import type { Unit } from '../game/units/Unit';
-import type { EventBus } from '../game/EventBus';
 import type { AttackBlockedInfo } from './Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../game/forceMove';
@@ -116,48 +115,6 @@ export function drawCardForPlayer(
     if (typeof eng.drawCardsForPlayer === 'function') {
         eng.drawCardsForPlayer(playerId, count);
     }
-}
-
-interface EngineWithGetUnit {
-    getUnit?(id: string): Unit | undefined;
-    eventBus?: EventBus;
-    cancelActiveAbility?(unitId: string, abilityId: string): void;
-}
-
-/**
- * When a charging attack is blocked: knock back the attacker away from the defender and clear the attacker's ability note.
- * Use in onAttackBlocked for charging abilities (e.g. Dark Wolf Bite).
- * abilityId is the attacking ability id (for knockback source).
- */
-export function applyChargingBlockKnockback(
-    engine: unknown,
-    defender: Unit,
-    attackInfo: AttackBlockedInfo,
-    knockbackMagnitude: number,
-    abilityId: string,
-    options?: { airTime?: number; slideTime?: number },
-): void {
-    if (attackInfo.type !== 'charging' || !attackInfo.sourceUnitId) return;
-    const eng = engine as EngineWithGetUnit;
-    const attacker = eng.getUnit?.(attackInfo.sourceUnitId);
-    if (!attacker || !eng.eventBus) return;
-    const dx = attacker.x - defender.x;
-    const dy = attacker.y - defender.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const dirX = dist > 0 ? dx / dist : 1;
-    const dirY = dist > 0 ? dy / dist : 0;
-    attacker.applyKnockback(
-        0,
-        {
-            knockbackVector: { x: dirX * knockbackMagnitude, y: dirY * knockbackMagnitude },
-            knockbackAirTime: options?.airTime ?? 0.2,
-            knockbackSlideTime: options?.slideTime ?? 0.1,
-            knockbackSource: { unitId: defender.id, abilityId },
-        },
-        eng.eventBus,
-    );
-    eng.cancelActiveAbility?.(attackInfo.sourceUnitId, abilityId);
-    attacker.clearAbilityNote();
 }
 
 /** Deactivate a projectile when this ability's attack is blocked. Use in onAttackBlocked for projectile abilities. */

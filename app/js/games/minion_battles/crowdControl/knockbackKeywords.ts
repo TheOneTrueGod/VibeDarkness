@@ -106,10 +106,7 @@ function _launchKnockback(
     engine: KnockbackEngineCtx,
 ): void {
     const { dirX, dirY } = getDirectionFromTo(casterX, casterY, target.x, target.y);
-    // eventBus is a legacy parameter on applyKnockback (prefixed _eventBus, unused).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     target.applyKnockback(
-        0,
         {
             knockbackVector: { x: dirX * tierDef.magnitude, y: dirY * tierDef.magnitude },
             knockbackAirTime: tierDef.airTime,
