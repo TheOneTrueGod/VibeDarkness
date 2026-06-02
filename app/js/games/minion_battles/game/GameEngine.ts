@@ -390,6 +390,14 @@ export class GameEngine implements EngineContext {
         );
     }
 
+    getLightAt(col: number, row: number): number | null {
+        if (!this.state.lightLevelEnabled) return null;
+        const grid = this.state.lightTileGrid;
+        if (!grid) return this.state.globalLightLevel;
+        if (row < 0 || row >= grid.gridHeight || col < 0 || col >= grid.gridWidth) return null;
+        return grid.get(row, col);
+    }
+
     private initLightGrid(): void {
         if (!this.terrainManager?.grid) return;
         const { width, height } = this.terrainManager.grid;

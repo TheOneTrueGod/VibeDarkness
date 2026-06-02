@@ -7,26 +7,26 @@
  */
 
 import { Application, Assets, Container, Graphics, Particle, ParticleContainer, Sprite, Texture } from 'pixi.js';
-import { DarknessLevel } from './darknessLevels';
-import { type FogFilter, tryCreateFogFilter } from './FogFilter';
-import { WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START } from '../../../gameConstants';
-import type { GameEngine } from './GameEngine';
-import type { Camera } from './Camera';
-import type { Unit } from './units/Unit';
-import { getAbility } from '../abilities/AbilityRegistry';
-import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries, getEffectiveCastBehaviours } from '../abilities/abilityTimings';
-import { resolveBehaviourTimingRef } from '../abilities/castBehaviourTypes';
-import type { AbilityStatic } from '../abilities/Ability';
-import { getSelectTargetDefsFromTimings, filterSelectTargetCandidates } from '../abilities/targeting';
-import { renderMeleeTrackingHighlights } from '../abilities/meleeTrackingHelpers';
-import { Projectile } from './projectiles/Projectile';
-import type { Effect } from './effects/Effect';
-import { areEnemies } from './teams';
-import { UnitTag } from './units/unitTag';
-import type { TeamId } from './teams';
-import type { TerrainGrid } from '../terrain/TerrainGrid';
-import { CELL_SIZE } from '../terrain/TerrainGrid';
-import { TerrainRenderer } from '../terrain/TerrainRenderer';
+import { DarknessLevel } from '../darknessLevels';
+import { type FogFilter, tryCreateFogFilter } from '../FogFilter';
+import { WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START } from '../../../../gameConstants';
+import type { GameEngine } from '../GameEngine';
+import type { Camera } from '../Camera';
+import type { Unit } from '../units/Unit';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries, getEffectiveCastBehaviours } from '../../abilities/abilityTimings';
+import { resolveBehaviourTimingRef } from '../../abilities/castBehaviourTypes';
+import type { AbilityStatic } from '../../abilities/Ability';
+import { getSelectTargetDefsFromTimings, filterSelectTargetCandidates } from '../../abilities/targeting';
+import { renderMeleeTrackingHighlights } from '../../abilities/meleeTrackingHelpers';
+import { Projectile } from '../projectiles/Projectile';
+import type { Effect } from '../effects/Effect';
+import { areEnemies } from '../teams';
+import { UnitTag } from '../units/unitTag';
+import type { TeamId } from '../teams';
+import type { TerrainGrid } from '../../terrain/TerrainGrid';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import { TerrainRenderer } from '../../terrain/TerrainRenderer';
 import {
 	renderUnit,
 	updateUnitHpBar,
@@ -34,16 +34,24 @@ import {
 	syncUnitCharacterSpriteIfNeeded,
 	CHARACTER_SPRITE_SCALE,
 	type IUnitRenderContext,
-} from './units/unit_defs/unitDef';
-import { getBuffVisualRenderer } from '../buffs/buffVisuals';
-import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from './effect_defs/index';
-import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from './effectImages';
-import { getSpecialTileDef } from '../storylines/specialTileDefs';
-import type { SpecialTile } from './specialTiles/SpecialTile';
-import type { DamageTakenEvent } from './EventBus';
-import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
-import { getPortraitIds, PORTRAITS } from '../character_defs/portraitLoader';
-import type { ResolvedTarget } from './types';
+} from '../units/unit_defs/unitDef';
+import { getBuffVisualRenderer } from '../../buffs/buffVisuals';
+import { createEffectVisual, updateEffectVisual, type IEffectRenderContext } from '../effect_defs/index';
+import { EFFECT_IMAGE_SOURCES, type EffectImageKey } from '../effectImages';
+import { getSpecialTileDef } from '../../storylines/specialTileDefs';
+import type { SpecialTile } from '../specialTiles/SpecialTile';
+import type { DamageTakenEvent } from '../EventBus';
+import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
+import { getPortraitIds, PORTRAITS } from '../../character_defs/portraitLoader';
+import type { ResolvedTarget } from '../types';
+import { AssetRegistry } from './AssetRegistry';
+import { UnitRenderer } from './renderers/UnitRenderer';
+import { OverlayRenderer } from './renderers/OverlayRenderer';
+import { SpecialTileRenderer } from './renderers/SpecialTileRenderer';
+import { ProjectileRenderer } from './renderers/ProjectileRenderer';
+import { EffectRenderer } from './renderers/EffectRenderer';
+import { LightSourceRenderer } from './renderers/LightSourceRenderer';
+import { PreviewRenderer } from './renderers/PreviewRenderer';
 
 /** Hit flash duration in seconds (real time, not affected by pause). */
 const HIT_FLASH_DURATION = 0.3;
@@ -75,19 +83,19 @@ const Z_INDEX = {
 } as const;
 
 /** Ranged enemy character sprite (slime): displayed slightly smaller than the unit hitbox circle. */
-const SLIME_SVG_URL = new URL('../assets/characters/slime.svg', import.meta.url).href;
+const SLIME_SVG_URL = new URL('../../assets/characters/slime.svg', import.meta.url).href;
 /** Melee enemy character sprite (swordwoman). */
-const SWORDWOMAN_SVG_URL = new URL('../assets/characters/swordwoman.svg', import.meta.url).href;
+const SWORDWOMAN_SVG_URL = new URL('../../assets/characters/swordwoman.svg', import.meta.url).href;
 /** Wolf (dark_wolf) character sprite (wolf head). */
-const WOLF_HEAD_SVG_URL = new URL('../assets/characters/dark_animals/wolf-head.svg', import.meta.url).href;
+const WOLF_HEAD_SVG_URL = new URL('../../assets/characters/dark_animals/wolf-head.svg', import.meta.url).href;
 /** Alpha Wolf boss character sprite (wolf howl). */
-const WOLF_HOWL_SVG_URL = new URL('../assets/characters/dark_animals/wolf-howl.svg', import.meta.url).href;
+const WOLF_HOWL_SVG_URL = new URL('../../assets/characters/dark_animals/wolf-howl.svg', import.meta.url).href;
 /** Boar character sprite. */
-const BOAR_SVG_URL = new URL('../assets/characters/dark_animals/boar.svg', import.meta.url).href;
+const BOAR_SVG_URL = new URL('../../assets/characters/dark_animals/boar.svg', import.meta.url).href;
 /** Lanternite character sprite (venus flytrap motif). */
-const LANTERNITE_SVG_URL = new URL('../assets/characters/lanternite.svg', import.meta.url).href;
+const LANTERNITE_SVG_URL = new URL('../../assets/characters/lanternite.svg', import.meta.url).href;
 /** Lanternite nest character sprite (bud motif). */
-const LANTERNITE_NEST_SVG_URL = new URL('../assets/characters/lanternite_nest.svg', import.meta.url).href;
+const LANTERNITE_NEST_SVG_URL = new URL('../../assets/characters/lanternite_nest.svg', import.meta.url).href;
 
 export class GameRenderer {
 	app: Application;
@@ -111,6 +119,16 @@ export class GameRenderer {
 	private initialized: boolean = false;
 	/** Deduplicates concurrent `init` (e.g. React Strict Mode). */
 	private initInFlight: Promise<void> | null = null;
+
+	/** Sub-renderer instances (instantiated in performCanvasInit). */
+	private assetRegistry!: AssetRegistry;
+	private unitRenderer!: UnitRenderer;
+	private overlayRenderer!: OverlayRenderer;
+	private specialTileRenderer!: SpecialTileRenderer;
+	private projectileRenderer!: ProjectileRenderer;
+	private effectRenderer!: EffectRenderer;
+	private lightSourceRenderer!: LightSourceRenderer;
+	private previewRenderer!: PreviewRenderer;
 
 	/** Optional debug: draw a yellow outline around this unit. */
 	private debugUnitOutlineId: string | null = null;
@@ -166,8 +184,8 @@ export class GameRenderer {
 	private fogFilter: FogFilter | null = null;
 	/** gameTick of the last darkness overlay redraw; redraw whenever tick advances. */
 	private lastOverlayTick: number = -1;
-	/** Current light grid [row][col], for unit visibility. Set when light enabled. */
-	private currentLightGrid: number[][] | null = null;
+	/** Whether the light system is currently active (set by engine during render). */
+	private lightSystemActive: boolean = false;
 	/** performance.now() timestamp of the last render call, for fog animation delta-time. */
 	private lastRenderTime: number = 0;
 
@@ -213,7 +231,7 @@ export class GameRenderer {
 		this.eventBusSource = null;
 		this.clearHitFlashes();
 		this.lastOverlayTick = -1;
-		this.currentLightGrid = null;
+		this.lightSystemActive = false;
 	}
 
 	private clearHitFlashes(): void {
@@ -265,6 +283,15 @@ export class GameRenderer {
 		this.particleContainer = new ParticleContainer({ dynamicProperties: { position: true, alpha: true, scale: true } });
 		this.particleContainer.zIndex = Z_INDEX.effects;
 		this.gameContainer.addChild(this.particleContainer);
+
+		this.assetRegistry = new AssetRegistry();
+		this.unitRenderer = new UnitRenderer(this.gameContainer, this.assetRegistry);
+		this.overlayRenderer = new OverlayRenderer(this.gameContainer, this.assetRegistry);
+		this.specialTileRenderer = new SpecialTileRenderer(this.gameContainer, this.assetRegistry);
+		this.projectileRenderer = new ProjectileRenderer(this.gameContainer, this.assetRegistry);
+		this.effectRenderer = new EffectRenderer(this.gameContainer, this.assetRegistry);
+		this.lightSourceRenderer = new LightSourceRenderer(this.gameContainer, this.assetRegistry);
+		this.previewRenderer = new PreviewRenderer(this.gameContainer, this.assetRegistry);
 
 		if (WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START) {
 			await this.loadBattleAssets();
@@ -451,16 +478,7 @@ export class GameRenderer {
 		const width = terrainGrid.width;
 		const height = terrainGrid.height;
 
-		if (tileGrid) {
-			if (!this.currentLightGrid || this.currentLightGrid.length !== height) {
-				this.currentLightGrid = Array.from({ length: height }, () => new Array(width).fill(0));
-			}
-			for (let row = 0; row < height; row++)
-				for (let col = 0; col < width; col++)
-					this.currentLightGrid[row][col] = tileGrid.get(row, col);
-		} else {
-			this.currentLightGrid = null;
-		}
+		this.lightSystemActive = engine.state.lightLevelEnabled;
 
 		if (engine.state.gameTick !== this.lastOverlayTick && this.darknessOverlaySprite) {
 			this.lastOverlayTick = engine.state.gameTick;
@@ -472,7 +490,7 @@ export class GameRenderer {
 			const ctx = canvas.getContext('2d')!;
 			for (let row = 0; row < height; row++) {
 				for (let col = 0; col < width; col++) {
-					const level = this.currentLightGrid ? this.currentLightGrid[row][col] : this.globalLightLevel;
+					const level = tileGrid ? tileGrid.get(row, col) : engine.state.globalLightLevel;
 					const alpha = GameRenderer.lightLevelToAlpha(level);
 					if (alpha > 0) {
 						ctx.fillStyle = `rgba(20,0,35,${alpha})`;
@@ -499,12 +517,7 @@ export class GameRenderer {
 
 	/** Light level at grid cell; returns null if light system disabled or out of bounds. */
 	private getLightAt(col: number, row: number): number | null {
-		const grid = this.currentLightGrid;
-		if (!grid) return null;
-		if (row < 0 || row >= grid.length) return null;
-		const r = grid[row];
-		if (!r || col < 0 || col >= r.length) return null;
-		return r[col];
+		return this.currentEngine?.getLightAt(col, row) ?? null;
 	}
 
 	/** Targeting state for preview (range rings, crosshair, selected targets). */
@@ -541,7 +554,7 @@ export class GameRenderer {
 			}
 			this.clearHitFlashes();
 			this.lastOverlayTick = -1;
-			this.currentLightGrid = null;
+			this.lightSystemActive = false;
 		}
 
 		this.targetingState = targetingState ?? null;
@@ -566,7 +579,7 @@ export class GameRenderer {
 				this.lastRenderTime = now;
 			}
 		} else {
-			this.currentLightGrid = null;
+			this.lightSystemActive = false;
 			if (this.darknessOverlaySprite) this.darknessOverlaySprite.visible = false;
 			if (this.fogTintSprite) this.fogTintSprite.visible = false;
 			this.lastRenderTime = 0;
@@ -1283,7 +1296,7 @@ export class GameRenderer {
 		const batch = engine.waitingForOrders;
 		if (!batch) return;
 
-		const previewGr = this.ghostPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics;
+		const previewGr = this.ghostPreviewGraphics as unknown as import('../../abilities/Ability').IAbilityPreviewGraphics;
 
 		for (const entry of engine.pendingOrders) {
 			if (entry.gameTick !== batch.atTick) continue;
@@ -1351,7 +1364,7 @@ export class GameRenderer {
 	}
 
 	private enemyUnitHiddenInFullDarkness(unit: Unit, cellSize: number): boolean {
-		if (!areEnemies(this.localTeamId, unit.teamId) || !this.currentLightGrid) return false;
+		if (!areEnemies(this.localTeamId, unit.teamId) || !this.lightSystemActive) return false;
 		const col = Math.floor(unit.x / cellSize);
 		const row = Math.floor(unit.y / cellSize);
 		const light = this.getLightAt(col, row);
@@ -1463,7 +1476,7 @@ export class GameRenderer {
 		const cellSize = CELL_SIZE;
 		for (const unit of engine.units) {
 			if (!unit.isAlive()) continue;
-			if (areEnemies(this.localTeamId, unit.teamId) && this.currentLightGrid) {
+			if (areEnemies(this.localTeamId, unit.teamId) && this.lightSystemActive) {
 				const col = Math.floor(unit.x / cellSize);
 				const row = Math.floor(unit.y / cellSize);
 				const light = this.getLightAt(col, row);
@@ -1473,7 +1486,7 @@ export class GameRenderer {
 				const ability = getAbility(active.abilityId);
 				if (ability?.renderActivePreview) {
 					ability.renderActivePreview(
-						this.abilityPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics,
+						this.abilityPreviewGraphics as unknown as import('../../abilities/Ability').IAbilityPreviewGraphics,
 						unit,
 						active,
 						engine.gameTime,
@@ -1503,7 +1516,7 @@ export class GameRenderer {
 		}
 
 		this.targetingPreviewGraphics.clear();
-		const gr = this.targetingPreviewGraphics as unknown as import('../abilities/Ability').IAbilityPreviewGraphics;
+		const gr = this.targetingPreviewGraphics as unknown as import('../../abilities/Ability').IAbilityPreviewGraphics;
 
 		// New-style: ability declares per-timing SelectTargetDef entries — auto-derive preview.
 		const selectTargetDefs = getSelectTargetDefsFromTimings(ability);
@@ -1813,6 +1826,16 @@ export class GameRenderer {
 		this.specialTileVisuals.clear();
 		this.terrainRenderer.destroy();
 		this.terrainSprite = null;
+		if (this.initialized) {
+			this.assetRegistry.destroy();
+			this.unitRenderer.destroy();
+			this.overlayRenderer.destroy();
+			this.specialTileRenderer.destroy();
+			this.projectileRenderer.destroy();
+			this.effectRenderer.destroy();
+			this.lightSourceRenderer.destroy();
+			this.previewRenderer.destroy();
+		}
 		this.gameContainer.destroy();
 		this.initInFlight = null;
 		this.app.destroy();

@@ -80,6 +80,12 @@ export interface EngineContext {
      */
     getLightLevelAt(x: number, y: number): number | null;
 
+    /**
+     * Returns the light level at a grid cell (col, row), or null if light is disabled or out of bounds.
+     * Prefer this over getLightLevelAt for renderer tile-index queries (no pixel→grid conversion needed).
+     */
+    getLightAt(col: number, row: number): number | null;
+
     /** When implemented (full engine), allocates unique ids for new gameplay objects for this battle instance. */
     allocateObjectId?(prefix?: string): string;
 

@@ -1,5 +1,18 @@
 # TODO
 
+## GameRenderer refactor
+
+| Todo | Notes |
+|------|-------|
+| Implement `AssetRegistry` | Migrate all texture fields and `loadBattleAssets()` out of `GameRenderer` into `AssetRegistry.ts`; update `GameRenderer` to use it. See `game/GameRenderer/AssetRegistry.ts` |
+| Implement `UnitRenderer` | Migrate `renderUnits`, `renderConstructionGhosts`, and hit-flash logic (`onDamageTaken`, `startHitFlash`, `clearHitFlashes`, `syncAllUnitCharacterSprites`); owns `unitVisuals`, `knockbackShadowVisuals`, `constructionGhostVisuals`, hit-flash state. See `game/GameRenderer/renderers/UnitRenderer.ts` |
+| Implement `OverlayRenderer` | Migrate `updateDarknessOverlay`, `renderCrystalAura`, `renderDarkCrystalAura`, fog filter lifecycle, and `lightLevelToAlpha`; owns `darknessOverlaySprite`, `fogTintSprite`, `fogFilter`, `crystalAuraGraphics`. See `game/GameRenderer/renderers/OverlayRenderer.ts` |
+| Implement `SpecialTileRenderer` | Migrate `renderSpecialTiles` and `createSpecialTileVisual`; owns `specialTilesContainer` and `specialTileVisuals` map. See `game/GameRenderer/renderers/SpecialTileRenderer.ts` |
+| Implement `ProjectileRenderer` | Migrate `renderProjectiles`; owns `projectileVisuals` map. See `game/GameRenderer/renderers/ProjectileRenderer.ts` |
+| Implement `EffectRenderer` | Migrate `renderEffects` and `syncParticleEffect`; owns `effectVisuals`, `particleEffects`, and `ParticleContainer`. See `game/GameRenderer/renderers/EffectRenderer.ts` |
+| Implement `LightSourceRenderer` | Migrate `renderLightSources`; owns `lightSourceVisuals` map. See `game/GameRenderer/renderers/LightSourceRenderer.ts` |
+| Implement `PreviewRenderer` | Migrate `renderMoveTargets`, `renderGhostPreviews`, `renderActiveAbilityPreviews`, `renderTargetingPreview`, and path-drawing helpers; owns `moveTargetVisuals`, `abilityPreviewGraphics`, `targetingPreviewGraphics`, `ghostPreviewGraphics`. See `game/GameRenderer/renderers/PreviewRenderer.ts` |
+
 ## Uncategorised
 
 | Todo | Notes |
