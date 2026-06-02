@@ -115,10 +115,11 @@ export function processLanterniteNests(params: {
         }
 
         const parentCfg = parentNest?.lanterniteNestConfig;
+        const nestPos = unit.lanternPatrolFarWorld ?? { x: unit.x, y: unit.y };
         const newNestCfg: LanterniteNestMissionConfig = {
             maxLanternites: parentCfg?.maxLanternites ?? 3,
             spawnIntervalSec: parentCfg?.spawnIntervalSec ?? 14,
-            patrolDestination: { kind: 'world', x: unit.x, y: unit.y },
+            patrolDestination: { kind: 'world', x: nestPos.x, y: nestPos.y },
             networked: true,
             nestPoiId: unit.lanterniteTargetNestPoiId ?? undefined,
             scoutConstructionSec: parentCfg?.scoutConstructionSec ?? 10,
@@ -126,8 +127,8 @@ export function processLanterniteNests(params: {
 
         const newNest = createUnitFromSpawnConfig(
             {
-                x: unit.x,
-                y: unit.y,
+                x: nestPos.x,
+                y: nestPos.y,
                 teamId: 'allied' as const,
                 ownerId: 'ai',
                 characterId: LANTERNITE_NEST_CHARACTER_ID,

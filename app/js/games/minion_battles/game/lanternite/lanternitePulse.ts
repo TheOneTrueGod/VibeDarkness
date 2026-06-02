@@ -79,10 +79,7 @@ export function upsertNestLightSource(args: {
 }): void {
     const nestLightId = `lantern_nest_${args.nest.id}`;
     for (const ls of args.lightSources) {
-        if (ls.id === nestLightId) {
-            ls.active = true;
-            return;
-        }
+        if (ls.id === nestLightId) ls.active = false;
     }
     args.addLightSource(
         new LightSource({

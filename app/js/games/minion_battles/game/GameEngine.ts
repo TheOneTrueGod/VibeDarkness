@@ -1421,6 +1421,7 @@ export class GameEngine implements EngineContext {
             bramblePatches: this.state.bramblePatches.map(bramblePatchToJSON),
             lightTileGrid: this.state.lightTileGrid?.toJSON() ?? null,
             nextObjectId: this.objectIdSeq,
+            mapPOIs: this.mapPOIs,
         };
     }
 
@@ -1529,6 +1530,9 @@ export class GameEngine implements EngineContext {
 
         // Restore light tile grid
         engine.state.lightTileGrid = data.lightTileGrid ? LightTileGrid.fromJSON(data.lightTileGrid) : null;
+
+        // Restore map POIs (needed for networked lanternite nest spawning)
+        engine.registerMapPOIs((data.mapPOIs ?? []) as import('../terrain/segmentSchema').MapSegmentPOI[]);
 
         // Restore bramble patches
         engine.state.bramblePatches = (data.bramblePatches ?? []).map(

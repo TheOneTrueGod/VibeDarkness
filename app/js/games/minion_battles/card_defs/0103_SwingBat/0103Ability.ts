@@ -34,7 +34,7 @@ import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext'
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
 
-const BASE_MAX_RANGE = 56;
+const BASE_MAX_RANGE = 25;
 const DAMAGE = 10;
 const SWING_BAT_EFFECT_DURATION = 0.4;
 const STUN_DURATION = 1.0;

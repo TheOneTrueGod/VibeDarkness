@@ -1,6 +1,44 @@
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 
+/**
+ * BFS from a grid cell to find the nearest cell whose center is passable.
+ * Returns grid coords of the nearest passable cell, or null if none found.
+ */
+export function findNearestPassableCell(
+    grid: TerrainGrid,
+    col: number,
+    row: number,
+): { col: number; row: number } | null {
+    const W = grid.width;
+    const H = grid.height;
+    const clampedCol = Math.max(0, Math.min(W - 1, col));
+    const clampedRow = Math.max(0, Math.min(H - 1, row));
+
+    const visited = new Set<number>();
+    const queue: { col: number; row: number }[] = [{ col: clampedCol, row: clampedRow }];
+    visited.add(clampedRow * W + clampedCol);
+
+    while (queue.length > 0) {
+        const current = queue.shift()!;
+        const cx = current.col * grid.cellSize + grid.cellSize / 2;
+        const cy = current.row * grid.cellSize + grid.cellSize / 2;
+        if (grid.isPassable(cx, cy)) {
+            return current;
+        }
+        for (const [dc, dr] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+            const nc = current.col + dc;
+            const nr = current.row + dr;
+            const key = nr * W + nc;
+            if (!visited.has(key) && nc >= 0 && nc < W && nr >= 0 && nr < H) {
+                visited.add(key);
+                queue.push({ col: nc, row: nr });
+            }
+        }
+    }
+    return null;
+}
+
 type PassableFn = (x: number, y: number) => boolean;
 
 interface ForceMoveOptions {

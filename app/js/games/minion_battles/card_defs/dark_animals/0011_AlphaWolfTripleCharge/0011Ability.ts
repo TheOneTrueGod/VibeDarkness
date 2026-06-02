@@ -22,10 +22,10 @@ import { UnitTag } from '../../../game/units/unitTag';
 const ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}11`;
 
 // First windup is slow (telegraphs intent); the two follow-up windups are fast (quick combos).
-const WINDUP1_TIME = 0.8;
-const WINDUP23_TIME = 0.25;
-const LUNGE_DURATION = 0.2;
-const COOLDOWN_DURATION = 3.0;
+const WINDUP1_TIME = 1.2;
+const WINDUP23_TIME = 0.5;
+const LUNGE_DURATION = 0.3;
+const COOLDOWN_DURATION = 2.0;
 const MAX_RANGE = 120;
 const CAPSULE_RADIUS_MULTIPLIER = 2.0;
 const DAMAGE = 5;

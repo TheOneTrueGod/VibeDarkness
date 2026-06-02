@@ -15,6 +15,7 @@ import wolfHeadIcon from '../../assets/characters/dark_animals/wolf-head.svg';
 import wolfHowlIcon from '../../assets/characters/dark_animals/wolf-howl.svg';
 import boarIcon from '../../assets/characters/dark_animals/boar.svg';
 import {
+    AbilityPhase,
     buildPrimaryTimelineSegments,
     computeVisiblePrimarySegments,
     getEnemyActionWindowFromIntervals,
@@ -120,16 +121,24 @@ function intervalsForAbility(ability: AbilityStatic, unit?: Unit, engine?: GameE
     return normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
 }
 
-function enemyActionWindowForAbility(
+function enemyWindowsForAbility(
     ability: AbilityStatic,
     unit?: Unit,
     engine?: GameEngine,
 ): {
     actionStart: number;
     actionEnd: number;
+    cooldownStart: number | null;
+    cooldownEnd: number | null;
 } {
     const intervals = intervalsForAbility(ability, unit, engine);
-    return getEnemyActionWindowFromIntervals(intervals) ?? { actionStart: 0, actionEnd: 0 };
+    const action = getEnemyActionWindowFromIntervals(intervals) ?? { actionStart: 0, actionEnd: 0 };
+    const cdInterval = intervals.find((it) => it.abilityPhase === AbilityPhase.Cooldown);
+    return {
+        ...action,
+        cooldownStart: cdInterval?.start ?? null,
+        cooldownEnd: cdInterval?.end ?? null,
+    };
 }
 
 type BattleTimelineLayout = 'strip' | 'rail';
@@ -236,6 +245,8 @@ function renderEnemyTimelineTrack(
         ability: AbilityStatic;
         startFromNow: number;
         endFromNow: number;
+        cooldownStartFromNow: number | null;
+        cooldownEndFromNow: number | null;
     }[],
     exposedMarkers: { unit: Unit; endFromNow: number }[],
     setHover: (next: TimelinePanelHover) => void,
@@ -284,6 +295,20 @@ function renderEnemyTimelineTrack(
                     const duration = marker.endFromNow - marker.startFromNow;
                     const widthPercent = (duration / windowSeconds) * 100;
                     const endPercent = (marker.endFromNow / windowSeconds) * 100;
+                    const showAction = marker.endFromNow > 0 && widthPercent > 0;
+
+                    let cdStartPct: number | null = null;
+                    let cdWidthPct: number | null = null;
+                    let cdEndPct: number | null = null;
+                    if (marker.cooldownStartFromNow !== null && marker.cooldownEndFromNow !== null && marker.cooldownEndFromNow > 0) {
+                        const cdStart = Math.max(0, marker.cooldownStartFromNow);
+                        const cdEnd = Math.min(windowSeconds, marker.cooldownEndFromNow);
+                        if (cdEnd > cdStart) {
+                            cdStartPct = (cdStart / windowSeconds) * 100;
+                            cdWidthPct = ((cdEnd - cdStart) / windowSeconds) * 100;
+                            cdEndPct = (cdEnd / windowSeconds) * 100;
+                        }
+                    }
 
                     const iconUrl = ENEMY_CHARACTER_ICONS[marker.unit.characterId];
                     const markerDark = isDarkCreatureCharacterId(marker.unit.characterId);
@@ -299,39 +324,51 @@ function renderEnemyTimelineTrack(
                         });
                     };
 
+                    const iconLeft = showAction
+                        ? `clamp(8px, ${endPercent}%, calc(100% - 8px))`
+                        : cdEndPct !== null
+                          ? `clamp(8px, ${cdEndPct}%, calc(100% - 8px))`
+                          : null;
+                    const iconBg = showAction ? 'bg-red-600' : 'bg-gray-600';
+
                     return (
                         <React.Fragment key={`${marker.unit.id}-${idx}`}>
-                            <div
-                                className="absolute top-1/2 z-20 flex -translate-y-1/2 cursor-default items-center"
-                                style={{
-                                    left: `${startPercent}%`,
-                                    width: `${widthPercent}%`,
-                                    minWidth: 4,
-                                    height: 28,
-                                }}
-                                onPointerEnter={onMarkerEnter}
-                            >
-                                <div className="h-[4px] w-full rounded-full bg-red-600" />
-                            </div>
-                            <div
-                                className="absolute top-1/2 z-30 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-default items-center justify-center overflow-hidden rounded-sm border border-black bg-red-600"
-                                style={{
-                                    left: `clamp(8px, ${endPercent}%, calc(100% - 8px))`,
-                                }}
-                                title={marker.unit.name || 'Enemy'}
-                                onPointerEnter={onMarkerEnter}
-                            >
-                                {iconUrl ? (
-                                    <span className="relative block h-full w-full">
-                                        <img src={iconUrl} alt="" className="h-full w-full object-contain" />
-                                        {markerDark ? (
-                                            <span className="pointer-events-none absolute inset-0 mix-blend-multiply bg-[#9966cc]/20" />
-                                        ) : null}
-                                    </span>
-                                ) : (
-                                    <span className="text-[10px] font-bold text-white">{nameInitial}</span>
-                                )}
-                            </div>
+                            {cdStartPct !== null && cdWidthPct !== null && (
+                                <div
+                                    className="pointer-events-none absolute top-1/2 z-20 flex -translate-y-1/2 items-center"
+                                    style={{ left: `${cdStartPct}%`, width: `${cdWidthPct}%`, minWidth: 4, height: 28 }}
+                                >
+                                    <div className="h-[2px] w-full rounded-full bg-gray-500" />
+                                </div>
+                            )}
+                            {showAction && (
+                                <div
+                                    className="absolute top-1/2 z-20 flex -translate-y-1/2 cursor-default items-center"
+                                    style={{ left: `${startPercent}%`, width: `${widthPercent}%`, minWidth: 4, height: 28 }}
+                                    onPointerEnter={onMarkerEnter}
+                                >
+                                    <div className="h-[4px] w-full rounded-full bg-red-600" />
+                                </div>
+                            )}
+                            {iconLeft !== null && (
+                                <div
+                                    className={`absolute top-1/2 z-30 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-default items-center justify-center overflow-hidden rounded-sm border border-black ${iconBg}`}
+                                    style={{ left: iconLeft }}
+                                    title={marker.unit.name || 'Enemy'}
+                                    onPointerEnter={onMarkerEnter}
+                                >
+                                    {iconUrl ? (
+                                        <span className="relative block h-full w-full">
+                                            <img src={iconUrl} alt="" className="h-full w-full object-contain" />
+                                            {markerDark ? (
+                                                <span className="pointer-events-none absolute inset-0 mix-blend-multiply bg-[#9966cc]/20" />
+                                            ) : null}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] font-bold text-white">{nameInitial}</span>
+                                    )}
+                                </div>
+                            )}
                         </React.Fragment>
                     );
                 })}
@@ -348,6 +385,8 @@ function collectEnemyMarkers(
     ability: AbilityStatic;
     startFromNow: number;
     endFromNow: number;
+    cooldownStartFromNow: number | null;
+    cooldownEndFromNow: number | null;
 }[] {
     const now = engine.gameTime;
     const markers: {
@@ -355,6 +394,8 @@ function collectEnemyMarkers(
         ability: AbilityStatic;
         startFromNow: number;
         endFromNow: number;
+        cooldownStartFromNow: number | null;
+        cooldownEndFromNow: number | null;
     }[] = [];
 
     for (const unit of engine.units) {
@@ -362,21 +403,26 @@ function collectEnemyMarkers(
         for (const active of unit.activeAbilities) {
             const ability = getAbility(active.abilityId);
             if (!ability) continue;
-            const { actionStart, actionEnd } = enemyActionWindowForAbility(ability, unit, engine);
+            const { actionStart, actionEnd, cooldownStart, cooldownEnd } = enemyWindowsForAbility(ability, unit, engine);
             if (actionEnd <= actionStart) continue;
             const elapsed = now - active.startTime;
             const startFromNow = actionStart - elapsed;
             const endFromNow = actionEnd - elapsed;
+            const cooldownStartFromNow = cooldownStart !== null ? cooldownStart - elapsed : null;
+            const cooldownEndFromNow = cooldownEnd !== null ? cooldownEnd - elapsed : null;
 
-            if (endFromNow <= 0 || startFromNow >= windowSeconds) {
-                continue;
-            }
+            const actionVisible = endFromNow > 0 && startFromNow < windowSeconds;
+            const cooldownVisible = cooldownEndFromNow !== null && cooldownEndFromNow > 0 &&
+                (cooldownStartFromNow ?? 0) < windowSeconds;
+            if (!actionVisible && !cooldownVisible) continue;
 
             markers.push({
                 unit,
                 ability,
                 startFromNow: Math.max(0, startFromNow),
                 endFromNow: Math.min(windowSeconds, endFromNow),
+                cooldownStartFromNow,
+                cooldownEndFromNow,
             });
         }
     }

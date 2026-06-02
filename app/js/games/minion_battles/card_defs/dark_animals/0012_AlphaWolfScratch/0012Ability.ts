@@ -94,6 +94,7 @@ export const AlphaWolfScratchAbility: AbilityStatic = {
     },
 
     beginActiveCast(_engine: unknown, _caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
+        console.log('[Scratch] beginActiveCast', _caster.id, targets);
         const t = targets[0];
         if (t?.type === 'unit' && t.unitId) {
             const eng = _engine as { getUnit(id: string): Unit | undefined };

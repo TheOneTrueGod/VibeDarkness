@@ -21,7 +21,7 @@ import type {
 } from '../../types';
 import type { MapSegmentPOI } from '../../../terrain/segmentSchema';
 import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
-import { ALLY_LANTERNITE, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
+import { ALLY_LANTERNITE } from '../../../constants/enemyConstants';
 import { UnitTag } from '../../../game/units/unitTag';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
@@ -100,8 +100,6 @@ const MISSION_POIS: MapSegmentPOI[] = [
 // These lanternites head south through the cave exit to build the first nest.
 // ---------------------------------------------------------------------------
 const SCOUT_A_WORLD = gridToWorld(CAVE_ORIGIN_COL + 9, 9);   // global (31, 15)
-const SCOUT_B_WORLD = gridToWorld(CAVE_ORIGIN_COL + 10, 10);  // global (32, 16)
-const SCOUT_C_WORLD = gridToWorld(CAVE_ORIGIN_COL + 8, 11);   // global (31, 17)
 
 function buildScout(position: { x: number; y: number }) {
 	return {
@@ -158,24 +156,25 @@ export class EmberThresholdMission extends BaseMissionDef {
 			id: 'follow_lanternites',
 			label: 'Find out what the creatures want',
 			toComplete: { type: 'aliveUnitCount', characterId: 'lanternite_nest', minCount: 2 },
+			onComplete: [{ type: 'revealObjective', id: 'survive_2_rounds' }],
 			showObjectiveMarker: {
 				enable: true,
 				target: { type: 'position', x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y },
 				showOffscreen: true,
 			},
 		},
+		{
+			id: 'survive_2_rounds',
+			label: 'Survive for 2 more rounds',
+			revealedInitially: false,
+			requiresCompletedId: 'follow_lanternites',
+			toComplete: { type: 'atLeastRound', round: 6 },
+		},
 	];
 
 	enemies = [
 		// One lanternite scout emerges from the cave heading south to build the first nest.
 		buildScout(SCOUT_A_WORLD),
-
-		// Thornbinder guardian — stands in the south-gate corridor between the scouts and their target.
-		// TODO: replace with the thorncaster unit once it is created.
-		{
-			...ENEMY_THORNBINDER,
-			position: gridToWorld(CAVE_ORIGIN_COL + 8, SEG_ROW_51_ORIGIN + 5), // global (30, 27)
-		},
 	];
 
 	levelEvents: LevelEvent[] = [
@@ -190,6 +189,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 					spawnBehaviour: 'anywhere',
 					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
 					spawnCount: 2,
+					unitAITreeId: 'hunt',
 				},
 			],
 		},
@@ -203,6 +203,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 					spawnBehaviour: 'anywhere',
 					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
 					spawnCount: 1,
+					unitAITreeId: 'hunt',
 				},
 			],
 		},
@@ -216,13 +217,29 @@ export class EmberThresholdMission extends BaseMissionDef {
 					spawnBehaviour: 'anywhere',
 					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
 					spawnCount: 1,
+					unitAITreeId: 'hunt',
 				},
 			],
 		},
-		// Victory: both nests established.
+		// Survive phase: 3 wolves surge from the darkness when the nests are established.
+		{
+			type: 'spawnWave',
+			trigger: { atRound: 4 },
+			spawns: [
+				{
+					characterId: 'dark_wolf',
+					name: 'Wolf',
+					spawnBehaviour: 'closest',
+					closestConfig: { inDarkness: true },
+					spawnCount: 3,
+					unitAITreeId: 'hunt',
+				},
+			],
+		},
+		// Victory: both nests still alive after surviving the surge.
 		{
 			type: 'victoryCheck',
-			trigger: { afterRound: 0 },
+			trigger: { afterRound: 6 },
 			conditions: [{ type: 'aliveUnitCount', characterId: 'lanternite_nest', minCount: 2 }],
 		},
 	];

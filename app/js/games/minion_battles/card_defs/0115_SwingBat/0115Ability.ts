@@ -41,7 +41,7 @@ import { getApproxIntegerIncrease, DescriptiveValue } from '../../../../research
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}15`;
 const BASE_MIN_RANGE = 0;
-const BASE_MAX_RANGE = 56;
+const BASE_MAX_RANGE = 25;
 const BASE_DAMAGE = 10;
 const DAMAGE_RESEARCH_BONUS = getApproxIntegerIncrease(BASE_DAMAGE, DescriptiveValue.Medium);
 const SWING_BAT_EFFECT_DURATION = 0.4;

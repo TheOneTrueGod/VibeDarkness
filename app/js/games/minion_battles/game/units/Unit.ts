@@ -33,7 +33,7 @@ import { buffFromJSON } from '../../buffs/buffRegistry';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import type { TerrainGrid } from '../../terrain/TerrainGrid';
-import { computeForcedDisplacement } from '../forceMove';
+import { computeForcedDisplacement, findNearestPassableCell } from '../forceMove';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
@@ -255,6 +255,9 @@ export class Unit extends GameObject {
 
     /** Active knockback state; unit cannot move while set. */
     knockback: KnockbackState | null = null;
+
+    /** Seconds this unit has spent inside an impassable tile (not serialized; resets on load). */
+    wallStuckTime: number = 0;
 
     /** Active buffs/debuffs on this unit. Serialized for checkpoints. */
     buffs: Buff[] = [];
@@ -639,6 +642,12 @@ export class Unit extends GameObject {
             return;
         }
 
+        // Wall recovery: nudge/snap stuck units out of impassable terrain (runs before stun check so
+        // stunned units can still recover from a wall they were diagonal-clipped into).
+        if (grid && this.isAlive()) {
+            this.tickWallUnstick(dt, grid, gameTime);
+        }
+
         // Stunned/exposed units must not advance along a movement path (canAct already blocks new orders).
         if (this.hasBuff('stunned') || this.hasBuff('exposed')) {
             return;
@@ -761,6 +770,47 @@ export class Unit extends GameObject {
 
         if (k.knockbackElapsed >= totalTime) {
             this.knockback = null;
+        }
+    }
+
+    /** Seconds a unit must spend in a wall before being snapped to the nearest passable cell. */
+    private static readonly WALL_SNAP_DELAY = 0.1;
+
+    /**
+     * If the unit is inside an impassable tile, nudge it toward the nearest passable cell each tick.
+     * After WALL_SNAP_DELAY seconds of continuous wall contact, snap directly to that cell's center.
+     */
+    private tickWallUnstick(dt: number, grid: TerrainGrid, gameTime: number): void {
+        if (grid.isPassable(this.x, this.y)) {
+            this.wallStuckTime = 0;
+            return;
+        }
+
+        this.wallStuckTime += dt;
+
+        const col = Math.floor(this.x / CELL_SIZE);
+        const row = Math.floor(this.y / CELL_SIZE);
+        const nearest = findNearestPassableCell(grid, col, row);
+        if (!nearest) return;
+
+        const targetX = nearest.col * CELL_SIZE + CELL_SIZE / 2;
+        const targetY = nearest.row * CELL_SIZE + CELL_SIZE / 2;
+
+        if (this.wallStuckTime >= Unit.WALL_SNAP_DELAY) {
+            this.x = targetX;
+            this.y = targetY;
+            this.wallStuckTime = 0;
+            return;
+        }
+
+        // Option B: nudge toward the exit at normal movement speed
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0) {
+            const step = this.getEffectiveSpeed(gameTime) * dt;
+            this.x += (dx / dist) * Math.min(step, dist);
+            this.y += (dy / dist) * Math.min(step, dist);
         }
     }
 

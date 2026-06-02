@@ -69,10 +69,10 @@ const wolvesNorthPath = [
 ];
 
 const ENEMIES = [
-	{ ...ENEMY_DARK_WOLF, position: wolvesOutsideCave[0]! },
-	{ ...ENEMY_DARK_WOLF, position: wolvesOutsideCave[3]! },
-	{ ...ENEMY_DARK_WOLF, position: wolvesNorthPath[0]! },
-	{ ...ENEMY_DARK_WOLF, position: wolvesNorthPath[1]! },
+	{ ...ENEMY_DARK_WOLF, position: wolvesOutsideCave[0]!, unitAITreeId: 'hunt' },
+	{ ...ENEMY_DARK_WOLF, position: wolvesOutsideCave[3]!, unitAITreeId: 'hunt' },
+	{ ...ENEMY_DARK_WOLF, position: wolvesNorthPath[0]!, unitAITreeId: 'hunt' },
+	{ ...ENEMY_DARK_WOLF, position: wolvesNorthPath[1]!, unitAITreeId: 'hunt' },
 	{
 		...ENEMY_RANGED,
 		name: 'Slime',
@@ -80,6 +80,7 @@ const ENEMIES = [
 			cliffPathPOI.north_path.col + 1,
 			cliffPathPOI.north_path.row + MIDDLE_OFFSET_ROW + 1,
 		),
+		unitAITreeId: 'hunt',
 	},
 	{
 		...ENEMY_BOAR,
@@ -89,6 +90,7 @@ const ENEMIES = [
 			cliffPathPOI.cave_center.row + MIDDLE_OFFSET_ROW,
 		),
 		unitTags: [UnitTag.Boar],
+		unitAITreeId: 'hunt',
 	},
 ];
 
@@ -97,7 +99,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
 		type: 'continuousSpawn',
 		trigger: { intervalRounds: 1, startRound: 1 },
 		maxUnits: 6,
-		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1 }],
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
 	},
 	{
 		type: 'continuousSpawn',

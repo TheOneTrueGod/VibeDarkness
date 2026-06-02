@@ -135,6 +135,8 @@ export interface SerializedGameState {
     lightTileGrid?: { w: number; h: number; q: number[][] } | null;
     /** Active bramble slow zones. */
     bramblePatches?: Record<string, unknown>[];
+    /** Map POIs (nest sites, etc.) used for networked lanternite spawning. */
+    mapPOIs?: import('../terrain/segmentSchema').MapSegmentPOI[];
     /** Serialized effect emitters (runtime-only factories not included; short-lived, safe to drop on reconnect). */
     effectEmitters?: Record<string, unknown>[];
     /** Value of the global generateGameObjectId counter at snapshot time. Restored on load so replayed effects/projectiles get identical IDs. */

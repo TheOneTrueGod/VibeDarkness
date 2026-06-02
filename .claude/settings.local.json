@@ -65,7 +65,8 @@
       "PowerShell(node scripts/desyncDebug-getOrders.js --lobby 782EC9 --from 474 --to 482 --file log --keyword replayOrdersSince 2>&1)",
       "PowerShell(node scripts/desyncDebug-getOrders.js --lobby 782EC9 --from 474 --to 482 --file log --keyword \"order queue:\" 2>&1)",
       "PowerShell(node scripts/desyncDebug-getOrders.js --lobby 782EC9 --from 474 --to 520 --file log --keyword \"d2d66d97\" 2>&1)",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\app\\\\js\\\\games\\\\minion_battles\\\\game\\\\lanternite\" -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness"

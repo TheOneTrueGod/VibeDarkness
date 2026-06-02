@@ -150,6 +150,12 @@ export class ObjectiveManager {
         if (cond.type === 'atLeastRound') {
             return this.ctx.roundNumber >= cond.round;
         }
+        if (cond.type === 'aliveUnitCount') {
+            const count = this.ctx.units.filter(
+                (u) => u.isAlive() && u.characterId === cond.characterId,
+            ).length;
+            return count >= cond.minCount;
+        }
         return false;
     }
 
