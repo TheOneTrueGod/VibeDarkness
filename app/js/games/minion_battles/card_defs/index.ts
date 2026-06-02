@@ -6,7 +6,6 @@ import { ThrowKnifeCard } from './0109_ThrowKnife/0109Ability';
 import { DodgeCard } from './0101_Dodge/0101Ability';
 import { EnemyArcherShotCard } from './0001_EnemyArcherShot/0001Ability';
 import { EnemyMeleeAttackCard } from './0002_EnemyMeleeAttack/0002Ability';
-import { PunchCard } from './0102_Punch/0102Ability';
 import { DoublePunchCard } from './0116_DoublePunch/0116Card';
 import { StrongPunchCard } from './0117_StrongPunch/0117Ability';
 import { SneakyPunchCard } from './0118_SneakyPunch/0118Ability';
@@ -56,7 +55,6 @@ const cardDefs: CardDef[] = [
     DodgeCard,
     EnemyArcherShotCard,
     EnemyMeleeAttackCard,
-    PunchCard,
     DoublePunchCard,
     StrongPunchCard,
     SneakyPunchCard,

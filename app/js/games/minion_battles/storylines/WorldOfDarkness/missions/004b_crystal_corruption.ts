@@ -49,12 +49,12 @@ function pathCell(col: number, row: number): { x: number; y: number } {
 }
 
 const INITIAL_ENEMIES = [
-    { ...ENEMY_DARK_WOLF, position: pathCell(5, 8) },
-    { ...ENEMY_DARK_WOLF, position: pathCell(8, 8) },
-    { ...ENEMY_DARK_WOLF, position: pathCell(3, 9) },
-    { ...ENEMY_SWARMLING, position: pathCell(3, 10) },
-    { ...ENEMY_SWARMLING, position: pathCell(6, 11) },
-    { ...ENEMY_RANGED, position: pathCell(5, 12) },
+    { ...ENEMY_DARK_WOLF, position: pathCell(5, 8), unitAITreeId: 'hunt' },
+    { ...ENEMY_DARK_WOLF, position: pathCell(8, 8), unitAITreeId: 'hunt' },
+    { ...ENEMY_DARK_WOLF, position: pathCell(3, 9), unitAITreeId: 'hunt' },
+    { ...ENEMY_SWARMLING, position: pathCell(3, 10), unitAITreeId: 'hunt' },
+    { ...ENEMY_SWARMLING, position: pathCell(6, 11), unitAITreeId: 'hunt' },
+    { ...ENEMY_RANGED, position: pathCell(5, 12), unitAITreeId: 'hunt' },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
@@ -63,15 +63,15 @@ const LEVEL_EVENTS: LevelEvent[] = [
         type: 'continuousSpawn',
         trigger: { intervalRounds: 0.5, startRound: 1, endRound: 6 },
         spawns: [
-            { characterId: 'dark_wolf', spawnBehaviour: 'edgeOfMap', spawnCount: 2 },
-            { characterId: 'swarmling', spawnBehaviour: 'edgeOfMap', spawnCount: 2 },
+            { characterId: 'dark_wolf', spawnBehaviour: 'edgeOfMap', spawnCount: 2, unitAITreeId: 'hunt' },
+            { characterId: 'swarmling', spawnBehaviour: 'edgeOfMap', spawnCount: 2, unitAITreeId: 'hunt' },
         ],
     },
     // --- Periodic slime waves every 0.5 rounds ---
     {
         type: 'continuousSpawn',
         trigger: { intervalRounds: 1, startRound: 1, endRound: 6 },
-        spawns: [{ characterId: 'enemy_ranged', spawnBehaviour: 'edgeOfMap', spawnCount: 1 }],
+        spawns: [{ characterId: 'enemy_ranged', spawnBehaviour: 'edgeOfMap', spawnCount: 1, unitAITreeId: 'hunt' }],
     },
     // --- Crystal conversions: one per round ---
     {

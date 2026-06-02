@@ -14,7 +14,6 @@ import {
     exposedDurationExtensionScenario,
 } from './general/enemies';
 import {
-    punchBaselineScenario,
     punchChargingScenario,
     punchDoubleScenario,
     punchNEWBaselineScenario,
@@ -68,7 +67,6 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathAroundRockScenario,
     pathShortCommuteScenario,
     swingSwordAppliesBleedScenario,
-    punchBaselineScenario,
     punchStrongScenario,
     punchDoubleScenario,
     punchSneakyScenario,
@@ -132,7 +130,7 @@ export interface AbilityTreeSidebarGroup {
 }
 
 const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
-    { treeId: 'training',      label: 'Training',      selectorKey: 'tree:training',      abilityIds: ['0102'] },
+    { treeId: 'training',      label: 'Training',      selectorKey: 'tree:training',      abilityIds: ['0116', '0117', '0118', '0119'] },
     { treeId: 'crystal_rocks', label: 'Rocks',          selectorKey: 'tree:crystal_rocks', abilityIds: ['throw_rock'] },
     { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112', '0105', '0115'] },
     { treeId: 'tech_shield',   label: 'Tech Shield',    selectorKey: 'tree:tech_shield',   abilityIds: ['0104', '0110', '0113'] },
@@ -192,7 +190,11 @@ export function isRegisteredGeneralGroupSelectorKey(key: string): boolean {
 export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | null {
     if (scenario.category !== 'ability') return null;
     const id = scenario.id;
-    if (id.startsWith('punch_')) return '0102';
+    if (id === 'punch_research_strong') return '0117';
+    if (id === 'punch_research_double' || id === 'double_punch_two_targets') return '0116';
+    if (id === 'punch_research_sneaky') return '0118';
+    if (id === 'punch_research_charging') return '0119';
+    if (id === 'punch_new_baseline' || id.startsWith('bash_')) return '0120';
     if (id.startsWith('throw_rock') || id.includes('throw_rock')) return 'throw_rock';
     if (id.startsWith('laser_sword')) return '0105';
     if (id.startsWith('swing_sword') || id.includes('buff_swing')) return '0112';

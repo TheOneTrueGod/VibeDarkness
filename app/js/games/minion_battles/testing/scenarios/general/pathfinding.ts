@@ -45,7 +45,7 @@ export const pathStraightMoveScenario: ScenarioDefinition = {
             playerId: TINY_BATTLE_PLAYER_ID,
             x,
             y,
-            abilities: ['0102'],
+            abilities: ['0120'],
         });
         configurePathTestPlayer(engine);
         return engine;
@@ -97,7 +97,7 @@ export const pathAroundRockScenario: ScenarioDefinition = {
             playerId: TINY_BATTLE_PLAYER_ID,
             x,
             y,
-            abilities: ['0102'],
+            abilities: ['0120'],
         });
         configurePathTestPlayer(engine);
         return engine;
@@ -142,7 +142,7 @@ export const pathShortCommuteScenario: ScenarioDefinition = {
             playerId: TINY_BATTLE_PLAYER_ID,
             x,
             y,
-            abilities: ['0102'],
+            abilities: ['0120'],
         });
         configurePathTestPlayer(engine);
         return engine;

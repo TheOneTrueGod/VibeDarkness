@@ -49,7 +49,7 @@ describe('Coop cooldown teamwork pause', () => {
             characterId: 'player',
             portraitId: 'warrior',
             name: 'P1',
-            abilities: ['0102'],
+            abilities: ['0120'],
         });
         const unitP2 = new Unit({
             id: 'unit_p2',
@@ -74,7 +74,7 @@ describe('Coop cooldown teamwork pause', () => {
         engine.gameTime = 20;
         unitP1.activeAbilities = [
             {
-                abilityId: '0102',
+                abilityId: '0120',
                 startTime: engine.gameTime - 1.0,
                 targets: [{ type: 'pixel', position: { x: unitP1.x + 40, y: unitP1.y } }],
             },

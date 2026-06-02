@@ -45,7 +45,7 @@ function buildAbsorptionShieldEngine() {
             y: ATTACKER_POS.y,
             teamId: 'enemy',
             ownerId: 'ai',
-            abilities: ['0102'],
+            abilities: ['0120'],
         },
         engine.eventBus,
     );
@@ -79,7 +79,7 @@ export const absorptionShieldEnergyChargeScenario: ScenarioDefinition = {
             // Attacker punches â€” blocked by the shield, triggering the 3rd energy charge
             {
                 unitId: attacker.id,
-                abilityId: '0102',
+                abilityId: '0120',
                 targets: [{ type: 'pixel' as const, position: PLAYER_POS }],
             },
         ];

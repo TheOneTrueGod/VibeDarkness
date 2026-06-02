@@ -415,7 +415,7 @@ export const earthCoreImpactConversionScenario: ScenarioDefinition = {
                 y: PLAYER_POS.y,
                 teamId: 'enemy',
                 ownerId: 'ai',
-                abilities: ['0102'],
+                abilities: ['0120'],
             },
             engine.eventBus,
             engine,
@@ -427,7 +427,7 @@ export const earthCoreImpactConversionScenario: ScenarioDefinition = {
     },
     getInitialOrders(engine) {
         const attacker = engine.getUnit('attacker')!;
-        return [{ unitId: attacker.id, abilityId: '0102', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] }];
+        return [{ unitId: attacker.id, abilityId: '0120', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] }];
     },
     assertPass(e) {
         const player = e.getLocalPlayerUnit();

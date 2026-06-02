@@ -42,23 +42,6 @@ function punchOrder(engine: GameEngine, abilityId: string, extraPixel?: { x: num
     return [{ unitId: u.id, abilityId, targets }];
 }
 
-export const punchBaselineScenario: ScenarioDefinition = {
-    id: 'punch_research_baseline',
-    title: 'Punch (0102) damages dummy',
-    category: 'ability',
-    maxDurationMs: 5000,
-    buildEngine: () => buildPunchEngine('0102'),
-    getInitialOrders: (e) => punchOrder(e, '0102'),
-    assertPass: (e) => {
-        const d = e.getUnit('target_dummy');
-        return Boolean(d && d.maxHp - d.hp >= 8);
-    },
-    failureMessage: (e) => {
-        const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected at least 8`;
-    },
-};
-
 export const punchStrongScenario: ScenarioDefinition = {
     id: 'punch_research_strong',
     title: 'Strong Punch (0117) applies stun on hit',

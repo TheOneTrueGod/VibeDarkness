@@ -17,7 +17,7 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
 const PLAYER_POS = { x: 4 * CELL + CELL / 2, y: 3 * CELL + CELL / 2 };
-// Attacker 30 px to the right â€” within 0102 punch range (BASE_MAX_RANGE=30 + attacker radius)
+// Attacker 30 px to the right — within 0120 Bash range (MAX_RANGE=30 + attacker radius)
 const ATTACKER_POS = { x: PLAYER_POS.x + 30, y: PLAYER_POS.y };
 // Ally 40 px above player â€” within the 50 px on-block stamina-surge radius
 const ALLY_POS = { x: PLAYER_POS.x, y: PLAYER_POS.y - 40 };
@@ -48,7 +48,7 @@ function buildShieldEngine(
             y: ATTACKER_POS.y,
             teamId: 'enemy',
             ownerId: 'ai',
-            abilities: ['0102'],
+            abilities: ['0120'],
         },
         engine.eventBus,
     );
@@ -71,7 +71,7 @@ export const raiseShieldBlocksScenario: ScenarioDefinition = {
         const attacker = engine.getUnit('attacker')!;
         return [
             { unitId: player.id, abilityId: '0104', targets: [{ type: 'pixel' as const, position: ATTACKER_POS }] },
-            { unitId: attacker.id, abilityId: '0102', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
+            { unitId: attacker.id, abilityId: '0120', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
         ];
     },
     assertPass(engine) {
@@ -101,13 +101,13 @@ export const raiseShieldAllyStaminaSurgeScenario: ScenarioDefinition = {
                 y: ALLY_POS.y,
                 teamId: 'player',
                 ownerId: 'ai',
-                abilities: ['0102'],
+                abilities: ['0120'],
                 unitAITreeId: 'static_test_no_ai',
             },
             engine.eventBus,
         );
         initializeAbilityRuntimeForUnit(ally);
-        const punchRt = ally.abilityRuntime['0102'];
+        const punchRt = ally.abilityRuntime['0120'];
         if (punchRt) punchRt.currentUses = 0;
         engine.addUnit(ally, 'initialGameSpawn');
         return engine;
@@ -117,18 +117,18 @@ export const raiseShieldAllyStaminaSurgeScenario: ScenarioDefinition = {
         const attacker = engine.getUnit('attacker')!;
         return [
             { unitId: player.id, abilityId: '0104', targets: [{ type: 'pixel' as const, position: ATTACKER_POS }] },
-            { unitId: attacker.id, abilityId: '0102', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
+            { unitId: attacker.id, abilityId: '0120', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
         ];
     },
     assertPass(engine) {
         const ally = engine.getUnit('shield_ally');
-        const rt = ally?.abilityRuntime['0102'];
+        const rt = ally?.abilityRuntime['0120'];
         return Boolean(rt && rt.currentUses >= 1);
     },
     failureMessage(engine) {
         const ally = engine.getUnit('shield_ally');
-        const rt = ally?.abilityRuntime['0102'];
-        return `ally punch uses=${rt?.currentUses ?? 0} (expected â‰¥1 from 2 stamina surges on block)`;
+        const rt = ally?.abilityRuntime['0120'];
+        return `ally bash uses=${rt?.currentUses ?? 0} (expected ≥1 from 2 stamina surges on block)`;
     },
 };
 
@@ -145,7 +145,7 @@ export const shiningBlockRetaliationScenario: ScenarioDefinition = {
         const attacker = engine.getUnit('attacker')!;
         return [
             { unitId: player.id, abilityId: '0110', targets: [{ type: 'pixel' as const, position: ATTACKER_POS }] },
-            { unitId: attacker.id, abilityId: '0102', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
+            { unitId: attacker.id, abilityId: '0120', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
         ];
     },
     assertPass(engine) {
@@ -182,7 +182,7 @@ export const shiningBlockStrengtheningLightScenario: ScenarioDefinition = {
         const attacker = engine.getUnit('attacker')!;
         return [
             { unitId: player.id, abilityId: '0110', targets: [{ type: 'pixel' as const, position: ATTACKER_POS }] },
-            { unitId: attacker.id, abilityId: '0102', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
+            { unitId: attacker.id, abilityId: '0120', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
         ];
     },
     assertPass(engine) {

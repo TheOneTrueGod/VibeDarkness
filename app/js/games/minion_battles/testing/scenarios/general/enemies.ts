@@ -1,7 +1,6 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import { asCardDefId } from '../../../card_defs';
 import { ExposedBuff, EXPOSED_BUFF_TYPE } from '../../../buffs/ExposedBuff';
-import { TRAINING_NODE_STRONG_PUNCH, TRAINING_TREE_ID } from '../../../../../researchTrees/trees/training';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
@@ -33,21 +32,18 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
     generalSection: 'Enemies',
     maxDurationMs: 6000,
     buildEngine() {
-        const research = { [P]: { [TRAINING_TREE_ID]: [TRAINING_NODE_STRONG_PUNCH] } };
         const engine = buildTinyBattleEngine({
             gridW: 10,
             gridH: 6,
             localPlayerId: P,
             grass: true,
-            playerResearchTreesByPlayer: research,
         });
 
         const player = spawnTinyPlayerUnit(engine, {
             playerId: P,
             x: PLAYER_POS.x,
             y: PLAYER_POS.y,
-            abilities: ['0102'],
-            playerResearchTreesByPlayer: research,
+            abilities: ['0117'],
         });
 
         const wolf = createUnitFromSpawnConfig(
@@ -70,12 +66,12 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
         initializeAbilityRuntimeForUnit(wolf);
         engine.addUnit(wolf, 'initialGameSpawn');
 
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0102'), abilityId: '0102' }]);
+        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0117'), abilityId: '0117' }]);
 
         // Queue second punch after first cooldown; pendingOrders keeps battle non-idle until it fires.
         engine.state.orderMgr.queueOrder(SECOND_PUNCH_TICK, {
             unitId: player.id,
-            abilityId: '0102',
+            abilityId: '0117',
             targets: [{ type: 'pixel', position: WOLF_POS }],
         });
 
@@ -83,7 +79,7 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
     },
     getInitialOrders(engine) {
         const u = engine.getLocalPlayerUnit()!;
-        return [{ unitId: u.id, abilityId: '0102', targets: [{ type: 'pixel', position: WOLF_POS }] }];
+        return [{ unitId: u.id, abilityId: '0117', targets: [{ type: 'pixel', position: WOLF_POS }] }];
     },
     assertPass(engine) {
         return Boolean(engine.getUnit('alpha_wolf_boss')?.hasBuff(EXPOSED_BUFF_TYPE));
@@ -184,7 +180,7 @@ export const alphaWolfEnrageTriggersScenario: ScenarioDefinition = {
             playerId: P,
             x: ENRAGE_PLAYER_POS.x,
             y: ENRAGE_PLAYER_POS.y,
-            abilities: ['0102'],
+            abilities: ['0120'],
         });
 
         const wolf = createUnitFromSpawnConfig(
@@ -206,13 +202,13 @@ export const alphaWolfEnrageTriggersScenario: ScenarioDefinition = {
         initializeAbilityRuntimeForUnit(wolf);
         engine.addUnit(wolf, 'initialGameSpawn');
 
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0102'), abilityId: '0102' }]);
+        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0120'), abilityId: '0120' }]);
 
         return engine;
     },
     getInitialOrders(engine) {
         const player = engine.getLocalPlayerUnit()!;
-        return [{ unitId: player.id, abilityId: '0102', targets: [{ type: 'pixel', position: ENRAGE_WOLF_POS }] }];
+        return [{ unitId: player.id, abilityId: '0120', targets: [{ type: 'pixel', position: ENRAGE_WOLF_POS }] }];
     },
     assertPass(engine) {
         const wolf = engine.getUnit('alpha_wolf_pre_enrage');
