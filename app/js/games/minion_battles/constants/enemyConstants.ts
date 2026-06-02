@@ -89,6 +89,16 @@ export const ENEMY_HUSK_ARTILLERY: EnemySpawnDef = {
     aiSettings: { minRange: 140, maxRange: 480 },
 };
 
+/** Swarmling: fast small biter — two copies of Bite (0013) per round. */
+export const ENEMY_SWARMLING: EnemySpawnDef = {
+    characterId: 'swarmling',
+    name: 'Swarmling',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['0013', '0013'],
+    aiSettings: { minRange: 0, maxRange: 70 },
+};
+
 /** Wild Lanternite ally — pulses / Soul Sap / torch; usually patrols from a nest. */
 export const ALLY_LANTERNITE: EnemySpawnDef = {
     characterId: 'lanternite',

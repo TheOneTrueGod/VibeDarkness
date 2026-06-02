@@ -28,6 +28,7 @@ import {
     ENEMY_BOAR,
     ENEMY_THORNBINDER,
     ENEMY_HUSK_ARTILLERY,
+    ENEMY_SWARMLING,
     ALLY_LANTERNITE,
     getEnemyHealthMultiplier,
 } from '../../constants/enemyConstants';
@@ -40,6 +41,7 @@ const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
     boar: ENEMY_BOAR,
     thornbinder: ENEMY_THORNBINDER,
     husk_artillery: ENEMY_HUSK_ARTILLERY,
+    swarmling: ENEMY_SWARMLING,
     lanternite: ALLY_LANTERNITE,
 };
 import { getLightGrid } from '../LightGrid';

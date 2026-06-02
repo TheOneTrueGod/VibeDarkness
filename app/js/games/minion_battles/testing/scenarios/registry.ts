@@ -46,6 +46,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from './abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from './general/lanternites';
+import { swarmlingHuntAndBiteScenario } from './general/swarmlings';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from './general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
@@ -90,6 +91,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     alphaWolfSummonScenario,
     alphaWolfScratchScenario,
     exposedDurationExtensionScenario,
+    swarmlingHuntAndBiteScenario,
     absorptionShieldEnergyChargeScenario,
     raiseShieldBlocksScenario,
     raiseShieldAllyStaminaSurgeScenario,

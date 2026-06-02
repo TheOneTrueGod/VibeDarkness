@@ -24,6 +24,7 @@ import {
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
 import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario, exposedDurationExtensionScenario } from '../scenarios/general/enemies';
+import { swarmlingHuntAndBiteScenario } from '../scenarios/general/swarmlings';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
@@ -234,6 +235,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes campfire light decay scenario', () => {
         const r = runScenarioHeadless(campfireDecayScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes swarmling hunt-and-bite scenario (4 swarmlings land 4 bites)', () => {
+        const r = runScenarioHeadless(swarmlingHuntAndBiteScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

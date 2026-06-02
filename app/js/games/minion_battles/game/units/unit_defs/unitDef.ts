@@ -80,6 +80,7 @@ export type EnemyUnitId =
     | 'thornbinder'
     | 'husk_artillery'
     | 'huskling'
+    | 'swarmling'
     | 'lanternite'
     | 'lanternite_nest';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
@@ -142,7 +143,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     enemy_ranged: {
         bodyColor: 0x555555,
         characterSpriteKey: 'enemy_ranged',
-        hp: 23,
+        hp: 20,
         speed: 50,
         size: 'Medium',
         stamina: 1,
@@ -236,6 +237,18 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'dark_creature',
         deathEffect: darkCreatureIconFlashDeathEffect(8),
         uiDescription: 'Ephemeral husk spawned by artillery — reckless melee punches.',
+    },
+    swarmling: {
+        bodyColor: 0x1a1a2e,
+        characterSpriteKey: 'swarmling',
+        hp: 4,
+        speed: 130,
+        size: 'Tiny',
+        stamina: 2,
+        perceptionRange: 250,
+        creatureType: 'dark_creature',
+        deathEffect: darkCreatureIconFlashDeathEffect(8),
+        uiDescription: 'Fast skittering biter — snaps twice per round.',
     },
     lanternite: {
         bodyColor: 0x34d399,

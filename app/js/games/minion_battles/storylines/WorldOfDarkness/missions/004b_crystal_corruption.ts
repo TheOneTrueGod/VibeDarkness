@@ -8,6 +8,7 @@
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
+import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, ENEMY_RANGED } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -34,10 +35,6 @@ function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(COLS, ROWS, CELL_SIZE, stitched, _);
 }
 
-/** Center of the 49_50 path segment in world space — used as the initial spawn target. */
-const PATH_CENTER_X = 10 * CELL_SIZE + CELL_SIZE / 2;
-const PATH_CENTER_Y = 10 * CELL_SIZE + CELL_SIZE / 2;
-
 /** DarkCrystal properties used when replacing a converted Crystal. */
 const DARK_CRYSTAL_REPLACEMENT = {
     hp: 1,
@@ -46,36 +43,34 @@ const DARK_CRYSTAL_REPLACEMENT = {
     colorFilter: { color: 0x6633aa, alpha: 0.3, filterRadius: 3 },
 } as const;
 
+/** Helper: world-space center of a path-segment grid cell. */
+function pathCell(col: number, row: number): { x: number; y: number } {
+    return { x: col * CELL_SIZE + CELL_SIZE / 2, y: row * CELL_SIZE + CELL_SIZE / 2 };
+}
+
+const INITIAL_ENEMIES = [
+    { ...ENEMY_DARK_WOLF, position: pathCell(5, 8) },
+    { ...ENEMY_DARK_WOLF, position: pathCell(8, 8) },
+    { ...ENEMY_DARK_WOLF, position: pathCell(3, 9) },
+    { ...ENEMY_SWARMLING, position: pathCell(3, 10) },
+    { ...ENEMY_SWARMLING, position: pathCell(6, 11) },
+    { ...ENEMY_RANGED, position: pathCell(5, 12) },
+];
+
 const LEVEL_EVENTS: LevelEvent[] = [
-    // --- Initial enemies on the path at battle start ---
-    {
-        type: 'spawnWave',
-        trigger: { afterSeconds: 0 },
-        spawns: [
-            {
-                characterId: 'dark_wolf',
-                spawnBehaviour: 'anywhere',
-                spawnTarget: { x: PATH_CENTER_X, y: PATH_CENTER_Y, radius: 8 },
-                spawnCount: 4,
-            },
-            {
-                characterId: 'enemy_ranged',
-                spawnBehaviour: 'anywhere',
-                spawnTarget: { x: PATH_CENTER_X, y: PATH_CENTER_Y, radius: 8 },
-                spawnCount: 1,
-            },
-        ],
-    },
     // --- Periodic wolf waves every 0.5 rounds ---
     {
         type: 'continuousSpawn',
         trigger: { intervalRounds: 0.5, startRound: 1, endRound: 6 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'edgeOfMap', spawnCount: 3 }],
+        spawns: [
+            { characterId: 'dark_wolf', spawnBehaviour: 'edgeOfMap', spawnCount: 2 },
+            { characterId: 'swarmling', spawnBehaviour: 'edgeOfMap', spawnCount: 2 },
+        ],
     },
     // --- Periodic slime waves every 0.5 rounds ---
     {
         type: 'continuousSpawn',
-        trigger: { intervalRounds: 0.5, startRound: 1, endRound: 6 },
+        trigger: { intervalRounds: 1, startRound: 1, endRound: 6 },
         spawns: [{ characterId: 'enemy_ranged', spawnBehaviour: 'edgeOfMap', spawnCount: 1 }],
     },
     // --- Crystal conversions: one per round ---
@@ -195,7 +190,7 @@ export class CrystalCorruptionMission extends BaseMissionDef {
     name = 'Crystal Corruption';
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
-    enemies = [];
+    enemies = INITIAL_ENEMIES;
     levelEvents = LEVEL_EVENTS;
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;
