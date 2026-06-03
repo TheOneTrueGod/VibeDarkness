@@ -43,6 +43,21 @@ export type AbilityEffect =
     | { type: 'applyStunnedToPrimaryTarget'; duration: number }
     | { type: 'interruptPrimaryTargetAbilities' }
     | { type: 'setAbilityNote'; abilityId: string; note: Record<string, unknown> }
+    | {
+        type: 'triggerAoEExplosion';
+        /** EffectType string passed to the spawned Effect (controls the visual). */
+        effectType: string;
+        /** Blast radius in pixels. Units within this distance of the projectile's death position are hit. */
+        effectRadius: number;
+        /** Base damage dealt to each unit in the radius. */
+        damage: number;
+        /** Maximum number of units that can be hit (closest first). */
+        maxTargets: number;
+        /** Optional knockback tier applied to each hit unit (1 = light, 3 = heavy). */
+        knockbackTier?: number;
+        /** Duration of the spawned VFX effect in seconds. Default: 0.25. */
+        effectDuration?: number;
+    }
     | AbilityCustomEffect;
 
 /**

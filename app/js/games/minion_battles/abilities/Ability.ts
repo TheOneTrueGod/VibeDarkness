@@ -65,6 +65,12 @@ export enum AbilityEventType {
     ON_BLOCK_SUCCESS = 'on_block_success',
     /** Fires once when this ability's evade window opens (legacy path for abilities with the `evade` tag). */
     ON_EVADE_START = 'on_evade_start',
+    /**
+     * Fires when a projectile launched by this ability expires — either because it hit a target
+     * or because it reached its max range. `context.projectile` holds the expired projectile;
+     * `context.hitUnit` holds the unit that was struck (absent on max-range expiry).
+     */
+    ON_PROJECTILE_EXPIRED = 'on_projectile_expired',
 }
 
 /**

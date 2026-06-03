@@ -17,7 +17,7 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import { AbilityEventType } from '../../abilities/Ability';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { applyBleedStack } from '../../buffs/bleedRuntime';
-import { triggerAbilityEventFromAttack } from '../../abilities/events';
+import { triggerAbilityEventFromAttack, triggerAbilityEventFromProjectileExpiry } from '../../abilities/events';
 import { TerrainType } from '../../terrain/TerrainType';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { ProjectileModifierId } from './ProjectileTravelModifiers';
@@ -306,6 +306,7 @@ export class Projectile extends GameObject {
 
     private triggerExpireEffect(engine: unknown, hitUnitId?: string): void {
         if (!this.active) return;
+        triggerAbilityEventFromProjectileExpiry({ engine, projectile: this, hitUnitId });
         const caster = (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(this.sourceUnitId);
         if (!caster) return;
         const ability = getAbility(this.sourceAbilityId);

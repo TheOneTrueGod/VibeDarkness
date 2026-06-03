@@ -24,6 +24,7 @@
 
 | Todo | Notes | Date |
 |------|-------|------|
+| Migrate EnergyBlast (0114) to castBehaviours | Added `ON_PROJECTILE_EXPIRED` to `AbilityEventType`; extended `AbilityEventRuntimeContext` with `projectile`/`hitUnit` fields; added `triggerAbilityEventFromProjectileExpiry` helper; added `triggerAoEExplosion` effect type + handler; created `ProjectileLaunchBehaviour`; added `addProjectile`/`roundNumber` to `AbilityEngineContext`. Replaced `doCardEffect`/`onProjectileExpired`/`onAttackBlocked` with a `ProjectileLaunch` castBehaviour + `ON_PROJECTILE_EXPIRED → triggerAoEExplosion` abilityEvents rule. | 2026-06-02 |
 | Migrate Dodge (0101) to castBehaviours | Created `DashBehaviour` (pure movement CastBehaviour); added `effectDuration` + `useCasterVisualData` to `AbilityTimingEmitterDef` for afterimage trail; added `excludeSelf` to `recoverCharge` effect; replaced `doCardEffect` with `emitterDef` + `behaviour` + `ON_CAST_START` abilityEvents rule. | 2026-06-02 |
 | Move enrageDef from Unit instance onto unitDef | Extracted inline UNIT_DEFS type to exported `UnitDefEntry`, added `enrageDef` to it and the `alpha_wolf` entry, replaced the Unit backing field with a getter delegating to `getUnitEnrageDef()`, removed from `toJSON`/`fromJSON` and all spawn configs. Also created `game-object-def-pattern` skill documenting the def-based vs instance-based property classification rule. | 2026-05-31 |
 

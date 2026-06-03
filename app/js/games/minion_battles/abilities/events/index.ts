@@ -12,5 +12,6 @@ export {
     getAbilityEventFlag,
     triggerAbilityEvent,
     triggerAbilityEventFromAttack,
+    triggerAbilityEventFromProjectileExpiry,
     type AbilityEventRuntimeContext,
 } from './AbilityEventRuntime';

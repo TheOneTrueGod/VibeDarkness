@@ -1,12 +1,16 @@
 import { grantRecoveryChargeToRandomAbility } from '../abilityUses';
 import { getAbility } from '../AbilityRegistry';
-import type { AbilityEventType, AbilityStatic, AttackBlockedInfo } from '../Ability';
+import { AbilityEventType } from '../Ability';
+import type { AbilityStatic, AttackBlockedInfo } from '../Ability';
 import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
 import type { GameEngine } from '../../game/GameEngine';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
+import type { Projectile } from '../../game/projectiles/Projectile';
 import { areEnemies } from '../../game/teams';
+import { Effect } from '../../game/effects/Effect';
+import { getModifiedAbilityDamage } from '../damageModifiers';
 import type { AbilityCondition } from './AbilityCondition';
 import { createAbilityEventDispatchState, dispatchAbilityEventRules, type AbilityEventDispatchState } from './AbilityEventDispatcher';
 import type { AbilityEffect } from './AbilityEffect';
@@ -29,6 +33,10 @@ export interface AbilityEventRuntimeContext {
     hitResult?: 'hit' | 'blocked';
     primaryTarget?: Unit;
     attackInfo?: AttackBlockedInfo;
+    /** Populated for ON_PROJECTILE_EXPIRED: the projectile that just expired. */
+    projectile?: Projectile;
+    /** Populated for ON_PROJECTILE_EXPIRED: the unit struck, if the projectile hit one. */
+    hitUnit?: Unit;
     customConditionHandlers?: Record<string, CustomConditionHandler>;
     customEffectHandlers?: Record<string, CustomEffectHandler>;
 }
@@ -41,10 +49,11 @@ interface GameEngineLike {
     getPlayerResearchNodes?(playerId: string, treeId: string): string[];
     interruptUnitAndRefundAbilities?(unit: Unit): void;
     eventBus: GameEngine['eventBus'];
-    /** All units in the battle (used by grantChargeToNearbyAllies when getAllies is absent). */
+    /** All units in the battle (used by grantChargeToNearbyAllies and triggerAoEExplosion). */
     units?: Unit[];
     /** Returns alive allies of `caster`, excluding the caster itself. */
     getAllies?(caster: Unit): Unit[];
+    addEffect?(effect: Effect): void;
 }
 
 interface CastPayloadWithAbilityEvents {
@@ -102,6 +111,33 @@ export function triggerAbilityEventFromAttack(params: {
         primaryTarget,
         attackInfo,
         hitResult,
+    });
+}
+
+export function triggerAbilityEventFromProjectileExpiry(params: {
+    engine: unknown;
+    projectile: Projectile;
+    hitUnitId?: string;
+}): void {
+    const eng = params.engine as GameEngineLike;
+    const { projectile, hitUnitId } = params;
+    const caster = eng.getUnit?.(projectile.sourceUnitId);
+    if (!caster) return;
+    const ability = getAbility(projectile.sourceAbilityId);
+    if (!ability) return;
+    const activeAbility = findMostRecentActiveAbility(caster, projectile.sourceAbilityId);
+    const hitUnit = hitUnitId ? eng.getUnit?.(hitUnitId) : undefined;
+    triggerAbilityEvent({
+        engine: eng,
+        caster,
+        ability,
+        activeAbility,
+        targets: activeAbility?.targets ?? [],
+        eventType: AbilityEventType.ON_PROJECTILE_EXPIRED,
+        currentTime: activeAbility ? Math.max(0, eng.gameTime - activeAbility.startTime) : 0,
+        prevTime: activeAbility ? Math.max(0, eng.gameTime - activeAbility.startTime) : 0,
+        projectile,
+        hitUnit,
     });
 }
 
@@ -249,6 +285,41 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
         case 'setAbilityNote':
             context.caster.setAbilityNote({ abilityId: effect.abilityId, abilityNote: effect.note });
             return;
+        case 'triggerAoEExplosion': {
+            const projectile = context.projectile;
+            if (!projectile) return;
+            const { effectType, effectRadius, damage, maxTargets, knockbackTier, effectDuration = 0.25 } = effect;
+            context.engine.addEffect?.(new Effect({
+                x: projectile.x,
+                y: projectile.y,
+                duration: effectDuration,
+                effectType,
+                effectRadius,
+            }));
+            const allUnits = context.engine.units ?? [];
+            const hits = allUnits
+                .filter(u => u.isAlive() && areEnemies(context.caster.teamId, u.teamId))
+                .map(u => ({ unit: u, dist: Math.hypot(u.x - projectile.x, u.y - projectile.y) }))
+                .filter(e => e.dist <= effectRadius + e.unit.radius)
+                .sort((a, b) => a.dist - b.dist)
+                .slice(0, maxTargets)
+                .map(e => e.unit);
+            for (const unit of hits) {
+                const modifiedDamage = getModifiedAbilityDamage(context.caster, damage);
+                unit.takeDamage(modifiedDamage, context.caster.id, context.engine.eventBus);
+                if (knockbackTier != null) {
+                    tryApplyKnockbackByTier(
+                        unit,
+                        knockbackTier,
+                        { unitId: context.caster.id, abilityId: context.ability.id },
+                        projectile.x,
+                        projectile.y,
+                        context.engine,
+                    );
+                }
+            }
+            return;
+        }
         case 'custom':
             context.customEffectHandlers?.[effect.effectId]?.(effect.params, context);
             return;

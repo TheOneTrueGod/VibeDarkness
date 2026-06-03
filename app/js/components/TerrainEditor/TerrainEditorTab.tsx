@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useEditorState } from './useEditorState';
 import SegmentSelector from './SegmentSelector';
 import TerrainCanvas from './TerrainCanvas';
@@ -48,6 +49,7 @@ function ChevronRight() {
 
 export default function TerrainEditorTab() {
     const { state, actions } = useEditorState();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [availableSegments, setAvailableSegments] = useState<Map<string, MapSegmentData>>(new Map());
     const [rightTab, setRightTab] = useState<RightTab>('poi');
     const [createDir, setCreateDir] = useState<CreateDir | null>(null);
@@ -81,9 +83,14 @@ export default function TerrainEditorTab() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
+    function loadAndTrackSegment(data: MapSegmentData) {
+        actions.loadSegment(data);
+        setSearchParams((prev) => { prev.set('segment', data.id); return prev; }, { replace: true });
+    }
+
     function guardedLoadSegment(data: MapSegmentData) {
         if (state.isDirty && !window.confirm('There are unsaved changes. Discard them and switch maps?')) return;
-        actions.loadSegment(data);
+        loadAndTrackSegment(data);
     }
 
     const createCoords = useMemo(() => {
@@ -129,7 +136,7 @@ export default function TerrainEditorTab() {
                 next.set(id, newSegment);
                 return next;
             });
-            actions.loadSegment(newSegment);
+            loadAndTrackSegment(newSegment);
             setCreateDir(null);
             setCreateName('');
         } catch (err) {
@@ -182,7 +189,7 @@ export default function TerrainEditorTab() {
                 <SegmentSelector
                     selectedId={state.segmentId}
                     onSelect={guardedLoadSegment}
-                    defaultId="50_50_crystal_cave"
+                    defaultId={searchParams.get('segment') ?? '50_50_crystal_cave'}
                     onSegmentsChange={setAvailableSegments}
                 />
                 <div className="flex-1" />
