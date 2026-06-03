@@ -12,6 +12,7 @@ interface Props {
     mainWidth: number;
     mainHeight: number;
     onClick: (() => void) | null;
+    onCreateMap?: () => void;
     icon: React.ReactNode;
 }
 
@@ -21,6 +22,7 @@ export default function AdjacentPreviewCanvas({
     mainWidth,
     mainHeight,
     onClick,
+    onCreateMap,
     icon,
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -87,16 +89,23 @@ export default function AdjacentPreviewCanvas({
         ctx.fillRect(0, 0, canvasW, canvasH);
     }, [segment, direction, canvasW, canvasH, S, depth]);
 
+    const isInteractive = !!(onClick || (!segment && onCreateMap));
+
     return (
         <div
             className={`relative flex items-center justify-center transition-opacity ${
-                onClick ? 'cursor-pointer hover:opacity-75' : 'opacity-25 cursor-default'
+                isInteractive ? 'cursor-pointer hover:opacity-75' : 'opacity-25 cursor-default'
             }`}
             style={{ width: canvasW, height: canvasH }}
-            onClick={onClick ?? undefined}
+            onClick={onClick ?? (!segment ? onCreateMap : undefined) ?? undefined}
         >
             <canvas ref={canvasRef} width={canvasW} height={canvasH} className="absolute inset-0" />
-            {onClick && (
+            {!segment && onCreateMap && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className="text-white/30 text-xs font-bold tracking-widest">CREATE</span>
+                </div>
+            )}
+            {isInteractive && (
                 <div className="relative z-10 text-white" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))' }}>
                     {icon}
                 </div>

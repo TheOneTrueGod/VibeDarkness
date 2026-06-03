@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useEditorState } from './useEditorState';
 import SegmentSelector from './SegmentSelector';
 import TerrainCanvas from './TerrainCanvas';
@@ -9,8 +9,10 @@ import POIEditor from './POIEditor';
 import AdjacentPreviewCanvas from './AdjacentPreviewCanvas';
 import { EDITOR_CELL_SIZE } from './terrainEditorColors';
 import type { MapSegmentData } from '../../games/minion_battles/terrain/segmentSchema';
+import { TerrainType } from '../../games/minion_battles/terrain/TerrainType';
 
 type RightTab = 'poi';
+type CreateDir = 'north' | 'south' | 'east' | 'west';
 
 const PREVIEW_DEPTH = 2;
 const PREVIEW_GAP = 8;
@@ -48,6 +50,11 @@ export default function TerrainEditorTab() {
     const { state, actions } = useEditorState();
     const [availableSegments, setAvailableSegments] = useState<Map<string, MapSegmentData>>(new Map());
     const [rightTab, setRightTab] = useState<RightTab>('poi');
+    const [createDir, setCreateDir] = useState<CreateDir | null>(null);
+    const [createName, setCreateName] = useState('');
+    const createInputRef = useRef<HTMLInputElement>(null);
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    const saveSegmentRef = useRef<() => Promise<void>>(async () => {});
 
     const adjacentSegments = useMemo(() => {
         if (!state.segmentData) return { north: null, south: null, east: null, west: null };
@@ -60,6 +67,75 @@ export default function TerrainEditorTab() {
         };
         return { north: find(0, -1), south: find(0, 1), west: find(-1, 0), east: find(1, 0) };
     }, [state.segmentData, availableSegments]);
+
+    saveSegmentRef.current = saveSegment;
+
+    useEffect(() => {
+        function handleKeyDown(e: KeyboardEvent) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                void saveSegmentRef.current();
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    function guardedLoadSegment(data: MapSegmentData) {
+        if (state.isDirty && !window.confirm('There are unsaved changes. Discard them and switch maps?')) return;
+        actions.loadSegment(data);
+    }
+
+    const createCoords = useMemo(() => {
+        if (!createDir || !state.segmentData) return null;
+        const { gridCol, gridRow } = state.segmentData;
+        switch (createDir) {
+            case 'north': return { col: gridCol,     row: gridRow - 1 };
+            case 'south': return { col: gridCol,     row: gridRow + 1 };
+            case 'west':  return { col: gridCol - 1, row: gridRow     };
+            case 'east':  return { col: gridCol + 1, row: gridRow     };
+        }
+    }, [createDir, state.segmentData]);
+
+    useEffect(() => {
+        if (createDir) createInputRef.current?.focus();
+    }, [createDir]);
+
+    async function createAndLoadMap() {
+        if (!createCoords || !createName.trim() || !state.segmentData) return;
+        if (state.isDirty && !window.confirm('There are unsaved changes. Discard them and create the new map?')) return;
+        const { col, row } = createCoords;
+        const name = createName.trim();
+        const id = `${col}_${row}_${name}`;
+        const { width, height } = state.segmentData;
+        const newSegment: MapSegmentData = {
+            id,
+            gridCol: col,
+            gridRow: row,
+            width,
+            height,
+            terrain: Array.from({ length: height }, () => Array<number>(width).fill(TerrainType.Grass)),
+            pointsOfInterest: [],
+        };
+        try {
+            const response = await fetch(`/api/terrain-segments/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newSegment),
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            setAvailableSegments(prev => {
+                const next = new Map(prev);
+                next.set(id, newSegment);
+                return next;
+            });
+            actions.loadSegment(newSegment);
+            setCreateDir(null);
+            setCreateName('');
+        } catch (err) {
+            console.error('Failed to create segment:', err);
+        }
+    }
 
     async function saveSegment() {
         if (!state.segmentData) return;
@@ -105,7 +181,7 @@ export default function TerrainEditorTab() {
             <div className="flex items-center gap-3 p-3 border-b border-border-custom">
                 <SegmentSelector
                     selectedId={state.segmentId}
-                    onSelect={actions.loadSegment}
+                    onSelect={guardedLoadSegment}
                     defaultId="50_50_crystal_cave"
                     onSegmentsChange={setAvailableSegments}
                 />
@@ -168,7 +244,8 @@ export default function TerrainEditorTab() {
                                 direction="north"
                                 mainWidth={mainWidth}
                                 mainHeight={mainHeight}
-                                onClick={adjacentSegments.north ? () => actions.loadSegment(adjacentSegments.north!) : null}
+                                onClick={adjacentSegments.north ? () => guardedLoadSegment(adjacentSegments.north!) : null}
+                                onCreateMap={adjacentSegments.north ? undefined : () => setCreateDir('north')}
                                 icon={<ChevronUp />}
                             />
 
@@ -181,7 +258,8 @@ export default function TerrainEditorTab() {
                                 direction="west"
                                 mainWidth={mainWidth}
                                 mainHeight={mainHeight}
-                                onClick={adjacentSegments.west ? () => actions.loadSegment(adjacentSegments.west!) : null}
+                                onClick={adjacentSegments.west ? () => guardedLoadSegment(adjacentSegments.west!) : null}
+                                onCreateMap={adjacentSegments.west ? undefined : () => setCreateDir('west')}
                                 icon={<ChevronLeft />}
                             />
 
@@ -202,7 +280,8 @@ export default function TerrainEditorTab() {
                                 direction="east"
                                 mainWidth={mainWidth}
                                 mainHeight={mainHeight}
-                                onClick={adjacentSegments.east ? () => actions.loadSegment(adjacentSegments.east!) : null}
+                                onClick={adjacentSegments.east ? () => guardedLoadSegment(adjacentSegments.east!) : null}
+                                onCreateMap={adjacentSegments.east ? undefined : () => setCreateDir('east')}
                                 icon={<ChevronRight />}
                             />
 
@@ -215,7 +294,8 @@ export default function TerrainEditorTab() {
                                 direction="south"
                                 mainWidth={mainWidth}
                                 mainHeight={mainHeight}
-                                onClick={adjacentSegments.south ? () => actions.loadSegment(adjacentSegments.south!) : null}
+                                onClick={adjacentSegments.south ? () => guardedLoadSegment(adjacentSegments.south!) : null}
+                                onCreateMap={adjacentSegments.south ? undefined : () => setCreateDir('south')}
                                 icon={<ChevronDown />}
                             />
 
@@ -278,6 +358,52 @@ export default function TerrainEditorTab() {
                     </div>
                 </div>
             </div>
+            {/* Create map modal */}
+            {createCoords && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+                    onClick={(e) => { if (e.target === e.currentTarget) { setCreateDir(null); setCreateName(''); } }}
+                >
+                    <div className="bg-surface border border-border-custom rounded-lg p-6 w-96 shadow-xl">
+                        <h3 className="text-white font-semibold mb-2">Create New Terrain Map</h3>
+                        <p className="text-muted text-sm mb-4">
+                            This will create a new terrain map. Please give it a name.
+                        </p>
+                        <div className="flex items-center gap-1 mb-4">
+                            <span className="text-muted text-sm font-mono shrink-0">
+                                {createCoords.col}_{createCoords.row}_
+                            </span>
+                            <input
+                                ref={createInputRef}
+                                className="flex-1 min-w-0 bg-zinc-800 border border-border-custom rounded px-2 py-1 text-white text-sm font-mono focus:outline-none focus:border-primary"
+                                value={createName}
+                                onChange={(e) => setCreateName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') void createAndLoadMap();
+                                    if (e.key === 'Escape') { setCreateDir(null); setCreateName(''); }
+                                }}
+                                placeholder="map_name"
+                            />
+                            <span className="text-muted text-sm font-mono shrink-0">.json</span>
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                className="px-3 py-1.5 rounded text-sm text-muted border border-border-custom hover:text-white transition-colors"
+                                onClick={() => { setCreateDir(null); setCreateName(''); }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-3 py-1.5 rounded text-sm bg-primary text-white font-medium disabled:opacity-50 transition-colors"
+                                disabled={!createName.trim()}
+                                onClick={() => { void createAndLoadMap(); }}
+                            >
+                                Create
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
