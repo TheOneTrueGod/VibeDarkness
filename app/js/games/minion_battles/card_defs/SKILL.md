@@ -25,6 +25,19 @@ Before implementing, break the ability into its constituent parts (movement, hit
 - For parts that **exist elsewhere**: call the shared helper or copy the pattern from `card_defs/`.
 - For parts that **do not exist**: ask the user before implementing — should this be a one-off or a reusable helper/effect? If reusable, identify which parameters are likely to vary across abilities (e.g. damage amount, radius, duration, direction) so the interface can be designed correctly from the start.
 
+### Extending CastBehaviours vs creating new ones
+
+When an ability needs behaviour similar to an existing `CastBehaviour` (movement, melee, etc.), prefer **extending that behaviour** with new configuration options rather than creating a sibling class that duplicates the core logic. A new `CastBehaviour` class is appropriate only when the behaviour is genuinely atomic — it does one thing with no overlap with existing behaviours.
+
+## Separation of concerns: hitboxes vs abilityEvents
+
+Keep two concerns separate in the `castBehaviours` system:
+
+- **CastBehaviours / hitboxes** — detect *what* happened: which units are in range, what shape the hit area is, which units have already been hit this cast. When a hit is confirmed, emit the appropriate `AbilityEventType` (e.g. `ON_ATTACK_HIT`).
+- **`abilityEvents`** — declare *what to do* when an event fires: damage multipliers, knockback tiers, buffs, secondary effects.
+
+Hitbox geometry and per-unit dedup live on the `CastBehaviour`; damage values and effect tiers live in `abilityEvents`. A good sign the split is correct: you can change what happens on hit by editing only `abilityEvents`, without touching the hitbox shape or detection logic.
+
 ## Juicing the game
 
 **Juice** is the presentation and feedback that makes mechanics **readable and satisfying**: telegraph → payoff → read the result. Implementing correct rules is necessary but not sufficient; consider how the cast **feels** in battle.

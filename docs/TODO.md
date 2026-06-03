@@ -20,7 +20,6 @@
 | Todo | Notes |
 |------|-------|
 | Migrate Claw (0111) to castBehaviours | `doCardEffect` applies forced-displacement movement each tick and spawns collision effects. Needs a dash/movement CastBehaviour (similar approach to Dodge); the iframe window is already declared in `abilityTimings`. |
-| Migrate AbsorptionShield (0113) to castBehaviours | `doCardEffect` runs absorption logic each tick during the shield window. Convert to a CastBehaviour that manages the absorption phase, or map to abilityEvents hooks that fire on each incoming hit during the active timing window. |
 | Migrate EnergyBlast (0114) to castBehaviours | `doCardEffect` fires a projectile at the prefire threshold. Create a projectile-launch CastBehaviour (or a threshold behaviour on the active interval); no research variants, so scope is bounded. |
 | Migrate LanterniteStrike (0010) to castBehaviours | `doCardEffect` sets an ability note at LOCK_TIME then fires a projectile at prefire — two threshold effects. Map them to castBehaviours on the windup and active timing intervals; ability-note init can move to `ON_CAST_START`. |
 | Migrate EnemyMeleeAttack (0002) to castBehaviours | Enemy basic melee that deals damage at a threshold; likely compatible with the existing `MeleeAttackBehaviour`. Replace `doCardEffect` with that CastBehaviour on the active interval. |
