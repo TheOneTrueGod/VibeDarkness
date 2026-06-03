@@ -5,7 +5,7 @@ import { ThickLineHitbox } from '../hitboxes/ThickLineHitbox';
 import { clampToMaxRange } from './previewHelpers';
 
 export type HitboxDef =
-    | { shape: 'circle';    range: number }
+    | { shape: 'circle';    range: number | 'caster' }
     | { shape: 'meleeLine'; range: number; thickness: number }
     | { shape: 'cone';      range: number; halfAngle: number }
     | { shape: 'custom';    resolve: (caster: Unit, aimPoint: { x: number; y: number }, units: Unit[]) => Unit[] };
@@ -30,9 +30,11 @@ export function resolveHitbox(def: HitboxDef, ctx: ResolveHitboxContext): Unit[]
     let units: Unit[];
 
     switch (def.shape) {
-        case 'circle':
-            units = CircleHitbox.getUnitsInHitbox(engine, caster, originX, originY, def.range);
+        case 'circle': {
+            const radius = def.range === 'caster' ? caster.radius : def.range;
+            units = CircleHitbox.getUnitsInHitbox(engine, caster, originX, originY, radius);
             break;
+        }
         case 'meleeLine': {
             const clamped = clampToMaxRange(
                 { x: originX, y: originY },

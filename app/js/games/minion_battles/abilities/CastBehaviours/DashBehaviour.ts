@@ -4,6 +4,10 @@
  * Moves the caster toward a pixel target over the full timing window, terrain-aware.
  * Optional afterimage trail: spawned here (not via emitterDef) because the trail
  * velocity is perpendicular to the dash direction, requiring runtime direction data.
+ *
+ * Optional hitbox via addHitbox(): caster-anchored touch detection that deals damage
+ * and fires ON_ATTACK_HIT events per hit unit (enabling abilityEvents side-effects such
+ * as knockback). Uses touch semantics: a unit is hit when the two circles overlap.
  */
 
 import type {
@@ -15,9 +19,19 @@ import { getDirectionFromTo } from '../targetHelpers';
 import { applyForcedDisplacementToward } from '../effectHelpers';
 import { getBodyColorForUnit, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
 import { Effect } from '../../game/effects/Effect';
+import type { HitboxDef } from '../hitboxDef';
+import { tryDamageOrBlock } from '../blockingHelpers';
+import { areEnemies } from '../../game/teams';
 
 const AFTERIMAGE_DURATION = 6 / 60;
 const AFTERIMAGE_INITIAL_ALPHA = 0.75;
+
+interface DashHitboxConfig {
+    def: HitboxDef;
+    damage: number;
+    attackType: 'melee' | 'charging';
+    filter: 'enemy' | 'ally' | 'any';
+}
 
 interface DashPayload {
     targetX: number;
@@ -32,6 +46,8 @@ interface DashPayload {
         perpY: number;
         tickCount: number;
     } | null;
+    // Hit-dedup set — null when no hitbox is configured.
+    hitIds: Set<string> | null;
 }
 
 export class DashBehaviour implements CastBehaviour {
@@ -39,6 +55,7 @@ export class DashBehaviour implements CastBehaviour {
     private _collisionStep: number = 4;
     private _afterimagesEnabled: boolean = false;
     private _afterimageEveryNTicks: number = 2;
+    private _hitbox: DashHitboxConfig | null = null;
 
     withMaxDistance(px: number): this {
         this._maxDistance = px;
@@ -57,10 +74,30 @@ export class DashBehaviour implements CastBehaviour {
         return this;
     }
 
+    /**
+     * Add a caster-anchored hitbox that deals damage to units the caster touches during the dash.
+     * anchor must be 'caster' (only supported value). def describes the shape; for circle with
+     * range 'caster', the radius equals caster.radius at call time. Hit semantics: dist <= hitRadius + unit.radius.
+     * Fires ON_ATTACK_HIT via tryDamageOrBlock, allowing abilityEvents rules to handle side-effects.
+     */
+    addHitbox(
+        _anchor: 'caster',
+        def: HitboxDef,
+        attack: { damage: number; attackType: 'melee' | 'charging'; filter?: 'enemy' | 'ally' | 'any' },
+    ): this {
+        this._hitbox = {
+            def,
+            damage: attack.damage,
+            attackType: attack.attackType,
+            filter: attack.filter ?? 'enemy',
+        };
+        return this;
+    }
+
     onSetup(ctx: CastBehaviourSetupContext): void {
         const target = ctx.target;
         if (target.type !== 'pixel' || !target.position) {
-            ctx.setBehaviourPayload({ targetX: ctx.caster.x, targetY: ctx.caster.y, maxDistance: 0, afterimage: null });
+            ctx.setBehaviourPayload({ targetX: ctx.caster.x, targetY: ctx.caster.y, maxDistance: 0, afterimage: null, hitIds: null });
             return;
         }
 
@@ -80,7 +117,13 @@ export class DashBehaviour implements CastBehaviour {
             };
         }
 
-        ctx.setBehaviourPayload({ targetX, targetY, maxDistance, afterimage } satisfies DashPayload);
+        ctx.setBehaviourPayload({
+            targetX,
+            targetY,
+            maxDistance,
+            afterimage,
+            hitIds: this._hitbox ? new Set<string>() : null,
+        } satisfies DashPayload);
     }
 
     onTick(ctx: CastBehaviourTickContext): void {
@@ -107,10 +150,51 @@ export class DashBehaviour implements CastBehaviour {
             }
             ctx.setBehaviourPayload(payload);
         }
+
+        // Hitbox check runs after movement so hit detection uses the caster's new position.
+        if (this._hitbox !== null && payload.hitIds !== null) {
+            this._processHitbox(ctx, payload);
+        }
+    }
+
+    private _processHitbox(ctx: CastBehaviourTickContext, payload: DashPayload): void {
+        const { def, damage, attackType, filter } = this._hitbox!;
+        const hitRadius = def.shape === 'circle'
+            ? (def.range === 'caster' ? ctx.caster.radius : def.range)
+            : ctx.caster.radius;
+
+        for (const unit of ctx.engine.units) {
+            if (!unit.active || !unit.isAlive()) continue;
+            if (unit.id === ctx.caster.id) continue;
+            if (filter === 'enemy' && !areEnemies(ctx.caster.teamId, unit.teamId)) continue;
+            if (filter === 'ally' && areEnemies(ctx.caster.teamId, unit.teamId)) continue;
+            if (payload.hitIds!.has(unit.id)) continue;
+            if (unit.hasIFrames(ctx.engine.gameTime)) continue;
+
+            const dist = Math.hypot(unit.x - ctx.caster.x, unit.y - ctx.caster.y);
+            if (dist > hitRadius + unit.radius) continue;
+
+            const hit = tryDamageOrBlock(unit, {
+                engine: ctx.engine,
+                gameTime: ctx.engine.gameTime,
+                eventBus: ctx.engine.eventBus,
+                attackerX: ctx.caster.x,
+                attackerY: ctx.caster.y,
+                attackerId: ctx.caster.id,
+                abilityId: ctx.abilityId,
+                damage,
+                attackType,
+            });
+            if (hit) {
+                payload.hitIds!.add(unit.id);
+            }
+        }
+        ctx.setBehaviourPayload(payload);
     }
 
     private _spawnAfterimage(ctx: CastBehaviourTickContext, ai: NonNullable<DashPayload['afterimage']>): void {
-        // Random signed speed along the perpendicular axis — drift left or right of the path.
+        // cosmetic-only: afterimage drift is visual, not part of synced state
+        // eslint-disable-next-line no-restricted-syntax
         const speed = (Math.random() - 0.5) * 50;
         const eng = ctx.engine as { addEffect(e: Effect): void };
         eng.addEffect(new Effect({
