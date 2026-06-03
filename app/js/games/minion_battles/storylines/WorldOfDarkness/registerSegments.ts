@@ -29,6 +29,21 @@ import {
     MAP_SEGMENT_50_51_SOUTH_GATE,
     PATROL_DRAW_POINT,
 } from './MapSegments/50_51_south_gate';
+import {
+    MAP_SEGMENT_49_52_THORN_PATH,
+    NEST_POINT_1,
+    PATROL_POINT,
+    ENEMY_SPAWN_1,
+    ENEMY_SPAWN_2,
+} from './MapSegments/49_52_thorn_path';
+import {
+    MAP_SEGMENT_48_52_THORN_PATH_2,
+    NEST,
+    EAST_ROAD,
+    WEST_SPAWN,
+    NORTH_SPAWN,
+    NORTHEAST_SPAWN,
+} from './MapSegments/48_52_thorn_path_2';
 
 export function registerWorldOfDarknessSegments(): void {
     // 48_50 Wakeup — no POIs
@@ -178,5 +193,28 @@ export function registerWorldOfDarknessSegments(): void {
             MAP_SEGMENT_50_51_SOUTH_GATE,
             southGatePOIs,
         ),
+    );
+
+    // 49_52 Thorn Path
+    const thornPathPOIs: MapSegmentPOI[] = [
+        { id: 'nest_point_1',  label: 'Nest Point 1',  col: NEST_POINT_1.col,  row: NEST_POINT_1.row,  type: 'nest' },
+        { id: 'patrol_point',  label: 'Patrol Point',  col: PATROL_POINT.col,  row: PATROL_POINT.row,  type: 'patrol_point' },
+        { id: 'enemy_spawn_1', label: 'Enemy Spawn 1', col: ENEMY_SPAWN_1.col, row: ENEMY_SPAWN_1.row, type: 'enemySpawn' },
+        { id: 'enemy_spawn_2', label: 'Enemy Spawn 2', col: ENEMY_SPAWN_2.col, row: ENEMY_SPAWN_2.row, type: 'enemySpawn' },
+    ];
+    registerSegment(
+        tsTerrainToSegmentData('49_52_thorn_path', 49, 52, MAP_SEGMENT_49_52_THORN_PATH, thornPathPOIs),
+    );
+
+    // 48_52 Thorn Path 2
+    const thornPath2POIs: MapSegmentPOI[] = [
+        { id: 'nest',             label: 'Nest',             col: NEST.col,            row: NEST.row,            type: 'nest' },
+        { id: 'east_road',        label: 'East Road',        col: EAST_ROAD.col,       row: EAST_ROAD.row,       type: 'patrol_point' },
+        { id: 'west_spawn',       label: 'West Spawn',       col: WEST_SPAWN.col,      row: WEST_SPAWN.row,      type: 'enemySpawn' },
+        { id: 'north_spawn',      label: 'North Spawn',      col: NORTH_SPAWN.col,     row: NORTH_SPAWN.row,     type: 'enemySpawn' },
+        { id: 'northeast_spawn',  label: 'Northeast Spawn',  col: NORTHEAST_SPAWN.col, row: NORTHEAST_SPAWN.row, type: 'enemySpawn' },
+    ];
+    registerSegment(
+        tsTerrainToSegmentData('48_52_thorn_path_2', 48, 52, MAP_SEGMENT_48_52_THORN_PATH_2, thornPath2POIs),
     );
 }

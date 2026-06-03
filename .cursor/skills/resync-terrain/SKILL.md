@@ -33,15 +33,51 @@ Replace the `MAP_SEGMENT_*` array body row-by-row, translating each integer to i
 
 The JSON has a `pointsOfInterest` array. Each entry has `id`, `label`, `col`, `row`, and `type`. The TS file may export named constants derived from these positions (e.g. `PATROL_DRAW_POINT`, `LANTERN_NEST_FOCUS`). Compare JSON POI `col`/`row` values against the exported constants and update any that have moved.
 
-The POI `id` field is the link: a POI whose `id` matches the snake_case of an exported constant name is the one to sync (e.g. `"patrol_draw_point"` → `PATROL_DRAW_POINT`). POIs with auto-generated ids (short alphanumeric like `"mpk1zkhj"`) are editor-only and don't need a TS export unless the mission imports them.
+Every POI that has a human-readable `label` should be exported as a named constant. Derive the constant name from the label: uppercase snake_case (e.g. `"Enemy Spawn 1"` → `ENEMY_SPAWN_1`, `"Patrol Point"` → `PATROL_POINT`). Export it as `{ col, row } as const` at the bottom of the TS file.
 
-## Step 6 — Check mission imports
+POIs with auto-generated ids (short alphanumeric like `"mpk1zkhj"`) AND no meaningful label are editor-only and do not need a TS export.
+
+## Step 6 — Register POIs in registerSegments.ts
+
+After adding named POI exports to the TS file, also register them in `registerSegments.ts` so the terrain editor can show them even after the JSON has been backed up (the editor falls back to the TS registry when no JSON is present):
+
+```ts
+const mySegmentPOIs: MapSegmentPOI[] = [
+    { id: 'enemy_spawn_1', label: 'Enemy Spawn 1', col: ENEMY_SPAWN_1.col, row: ENEMY_SPAWN_1.row, type: 'enemySpawn' },
+    // ...
+];
+registerSegment(tsTerrainToSegmentData('my_segment', col, row, MAP_SEGMENT_MY_SEGMENT, mySegmentPOIs));
+```
+
+Use semantic ids (e.g. `'enemy_spawn_1'`) rather than the auto-generated editor ids.
+
+## Step 7 — Check mission imports
 
 If a POI constant's value changed, verify the mission file that imports it still places enemies/objectives/tiles at sensible positions. Run `npm run lint` to catch type errors.
 
 ## Runtime note
 
 `getTerrainForSegment(id, fallback)` in `terrain/segmentRegistry.ts` prefers the runtime registry (populated from the server's JSON) over the TS array. After syncing, the TS file and the JSON will agree, so behaviour is identical whether the server JSON is present or not.
+
+## Step 7 — Back up the JSON and verify
+
+After updating the TS file, archive the source JSON so the editor state isn't silently re-imported later:
+
+```
+npm run terrain-backup -- <segmentId>
+```
+
+Then **ask the user** to verify the terrain looks correct in the game (e.g. run the app and open the mission).
+
+> "I've updated the TypeScript and archived the JSON as `{id}.json.bak`. Can you verify the terrain synced correctly? (yes / no)"
+
+If the user says **no**:
+
+```
+npm run terrain-restore -- <segmentId>
+```
+
+Report this to the user and ask them to describe what went wrong so you can revisit the sync.
 
 ## Common pitfalls
 

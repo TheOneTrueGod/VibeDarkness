@@ -17,7 +17,9 @@
     "desyncDebug-getFingerprints": "node scripts/desyncDebug-getFingerprints.js",
     "desyncDebug-getLobbyLog": "node scripts/desyncDebug-getLobbyLog.js",
     "desyncDebug-diffTick": "node scripts/desyncDebug-diffTick.js",
-    "desyncDebug-getOrders": "node scripts/desyncDebug-getOrders.js"
+    "desyncDebug-getOrders": "node scripts/desyncDebug-getOrders.js",
+    "terrain-backup": "node scripts/terrain-backup.js",
+    "terrain-restore": "node scripts/terrain-restore.js"
   },
   "dependencies": {
     "@types/react": "^19.0.10",

@@ -54,6 +54,13 @@ export default function SegmentSelector({ selectedId, onSelect, defaultId, onSeg
 
     const allSegments = useMemo(() => Array.from(merged.values()), [merged]);
 
+    const selectedSource = useMemo<'json' | 'js' | null>(() => {
+        if (!selectedId || apiSegments === null) return null;
+        if (apiSegments.some((s) => s.id === selectedId)) return 'json';
+        if (registrySegments.some((s) => s.id === selectedId)) return 'js';
+        return null;
+    }, [selectedId, apiSegments, registrySegments]);
+
     const onSelectRef = useRef(onSelect);
     useEffect(() => { onSelectRef.current = onSelect; });
 
@@ -108,6 +115,19 @@ export default function SegmentSelector({ selectedId, onSelect, defaultId, onSeg
                 >
                     {isLoading ? '…' : '↺'}
                 </button>
+
+                {selectedSource && (
+                    <span
+                        title={selectedSource === 'json' ? 'Loaded from JSON file' : 'Loaded from JS registry'}
+                        className={`px-1.5 py-0.5 rounded text-xs font-mono font-semibold ${
+                            selectedSource === 'json'
+                                ? 'bg-cyan-900 text-cyan-300 border border-cyan-700'
+                                : 'bg-yellow-900 text-yellow-300 border border-yellow-700'
+                        }`}
+                    >
+                        {selectedSource}
+                    </span>
+                )}
             </div>
 
             {error && (
