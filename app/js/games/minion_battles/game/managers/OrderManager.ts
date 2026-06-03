@@ -144,10 +144,20 @@ export class OrderManager {
         unit.executeAbility(ability, order.targets, this.ctx);
 
         // Populate targetsByLabel (non-serialized, new-style targeting) from the order payload.
+        // Re-map each value to the corresponding entry in active.targets (which are shallow
+        // copies of order.targets), so that indexOf() in MeleeAttackBehaviour.onSetup returns
+        // the correct index via reference equality rather than -1.
         if (order.targetsByLabel) {
             const active = unit.activeAbilities.find((a) => a.abilityId === ability.id);
             if (active) {
-                active.targetsByLabel = { ...order.targetsByLabel };
+                const remapped: Record<string, import('../types').ResolvedTarget> = {};
+                for (const [label, orderTarget] of Object.entries(order.targetsByLabel)) {
+                    const idx = order.targets.indexOf(orderTarget);
+                    remapped[label] = (idx >= 0 && active.targets[idx] !== undefined)
+                        ? active.targets[idx]!
+                        : orderTarget;
+                }
+                active.targetsByLabel = remapped;
             }
         }
     }

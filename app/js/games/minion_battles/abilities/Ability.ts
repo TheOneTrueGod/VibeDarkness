@@ -57,9 +57,25 @@ export enum AbilityEventType {
     ON_ATTACK_HIT = 'on_attack_hit',
     /** Fires when this ability is blocked by another active blocking ability. */
     ON_ATTACK_BLOCKED = 'on_attack_blocked',
+    /**
+     * Fires on the **blocking** ability when it successfully blocks an attack.
+     * `caster` = the defending unit; `attackInfo` has attack source coords for retaliation direction.
+     * Prefer this over `onBlockSuccess` for new blocking abilities.
+     */
+    ON_BLOCK_SUCCESS = 'on_block_success',
     /** Fires once when this ability's evade window opens (legacy path for abilities with the `evade` tag). */
     ON_EVADE_START = 'on_evade_start',
 }
+
+/**
+ * Custom effect handler registered on an ability for use with `{ type: 'custom' }` event effects.
+ * The `context` parameter is `AbilityEventRuntimeContext` from `abilities/events/AbilityEventRuntime.ts`
+ * typed as `unknown` here to avoid a circular import. Cast it to access fields.
+ */
+export type AbilityCustomEffectHandler = (
+    params: Record<string, unknown> | undefined,
+    context: unknown,
+) => void;
 
 /** A single active state produced by an ability at a given time. */
 export type AbilityStateEntry =
@@ -131,6 +147,12 @@ export interface AbilityStatic {
     readonly tags?: readonly AbilityTag[];
     /** Optional declarative rules keyed by trigger event. */
     readonly abilityEvents?: Partial<Record<AbilityEventType, readonly AbilityEventRule[]>>;
+    /**
+     * Optional custom effect handlers for `{ type: 'custom' }` effects in `abilityEvents`.
+     * Merged with any call-site handlers (call-site wins on key collision).
+     * Context is `AbilityEventRuntimeContext`; cast as needed.
+     */
+    readonly customEffectHandlers?: Record<string, AbilityCustomEffectHandler>;
     /**
      * Optional target resolver. If omitted, callers should use `ability.targets`.
      * Use when target count/labels depend on runtime state (e.g. research).
@@ -292,11 +314,12 @@ export interface AbilityStatic {
     ): { arcStartAngle: number; arcEndAngle: number } | null;
 
     /**
-     * Called on this ability when its attack is blocked by a blocking ability (e.g. Raise Shield).
+     * Optional. Called on this ability when its attack is blocked by a blocking ability (e.g. Raise Shield).
      * Each ability implements the behaviour when its attack is blocked: e.g. projectile abilities
      * destroy the projectile, melee abilities do nothing, charging abilities knock back the attacker.
+     * Blocking abilities (the defender) never need to implement this — omit it entirely.
      */
-    onAttackBlocked(
+    onAttackBlocked?(
         engine: unknown,
         defender: Unit,
         attackInfo: AttackBlockedInfo,
@@ -314,7 +337,8 @@ export interface AbilityStatic {
     ): void;
 
     /**
-     * Optional. Called on the blocking ability when it successfully blocks an attack.
+     * @deprecated Prefer `abilityEvents[AbilityEventType.ON_BLOCK_SUCCESS]` rules for new abilities.
+     * Called on the blocking ability when it successfully blocks an attack.
      * Receives the engine, defender (unit holding the shield), and attackInfo (includes attackSourceX/Y for retaliation direction).
      */
     onBlockSuccess?(engine: unknown, defender: Unit, attackInfo: AttackBlockedInfo): void;

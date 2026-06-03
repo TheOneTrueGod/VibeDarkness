@@ -6,6 +6,7 @@ import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
 import type { GameEngine } from '../../game/GameEngine';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
+import { areEnemies } from '../../game/teams';
 import type { AbilityCondition } from './AbilityCondition';
 import { createAbilityEventDispatchState, dispatchAbilityEventRules, type AbilityEventDispatchState } from './AbilityEventDispatcher';
 import type { AbilityEffect } from './AbilityEffect';
@@ -40,6 +41,10 @@ interface GameEngineLike {
     getPlayerResearchNodes?(playerId: string, treeId: string): string[];
     interruptUnitAndRefundAbilities?(unit: Unit): void;
     eventBus: GameEngine['eventBus'];
+    /** All units in the battle (used by grantChargeToNearbyAllies when getAllies is absent). */
+    units?: Unit[];
+    /** Returns alive allies of `caster`, excluding the caster itself. */
+    getAllies?(caster: Unit): Unit[];
 }
 
 interface CastPayloadWithAbilityEvents {
@@ -51,7 +56,18 @@ export function triggerAbilityEvent(context: AbilityEventRuntimeContext): string
     const rules = context.ability.abilityEvents?.[context.eventType] ?? [];
     if (rules.length === 0) return [];
     const state = getOrCreateDispatchState(context.activeAbility);
-    const result = dispatchAbilityEventRules(rules, state, context, {
+    // Merge ability-level custom handlers with call-site handlers; call-site wins on collision.
+    const mergedContext: AbilityEventRuntimeContext =
+        context.ability.customEffectHandlers
+            ? {
+                  ...context,
+                  customEffectHandlers: {
+                      ...(context.ability.customEffectHandlers as Record<string, CustomEffectHandler>),
+                      ...context.customEffectHandlers,
+                  },
+              }
+            : context;
+    const result = dispatchAbilityEventRules(rules, state, mergedContext, {
         evaluateCondition: evaluateCondition,
         applyEffect: applyEffect,
     });
@@ -139,6 +155,10 @@ function evaluateCondition(condition: AbilityCondition, context: AbilityEventRun
         }
         case 'primaryTargetHasBuff':
             return context.primaryTarget?.hasBuff(condition.buffType) ?? false;
+        case 'selfRuleHasTriggeredAtLeast': {
+            const dispatchState = getOrCreateDispatchState(context.activeAbility);
+            return (dispatchState.ruleTriggerCounts[condition.ruleId] ?? 0) >= condition.count;
+        }
         case 'custom':
             return context.customConditionHandlers?.[condition.conditionId]?.(condition.params, context) ?? false;
         default:
@@ -152,13 +172,32 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
             if (effect.amount <= 0) return;
             const recipient = effect.recipient ?? 'randomAbility';
             if (recipient === 'randomAbility') {
+                const opts = effect.excludeCurrentAbility ? { excludeAbilityId: context.ability.id } : undefined;
                 for (let i = 0; i < effect.amount; i++) {
                     grantRecoveryChargeToRandomAbility(
                         context.caster,
                         effect.chargeType,
                         (min, max) => context.engine.generateRandomInteger(min, max),
-                        effect.excludeSelf ? { excludeAbilityId: context.ability.id } : undefined,
+                        opts,
                     );
+                }
+            }
+            return;
+        }
+        case 'grantChargeToNearbyAllies': {
+            const allies: Unit[] = context.engine.getAllies?.(context.caster)
+                ?? (context.engine.units ?? []).filter(
+                    u => u.isAlive() && !areEnemies(u.teamId, context.caster.teamId) && u.id !== context.caster.id,
+                );
+            for (const ally of allies) {
+                if (Math.hypot(ally.x - context.caster.x, ally.y - context.caster.y) > effect.radius) continue;
+                for (let i = 0; i < effect.amount; i++) {
+                    grantRecoveryChargeToRandomAbility(ally, effect.chargeType, (min, max) => context.engine.generateRandomInteger(min, max));
+                }
+            }
+            if (effect.includeSelf) {
+                for (let i = 0; i < effect.amount; i++) {
+                    grantRecoveryChargeToRandomAbility(context.caster, effect.chargeType, (min, max) => context.engine.generateRandomInteger(min, max));
                 }
             }
             return;

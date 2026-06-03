@@ -1,64 +1,36 @@
 /**
- * Raise Shield - Warrior skill. Hold a shield for 1s in a direction.
+ * Raise Shield - Warrior skill. Hold a shield for 1.3s in a direction.
  * Movement speed penalty 0.1, blocks attacks from within a 120° arc.
- * Single use directional block.
+ * On Block: nearby allies gain 2 stamina surges; on 2nd+ block: extra surges to self + wider area allies.
  */
 
-import { AbilityState, AbilityEventType } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../abilities/Ability';
+import { AbilityEventType } from '../../abilities/Ability';
+import type { AbilityStatic } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import { createArcTargetPreview, drawArcWedge } from '../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../game/types';
-import type { Unit } from '../../game/units/Unit';
-import { isAbilityNote } from '../../game/AbilityNote';
+import { createArcTargetPreview } from '../../abilities/previewHelpers';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { getDirectionFromTo } from '../../abilities/targetHelpers';
-import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
-import { areEnemies } from '../../game/teams';
+import {
+    createDirectionalBlockingArc,
+    createMovementPenaltyStates,
+    createShieldActivePreview,
+    STANDARD_SHIELD_HALF_ARC_RAD,
+} from '../../abilities/shieldHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}04`;
 const DURATION = 1.3;
 const COOLDOWN_TIME = 0.2;
 const MOVEMENT_PENALTY = 0.1;
 const SHIELD_ARC_DEG = 120;
-const SHIELD_ARC_RAD = (SHIELD_ARC_DEG * Math.PI) / 180;
-const SHIELD_HALF_ARC_RAD = SHIELD_ARC_RAD / 2;
-// Inner radius is the "start" of the visual block, so keep it slightly outside the unit.
-const SHIELD_INNER_OFFSET = 5; // from creature's size (radius)
+const SHIELD_INNER_OFFSET = 5;
 const SHIELD_THICKNESS_PX = 10;
 const SHIELD_FILL_ALPHA = 0.9;
 const SHIELD_STROKE_ALPHA = 0.9;
-const MAX_RANGE = 300;
-const MIN_RANGE = 10;
-
 const SHIELD_FILL_COLOR = 0xbdbdbd;
 const SHIELD_STROKE_COLOR = 0x878787;
-const ALLY_CHARGE_RADIUS = 180;
-const ON_BLOCK_STAMINA_SURGE_RADIUS = 50;
-const ON_BLOCK_STAMINA_SURGES = 2;
-
-interface RaiseShieldEngineLike {
-    units: Unit[];
-    generateRandomInteger(min: number, max: number): number;
-}
-
-function grantOnBlockStaminaSurgesToNearbyAllies(engine: RaiseShieldEngineLike, defender: Unit): void {
-    for (const ally of engine.units) {
-        if (!ally.isAlive() || ally.id === defender.id) continue;
-        if (areEnemies(ally.teamId, defender.teamId)) continue;
-        const dist = Math.hypot(ally.x - defender.x, ally.y - defender.y);
-        if (dist > ON_BLOCK_STAMINA_SURGE_RADIUS) continue;
-        for (let i = 0; i < ON_BLOCK_STAMINA_SURGES; i++) {
-            grantRecoveryChargeToRandomAbility(
-                ally,
-                'staminaCharge',
-                (min, max) => engine.generateRandomInteger(min, max),
-            );
-        }
-    }
-}
+const MAX_RANGE = 300;
+const MIN_RANGE = 10;
 
 const RAISE_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <path d="M32 8 L52 32 L32 56 L12 32 Z" fill="#6B8E6B" stroke="#4A6B4A" stroke-width="2"/>
@@ -89,15 +61,6 @@ export const RaiseShieldAbility: AbilityStatic = {
     ],
     targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
     aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },
-    abilityEvents: {
-        [AbilityEventType.ON_CAST_START]: [
-            {
-                id: 'init-block-count',
-                conditions: [{ type: 'always' }],
-                effects: [{ type: 'setAbilityNote', abilityId: '0104', note: { blockCount: 0 } }],
-            },
-        ],
-    },
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
@@ -107,48 +70,23 @@ export const RaiseShieldAbility: AbilityStatic = {
         ];
     },
 
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < DURATION) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: MOVEMENT_PENALTY } }];
-        }
-        return [];
-    },
+    getAbilityStates: createMovementPenaltyStates(MOVEMENT_PENALTY, DURATION),
 
-    getBlockingArc(caster: Unit, activeAbility: { targets: ResolvedTarget[] }, currentTime: number) {
-        if (currentTime < 0 || currentTime >= DURATION) return null;
-        const pos = activeAbility.targets[0]?.position;
-        if (!pos) return null;
-        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
-        if (dist === 0) return null;
-        const centerAngle = Math.atan2(dirY, dirX);
-        return {
-            arcStartAngle: centerAngle - SHIELD_HALF_ARC_RAD,
-            arcEndAngle: centerAngle + SHIELD_HALF_ARC_RAD,
-        };
-    },
+    getBlockingArc: createDirectionalBlockingArc({
+        blockDuration: DURATION,
+        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
+    }),
 
-    renderActivePreview(
-        gr: IAbilityPreviewGraphics,
-        caster: Unit,
-        activeAbility: { startTime: number; targets: ResolvedTarget[] },
-        gameTime: number,
-    ): void {
-        const elapsed = gameTime - activeAbility.startTime;
-        if (elapsed < 0 || elapsed >= DURATION) return;
-        const pos = activeAbility.targets[0]?.position;
-        if (!pos) return;
-        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
-        if (dist === 0) return;
-        const centerAngle = Math.atan2(dirY, dirX);
-        const innerR = caster.radius + SHIELD_INNER_OFFSET;
-        const outerR = caster.radius + SHIELD_THICKNESS_PX;
-        drawArcWedge(gr, caster.x, caster.y, centerAngle, SHIELD_HALF_ARC_RAD, innerR, outerR, 24, {
-            fillAlpha: SHIELD_FILL_ALPHA,
-            strokeAlpha: SHIELD_STROKE_ALPHA,
-            strokeColor: SHIELD_STROKE_COLOR,
-            fillColor: SHIELD_FILL_COLOR,
-        });
-    },
+    renderActivePreview: createShieldActivePreview({
+        blockDuration: DURATION,
+        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
+        innerOffset: SHIELD_INNER_OFFSET,
+        thicknessPx: SHIELD_THICKNESS_PX,
+        fillColor: SHIELD_FILL_COLOR,
+        strokeColor: SHIELD_STROKE_COLOR,
+        fillAlpha: SHIELD_FILL_ALPHA,
+        strokeAlpha: SHIELD_STROKE_ALPHA,
+    }),
 
     renderTargetingPreview: createArcTargetPreview({
         arcDeg: SHIELD_ARC_DEG,
@@ -160,49 +98,45 @@ export const RaiseShieldAbility: AbilityStatic = {
         fillColor: SHIELD_FILL_COLOR,
     }),
 
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        // Not used; we are the blocker, not the attacker.
-    },
-
-    onBlockSuccess(engine: unknown, defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        if (!defender.ownerId) return;
-        const note = defender.abilityNote;
-        if (!isAbilityNote(note, '0104')) return;
-        const eng = engine as RaiseShieldEngineLike;
-        grantOnBlockStaminaSurgesToNearbyAllies(eng, defender);
-        const nextCount = (note.abilityNote.blockCount ?? 0) + 1;
-        const wasRewarded = Boolean(note.abilityNote.rewardedTwiceBlock);
-        if (nextCount >= 2 && !wasRewarded) {
-            grantRecoveryChargeToRandomAbility(
-                defender,
-                'staminaCharge',
-                (min, max) => eng.generateRandomInteger(min, max),
-                { excludeAbilityId: CARD_ID },
-            );
-            for (const ally of eng.units) {
-                if (!ally.isAlive() || ally.id === defender.id) continue;
-                if (areEnemies(ally.teamId, defender.teamId)) continue;
-                const dist = Math.hypot(ally.x - defender.x, ally.y - defender.y);
-                if (dist > ALLY_CHARGE_RADIUS) continue;
-                grantRecoveryChargeToRandomAbility(
-                    ally,
-                    'staminaCharge',
-                    (min, max) => eng.generateRandomInteger(min, max),
-                );
-                grantRecoveryChargeToRandomAbility(
-                    ally,
-                    'staminaCharge',
-                    (min, max) => eng.generateRandomInteger(min, max),
-                );
-            }
-        }
-        defender.setAbilityNote({
-            abilityId: '0104',
-            abilityNote: {
-                blockCount: nextCount,
-                rewardedTwiceBlock: wasRewarded || nextCount >= 2,
+    abilityEvents: {
+        [AbilityEventType.ON_BLOCK_SUCCESS]: [
+            {
+                id: 'per-block-surge',
+                conditions: [{ type: 'always' }],
+                effects: [
+                    {
+                        type: 'grantChargeToNearbyAllies',
+                        chargeType: 'staminaCharge',
+                        amount: 2,
+                        radius: 50,
+                    },
+                ],
             },
-        });
+            {
+                // Fires once on the 2nd block (per-block-surge has already incremented to 2
+                // within the same dispatch before this rule evaluates).
+                id: 'second-block-bonus',
+                oncePerCast: true,
+                conditions: [
+                    { type: 'selfRuleHasTriggeredAtLeast', ruleId: 'per-block-surge', count: 2 },
+                ],
+                effects: [
+                    {
+                        type: 'recoverCharge',
+                        chargeType: 'staminaCharge',
+                        amount: 1,
+                        recipient: 'randomAbility',
+                        excludeCurrentAbility: true,
+                    },
+                    {
+                        type: 'grantChargeToNearbyAllies',
+                        chargeType: 'staminaCharge',
+                        amount: 2,
+                        radius: 180,
+                    },
+                ],
+            },
+        ],
     },
 };
 

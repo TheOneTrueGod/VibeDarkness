@@ -56,7 +56,7 @@ export const DodgeAbility: AbilityStatic = {
             {
                 id: 'dodge-stamina-charge',
                 conditions: [{ type: 'always' }],
-                effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, excludeSelf: true }],
+                effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, excludeCurrentAbility: true }],
             },
         ],
     },

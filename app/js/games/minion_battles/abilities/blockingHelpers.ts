@@ -10,7 +10,7 @@ import type { AbilityStatic } from './Ability';
 import type { AttackBlockedInfo } from './Ability';
 import { AbilityEventType } from './Ability';
 import { getModifiedAbilityDamage } from './damageModifiers';
-import { triggerAbilityEventFromAttack } from './events';
+import { triggerAbilityEvent, triggerAbilityEventFromAttack } from './events';
 
 export interface BlockingArc {
     abilityId: string;
@@ -102,6 +102,16 @@ export function canAttackBeBlocked(
  * onBlockSuccess callback (if any). Pass the block when you have it so the blocker
  * can react (e.g. draw a card).
  */
+type BlockingEngineContext = {
+    gameTime: number;
+    roundNumber: number;
+    getUnit(id: string): Unit | undefined;
+    generateRandomInteger(min: number, max: number): number;
+    eventBus: EventBus;
+    getPlayerResearchNodes?: (playerId: string, treeId: string) => string[];
+    interruptUnitAndRefundAbilities?: (unit: Unit) => void;
+};
+
 export function executeBlock(
     engine: unknown,
     defender: Unit,
@@ -109,18 +119,11 @@ export function executeBlock(
     attackingAbilityId: string,
     block?: BlockingArc | null,
 ): void {
+    const eng = engine as BlockingEngineContext;
     const ability = getAbility(attackingAbilityId);
-    ability?.onAttackBlocked(engine, defender, attackInfo);
+    ability?.onAttackBlocked?.(engine, defender, attackInfo);
     triggerAbilityEventFromAttack({
-        engine: engine as {
-            gameTime: number;
-            roundNumber: number;
-            getUnit(id: string): Unit | undefined;
-            generateRandomInteger(min: number, max: number): number;
-            eventBus: EventBus;
-            getPlayerResearchNodes?: (playerId: string, treeId: string) => string[];
-            interruptUnitAndRefundAbilities?: (unit: Unit) => void;
-        },
+        engine: eng,
         attackingAbilityId,
         sourceUnitId: attackInfo.sourceUnitId,
         eventType: AbilityEventType.ON_ATTACK_BLOCKED,
@@ -130,6 +133,22 @@ export function executeBlock(
     });
     if (block?.ability.onBlockSuccess) {
         block.ability.onBlockSuccess(engine, defender, attackInfo);
+    }
+    if (block) {
+        const blockingActive = defender.activeAbilities.find(a => a.abilityId === block.abilityId);
+        triggerAbilityEvent({
+            engine: eng,
+            caster: defender,
+            ability: block.ability,
+            activeAbility: blockingActive,
+            targets: blockingActive?.targets ?? [],
+            eventType: AbilityEventType.ON_BLOCK_SUCCESS,
+            currentTime: blockingActive ? Math.max(0, eng.gameTime - blockingActive.startTime) : 0,
+            prevTime:    blockingActive ? Math.max(0, eng.gameTime - blockingActive.startTime) : 0,
+            primaryTarget: undefined,
+            attackInfo,
+            hitResult: 'blocked',
+        });
     }
 }
 

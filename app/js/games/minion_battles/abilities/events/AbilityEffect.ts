@@ -10,8 +10,22 @@ export type AbilityEffect =
         chargeType: RecoveryChargeType;
         amount: number;
         recipient?: 'randomAbility';
-        /** When true, the caster's own ability is excluded from the random selection. */
-        excludeSelf?: boolean;
+        /**
+         * When true, the ability currently being cast is excluded from the random recipient selection.
+         * Maps to `excludeAbilityId: context.ability.id` at runtime.
+         * Do NOT use `excludeSelf` — that would (incorrectly) exclude the caster unit.
+         */
+        excludeCurrentAbility?: boolean;
+    }
+    | {
+        type: 'grantChargeToNearbyAllies';
+        chargeType: RecoveryChargeType;
+        /** Charges granted per qualifying ally. */
+        amount: number;
+        /** Max distance (px) from caster to qualify. */
+        radius: number;
+        /** If true, also grants to the caster itself. Default false. */
+        includeSelf?: boolean;
     }
     | { type: 'setFlag'; flag: string; value: boolean }
     | {

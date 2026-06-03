@@ -19,7 +19,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Migrate ShiningBlock (0110) to castBehaviours | `doCardEffect` manages a blocking window with a counter-attack AoE on block success. The counter-attack may need a new CastBehaviour or an `ON_ATTACK_BLOCKED` abilityEvents rule; the blocking window itself is already driven by `getBlockingArc`. |
 | Migrate Claw (0111) to castBehaviours | `doCardEffect` applies forced-displacement movement each tick and spawns collision effects. Needs a dash/movement CastBehaviour (similar approach to Dodge); the iframe window is already declared in `abilityTimings`. |
 | Migrate AbsorptionShield (0113) to castBehaviours | `doCardEffect` runs absorption logic each tick during the shield window. Convert to a CastBehaviour that manages the absorption phase, or map to abilityEvents hooks that fire on each incoming hit during the active timing window. |
 | Migrate EnergyBlast (0114) to castBehaviours | `doCardEffect` fires a projectile at the prefire threshold. Create a projectile-launch CastBehaviour (or a threshold behaviour on the active interval); no research variants, so scope is bounded. |

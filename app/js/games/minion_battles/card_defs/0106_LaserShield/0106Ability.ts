@@ -1,44 +1,34 @@
 /**
  * Laser Shield - Warrior skill. Hold a cyan energy shield for 3s in a direction.
  * Movement speed penalty 0.1, blocks attacks from within a 120° arc.
- * Single use directional block.
- * Same behaviour as Raise Shield, but longer duration and laser color theme.
+ * Same reward logic as Raise Shield — longer duration and laser color theme.
  */
 
-import { AbilityState, AbilityEventType } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics, AttackBlockedInfo } from '../../abilities/Ability';
+import { AbilityEventType } from '../../abilities/Ability';
+import type { AbilityStatic } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import { createArcTargetPreview, drawArcWedge } from '../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../game/types';
-import type { Unit } from '../../game/units/Unit';
-import { isAbilityNote } from '../../game/AbilityNote';
+import { createArcTargetPreview } from '../../abilities/previewHelpers';
 import { asCardDefId, type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { getDirectionFromTo } from '../../abilities/targetHelpers';
-import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
-import { areEnemies } from '../../game/teams';
+import {
+    createDirectionalBlockingArc,
+    createMovementPenaltyStates,
+    createShieldActivePreview,
+    STANDARD_SHIELD_HALF_ARC_RAD,
+} from '../../abilities/shieldHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}06`;
 const DURATION = 3;
 const COOLDOWN_TIME = 1;
 const MOVEMENT_PENALTY = 0.1;
 const SHIELD_ARC_DEG = 120;
-const SHIELD_ARC_RAD = (SHIELD_ARC_DEG * Math.PI) / 180;
-const SHIELD_HALF_ARC_RAD = SHIELD_ARC_RAD / 2;
-// Inner radius is the "start" of the visual block, so keep it slightly outside the unit.
-const SHIELD_INNER_OFFSET = 2; // from creature's size (radius)
+const SHIELD_INNER_OFFSET = 2;
 const SHIELD_THICKNESS_PX = 15;
 const SHIELD_FILL_ALPHA = 0.85;
 const SHIELD_STROKE_ALPHA = 1.0;
 const MAX_RANGE = 300;
 const MIN_RANGE = 10;
-const ALLY_CHARGE_RADIUS = 180;
-
-interface LaserShieldEngineLike {
-    units: Unit[];
-    generateRandomInteger(min: number, max: number): number;
-}
 
 const LASER_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -76,15 +66,6 @@ export const LaserShieldAbility: AbilityStatic = {
     ],
     targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
     aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },
-    abilityEvents: {
-        [AbilityEventType.ON_CAST_START]: [
-            {
-                id: 'init-block-count',
-                conditions: [{ type: 'always' }],
-                effects: [{ type: 'setAbilityNote', abilityId: '0106', note: { blockCount: 0 } }],
-            },
-        ],
-    },
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
@@ -94,44 +75,21 @@ export const LaserShieldAbility: AbilityStatic = {
         ];
     },
 
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < DURATION) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: MOVEMENT_PENALTY } }];
-        }
-        return [];
-    },
+    getAbilityStates: createMovementPenaltyStates(MOVEMENT_PENALTY, DURATION),
 
-    getBlockingArc(caster: Unit, activeAbility: { targets: ResolvedTarget[] }, currentTime: number) {
-        if (currentTime < 0 || currentTime >= DURATION) return null;
-        const pos = activeAbility.targets[0]?.position;
-        if (!pos) return null;
-        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
-        if (dist === 0) return null;
-        const centerAngle = Math.atan2(dirY, dirX);
-        return {
-            arcStartAngle: centerAngle - SHIELD_HALF_ARC_RAD,
-            arcEndAngle: centerAngle + SHIELD_HALF_ARC_RAD,
-        };
-    },
+    getBlockingArc: createDirectionalBlockingArc({
+        blockDuration: DURATION,
+        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
+    }),
 
-    renderActivePreview(
-        gr: IAbilityPreviewGraphics,
-        caster: Unit,
-        activeAbility: { startTime: number; targets: ResolvedTarget[] },
-        _gameTime: number,
-    ): void {
-        const pos = activeAbility.targets[0]?.position;
-        if (!pos) return;
-        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
-        if (dist === 0) return;
-        const centerAngle = Math.atan2(dirY, dirX);
-        const innerR = caster.radius + SHIELD_INNER_OFFSET;
-        const outerR = caster.radius + SHIELD_THICKNESS_PX;
-        drawArcWedge(gr, caster.x, caster.y, centerAngle, SHIELD_HALF_ARC_RAD, innerR, outerR, 24, {
-            fillAlpha: SHIELD_FILL_ALPHA,
-            strokeAlpha: SHIELD_STROKE_ALPHA,
-        });
-    },
+    renderActivePreview: createShieldActivePreview({
+        blockDuration: DURATION,
+        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
+        innerOffset: SHIELD_INNER_OFFSET,
+        thicknessPx: SHIELD_THICKNESS_PX,
+        fillAlpha: SHIELD_FILL_ALPHA,
+        strokeAlpha: SHIELD_STROKE_ALPHA,
+    }),
 
     renderTargetingPreview: createArcTargetPreview({
         arcDeg: SHIELD_ARC_DEG,
@@ -141,48 +99,45 @@ export const LaserShieldAbility: AbilityStatic = {
         strokeAlpha: SHIELD_STROKE_ALPHA,
     }),
 
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        // Not used; we are the blocker, not the attacker.
-    },
-
-    onBlockSuccess(engine: unknown, defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        if (!defender.ownerId) return;
-        const note = defender.abilityNote;
-        if (!isAbilityNote(note, '0106')) return;
-        const nextCount = (note.abilityNote.blockCount ?? 0) + 1;
-        const wasRewarded = Boolean(note.abilityNote.rewardedTwiceBlock);
-        if (nextCount >= 2 && !wasRewarded) {
-            const eng = engine as LaserShieldEngineLike;
-            grantRecoveryChargeToRandomAbility(
-                defender,
-                'staminaCharge',
-                (min, max) => eng.generateRandomInteger(min, max),
-                { excludeAbilityId: CARD_ID },
-            );
-            for (const ally of eng.units) {
-                if (!ally.isAlive() || ally.id === defender.id) continue;
-                if (areEnemies(ally.teamId, defender.teamId)) continue;
-                const dist = Math.hypot(ally.x - defender.x, ally.y - defender.y);
-                if (dist > ALLY_CHARGE_RADIUS) continue;
-                grantRecoveryChargeToRandomAbility(
-                    ally,
-                    'staminaCharge',
-                    (min, max) => eng.generateRandomInteger(min, max),
-                );
-                grantRecoveryChargeToRandomAbility(
-                    ally,
-                    'staminaCharge',
-                    (min, max) => eng.generateRandomInteger(min, max),
-                );
-            }
-        }
-        defender.setAbilityNote({
-            abilityId: '0106',
-            abilityNote: {
-                blockCount: nextCount,
-                rewardedTwiceBlock: wasRewarded || nextCount >= 2,
+    abilityEvents: {
+        [AbilityEventType.ON_BLOCK_SUCCESS]: [
+            {
+                id: 'per-block-surge',
+                conditions: [{ type: 'always' }],
+                effects: [
+                    {
+                        type: 'grantChargeToNearbyAllies',
+                        chargeType: 'staminaCharge',
+                        amount: 2,
+                        radius: 50,
+                    },
+                ],
             },
-        });
+            {
+                // Fires once on the 2nd block (per-block-surge has already incremented to 2
+                // within the same dispatch before this rule evaluates).
+                id: 'second-block-bonus',
+                oncePerCast: true,
+                conditions: [
+                    { type: 'selfRuleHasTriggeredAtLeast', ruleId: 'per-block-surge', count: 2 },
+                ],
+                effects: [
+                    {
+                        type: 'recoverCharge',
+                        chargeType: 'staminaCharge',
+                        amount: 1,
+                        recipient: 'randomAbility',
+                        excludeCurrentAbility: true,
+                    },
+                    {
+                        type: 'grantChargeToNearbyAllies',
+                        chargeType: 'staminaCharge',
+                        amount: 2,
+                        radius: 180,
+                    },
+                ],
+            },
+        ],
     },
 };
 
@@ -192,4 +147,3 @@ export const LaserShieldCard: CardDef = {
     abilityId: CARD_ID,
     discardDuration: { duration: 1, unit: 'rounds' },
 };
-

@@ -10,9 +10,6 @@ export interface AbilityNoteMap {
     '0008': { position: { x: number; y: number } };
     '0009': { position: { x: number; y: number } };
     '0010': { position: { x: number; y: number } };
-    '0104': { blockCount: number; rewardedTwiceBlock?: boolean };
-    '0106': { blockCount: number; rewardedTwiceBlock?: boolean };
-    '0110': { retaliationCount: number };
     '0111': { hitTargetIds: string[] };
     '0534': {
         hitTargetIds: string[];

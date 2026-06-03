@@ -253,13 +253,13 @@ export const doublePunchTwoTargetsScenario: ScenarioDefinition = {
         const u = e.getLocalPlayerUnit()!;
         const d1 = e.getUnit('target_dummy_1')!;
         const d2 = e.getUnit('target_dummy_2')!;
+        const t1 = { type: 'unit' as const, unitId: d1.id };
+        const t2 = { type: 'unit' as const, unitId: d2.id };
         return [{
             unitId: u.id,
             abilityId: '0116',
-            targets: [
-                { type: 'pixel' as const, position: { x: d1.x, y: d1.y } },
-                { type: 'pixel' as const, position: { x: d2.x, y: d2.y } },
-            ],
+            targets: [t1, t2],
+            targetsByLabel: { 'Target 1': t1, 'Target 2': t2 },
         }];
     },
     assertPass: (e) => {
