@@ -243,7 +243,7 @@ export class Projectile extends GameObject {
                 }
                 if (this.sourceAbilityId === THROW_KNIFE_ABILITY_ID && engine) {
                     const e = engine as { gameTime: number; roundNumber: number };
-                    applyBleedStack(unit, e.gameTime, e.roundNumber);
+                    applyBleedStack(unit, e.gameTime, e.roundNumber, 5);
                 }
                 eventBus.emit('projectile_hit', {
                     projectileId: this.id,

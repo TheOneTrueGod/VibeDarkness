@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Unit } from '../game/units/Unit';
 import { EventBus } from '../game/EventBus';
-import { applyBleedStack, tickBleedForRoundMilestone, BLEED_TICK_DAMAGE_PER_STACK } from './bleedRuntime';
+import { applyBleedStack, tickBleedForRoundMilestone } from './bleedRuntime';
 import { BleedBuff } from './BleedBuff';
 
 function makeUnit(hp = 100): Unit {
@@ -30,16 +30,15 @@ describe('bleedRuntime', () => {
         expect((b as BleedBuff).stacks).toBe(2);
     });
 
-    it('tick deals damage equal to BLEED_TICK_DAMAGE_PER_STACK times stacks then removes one stack', () => {
+    it('tick deals ceil(stacks/10) damage then removes one stack', () => {
         const bus = new EventBus();
         const u = makeUnit(100);
-        applyBleedStack(u, 0, 1);
-        applyBleedStack(u, 0, 1);
-        applyBleedStack(u, 0, 1);
+        applyBleedStack(u, 0, 1, 3);
 
         tickBleedForRoundMilestone([u], bus);
 
-        expect(u.hp).toBe(100 - BLEED_TICK_DAMAGE_PER_STACK * 3);
+        // ceil(3/10) = 1 damage
+        expect(u.hp).toBe(99);
         const bleed = u.buffs.find((b): b is BleedBuff => b instanceof BleedBuff);
         expect(bleed?.stacks).toBe(2);
     });
@@ -51,7 +50,8 @@ describe('bleedRuntime', () => {
 
         tickBleedForRoundMilestone([u], bus);
 
-        expect(u.hp).toBe(1000 - BLEED_TICK_DAMAGE_PER_STACK);
+        // ceil(1/10) = 1 damage
+        expect(u.hp).toBe(999);
         const expired = u.buffs[0]?.isExpired(99, 99) ?? false;
         expect(expired).toBe(true);
     });

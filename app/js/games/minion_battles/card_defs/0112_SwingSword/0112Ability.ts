@@ -129,7 +129,7 @@ const swingSwordBehaviour = CastBehaviours.MeleeAttack()
             if (blocked) continue;
 
             if (applyBleed) {
-                applyBleedStack(targetUnit, eng.gameTime, roundNumber);
+                applyBleedStack(targetUnit, eng.gameTime, roundNumber, 5);
             }
 
             tryApplyKnockbackByTier(

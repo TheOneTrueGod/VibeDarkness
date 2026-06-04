@@ -57,7 +57,7 @@ import {
     syncNestedCardAbilityState,
 } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
-import { onRoundProgressMilestone } from './roundProgressMilestones';
+import { tickBleedForRoundMilestone, BLEED_TICKS_PER_ROUND } from '../buffs/bleedRuntime';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { triggerAbilityEvent } from '../abilities/events';
 import { CantDieBuff } from '../buffs/CantDieBuff';
@@ -141,6 +141,7 @@ export class GameEngine implements EngineContext {
     private pendingAdminReason: string | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
+    private appliedBleedTicks = 0;
 
     get randomSeed(): number {
         return this.state.randomSeed;
@@ -637,6 +638,7 @@ export class GameEngine implements EngineContext {
         this.state.runtimeFingerprintRing.clear();
         this.appliedRoundStartRecovery = false;
         this.appliedMidRoundRecovery = false;
+        this.appliedBleedTicks = 0;
     }
 
     setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
@@ -1097,6 +1099,7 @@ export class GameEngine implements EngineContext {
             this.roundNumber++;
             this.appliedRoundStartRecovery = false;
             this.appliedMidRoundRecovery = false;
+            this.appliedBleedTicks = 0;
         }
 
         if (!this.storyPauseActive) {
@@ -1327,7 +1330,7 @@ export class GameEngine implements EngineContext {
 
     /**
      * Round timer milestones (same cadence as UI round progress: 0% and 50%).
-     * Stamina surge runs at round start; bleed ticks at both milestones.
+     * Stamina surge runs at round start; bleed ticks BLEED_TICKS_PER_ROUND times per round.
      */
     private processRoundProgressMilestones(roundTime: number): void {
         const bleedFx = {
@@ -1338,7 +1341,6 @@ export class GameEngine implements EngineContext {
             this.eventBus.emit('round_start', { roundNumber: this.roundNumber });
             this.state.unitManager.onRoundStart(this.roundNumber, this);
             this.applyChargedRocksLightChargePulse();
-            onRoundProgressMilestone('round_start', { units: this.units, eventBus: this.eventBus, bleedFx });
             processLanternitePulseMilestone('round_start', {
                 units: this.units,
                 lightLevelEnabled: this.lightLevelEnabled,
@@ -1349,7 +1351,6 @@ export class GameEngine implements EngineContext {
             this.appliedRoundStartRecovery = true;
         }
         if (!this.appliedMidRoundRecovery && roundTime >= ROUND_DURATION / 2) {
-            onRoundProgressMilestone('round_half', { units: this.units, eventBus: this.eventBus, bleedFx });
             processLanternitePulseMilestone('round_half', {
                 units: this.units,
                 lightLevelEnabled: this.lightLevelEnabled,
@@ -1358,6 +1359,11 @@ export class GameEngine implements EngineContext {
                 lightSources: this.state.lightSourceManager.lightSources,
             });
             this.appliedMidRoundRecovery = true;
+        }
+        const bleedTickInterval = ROUND_DURATION / BLEED_TICKS_PER_ROUND;
+        while (this.appliedBleedTicks < BLEED_TICKS_PER_ROUND && roundTime >= this.appliedBleedTicks * bleedTickInterval) {
+            tickBleedForRoundMilestone(this.units, this.eventBus, bleedFx);
+            this.appliedBleedTicks++;
         }
     }
 
@@ -1572,6 +1578,7 @@ export class GameEngine implements EngineContext {
         const roundTime = engine.gameTime - (engine.roundNumber - 1) * ROUND_DURATION;
         engine.appliedRoundStartRecovery = roundTime > 0;
         engine.appliedMidRoundRecovery = roundTime >= ROUND_DURATION / 2;
+        engine.appliedBleedTicks = Math.min(BLEED_TICKS_PER_ROUND, Math.floor(roundTime / (ROUND_DURATION / BLEED_TICKS_PER_ROUND)));
 
         engine.deferredOrderPause = null;
         if (engine.waitingForOrders != null) {

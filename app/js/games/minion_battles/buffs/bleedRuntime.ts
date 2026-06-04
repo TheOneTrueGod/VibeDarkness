@@ -9,8 +9,8 @@ import { PARTICLE_EXPLOSION_DURATION_SECONDS } from '../game/deathEffects/Partic
 import { getCreatureType } from '../game/units/unit_defs/unitDef';
 import { BleedBuff, BLEED_BUFF_TYPE } from './BleedBuff';
 
-/** Damage dealt on each bleed milestone tick = this value × current stacks (before losing one stack). */
-export const BLEED_TICK_DAMAGE_PER_STACK = 5;
+/** How many times bleed ticks per round (evenly spaced). */
+export const BLEED_TICKS_PER_ROUND = 8;
 
 const MINI_DISSOLUTION_PARTICLE_COUNT = 6;
 
@@ -57,20 +57,20 @@ function findBleedBuff(unit: Unit): BleedBuff | undefined {
     return undefined;
 }
 
-/** Add one bleed stack to the unit (merges into a single BleedBuff). */
-export function applyBleedStack(unit: Unit, gameTime: number, roundNumber: number): void {
+/** Add bleed stacks to the unit (merges into a single BleedBuff). */
+export function applyBleedStack(unit: Unit, gameTime: number, roundNumber: number, count = 1): void {
     if (!unit.isAlive()) return;
     const existing = findBleedBuff(unit);
     if (existing) {
-        existing.stacks += 1;
+        existing.stacks += count;
         return;
     }
-    unit.addBuff(new BleedBuff(1), gameTime, roundNumber);
+    unit.addBuff(new BleedBuff(count), gameTime, roundNumber);
 }
 
 /**
- * At each round-timer milestone (0% and 50%), units with bleed take
- * (BLEED_TICK_DAMAGE_PER_STACK × stacks) damage, then lose one stack.
+ * One bleed tick: each unit with bleed takes ceil(stacks / 10) damage, then loses one stack.
+ * Called BLEED_TICKS_PER_ROUND times per round (evenly spaced).
  */
 export function tickBleedForRoundMilestone(
     units: readonly Unit[],
@@ -82,7 +82,7 @@ export function tickBleedForRoundMilestone(
         const bleed = findBleedBuff(unit);
         if (!bleed || bleed.stacks <= 0) continue;
 
-        const damage = BLEED_TICK_DAMAGE_PER_STACK * bleed.stacks;
+        const damage = Math.ceil(bleed.stacks / 10);
         const actual = unit.takeDamage(damage, null, eventBus);
         bleed.stacks -= 1;
         if (fx) {
