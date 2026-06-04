@@ -7,10 +7,6 @@
  */
 
 import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
-import {
-    EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
-    EARTH_CORE_STONE_HEALTH,
-} from '../card_defs/05_earth_core/earthCoreConstants';
 
 /** Default cell size in pixels. */
 export const CELL_SIZE = 40;
@@ -31,13 +27,6 @@ export interface TerrainStoneDamagedTransition {
     health: number;
 }
 
-export interface SerializedStoneTileMutation {
-    col: number;
-    row: number;
-    state: StoneTileState;
-    health: number;
-}
-
 export class TerrainGrid {
     /** Number of columns. */
     readonly width: number;
@@ -47,8 +36,6 @@ export class TerrainGrid {
     readonly cellSize: number;
     /** Flat array of terrain types (row-major: index = row * width + col). */
     private grid: TerrainType[];
-    /** Runtime mutations for rock-state durability tracking. */
-    private stoneStateByIndex: Map<number, StoneTileStateData> = new Map();
 
     constructor(
         width: number,
@@ -83,152 +70,7 @@ export class TerrainGrid {
     /** Set terrain type at grid coordinates. */
     set(col: number, row: number, type: TerrainType): void {
         if (col < 0 || col >= this.width || row < 0 || row >= this.height) return;
-        const index = row * this.width + col;
-        this.grid[index] = type;
-        if (type !== TerrainType.Rock) {
-            this.stoneStateByIndex.delete(index);
-        }
-    }
-
-    getStoneState(col: number, row: number): StoneTileState {
-        if (!this.isInBounds(col, row)) return 'spent_rubble';
-        if (this.get(col, row) !== TerrainType.Rock) return 'spent_rubble';
-        return this.stoneStateByIndex.get(this.indexOf(col, row))?.state ?? 'natural_stone';
-    }
-
-    getStoneHealth(col: number, row: number): number {
-        if (!this.isInBounds(col, row)) return 0;
-        if (this.get(col, row) !== TerrainType.Rock) return 0;
-        return this.stoneStateByIndex.get(this.indexOf(col, row))?.health ?? EARTH_CORE_STONE_HEALTH;
-    }
-
-    createOrMarkRock(col: number, row: number): StoneTileStateData | null {
-        if (!this.isInBounds(col, row)) return null;
-        this.set(col, row, TerrainType.Rock);
-        const entry: StoneTileStateData = { state: 'created_rock', health: EARTH_CORE_STONE_HEALTH };
-        this.stoneStateByIndex.set(this.indexOf(col, row), entry);
-        return { ...entry };
-    }
-
-    damageRock(
-        col: number,
-        row: number,
-        damage: number = EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
-    ): TerrainStoneDamagedTransition | null {
-        if (!this.isInBounds(col, row)) return null;
-        if (this.get(col, row) !== TerrainType.Rock) return null;
-
-        const previousState = this.getStoneState(col, row);
-        const previousHealth = this.getStoneHealth(col, row);
-        if (previousState === 'spent_rubble' || previousHealth <= 0) return null;
-
-        const nextHealth = Math.max(0, previousHealth - Math.max(0, damage));
-        const nextState: StoneTileState = nextHealth <= 0 ? 'spent_rubble' : nextHealth < EARTH_CORE_STONE_HEALTH ? 'cracked_rock' : previousState;
-
-        if (nextState === 'spent_rubble') {
-            this.set(col, row, TerrainType.Dirt);
-            this.stoneStateByIndex.set(this.indexOf(col, row), { state: nextState, health: 0 });
-        } else {
-            this.stoneStateByIndex.set(this.indexOf(col, row), { state: nextState, health: nextHealth });
-        }
-
-        if ((previousState !== 'cracked_rock' && nextState === 'cracked_rock') || nextState === 'spent_rubble') {
-            return {
-                col,
-                row,
-                previousState,
-                state: nextState,
-                previousHealth,
-                health: nextHealth,
-            };
-        }
-        return null;
-    }
-
-    consumeRockInRadius(centerCol: number, centerRow: number, radius: number): TerrainStoneDamagedTransition | null {
-        const candidates: Array<{ col: number; row: number; state: StoneTileState }> = [];
-        const radiusSq = Math.max(0, radius) * Math.max(0, radius);
-        for (let row = 0; row < this.height; row++) {
-            for (let col = 0; col < this.width; col++) {
-                if (this.get(col, row) !== TerrainType.Rock) continue;
-                const dx = col - centerCol;
-                const dy = row - centerRow;
-                if ((dx * dx) + (dy * dy) > radiusSq) continue;
-                const state = this.getStoneState(col, row);
-                if (state === 'spent_rubble') continue;
-                candidates.push({ col, row, state });
-            }
-        }
-
-        if (candidates.length === 0) return null;
-
-        const preference = (state: StoneTileState): number => {
-            if (state === 'created_rock' || state === 'cracked_rock') return 0;
-            if (state === 'natural_stone') return 1;
-            return 2;
-        };
-        candidates.sort((a, b) => {
-            const prefDiff = preference(a.state) - preference(b.state);
-            if (prefDiff !== 0) return prefDiff;
-            const da = ((a.col - centerCol) ** 2) + ((a.row - centerRow) ** 2);
-            const db = ((b.col - centerCol) ** 2) + ((b.row - centerRow) ** 2);
-            if (da !== db) return da - db;
-            if (a.row !== b.row) return a.row - b.row;
-            return a.col - b.col;
-        });
-
-        const selected = candidates[0];
-        const previousHealth = this.getStoneHealth(selected.col, selected.row);
-        const previousState = this.getStoneState(selected.col, selected.row);
-        this.set(selected.col, selected.row, TerrainType.Dirt);
-        this.stoneStateByIndex.set(this.indexOf(selected.col, selected.row), { state: 'spent_rubble', health: 0 });
-        return {
-            col: selected.col,
-            row: selected.row,
-            previousState,
-            state: 'spent_rubble',
-            previousHealth,
-            health: 0,
-        };
-    }
-
-    toStoneMutationsJSON(): SerializedStoneTileMutation[] {
-        const out: SerializedStoneTileMutation[] = [];
-        for (const [index, data] of this.stoneStateByIndex.entries()) {
-            if (data.state === 'natural_stone') continue;
-            const col = index % this.width;
-            const row = Math.floor(index / this.width);
-            out.push({ col, row, state: data.state, health: data.health });
-        }
-        out.sort((a, b) => (a.row - b.row) || (a.col - b.col));
-        return out;
-    }
-
-    restoreStoneMutationsJSON(data: SerializedStoneTileMutation[] | undefined): void {
-        this.stoneStateByIndex.clear();
-        if (!data) return;
-        for (const mutation of data) {
-            if (!this.isInBounds(mutation.col, mutation.row)) continue;
-            const index = this.indexOf(mutation.col, mutation.row);
-            if (mutation.state === 'spent_rubble') {
-                this.grid[index] = TerrainType.Dirt;
-                this.stoneStateByIndex.set(index, { state: 'spent_rubble', health: 0 });
-                continue;
-            }
-            this.grid[index] = TerrainType.Rock;
-            this.stoneStateByIndex.set(index, {
-                state: mutation.state,
-                health: Math.max(0, mutation.health),
-            });
-        }
-    }
-
-    private isInBounds(col: number, row: number): boolean {
-        return col >= 0 && col < this.width && row >= 0 && row < this.height;
-    }
-
-    private indexOf(col: number, row: number): number {
-        return row * this.width + col;
+        this.grid[row * this.width + col] = type;
     }
 
     /** Convert world position to grid coordinates. */

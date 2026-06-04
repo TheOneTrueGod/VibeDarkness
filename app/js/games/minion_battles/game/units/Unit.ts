@@ -44,7 +44,7 @@ import { UnitTag, parseUnitTagsFromJSON } from './unitTag';
 import type { EnrageDef } from './enrageDef';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import type { CcResistKey } from '../../crowdControl/ccTypes';
-import { getBrambleMovementMultiplier, type BramblePatch } from '../brambleSlow';
+import type { TerrainLayerManager } from '../TerrainLayerManager';
 import type { LanterniteNestMissionConfig } from '../../storylines/types';
 import type { EngineContext } from '../EngineContext';
 import { tickUnitActiveAbilities } from './unitAbilityTick';
@@ -658,11 +658,11 @@ export class Unit extends GameObject {
         const targetX = centerX + jitterX;
         const targetY = centerY + jitterY;
 
-        // Compute effective speed: base × ability penalties × terrain modifier × bramble patches
+        // Compute effective speed: base × ability penalties × terrain modifier × ground effects
         let effectiveSpeed = this.getEffectiveSpeed(gameTime);
-        const bp = (engine as { bramblePatches?: readonly BramblePatch[] }).bramblePatches;
-        if (bp && bp.length > 0) {
-            effectiveSpeed *= getBrambleMovementMultiplier(this.x, this.y, bp);
+        const terrainLayers = (engine as { terrainLayers?: TerrainLayerManager }).terrainLayers;
+        if (terrainLayers) {
+            effectiveSpeed *= terrainLayers.getGroundMovementMultiplier(this.x, this.y);
         }
         if (terrainManager) {
             effectiveSpeed *= terrainManager.getSpeedMultiplier(this.x, this.y);

@@ -23,6 +23,11 @@ export class ProjectileRenderer {
             }
             visual.x = proj.x;
             visual.y = proj.y;
+            if (proj.projectileType === 'bramble_spike' && proj.maxDistance > 0) {
+                const t = Math.min(1, proj.distanceTraveled / proj.maxDistance);
+                const arcH = Math.min(proj.maxDistance * 0.4, 100);
+                visual.y = proj.y - 4 * t * (1 - t) * arcH;
+            }
             visual.visible = proj.active;
             if (proj.projectileType === 'throwing_knife') {
                 visual.rotation = Math.atan2(proj.velocityY, proj.velocityX) + Math.PI / 2;

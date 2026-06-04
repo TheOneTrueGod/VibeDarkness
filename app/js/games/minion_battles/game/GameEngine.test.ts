@@ -241,7 +241,7 @@ describe('GameEngine', () => {
         unit.abilities.push(BEDROCK_SCAVENGER_PASSIVE_ID);
         grid.set(4, 4, TerrainType.Rock);
         grid.set(5, 4, TerrainType.Rock);
-        grid.createOrMarkRock(4, 5);
+        terrainManager.createOrMarkRock(4, 5);
         grid.set(3, 4, TerrainType.Rock); // More than cap in range.
 
         engine.stepSimulationFixedTicks(1);
@@ -331,17 +331,18 @@ describe('GameEngine', () => {
         terrainManager.consumeRockInRadius(2, 1, 0); // created -> spent
 
         const json = engine.toJSON();
-        expect(json.terrainStoneMutations).toBeDefined();
-        expect(json.terrainStoneMutations?.length).toBeGreaterThan(0);
+        expect(json.terrainEffects).toBeDefined();
+        expect(json.terrainEffects?.length).toBeGreaterThan(0);
 
         const restoredGrid = TerrainGrid.createFilledTerrain(4, 4, CELL_SIZE, TerrainType.Grass);
+        restoredGrid.set(1, 1, TerrainType.Rock);
+        restoredGrid.set(2, 1, TerrainType.Rock);
         const restoredTerrainManager = new TerrainManager(restoredGrid);
         const restored = GameEngine.fromJSON(json, 'p1', restoredTerrainManager);
 
         expect(restoredTerrainManager.getStoneState(1, 1)).toBe('cracked_rock');
         expect(restoredTerrainManager.getStoneHealth(1, 1)).toBe(24);
         expect(restoredTerrainManager.getStoneState(2, 1)).toBe('spent_rubble');
-        expect(restoredGrid.get(2, 1)).toBe(TerrainType.Dirt);
 
         restored.destroy();
         engine.destroy();

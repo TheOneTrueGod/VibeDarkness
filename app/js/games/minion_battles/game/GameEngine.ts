@@ -68,7 +68,7 @@ import {
     LANTERNITE_CHARACTER_ID,
 } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
-import { bramblePatchFromJSON, bramblePatchToJSON, type BramblePatch } from './brambleSlow';
+import { TerrainLayerManager } from './TerrainLayerManager';
 import { resetGameObjectIdCounter, getCurrentGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import { AlphaWolfStoryEmitter } from './effects/AlphaWolfStoryEmitter';
@@ -281,11 +281,7 @@ export class GameEngine implements EngineContext {
     get projectiles(): Projectile[] { return this.state.projectileManager.projectiles; }
     get effects(): Effect[] { return this.state.effectManager.effects; }
     get specialTiles(): SpecialTile[] { return this.state.specialTileManager.specialTiles; }
-    get bramblePatches(): readonly BramblePatch[] { return this.state.bramblePatches; }
-
-    addBramblePatch(patch: BramblePatch): void {
-        this.state.bramblePatches.push(patch);
-    }
+    get terrainLayers(): TerrainLayerManager { return this.state.terrainLayers; }
     get cards(): Record<string, import('./managers/CardManager').CardInstance[]> { return this.state.cardManager.cards; }
     set cards(value: Record<string, import('./managers/CardManager').CardInstance[]>) { this.state.cardManager.cards = value; }
 
@@ -632,6 +628,7 @@ export class GameEngine implements EngineContext {
         this.terrainManager?.setStoneDamagedEmitter((event) => {
             this.eventBus.emit('terrain_stone_damaged', event);
         });
+        if (this.terrainManager) this.terrainManager.setTerrainLayers(this.state.terrainLayers);
         this.aiControllerId = config.aiControllerId ?? null;
         this.state.levelEventManager.resetTerminalState();
         this.resetObjectIdSequence(1);
@@ -1155,9 +1152,7 @@ export class GameEngine implements EngineContext {
         this.state.projectileManager.cleanupInactive();
         this.state.effectManager.cleanupInactive();
         this.state.lightSourceManager.cleanupInactive();
-        this.state.bramblePatches = this.state.bramblePatches.filter(
-            (p) => p.expiresAtGameTime > this.gameTime,
-        );
+        this.state.terrainLayers.cleanupExpired(this.gameTime);
         this.mixRuntimeFingerprint(
             FingerprintEvent.EFFECT_TICK,
             this.projectiles.length >>> 0,
@@ -1421,13 +1416,12 @@ export class GameEngine implements EngineContext {
             victoryCheckFirstEmitDone: levelEventData.victoryCheckFirstEmitDone,
             continuousSpawnLastSpawnedAt: levelEventData.continuousSpawnLastSpawnedAt,
             playerResearchTreesByPlayer: cardData.playerResearchTreesByPlayer,
-            terrainStoneMutations: this.terrainManager?.toStoneMutationsJSON() ?? [],
             storyPauseActive: this.storyPauseActive,
             storyPauseReason: this.storyPauseReason,
             storyPauseEndsAt: this.storyPauseEndsAt,
             objectives: this.state.objectiveManager.toJSON(),
             lightSources: this.state.lightSourceManager.toJSON(),
-            bramblePatches: this.state.bramblePatches.map(bramblePatchToJSON),
+            terrainEffects: this.state.terrainLayers.toJSON(),
             lightTileGrid: this.state.lightTileGrid?.toJSON() ?? null,
             nextObjectId: this.objectIdSeq,
             mapPOIs: this.mapPOIs,
@@ -1543,14 +1537,12 @@ export class GameEngine implements EngineContext {
         // Restore map POIs (needed for networked lanternite nest spawning)
         engine.registerMapPOIs((data.mapPOIs ?? []) as import('../terrain/segmentSchema').MapSegmentPOI[]);
 
-        // Restore bramble patches
-        engine.state.bramblePatches = (data.bramblePatches ?? []).map(
-            (d) => bramblePatchFromJSON(d as Record<string, unknown>),
-        );
+        // Restore terrain layers (floor/ground/air effects)
+        engine.state.terrainLayers = TerrainLayerManager.fromJSON(data.terrainEffects ?? []);
+        if (engine.terrainManager) engine.terrainManager.setTerrainLayers(engine.state.terrainLayers);
 
         // Restore cards + research trees
         engine.state.cardManager.restoreFromJSON(data.cards, data.playerResearchTreesByPlayer);
-        engine.terrainManager?.restoreStoneMutationsJSON(data.terrainStoneMutations);
 
         engine.syncObjectIdsFromSnapshot(data);
 

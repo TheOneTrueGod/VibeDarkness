@@ -2,12 +2,19 @@ import { describe, expect, it, vi } from 'vitest';
 import { TerrainManager } from './TerrainManager';
 import { TerrainGrid, CELL_SIZE } from './TerrainGrid';
 import { TerrainType } from './TerrainType';
+import { TerrainLayerManager } from '../game/TerrainLayerManager';
+
+function makeManager(grid: TerrainGrid): TerrainManager {
+    const manager = new TerrainManager(grid);
+    manager.setTerrainLayers(new TerrainLayerManager());
+    return manager;
+}
 
 describe('TerrainManager stone mutation hooks', () => {
     it('emits stone-damaged only on cracked/spent transitions', () => {
         const grid = TerrainGrid.createFilledTerrain(3, 3, CELL_SIZE, TerrainType.Grass);
         grid.set(1, 1, TerrainType.Rock);
-        const manager = new TerrainManager(grid);
+        const manager = makeManager(grid);
         const emitter = vi.fn();
         manager.setStoneDamagedEmitter(emitter);
 
@@ -35,7 +42,7 @@ describe('TerrainManager stone mutation hooks', () => {
         const grid = TerrainGrid.createFilledTerrain(5, 5, CELL_SIZE, TerrainType.Grass);
         grid.set(2, 2, TerrainType.Rock); // natural
         grid.set(1, 2, TerrainType.Rock); // created
-        const manager = new TerrainManager(grid);
+        const manager = makeManager(grid);
         manager.createOrMarkRock(1, 2);
 
         const emitter = vi.fn();

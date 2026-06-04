@@ -3,6 +3,9 @@
  */
 
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
+import type { ActiveAbility } from '../../game/types';
+import { Projectile } from '../../game/projectiles/Projectile';
+import { Effect } from '../../game/effects/Effect';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
@@ -15,12 +18,12 @@ import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { getPixelTargetPosition } from '../../abilities/targetHelpers';
 import type { EventBus } from '../../game/EventBus';
 import { isLightHateWeakened } from '../../game/lightHate';
-import type { BramblePatch } from '../../game/brambleSlow';
+import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
 
 export const THORNBINDER_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}08`;
 
 const LOCK_TIME = 0.85;
-const STRIKE_TIME = 1.25;
+const STRIKE_TIME = 1.85;
 const COOLDOWN_END = 5.5;
 const BASE_RADIUS = 95;
 const WEAKENED_RADIUS = 72;
@@ -34,11 +37,12 @@ interface EngineLike {
     units: Unit[];
     gameTime: number;
     eventBus: EventBus;
-    bramblePatches: readonly BramblePatch[];
-    addBramblePatch(patch: BramblePatch): void;
+    terrainLayers: TerrainLayerManager;
     lightLevelEnabled: boolean;
     globalLightLevel: number;
     terrainManager: { grid: import('../../terrain/TerrainGrid').TerrainGrid } | null;
+    addProjectile(projectile: Projectile): void;
+    addEffect(effect: Effect): void;
     getAllLightSources(): import('../../game/LightGrid').LightSource[];
 }
 
@@ -47,18 +51,6 @@ function getStrikePosition(caster: Unit, active: { targets: ResolvedTarget[] }):
         return caster.abilityNote.abilityNote.position;
     }
     return getPixelTargetPosition(active.targets, 0);
-}
-
-function clearBrambleFromOwner(engine: EngineLike, ownerId: string): void {
-    // Filter out patches belonging to this owner — they will be garbage collected since
-    // bramblePatches is reassigned on the state object. The engine's getter always reads
-    // state.bramblePatches so we cast to access the mutable field.
-    const mutable = engine as unknown as { state: { bramblePatches: BramblePatch[] } };
-    if (mutable.state?.bramblePatches) {
-        mutable.state.bramblePatches = mutable.state.bramblePatches.filter(
-            (p) => p.ownerUnitId !== ownerId,
-        );
-    }
 }
 
 export const ThornbinderBrambleAbility: AbilityStatic = {
@@ -74,7 +66,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         { id: 'cooldown', start: STRIKE_TIME, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Ground' }] as TargetDef[],
-    aiSettings: { minRange: 60, maxRange: 320 },
+    aiSettings: { minRange: 0, maxRange: 320 },
 
     getTooltipText(): string[] {
         return [
@@ -95,6 +87,25 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
                     abilityId: '0008',
                     abilityNote: { position: { ...pos } },
                 });
+                const dx = pos.x - caster.x;
+                const dy = pos.y - caster.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 1) {
+                    const speed = dist / (STRIKE_TIME - LOCK_TIME);
+                    eng.addProjectile(new Projectile({
+                        x: caster.x,
+                        y: caster.y,
+                        velocityX: (dx / dist) * speed,
+                        velocityY: (dy / dist) * speed,
+                        damage: 0,
+                        sourceTeamId: caster.teamId,
+                        sourceUnitId: caster.id,
+                        sourceAbilityId: THORNBINDER_ABILITY_ID,
+                        maxDistance: dist,
+                        projectileType: 'bramble_spike',
+                        passThroughEnemies: true,
+                    }));
+                }
             }
         }
         if (prevTime >= STRIKE_TIME || currentTime < STRIKE_TIME) return;
@@ -108,7 +119,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         const damage = weakened ? WEAKENED_DAMAGE : BASE_DAMAGE;
         const slowMult = weakened ? SLOW_MULT_WEAKENED : SLOW_MULT_NORMAL;
 
-        clearBrambleFromOwner(eng, caster.id);
+        eng.terrainLayers.removeByOwner(caster.id, 'ground');
         const r2 = radius * radius;
 
         for (const u of eng.units) {
@@ -131,17 +142,73 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         }
 
         const expiresAt = eng.gameTime + (COOLDOWN_END - STRIKE_TIME) - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
-        eng.addBramblePatch({
+        eng.terrainLayers.add({
             id: `bramble-${Date.now()}-${Math.random()}`,
-            x: pos.x,
-            y: pos.y,
-            radiusPx: radius,
-            slowMult,
+            layer: 'ground',
+            effectType: 'bramble_slow',
+            placedAtGameTime: eng.gameTime,
             expiresAtGameTime: Math.max(eng.gameTime + 0.05, expiresAt),
             ownerUnitId: caster.id,
+            ownerAbilityId: THORNBINDER_ABILITY_ID,
+            area: { type: 'circle', x: pos.x, y: pos.y, radiusPx: radius },
+            params: { slowMult },
         });
+
+        eng.addEffect(new Effect({
+            x: pos.x,
+            y: pos.y,
+            duration: 0.6,
+            effectType: 'BrambleExplosion',
+            effectRadius: radius,
+        }));
     },
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
+    renderActivePreview(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        activeAbility: ActiveAbility,
+        gameTime: number,
+    ): void {
+        const elapsed = gameTime - activeAbility.startTime;
+        if (elapsed >= STRIKE_TIME) return;
+
+        const target = getStrikePosition(caster, activeAbility);
+        if (!target) return;
+
+        // Arcing trajectory line: visible during windup, fades out as the projectile launches
+        if (elapsed < LOCK_TIME) {
+            const lineFadeT = elapsed / LOCK_TIME;
+            const dx = target.x - caster.x;
+            const dy = target.y - caster.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const arcH = Math.min(dist * 0.4, 100);
+            const ctrlX = (caster.x + target.x) / 2;
+            const ctrlY = (caster.y + target.y) / 2 - arcH;
+            const SEGS = 16;
+            for (let i = 0; i <= SEGS; i++) {
+                const t = i / SEGS;
+                const mt = 1 - t;
+                const bx = mt * mt * caster.x + 2 * mt * t * ctrlX + t * t * target.x;
+                const by = mt * mt * caster.y + 2 * mt * t * ctrlY + t * t * target.y;
+                if (i === 0) gr.moveTo(bx, by);
+                else gr.lineTo(bx, by);
+            }
+            gr.stroke({ color: 0x4ade80, width: 2, alpha: 0.25 + 0.45 * lineFadeT });
+        }
+
+        // Outer boundary circle: shows full impact radius, brightens as impact nears
+        const borderAlpha = 0.25 + 0.55 * Math.min(1, elapsed / STRIKE_TIME);
+        gr.circle(target.x, target.y, BASE_RADIUS);
+        gr.stroke({ color: 0x22c55e, width: 2, alpha: borderAlpha });
+
+        // Expanding inner ring: grows from 0 to BASE_RADIUS over the full cast (0 → STRIKE_TIME)
+        const ringT = elapsed / STRIKE_TIME;
+        const ringRadius = ringT * BASE_RADIUS;
+        if (ringRadius > 2) {
+            gr.circle(target.x, target.y, ringRadius);
+            gr.stroke({ color: 0x86efac, width: 3, alpha: 0.45 + 0.45 * ringT });
+        }
+    },
     renderTargetingPreview(gr: IAbilityPreviewGraphics, caster: Unit): void {
         gr.circle(caster.x, caster.y, 320);
         gr.stroke({ width: 1, color: 0x86efac, alpha: 0.35 });

@@ -39,9 +39,25 @@ export class Pathfinder {
     private grid: TerrainGrid;
     private cache: Map<string, { x: number; y: number }[] | null> = new Map();
     private gridCache: Map<string, { col: number; row: number }[] | null> = new Map();
+    private passabilityFn: ((col: number, row: number) => boolean) | null = null;
 
     constructor(grid: TerrainGrid) {
         this.grid = grid;
+    }
+
+    /**
+     * Override per-cell passability. When set, this function is consulted before
+     * TerrainGrid — return true/false to override, or use null to clear the override.
+     * Clears path caches when changed.
+     */
+    setPassabilityFn(fn: ((col: number, row: number) => boolean) | null): void {
+        this.passabilityFn = fn;
+        this.clearCache();
+    }
+
+    private isCellPassable(col: number, row: number): boolean {
+        if (this.passabilityFn) return this.passabilityFn(col, row);
+        return TERRAIN_PROPERTIES[this.grid.get(col, row)].passable;
     }
 
     /** Clear all path caches (call if terrain changes). */
@@ -66,7 +82,7 @@ export class Pathfinder {
         let endRow = toRow;
 
         // If destination is impassable, find nearest passable cell
-        if (!TERRAIN_PROPERTIES[this.grid.get(endCol, endRow)].passable) {
+        if (!this.isCellPassable(endCol, endRow)) {
             const nearest = this.findNearestPassable(endCol, endRow);
             if (!nearest) return null;
             endCol = nearest.col;
@@ -111,7 +127,7 @@ export class Pathfinder {
         blockedCells: Set<string>,
     ): { col: number; row: number }[] | null {
         const key = (c: number, r: number) => `${c},${r}`;
-        const destPassable = TERRAIN_PROPERTIES[this.grid.get(toCol, toRow)].passable;
+        const destPassable = this.isCellPassable(toCol, toRow);
         const destBlocked = blockedCells.has(key(toCol, toRow));
         if (destBlocked || !destPassable) {
             const nearest = this.findNearestPassableOrUnblocked(toCol, toRow, blockedCells);
@@ -142,7 +158,7 @@ export class Pathfinder {
         const end = this.grid.worldToGrid(toX, toY);
 
         // If destination is impassable, find nearest passable cell
-        if (!TERRAIN_PROPERTIES[this.grid.get(end.col, end.row)].passable) {
+        if (!this.isCellPassable(end.col, end.row)) {
             const nearest = this.findNearestPassable(end.col, end.row);
             if (!nearest) return null;
             end.col = nearest.col;
@@ -238,17 +254,17 @@ export class Pathfinder {
                 const neighborKey = nr * W + nc;
                 if (closedSet.has(neighborKey)) continue;
 
-                const terrain = this.grid.get(nc, nr);
-                const props = TERRAIN_PROPERTIES[terrain];
-                if (!props.passable) continue;
+                if (!this.isCellPassable(nc, nr)) continue;
 
                 // Diagonal: both adjacent cardinal cells must be passable
                 const isDiagonal = dir.dc !== 0 && dir.dr !== 0;
                 if (isDiagonal) {
-                    if (!TERRAIN_PROPERTIES[this.grid.get(current.col + dir.dc, current.row)].passable) continue;
-                    if (!TERRAIN_PROPERTIES[this.grid.get(current.col, current.row + dir.dr)].passable) continue;
+                    if (!this.isCellPassable(current.col + dir.dc, current.row)) continue;
+                    if (!this.isCellPassable(current.col, current.row + dir.dr)) continue;
                 }
 
+                const terrain = this.grid.get(nc, nr);
+                const props = TERRAIN_PROPERTIES[terrain];
                 const moveCost = (isDiagonal ? Math.SQRT2 : 1) * props.pathfindingWeight;
                 const g = current.g + moveCost;
 
@@ -330,7 +346,8 @@ export class Pathfinder {
             const t = steps === 0 ? 0 : i / steps;
             const x = x1 + dx * t;
             const y = y1 + dy * t;
-            if (!this.grid.isPassable(x, y)) return false;
+            const { col, row } = this.grid.worldToGrid(x, y);
+            if (!this.isCellPassable(col, row)) return false;
         }
 
         return true;
@@ -346,7 +363,7 @@ export class Pathfinder {
         while (queue.length > 0) {
             const current = queue.shift()!;
 
-            if (TERRAIN_PROPERTIES[this.grid.get(current.col, current.row)].passable) {
+            if (this.isCellPassable(current.col, current.row)) {
                 return current;
             }
 
@@ -383,7 +400,7 @@ export class Pathfinder {
 
         while (queue.length > 0) {
             const current = queue.shift()!;
-            const passable = TERRAIN_PROPERTIES[this.grid.get(current.col, current.row)].passable;
+            const passable = this.isCellPassable(current.col, current.row);
             const unblocked = !blockedCells.has(key(current.col, current.row));
             if (passable && unblocked) return current;
 
@@ -452,16 +469,16 @@ export class Pathfinder {
 
                 if (blockedCells.has(key(nc, nr))) continue;
 
-                const terrain = this.grid.get(nc, nr);
-                const props = TERRAIN_PROPERTIES[terrain];
-                if (!props.passable) continue;
+                if (!this.isCellPassable(nc, nr)) continue;
 
                 const isDiagonal = dir.dc !== 0 && dir.dr !== 0;
                 if (isDiagonal) {
-                    if (!TERRAIN_PROPERTIES[this.grid.get(current.col + dir.dc, current.row)].passable) continue;
-                    if (!TERRAIN_PROPERTIES[this.grid.get(current.col, current.row + dir.dr)].passable) continue;
+                    if (!this.isCellPassable(current.col + dir.dc, current.row)) continue;
+                    if (!this.isCellPassable(current.col, current.row + dir.dr)) continue;
                 }
 
+                const terrain = this.grid.get(nc, nr);
+                const props = TERRAIN_PROPERTIES[terrain];
                 const moveCost = (isDiagonal ? Math.SQRT2 : 1) * props.pathfindingWeight;
                 const g = current.g + moveCost;
 

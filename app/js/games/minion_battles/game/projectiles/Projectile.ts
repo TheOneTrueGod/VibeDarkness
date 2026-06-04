@@ -39,7 +39,7 @@ export class Projectile extends GameObject {
     /** Optional visual trail type (e.g. 'bullet'). When set, update() will spawn matching effects as the projectile moves. */
     trailType?: 'bullet';
     /** Projectile look variant for custom rendering. */
-    projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife';
+    projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike';
     /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
     modifiers: ProjectileModifierId[];
 
@@ -64,7 +64,7 @@ export class Projectile extends GameObject {
         sourceAbilityId: string;
         maxDistance: number;
         trailType?: 'bullet';
-        projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife';
+        projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike';
         modifiers?: ProjectileModifierId[];
         passThroughEnemies?: boolean;
         summonSeedWeak?: boolean;
@@ -157,6 +157,13 @@ export class Projectile extends GameObject {
             visual.moveTo(-1, -8);
             visual.lineTo(0, -12);
             visual.stroke({ color: 0xf8fbff, width: 1, alpha: 0.9 });
+        } else if (projectile.projectileType === 'bramble_spike') {
+            visual.circle(0, 0, projectile.radius);
+            visual.fill({ color: 0x22c55e, alpha: 0.95 });
+            visual.circle(0, 0, projectile.radius * 0.5);
+            visual.fill({ color: 0x86efac, alpha: 0.98 });
+            visual.circle(0, 0, projectile.radius + 1);
+            visual.stroke({ color: 0x166534, width: 1, alpha: 0.8 });
         } else {
             visual.circle(0, 0, projectile.radius);
             visual.fill(0xc0c0c0);
@@ -297,7 +304,7 @@ export class Projectile extends GameObject {
         proj.radius = (data.radius as number) ?? 5;
         proj.trailType = (data.trailType as 'bullet' | undefined) ?? undefined;
         proj.projectileType =
-            (data.projectileType as 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | undefined) ??
+            (data.projectileType as 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike' | undefined) ??
             'default';
         proj.passThroughEnemies = (data.passThroughEnemies as boolean | undefined) ?? false;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;

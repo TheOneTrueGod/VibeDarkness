@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TerrainGrid } from '../terrain/TerrainGrid';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { TerrainType } from '../terrain/TerrainType';
+import { TerrainLayerManager } from '../game/TerrainLayerManager';
 import { Unit } from '../game/units/Unit';
 import {
     countStoneTilesInTremorsense,
@@ -42,13 +43,14 @@ describe('earthCoreMeleePassives', () => {
     it('counts only active stone states in tremorsense radius', () => {
         const grid = new TerrainGrid(8, 8, 40, TerrainType.Grass);
         const manager = new TerrainManager(grid);
+        manager.setTerrainLayers(new TerrainLayerManager());
         const unit = makeUnit('u');
         unit.x = 4 * 40 + 20;
         unit.y = 4 * 40 + 20;
         grid.set(4, 4, TerrainType.Rock); // natural stone
-        grid.createOrMarkRock(5, 4); // created rock
+        manager.createOrMarkRock(5, 4); // created rock
         grid.set(6, 4, TerrainType.Rock);
-        grid.damageRock(6, 4, 30); // spent rubble
+        manager.damageRock(6, 4, 30); // spent rubble
 
         expect(countStoneTilesInTremorsense(unit, manager)).toBe(2);
     });

@@ -25,6 +25,7 @@ import {
 import { damageNumberEffectDef, floatingTextEffectDef } from './textEffects';
 import { corruptionOrbEffectDef, torchProjectileEffectDef } from './corruptionEffects';
 import { lanterniteConstParticleEffectDef } from './lanterniteEffects';
+import { brambleExplosionEffectDef } from './brambleEffects';
 
 /** Default effect: expanding ring that fades out. */
 const defaultEffectDef: IEffectDef = {
@@ -66,6 +67,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     DamageNumber: damageNumberEffectDef,
     FloatingText: floatingTextEffectDef,
     LanterniteConstParticle: lanterniteConstParticleEffectDef,
+    BrambleExplosion: brambleExplosionEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

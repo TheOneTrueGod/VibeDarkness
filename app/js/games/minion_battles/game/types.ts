@@ -3,7 +3,6 @@
  */
 
 import type { EnemySpawnDef } from '../storylines/types';
-import type { SerializedStoneTileMutation } from '../terrain/TerrainGrid';
 
 /**
  * Describes how a unit entered the battle, used to determine whether to play a spawn animation.
@@ -119,8 +118,6 @@ export interface SerializedGameState {
      * Server checkpoint runtime hash lives on the snapshot envelope as `synchash`.
      */
     initialFingerprint?: string;
-    /** Runtime terrain mutations (rock durability/state transitions). */
-    terrainStoneMutations?: SerializedStoneTileMutation[];
     /** True while a cinematic/gameplay-freeze sequence is active (e.g. boss death story beat). */
     storyPauseActive?: boolean;
     /** Optional tag for the active story pause sequence. */
@@ -133,8 +130,8 @@ export interface SerializedGameState {
     lightSources?: Record<string, unknown>[];
     /** Stored per-tile light levels (quadrant-organized). */
     lightTileGrid?: { w: number; h: number; q: number[][] } | null;
-    /** Active bramble slow zones. */
-    bramblePatches?: Record<string, unknown>[];
+    /** Layered terrain effects (floor/ground/air). Replaces bramblePatches + terrainStoneMutations. */
+    terrainEffects?: Record<string, unknown>[];
     /** Map POIs (nest sites, etc.) used for networked lanternite spawning. */
     mapPOIs?: import('../terrain/segmentSchema').MapSegmentPOI[];
     /** Serialized effect emitters (runtime-only factories not included; short-lived, safe to drop on reconnect). */

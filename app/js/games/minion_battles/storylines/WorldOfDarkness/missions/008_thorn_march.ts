@@ -41,7 +41,7 @@ import {
     NEST as THORN2_NEST_POINT,
 } from '../MapSegments/48_52_thorn_path_2';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
-import { LANTERNITE_NEST_CHARACTER_ID } from '../../../game/lanternite/lanternitePulse';
+import { LANTERNITE_NEST_CHARACTER_ID, LANTERNITE_CHARACTER_ID } from '../../../game/lanternite/lanternitePulse';
 
 // ---------------------------------------------------------------------------
 // Grid constants
@@ -107,6 +107,16 @@ const NEST_49_52_WORLD = gridToWorld(NEST_49_52_COL, NEST_49_52_ROW);
 const NEST_48_52_COL = SEG_48_52_COL + THORN2_NEST_POINT.col;   // 0 + 9 = 9
 const NEST_48_52_ROW = SEG_48_52_ROW + THORN2_NEST_POINT.row;   // 22 + 8 = 30
 const NEST_48_52_WORLD = gridToWorld(NEST_48_52_COL, NEST_48_52_ROW);
+
+/** Stable unit ID for the first nest (so guard lanternites can reference it). */
+const NEST_49_51_UNIT_ID = 'nest_49_51_unit';
+
+/** Guard lanternite positions — flanking the first nest. */
+const GUARD_A_WORLD = gridToWorld(NEST_49_51_COL - 2, NEST_49_51_ROW);
+const GUARD_B_WORLD = gridToWorld(NEST_49_51_COL + 2, NEST_49_51_ROW);
+
+/** Thornbinder pre-spawn — south-east of the first nest, in the lower glade. */
+const THORNBINDER_START_WORLD = gridToWorld(NEST_49_51_COL + 4, NEST_49_51_ROW + 5);
 
 // ---------------------------------------------------------------------------
 // Mission-specific POIs for the nest network
@@ -200,6 +210,7 @@ export class ThornMarchMission extends BaseMissionDef {
         // Pre-spawned first nest — invulnerable (invulnerabilityGenerations = 1).
         // Its children get generations = 0 and are NOT invulnerable.
         {
+            unitId: NEST_49_51_UNIT_ID,
             characterId: LANTERNITE_NEST_CHARACTER_ID,
             name: 'Lanternite Nest',
             position: NEST_49_51_WORLD,
@@ -217,6 +228,39 @@ export class ThornMarchMission extends BaseMissionDef {
                 nestPoiId: 'nest_49_51',
                 scoutConstructionSec: 12,
             },
+        },
+        // Two guard lanternites defending the first nest from the start.
+        {
+            characterId: LANTERNITE_CHARACTER_ID,
+            name: 'Lanternite Guard',
+            position: GUARD_A_WORLD,
+            teamId: 'allied' as const,
+            abilities: ['0010'],
+            aiSettings: { minRange: 0, maxRange: 600 },
+            unitAITreeId: 'lanterniteNetwork',
+            lanterniteNestOwnerUnitId: NEST_49_51_UNIT_ID,
+            lanterniteRole: 'defender' as const,
+        },
+        {
+            characterId: LANTERNITE_CHARACTER_ID,
+            name: 'Lanternite Guard',
+            position: GUARD_B_WORLD,
+            teamId: 'allied' as const,
+            abilities: ['0010'],
+            aiSettings: { minRange: 0, maxRange: 600 },
+            unitAITreeId: 'lanterniteNetwork',
+            lanterniteNestOwnerUnitId: NEST_49_51_UNIT_ID,
+            lanterniteRole: 'defender' as const,
+        },
+        // Thornbinder pre-spawned near the first nest — zone controller in the glade.
+        {
+            characterId: 'thornbinder',
+            name: 'Thornbinder',
+            position: THORNBINDER_START_WORLD,
+            teamId: 'enemy' as const,
+            abilities: ['0008'],
+            aiSettings: { minRange: 80, maxRange: 320 },
+            unitAITreeId: 'hunt',
         },
     ];
 
@@ -291,6 +335,20 @@ export class ThornMarchMission extends BaseMissionDef {
                 },
             ],
         },
+        // 1 thornbinder every 2 rounds — zone controller that slows player movement with bramble
+        {
+            type: 'continuousSpawn',
+            trigger: { intervalRounds: 2 },
+            spawns: [
+                {
+                    characterId: 'thornbinder',
+                    name: 'Thornbinder',
+                    spawnBehaviour: 'closestEnemySpawnPoint',
+                    spawnCount: 1,
+                    unitAITreeId: 'hunt',
+                },
+            ],
+        },
         // Victory: all three nests still alive after 8 rounds
         {
             type: 'victoryCheck',
@@ -313,8 +371,15 @@ export class ThornMarchMission extends BaseMissionDef {
     createTerrain = createTerrain;
 
     gatherPartyBackgroundImage = STORY_BACKGROUNDS.campfire;
-    // Players spawn in the west glade near the first nest
-    playerSpawnPoints: PlayerSpawnPoint[] = [{ col: 35, row: 8 }];
+    // Players spawn in 6 cells around a point south of the first nest (centered at NEST_49_51_COL, NEST_49_51_ROW+3)
+    playerSpawnPoints: PlayerSpawnPoint[] = [
+        { col: NEST_49_51_COL - 1, row: NEST_49_51_ROW + 2 },
+        { col: NEST_49_51_COL,     row: NEST_49_51_ROW + 2 },
+        { col: NEST_49_51_COL + 1, row: NEST_49_51_ROW + 2 },
+        { col: NEST_49_51_COL - 1, row: NEST_49_51_ROW + 4 },
+        { col: NEST_49_51_COL,     row: NEST_49_51_ROW + 4 },
+        { col: NEST_49_51_COL + 1, row: NEST_49_51_ROW + 4 },
+    ];
 
     lightLevelEnabled = true;
     globalLightLevel = 0;

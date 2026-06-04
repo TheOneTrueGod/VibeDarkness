@@ -15,7 +15,7 @@ import type { SpecialTile } from './specialTiles/SpecialTile';
 import type { LightSource as GridLightSource } from './LightGrid';
 import type { LightSource } from './lightSources/LightSource';
 import type { EffectEmitter } from './effects/EffectEmitter';
-import type { BramblePatch } from './brambleSlow';
+import type { TerrainLayerManager } from './TerrainLayerManager';
 import type { MapSegmentPOI } from '../terrain/segmentSchema';
 import type { SpawnSource } from './types';
 
@@ -41,12 +41,11 @@ export interface EngineContext {
     readonly units: Unit[];
     readonly effects: Effect[];
     readonly specialTiles: SpecialTile[];
-    readonly bramblePatches: readonly BramblePatch[];
+    readonly terrainLayers: TerrainLayerManager;
 
     addUnit(unit: Unit, spawnSource?: SpawnSource): void;
     addEffect(effect: Effect): void;
     addProjectile(projectile: Projectile): void;
-    addBramblePatch(patch: BramblePatch): void;
     getUnit(id: string): Unit | undefined;
     getAllies(caster: Unit): Unit[];
     addSpecialTile(tile: SpecialTile): void;
