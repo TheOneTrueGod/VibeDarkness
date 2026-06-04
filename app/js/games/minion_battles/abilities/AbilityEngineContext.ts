@@ -3,6 +3,7 @@ import type { Effect } from '../game/effects/Effect';
 import type { EventBus } from '../game/EventBus';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { Projectile } from '../game/projectiles/Projectile';
+import type { SpawnSource } from '../game/types';
 
 /**
  * Shared engine context for ability implementations.
@@ -20,4 +21,5 @@ export interface AbilityEngineContext {
     generateRandomInteger(min: number, max: number): number;
     requestHitPause?(frames: number): void;
     terrainManager?: TerrainManager | null;
+    addUnit?(unit: Unit, spawnSource?: SpawnSource): void;
 }

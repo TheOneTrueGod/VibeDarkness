@@ -86,6 +86,46 @@ interface MeleeAttackPayload {
     impactFired: boolean;
 }
 
+// ---- Stack-aware hit-slot assignment ----
+
+/**
+ * Assign up to `cap` hit slots to candidates. Each unique unit gets one slot
+ * first (preserving order). Remaining slots are given to stacks (largest
+ * first, capped by stackSize), so a single stack can be hit multiple times
+ * when there are not enough distinct targets to fill all slots.
+ *
+ * Prefer spreading hits across different stacks before hitting the same stack
+ * twice.
+ */
+function assignHitSlots(candidates: Unit[], cap: number): Unit[] {
+    const slotsUsed = new Map<string, number>();
+    const result: Unit[] = [];
+
+    for (const u of candidates) {
+        if (result.length >= cap) break;
+        if (!slotsUsed.has(u.id)) {
+            slotsUsed.set(u.id, 1);
+            result.push(u);
+        }
+    }
+
+    if (result.length < cap) {
+        const stackable = [...new Set(candidates)]
+            .filter((u) => u.stackSize > (slotsUsed.get(u.id) ?? 0))
+            .sort((a, b) => b.stackSize - a.stackSize);
+
+        for (const u of stackable) {
+            while (result.length < cap && (slotsUsed.get(u.id) ?? 0) < u.stackSize) {
+                slotsUsed.set(u.id, (slotsUsed.get(u.id) ?? 0) + 1);
+                result.push(u);
+            }
+            if (result.length >= cap) break;
+        }
+    }
+
+    return result;
+}
+
 // ---- Behaviour class ----
 
 export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBehaviour {
@@ -306,19 +346,18 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
             }
         }
 
-        // Final list: guaranteed hits first, then hitbox extras (no duplicates).
-        const hitUnits: Unit[] = [...guaranteedHits];
+        // Final list: stack-aware slot assignment (stacks may appear multiple times).
+        const allCandidates: Unit[] = [...guaranteedHits];
         for (const u of hitboxUnits) {
             if (!guaranteedHitIds.has(u.id)) {
-                hitUnits.push(u);
+                allCandidates.push(u);
             }
         }
 
-        // Cap to the hitbox's numTargets so damage callbacks never need to slice.
-        if (this.hitboxDef != null && 'maxRange' in this.hitboxDef) {
-            const cap = (this.hitboxDef as HitboxSpec).numTargets;
-            if (hitUnits.length > cap) hitUnits.length = cap;
-        }
+        const hitUnits: Unit[] =
+            this.hitboxDef != null && 'maxRange' in this.hitboxDef
+                ? assignHitSlots(allCandidates, (this.hitboxDef as HitboxSpec).numTargets)
+                : allCandidates;
 
         // Spawn impact VFX — custom callback takes full control when set.
         if (this.impactVFXCallback) {

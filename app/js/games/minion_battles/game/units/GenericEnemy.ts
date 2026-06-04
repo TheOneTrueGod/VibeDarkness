@@ -23,6 +23,7 @@ export function createGenericEnemy(config: {
     abilities?: string[];
     aiSettings?: AISettings | null;
     radius?: number;
+    stackSize?: number;
 }, _eventBus: EventBus): Unit {
     const unit = new Unit({
         ...config,

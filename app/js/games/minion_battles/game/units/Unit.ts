@@ -124,6 +124,8 @@ export interface UnitAbilityRuntimeState {
 export class Unit extends GameObject {
     hp: number;
     maxHp: number;
+    /** Number of units in this stack. `hp` tracks the frontmost member; damage cascades through the rest. */
+    stackSize: number = 1;
     speed: number;
     teamId: TeamId;
     ownerId: string; // playerId or 'ai'
@@ -348,6 +350,8 @@ export class Unit extends GameObject {
         /** Optional per-unit combat tuning values. */
         combatSettings?: UnitCombatSettings;
         ephemeralDespawnAtGameTime?: number | null;
+        /** Number of units in this stack (default 1). */
+        stackSize?: number;
     }) {
         super(config.id ?? generateGameObjectId('unit'), config.x, config.y);
         this.hp = config.hp;
@@ -365,6 +369,7 @@ export class Unit extends GameObject {
         this.stamina = config.stamina ?? 1;
         this.combatSettings = config.combatSettings;
         this.ephemeralDespawnAtGameTime = config.ephemeralDespawnAtGameTime ?? null;
+        this.stackSize = config.stackSize ?? 1;
     }
 
     /** Attach a resource and subscribe its event listeners. */
@@ -435,8 +440,22 @@ export class Unit extends GameObject {
         }
         const incomingAmount = this.hasBuff('exposed') ? Math.round(amount * 1.2) : amount;
         const armourDamage = applyDamageToEarthCoreArmour(this, incomingAmount);
-        const actual = Math.min(armourDamage.remainingDamage, this.hp);
-        this.hp -= actual;
+
+        let remaining = armourDamage.remainingDamage;
+        if (this.stackSize > 1 && remaining >= this.hp) {
+            remaining -= this.hp;
+            const extraDeaths = Math.min(Math.floor(remaining / this.maxHp), this.stackSize - 1);
+            this.stackSize -= (1 + extraDeaths);
+            if (this.stackSize <= 0) {
+                this.hp = 0;
+            } else {
+                remaining -= extraDeaths * this.maxHp;
+                this.hp = this.maxHp - remaining;
+            }
+        } else {
+            this.hp = Math.max(0, this.hp - remaining);
+        }
+        const actual = armourDamage.remainingDamage;
 
         eventBus.emit('damage_taken', {
             unitId: this.id,
@@ -1106,6 +1125,7 @@ export class Unit extends GameObject {
             active: this.active,
             hp: this.hp,
             maxHp: this.maxHp,
+            ...(this.stackSize !== 1 ? { stackSize: this.stackSize } : {}),
             speed: this.speed,
             teamId: this.teamId,
             ownerId: this.ownerId,
@@ -1238,6 +1258,7 @@ export class Unit extends GameObject {
             combatSettings: data.combatSettings as UnitCombatSettings | undefined,
         });
         unit.active = data.active as boolean;
+        unit.stackSize = (data.stackSize as number | undefined) ?? 1;
         if (data.ephemeralDespawnAtGameTime != null) {
             unit.ephemeralDespawnAtGameTime = data.ephemeralDespawnAtGameTime as number;
         }

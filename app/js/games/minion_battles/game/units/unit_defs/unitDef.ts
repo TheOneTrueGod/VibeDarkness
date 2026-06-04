@@ -4,6 +4,7 @@
  */
 
 import { Container, Graphics, Sprite, Text, TextStyle, type Texture } from 'pixi.js';
+import { createBadge, updateBadgeText } from '../../GameRenderer/PixiComponents';
 import type { Unit } from '../Unit';
 import type { TeamId } from '../../teams';
 import { areEnemies } from '../../teams';
@@ -108,6 +109,7 @@ export interface UnitDefEntry {
     size?: UnitSize;
     radius?: number;
     stamina?: number;
+    stackSize?: number;
     perceptionRange?: number;
     deathEffect?: UnitDeathEffectDef;
     /** Darkness vs natural beast; drives expectations for death/damage presentation and copy. */
@@ -430,6 +432,17 @@ class DefaultUnitDef implements IUnitDef {
         hpFill.visible = hpBarSize !== 'hidden';
         container.addChild(hpFill);
 
+        // Stack count badge: shown to the left of the HP bar when stackSize > 1
+        if (hpBarSize !== 'hidden') {
+            const stackBadge = createBadge('', { radius: 7 });
+            stackBadge.label = 'stackBadge';
+            stackBadge.visible = false;
+            const barYCenter = hpBarSize === 'large' ? (-unit.radius - 14 + 5) : (-unit.radius - 8 + 2.5);
+            stackBadge.x = -unit.radius - 10;
+            stackBadge.y = barYCenter;
+            container.addChild(stackBadge);
+        }
+
         if (hpBarSize === 'large') {
             const style = new TextStyle({ fontSize: 8, fontWeight: 'bold', fill: 0x000000 });
             const label = new Text({ text: unit.name.slice(0, 6).toUpperCase(), style });
@@ -513,10 +526,13 @@ export function resolveEnemySpawnStats(partial: {
     characterId: string;
     hp?: number;
     speed?: number;
-}): { hp: number; speed: number } {
+    stackSize?: number;
+}): { hp: number; speed: number; stackSize: number } {
+    const def = UNIT_DEFS[partial.characterId as UnitDefId];
     return {
         hp: partial.hp ?? getDefaultHp(partial.characterId),
         speed: partial.speed ?? getDefaultSpeed(partial.characterId),
+        stackSize: partial.stackSize ?? def?.stackSize ?? 1,
     };
 }
 
@@ -560,6 +576,13 @@ export function updateUnitHpBar(visual: Container, unit: Unit): void {
         hpFill.rect(-unit.radius, -unit.radius - 8, barWidth, 5);
     }
     hpFill.fill(barColor);
+
+    const stackBadge = visual.children.find((c) => c.label === 'stackBadge') as Container | undefined;
+    if (stackBadge) {
+        const show = unit.stackSize > 1;
+        stackBadge.visible = show;
+        if (show) updateBadgeText(stackBadge, String(unit.stackSize));
+    }
 }
 
 /**
