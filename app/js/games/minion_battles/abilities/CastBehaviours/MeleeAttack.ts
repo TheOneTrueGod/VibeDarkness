@@ -52,8 +52,9 @@ function getHitboxMaxRange(def: HitboxDef | HitboxSpec | null): number | null {
     if (def === null) return null;
     // HitboxSpec exposes .maxRange directly.
     if ('maxRange' in def) return def.maxRange;
-    // HitboxDef plain-object: custom shape has no range.
+    // HitboxDef plain-object: custom/cone shapes and circle 'caster' range have no fixed pixel range.
     if (def.shape === 'custom' || def.shape === 'cone') return null;
+    if (def.range === 'caster') return null;
     return def.range;
 }
 
@@ -62,6 +63,7 @@ function getLockOnRange(def: HitboxDef | HitboxSpec | null): number {
     // HitboxSpec exposes .maxRange directly; HitboxDef.shape === 'custom' has no meaningful range.
     if ('maxRange' in def) return def.maxRange + LOCK_ON_TETHER_EXTRA;
     if (def.shape === 'custom') return LOCK_ON_TETHER_EXTRA;
+    if (def.range === 'caster') return LOCK_ON_TETHER_EXTRA;
     return def.range + LOCK_ON_TETHER_EXTRA;
 }
 
