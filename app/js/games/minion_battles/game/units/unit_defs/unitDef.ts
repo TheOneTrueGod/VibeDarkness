@@ -202,7 +202,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     thornbinder: {
         bodyColor: 0x3d2c4a,
-        characterSpriteKey: 'enemy_ranged',
+        characterSpriteKey: 'thornbinder',
         hp: 26,
         speed: 42,
         size: 'Medium',
@@ -602,5 +602,5 @@ export function syncUnitCharacterSpriteIfNeeded(visual: Container, unit: Unit, c
     if (!key) return;
     const texture = context.getCharacterTexture(key);
     if (!texture) return;
-    ensureUnitCharacterSprite(visual, unit, texture);
+    ensureUnitCharacterSprite(visual, unit, texture, true);
 }

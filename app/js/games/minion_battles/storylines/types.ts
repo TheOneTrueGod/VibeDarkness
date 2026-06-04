@@ -257,9 +257,12 @@ export type LanternitePatrolDestination =
 
 /** Optional nest behaviour merged onto a spawned `lanternite_nest` unit after creation. */
 export interface LanterniteNestMissionConfig {
+    /** Hard cap on living children for this nest. */
     maxLanternites: number;
-    /** Seconds between spawn attempts while below max alive children. */
+    /** Seconds between spawn bursts. */
     spawnIntervalSec: number;
+    /** How many lanternites to spawn per interval (default 1). Capped by maxLanternites. */
+    spawnCount?: number;
     /** Kept for non-networked backward compat; ignored when networked=true. */
     patrolDestination: LanternitePatrolDestination;
     /** Opt into network behavior: scouts, defender roles, and nest construction. Default false. */

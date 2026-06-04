@@ -12,6 +12,7 @@ const BOAR_SVG_URL = new URL('../../assets/characters/dark_animals/boar.svg', im
 const LANTERNITE_SVG_URL = new URL('../../assets/characters/lanternite.svg', import.meta.url).href;
 const LANTERNITE_NEST_SVG_URL = new URL('../../assets/characters/lanternite_nest.svg', import.meta.url).href;
 const SWARMLING_SVG_URL = new URL('../../assets/characters/dark_animals/swarmling.svg', import.meta.url).href;
+const THORNBINDER_SVG_URL = new URL('../../assets/characters/thornbinder.svg', import.meta.url).href;
 
 export class AssetRegistry {
     private slimeTexture: Texture | null = null;
@@ -22,6 +23,7 @@ export class AssetRegistry {
     private lanterniteTexture: Texture | null = null;
     private lanterniteNestTexture: Texture | null = null;
     private swarmlingTexture: Texture | null = null;
+    private thornbinderTexture: Texture | null = null;
     private campfireTexture: Texture | null = null;
     private effectTextures: Partial<Record<EffectImageKey, Texture>> = {};
     private playerPortraitTextures: Map<string, Texture> = new Map();
@@ -38,6 +40,7 @@ export class AssetRegistry {
         if (characterId === 'lanternite') return this.lanterniteTexture;
         if (characterId === 'lanternite_nest') return this.lanterniteNestTexture;
         if (characterId === 'swarmling') return this.swarmlingTexture;
+        if (characterId === 'thornbinder') return this.thornbinderTexture;
         return null;
     }
 
@@ -70,6 +73,7 @@ export class AssetRegistry {
         await loadOne('lanternite SVG', LANTERNITE_SVG_URL, (t) => { this.lanterniteTexture = t; });
         await loadOne('lanternite_nest SVG', LANTERNITE_NEST_SVG_URL, (t) => { this.lanterniteNestTexture = t; });
         await loadOne('swarmling SVG', SWARMLING_SVG_URL, (t) => { this.swarmlingTexture = t; });
+        await loadOne('thornbinder SVG', THORNBINDER_SVG_URL, (t) => { this.thornbinderTexture = t; });
 
         const campfireDef = getSpecialTileDef('Campfire');
         if (campfireDef?.image) {

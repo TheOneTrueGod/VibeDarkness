@@ -16,7 +16,7 @@ import { getPerceptionRange } from '../../unit_defs/unitDef';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
 
 const ARRIVAL_PX = 36;
-const ROUND_DURATION_SEC = 10;
+const ROUND_DURATION_SEC = 8;
 const DEFAULT_CONSTRUCTION_SEC = 10;
 
 /**

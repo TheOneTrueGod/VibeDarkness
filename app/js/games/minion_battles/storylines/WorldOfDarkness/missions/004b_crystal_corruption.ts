@@ -49,12 +49,12 @@ function pathCell(col: number, row: number): { x: number; y: number } {
 }
 
 const INITIAL_ENEMIES = [
-    { ...ENEMY_DARK_WOLF, position: pathCell(5, 8), unitAITreeId: 'hunt' },
-    { ...ENEMY_DARK_WOLF, position: pathCell(8, 8), unitAITreeId: 'hunt' },
-    { ...ENEMY_DARK_WOLF, position: pathCell(3, 9), unitAITreeId: 'hunt' },
-    { ...ENEMY_SWARMLING, position: pathCell(3, 10), unitAITreeId: 'hunt' },
-    { ...ENEMY_SWARMLING, position: pathCell(6, 11), unitAITreeId: 'hunt' },
-    { ...ENEMY_RANGED, position: pathCell(5, 12), unitAITreeId: 'hunt' },
+    { ...ENEMY_DARK_WOLF, position: pathCell(20, 8), unitAITreeId: 'hunt' },
+    { ...ENEMY_DARK_WOLF, position: pathCell(19, 9), unitAITreeId: 'hunt' },
+    { ...ENEMY_DARK_WOLF, position: pathCell(21, 9), unitAITreeId: 'hunt' },
+    { ...ENEMY_SWARMLING, position: pathCell(18, 10), unitAITreeId: 'hunt' },
+    { ...ENEMY_SWARMLING, position: pathCell(20, 11), unitAITreeId: 'hunt' },
+    { ...ENEMY_RANGED, position: pathCell(19, 12), unitAITreeId: 'hunt' },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [

@@ -186,7 +186,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 				{
 					characterId: 'dark_wolf',
 					name: 'Wolf',
-					spawnBehaviour: 'anywhere',
+					spawnBehaviour: 'darkness',
 					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
 					spawnCount: 2,
 					unitAITreeId: 'hunt',
@@ -200,7 +200,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 				{
 					characterId: 'dark_wolf',
 					name: 'Wolf',
-					spawnBehaviour: 'anywhere',
+					spawnBehaviour: 'darkness',
 					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
 					spawnCount: 1,
 					unitAITreeId: 'hunt',
@@ -214,7 +214,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 				{
 					characterId: 'enemy_ranged',
 					name: 'Slime',
-					spawnBehaviour: 'anywhere',
+					spawnBehaviour: 'darkness',
 					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
 					spawnCount: 1,
 					unitAITreeId: 'hunt',

@@ -2,7 +2,7 @@
  * RoundProgressBar - Circular SVG progress bar in the top-right corner.
  *
  * Shows the current round number in the center.
- * The stroke fills up over 10 seconds of game time per round.
+ * The stroke fills up over 8 seconds of game time per round.
  * Freezes when the game is paused.
  */
 

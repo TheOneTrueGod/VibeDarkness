@@ -220,7 +220,8 @@ export class ThornMarchMission extends BaseMissionDef {
             unitAITreeId: 'lanterniteNestIdle',
             invulnerabilityGenerations: 1,
             lanterniteNest: {
-                maxLanternites: 4,
+                maxLanternites: 8,
+                spawnCount: 3,
                 spawnIntervalSec: 14,
                 // patrolDestination is required by type but unused in networked mode
                 patrolDestination: { kind: 'world' as const, x: NEST_49_51_WORLD.x, y: NEST_49_51_WORLD.y },

@@ -31,7 +31,7 @@ const GOLDEN_ANGLE = 2.399963229728653;
 /** Default construction duration if not specified in nest config. */
 const DEFAULT_CONSTRUCTION_SEC = 10;
 
-const ROUND_DURATION_SEC = 10;
+const ROUND_DURATION_SEC = 8;
 
 function pruneSpawnedLanternIds(nest: Unit, units: readonly Unit[]): void {
     const state = nest.lanterniteNestSpawnState;
@@ -119,6 +119,7 @@ export function processLanterniteNests(params: {
         const newNestCfg: LanterniteNestMissionConfig = {
             maxLanternites: parentCfg?.maxLanternites ?? 3,
             spawnIntervalSec: parentCfg?.spawnIntervalSec ?? 14,
+            ...(parentCfg?.spawnCount != null ? { spawnCount: parentCfg.spawnCount } : {}),
             patrolDestination: { kind: 'world', x: nestPos.x, y: nestPos.y },
             networked: true,
             nestPoiId: unit.lanterniteTargetNestPoiId ?? undefined,
@@ -174,91 +175,100 @@ export function processLanterniteNests(params: {
 
         pruneSpawnedLanternIds(nest, params.units);
 
-        const aliveKids = nest.lanterniteNestSpawnState!.spawnedIds.length;
-        if (aliveKids >= cfg.maxLanternites) continue;
+        if (state.spawnedIds.length >= cfg.maxLanternites) continue;
         if (params.gameTime < state.nextSpawnAtGameTime) continue;
 
-        // Spawn at a random position in a ring around the nest using the seeded RNG.
-        const rng = params.generateRandomNumber ?? (() => Math.floor(Math.random() * 0x7fffffff));
-        const INT31 = 0x7fffffff;
-        const spawnAngle = (rng() / INT31) * Math.PI * 2;
-        const spawnDist = nest.radius + (rng() / INT31) * NEST_SPAWN_EXTRA_RADIUS;
-        const lan = createUnitFromSpawnConfig(
-            {
-                x: nest.x + Math.cos(spawnAngle) * spawnDist,
-                y: nest.y + Math.sin(spawnAngle) * spawnDist,
-                teamId: 'allied' as const,
-                ownerId: 'ai',
-                characterId: LANTERNITE_CHARACTER_ID,
-                name: 'Lanternite',
-                abilities: ['0010'],
-                unitAITreeId: 'lanternitePatrol',
-                aiSettings: { minRange: 0, maxRange: 600 },
-                hp: undefined,
-                speed: undefined,
-            },
-            params.eventBus,
-            params.idSource,
-        );
-        lan.lanterniteNestOwnerUnitId = nest.id;
-
-        if (cfg.networked) {
-            // Network mode: assign roles, resolve scout target, stagger attack offset
-            const defenderCount = countAliveChildrenByRole(state.spawnedIds, params.units, 'defender');
-            const targetDefenders = Math.floor(cfg.maxLanternites / 2);
-            const nestPoiId = nest.lanterniteHomeNestPoiId ?? cfg.nestPoiId;
-
-            let role: 'scout' | 'defender' = 'defender';
-            let targetPoi: MapSegmentPOI | null = null;
-
-            if (aliveKids === 0 || (defenderCount >= targetDefenders)) {
-                // First spawn is a scout; subsequent scouts go to unoccupied connected POIs
-                if (nestPoiId && params.mapPOIs) {
-                    targetPoi = findUnoccupiedConnectedNestPoi(nestPoiId, params.mapPOIs, params.units);
-                }
-                role = targetPoi ? 'scout' : 'defender';
-            } else if (defenderCount < targetDefenders) {
-                role = 'defender';
-            }
-
-            lan.lanterniteRole = role;
-            lan.unitAITreeId = 'lanterniteNetwork';
-
-            // Assign a unique stand angle using the golden angle so each scout
-            // in a nest stands at a distinct direction around the build site.
-            lan.lanterniteConstructionAngle =
-                (state.spawnedIds.length * GOLDEN_ANGLE) % (Math.PI * 2);
-
-            if (role === 'scout' && targetPoi) {
-                const worldPos = params.terrainGrid
-                    ? params.terrainGrid.gridToWorld(targetPoi.col, targetPoi.row)
-                    : { x: targetPoi.col * CELL_SIZE + CELL_SIZE / 2, y: targetPoi.row * CELL_SIZE + CELL_SIZE / 2 };
-                lan.lanternPatrolFarWorld = worldPos;
-                lan.lanterniteTargetNestPoiId = targetPoi.id;
-                lan.lanterniteNestConfig = cfg;
-            }
-
-            const numPhases = Math.max(1, cfg.maxLanternites);
-            const phaseOffsetSec =
-                (state.spawnedIds.length % numPhases) * (ROUND_DURATION_SEC / numPhases);
-            lan.lanterniteAttackReadyAtGameTime = params.gameTime + phaseOffsetSec;
-        } else {
-            // Legacy patrol behavior
+        // For legacy (non-networked) mode, resolve patrol destination once before the burst loop.
+        // If unavailable, skip this tick entirely (matches original behaviour: retry next tick).
+        if (!cfg.networked) {
             const far = resolvePatrolFarWorld(nest, params.units);
             if (!far) continue;
-            lan.lanternPatrolFarWorld = { ...far };
-            lan.lanternPatrolLeg = 'toFar';
         }
 
-        if (nest.tags.includes(UnitTag.Invincible)) lan.tags = [UnitTag.Invincible];
-        if (nest.invulnerabilityGenerations != null) {
-            lan.invulnerabilityGenerations = Math.max(0, nest.invulnerabilityGenerations - 1);
-        }
-        params.addUnit(lan, 'nestSpawn');
+        const rng = params.generateRandomNumber ?? (() => Math.floor(Math.random() * 0x7fffffff));
+        const INT31 = 0x7fffffff;
+        const burstCount = cfg.spawnCount ?? 1;
 
-        nest.lanterniteNestSpawnState!.spawnedIds.push(lan.id);
-        nest.lanterniteNestSpawnState!.nextSpawnAtGameTime =
-            params.gameTime + Math.max(0.5, cfg.spawnIntervalSec);
+        for (let burst = 0; burst < burstCount; burst++) {
+            // Re-check cap each iteration — previous burst may have filled the nest.
+            if (state.spawnedIds.length >= cfg.maxLanternites) break;
+
+            const spawnAngle = (rng() / INT31) * Math.PI * 2;
+            const spawnDist = nest.radius + (rng() / INT31) * NEST_SPAWN_EXTRA_RADIUS;
+            const lan = createUnitFromSpawnConfig(
+                {
+                    x: nest.x + Math.cos(spawnAngle) * spawnDist,
+                    y: nest.y + Math.sin(spawnAngle) * spawnDist,
+                    teamId: 'allied' as const,
+                    ownerId: 'ai',
+                    characterId: LANTERNITE_CHARACTER_ID,
+                    name: 'Lanternite',
+                    abilities: ['0010'],
+                    unitAITreeId: 'lanternitePatrol',
+                    aiSettings: { minRange: 0, maxRange: 600 },
+                    hp: undefined,
+                    speed: undefined,
+                },
+                params.eventBus,
+                params.idSource,
+            );
+            lan.lanterniteNestOwnerUnitId = nest.id;
+
+            // aliveKids is the count before this unit is added.
+            const aliveKids = state.spawnedIds.length;
+
+            if (cfg.networked) {
+                // Network mode: assign roles, resolve scout target, stagger attack offset
+                const defenderCount = countAliveChildrenByRole(state.spawnedIds, params.units, 'defender');
+                const targetDefenders = Math.floor(cfg.maxLanternites / 2);
+                const nestPoiId = nest.lanterniteHomeNestPoiId ?? cfg.nestPoiId;
+
+                let role: 'scout' | 'defender' = 'defender';
+                let targetPoi: MapSegmentPOI | null = null;
+
+                if (aliveKids === 0 || defenderCount >= targetDefenders) {
+                    if (nestPoiId && params.mapPOIs) {
+                        targetPoi = findUnoccupiedConnectedNestPoi(nestPoiId, params.mapPOIs, params.units);
+                    }
+                    role = targetPoi ? 'scout' : 'defender';
+                }
+
+                lan.lanterniteRole = role;
+                lan.unitAITreeId = 'lanterniteNetwork';
+
+                // Assign a unique stand angle using the golden angle so each scout
+                // in a nest stands at a distinct direction around the build site.
+                lan.lanterniteConstructionAngle = (aliveKids * GOLDEN_ANGLE) % (Math.PI * 2);
+
+                if (role === 'scout' && targetPoi) {
+                    const worldPos = params.terrainGrid
+                        ? params.terrainGrid.gridToWorld(targetPoi.col, targetPoi.row)
+                        : { x: targetPoi.col * CELL_SIZE + CELL_SIZE / 2, y: targetPoi.row * CELL_SIZE + CELL_SIZE / 2 };
+                    lan.lanternPatrolFarWorld = worldPos;
+                    lan.lanterniteTargetNestPoiId = targetPoi.id;
+                    lan.lanterniteNestConfig = cfg;
+                }
+
+                const numPhases = Math.max(1, cfg.maxLanternites);
+                const phaseOffsetSec = (aliveKids % numPhases) * (ROUND_DURATION_SEC / numPhases);
+                lan.lanterniteAttackReadyAtGameTime = params.gameTime + phaseOffsetSec;
+            } else {
+                // Legacy patrol behavior
+                const far = resolvePatrolFarWorld(nest, params.units);
+                if (!far) break;
+                lan.lanternPatrolFarWorld = { ...far };
+                lan.lanternPatrolLeg = 'toFar';
+            }
+
+            if (nest.tags.includes(UnitTag.Invincible)) lan.tags = [UnitTag.Invincible];
+            if (nest.invulnerabilityGenerations != null) {
+                lan.invulnerabilityGenerations = Math.max(0, nest.invulnerabilityGenerations - 1);
+            }
+            params.addUnit(lan, 'nestSpawn');
+            state.spawnedIds.push(lan.id);
+        }
+
+        state.nextSpawnAtGameTime = params.gameTime + Math.max(0.5, cfg.spawnIntervalSec);
     }
 
     // --- Construction particle emitters: start once when a scout begins building ---

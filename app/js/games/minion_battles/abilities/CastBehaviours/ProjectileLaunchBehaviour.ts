@@ -10,6 +10,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private projectileType: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' = 'default';
     private maxRange: number = 200;
     private baseDamage: number = 0;
+    private passThroughEnemies: boolean = false;
 
     withSpeed(speed: number): this {
         this.speed = speed;
@@ -37,6 +38,11 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         return this;
     }
 
+    withPassThroughEnemies(): this {
+        this.passThroughEnemies = true;
+        return this;
+    }
+
     onSetup(ctx: CastBehaviourSetupContext): void {
         const targetPos = getPixelTargetPosition(ctx.allTargets, 0);
         if (!targetPos) return;
@@ -57,6 +63,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             sourceAbilityId: ctx.abilityId,
             maxDistance: Math.min(dist, this.maxRange),
             projectileType: this.projectileType,
+            passThroughEnemies: this.passThroughEnemies,
         });
         projectile.radius = this.radius;
         engine.addProjectile(projectile);

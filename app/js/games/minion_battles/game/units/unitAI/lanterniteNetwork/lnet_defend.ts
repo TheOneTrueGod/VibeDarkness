@@ -16,7 +16,7 @@ import { getPerceptionRange } from '../../unit_defs/unitDef';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
 
 const PATROL_RADIUS_PX = 3 * 40; // 3 tiles
-const ROUND_DURATION_SEC = 10;
+const ROUND_DURATION_SEC = 8;
 
 export const lnet_defend: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = {
     nodeId: 'lnet_defend',
