@@ -6,10 +6,6 @@ export const coreEarthItem: ItemDef = {
     name: 'The Earth Core',
     slots: ['core'],
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
-    cardsToAdd: [
-        { cardId: '0120', count: 3 }, // PunchNEW
-        { cardId: '0101', count: 2 }, // Dodge
-        { cardId: '0534', count: 1 }, // Boar Claws
-    ],
+    cardsToAdd: ['0120', '0111'],
     icon: '017_core_earth.svg',
 };

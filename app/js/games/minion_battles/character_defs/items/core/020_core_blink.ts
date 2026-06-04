@@ -7,8 +7,8 @@ export const coreBlinkItem: ItemDef = {
     slots: ['core'],
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
     cardsToAdd: [
-        { cardId: '0120', count: 3 }, // PunchNEW
-        { cardId: '0101', count: 2 }, // Dodge
+        '0120', // PunchNEW
+        '0101', // Dodge
     ],
     icon: '020_core_blink.svg',
 };

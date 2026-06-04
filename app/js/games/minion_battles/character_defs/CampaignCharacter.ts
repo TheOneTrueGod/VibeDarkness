@@ -57,25 +57,6 @@ export class CampaignCharacter {
     }
 
     /**
-     * Build the starter battle cards for this character from equipped items only.
-     * All cards come from equipment (e.g. core + weapon/utility items).
-     */
-    getBattleCards(extraEquippedItemIds: string[] = []): string[] {
-        const cards: string[] = [];
-        const allItemIds = new Set<string>([...this.equipment, ...extraEquippedItemIds]);
-        for (const itemId of allItemIds) {
-            const itemDef = getItemDef(itemId);
-            if (!itemDef) continue;
-            for (const entry of itemDef.cardsToAdd) {
-                for (let i = 0; i < entry.count; i++) {
-                    cards.push(entry.cardId);
-                }
-            }
-        }
-        return cards;
-    }
-
-    /**
      * Returns true if this character can be used on the given campaign (and optionally mission).
      * Same campaign is required; mission trait filters (allowedTraits / disallowedTraits) are applied when provided.
      */

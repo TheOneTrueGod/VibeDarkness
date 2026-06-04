@@ -138,9 +138,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             for (const itemId of equippedIds) {
                 const itemDef = getItemDef(itemId);
                 if (!itemDef) continue;
-                for (const entry of itemDef.cardsToAdd) {
-                    if (!abilities.includes(entry.cardId)) {
-                        abilities.push(entry.cardId);
+                for (const cardId of itemDef.cardsToAdd) {
+                    if (!abilities.includes(cardId)) {
+                        abilities.push(cardId);
                     }
                 }
             }

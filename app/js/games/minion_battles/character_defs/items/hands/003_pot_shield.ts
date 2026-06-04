@@ -5,6 +5,6 @@ export const potShieldItem: ItemDef = {
     id: '003',
     name: 'Pot lid',
     slots: ['weapon'],
-    cardsToAdd: [{ cardId: '0104', count: 2 }],
+    cardsToAdd: ['0104'],
     icon: '003_pot_shield.svg',
 };

@@ -19,6 +19,7 @@
 
 | Todo | Notes |
 |------|-------|
+| Make `darkness` a modifier on spawn behaviours, not its own behaviour | Instead of `spawnBehaviour: 'darkness'`, add an `inDarkness: boolean` flag to `SpawnWaveEntry` that can be combined with any `spawnBehaviour` (e.g. `edgeOfMap` + `inDarkness`). Requires updating the types, `LevelEventManager`, and migrating existing `'darkness'` usages. |
 | Migrate LanterniteStrike (0010) to castBehaviours | `doCardEffect` sets an ability note at LOCK_TIME then fires a projectile at prefire — two threshold effects. Map them to castBehaviours on the windup and active timing intervals; ability-note init can move to `ON_CAST_START`. |
 | Migrate EnemyMeleeAttack (0002) to castBehaviours | Enemy basic melee that deals damage at a threshold; likely compatible with the existing `MeleeAttackBehaviour`. Replace `doCardEffect` with that CastBehaviour on the active interval. |
 | Migrate Pistol (0203) to castBehaviours | `doCardEffect` fires three shots at staggered time thresholds, each targeting a different target slot. Needs either a multi-shot CastBehaviour or three separate timing intervals each with a projectile CastBehaviour. |

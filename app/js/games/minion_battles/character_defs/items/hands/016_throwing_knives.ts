@@ -5,6 +5,6 @@ export const throwingKnivesItem: ItemDef = {
     id: '016',
     name: 'Throwing Knives',
     slots: ['weapon'],
-    cardsToAdd: [{ cardId: 'throw_knife', count: 2 }],
+    cardsToAdd: ['throw_knife'],
     icon: '016_throwing_knives.svg',
 };

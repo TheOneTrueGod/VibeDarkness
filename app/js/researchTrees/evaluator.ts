@@ -182,9 +182,8 @@ export function applyResearchEffects(tree: ResearchTreeDef, ctx: ResearchContext
                 if (!equipment.includes(effect.toItemId)) equipment.push(effect.toItemId);
             }
         } else if (effect.type === 'addExtraCardsFromItem') {
-            // For now: implement by duplicating the equipped item id into extraEquippedItemIds,
-            // and have deck building call character.getBattleCards(extraEquippedItemIds).
-            // The item itself is the source of cards, so duplicating it duplicates its cards.
+            // Implemented by duplicating the item id into extraEquippedItemIds; the ability
+            // assembly loop in BaseMissionDef treats extra items the same as equipped items.
             if (equipment.includes(effect.itemId)) {
                 for (let i = 0; i < effect.count; i++) {
                     extraEquippedItemIds.push(effect.itemId);

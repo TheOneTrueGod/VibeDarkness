@@ -6,9 +6,6 @@ export const coreChargedItem: ItemDef = {
     name: 'The Charged Core',
     slots: ['core'],
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
-    cardsToAdd: [
-        { cardId: '0120', count: 3 }, // PunchNEW
-        { cardId: '0101', count: 2 }, // Dodge
-    ],
+    cardsToAdd: ['0120', '0101'],
     icon: '019_core_charged.svg',
 };

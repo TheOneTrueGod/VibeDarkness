@@ -63,8 +63,8 @@ const LEVEL_EVENTS: LevelEvent[] = [
         type: 'continuousSpawn',
         trigger: { intervalRounds: 0.5, startRound: 1, endRound: 6 },
         spawns: [
-            { characterId: 'dark_wolf', spawnBehaviour: 'edgeOfMap', spawnCount: 2, unitAITreeId: 'hunt' },
-            { characterId: 'swarmling', spawnBehaviour: 'edgeOfMap', spawnCount: 2, unitAITreeId: 'hunt' },
+            { characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' },
+            { characterId: 'swarmling', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' },
         ],
     },
     // --- Periodic slime waves every 0.5 rounds ---

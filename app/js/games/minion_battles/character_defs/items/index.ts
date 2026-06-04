@@ -48,7 +48,7 @@ import laserSwordIcon from './assets/010_laser_sword.svg';
 import craftedSwordIcon from './assets/015_crafted_sword.svg';
 import pipeBatIcon from './assets/002_torch.svg';
 
-export type { ItemDef, ItemCardEntry, EquipmentSlotType, CoreSlotLayout } from './types';
+export type { ItemDef, EquipmentSlotType, CoreSlotLayout } from './types';
 
 /** Core item IDs by campaign. New characters get this core + campaign-specific starter equipment. */
 export const CORE_ITEM_IDS = {

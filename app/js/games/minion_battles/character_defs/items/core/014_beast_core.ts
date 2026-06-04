@@ -6,9 +6,6 @@ export const beastCoreItem: ItemDef = {
     name: 'BeastCore',
     slots: ['core'],
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
-    cardsToAdd: [
-        { cardId: '0101', count: 2 }, // Dodge
-        { cardId: '0111', count: 2 }, // Claw
-    ],
+    cardsToAdd: ['0101', '0111'],
     icon: '014_beast_core.svg',
 };

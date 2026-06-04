@@ -5,6 +5,6 @@ export const pipeBatItem: ItemDef = {
     id: '021',
     name: 'Pipe Bat',
     slots: ['weapon'],
-    cardsToAdd: [{ cardId: '0115', count: 2 }],
+    cardsToAdd: ['0115'],
     icon: '002_torch.svg',
 };

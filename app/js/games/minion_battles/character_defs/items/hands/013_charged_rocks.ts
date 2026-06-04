@@ -5,7 +5,7 @@ export const chargedRocksItem: ItemDef = {
     id: '013',
     name: 'Charged Rocks',
     slots: ['weapon'],
-    cardsToAdd: [{ cardId: 'throw_charged_rock', count: 2 }],
+    cardsToAdd: ['throw_charged_rock'],
     icon: '013_charged_rocks.svg',
 };
 
