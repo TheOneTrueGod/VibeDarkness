@@ -2,6 +2,7 @@ import type { ResearchTreeDef } from '../types';
 
 export const CRYSTAL_ROCKS_TREE_ID = 'crystal_rocks';
 export const CRYSTAL_ROCKS_NODE_BASE = 'throw_rock';
+export const CRYSTAL_ROCKS_NODE_PIERCING_KNIVES = 'piercing_knives';
 
 export const crystalRocksTree: ResearchTreeDef = {
     id: CRYSTAL_ROCKS_TREE_ID,
@@ -63,10 +64,11 @@ export const crystalRocksTree: ResearchTreeDef = {
             tier: 3,
             position: { x: 570, y: 300 },
             prereqNodeIds: [],
-            exclusiveWithNodeIds: ['more_power'],
+            exclusiveWithNodeIds: ['more_power', CRYSTAL_ROCKS_NODE_PIERCING_KNIVES],
             requirements: [
                 { type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: ['charged_rocks', 'throwing_knives'] },
                 { type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_power' },
+                { type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: CRYSTAL_ROCKS_NODE_PIERCING_KNIVES },
             ],
             cost: { metal: 10, crystals: 10 },
             effects: [],
@@ -85,6 +87,23 @@ export const crystalRocksTree: ResearchTreeDef = {
             cost: { crystals: 30 },
             effects: [],
             modifiesAbility: { from: 'throw_charged_rock', to: 'throw_charged_rock' },
+        },
+        {
+            id: CRYSTAL_ROCKS_NODE_PIERCING_KNIVES,
+            title: 'Piercing Knives',
+            description: 'Throwing knives pierce through their {first target}, hitting it and continuing to the next.',
+            order: 40,
+            tier: 3,
+            position: { x: 570, y: 460 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: ['more_rock'],
+            requirements: [
+                { type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: ['throwing_knives'] },
+                { type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_rock' },
+            ],
+            cost: { metal: 10, crystals: 5 },
+            effects: [],
+            modifiesAbility: { from: 'throw_knife', to: 'throw_knife' },
         },
     ],
 };

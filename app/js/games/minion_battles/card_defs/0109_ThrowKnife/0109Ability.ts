@@ -15,6 +15,7 @@ import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { asCardDefId, type CardDef } from '../types';
+import { CRYSTAL_ROCKS_TREE_ID, CRYSTAL_ROCKS_NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/crystal_rocks';
 
 interface GameEngineLike {
     addProjectile(projectile: Projectile): void;
@@ -127,7 +128,11 @@ function hasKnifeMultiThrow(research: Set<string>): boolean {
     return research.has('throwing_knives') && research.has('more_rock');
 }
 
-function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: number; y: number }): void {
+function hasKnifePierce(research: Set<string>): boolean {
+    return research.has(CRYSTAL_ROCKS_NODE_PIERCING_KNIVES);
+}
+
+function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: number; y: number }, pierce = 0): void {
     const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, targetPos.x, targetPos.y);
     if (dist === 0) return;
     const travelDistance = Math.min(dist, RANGE);
@@ -145,6 +150,7 @@ function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: n
             sourceAbilityId: ABILITY_ID,
             maxDistance: travelDistance,
             projectileType: 'throwing_knife',
+            pierce,
         }),
     );
 }
@@ -181,10 +187,11 @@ export const ThrowKnife: AbilityStatic = {
     getTooltipText(gameState?: unknown): string[] {
         const eng = gameState as GameEngineLike | undefined;
         const research = eng ? getOwnerResearch(eng) : new Set<string>();
+        const pierceLine = hasKnifePierce(research) ? ' Pierces through the {first target}.' : '';
         if (hasKnifeMultiThrow(research)) {
             return [`Throws {2} knives dealing {${BASE_DAMAGE}} damage each to the first enemy hit`];
         }
-        return [`Throws a knife dealing {${BASE_DAMAGE}} damage to the first enemy hit`];
+        return [`Throws a knife dealing {${BASE_DAMAGE}} damage to the first enemy hit.${pierceLine}`];
     },
 
     beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
@@ -215,15 +222,16 @@ export const ThrowKnife: AbilityStatic = {
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         const eng = engine as GameEngineLike;
         const research = getResearchSet(eng, caster.ownerId);
+        const pierce = hasKnifePierce(research) ? 1 : 0;
 
         if (hasKnifeMultiThrow(research)) {
             if (prevTime < MORE_ROCK_FIRST_THROW && currentTime >= MORE_ROCK_FIRST_THROW) {
                 const firstTarget = getPixelTargetPosition(targets, 0);
-                if (firstTarget) spawnProjectile(eng, caster, firstTarget);
+                if (firstTarget) spawnProjectile(eng, caster, firstTarget, pierce);
             }
             if (prevTime < MORE_ROCK_SECOND_THROW && currentTime >= MORE_ROCK_SECOND_THROW) {
                 const secondTarget = getPixelTargetPosition(targets, 1);
-                if (secondTarget) spawnProjectile(eng, caster, secondTarget);
+                if (secondTarget) spawnProjectile(eng, caster, secondTarget, pierce);
             }
             return;
         }
@@ -231,7 +239,7 @@ export const ThrowKnife: AbilityStatic = {
         if (prevTime >= 0.3 || currentTime < 0.3) return;
         const firstTarget = getPixelTargetPosition(targets, 0);
         if (!firstTarget) return;
-        spawnProjectile(eng, caster, firstTarget);
+        spawnProjectile(eng, caster, firstTarget, pierce);
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {

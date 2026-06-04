@@ -49,6 +49,20 @@ export class Projectile extends GameObject {
      */
     passThroughEnemies: boolean;
 
+    /**
+     * How many targets the projectile passes through before stopping.
+     * 0 = normal (stops on first hit). 1 = pierces 1, stops on 2nd. Etc.
+     * Total hits allowed = pierce + 1.
+     */
+    pierce: number;
+
+    /**
+     * Unit IDs already hit this flight. Used to prevent re-hitting a unit on
+     * consecutive frames while the projectile is still overlapping it.
+     * Not serialized — resets on deserialization (harmless mid-flight).
+     */
+    readonly hitUnitIds: Set<string> = new Set();
+
     /** Optional summons metadata (seed pods). */
     summonSeedWeak?: boolean;
 
@@ -67,6 +81,7 @@ export class Projectile extends GameObject {
         projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike';
         modifiers?: ProjectileModifierId[];
         passThroughEnemies?: boolean;
+        pierce?: number;
         summonSeedWeak?: boolean;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
@@ -81,6 +96,7 @@ export class Projectile extends GameObject {
         this.projectileType = config.projectileType ?? 'default';
         this.modifiers = config.modifiers ?? [];
         this.passThroughEnemies = config.passThroughEnemies ?? false;
+        this.pierce = config.pierce ?? 0;
         this.summonSeedWeak = config.summonSeedWeak;
     }
 
@@ -173,92 +189,118 @@ export class Projectile extends GameObject {
     }
 
     /**
-     * Check collision against a list of units and deal damage to the first enemy hit.
-     * Units with IFrames (e.g. during Dodge) are not hit; the projectile is consumed but no damage is dealt.
-     * If the defender has a blocking ability and the attack angle is in the block arc, the projectile is destroyed and onAttackBlocked is called.
-     * Returns the unit that was hit and took damage, or null.
+     * Check collision against a list of units and deal damage to hit enemies.
+     *
+     * For pierce > 0 the projectile passes through `pierce` targets before stopping on the next,
+     * hitting each one. When multiple units overlap the projectile in a single frame, only
+     * `pierce + 1 - already_hit` of them are processed, choosing the closest first.
+     *
+     * Units with IFrames or an active block immediately consume the projectile.
+     * Returns the last unit hit this frame, or null.
      */
     checkCollision(units: Unit[], eventBus: EventBus, gameTime: number, engine?: unknown): Unit | null {
         if (!this.active) return null;
         if (this.passThroughEnemies) return null;
 
+        const maxHits = this.pierce + 1;
+        const hitsRemaining = maxHits - this.hitUnitIds.size;
+        if (hitsRemaining <= 0) {
+            this.active = false;
+            return null;
+        }
+
+        // Collect colliding enemies not already hit, sorted closest-first.
+        const candidates: Array<{ unit: Unit; dist: number }> = [];
         for (const unit of units) {
             if (!unit.isAlive()) continue;
             if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
-
+            if (this.hitUnitIds.has(unit.id)) continue;
             const dx = unit.x - this.x;
             const dy = unit.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            const collisionDist = this.radius + unit.radius;
-
-            if (dist <= collisionDist) {
-                if (unit.hasIFrames(gameTime)) {
-                    this.active = false;
-                    return null;
-                }
-                if (engine && canAttackBeBlocked(unit, this.x, this.y, gameTime)) {
-                    const block = getBlockingArcForUnit(unit, gameTime);
-                    if (block) {
-                        executeBlock(
-                            engine,
-                            unit,
-                            {
-                                type: 'projectile',
-                                projectile: this,
-                                sourceUnitId: this.sourceUnitId,
-                                attackSourceX: this.x,
-                                attackSourceY: this.y,
-                            },
-                            this.sourceAbilityId,
-                            block,
-                        );
-                        return null;
-                    }
-                }
-                const sourceUnit = (engine as { getUnit?: (id: string) => Unit | undefined } | undefined)?.getUnit?.(this.sourceUnitId);
-                const sourceAbility = getAbility(this.sourceAbilityId);
-                const modifiedDamage = getModifiedAbilityDamage(
-                    sourceUnit,
-                    this.damage,
-                    sourceAbility?.damageModifierMultiplier,
-                );
-                unit.takeDamage(modifiedDamage, this.sourceUnitId, eventBus);
-                if (engine) {
-                    triggerAbilityEventFromAttack({
-                        engine: engine as {
-                            gameTime: number;
-                            roundNumber: number;
-                            getUnit(id: string): Unit | undefined;
-                            generateRandomInteger(min: number, max: number): number;
-                            eventBus: EventBus;
-                            getPlayerResearchNodes?: (playerId: string, treeId: string) => string[];
-                            interruptUnitAndRefundAbilities?: (unit: Unit) => void;
-                        },
-                        attackingAbilityId: this.sourceAbilityId,
-                        sourceUnitId: this.sourceUnitId,
-                        eventType: AbilityEventType.ON_ATTACK_HIT,
-                        hitResult: 'hit',
-                        primaryTarget: unit,
-                    });
-                }
-                if (this.sourceAbilityId === THROW_KNIFE_ABILITY_ID && engine) {
-                    const e = engine as { gameTime: number; roundNumber: number };
-                    applyBleedStack(unit, e.gameTime, e.roundNumber, 5);
-                }
-                eventBus.emit('projectile_hit', {
-                    projectileId: this.id,
-                    targetUnitId: unit.id,
-                    damage: modifiedDamage,
-                });
-                if (engine) {
-                    this.triggerExpireEffect(engine, unit.id);
-                }
-                this.active = false;
-                return unit;
+            if (dist <= this.radius + unit.radius) {
+                candidates.push({ unit, dist });
             }
         }
 
-        return null;
+        if (candidates.length === 0) return null;
+        candidates.sort((a, b) => a.dist - b.dist);
+
+        const toHit = candidates.slice(0, hitsRemaining);
+        let lastHit: Unit | null = null;
+
+        for (const { unit } of toHit) {
+            if (unit.hasIFrames(gameTime)) {
+                this.active = false;
+                return null;
+            }
+            if (engine && canAttackBeBlocked(unit, this.x, this.y, gameTime)) {
+                const block = getBlockingArcForUnit(unit, gameTime);
+                if (block) {
+                    executeBlock(
+                        engine,
+                        unit,
+                        {
+                            type: 'projectile',
+                            projectile: this,
+                            sourceUnitId: this.sourceUnitId,
+                            attackSourceX: this.x,
+                            attackSourceY: this.y,
+                        },
+                        this.sourceAbilityId,
+                        block,
+                    );
+                    return null;
+                }
+            }
+
+            const sourceUnit = (engine as { getUnit?: (id: string) => Unit | undefined } | undefined)?.getUnit?.(this.sourceUnitId);
+            const sourceAbility = getAbility(this.sourceAbilityId);
+            const modifiedDamage = getModifiedAbilityDamage(
+                sourceUnit,
+                this.damage,
+                sourceAbility?.damageModifierMultiplier,
+            );
+            unit.takeDamage(modifiedDamage, this.sourceUnitId, eventBus);
+            if (engine) {
+                triggerAbilityEventFromAttack({
+                    engine: engine as {
+                        gameTime: number;
+                        roundNumber: number;
+                        getUnit(id: string): Unit | undefined;
+                        generateRandomInteger(min: number, max: number): number;
+                        eventBus: EventBus;
+                        getPlayerResearchNodes?: (playerId: string, treeId: string) => string[];
+                        interruptUnitAndRefundAbilities?: (unit: Unit) => void;
+                    },
+                    attackingAbilityId: this.sourceAbilityId,
+                    sourceUnitId: this.sourceUnitId,
+                    eventType: AbilityEventType.ON_ATTACK_HIT,
+                    hitResult: 'hit',
+                    primaryTarget: unit,
+                });
+            }
+            if (this.sourceAbilityId === THROW_KNIFE_ABILITY_ID && engine) {
+                const e = engine as { gameTime: number; roundNumber: number };
+                applyBleedStack(unit, e.gameTime, e.roundNumber, 5);
+            }
+            eventBus.emit('projectile_hit', {
+                projectileId: this.id,
+                targetUnitId: unit.id,
+                damage: modifiedDamage,
+            });
+
+            this.hitUnitIds.add(unit.id);
+            lastHit = unit;
+        }
+
+        // Deactivate when all pierce hits are spent.
+        if (this.hitUnitIds.size >= maxHits) {
+            if (engine) this.triggerExpireEffect(engine, lastHit?.id);
+            this.active = false;
+        }
+
+        return lastHit;
     }
 
     toJSON(): Record<string, unknown> {
@@ -281,6 +323,7 @@ export class Projectile extends GameObject {
             projectileType: this.projectileType,
             modifiers: this.modifiers,
             passThroughEnemies: this.passThroughEnemies,
+            pierce: this.pierce,
             ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
         };
     }
@@ -307,6 +350,7 @@ export class Projectile extends GameObject {
             (data.projectileType as 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike' | undefined) ??
             'default';
         proj.passThroughEnemies = (data.passThroughEnemies as boolean | undefined) ?? false;
+        proj.pierce = (data.pierce as number | undefined) ?? 0;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;
         return proj;
     }
