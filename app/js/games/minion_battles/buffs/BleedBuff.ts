@@ -1,5 +1,5 @@
 /**
- * BleedBuff — stacking DoT; stacks tick down at round timer milestones (see roundProgressMilestones).
+ * BleedBuff — stacking DoT; stacks tick down at each DoT tick (see dotTick.ts).
  */
 
 import { Buff, type BuffSerialized } from './Buff';

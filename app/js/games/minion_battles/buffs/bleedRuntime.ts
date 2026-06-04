@@ -9,9 +9,6 @@ import { PARTICLE_EXPLOSION_DURATION_SECONDS } from '../game/deathEffects/Partic
 import { getCreatureType } from '../game/units/unit_defs/unitDef';
 import { BleedBuff, BLEED_BUFF_TYPE } from './BleedBuff';
 
-/** How many times bleed ticks per round (evenly spaced). */
-export const BLEED_TICKS_PER_ROUND = 8;
-
 const MINI_DISSOLUTION_PARTICLE_COUNT = 6;
 
 export interface BleedDamageFxContext {
@@ -70,7 +67,7 @@ export function applyBleedStack(unit: Unit, gameTime: number, roundNumber: numbe
 
 /**
  * One bleed tick: each unit with bleed takes ceil(stacks / 10) damage, then loses one stack.
- * Called BLEED_TICKS_PER_ROUND times per round (evenly spaced).
+ * Called DOT_TICKS_PER_ROUND times per round via tickAllDots().
  */
 export function tickBleedForRoundMilestone(
     units: readonly Unit[],

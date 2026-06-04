@@ -57,7 +57,7 @@ import {
     syncNestedCardAbilityState,
 } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
-import { tickBleedForRoundMilestone, BLEED_TICKS_PER_ROUND } from '../buffs/bleedRuntime';
+import { tickAllDots, DOT_TICKS_PER_ROUND } from './dotTick';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { triggerAbilityEvent } from '../abilities/events';
 import { CantDieBuff } from '../buffs/CantDieBuff';
@@ -141,7 +141,7 @@ export class GameEngine implements EngineContext {
     private pendingAdminReason: string | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
-    private appliedBleedTicks = 0;
+    private appliedDotTicks = 0;
 
     get randomSeed(): number {
         return this.state.randomSeed;
@@ -638,7 +638,7 @@ export class GameEngine implements EngineContext {
         this.state.runtimeFingerprintRing.clear();
         this.appliedRoundStartRecovery = false;
         this.appliedMidRoundRecovery = false;
-        this.appliedBleedTicks = 0;
+        this.appliedDotTicks = 0;
     }
 
     setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
@@ -1099,7 +1099,7 @@ export class GameEngine implements EngineContext {
             this.roundNumber++;
             this.appliedRoundStartRecovery = false;
             this.appliedMidRoundRecovery = false;
-            this.appliedBleedTicks = 0;
+            this.appliedDotTicks = 0;
         }
 
         if (!this.storyPauseActive) {
@@ -1330,7 +1330,7 @@ export class GameEngine implements EngineContext {
 
     /**
      * Round timer milestones (same cadence as UI round progress: 0% and 50%).
-     * Stamina surge runs at round start; bleed ticks BLEED_TICKS_PER_ROUND times per round.
+     * Stamina surge runs at round start; all DoT effects tick DOT_TICKS_PER_ROUND times per round.
      */
     private processRoundProgressMilestones(roundTime: number): void {
         const bleedFx = {
@@ -1360,10 +1360,10 @@ export class GameEngine implements EngineContext {
             });
             this.appliedMidRoundRecovery = true;
         }
-        const bleedTickInterval = ROUND_DURATION / BLEED_TICKS_PER_ROUND;
-        while (this.appliedBleedTicks < BLEED_TICKS_PER_ROUND && roundTime >= this.appliedBleedTicks * bleedTickInterval) {
-            tickBleedForRoundMilestone(this.units, this.eventBus, bleedFx);
-            this.appliedBleedTicks++;
+        const dotTickInterval = ROUND_DURATION / DOT_TICKS_PER_ROUND;
+        while (this.appliedDotTicks < DOT_TICKS_PER_ROUND && roundTime >= this.appliedDotTicks * dotTickInterval) {
+            tickAllDots(this.units, this.terrainLayers, this.eventBus, bleedFx);
+            this.appliedDotTicks++;
         }
     }
 
@@ -1578,7 +1578,7 @@ export class GameEngine implements EngineContext {
         const roundTime = engine.gameTime - (engine.roundNumber - 1) * ROUND_DURATION;
         engine.appliedRoundStartRecovery = roundTime > 0;
         engine.appliedMidRoundRecovery = roundTime >= ROUND_DURATION / 2;
-        engine.appliedBleedTicks = Math.min(BLEED_TICKS_PER_ROUND, Math.floor(roundTime / (ROUND_DURATION / BLEED_TICKS_PER_ROUND)));
+        engine.appliedDotTicks = Math.min(DOT_TICKS_PER_ROUND, Math.floor(roundTime / (ROUND_DURATION / DOT_TICKS_PER_ROUND)));
 
         engine.deferredOrderPause = null;
         if (engine.waitingForOrders != null) {
