@@ -12,5 +12,6 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'crystal_corruption', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
         { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'ember_threshold' },
+        { fromMissionId: 'ember_threshold', result: 'victory', toMissionId: 'thorn_march' },
     ],
 };

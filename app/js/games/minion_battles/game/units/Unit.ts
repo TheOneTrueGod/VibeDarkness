@@ -284,6 +284,14 @@ export class Unit extends GameObject {
     /** Nest unit: ID of the `nest` POI this nest occupies. */
     lanterniteHomeNestPoiId: string | null = null;
 
+    /**
+     * Generational invulnerability counter. If > 0, this unit is invulnerable.
+     * Each time this unit creates a child (lanternite or nest), the child receives
+     * max(0, this.invulnerabilityGenerations - 1), making them NOT invulnerable once
+     * the counter reaches 0.
+     */
+    invulnerabilityGenerations: number | null = null;
+
     /** Scout: game time when construction completes and a new nest should spawn. */
     lanterniteConstructionCompleteAtGameTime: number | null = null;
 
@@ -390,7 +398,8 @@ export class Unit extends GameObject {
 
     /** Whether this unit cannot be damaged, targeted, or shown a health bar. */
     isInvincible(): boolean {
-        return this.tags.includes(UnitTag.Invincible);
+        return this.tags.includes(UnitTag.Invincible) ||
+            (this.invulnerabilityGenerations != null && this.invulnerabilityGenerations > 0);
     }
 
     /** Whether this unit is in its spawn animation (invisible and untargetable). */
@@ -1197,6 +1206,7 @@ export class Unit extends GameObject {
             ...(this.lanterniteConstructionCompleteAtGameTime != null ? { lanterniteConstructionCompleteAtGameTime: this.lanterniteConstructionCompleteAtGameTime } : {}),
             ...(this.lanterniteAttackReadyAtGameTime !== 0 ? { lanterniteAttackReadyAtGameTime: this.lanterniteAttackReadyAtGameTime } : {}),
             ...(this.lanterniteConstructionAngle != null ? { lanterniteConstructionAngle: this.lanterniteConstructionAngle } : {}),
+            ...(this.invulnerabilityGenerations != null ? { invulnerabilityGenerations: this.invulnerabilityGenerations } : {}),
         };
     }
 
@@ -1270,6 +1280,9 @@ export class Unit extends GameObject {
         }
         if (typeof data.lanterniteConstructionAngle === 'number') {
             unit.lanterniteConstructionAngle = data.lanterniteConstructionAngle;
+        }
+        if (typeof data.invulnerabilityGenerations === 'number') {
+            unit.invulnerabilityGenerations = data.invulnerabilityGenerations;
         }
 
         // Restore movement

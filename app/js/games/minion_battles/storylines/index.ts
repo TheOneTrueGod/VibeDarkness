@@ -14,6 +14,7 @@ import { CRYSTAL_CORRUPTION } from './WorldOfDarkness/missions/004b_crystal_corr
 import { MONSTER } from './WorldOfDarkness/missions/005_monster';
 import { CORE_AWAKENING } from './WorldOfDarkness/missions/006_core_awakening';
 import { EMBER_THRESHOLD } from './WorldOfDarkness/missions/007_ember_threshold';
+import { THORN_MARCH } from './WorldOfDarkness/missions/008_thorn_march';
 import { LAST_HOLDOUT } from './BunkerAtTheEnd/missions/last_holdout';
 
 /** Default mission when missionId is unknown (e.g. fallback in BattlePhase). */
@@ -33,6 +34,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     monster: MONSTER,
     core_awakening: CORE_AWAKENING,
     ember_threshold: EMBER_THRESHOLD,
+    thorn_march: THORN_MARCH,
     last_holdout: LAST_HOLDOUT,
 };
 

@@ -245,6 +245,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             if (spawn.lanterniteTargetNestPoiId != null) {
                 unit.lanterniteTargetNestPoiId = spawn.lanterniteTargetNestPoiId;
             }
+            if (spawn.invulnerabilityGenerations != null) {
+                unit.invulnerabilityGenerations = spawn.invulnerabilityGenerations;
+            }
             initializeAbilityRuntimeForUnit(unit);
             attachAmmoIfNeeded(engine, unit);
             engine.addUnit(unit, 'initialGameSpawn');

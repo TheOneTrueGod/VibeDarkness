@@ -329,6 +329,7 @@ export class GameEngine implements EngineContext {
     }
 
     get effectEmitterManager() { return this.state.effectEmitterManager; }
+    get lightSources() { return this.state.lightSourceManager.lightSources; }
 
     addEffectEmitter(emitter: EffectEmitter): void {
         this.state.effectEmitterManager.addEmitter(emitter);

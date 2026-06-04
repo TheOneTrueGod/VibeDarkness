@@ -306,6 +306,12 @@ export interface EnemySpawnDef {
     lanterniteRole?: 'scout' | 'defender';
     /** POI id of the nest this scout is traveling to build. Requires lanterniteRole: 'scout'. */
     lanterniteTargetNestPoiId?: string;
+    /**
+     * Generational invulnerability. If > 0, this unit is invulnerable. Each time it creates a
+     * child unit (lanternite or nest), the child receives max(0, generations - 1), so children
+     * become vulnerable once the counter reaches 0.
+     */
+    invulnerabilityGenerations?: number;
 }
 
 /** Tags that can be applied to special tile placements (e.g. destructible). */

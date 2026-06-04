@@ -144,7 +144,10 @@ export function processLanterniteNests(params: {
         );
         newNest.lanterniteNestConfig = newNestCfg;
         newNest.lanterniteHomeNestPoiId = unit.lanterniteTargetNestPoiId ?? null;
-        if (unit.isInvincible()) newNest.tags = [UnitTag.Invincible];
+        if (unit.tags.includes(UnitTag.Invincible)) newNest.tags = [UnitTag.Invincible];
+        if (unit.invulnerabilityGenerations != null) {
+            newNest.invulnerabilityGenerations = Math.max(0, unit.invulnerabilityGenerations - 1);
+        }
         prepareLanterniteNestForMissionStart(newNest, params.gameTime);
         params.addUnit(newNest);
 
@@ -247,7 +250,10 @@ export function processLanterniteNests(params: {
             lan.lanternPatrolLeg = 'toFar';
         }
 
-        if (nest.isInvincible()) lan.tags = [UnitTag.Invincible];
+        if (nest.tags.includes(UnitTag.Invincible)) lan.tags = [UnitTag.Invincible];
+        if (nest.invulnerabilityGenerations != null) {
+            lan.invulnerabilityGenerations = Math.max(0, nest.invulnerabilityGenerations - 1);
+        }
         params.addUnit(lan, 'nestSpawn');
 
         nest.lanterniteNestSpawnState!.spawnedIds.push(lan.id);
