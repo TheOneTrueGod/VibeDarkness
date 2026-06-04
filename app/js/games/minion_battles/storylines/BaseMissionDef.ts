@@ -40,6 +40,7 @@ import { Ammo } from '../resources/Ammo';
 import {
     hydrateLanterniteNestFromMissionDef,
     prepareLanterniteNestForMissionStart,
+    upsertNestLightSource,
     LANTERNITE_NEST_CHARACTER_ID,
 } from '../game/lanternite/lanternitePulse';
 
@@ -256,6 +257,16 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         for (const u of engine.units) {
             if (u.characterId === LANTERNITE_NEST_CHARACTER_ID && u.lanterniteNestConfig != null) {
                 prepareLanterniteNestForMissionStart(u, engine.gameTime);
+                // Register the light source immediately so applyInstantLightingPass() (called
+                // right after initializeGameState) snapshots full brightness from frame 0,
+                // rather than waiting for the first round_start milestone.
+                if (engine.lightLevelEnabled) {
+                    upsertNestLightSource({
+                        nest: u,
+                        addLightSource: (ls) => engine.addLightSource(ls),
+                        lightSources: engine.lightSources,
+                    });
+                }
             }
         }
 
