@@ -205,7 +205,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         characterSpriteKey: 'thornbinder',
         hp: 26,
         speed: 42,
-        size: 'Medium',
+        size: 'Large',
         stamina: 1,
         perceptionRange: 380,
         creatureType: 'dark_creature',
@@ -307,8 +307,14 @@ function ensureDarkCreatureIconTint(visual: Container, unit: Unit, characterText
         tint.blendMode = 'multiply';
         tint.tint = DARK_CREATURE_CORRUPTION_TINT;
         tint.alpha = DARK_CREATURE_ICON_TINT_ALPHA;
+        const tintMask = new Graphics();
+        tintMask.circle(0, 0, unit.radius);
+        tintMask.fill(0xffffff);
+        tintMask.label = 'darkCreatureIconTintMask';
         const insertAt = visual.getChildIndex(charSprite) + 1;
-        visual.addChildAt(tint, insertAt);
+        visual.addChildAt(tintMask, insertAt);
+        visual.addChildAt(tint, insertAt + 1);
+        tint.mask = tintMask;
     } else {
         tint.texture = characterTexture;
     }
@@ -360,10 +366,8 @@ class DefaultUnitDef implements IUnitDef {
             : (def.bodyColor ?? DEFAULT_BODY_COLOR);
 
         let characterTexture: Texture | null = null;
-        let isPlayerPortraitTexture = false;
         if (unit.characterId === PLAYER_CHARACTER_ID && unit.portraitId) {
             characterTexture = context.getPlayerPortraitTexture(unit.portraitId);
-            if (characterTexture) isPlayerPortraitTexture = true;
         } else if (def.characterSpriteKey) {
             characterTexture = context.getCharacterTexture(def.characterSpriteKey);
         }
@@ -405,7 +409,7 @@ class DefaultUnitDef implements IUnitDef {
 
         // Character sprite (e.g. bowman for enemy_ranged, or model image for player portraits)
         if (showCharacterSprite && characterTexture) {
-            ensureUnitCharacterSprite(container, unit, characterTexture, isPlayerPortraitTexture);
+            ensureUnitCharacterSprite(container, unit, characterTexture, true);
         }
 
         const hpBarSize = getHpBarSize(unit);

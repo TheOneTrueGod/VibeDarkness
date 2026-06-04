@@ -193,25 +193,25 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
                 if (i === 0) gr.moveTo(bx, by);
                 else gr.lineTo(bx, by);
             }
-            gr.stroke({ color: 0x4ade80, width: 2, alpha: 0.25 + 0.45 * lineFadeT });
+            gr.stroke({ color: 0xef4444, width: 2, alpha: 0.25 + 0.45 * lineFadeT });
         }
 
         // Outer boundary circle: shows full impact radius, brightens as impact nears
         const borderAlpha = 0.25 + 0.55 * Math.min(1, elapsed / STRIKE_TIME);
         gr.circle(target.x, target.y, BASE_RADIUS);
-        gr.stroke({ color: 0x22c55e, width: 2, alpha: borderAlpha });
+        gr.stroke({ color: 0xef4444, width: 2, alpha: borderAlpha });
 
         // Expanding inner ring: grows from 0 to BASE_RADIUS over the full cast (0 → STRIKE_TIME)
         const ringT = elapsed / STRIKE_TIME;
         const ringRadius = ringT * BASE_RADIUS;
         if (ringRadius > 2) {
             gr.circle(target.x, target.y, ringRadius);
-            gr.stroke({ color: 0x86efac, width: 3, alpha: 0.45 + 0.45 * ringT });
+            gr.stroke({ color: 0xfca5a5, width: 3, alpha: 0.45 + 0.45 * ringT });
         }
     },
     renderTargetingPreview(gr: IAbilityPreviewGraphics, caster: Unit): void {
         gr.circle(caster.x, caster.y, 320);
-        gr.stroke({ width: 1, color: 0x86efac, alpha: 0.35 });
+        gr.stroke({ width: 1, color: 0xef4444, alpha: 0.35 });
     },
 };
 
