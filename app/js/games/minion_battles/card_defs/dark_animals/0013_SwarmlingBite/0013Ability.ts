@@ -109,8 +109,6 @@ export const SwarmlingBiteAbility: AbilityStatic = {
         const progress = Math.min(1, elapsed / PREFIRE_TIME);
         const circleRadius = CIRCLE_START_RADIUS * (1 - progress);
 
-        gr.clear();
-
         gr.moveTo(caster.x, caster.y);
         gr.lineTo(payload.targetX, payload.targetY);
         gr.stroke({ color: 0xff0000, width: 2, alpha: 0.75 });

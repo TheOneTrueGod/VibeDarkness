@@ -113,8 +113,6 @@ export const AlphaWolfScratchAbility: AbilityStatic = {
         const progress = Math.min(1, elapsed / PREFIRE_TIME);
         const circleRadius = CIRCLE_START_RADIUS * (1 - progress);
 
-        gr.clear();
-
         // Aim line from caster to target
         gr.moveTo(caster.x, caster.y);
         gr.lineTo(payload.targetX, payload.targetY);
