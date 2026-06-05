@@ -1,5 +1,4 @@
 ﻿import type { ScenarioDefinition } from '../../types';
-import { asCardDefId } from '../../../card_defs';
 import {
     STICK_SWORD_NODE_JAGGED_EDGE,
     STICK_SWORD_NODE_EXTRA_USES,
@@ -8,7 +7,6 @@ import {
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
-    seedHandWithAbilities,
     spawnTinyPlayerUnit,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
@@ -36,7 +34,6 @@ export const swingSwordNoneScenario: ScenarioDefinition = {
             dummyWorld: { x: 278, y: 240 },
             abilities: ['0112'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0112'), abilityId: '0112' }]);
         return engine;
     },
     getInitialOrders(engine) {
@@ -75,7 +72,6 @@ export const swingSwordJaggedEdgeScenario: ScenarioDefinition = {
             abilities: ['0112'],
             playerResearchTreesByPlayer: research,
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0112'), abilityId: '0112' }]);
         return engine;
     },
     getInitialOrders(engine) {
@@ -113,7 +109,6 @@ export const swingSwordNoBleedWithoutResearchScenario: ScenarioDefinition = {
             dummyWorld: { x: 278, y: 240 },
             abilities: ['0112'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0112'), abilityId: '0112' }]);
         return engine;
     },
     getInitialOrders(engine) {
@@ -191,7 +186,6 @@ export const swingSwordHitsTwoTargetsScenario: ScenarioDefinition = {
             initializeAbilityRuntimeForUnit(du);
             engine.addUnit(du, 'initialGameSpawn');
         }
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0112'), abilityId: '0112' }]);
         return engine;
     },
     getInitialOrders(engine) {

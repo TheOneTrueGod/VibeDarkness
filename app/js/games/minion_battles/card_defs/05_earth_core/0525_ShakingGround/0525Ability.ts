@@ -2,7 +2,7 @@
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { SHAKING_GROUND_ABILITY_ID } from '../../../abilities/earthCoreMeleePassives';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import type { EventBus } from '../../../game/EventBus';
@@ -26,8 +26,6 @@ interface EngineLike {
 }
 
 export const ShakingGroundAbility: AbilityStatic = {
-    id: SHAKING_GROUND_ABILITY_ID,
-    name: 'Shaking Ground',
     image: '',
     resourceCost: null,
     resourceCosts: [{ resourceId: 'resonance', amount: 25 }],
@@ -76,7 +74,5 @@ export const ShakingGroundAbility: AbilityStatic = {
 };
 
 export const ShakingGroundCard: CardDef = {
-    id: asCardDefId(SHAKING_GROUND_ABILITY_ID),
-    name: 'Shaking Ground',
     abilityId: SHAKING_GROUND_ABILITY_ID,
 };

@@ -14,11 +14,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Delete dead `CardManager` draw/hand methods | `drawCard()`, `drawCardsForPlayer()`, `fillHandInnateFirst()`, and `transferCardToAllyDeck()` in `game/managers/CardManager.ts` are never called. Safe to delete outright. |
-| Remove vestigial `CardDef` fields (`id`, `name`, `tags`) | These fields duplicate data already in `AbilityStatic` or are only checked inside the never-called `fillHandInnateFirst()`. Strip them from the `CardDef` type definition and all card def files. |
-| Fix `ChargeAttack` template's reference to `discardDuration` | `abilities/templates/ChargeAttack.ts` references `discardDuration` as a config param even though the field is unused. Clean it up as part of the `discardDuration` removal pass. |
-| Refactor test harness `seedHandWithAbilities()` | `testing/harness/buildTinyBattleEngine.ts` creates `CardInstance`s directly into the engine. Replace it with a helper that populates `Unit.abilities[]` instead, matching how the live system works. |
-| Rename `CardHand.tsx` / `CardComponent.tsx` to ability-focused names | These components are functional but misleadingly named — they render the ability bar using `Unit.abilities[]`, not a card hand. Rename to e.g. `AbilityBar.tsx` / `AbilityComponent.tsx` and update all import sites. |
 
 ## Medium
 

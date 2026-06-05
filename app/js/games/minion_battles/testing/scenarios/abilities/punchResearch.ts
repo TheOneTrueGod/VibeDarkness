@@ -1,11 +1,9 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import type { GameEngine } from '../../../game/GameEngine';
-import { asCardDefId } from '../../../card_defs';
 import { StunnedBuff, STUNNED_BUFF_TYPE } from '../../../buffs/StunnedBuff';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
-    seedHandWithAbilities,
     spawnTinyPlayerUnit,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
@@ -30,7 +28,6 @@ function buildPunchEngine(abilityId: string, extraAbilities: string[] = []): Gam
         dummyWorld: DUMMY_START,
         abilities: [abilityId, ...extraAbilities],
     });
-    seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId(abilityId), abilityId }]);
     return engine;
 }
 
@@ -137,7 +134,6 @@ export const punchChargingScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_START,
             abilities: ['0119', 'throw_charged_rock'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0119'), abilityId: '0119' }]);
         const u = engine.getLocalPlayerUnit();
         const rt = u?.abilityRuntime['throw_charged_rock'];
         // Deplete uses so recoverCharge can apply; the runtime converts light charge into a use.
@@ -176,7 +172,6 @@ export const bashRangeBoundaryHitScenario: ScenarioDefinition = {
         const dummy = createTargetDummyAtWorld(engine, PLAYER_START.x + hitDistance, PLAYER_START.y, { id: 'target_dummy' });
         initializeAbilityRuntimeForUnit(dummy);
         engine.addUnit(dummy, 'initialGameSpawn');
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0120'), abilityId: '0120' }]);
         return engine;
     },
     getInitialOrders: (e) => {
@@ -207,7 +202,6 @@ export const bashRangeBoundaryMissScenario: ScenarioDefinition = {
         const dummy = createTargetDummyAtWorld(engine, PLAYER_START.x + missDistance, PLAYER_START.y, { id: 'target_dummy' });
         initializeAbilityRuntimeForUnit(dummy);
         engine.addUnit(dummy, 'initialGameSpawn');
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0120'), abilityId: '0120' }]);
         return engine;
     },
     getInitialOrders: (e) => {
@@ -246,7 +240,6 @@ export const doublePunchTwoTargetsScenario: ScenarioDefinition = {
         const dummy2 = createTargetDummyAtWorld(engine, PLAYER_START.x + 40, PLAYER_START.y + 15, { id: 'target_dummy_2' });
         initializeAbilityRuntimeForUnit(dummy2);
         engine.addUnit(dummy2, 'initialGameSpawn');
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0116'), abilityId: '0116' }]);
         return engine;
     },
     getInitialOrders: (e) => {

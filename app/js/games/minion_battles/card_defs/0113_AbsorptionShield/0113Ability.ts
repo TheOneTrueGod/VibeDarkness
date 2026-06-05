@@ -3,7 +3,7 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createArcTargetPreview } from '../../abilities/previewHelpers';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import {
     createDirectionalBlockingArc,
     createMovementPenaltyStates,
@@ -32,15 +32,12 @@ const ABSORPTION_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w
 </svg>`;
 
 export const AbsorptionShieldAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Absorption Shield',
     image: ABSORPTION_SHIELD_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DURATION,
     abilityTimings: [
         {
-            id: 'shield',
             start: 0,
             end: DURATION,
             abilityPhase: AbilityPhase.Juggernaut,
@@ -87,7 +84,6 @@ export const AbsorptionShieldAbility: AbilityStatic = {
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
             {
-                id: 'energy-charge',
                 maxTriggersPerCast: MAX_BLOCK_SURGES,
                 conditions: [{ type: 'always' }],
                 effects: [
@@ -105,7 +101,5 @@ export const AbsorptionShieldAbility: AbilityStatic = {
 };
 
 export const AbsorptionShieldCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Absorption Shield',
     abilityId: CARD_ID,
 };

@@ -8,7 +8,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
@@ -41,8 +41,6 @@ function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }):
 }
 
 export const EnemyArcherShotAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Enemy Archer Shot',
     image: ENEMY_ARCHER_SHOT_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -50,13 +48,11 @@ export const EnemyArcherShotAbility: AbilityStatic = {
     abilityTimings: [
         { id: 'draw', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
         {
-            id: 'loose',
             start: LOCK_TIME,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Active,
         },
         {
-            id: 'cooldown',
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 3.0,
             abilityPhase: AbilityPhase.Cooldown,
@@ -169,7 +165,5 @@ export const EnemyArcherShotAbility: AbilityStatic = {
 };
 
 export const EnemyArcherShotCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Enemy Archer Shot',
     abilityId: CARD_ID,
 };

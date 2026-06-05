@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Double Punch - Warrior melee ability.
  *
  * Strikes twice in sequence, each using a thick-line hitbox with lock-on targeting.
@@ -83,12 +83,9 @@ const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http
 </svg>`;
 
 export const DoublePunchAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Double Punch',
     image: PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
-    tags: [],
     prefireTime: 0.15,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,

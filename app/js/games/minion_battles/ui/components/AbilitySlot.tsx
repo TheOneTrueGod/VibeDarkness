@@ -1,5 +1,5 @@
 /**
- * CardComponent - Renders a single card in the player's hand.
+ * AbilitySlot - Renders a single ability in the player's ability bar.
  *
  * Shows the ability's title and image. Hover shows description (desktop),
  * tap shows description overlay (mobile).
@@ -12,9 +12,9 @@ import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abilityUseChargeAnimation';
 import { ChargeIcon } from './ChargeIcon';
 import { RECOVERY_CHARGE_DEFINITIONS } from './recoveryChargeDefinitions';
-import CardTooltip from './CardTooltip';
+import AbilityTooltip from './AbilityTooltip';
 
-interface CardComponentProps {
+interface AbilitySlotProps {
     ability: AbilityStatic;
     runtime: UnitAbilityRuntimeState;
     isSelected: boolean;
@@ -36,7 +36,7 @@ interface CardComponentProps {
     onPrimaryRecoveryPillRef?: (el: HTMLDivElement | null) => void;
 }
 
-export default function CardComponent({
+export default function AbilitySlot({
     ability,
     runtime,
     isSelected,
@@ -51,7 +51,7 @@ export default function CardComponent({
     onMobileDescriptionDismiss: _onMobileDescriptionDismiss,
     gameState,
     onPrimaryRecoveryPillRef,
-}: CardComponentProps) {
+}: AbilitySlotProps) {
     const handleClick = useCallback(() => {
         if (isDisabled) return;
         if (isMobile && !showMobileDescription) {
@@ -212,13 +212,13 @@ export default function CardComponent({
 
             {/* Desktop hover tooltip */}
             {isHovered && !isMobile && (
-                <CardTooltip
+                <AbilityTooltip
                     title={ability.name}
                     lines={tooltipLines}
                 />
             )}
 
-            {/* Mobile description overlay is rendered by CardHand */}
+            {/* Mobile description overlay is rendered by AbilityBar */}
         </div>
     );
 }

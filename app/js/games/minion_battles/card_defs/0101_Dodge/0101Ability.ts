@@ -11,7 +11,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import type { Unit } from '../../game/units/Unit';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../../game/forceMove';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 
@@ -30,15 +30,12 @@ const DODGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/s
 </svg>`;
 
 export const DodgeAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Dodge',
     image: DODGE_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DODGE_DURATION,
     abilityTimings: [
         {
-            id: 'iframe',
             start: 0,
             end: DODGE_DURATION,
             abilityPhase: AbilityPhase.Iframe,
@@ -54,7 +51,6 @@ export const DodgeAbility: AbilityStatic = {
     abilityEvents: {
         [AbilityEventType.ON_CAST_START]: [
             {
-                id: 'dodge-stamina-charge',
                 conditions: [{ type: 'always' }],
                 effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, excludeCurrentAbility: true }],
             },
@@ -100,7 +96,5 @@ export const DodgeAbility: AbilityStatic = {
 };
 
 export const DodgeCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Dodge',
     abilityId: CARD_ID,
 };

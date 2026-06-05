@@ -1,11 +1,9 @@
-import type { ScenarioDefinition } from '../../types';
+﻿import type { ScenarioDefinition } from '../../types';
 import type { GameEngine } from '../../../game/GameEngine';
-import { asCardDefId } from '../../../card_defs';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../../../researchTrees/trees/crystal_rocks';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
-    seedHandWithAbilities,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
 
@@ -27,7 +25,6 @@ function throwRockEngine(nodes: string[]): GameEngine {
         abilities: ['throw_rock'],
         playerResearchTreesByPlayer: research,
     });
-    seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('throw_rock'), abilityId: 'throw_rock' }]);
     return engine;
 }
 
@@ -47,7 +44,6 @@ function chargedRockEngine(nodes: string[]): GameEngine {
         abilities: ['throw_charged_rock'],
         playerResearchTreesByPlayer: research,
     });
-    seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('throw_charged_rock'), abilityId: 'throw_charged_rock' }]);
     return engine;
 }
 

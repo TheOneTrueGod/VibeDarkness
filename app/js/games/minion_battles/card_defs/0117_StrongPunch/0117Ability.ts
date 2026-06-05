@@ -13,7 +13,7 @@ import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { meleeLineHitbox } from '../../hitboxes';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}17`;
 const MAX_RANGE = 30; // px
@@ -74,12 +74,9 @@ const STRONG_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmln
 </svg>`;
 
 export const StrongPunchAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Strong Punch',
     image: STRONG_PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
-    tags: [],
     prefireTime: 0.15,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
@@ -88,7 +85,6 @@ export const StrongPunchAbility: AbilityStatic = {
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [
             {
-                id: 'strong_punch_cc',
                 conditions: [{ type: 'hitResultIs', result: 'hit' }],
                 effects: [
                     { type: 'applyKnockbackToPrimaryTarget', tier: 1, sourceAbilityId: CARD_ID },
@@ -123,7 +119,5 @@ export const StrongPunchAbility: AbilityStatic = {
 };
 
 export const StrongPunchCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Strong Punch',
     abilityId: CARD_ID,
 };

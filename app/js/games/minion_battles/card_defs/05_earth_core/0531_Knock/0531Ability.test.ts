@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
 import { EventBus } from '../../../game/EventBus';
@@ -7,7 +7,6 @@ import { getAbility } from '../../../abilities/AbilityRegistry';
 
 function makeUnit(): Unit {
     return new Unit({
-        id: 'caster',
         x: 0,
         y: 0,
         hp: 100,
@@ -15,7 +14,6 @@ function makeUnit(): Unit {
         teamId: 'player',
         ownerId: 'p1',
         characterId: 'player',
-        name: 'Caster',
     });
 }
 

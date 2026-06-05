@@ -6,7 +6,7 @@ import type { AbilityEngineContext } from '../AbilityEngineContext';
 import type { Unit } from '../../game/units/Unit';
 import type { TargetDef } from '../targeting';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
-import { asCardDefId, type CardDef } from '../../card_defs/types';
+import type { CardDef } from '../../card_defs/types';
 import { computeLungeChargeDirection, LungeMovement } from '../behaviors/LungeMovement';
 import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';
 import { Effect } from '../../game/effects/Effect';
@@ -47,7 +47,6 @@ export interface ChargeAttackConfig {
 	effectType: string;
 	effectDuration: number;
 	tooltipText: string;
-	cardName: string;
 	requiredTags?: readonly UnitTag[];
 	forbiddenTags?: readonly UnitTag[];
 }
@@ -103,11 +102,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	}
 
 	get cardDef(): CardDef {
-		return {
-			id: asCardDefId(this.config.id),
-			name: this.config.cardName,
-			abilityId: this.config.id,
-		};
+		return { abilityId: this.config.id };
 	}
 
 	getTooltipText(): string[] {

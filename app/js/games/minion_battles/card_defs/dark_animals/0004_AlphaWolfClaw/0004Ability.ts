@@ -15,7 +15,7 @@ import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { Effect } from '../../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
@@ -106,8 +106,6 @@ const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/sv
 </svg>`;
 
 export const AlphaWolfClawAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Claw',
     image: CLAW_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -115,13 +113,11 @@ export const AlphaWolfClawAbility: AbilityStatic = {
     abilityTimings: [
         { id: 'windup', start: 0, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
         {
-            id: 'hit',
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 0.1,
             abilityPhase: AbilityPhase.Active,
         },
         {
-            id: 'cooldown',
             start: PREFIRE_TIME + 0.1,
             end: PREFIRE_TIME + 1.6,
             abilityPhase: AbilityPhase.Cooldown,
@@ -250,7 +246,5 @@ export const AlphaWolfClawAbility: AbilityStatic = {
 };
 
 export const AlphaWolfClawCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Claw',
     abilityId: CARD_ID,
 };

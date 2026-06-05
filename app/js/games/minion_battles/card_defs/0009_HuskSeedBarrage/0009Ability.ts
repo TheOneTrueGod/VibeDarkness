@@ -8,7 +8,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
@@ -39,8 +39,6 @@ interface EngineLike {
 }
 
 export const HuskSeedBarrageAbility: AbilityStatic = {
-    id: HUSK_SEED_BARRAGE_ID,
-    name: 'Seed Pod Barrage',
     image: '',
     resourceCost: null,
     rechargeTurns: 1,
@@ -114,7 +112,6 @@ export const HuskSeedBarrageAbility: AbilityStatic = {
             const husk = createUnitFromSpawnConfig(
                 {
                     characterId: 'huskling',
-                    name: 'Huskling',
                     x: projectile.x + ox,
                     y: projectile.y + oy,
                     teamId: 'enemy',
@@ -138,7 +135,5 @@ export const HuskSeedBarrageAbility: AbilityStatic = {
 };
 
 export const HuskSeedBarrageCard: CardDef = {
-    id: asCardDefId(HUSK_SEED_BARRAGE_ID),
-    name: 'Seed Pod Barrage',
     abilityId: HUSK_SEED_BARRAGE_ID,
 };

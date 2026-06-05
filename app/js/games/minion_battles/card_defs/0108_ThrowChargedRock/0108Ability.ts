@@ -16,7 +16,7 @@ import { Effect } from '../../game/effects/Effect';
 import { createCrystalLightEffect } from '../../abilities/effectHelpers';
 import { areEnemies } from '../../game/teams';
 import type { EventBus } from '../../game/EventBus';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 
@@ -56,7 +56,6 @@ type ThrowChargedRockCastPayload = {
 
 const THROW_CHARGED_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
     {
-        id: 'windup',
         start: 0,
         end: 0.3,
         abilityPhase: AbilityPhase.Windup,
@@ -64,7 +63,6 @@ const THROW_CHARGED_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Winding up to throw the rock.',
     },
     {
-        id: 'flight',
         start: 0.3,
         end: 1.0,
         abilityPhase: AbilityPhase.Active,
@@ -72,7 +70,6 @@ const THROW_CHARGED_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Rock is in flight and can hit enemies.',
     },
     {
-        id: 'recovery',
         start: 1.0,
         end: 1.6,
         abilityPhase: AbilityPhase.Cooldown,
@@ -84,7 +81,6 @@ const THROW_CHARGED_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
 /** Timeline: `::::::=:::=...` (windup / throw / short windup / throw / cooldown). */
 const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
     {
-        id: 'windup',
         start: 0,
         end: MORE_ROCK_FIRST_THROW,
         abilityPhase: AbilityPhase.Windup,
@@ -92,7 +88,6 @@ const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Winding up for the first throw.',
     },
     {
-        id: 'flight1',
         start: MORE_ROCK_FIRST_THROW,
         end: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Active,
@@ -100,7 +95,6 @@ const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'First rock is in flight.',
     },
     {
-        id: 'windup2',
         start: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
         end: MORE_ROCK_SECOND_THROW,
         abilityPhase: AbilityPhase.Windup,
@@ -108,7 +102,6 @@ const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Brief pause before the second throw.',
     },
     {
-        id: 'flight2',
         start: MORE_ROCK_SECOND_THROW,
         end: MORE_ROCK_SECOND_THROW + MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Active,
@@ -116,7 +109,6 @@ const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Second rock is in flight.',
     },
     {
-        id: 'recovery',
         start: MORE_ROCK_COOLDOWN_START,
         end: 14 * MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Cooldown,
@@ -183,8 +175,6 @@ function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: n
 }
 
 export const ThrowChargedRock: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Throw Charged Rock',
     image: THROW_CHARGED_ROCK_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
@@ -384,7 +374,5 @@ export const ThrowChargedRock: AbilityStatic = {
 };
 
 export const ThrowChargedRockCard: CardDef = {
-    id: asCardDefId('throw_charged_rock'),
-    name: 'Throw Charged Rock',
     abilityId: 'throw_charged_rock',
 };

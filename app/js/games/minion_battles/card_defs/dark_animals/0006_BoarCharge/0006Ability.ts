@@ -7,8 +7,6 @@ const BOAR_CHARGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 </svg>`;
 
 const boarCharge = new ChargeAttack({
-    id: `${formatGroupId(AbilityGroupId.Enemy)}06`,
-    name: 'Charge',
     image: BOAR_CHARGE_IMAGE,
     damage: 4,
     windupTime: 0.6,
@@ -22,7 +20,6 @@ const boarCharge = new ChargeAttack({
     effectType: 'bite',
     effectDuration: 0.2,
     tooltipText: 'Charge at a target, dealing {4} damage to each enemy crossed (wide hitbox)',
-    cardName: 'Charge',
 });
 
 export const BoarChargeAbility = boarCharge;

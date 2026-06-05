@@ -10,7 +10,7 @@ import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { areEnemies } from '../../game/teams';
@@ -54,8 +54,6 @@ function getStrikePosition(caster: Unit, active: { targets: ResolvedTarget[] }):
 }
 
 export const ThornbinderBrambleAbility: AbilityStatic = {
-    id: THORNBINDER_ABILITY_ID,
-    name: 'Bramble Slam',
     image: '',
     resourceCost: null,
     rechargeTurns: 1,
@@ -143,7 +141,6 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
 
         const expiresAt = eng.gameTime + (COOLDOWN_END - STRIKE_TIME) - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
         eng.terrainLayers.add({
-            id: `bramble-${Date.now()}-${Math.random()}`,
             layer: 'ground',
             effectType: 'bramble_slow',
             placedAtGameTime: eng.gameTime,
@@ -216,7 +213,5 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
 };
 
 export const ThornbinderBrambleCard: CardDef = {
-    id: asCardDefId(THORNBINDER_ABILITY_ID),
-    name: 'Bramble Slam',
     abilityId: THORNBINDER_ABILITY_ID,
 };

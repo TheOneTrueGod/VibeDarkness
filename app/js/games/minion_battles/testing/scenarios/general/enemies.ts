@@ -1,10 +1,8 @@
 ﻿import type { ScenarioDefinition } from '../../types';
-import { asCardDefId } from '../../../card_defs';
 import { ExposedBuff, EXPOSED_BUFF_TYPE } from '../../../buffs/ExposedBuff';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
-    seedHandWithAbilities,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
@@ -66,7 +64,6 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
         initializeAbilityRuntimeForUnit(wolf);
         engine.addUnit(wolf, 'initialGameSpawn');
 
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0117'), abilityId: '0117' }]);
 
         // Queue second punch after first cooldown; pendingOrders keeps battle non-idle until it fires.
         engine.state.orderMgr.queueOrder(SECOND_PUNCH_TICK, {
@@ -202,7 +199,6 @@ export const alphaWolfEnrageTriggersScenario: ScenarioDefinition = {
         initializeAbilityRuntimeForUnit(wolf);
         engine.addUnit(wolf, 'initialGameSpawn');
 
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0120'), abilityId: '0120' }]);
 
         return engine;
     },
@@ -351,10 +347,6 @@ export const exposedDurationExtensionScenario: ScenarioDefinition = {
             y: EXT_P1_POS.y,
             abilities: ['0117', '0115'],
         });
-        seedHandWithAbilities(engine, P1, [
-            { cardDefId: asCardDefId('0117'), abilityId: '0117' },
-            { cardDefId: asCardDefId('0115'), abilityId: '0115' },
-        ]);
 
         const p2 = spawnTinyPlayerUnit(engine, {
             playerId: P2,
@@ -362,9 +354,6 @@ export const exposedDurationExtensionScenario: ScenarioDefinition = {
             y: EXT_P2_POS.y,
             abilities: ['0117'],
         });
-        seedHandWithAbilities(engine, P2, [
-            { cardDefId: asCardDefId('0117'), abilityId: '0117' },
-        ]);
 
         const wolf = createUnitFromSpawnConfig(
             {

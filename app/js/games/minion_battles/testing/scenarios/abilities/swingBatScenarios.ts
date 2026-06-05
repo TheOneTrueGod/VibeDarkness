@@ -1,8 +1,6 @@
 ﻿import type { ScenarioDefinition } from '../../types';
-import { asCardDefId } from '../../../card_defs';
 import {
     buildTinyBattleEngine,
-    seedHandWithAbilities,
     spawnTinyPlayerUnit,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
@@ -49,7 +47,6 @@ export const swingBatHitsThreeTargetsScenario: ScenarioDefinition = {
             initializeAbilityRuntimeForUnit(du);
             engine.addUnit(du, 'initialGameSpawn');
         }
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0115'), abilityId: '0115' }]);
         return engine;
     },
 

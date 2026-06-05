@@ -1,9 +1,7 @@
 ﻿import type { ScenarioDefinition } from '../../types';
-import { asCardDefId } from '../../../card_defs';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
-    seedHandWithAbilities,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
@@ -52,10 +50,6 @@ function buildAbsorptionShieldEngine() {
     initializeAbilityRuntimeForUnit(attacker);
     engine.addUnit(attacker, 'initialGameSpawn');
 
-    seedHandWithAbilities(engine, P, [
-        { cardDefId: asCardDefId('0113'), abilityId: '0113' },
-        { cardDefId: asCardDefId('0114'), abilityId: '0114' },
-    ]);
 
     return engine;
 }

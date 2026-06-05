@@ -10,8 +10,6 @@ const ALPHA_WOLF_CHARGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w
 import { UnitTag } from '../../../game/units/unitTag';
 
 const alphaWolfCharge = new ChargeAttack({
-    id: `${formatGroupId(AbilityGroupId.Enemy)}07`,
-    name: 'Alpha Charge',
     image: ALPHA_WOLF_CHARGE_IMAGE,
     damage: 5,
     windupTime: 1.0,
@@ -25,7 +23,6 @@ const alphaWolfCharge = new ChargeAttack({
     effectType: 'bite',
     effectDuration: 0.25,
     tooltipText: 'The Alpha charges forward, dealing {5} damage to each enemy in a wide path',
-    cardName: 'Alpha Charge',
     forbiddenTags: [UnitTag.Enraged],
 });
 

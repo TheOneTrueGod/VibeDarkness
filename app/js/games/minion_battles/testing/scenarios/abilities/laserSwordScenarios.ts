@@ -1,8 +1,6 @@
 ﻿import type { ScenarioDefinition } from '../../types';
-import { asCardDefId } from '../../../card_defs';
 import {
     buildTinyBattleEngine,
-    seedHandWithAbilities,
     spawnTinyPlayerUnit,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
@@ -38,7 +36,6 @@ export const laserSwordHitsTwoTargetsScenario: ScenarioDefinition = {
             initializeAbilityRuntimeForUnit(du);
             engine.addUnit(du, 'initialGameSpawn');
         }
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0105'), abilityId: '0105' }]);
         return engine;
     },
     getInitialOrders(engine) {

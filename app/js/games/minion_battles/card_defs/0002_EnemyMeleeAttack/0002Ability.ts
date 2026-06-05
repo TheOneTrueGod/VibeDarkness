@@ -8,7 +8,7 @@ import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { areEnemies } from '../../game/teams';
@@ -58,8 +58,6 @@ const ENEMY_MELEE_ATTACK_IMAGE = `<svg width="64" height="64" xmlns="http://www.
 </svg>`;
 
 export const EnemyMeleeAttackAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Enemy Melee Attack',
     image: ENEMY_MELEE_ATTACK_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -67,13 +65,11 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
     abilityTimings: [
         { id: 'lock', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
         {
-            id: 'strike',
             start: LOCK_TIME,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Active,
         },
         {
-            id: 'cooldown',
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 2.5,
             abilityPhase: AbilityPhase.Cooldown,
@@ -166,7 +162,5 @@ export const EnemyMeleeAttackAbility: AbilityStatic = {
 };
 
 export const EnemyMeleeAttackCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Enemy Melee Attack',
     abilityId: CARD_ID,
 };

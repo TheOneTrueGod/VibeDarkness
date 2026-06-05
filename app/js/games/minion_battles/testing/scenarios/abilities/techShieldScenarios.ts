@@ -1,5 +1,4 @@
 ﻿import type { ScenarioDefinition } from '../../types';
-import { asCardDefId } from '../../../card_defs';
 import {
     TECH_SHIELD_TREE_ID,
     TECH_SHIELD_NODE_BASE,
@@ -8,7 +7,6 @@ import {
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
-    seedHandWithAbilities,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
@@ -54,7 +52,6 @@ function buildShieldEngine(
     );
     initializeAbilityRuntimeForUnit(attacker);
     engine.addUnit(attacker, 'initialGameSpawn');
-    seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId(abilityId), abilityId }]);
     return { engine, player };
 }
 

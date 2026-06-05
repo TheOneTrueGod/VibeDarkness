@@ -35,7 +35,7 @@ import {
 } from '../../../../researchTrees/trees/stick_sword';
 import type { Unit } from '../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { Effect } from '../../game/effects/Effect';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
@@ -169,13 +169,10 @@ const SWING_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 // ---- Ability export ----
 
 export const SwingSwordAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Swing Sword',
     image: SWING_SWORD_IMAGE,
     resourceCost: null,
     resourceCosts: [],
     rechargeTurns: 1,
-    tags: [],
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
@@ -212,7 +209,5 @@ export const SwingSwordAbility: AbilityStatic = {
 };
 
 export const SwingSwordCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Swing Sword',
     abilityId: CARD_ID,
 };

@@ -5,7 +5,7 @@ import type { AbilityEngineContext } from '../../../abilities/AbilityEngineConte
 import type { Unit } from '../../../game/units/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import {
     computeLungeChargeDirection,
     LungeMovement,
@@ -88,8 +88,6 @@ class TripleChargeAbilityDef extends AbilityBase<TripleChargeNote> {
 
     get cardDef(): CardDef {
         return {
-            id: asCardDefId(ABILITY_ID),
-            name: 'Frenzied Charge',
             abilityId: ABILITY_ID,
         };
     }

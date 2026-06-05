@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../../game/EventBus';
 import { Unit } from '../../../game/units/Unit';
 import { ShatterAbility } from './0526Ability';
@@ -6,7 +6,6 @@ import { grantEarthCoreArmourFromSource } from '../../../abilities/earthCoreArmo
 
 function makeUnit(config: { id: string; x: number; y: number; teamId: 'player' | 'enemy'; ownerId: string }): Unit {
     return new Unit({
-        id: config.id,
         x: config.x,
         y: config.y,
         hp: 100,
@@ -14,7 +13,6 @@ function makeUnit(config: { id: string; x: number; y: number; teamId: 'player' |
         teamId: config.teamId,
         ownerId: config.ownerId,
         characterId: config.teamId === 'player' ? 'player' : 'dark_wolf',
-        name: config.id,
     });
 }
 

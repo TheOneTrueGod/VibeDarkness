@@ -11,7 +11,7 @@ import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { Effect } from '../../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { areEnemies } from '../../../game/teams';
@@ -54,15 +54,12 @@ const SUMMON_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/
 </svg>`;
 
 export const AlphaWolfSummonAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Summon',
     image: SUMMON_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         {
-            id: 'howl',
             start: 0,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Windup,
@@ -75,13 +72,11 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
             },
         },
         {
-            id: 'summon',
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 0.1,
             abilityPhase: AbilityPhase.Active,
         },
         {
-            id: 'cooldown',
             start: PREFIRE_TIME + 0.1,
             end: PREFIRE_TIME + 3.1,
             abilityPhase: AbilityPhase.Cooldown,
@@ -203,7 +198,5 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
 };
 
 export const AlphaWolfSummonCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Summon',
     abilityId: CARD_ID,
 };

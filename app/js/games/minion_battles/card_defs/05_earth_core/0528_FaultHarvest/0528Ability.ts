@@ -1,7 +1,7 @@
 ﻿import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { Unit } from '../../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { EARTH_CORE_RESONANCE_GAIN_ON_OWN_ARMOUR_BREAK } from '../earthCoreConstants';
 import { getEarthCoreArmour } from '../0527_EarthCoreShared/earthCoreArmour';
 
@@ -23,8 +23,6 @@ export function applyFaultHarvestOnArmourBreak(owner: Unit, previousArmourAmount
 }
 
 export const FaultHarvest: AbilityStatic = {
-    id: ABILITY_ID,
-    name: 'Fault Harvest',
     image: FAULT_HARVEST_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -41,7 +39,5 @@ export const FaultHarvest: AbilityStatic = {
 };
 
 export const FaultHarvestCard: CardDef = {
-    id: asCardDefId('0528'),
-    name: 'Fault Harvest',
     abilityId: ABILITY_ID,
 };

@@ -1,5 +1,5 @@
-/**
- * LanterniteStrike — short-range light pulse fired by Lanternite units while patrolling.
+﻿/**
+ * LanterniteStrike â€” short-range light pulse fired by Lanternite units while patrolling.
  * Quick windup, single-target projectile, no card needed (unit ability only).
  */
 
@@ -29,8 +29,6 @@ interface GameEngineLike {
 }
 
 export const LanterniteStrikeAbility: AbilityStatic = {
-    id: LANTERNITE_STRIKE_ID,
-    name: 'Light Pulse',
     image: '',
     resourceCost: null,
     rechargeTurns: 0,

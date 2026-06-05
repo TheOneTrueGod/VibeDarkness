@@ -1,5 +1,5 @@
 /**
- * CardTooltip - Tooltip for ability cards with a title and one or more lines.
+ * AbilityTooltip - Tooltip for abilities with a title and one or more lines.
  * Static text and dynamic text (wrapped in {}) are rendered in different colours.
  * Fixed width and height for consistent layout regardless of content.
  */
@@ -25,7 +25,7 @@ function parseTooltipLine(line: string): Array<{ text: string; dynamic: boolean 
     return segments;
 }
 
-export interface CardTooltipProps {
+export interface AbilityTooltipProps {
     /** Tooltip title (e.g. ability name). */
     title: string;
     /** One or more lines. Use {value} for dynamic parts (e.g. "Hit {1} enemy for {8} damage"). */
@@ -40,12 +40,12 @@ const TOOLTIP_WIDTH = 180;
 const TOOLTIP_HEIGHT = 200;
 const LINE_HEIGHT = 1.35;
 
-export default function CardTooltip({
+export default function AbilityTooltip({
     title,
     lines,
     isMobileOverlay = false,
     onDismiss,
-}: CardTooltipProps) {
+}: AbilityTooltipProps) {
     if (isMobileOverlay) {
         return (
             <div

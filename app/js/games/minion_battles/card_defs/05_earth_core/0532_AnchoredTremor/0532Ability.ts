@@ -6,7 +6,7 @@ import { getPixelTargetPosition } from '../../../abilities/targetHelpers';
 import { areEnemies } from '../../../game/teams';
 import { TerrainType } from '../../../terrain/TerrainType';
 import type { EventBus } from '../../../game/EventBus';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 
 const ABILITY_ID = '0532';
 const PULSE_INTERVAL = 0.35;
@@ -17,7 +17,6 @@ const RADIUS = 65;
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
     {
-        id: 'active',
         start: 0.2,
         end: 1.6,
         abilityPhase: AbilityPhase.Active,
@@ -52,8 +51,6 @@ function getCompletedPulseCount(prevTime: number, currentTime: number): number {
 }
 
 export const AnchoredTremor: AbilityStatic = {
-    id: ABILITY_ID,
-    name: 'Anchored Tremor',
     image: ANCHORED_TREMOR_IMAGE,
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: 1,
@@ -91,7 +88,5 @@ export const AnchoredTremor: AbilityStatic = {
 };
 
 export const AnchoredTremorCard: CardDef = {
-    id: asCardDefId('0532'),
-    name: 'Anchored Tremor',
     abilityId: ABILITY_ID,
 };

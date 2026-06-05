@@ -9,7 +9,7 @@ import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createPixelTargetPreview } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 
@@ -26,15 +26,12 @@ const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/sv
 </svg>`;
 
 export const ClawAbility: AbilityStatic = {
-	id: CARD_ID,
-	name: 'Claw',
 	image: CLAW_IMAGE,
 	resourceCost: null,
 	rechargeTurns: 0,
 	prefireTime: CLAW_DURATION,
 	abilityTimings: [
 		{
-			id: 'dash',
 			start: 0,
 			end: CLAW_DURATION,
 			abilityPhase: AbilityPhase.Iframe,
@@ -48,7 +45,6 @@ export const ClawAbility: AbilityStatic = {
 				}),
 		},
 		{
-			id: 'cooldown',
 			start: CLAW_DURATION,
 			end: CLAW_DURATION + 0.8,
 			abilityPhase: AbilityPhase.Cooldown,
@@ -60,14 +56,12 @@ export const ClawAbility: AbilityStatic = {
 	abilityEvents: {
 		[AbilityEventType.ON_CAST_START]: [
 			{
-				id: 'claw-stamina-charge',
 				conditions: [{ type: 'always' }],
 				effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, excludeCurrentAbility: true }],
 			},
 		],
 		[AbilityEventType.ON_ATTACK_HIT]: [
 			{
-				id: 'claw-knockback',
 				conditions: [{ type: 'always' }],
 				effects: [{ type: 'applyKnockbackToPrimaryTarget', tier: KNOCKBACK_TIER, sourceAbilityId: CARD_ID }],
 			},
@@ -96,7 +90,5 @@ export const ClawAbility: AbilityStatic = {
 };
 
 export const ClawCard: CardDef = {
-	id: asCardDefId(CARD_ID),
-	name: 'Claw',
 	abilityId: CARD_ID,
 };

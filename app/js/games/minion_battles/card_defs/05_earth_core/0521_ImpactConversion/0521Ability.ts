@@ -1,7 +1,7 @@
 ﻿import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { IMPACT_CONVERSION_PASSIVE_ID } from '../../../abilities/earthCoreMeleePassives';
 
 const TIMINGS: AbilityTimingInterval[] = [
@@ -9,8 +9,6 @@ const TIMINGS: AbilityTimingInterval[] = [
 ];
 
 export const ImpactConversionAbility: AbilityStatic = {
-    id: IMPACT_CONVERSION_PASSIVE_ID,
-    name: 'Impact Conversion',
     image: '',
     resourceCost: null,
     rechargeTurns: 0,
@@ -27,7 +25,5 @@ export const ImpactConversionAbility: AbilityStatic = {
 };
 
 export const ImpactConversionCard: CardDef = {
-    id: asCardDefId(IMPACT_CONVERSION_PASSIVE_ID),
-    name: 'Impact Conversion',
     abilityId: IMPACT_CONVERSION_PASSIVE_ID,
 };

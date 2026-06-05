@@ -9,7 +9,7 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createArcTargetPreview } from '../../abilities/previewHelpers';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import {
     createDirectionalBlockingArc,
@@ -142,15 +142,12 @@ function grantLightChargesToNearbyAllies(engine: unknown, defender: Unit): void 
 }
 
 export const ShiningBlockAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Shining Block',
     image: SHINING_BLOCK_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DURATION,
     abilityTimings: [
         {
-            id: 'block',
             start: 0,
             end: DURATION,
             abilityPhase: AbilityPhase.Juggernaut,
@@ -198,7 +195,6 @@ export const ShiningBlockAbility: AbilityStatic = {
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
             {
-                id: 'retaliation',
                 maxTriggersPerCast: 1,
                 conditions: [{ type: 'always' }],
                 effects: [
@@ -221,7 +217,6 @@ export const ShiningBlockAbility: AbilityStatic = {
                 ],
             },
             {
-                id: 'strengthening-light-heal',
                 maxTriggersPerCast: 1,
                 conditions: [
                     {
@@ -262,7 +257,5 @@ export const ShiningBlockAbility: AbilityStatic = {
 };
 
 export const ShiningBlockCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Shining Block',
     abilityId: CARD_ID,
 };

@@ -5,7 +5,7 @@ import type { ResolvedTarget } from '../../../game/types';
 import { areEnemies } from '../../../game/teams';
 import type { EventBus } from '../../../game/EventBus';
 import { getEarthCoreArmour, spendAllEarthCoreArmour } from '../0527_EarthCoreShared/earthCoreArmour';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 
 const ABILITY_ID = '0533';
 const BASE_DAMAGE = 4;
@@ -28,8 +28,6 @@ interface GameEngineLike {
 }
 
 export const StoneyPunch: AbilityStatic = {
-    id: ABILITY_ID,
-    name: 'Stoney Punch',
     image: STONEY_PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
@@ -59,8 +57,6 @@ export const StoneyPunch: AbilityStatic = {
 };
 
 export const StoneyPunchCard: CardDef = {
-    id: asCardDefId('0533'),
-    name: 'Stoney Punch',
     abilityId: ABILITY_ID,
 };
 

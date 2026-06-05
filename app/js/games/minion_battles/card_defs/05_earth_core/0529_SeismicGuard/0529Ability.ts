@@ -5,7 +5,7 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { areAllies } from '../../../game/teams';
 import { EARTH_CORE_SHARED_DIAMETER } from '../earthCoreConstants';
 import { addEarthCoreArmour } from '../0527_EarthCoreShared/earthCoreArmour';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 
 const ABILITY_ID = '0529';
 const TREMORSENSE_RADIUS_PX = (EARTH_CORE_SHARED_DIAMETER * CELL_SIZE) / 2;
@@ -49,8 +49,6 @@ export function handleSeismicGuardAttackStart(
 }
 
 export const SeismicGuard: AbilityStatic = {
-    id: ABILITY_ID,
-    name: 'Seismic Guard',
     image: SEISMIC_GUARD_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -67,7 +65,5 @@ export const SeismicGuard: AbilityStatic = {
 };
 
 export const SeismicGuardCard: CardDef = {
-    id: asCardDefId('0529'),
-    name: 'Seismic Guard',
     abilityId: ABILITY_ID,
 };

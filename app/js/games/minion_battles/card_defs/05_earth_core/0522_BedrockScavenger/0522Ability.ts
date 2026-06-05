@@ -1,7 +1,7 @@
 ﻿import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import {
     BEDROCK_SCAVENGER_PASSIVE_ID,
     countStoneTilesInTremorsense,
@@ -15,8 +15,6 @@ const TIMINGS: AbilityTimingInterval[] = [
 ];
 
 export const BedrockScavengerAbility: AbilityStatic = {
-    id: BEDROCK_SCAVENGER_PASSIVE_ID,
-    name: 'Bedrock Scavenger',
     image: '',
     resourceCost: null,
     rechargeTurns: 0,
@@ -40,7 +38,5 @@ export const BedrockScavengerAbility: AbilityStatic = {
 };
 
 export const BedrockScavengerCard: CardDef = {
-    id: asCardDefId(BEDROCK_SCAVENGER_PASSIVE_ID),
-    name: 'Bedrock Scavenger',
     abilityId: BEDROCK_SCAVENGER_PASSIVE_ID,
 };

@@ -1,11 +1,10 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../../game/EventBus';
 import { Unit } from '../../../game/units/Unit';
 import { EarthernPunchAbility } from './0524Ability';
 
 function makeUnit(config: { id: string; x: number; y: number; teamId: 'player' | 'enemy' }): Unit {
     return new Unit({
-        id: config.id,
         x: config.x,
         y: config.y,
         hp: 100,
@@ -13,7 +12,6 @@ function makeUnit(config: { id: string; x: number; y: number; teamId: 'player' |
         teamId: config.teamId,
         ownerId: config.teamId === 'player' ? 'p1' : 'ai',
         characterId: config.teamId === 'player' ? 'player' : 'dark_wolf',
-        name: config.id,
     });
 }
 

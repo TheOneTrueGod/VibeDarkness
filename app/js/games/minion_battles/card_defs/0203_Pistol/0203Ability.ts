@@ -4,7 +4,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import { createConeTargetPreviewWithDistanceInaccuracy, drawClampedLine } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { fireGunShotAtTarget } from '../../abilities/gunHelpers';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
@@ -29,8 +29,6 @@ const PISTOL_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/
 </svg>`;
 
 export const PistolAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Pistol',
     image: PISTOL_IMAGE,
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 10, allowPartialIfPositive: true }],
@@ -39,13 +37,11 @@ export const PistolAbility: AbilityStatic = {
     prefireTime: PREFIRE_FIRST_SHOT,
     abilityTimings: [
         {
-            id: 'aim',
             start: 0,
             end: PREFIRE_FIRST_SHOT,
             abilityPhase: AbilityPhase.Windup,
         },
         {
-            id: 'cooldown',
             start: PREFIRE_FIRST_SHOT,
             end: PREFIRE_FIRST_SHOT + COOLDOWN_TIME,
             abilityPhase: AbilityPhase.Cooldown,
@@ -110,8 +106,6 @@ export const PistolAbility: AbilityStatic = {
 };
 
 export const PistolCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Pistol',
     abilityId: CARD_ID,
 };
 

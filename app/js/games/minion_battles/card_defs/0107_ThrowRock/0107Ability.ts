@@ -17,7 +17,7 @@ import { getDirectionFromTo, getPixelTargetPosition } from '../../abilities/targ
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 
 const ABILITY_ID = 'throw_rock';
@@ -40,7 +40,6 @@ type ThrowRockCastPayload = {
 
 const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
     {
-        id: 'windup',
         start: 0,
         end: 0.3,
         abilityPhase: AbilityPhase.Windup,
@@ -48,7 +47,6 @@ const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Winding up to throw the rock.',
     },
     {
-        id: 'flight',
         start: 0.3,
         end: 1.0,
         abilityPhase: AbilityPhase.Active,
@@ -56,7 +54,6 @@ const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Rock is in flight and can hit enemies.',
     },
     {
-        id: 'recovery',
         start: 1.0,
         end: 1.6,
         abilityPhase: AbilityPhase.Cooldown,
@@ -67,7 +64,6 @@ const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
 
 const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
     {
-        id: 'windup',
         start: 0,
         end: MORE_ROCK_FIRST_THROW,
         abilityPhase: AbilityPhase.Windup,
@@ -75,7 +71,6 @@ const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Winding up for the first throw.',
     },
     {
-        id: 'flight1',
         start: MORE_ROCK_FIRST_THROW,
         end: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Active,
@@ -83,7 +78,6 @@ const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'First rock is in flight.',
     },
     {
-        id: 'windup2',
         start: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
         end: MORE_ROCK_SECOND_THROW,
         abilityPhase: AbilityPhase.Windup,
@@ -91,7 +85,6 @@ const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Brief pause before the second throw.',
     },
     {
-        id: 'flight2',
         start: MORE_ROCK_SECOND_THROW,
         end: MORE_ROCK_SECOND_THROW + MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Active,
@@ -99,7 +92,6 @@ const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Second rock is in flight.',
     },
     {
-        id: 'recovery',
         start: MORE_ROCK_COOLDOWN_START,
         end: 14 * MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Cooldown,
@@ -180,8 +172,6 @@ const THROW_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2
 </svg>`;
 
 export const ThrowRock: AbilityStatic & { range: number } = {
-    id: ABILITY_ID,
-    name: 'Throw Rock',
     range: RANGE,
     image: THROW_ROCK_IMAGE,
     resourceCost: null,
@@ -308,7 +298,5 @@ export const ThrowRock: AbilityStatic & { range: number } = {
 };
 
 export const ThrowRockCard: CardDef = {
-    id: asCardDefId('throw_rock'),
-    name: 'Throw Rock',
     abilityId: 'throw_rock',
 };

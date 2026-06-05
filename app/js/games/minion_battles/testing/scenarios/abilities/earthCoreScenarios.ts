@@ -1,12 +1,10 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import type { EngineContext } from '../../../game/EngineContext';
-import { asCardDefId } from '../../../card_defs';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { Resonance } from '../../../resources/Resonance';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
-    seedHandWithAbilities,
     spawnTinyPlayerUnit,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
@@ -53,7 +51,6 @@ export const earthCoreEarthernPunchScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: [EARTHERN_PUNCH_ABILITY_ID],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId(EARTHERN_PUNCH_ABILITY_ID), abilityId: EARTHERN_PUNCH_ABILITY_ID }]);
         return engine;
     },
     getInitialOrders(engine) {
@@ -88,7 +85,6 @@ export const earthCoreShakingGroundScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: [SHAKING_GROUND_ABILITY_ID],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId(SHAKING_GROUND_ABILITY_ID), abilityId: SHAKING_GROUND_ABILITY_ID }]);
         const player = engine.getLocalPlayerUnit()!;
         const res = new Resonance();
         player.attachResource(res, engine.eventBus);
@@ -126,7 +122,6 @@ export const earthCoreShatterScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: [SHATTER_ABILITY_ID],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId(SHATTER_ABILITY_ID), abilityId: SHATTER_ABILITY_ID }]);
         const player = engine.getLocalPlayerUnit()!;
         const res = new Resonance();
         player.attachResource(res, engine.eventBus);
@@ -176,7 +171,6 @@ export const earthCoreStoneTombScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: ['0530'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0530'), abilityId: '0530' }]);
         return engine;
     },
     getInitialOrders(engine) {
@@ -211,7 +205,6 @@ export const earthCoreKnockScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: ['0531'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0531'), abilityId: '0531' }]);
         return engine;
     },
     getInitialOrders(engine) {
@@ -252,7 +245,6 @@ export const earthCoreAnchoredTremorScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: ['0532'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0532'), abilityId: '0532' }]);
         return engine;
     },
     getInitialOrders(engine) {
@@ -289,7 +281,6 @@ export const earthCoreStoneyPunchBaselineScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: ['0533'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0533'), abilityId: '0533' }]);
         return engine;
     },
     getInitialOrders(engine) {
@@ -324,7 +315,6 @@ export const earthCoreStoneyPunchArmourScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: ['0533'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0533'), abilityId: '0533' }]);
         const player = engine.getLocalPlayerUnit()!;
         addEarthCoreArmour(player, 4); // 4 Ã— 2 = 8 bonus â†’ 4 + 8 = 12 total
         return engine;
@@ -363,7 +353,6 @@ export const earthCoreBoarClawsScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: ['0534'],
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0534'), abilityId: '0534' }]);
         return engine;
     },
     getInitialOrders(engine) {

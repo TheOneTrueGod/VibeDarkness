@@ -1,10 +1,8 @@
-import type { ScenarioDefinition } from '../../types';
-import { asCardDefId } from '../../../card_defs';
+﻿import type { ScenarioDefinition } from '../../types';
 import { BLEED_BUFF_TYPE } from '../../../buffs/BleedBuff';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
-    seedHandWithAbilities,
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
 import {
@@ -37,7 +35,6 @@ export const swingSwordAppliesBleedScenario: ScenarioDefinition = {
             abilities: ['0112'],
             playerResearchTreesByPlayer: research,
         });
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('0112'), abilityId: '0112' }]);
         return engine;
     },
     getInitialOrders(engine) {

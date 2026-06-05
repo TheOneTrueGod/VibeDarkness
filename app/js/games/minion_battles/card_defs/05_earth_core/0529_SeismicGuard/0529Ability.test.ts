@@ -1,11 +1,10 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import { createSeismicGuardRuntimeState, handleSeismicGuardAttackStart } from './0529Ability';
 import { Unit } from '../../../game/units/Unit';
 import { getEarthCoreArmour } from '../0527_EarthCoreShared/earthCoreArmour';
 
 function makeUnit(config: { id: string; teamId: 'player' | 'enemy'; x: number; y: number }): Unit {
     return new Unit({
-        id: config.id,
         x: config.x,
         y: config.y,
         hp: 100,
@@ -13,7 +12,6 @@ function makeUnit(config: { id: string; teamId: 'player' | 'enemy'; x: number; y
         teamId: config.teamId,
         ownerId: config.teamId === 'player' ? 'p1' : 'ai',
         characterId: config.teamId === 'player' ? 'player' : 'dark_wolf',
-        name: config.id,
     });
 }
 

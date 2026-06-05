@@ -345,9 +345,6 @@ export class GameEngine implements EngineContext {
     getCrystalProtectionCount(col: number, row: number): number { return this.state.specialTileManager.getCrystalProtectionCount(col, row); }
     getDarkCrystalFilterSet(): Set<string> { return this.state.specialTileManager.getDarkCrystalFilterSet(); }
 
-    drawCardsForPlayer(playerId: string, count: number): number { return this.state.cardManager.drawCardsForPlayer(playerId, count); }
-    fillHandInnateFirst(playerId: string, maxHandSize: number): void { this.state.cardManager.fillHandInnateFirst(playerId, maxHandSize); }
-    transferCardToAllyDeck(caster: Unit, cardDefId: CardDefId, abilityId: string): void { this.state.cardManager.transferCardToAllyDeck(caster, cardDefId, abilityId); }
     setPlayerResearchTreesByPlayer(map: Record<string, Record<string, string[]>>): void { this.state.cardManager.setPlayerResearchTreesByPlayer(map); }
     getPlayerResearchNodes(playerId: string, treeId: string): string[] { return this.state.cardManager.getPlayerResearchNodes(playerId, treeId); }
 

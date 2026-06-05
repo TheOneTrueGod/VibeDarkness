@@ -15,7 +15,7 @@ import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { Effect } from '../../../game/effects/Effect';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromTo } from '../../../abilities/targetHelpers';
@@ -51,21 +51,17 @@ const THROW_TORCH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 </svg>`;
 
 export const ThrowTorchAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Throw Torch',
     image: THROW_TORCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         {
-            id: 'windup',
             start: 0,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Windup,
         },
         {
-            id: 'cooldown',
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 1.5,
             abilityPhase: AbilityPhase.Cooldown,
@@ -124,8 +120,5 @@ export const ThrowTorchAbility: AbilityStatic = {
 };
 
 export const ThrowTorchCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Throw Torch',
     abilityId: CARD_ID,
-    tags: ['innate'],
 };

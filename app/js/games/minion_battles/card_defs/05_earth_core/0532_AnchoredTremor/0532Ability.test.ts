@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import { AnchoredTremor } from './0532Ability';
 import { Unit } from '../../../game/units/Unit';
 import { EventBus } from '../../../game/EventBus';
@@ -7,7 +7,6 @@ import type { ResolvedTarget } from '../../../game/types';
 
 function makeUnit(config: { id: string; teamId: 'player' | 'enemy'; x: number; y: number }): Unit {
     return new Unit({
-        id: config.id,
         x: config.x,
         y: config.y,
         hp: 100,
@@ -15,7 +14,6 @@ function makeUnit(config: { id: string; teamId: 'player' | 'enemy'; x: number; y
         teamId: config.teamId,
         ownerId: config.teamId === 'player' ? 'p1' : 'ai',
         characterId: config.teamId === 'player' ? 'player' : 'dark_wolf',
-        name: config.id,
     });
 }
 

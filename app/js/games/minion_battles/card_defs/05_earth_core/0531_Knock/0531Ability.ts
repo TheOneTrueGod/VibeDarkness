@@ -4,7 +4,7 @@ import type { ResolvedTarget } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { getDirectionFromTo, getPixelTargetPosition } from '../../../abilities/targetHelpers';
 import { Projectile } from '../../../game/projectiles/Projectile';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 
 const ABILITY_ID = '0531';
 const RANGE = 220;
@@ -25,8 +25,6 @@ interface GameEngineLike {
 }
 
 export const KnockAbility: AbilityStatic = {
-    id: ABILITY_ID,
-    name: 'Knock',
     image: KNOCK_IMAGE,
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: 1,
@@ -68,7 +66,5 @@ export const KnockAbility: AbilityStatic = {
 };
 
 export const KnockCard: CardDef = {
-    id: asCardDefId('0531'),
-    name: 'Knock',
     abilityId: ABILITY_ID,
 };

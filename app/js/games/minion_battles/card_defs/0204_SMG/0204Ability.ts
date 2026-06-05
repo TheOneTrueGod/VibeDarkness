@@ -4,7 +4,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import { createConeTargetPreviewWithDistanceInaccuracy } from '../../abilities/previewHelpers';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { fireGunShotAtTarget } from '../../abilities/gunHelpers';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
@@ -28,8 +28,6 @@ const SMG_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg
 </svg>`;
 
 export const SMGAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'SMG',
     image: SMG_IMAGE,
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 20, allowPartialIfPositive: true }],
@@ -37,13 +35,11 @@ export const SMGAbility: AbilityStatic = {
     prefireTime: LAST_SHOT_TIME,
     abilityTimings: [
         {
-            id: 'burst',
             start: 0,
             end: LAST_SHOT_TIME,
             abilityPhase: AbilityPhase.Windup,
         },
         {
-            id: 'cooldown',
             start: LAST_SHOT_TIME,
             end: LAST_SHOT_TIME + COOLDOWN_TIME,
             abilityPhase: AbilityPhase.Cooldown,
@@ -96,8 +92,6 @@ export const SMGAbility: AbilityStatic = {
 };
 
 export const SMGCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'SMG',
     abilityId: CARD_ID,
 };
 

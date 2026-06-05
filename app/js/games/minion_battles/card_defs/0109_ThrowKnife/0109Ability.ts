@@ -14,7 +14,7 @@ import { getDirectionFromTo, getPixelTargetPosition } from '../../abilities/targ
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { CRYSTAL_ROCKS_TREE_ID, CRYSTAL_ROCKS_NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/crystal_rocks';
 
 interface GameEngineLike {
@@ -39,7 +39,6 @@ type ThrowKnifeCastPayload = {
 
 const THROW_KNIFE_BASE_TIMINGS: AbilityTimingInterval[] = [
     {
-        id: 'windup',
         start: 0,
         end: 0.3,
         abilityPhase: AbilityPhase.Windup,
@@ -47,7 +46,6 @@ const THROW_KNIFE_BASE_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Preparing to throw the knife.',
     },
     {
-        id: 'flight',
         start: 0.3,
         end: 1.0,
         abilityPhase: AbilityPhase.Active,
@@ -55,7 +53,6 @@ const THROW_KNIFE_BASE_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Knife is in flight.',
     },
     {
-        id: 'recovery',
         start: 1.0,
         end: 1.6,
         abilityPhase: AbilityPhase.Cooldown,
@@ -66,7 +63,6 @@ const THROW_KNIFE_BASE_TIMINGS: AbilityTimingInterval[] = [
 
 const THROW_KNIFE_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
     {
-        id: 'windup',
         start: 0,
         end: MORE_ROCK_FIRST_THROW,
         abilityPhase: AbilityPhase.Windup,
@@ -74,7 +70,6 @@ const THROW_KNIFE_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Preparing the first knife throw.',
     },
     {
-        id: 'flight1',
         start: MORE_ROCK_FIRST_THROW,
         end: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Active,
@@ -82,7 +77,6 @@ const THROW_KNIFE_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'First knife is in flight.',
     },
     {
-        id: 'windup2',
         start: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
         end: MORE_ROCK_SECOND_THROW,
         abilityPhase: AbilityPhase.Windup,
@@ -90,7 +84,6 @@ const THROW_KNIFE_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Quick follow-up before second knife.',
     },
     {
-        id: 'flight2',
         start: MORE_ROCK_SECOND_THROW,
         end: MORE_ROCK_SECOND_THROW + MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Active,
@@ -98,7 +91,6 @@ const THROW_KNIFE_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Second knife is in flight.',
     },
     {
-        id: 'recovery',
         start: MORE_ROCK_COOLDOWN_START,
         end: 14 * MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Cooldown,
@@ -163,8 +155,6 @@ const THROW_KNIFE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 </svg>`;
 
 export const ThrowKnife: AbilityStatic = {
-    id: ABILITY_ID,
-    name: 'Throw Knife',
     image: THROW_KNIFE_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
@@ -287,7 +277,5 @@ export const ThrowKnife: AbilityStatic = {
 };
 
 export const ThrowKnifeCard: CardDef = {
-    id: asCardDefId('throw_knife'),
-    name: 'Throw Knife',
     abilityId: 'throw_knife',
 };

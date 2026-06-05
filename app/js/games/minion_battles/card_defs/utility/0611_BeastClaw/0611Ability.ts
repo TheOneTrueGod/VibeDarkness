@@ -11,7 +11,7 @@ import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { ResolvedTarget } from '../../../game/types';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { createSlashTrailEffect } from '../../../abilities/effectHelpers';
 import type { Effect } from '../../../game/effects/Effect';
 import type { EventBus } from '../../../game/EventBus';
@@ -112,8 +112,6 @@ const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/sv
 </svg>`;
 
 export const BeastClawAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Beast Claw',
     image: CLAW_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
@@ -123,13 +121,11 @@ export const BeastClawAbility: AbilityStatic = {
         { id: 'windup', start: 0, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
         { id: 'slash1', start: PREFIRE_TIME, end: PREFIRE_TIME + 0.4, abilityPhase: AbilityPhase.Active },
         {
-            id: 'slash2',
             start: PREFIRE_TIME + 0.4,
             end: PREFIRE_TIME + 0.8,
             abilityPhase: AbilityPhase.Active,
         },
         {
-            id: 'cooldown',
             start: PREFIRE_TIME + 0.8,
             end: PREFIRE_TIME + 2.3,
             abilityPhase: AbilityPhase.Cooldown,
@@ -260,7 +256,5 @@ export const BeastClawAbility: AbilityStatic = {
 };
 
 export const BeastClawCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Beast Claw',
     abilityId: CARD_ID,
 };

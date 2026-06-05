@@ -11,7 +11,7 @@ import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { Effect } from '../../../game/effects/Effect';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../../abilities/targetHelpers';
 import { getBodyColorForUnit, getCharacterSpriteKey } from '../../../game/units/unit_defs/unitDef';
@@ -121,8 +121,6 @@ function maybeDamageCurrentTile(
 }
 
 export const BoarClawsAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Boar Claws',
     image: BOAR_CLAWS_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -387,7 +385,5 @@ export const BoarClawsAbility: AbilityStatic = {
 };
 
 export const BoarClawsCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Boar Claws',
     abilityId: CARD_ID,
 };

@@ -13,7 +13,7 @@ import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { meleeLineHitbox } from '../../../hitboxes';
 import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}13`;
 const PREFIRE_TIME = 1.0;
@@ -64,12 +64,9 @@ const BITE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http:
 </svg>`;
 
 export const SwarmlingBiteAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Bite',
     image: BITE_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
-    tags: [],
     prefireTime: PREFIRE_TIME,
     targets: [{ type: 'unit', label: 'Target' }],
     abilityTimings: ABILITY_TIMINGS,
@@ -123,7 +120,5 @@ export const SwarmlingBiteAbility: AbilityStatic = {
 };
 
 export const SwarmlingBiteCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Bite',
     abilityId: CARD_ID,
 };

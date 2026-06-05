@@ -3,7 +3,7 @@ import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abi
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
 import type { TargetDef } from '../../../abilities/targeting';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { EARTHERN_PUNCH_ABILITY_ID } from '../../../abilities/earthCoreMeleePassives';
 import { getPixelTargetPosition, getAimPointClampedToMaxRange } from '../../../abilities/targetHelpers';
 import { ThickLineHitbox } from '../../../hitboxes';
@@ -37,8 +37,6 @@ function isTargetStandingOnStone(engine: EngineLike, target: Unit): boolean {
 }
 
 export const EarthernPunchAbility: AbilityStatic = {
-    id: EARTHERN_PUNCH_ABILITY_ID,
-    name: 'Earthern Punch',
     image: '',
     resourceCost: null,
     rechargeTurns: 1,
@@ -99,7 +97,5 @@ export const EarthernPunchAbility: AbilityStatic = {
 };
 
 export const EarthernPunchCard: CardDef = {
-    id: asCardDefId(EARTHERN_PUNCH_ABILITY_ID),
-    name: 'Earthern Punch',
     abilityId: EARTHERN_PUNCH_ABILITY_ID,
 };

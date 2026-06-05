@@ -18,7 +18,7 @@ import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { meleeLineHitbox } from '../../hitboxes';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}20`;
 const MAX_RANGE = 30; // px
@@ -77,12 +77,9 @@ const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http
 </svg>`;
 
 export const PunchNEWAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Bash',
     image: PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
-    tags: [],
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
@@ -110,7 +107,5 @@ export const PunchNEWAbility: AbilityStatic = {
 };
 
 export const PunchNEWCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Bash',
     abilityId: CARD_ID,
 };

@@ -1,14 +1,7 @@
-/**
- * CardManager - Owns per-player card decks, research trees, and
- * ability-use tracking. Handles draw, discard, round-end recharge,
- * and card-transfer logic.
- */
-
 import { getCardDef, asCardDefId } from '../../card_defs';
 import type { CardDefId } from '../../card_defs';
 import type { EngineContext } from '../EngineContext';
 import type { SerializedCardInstance } from '../types';
-import type { Unit } from '../units/Unit';
 
 /** Maximum cards in hand. Draw at round start if below this. */
 export const MAX_HAND_SIZE = 6;
@@ -41,7 +34,7 @@ export class CardManager {
 
     /** Create a card instance. Per-engine sequence. */
     createCardInstance(cardDefId: CardDefId, abilityId: string, location: CardInstance['location']): CardInstance {
-        const def = getCardDef(cardDefId);
+        const def = getCardDef(abilityId);
         if (!def) {
             console.error(`ERROR: Unable to get card def (${cardDefId}) for ability id (${abilityId}).`);
         }
@@ -51,60 +44,6 @@ export class CardManager {
             abilityId,
             location,
         };
-    }
-
-    private drawCard(playerId: string): number {
-        const playerCards = this.cards[playerId];
-        if (!playerCards) return 0;
-        const handCount = playerCards.filter((c) => c.location === 'hand').length;
-        if (handCount >= MAX_HAND_SIZE) return 0;
-        const deckCards = playerCards.filter((c) => c.location === 'deck');
-        if (deckCards.length === 0) return 0;
-        const idx = this.ctx.generateRandomInteger(0, deckCards.length - 1);
-        const card = deckCards[idx];
-        if (!card) return 0;
-        card.location = 'hand';
-        return 1;
-    }
-
-    drawCardsForPlayer(playerId: string, count: number): number {
-        let drawn = 0;
-        for (let i = 0; i < count; i++) {
-            drawn += this.drawCard(playerId);
-        }
-        return drawn;
-    }
-
-    fillHandInnateFirst(playerId: string, maxHandSize: number): void {
-        const playerCards = this.cards[playerId];
-        if (!playerCards) return;
-        let handCount = playerCards.filter((c) => c.location === 'hand').length;
-        const deckCards = playerCards.filter((c) => c.location === 'deck');
-        for (const card of deckCards) {
-            if (handCount >= maxHandSize) break;
-            const def = getCardDef(card.cardDefId);
-            if (def?.tags?.includes('innate')) {
-                card.location = 'hand';
-                handCount++;
-            }
-        }
-        this.drawCardsForPlayer(playerId, maxHandSize - handCount);
-    }
-
-    transferCardToAllyDeck(caster: Unit, cardDefId: CardDefId, abilityId: string): void {
-        const playerId = caster.ownerId;
-        const deck = this.cards[playerId];
-        if (!deck) return;
-        const allies = this.ctx.getAllies(caster);
-        const targetUnit = allies.length > 0
-            ? allies[this.ctx.generateRandomInteger(0, allies.length - 1)]
-            : caster;
-        if (!targetUnit.abilities.includes(abilityId)) {
-            targetUnit.abilities.push(abilityId);
-        }
-        const newCard = this.createCardInstance(cardDefId, abilityId, 'deck');
-        const targetPlayerId = targetUnit.ownerId;
-        this.cards[targetPlayerId].push(newCard);
     }
 
     setPlayerResearchTreesByPlayer(map: Record<string, Record<string, string[]>>): void {

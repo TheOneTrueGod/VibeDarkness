@@ -13,7 +13,7 @@ import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { meleeLineHitbox } from '../../hitboxes';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}19`;
 const MAX_RANGE = 30; // px
@@ -73,12 +73,9 @@ const CHARGING_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xm
 </svg>`;
 
 export const ChargingPunchAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Charging Punch',
     image: CHARGING_PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
-    tags: [],
     prefireTime: 0.15,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
@@ -87,7 +84,6 @@ export const ChargingPunchAbility: AbilityStatic = {
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [
             {
-                id: 'charging_punch_charge',
                 conditions: [{ type: 'hitResultIs', result: 'hit' }],
                 effects: [
                     { type: 'recoverCharge', chargeType: 'lightCharge', amount: 1, recipient: 'randomAbility' },
@@ -120,7 +116,5 @@ export const ChargingPunchAbility: AbilityStatic = {
 };
 
 export const ChargingPunchCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Charging Punch',
     abilityId: CARD_ID,
 };

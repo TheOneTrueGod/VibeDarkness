@@ -32,7 +32,7 @@ import {
 } from '../../terrain/playerMovePath';
 import BattleCanvas from '../components/BattleCanvas';
 import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
-import CardHand from '../components/CardHand';
+import AbilityBar from '../components/AbilityBar';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
 import { WaitAbility } from '../../abilities/WaitAbility';
@@ -1153,8 +1153,8 @@ export default function BattlePhase({
 
     const actionRowHost = battleActionRow?.actionRowHost ?? null;
 
-    const cardHand = (
-        <CardHand
+    const abilityBar = (
+        <AbilityBar
             abilityIds={myAbilityIds}
             playerUnit={
                 (activeLocalWaiter != null
@@ -1270,9 +1270,9 @@ export default function BattlePhase({
             </div>
 
             {actionRowHost ? (
-                createPortal(<div className="min-w-0">{cardHand}</div>, actionRowHost)
+                createPortal(<div className="min-w-0">{abilityBar}</div>, actionRowHost)
             ) : (
-                <div className="shrink-0 min-w-0">{cardHand}</div>
+                <div className="shrink-0 min-w-0">{abilityBar}</div>
             )}
         </div>
     );

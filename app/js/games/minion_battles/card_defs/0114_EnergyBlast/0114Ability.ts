@@ -4,7 +4,7 @@ import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 
 const CARD_ID = '0114';
 const RANGE = 100;
@@ -24,21 +24,17 @@ const ENERGY_BLAST_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org
 </svg>`;
 
 export const EnergyBlastAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Energy Blast',
     image: ENERGY_BLAST_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: 0.2,
     abilityTimings: [
         {
-            id: 'windup',
             start: 0,
             end: 0.2,
             abilityPhase: AbilityPhase.Windup,
         },
         {
-            id: 'projectile',
             start: 0.2,
             end: 0.55,
             abilityPhase: AbilityPhase.Active,
@@ -49,7 +45,6 @@ export const EnergyBlastAbility: AbilityStatic = {
                 .withMaxRange(RANGE),
         },
         {
-            id: 'recover',
             start: 0.55,
             end: 0.95,
             abilityPhase: AbilityPhase.Cooldown,
@@ -61,7 +56,6 @@ export const EnergyBlastAbility: AbilityStatic = {
     abilityEvents: {
         [AbilityEventType.ON_PROJECTILE_EXPIRED]: [
             {
-                id: 'energy-blast-explosion',
                 conditions: [{ type: 'always' }],
                 effects: [
                     {
@@ -105,7 +99,5 @@ export const EnergyBlastAbility: AbilityStatic = {
 };
 
 export const EnergyBlastCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Energy Blast',
     abilityId: CARD_ID,
 };

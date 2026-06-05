@@ -1,5 +1,5 @@
 /**
- * CardDescription - Overlay showing an ability's description.
+ * AbilityDescription - Overlay showing an ability's description.
  *
  * On desktop: shown on hover.
  * On mobile: shown as a full overlay with an X to dismiss.
@@ -7,7 +7,7 @@
 
 import React from 'react';
 
-interface CardDescriptionProps {
+interface AbilityDescriptionProps {
     description: string;
     abilityName: string;
     /** Whether this is a mobile overlay (full-width with dismiss). */
@@ -16,12 +16,12 @@ interface CardDescriptionProps {
     onDismiss?: () => void;
 }
 
-export default function CardDescription({
+export default function AbilityDescription({
     description,
     abilityName,
     isMobileOverlay = false,
     onDismiss,
-}: CardDescriptionProps) {
+}: AbilityDescriptionProps) {
     if (isMobileOverlay) {
         return (
             <div className="absolute inset-x-0 bottom-0 bg-black border-t border-dark-600 p-4 z-50">

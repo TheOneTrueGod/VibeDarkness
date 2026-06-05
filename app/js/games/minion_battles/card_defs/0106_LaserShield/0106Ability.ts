@@ -9,7 +9,7 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createArcTargetPreview } from '../../abilities/previewHelpers';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import {
     createDirectionalBlockingArc,
@@ -44,21 +44,17 @@ const LASER_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org
 </svg>`;
 
 export const LaserShieldAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Laser Shield',
     image: LASER_SHIELD_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DURATION,
     abilityTimings: [
         {
-            id: 'shield',
             start: 0,
             end: DURATION,
             abilityPhase: AbilityPhase.Juggernaut,
         },
         {
-            id: 'cooldown',
             start: DURATION,
             end: DURATION + COOLDOWN_TIME,
             abilityPhase: AbilityPhase.Cooldown,
@@ -102,7 +98,6 @@ export const LaserShieldAbility: AbilityStatic = {
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
             {
-                id: 'per-block-surge',
                 conditions: [{ type: 'always' }],
                 effects: [
                     {
@@ -116,7 +111,6 @@ export const LaserShieldAbility: AbilityStatic = {
             {
                 // Fires once on the 2nd block (per-block-surge has already incremented to 2
                 // within the same dispatch before this rule evaluates).
-                id: 'second-block-bonus',
                 oncePerCast: true,
                 conditions: [
                     { type: 'selfRuleHasTriggeredAtLeast', ruleId: 'per-block-surge', count: 2 },
@@ -142,7 +136,5 @@ export const LaserShieldAbility: AbilityStatic = {
 };
 
 export const LaserShieldCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Laser Shield',
     abilityId: CARD_ID,
 };

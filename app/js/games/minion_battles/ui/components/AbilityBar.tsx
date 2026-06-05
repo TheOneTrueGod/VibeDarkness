@@ -1,7 +1,7 @@
 /**
- * CardHand - Renders the player's hand of cards at the bottom of the screen.
+ * AbilityBar - Renders the player's ability bar at the bottom of the screen.
  *
- * Manages card selection, mobile description overlays, and disabled state
+ * Manages ability selection, mobile description overlays, and disabled state
  * based on whose turn it is and resource availability.
  */
 
@@ -10,8 +10,8 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import { canAffordAbility } from '../../abilities/Ability';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../game/units/Unit';
-import CardComponent from './CardComponent';
-import CardTooltip from './CardTooltip';
+import AbilitySlot from './AbilitySlot';
+import AbilityTooltip from './AbilityTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
 import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../game/GameEngine';
@@ -40,7 +40,7 @@ interface PulseParticle {
     alphaMode: 'fade' | 'rise';
 }
 
-interface CardHandProps {
+interface AbilityBarProps {
     abilityIds: string[];
     /** The player's unit (for resource checks). */
     playerUnit: Unit | null;
@@ -61,7 +61,7 @@ interface CardHandProps {
     gameState?: unknown;
 }
 
-export default function CardHand({
+export default function AbilityBar({
     abilityIds,
     playerUnit,
     isMyTurn,
@@ -73,7 +73,7 @@ export default function CardHand({
     onWait,
     onWaitHoverChange,
     gameState,
-}: CardHandProps) {
+}: AbilityBarProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(getUsesMobileCardLayout);
     const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
@@ -336,7 +336,7 @@ export default function CardHand({
                                             cardRefs.current[card.abilityId] = el;
                                         }}
                                     >
-                                        <CardComponent
+                                        <AbilitySlot
                                             ability={card.ability}
                                             runtime={card.runtime}
                                             isSelected={selectedCardIndex === index}
@@ -405,7 +405,7 @@ export default function CardHand({
 
             {/* Mobile tooltip overlay */}
             {isMobile && mobileDescAbility && (
-                <CardTooltip
+                <AbilityTooltip
                     title={mobileDescAbility.name}
                     lines={mobileDescAbility.getTooltipText(gameState)}
                     isMobileOverlay

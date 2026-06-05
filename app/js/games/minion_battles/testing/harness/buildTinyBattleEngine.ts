@@ -15,19 +15,12 @@ import {
     applyStickSwordResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../../abilities/abilityUses';
-import { asCardDefId, type CardDefId } from '../../card_defs';
-import type { CardInstance } from '../../game/managers/CardManager';
 import { createTargetDummyAtWorld } from '../fixtures/targetDummies';
 
 /** Ability id that does not resolve in the registry: movement-only orders still apply `movePath`. */
 export const MOVE_ONLY_ABILITY_ID = '__move_only__';
 
 export const TINY_BATTLE_PLAYER_ID = 'tiny_p1';
-
-export interface TinyBattleHandEntry {
-    cardDefId: CardDefId | string;
-    abilityId: string;
-}
 
 export interface BuildTinyBattleEngineOpts {
     gridW: number;
@@ -120,16 +113,6 @@ export function spawnTinyPlayerUnit(
     return unit;
 }
 
-/** Replace hand with card instances. */
-export function seedHandWithAbilities(engine: GameEngine, playerId: string, entries: TinyBattleHandEntry[]): void {
-    const hand: CardInstance[] = [];
-    for (const e of entries) {
-        const cardDefId = typeof e.cardDefId === 'string' ? asCardDefId(e.cardDefId) : e.cardDefId;
-        const inst = engine.state.cardManager.createCardInstance(cardDefId, e.abilityId, 'hand');
-        hand.push(inst);
-    }
-    engine.cards[playerId] = hand;
-}
 
 export interface PlacePlayerAndDummyOpts {
     playerId: string;

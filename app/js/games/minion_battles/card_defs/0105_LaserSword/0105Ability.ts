@@ -17,7 +17,7 @@ import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}05`;
@@ -96,13 +96,10 @@ const LASER_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 </svg>`;
 
 export const LaserSwordAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Laser Sword',
     image: LASER_SWORD_IMAGE,
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 8, allowPartialIfPositive: true }],
     rechargeTurns: 1,
-    tags: [],
     prefireTime: PREFIRE_TIME,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
@@ -131,7 +128,5 @@ export const LaserSwordAbility: AbilityStatic = {
 };
 
 export const LaserSwordCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Laser Sword',
     abilityId: CARD_ID,
 };

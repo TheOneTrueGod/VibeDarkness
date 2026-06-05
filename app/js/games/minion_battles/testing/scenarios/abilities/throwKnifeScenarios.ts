@@ -1,8 +1,6 @@
-import type { ScenarioDefinition } from '../../types';
-import { asCardDefId } from '../../../card_defs';
+﻿import type { ScenarioDefinition } from '../../types';
 import {
     buildTinyBattleEngine,
-    seedHandWithAbilities,
     spawnTinyPlayerUnit,
     TINY_BATTLE_PLAYER_ID,
     MOVE_ONLY_ABILITY_ID,
@@ -20,7 +18,7 @@ const P = TINY_BATTLE_PLAYER_ID;
 const PIERCE_RESEARCH = ['throwing_knives', CRYSTAL_ROCKS_NODE_PIERCING_KNIVES];
 
 /**
- * Caster at (80, 200). Knife aimed right at pixel (600, 200) — travelDistance = 200px.
+ * Caster at (80, 200). Knife aimed right at pixel (600, 200) â€” travelDistance = 200px.
  * dummy_front at (200, 200): 120px from caster, hit first.
  * dummy_back  at (280, 200): 200px from caster (max range), hit after pierce.
  * Both receive 5 bleed stacks on hit. Phase 2 waits ~half a round for bleed ticks.
@@ -56,7 +54,6 @@ export const throwKnifePiercingBleedScenario: ScenarioDefinition = {
         const back = createTargetDummyAtWorld(engine, 280, 200, { id: 'knife_dummy_back', hp: 100 });
         initializeAbilityRuntimeForUnit(back);
         engine.addUnit(back, 'initialGameSpawn');
-        seedHandWithAbilities(engine, P, [{ cardDefId: asCardDefId('throw_knife'), abilityId: 'throw_knife' }]);
         return engine;
     },
 

@@ -16,7 +16,7 @@ import { meleeLineHitbox } from '../../hitboxes';
 import { STUNNED_BUFF_TYPE } from '../../buffs/StunnedBuff';
 import { BLEED_BUFF_TYPE } from '../../buffs/BleedBuff';
 import type { Unit } from '../../game/units/Unit';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}18`;
 const MAX_RANGE = 30; // px
@@ -90,12 +90,9 @@ const SNEAKY_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmln
 </svg>`;
 
 export const SneakyPunchAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Sneaky Punch',
     image: SNEAKY_PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
-    tags: [],
     prefireTime: 0.15,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
@@ -125,7 +122,5 @@ export const SneakyPunchAbility: AbilityStatic = {
 };
 
 export const SneakyPunchCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Sneaky Punch',
     abilityId: CARD_ID,
 };

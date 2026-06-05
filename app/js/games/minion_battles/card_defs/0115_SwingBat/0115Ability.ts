@@ -16,7 +16,7 @@ import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilit
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import type { Unit } from '../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
@@ -137,12 +137,9 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
 // ---- Ability export ----
 
 export const SwingBatAbility_0115: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Swing Bat',
     image: SWING_BAT_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
-    tags: [],
     prefireTime: 0.2,
     abilityTimings: ABILITY_TIMINGS,
     targets: [],
@@ -221,7 +218,5 @@ export const SwingBatAbility_0115: AbilityStatic = {
 };
 
 export const SwingBatCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Swing Bat',
     abilityId: CARD_ID,
 };

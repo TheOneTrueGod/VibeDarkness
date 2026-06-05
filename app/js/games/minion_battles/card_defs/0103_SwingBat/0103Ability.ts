@@ -29,7 +29,7 @@ import {
 } from '../../abilities/meleeAnimationProfile';
 import type { Unit } from '../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
-import { asCardDefId, type CardDef } from '../types';
+import { type CardDef } from '../types';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
@@ -116,12 +116,9 @@ const SWING_BAT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/20
 // ---- Ability export ----
 
 export const SwingBatAbility_0103: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Swing Stick',
     image: SWING_BAT_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
-    tags: [],
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
@@ -130,7 +127,6 @@ export const SwingBatAbility_0103: AbilityStatic = {
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [
             {
-                id: 'swing_stick_hit',
                 conditions: [{ type: 'hitResultIs', result: 'hit' }],
                 effects: [
                     { type: 'applyKnockbackToPrimaryTarget', tier: 1, sourceAbilityId: CARD_ID },
@@ -169,7 +165,5 @@ export const SwingBatAbility_0103: AbilityStatic = {
 };
 
 export const SwingBatCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Swing Stick',
     abilityId: CARD_ID,
 };

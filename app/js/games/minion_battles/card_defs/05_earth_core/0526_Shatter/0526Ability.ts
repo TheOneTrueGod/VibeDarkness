@@ -3,7 +3,7 @@ import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abi
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
 import type { TargetDef } from '../../../abilities/targeting';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { SHATTER_ABILITY_ID } from '../../../abilities/earthCoreMeleePassives';
 import { getEarthCoreArmour } from '../../../abilities/earthCoreArmour';
 import { getPixelTargetPosition } from '../../../abilities/targetHelpers';
@@ -50,8 +50,6 @@ function resolveNearestEnemy(engine: EngineLike, caster: Unit, targetPos: { x: n
 }
 
 export const ShatterAbility: AbilityStatic = {
-    id: SHATTER_ABILITY_ID,
-    name: 'Shatter',
     image: '',
     resourceCost: null,
     resourceCosts: [{ resourceId: 'resonance', amount: 35 }],
@@ -106,7 +104,5 @@ export const ShatterAbility: AbilityStatic = {
 };
 
 export const ShatterCard: CardDef = {
-    id: asCardDefId(SHATTER_ABILITY_ID),
-    name: 'Shatter',
     abilityId: SHATTER_ABILITY_ID,
 };

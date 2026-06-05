@@ -7,7 +7,7 @@ import type { Unit } from '../../../game/units/Unit';
 import { Projectile } from '../../../game/projectiles/Projectile';
 import { Effect } from '../../../game/effects/Effect';
 import type { ResolvedTarget } from '../../../game/types';
-import { asCardDefId, type CardDef } from '../../types';
+import { type CardDef } from '../../types';
 import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 
 const ABILITY_ID = '0530';
@@ -43,8 +43,6 @@ interface GameEngineLike {
 }
 
 export const StoneTomb: AbilityStatic = {
-    id: ABILITY_ID,
-    name: 'Stone Tomb',
     image: STONE_TOMB_IMAGE,
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: 1,
@@ -118,7 +116,5 @@ export const StoneTomb: AbilityStatic = {
 };
 
 export const StoneTombCard: CardDef = {
-    id: asCardDefId('0530'),
-    name: 'Stone Tomb',
     abilityId: ABILITY_ID,
 };

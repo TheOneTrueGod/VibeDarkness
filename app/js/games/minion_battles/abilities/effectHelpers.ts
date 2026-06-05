@@ -100,22 +100,6 @@ export function getNearestAlly(units: Unit[], caster: Unit): Unit | null {
     return nearest;
 }
 
-interface EngineWithDraw {
-    drawCardsForPlayer?(playerId: string, count: number): number;
-}
-
-/** Draw cards for a player. No-op if engine has no drawCardsForPlayer. */
-export function drawCardForPlayer(
-    engine: unknown,
-    playerId: string | undefined,
-    count: number,
-): void {
-    if (!playerId) return;
-    const eng = engine as EngineWithDraw;
-    if (typeof eng.drawCardsForPlayer === 'function') {
-        eng.drawCardsForPlayer(playerId, count);
-    }
-}
 
 /** Deactivate a projectile when this ability's attack is blocked. Use in onAttackBlocked for projectile abilities. */
 export function deactivateProjectileOnBlock(attackInfo: AttackBlockedInfo): void {
