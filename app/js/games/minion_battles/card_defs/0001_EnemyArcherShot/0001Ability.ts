@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EnemyArcherShot - Enemy ranged ability. Aims for 0.5s, locks target, shoots at 1.0s.
  */
 
@@ -172,5 +172,4 @@ export const EnemyArcherShotCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Enemy Archer Shot',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AlphaWolfScratch - Alpha Wolf fallback melee ability.
  * A desperate raking swipe the wolf uses after its primary toolkit is exhausted.
  * Slow 1s windup telegraphed by a narrowing red circle at the target; deals minimal
@@ -134,5 +134,4 @@ export const AlphaWolfScratchCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Scratch',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

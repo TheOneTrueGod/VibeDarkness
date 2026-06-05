@@ -1,4 +1,4 @@
-import { AbilityBase } from '../../../abilities/AbilityBase';
+﻿import { AbilityBase } from '../../../abilities/AbilityBase';
 import { AbilityPhase, type AbilityTimingInterval, activeTimingIds } from '../../../abilities/abilityTimings';
 import type { AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
@@ -91,7 +91,6 @@ class TripleChargeAbilityDef extends AbilityBase<TripleChargeNote> {
             id: asCardDefId(ABILITY_ID),
             name: 'Frenzied Charge',
             abilityId: ABILITY_ID,
-            discardDuration: { duration: 1, unit: 'rounds' },
         };
     }
 

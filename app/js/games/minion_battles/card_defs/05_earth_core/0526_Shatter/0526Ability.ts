@@ -1,4 +1,4 @@
-import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+﻿import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
@@ -109,5 +109,4 @@ export const ShatterCard: CardDef = {
     id: asCardDefId(SHATTER_ABILITY_ID),
     name: 'Shatter',
     abilityId: SHATTER_ABILITY_ID,
-    discardDuration: { duration: 2, unit: 'rounds' },
 };

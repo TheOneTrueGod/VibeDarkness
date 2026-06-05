@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Strong Punch - Warrior melee ability.
  *
  * Single strike with bonus damage, knockback, and stun.
@@ -126,5 +126,4 @@ export const StrongPunchCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Strong Punch',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

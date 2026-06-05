@@ -1,4 +1,4 @@
-import { ChargeAttack } from '../../../abilities/templates/ChargeAttack';
+﻿import { ChargeAttack } from '../../../abilities/templates/ChargeAttack';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 
 const DARK_WOLF_BITE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -23,7 +23,6 @@ const wolfBite = new ChargeAttack({
     effectDuration: 0.2,
     tooltipText: 'Lunge at a target, dealing {3} damage to each enemy crossed',
     cardName: 'Dark Wolf Bite',
-    discardDuration: { duration: 1, unit: 'rounds' },
 });
 
 export const DarkWolfBiteAbility = wolfBite;

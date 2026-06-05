@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Laser Shield - Warrior skill. Hold a cyan energy shield for 3s in a direction.
- * Movement speed penalty 0.1, blocks attacks from within a 120° arc.
- * Same reward logic as Raise Shield — longer duration and laser color theme.
+ * Movement speed penalty 0.1, blocks attacks from within a 120Â° arc.
+ * Same reward logic as Raise Shield â€” longer duration and laser color theme.
  */
 
 import { AbilityEventType } from '../../abilities/Ability';
@@ -145,5 +145,4 @@ export const LaserShieldCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Laser Shield',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

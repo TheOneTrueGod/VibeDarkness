@@ -1,13 +1,13 @@
-/**
+﻿/**
  * PunchNEW - Warrior melee ability (composition-based refactor).
  *
  * Single melee strike built entirely on the CastBehaviours system.
  * Matches the base Punch (0102) behaviour without research upgrades.
  *
  * Timings:
- *   0.00–0.20  windup
- *   0.20–0.40  active strike (impact fires at 40% through window, ~0.28 s)
- *   0.40–1.60  cooldown
+ *   0.00â€“0.20  windup
+ *   0.20â€“0.40  active strike (impact fires at 40% through window, ~0.28 s)
+ *   0.40â€“1.60  cooldown
  */
 
 import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
@@ -113,5 +113,4 @@ export const PunchNEWCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Bash',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

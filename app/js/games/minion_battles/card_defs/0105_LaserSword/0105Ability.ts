@@ -1,5 +1,5 @@
-/*
- * Laser Sword — a resource-gated melee burst that costs Ammo.
+﻿/*
+ * Laser Sword â€” a resource-gated melee burst that costs Ammo.
  *
  * Wider perpendicular slash than Swing Sword, hitting up to 2 enemies for double damage with a
  * strong knockback and a distinctive light-cyan slash trail. Intended as an occasional power swing
@@ -134,5 +134,4 @@ export const LaserSwordCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Laser Sword',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

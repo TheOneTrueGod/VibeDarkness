@@ -1,15 +1,15 @@
-/**
- * Swing Stick — Warrior melee ability.
+﻿/**
+ * Swing Stick â€” Warrior melee ability.
  *
  * Perpendicular thick-line swing. Single target, heavy knockback + interrupt.
  * Composition-based refactor: all combat logic lives in CastBehaviours;
  * `beginActiveCast` survives only for the charge-up VFX.
  *
  * Timings:
- *   0.00–0.20  windup
- *   0.20–0.24  lunge forward (impactAt=0.4 → fires 40% through the active window)
- *   0.24–0.30  backstep
- *   0.30–1.55  cooldown
+ *   0.00â€“0.20  windup
+ *   0.20â€“0.24  lunge forward (impactAt=0.4 â†’ fires 40% through the active window)
+ *   0.24â€“0.30  backstep
+ *   0.30â€“1.55  cooldown
  */
 
 import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
@@ -172,5 +172,4 @@ export const SwingBatCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Swing Stick',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

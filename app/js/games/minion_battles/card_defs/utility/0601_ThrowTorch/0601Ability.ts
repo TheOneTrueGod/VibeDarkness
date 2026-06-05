@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Throw Torch - Utility ability that places a burning torch on the ground.
  *
  * Targets a pixel within range 200. A torch projectile flies to the target;
@@ -127,6 +127,5 @@ export const ThrowTorchCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Throw Torch',
     abilityId: CARD_ID,
-    discardDuration: { unit: 'never' },
     tags: ['innate'],
 };

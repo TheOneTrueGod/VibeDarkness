@@ -1,13 +1,13 @@
-/**
- * Swing Bat — Warrior melee (pipe bat).
+﻿/**
+ * Swing Bat â€” Warrior melee (pipe bat).
  *
  * Heavy perpendicular swing. Hits up to 3 targets; heavier knockback than the basic stick.
  * Damage boosted by Reinforced Steel research.
  *
  * Timings:
- *   0.00–0.20  windup
- *   0.20–0.30  hit
- *   0.30–1.65  cooldown
+ *   0.00â€“0.20  windup
+ *   0.20â€“0.30  hit
+ *   0.30â€“1.65  cooldown
  */
 
 import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../abilities/Ability';
@@ -224,5 +224,4 @@ export const SwingBatCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Swing Bat',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

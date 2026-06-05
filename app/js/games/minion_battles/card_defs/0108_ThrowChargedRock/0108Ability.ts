@@ -1,4 +1,4 @@
-import { AbilityState } from '../../abilities/Ability';
+﻿import { AbilityState } from '../../abilities/Ability';
 import type {
     AbilityStatic,
     AbilityStateEntry,
@@ -42,7 +42,7 @@ const MORE_ROCK_EXPLOSION_DAMAGE = 3;
 const MORE_POWER_EXPLOSION_DAMAGE = 8;
 const MORE_POWER_MAX_TARGETS = 4;
 
-/** One timeline cell for more-rock pattern `::::::=:::=...` (14 × slice = 1.4s total). */
+/** One timeline cell for more-rock pattern `::::::=:::=...` (14 Ã— slice = 1.4s total). */
 const MORE_ROCK_TIME_SLICE = 0.1;
 const MORE_ROCK_FIRST_THROW = 6 * MORE_ROCK_TIME_SLICE;
 const MORE_ROCK_SECOND_THROW = 10 * MORE_ROCK_TIME_SLICE;
@@ -387,5 +387,4 @@ export const ThrowChargedRockCard: CardDef = {
     id: asCardDefId('throw_charged_rock'),
     name: 'Throw Charged Rock',
     abilityId: 'throw_charged_rock',
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

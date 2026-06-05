@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ThrowRock - A basic ranged ability.
  *
  * Targets a pixel. After windup, creates a projectile that travels up to
@@ -26,7 +26,7 @@ const BASE_DAMAGE = 5;
 /** Matches More Power bump used on Throw Charged Rock explosion damage. */
 const MORE_POWER_DAMAGE = 8;
 
-/** One timeline cell for more-rock pattern (14 × slice = 1.4s total). */
+/** One timeline cell for more-rock pattern (14 Ã— slice = 1.4s total). */
 const MORE_ROCK_TIME_SLICE = 0.1;
 const MORE_ROCK_FIRST_THROW = 6 * MORE_ROCK_TIME_SLICE;
 const MORE_ROCK_SECOND_THROW = 10 * MORE_ROCK_TIME_SLICE;
@@ -130,7 +130,7 @@ function rockDamageForResearch(research: Set<string>): number {
     return research.has('more_power') ? MORE_POWER_DAMAGE : BASE_DAMAGE;
 }
 
-/** Default dark wolf HP at ×1 enemy scaling — two hits at this damage kill a wolf. */
+/** Default dark wolf HP at Ã—1 enemy scaling â€” two hits at this damage kill a wolf. */
 const TWO_SHOT_WOLF_PER_HIT_DAMAGE = 6;
 
 function rockProjectileDamage(engine: GameEngineLike, research: Set<string>): number {
@@ -311,5 +311,4 @@ export const ThrowRockCard: CardDef = {
     id: asCardDefId('throw_rock'),
     name: 'Throw Rock',
     abilityId: 'throw_rock',
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

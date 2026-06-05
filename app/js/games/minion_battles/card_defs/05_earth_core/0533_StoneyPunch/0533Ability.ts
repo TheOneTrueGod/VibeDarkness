@@ -1,4 +1,4 @@
-import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
+﻿import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
@@ -62,7 +62,6 @@ export const StoneyPunchCard: CardDef = {
     id: asCardDefId('0533'),
     name: 'Stoney Punch',
     abilityId: ABILITY_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };
 
 export function getStoneyPunchPreviewDamage(caster: Unit): number {

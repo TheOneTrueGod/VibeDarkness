@@ -14,11 +14,18 @@
 
 | Todo | Notes |
 |------|-------|
+| Delete dead `CardManager` draw/hand methods | `drawCard()`, `drawCardsForPlayer()`, `fillHandInnateFirst()`, and `transferCardToAllyDeck()` in `game/managers/CardManager.ts` are never called. Safe to delete outright. |
+| Remove vestigial `CardDef` fields (`id`, `name`, `tags`) | These fields duplicate data already in `AbilityStatic` or are only checked inside the never-called `fillHandInnateFirst()`. Strip them from the `CardDef` type definition and all card def files. |
+| Fix `ChargeAttack` template's reference to `discardDuration` | `abilities/templates/ChargeAttack.ts` references `discardDuration` as a config param even though the field is unused. Clean it up as part of the `discardDuration` removal pass. |
+| Refactor test harness `seedHandWithAbilities()` | `testing/harness/buildTinyBattleEngine.ts` creates `CardInstance`s directly into the engine. Replace it with a helper that populates `Unit.abilities[]` instead, matching how the live system works. |
+| Rename `CardHand.tsx` / `CardComponent.tsx` to ability-focused names | These components are functional but misleadingly named — they render the ability bar using `Unit.abilities[]`, not a card hand. Rename to e.g. `AbilityBar.tsx` / `AbilityComponent.tsx` and update all import sites. |
 
 ## Medium
 
 | Todo | Notes |
 |------|-------|
+| Move ability-use tracking out of `CardManager` | `CardManager` owns `abilityUsesThisRound`, `getAbilityUsesThisRound()`, and `clearAbilityUses()` — the last two are actively called by the ability system and at round-end. Extract this tracking into a dedicated structure (on `GameState` or a new small manager) so `CardManager` can eventually be removed. |
+| Move `playerResearchTreesByPlayer` off `CardManager` | Research trees are stored on `CardManager` for no conceptual reason and serialized alongside card data in checkpoints. Relocate to `GameState` directly (or a `ResearchManager`) and update serialization accordingly. |
 | Make `darkness` a modifier on spawn behaviours, not its own behaviour | Instead of `spawnBehaviour: 'darkness'`, add an `inDarkness: boolean` flag to `SpawnWaveEntry` that can be combined with any `spawnBehaviour` (e.g. `edgeOfMap` + `inDarkness`). Requires updating the types, `LevelEventManager`, and migrating existing `'darkness'` usages. |
 | Migrate LanterniteStrike (0010) to castBehaviours | `doCardEffect` sets an ability note at LOCK_TIME then fires a projectile at prefire — two threshold effects. Map them to castBehaviours on the windup and active timing intervals; ability-note init can move to `ON_CAST_START`. |
 | Migrate EnemyMeleeAttack (0002) to castBehaviours | Enemy basic melee that deals damage at a threshold; likely compatible with the existing `MeleeAttackBehaviour`. Replace `doCardEffect` with that CastBehaviour on the active interval. |
@@ -43,6 +50,7 @@
 
 | Todo | Notes |
 |------|-------|
+| Remove `CardManager` and card serialization from checkpoints | `CardManager` is serialized into every checkpoint via `GameEngine.toJSON/fromJSON` and `SerializedGameState.cards`. Full removal requires: adding a checkpoint version field, writing migration logic to silently drop the `cards` field on load, then deleting `CardInstance`, `SerializedCardInstance`, and `CardManager` itself. Must be coordinated with the ability-use tracking and research-tree extraction todos above. |
 | Migrate ThrowRock (0107) to castBehaviours | `doCardEffect` branches on the `more_rock` research node: base case fires one projectile at 0.3 s; more_rock fires two at separate thresholds across a different total timeline. The `getAbilityTimings` override already returns different intervals per-research, so castBehaviours on `flight` and `flight2` intervals could handle each throw — but the research-variant CastBehaviour pattern needs to be defined first. |
 | Migrate ThrowChargedRock (0108) to castBehaviours | `doCardEffect` fires a charged projectile (with an explosion on impact via `onProjectileExpired`) and has a `more_rock` research variant for a second throw. Scope is similar to ThrowRock; design the projectile+explosion CastBehaviour to handle the per-research timing before implementing. |
 | Migrate ThrowKnife (0109) to castBehaviours | `doCardEffect` throws a knife projectile and has a research variant (both `throwing_knives` and `more_rock` nodes) adding a second knife with its own timing window. Coordinate the CastBehaviour design with the ThrowRock and ThrowChargedRock migrations to share a research-aware projectile pattern. |

@@ -1,4 +1,4 @@
-import { AbilityEventType } from '../../abilities/Ability';
+﻿import { AbilityEventType } from '../../abilities/Ability';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
@@ -108,5 +108,4 @@ export const AbsorptionShieldCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Absorption Shield',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

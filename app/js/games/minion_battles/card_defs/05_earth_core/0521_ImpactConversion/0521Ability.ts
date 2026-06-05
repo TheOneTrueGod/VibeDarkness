@@ -1,4 +1,4 @@
-import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
+﻿import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import { asCardDefId, type CardDef } from '../../types';
@@ -30,5 +30,4 @@ export const ImpactConversionCard: CardDef = {
     id: asCardDefId(IMPACT_CONVERSION_PASSIVE_ID),
     name: 'Impact Conversion',
     abilityId: IMPACT_CONVERSION_PASSIVE_ID,
-    discardDuration: { duration: 999, unit: 'rounds' },
 };

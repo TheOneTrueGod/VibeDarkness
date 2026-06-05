@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Raise Shield - Warrior skill. Hold a shield for 1.3s in a direction.
- * Movement speed penalty 0.1, blocks attacks from within a 120° arc.
+ * Movement speed penalty 0.1, blocks attacks from within a 120Â° arc.
  * On Block: nearby allies gain 2 stamina surges; on 2nd+ block: extra surges to self + wider area allies.
  */
 
@@ -144,5 +144,4 @@ export const RaiseShieldCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Raise Shield',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

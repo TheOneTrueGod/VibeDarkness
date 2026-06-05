@@ -1,5 +1,5 @@
-/**
- * Boar Claws — Earth Core card. Wall-penetrating dash that damages rock tiles in transit.
+﻿/**
+ * Boar Claws â€” Earth Core card. Wall-penetrating dash that damages rock tiles in transit.
  * If the dash ends inside a wall, the unit is steadily pushed out and launched (slingshot).
  */
 
@@ -189,7 +189,7 @@ export const BoarClawsAbility: AbilityStatic = {
         const eng = engine as GameEngineLike;
         const tm = (eng.terrainManager as TerrainManagerLike | null) ?? null;
 
-        // ── Init ──────────────────────────────────────────────────────────────────
+        // â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (prevTime < 0.05 && currentTime >= 0.05) {
             caster.setAbilityNote({
                 abilityId: CARD_ID,
@@ -210,7 +210,7 @@ export const BoarClawsAbility: AbilityStatic = {
             );
         }
 
-        // ── Slingshot phase ───────────────────────────────────────────────────────
+        // â”€â”€ Slingshot phase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (currentTime >= DASH_DURATION) {
             if (!isAbilityNote(caster.abilityNote, CARD_ID)) {
                 return;
@@ -264,7 +264,7 @@ export const BoarClawsAbility: AbilityStatic = {
                 }
 
                 if (!tm || tm.isPassable(caster.x, caster.y)) {
-                    // Exited wall — launch!
+                    // Exited wall â€” launch!
                     applySlingshotLaunch(caster, note.slingshotDirX, note.slingshotDirY, eng.eventBus);
                     caster.clearAbilityNote();
                     return;
@@ -300,7 +300,7 @@ export const BoarClawsAbility: AbilityStatic = {
             return;
         }
 
-        // ── Dash phase (currentTime < DASH_DURATION) ──────────────────────────────
+        // â”€â”€ Dash phase (currentTime < DASH_DURATION) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const pos = getPixelTargetPosition(targets, 0);
         const dirResult = pos ? getDirectionFromTo(caster.x, caster.y, pos.x, pos.y) : null;
         const distToTarget = dirResult?.dist ?? 0;
@@ -390,5 +390,4 @@ export const BoarClawsCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Boar Claws',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BeastClaw - Player melee ability from BeastCore.
  * Box in front of caster, slashing effect. Swings twice in opposite directions.
  * Knocks back away from caster on both swings.
@@ -263,5 +263,4 @@ export const BeastClawCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Beast Claw',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

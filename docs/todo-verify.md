@@ -5,6 +5,7 @@
 | Todo | Notes | Date |
 |------|-------|------|
 | Modify your ability tests skill. One test per ability | Added "Test design principles" section to ability-tests SKILL.md: one scenario per ability max, combine multiple assertions, require comment if a second scenario is needed. | 2026-05-31 |
+| Remove `discardDuration` from all card def files | Deleted `DiscardDuration` type and `discardDuration` field from `card_defs/types.ts`; removed config field and cardDef assignment from `ChargeAttack.ts` template; stripped the property line from all 49 card def files. | 2026-06-04 |
 | Migrate ImpactConversion (0521) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0521Ability.ts`. | 2026-05-31 |
 | Migrate BedrockScavenger (0522) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0522Ability.ts`. | 2026-05-31 |
 | Migrate DeepResonance (0523) to castBehaviours | Deleted empty `doCardEffect` stub and unused `ResolvedTarget` import from `0523Ability.ts`. | 2026-05-31 |

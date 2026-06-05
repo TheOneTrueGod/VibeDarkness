@@ -1,4 +1,4 @@
-import { ChargeAttack } from '../../../abilities/templates/ChargeAttack';
+﻿import { ChargeAttack } from '../../../abilities/templates/ChargeAttack';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 
 const BOAR_CHARGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -23,7 +23,6 @@ const boarCharge = new ChargeAttack({
     effectDuration: 0.2,
     tooltipText: 'Charge at a target, dealing {4} damage to each enemy crossed (wide hitbox)',
     cardName: 'Charge',
-    discardDuration: { duration: 1, unit: 'rounds' },
 });
 
 export const BoarChargeAbility = boarCharge;

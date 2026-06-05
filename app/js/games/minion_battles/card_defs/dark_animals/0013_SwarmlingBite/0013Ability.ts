@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SwarmlingBite - Swarmling melee bite attack.
  * A quick snapping bite; the swarmling carries two copies per round so it
  * can nip twice before cycling back to the start of its deck.
@@ -126,5 +126,4 @@ export const SwarmlingBiteCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Bite',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

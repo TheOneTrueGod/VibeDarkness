@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Sneaky Punch - Warrior melee ability.
  *
  * Deals bonus damage against stunned or bleeding targets.
@@ -128,5 +128,4 @@ export const SneakyPunchCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Sneaky Punch',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

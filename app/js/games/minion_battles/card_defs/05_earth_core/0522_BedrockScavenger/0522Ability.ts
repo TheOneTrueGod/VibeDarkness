@@ -1,4 +1,4 @@
-import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
+﻿import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import { asCardDefId, type CardDef } from '../../types';
@@ -43,5 +43,4 @@ export const BedrockScavengerCard: CardDef = {
     id: asCardDefId(BEDROCK_SCAVENGER_PASSIVE_ID),
     name: 'Bedrock Scavenger',
     abilityId: BEDROCK_SCAVENGER_PASSIVE_ID,
-    discardDuration: { duration: 999, unit: 'rounds' },
 };

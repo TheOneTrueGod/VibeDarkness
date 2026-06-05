@@ -1,4 +1,4 @@
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+﻿import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createConeTargetPreviewWithDistanceInaccuracy } from '../../abilities/previewHelpers';
@@ -99,6 +99,5 @@ export const SMGCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'SMG',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };
 

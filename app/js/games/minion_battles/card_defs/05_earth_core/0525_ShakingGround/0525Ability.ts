@@ -1,4 +1,4 @@
-import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+﻿import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
@@ -79,5 +79,4 @@ export const ShakingGroundCard: CardDef = {
     id: asCardDefId(SHAKING_GROUND_ABILITY_ID),
     name: 'Shaking Ground',
     abilityId: SHAKING_GROUND_ABILITY_ID,
-    discardDuration: { duration: 2, unit: 'rounds' },
 };

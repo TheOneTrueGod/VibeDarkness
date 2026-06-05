@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AlphaWolfSummon - Alpha Wolf boss ability.
  * After ~0.65s windup, emits a pulse effect and spawns 2 wolves.
  * Wolves immediately target closest enemy and queue a DarkWolfBite attack.
@@ -206,5 +206,4 @@ export const AlphaWolfSummonCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Summon',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

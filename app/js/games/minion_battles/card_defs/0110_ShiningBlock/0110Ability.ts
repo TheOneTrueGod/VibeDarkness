@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Shining Block - Crystal shield variant. Hold a shield for 1s in a direction.
  * Same blocking arc as Raise Shield. On first block: flash retaliation in a cone
  * toward the attacker - 5 damage to up to 3 enemies, stun 2s, ConeFlash effect.
@@ -249,7 +249,7 @@ export const ShiningBlockAbility: AbilityStatic = {
         shiningBlockConeFlash: (_params, ctx) => {
             const c = ctx as AbilityEventRuntimeContext;
             if (!c.attackInfo) {
-                console.warn('shiningBlockConeFlash fired without attackInfo — skipping retaliation');
+                console.warn('shiningBlockConeFlash fired without attackInfo â€” skipping retaliation');
                 return;
             }
             executeShiningBlockRetaliation(c.engine, c.caster, c.attackInfo);
@@ -265,5 +265,4 @@ export const ShiningBlockCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Shining Block',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

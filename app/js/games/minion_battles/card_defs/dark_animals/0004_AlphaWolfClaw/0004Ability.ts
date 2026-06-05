@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AlphaWolfClaw - Alpha Wolf boss melee ability.
  * Hits in a square in front of the caster. 0.8s windup, punch effect, moderate knockback.
  * Damage similar to wolf bite. Max 2 uses per round.
@@ -253,5 +253,4 @@ export const AlphaWolfClawCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Claw',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

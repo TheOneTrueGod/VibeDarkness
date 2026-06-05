@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EnemyMeleeAttack - Enemy melee ability. Wind-up 0.5s (no move penalty), locks target at 0.5s, hits at 1s with a cone.
  */
 
@@ -169,5 +169,4 @@ export const EnemyMeleeAttackCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Enemy Melee Attack',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

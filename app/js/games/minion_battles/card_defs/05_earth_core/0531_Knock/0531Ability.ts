@@ -1,4 +1,4 @@
-import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
+﻿import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import type { ResolvedTarget } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
@@ -71,5 +71,4 @@ export const KnockCard: CardDef = {
     id: asCardDefId('0531'),
     name: 'Knock',
     abilityId: ABILITY_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

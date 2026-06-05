@@ -1,5 +1,5 @@
-/**
- * Swing Sword — Warrior melee (crafted sword).
+﻿/**
+ * Swing Sword â€” Warrior melee (crafted sword).
  *
  * Perpendicular slash up to 2 targets, small knockback, metallic gray slash trail.
  * Bleed applies when Jagged Edge is researched.
@@ -7,10 +7,10 @@
  * `beginActiveCast` survives only for the charge-up VFX.
  *
  * Timings:
- *   0.00–0.20  windup
- *   0.20–0.24  lunge forward (impactAt=0.4 → fires 40% through the active window)
- *   0.24–0.30  backstep
- *   0.30–1.30  cooldown
+ *   0.00â€“0.20  windup
+ *   0.20â€“0.24  lunge forward (impactAt=0.4 â†’ fires 40% through the active window)
+ *   0.24â€“0.30  backstep
+ *   0.30â€“1.30  cooldown
  */
 
 import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
@@ -215,5 +215,4 @@ export const SwingSwordCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Swing Sword',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

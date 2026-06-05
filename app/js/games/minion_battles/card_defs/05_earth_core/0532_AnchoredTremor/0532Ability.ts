@@ -1,4 +1,4 @@
-import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
+﻿import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
@@ -94,5 +94,4 @@ export const AnchoredTremorCard: CardDef = {
     id: asCardDefId('0532'),
     name: 'Anchored Tremor',
     abilityId: ABILITY_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

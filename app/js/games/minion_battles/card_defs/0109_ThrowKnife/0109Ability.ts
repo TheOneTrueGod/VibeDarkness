@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ThrowKnife - Research-upgraded Throw Rock variant.
  *
  * Base version throws one knife for more damage than Throw Rock.
@@ -290,5 +290,4 @@ export const ThrowKnifeCard: CardDef = {
     id: asCardDefId('throw_knife'),
     name: 'Throw Knife',
     abilityId: 'throw_knife',
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

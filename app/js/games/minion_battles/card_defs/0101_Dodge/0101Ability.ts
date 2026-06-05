@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Dodge - Warrior card. Move toward target up to DODGE_MAX_DISTANCE px over 0.4 s at constant rate
  * (terrain may shorten travel). The iframe window grants invincibility; a stamina charge is given
  * to a random other ability on cast. An afterimage trail follows the unit throughout the dash.
@@ -103,5 +103,4 @@ export const DodgeCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Dodge',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

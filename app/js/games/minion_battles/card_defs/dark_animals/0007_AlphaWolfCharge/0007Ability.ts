@@ -1,4 +1,4 @@
-import { ChargeAttack } from '../../../abilities/templates/ChargeAttack';
+﻿import { ChargeAttack } from '../../../abilities/templates/ChargeAttack';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 
 const ALPHA_WOLF_CHARGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -26,7 +26,6 @@ const alphaWolfCharge = new ChargeAttack({
     effectDuration: 0.25,
     tooltipText: 'The Alpha charges forward, dealing {5} damage to each enemy in a wide path',
     cardName: 'Alpha Charge',
-    discardDuration: { duration: 1, unit: 'rounds' },
     forbiddenTags: [UnitTag.Enraged],
 });
 

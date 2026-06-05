@@ -1,5 +1,5 @@
-/**
- * Husk Artillery — telegraphed channel; seed pod arcs to target, spawns ephemeral husks at landing (no direct damage).
+﻿/**
+ * Husk Artillery â€” telegraphed channel; seed pod arcs to target, spawns ephemeral husks at landing (no direct damage).
  */
 
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
@@ -141,5 +141,4 @@ export const HuskSeedBarrageCard: CardDef = {
     id: asCardDefId(HUSK_SEED_BARRAGE_ID),
     name: 'Seed Pod Barrage',
     abilityId: HUSK_SEED_BARRAGE_ID,
-    discardDuration: { duration: 2, unit: 'rounds' },
 };

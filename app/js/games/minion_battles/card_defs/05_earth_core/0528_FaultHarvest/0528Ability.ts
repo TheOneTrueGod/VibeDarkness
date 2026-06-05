@@ -1,4 +1,4 @@
-import { AbilityPhase } from '../../../abilities/abilityTimings';
+﻿import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { Unit } from '../../../game/units/Unit';
 import { asCardDefId, type CardDef } from '../../types';
@@ -44,5 +44,4 @@ export const FaultHarvestCard: CardDef = {
     id: asCardDefId('0528'),
     name: 'Fault Harvest',
     abilityId: ABILITY_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

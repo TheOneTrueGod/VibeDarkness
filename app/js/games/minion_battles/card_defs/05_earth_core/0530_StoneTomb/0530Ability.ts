@@ -1,4 +1,4 @@
-import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
+﻿import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import { getDirectionFromTo, getPixelTargetPosition } from '../../../abilities/targetHelpers';
 import { areEnemies } from '../../../game/teams';
@@ -121,5 +121,4 @@ export const StoneTombCard: CardDef = {
     id: asCardDefId('0530'),
     name: 'Stone Tomb',
     abilityId: ABILITY_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

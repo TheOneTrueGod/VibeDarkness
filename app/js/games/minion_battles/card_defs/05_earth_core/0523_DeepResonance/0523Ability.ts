@@ -1,4 +1,4 @@
-import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
+﻿import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import { asCardDefId, type CardDef } from '../../types';
@@ -30,5 +30,4 @@ export const DeepResonanceCard: CardDef = {
     id: asCardDefId(DEEP_RESONANCE_PASSIVE_ID),
     name: 'Deep Resonance',
     abilityId: DEEP_RESONANCE_PASSIVE_ID,
-    discardDuration: { duration: 999, unit: 'rounds' },
 };

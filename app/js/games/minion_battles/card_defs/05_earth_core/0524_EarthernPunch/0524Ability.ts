@@ -1,4 +1,4 @@
-import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+﻿import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
@@ -102,5 +102,4 @@ export const EarthernPunchCard: CardDef = {
     id: asCardDefId(EARTHERN_PUNCH_ABILITY_ID),
     name: 'Earthern Punch',
     abilityId: EARTHERN_PUNCH_ABILITY_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

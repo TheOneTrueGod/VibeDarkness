@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Claw - Warrior card. Dodge-like dash toward target with iframes.
  * Damages and knocks back any enemies the caster touches during the dash.
  */
@@ -99,5 +99,4 @@ export const ClawCard: CardDef = {
 	id: asCardDefId(CARD_ID),
 	name: 'Claw',
 	abilityId: CARD_ID,
-	discardDuration: { duration: 1, unit: 'rounds' },
 };

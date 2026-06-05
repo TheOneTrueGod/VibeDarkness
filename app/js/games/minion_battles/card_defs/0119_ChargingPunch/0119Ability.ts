@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Charging Punch - Warrior melee ability.
  *
  * On hit: grants 1 Light Charge to a random ability.
@@ -123,5 +123,4 @@ export const ChargingPunchCard: CardDef = {
     id: asCardDefId(CARD_ID),
     name: 'Charging Punch',
     abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
 };

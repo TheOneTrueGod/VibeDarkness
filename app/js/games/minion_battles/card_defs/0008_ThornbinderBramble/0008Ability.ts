@@ -1,5 +1,5 @@
-/**
- * Thornbinder — AoE bramble slam: damage + slowing patch until shortly before next cast.
+﻿/**
+ * Thornbinder â€” AoE bramble slam: damage + slowing patch until shortly before next cast.
  */
 
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
@@ -201,7 +201,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         gr.circle(target.x, target.y, BASE_RADIUS);
         gr.stroke({ color: 0xef4444, width: 2, alpha: borderAlpha });
 
-        // Expanding inner ring: grows from 0 to BASE_RADIUS over the full cast (0 → STRIKE_TIME)
+        // Expanding inner ring: grows from 0 to BASE_RADIUS over the full cast (0 â†’ STRIKE_TIME)
         const ringT = elapsed / STRIKE_TIME;
         const ringRadius = ringT * BASE_RADIUS;
         if (ringRadius > 2) {
@@ -219,5 +219,4 @@ export const ThornbinderBrambleCard: CardDef = {
     id: asCardDefId(THORNBINDER_ABILITY_ID),
     name: 'Bramble Slam',
     abilityId: THORNBINDER_ABILITY_ID,
-    discardDuration: { duration: 2, unit: 'rounds' },
 };
