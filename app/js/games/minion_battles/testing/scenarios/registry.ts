@@ -37,6 +37,7 @@ import {
 } from './abilities/swingSwordResearch';
 import { laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenarios';
 import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios';
+import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
 import { absorptionShieldEnergyChargeScenario } from './abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
@@ -115,6 +116,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreDeepResonanceScenario,
     laserSwordHitsTwoTargetsScenario,
     swingBatHitsThreeTargetsScenario,
+    throwKnifePiercingBleedScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {

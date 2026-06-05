@@ -112,7 +112,7 @@ export default function ScenarioPreviewModal({ scenario, onClose }: ScenarioPrev
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
             <div
-                className="flex flex-col rounded-xl border border-border-custom bg-surface shadow-2xl"
+                className="flex flex-col rounded-xl border border-border-custom bg-surface shadow-2xl overflow-hidden"
                 style={{ width: '90vw', maxWidth: 1100, height: '85vh' }}
             >
                 {/* Header */}
@@ -150,7 +150,7 @@ export default function ScenarioPreviewModal({ scenario, onClose }: ScenarioPrev
                 </div>
 
                 {/* Full battle canvas — parent must be flex so BattleCanvas's flex-1 div expands */}
-                <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-b-xl">
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                     {runState ? (
                         <BattleCanvas
                             engine={runState.run.engine}
@@ -161,6 +161,23 @@ export default function ScenarioPreviewModal({ scenario, onClose }: ScenarioPrev
                         <div className="flex-1 flex items-center justify-center text-muted text-sm">
                             Initializing…
                         </div>
+                    )}
+                </div>
+
+                {/* Footer: result status */}
+                <div className={`shrink-0 px-4 py-2 flex items-center gap-2 text-sm border-t ${
+                    !settled
+                        ? 'border-border-custom'
+                        : result?.passed
+                        ? 'border-success bg-success/5'
+                        : 'border-danger bg-danger/5'
+                }`}>
+                    {!settled ? (
+                        <span className="text-muted">running… {tick}</span>
+                    ) : result?.passed ? (
+                        <span className="text-success font-semibold">Passed</span>
+                    ) : (
+                        <span className="text-danger">{result?.message ?? 'Failed'}</span>
                     )}
                 </div>
             </div>

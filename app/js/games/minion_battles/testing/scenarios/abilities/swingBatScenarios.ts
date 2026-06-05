@@ -13,15 +13,15 @@ const P = TINY_BATTLE_PLAYER_ID;
 
 /**
  * Spawn positions for the 4 dummies.
- * Caster at (200, 260), targeting (280, 260).
- * Perpendicular bar: center ~(276, 260), endpoints (276, 220)-(276, 300).
+ * Caster at (235, 260), targeting (280, 260) — distance equals maxRange (45px).
+ * Perpendicular bar: center (280, 260), endpoints (280, 220)-(280, 300).
  * Three dummies at x=280 within the bar; one far below (outside bar).
  */
 const DUMMY_POSITIONS = [
     { x: 280, y: 240 },
     { x: 280, y: 260 },
     { x: 280, y: 280 },
-    { x: 280, y: 360 }, // outside the bar â€” should NOT be hit
+    { x: 280, y: 360 }, // outside the bar — should NOT be hit
 ] as const;
 
 export const swingBatHitsThreeTargetsScenario: ScenarioDefinition = {
@@ -39,7 +39,7 @@ export const swingBatHitsThreeTargetsScenario: ScenarioDefinition = {
         });
         spawnTinyPlayerUnit(engine, {
             playerId: P,
-            x: 200,
+            x: 235,
             y: 260,
             abilities: ['0115'],
         });

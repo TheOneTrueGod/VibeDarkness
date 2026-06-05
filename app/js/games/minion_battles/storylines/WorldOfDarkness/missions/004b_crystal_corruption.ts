@@ -61,7 +61,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
     // --- Periodic wolf waves every 0.5 rounds ---
     {
         type: 'continuousSpawn',
-        trigger: { intervalRounds: 0.5, startRound: 1, endRound: 6 },
+        trigger: { intervalRounds: 0.5, startRound: 1, endRound: 5 },
         spawns: [
             { characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' },
             { characterId: 'swarmling', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' },
@@ -70,7 +70,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
     // --- Periodic slime waves every 0.5 rounds ---
     {
         type: 'continuousSpawn',
-        trigger: { intervalRounds: 1, startRound: 1, endRound: 6 },
+        trigger: { intervalRounds: 1, startRound: 1, endRound: 5 },
         spawns: [{ characterId: 'enemy_ranged', spawnBehaviour: 'edgeOfMap', spawnCount: 1, unitAITreeId: 'hunt' }],
     },
     // --- Crystal conversions: one per round ---

@@ -26,78 +26,78 @@ const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/sv
 </svg>`;
 
 export const ClawAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Claw',
-    image: CLAW_IMAGE,
-    resourceCost: null,
-    rechargeTurns: 0,
-    prefireTime: CLAW_DURATION,
-    abilityTimings: [
-        {
-            id: 'dash',
-            start: 0,
-            end: CLAW_DURATION,
-            abilityPhase: AbilityPhase.Iframe,
-            behaviour: CastBehaviours.Dash()
-                .withMaxDistance(CLAW_MAX_DISTANCE)
-                .withCollisionStep(COLLISION_STEP)
-                .withAfterimages(true)
-                .addHitbox('caster', { shape: 'circle', range: 'caster' }, {
-                    damage: DAMAGE,
-                    attackType: 'melee',
-                }),
-        },
-        {
-            id: 'cooldown',
-            start: CLAW_DURATION,
-            end: CLAW_DURATION + 0.8,
-            abilityPhase: AbilityPhase.Cooldown,
-        },
-    ],
-    targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
-    aiSettings: { minRange: 0, maxRange: CLAW_MAX_DISTANCE },
+	id: CARD_ID,
+	name: 'Claw',
+	image: CLAW_IMAGE,
+	resourceCost: null,
+	rechargeTurns: 0,
+	prefireTime: CLAW_DURATION,
+	abilityTimings: [
+		{
+			id: 'dash',
+			start: 0,
+			end: CLAW_DURATION,
+			abilityPhase: AbilityPhase.Iframe,
+			behaviour: CastBehaviours.Dash()
+				.withMaxDistance(CLAW_MAX_DISTANCE)
+				.withCollisionStep(COLLISION_STEP)
+				.withAfterimages(true)
+				.addHitbox('caster', { shape: 'circle', range: 'caster' }, {
+					damage: DAMAGE,
+					attackType: 'melee',
+				}),
+		},
+		{
+			id: 'cooldown',
+			start: CLAW_DURATION,
+			end: CLAW_DURATION + 0.8,
+			abilityPhase: AbilityPhase.Cooldown,
+		},
+	],
+	targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
+	aiSettings: { minRange: 0, maxRange: CLAW_MAX_DISTANCE },
 
-    abilityEvents: {
-        [AbilityEventType.ON_CAST_START]: [
-            {
-                id: 'claw-stamina-charge',
-                conditions: [{ type: 'always' }],
-                effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, excludeCurrentAbility: true }],
-            },
-        ],
-        [AbilityEventType.ON_ATTACK_HIT]: [
-            {
-                id: 'claw-knockback',
-                conditions: [{ type: 'always' }],
-                effects: [{ type: 'applyKnockbackToPrimaryTarget', tier: KNOCKBACK_TIER, sourceAbilityId: CARD_ID }],
-            },
-        ],
-    },
+	abilityEvents: {
+		[AbilityEventType.ON_CAST_START]: [
+			{
+				id: 'claw-stamina-charge',
+				conditions: [{ type: 'always' }],
+				effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, excludeCurrentAbility: true }],
+			},
+		],
+		[AbilityEventType.ON_ATTACK_HIT]: [
+			{
+				id: 'claw-knockback',
+				conditions: [{ type: 'always' }],
+				effects: [{ type: 'applyKnockbackToPrimaryTarget', tier: KNOCKBACK_TIER, sourceAbilityId: CARD_ID }],
+			},
+		],
+	},
 
-    getTooltipText(_gameState?: unknown): string[] {
-        return [
-            'Dash toward a point with iframes',
-            `Deal {${DAMAGE}} damage and knock back enemies you touch`,
-        ];
-    },
+	getTooltipText(_gameState?: unknown): string[] {
+		return [
+			'Dash toward a point with iframes',
+			`Deal {${DAMAGE}} damage and knock back enemies you touch`,
+		];
+	},
 
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < CLAW_DURATION) {
-            return [{ state: AbilityState.IFRAMES }];
-        }
-        return [];
-    },
+	getAbilityStates(currentTime: number): AbilityStateEntry[] {
+		if (currentTime < CLAW_DURATION) {
+			return [{ state: AbilityState.IFRAMES }];
+		}
+		return [];
+	},
 
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        // Melee blocked: no additional behaviour.
-    },
+	onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
+		// Melee blocked: no additional behaviour.
+	},
 
-    renderTargetingPreview: createPixelTargetPreview(CLAW_MAX_DISTANCE),
+	renderTargetingPreview: createPixelTargetPreview(CLAW_MAX_DISTANCE),
 };
 
 export const ClawCard: CardDef = {
-    id: asCardDefId(CARD_ID),
-    name: 'Claw',
-    abilityId: CARD_ID,
-    discardDuration: { duration: 1, unit: 'rounds' },
+	id: asCardDefId(CARD_ID),
+	name: 'Claw',
+	abilityId: CARD_ID,
+	discardDuration: { duration: 1, unit: 'rounds' },
 };

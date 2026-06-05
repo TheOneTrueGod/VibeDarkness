@@ -209,7 +209,7 @@ export interface LevelEventVictoryCheck extends LevelEventBase {
 /** Continuous spawn: spawns at an interval (e.g. every 0.5 rounds). Runs every tick; spawns when interval has elapsed. */
 export interface LevelEventContinuousSpawn extends LevelEventBase {
     type: 'continuousSpawn';
-    /** Spawn every this many rounds (e.g. 0.25 = quarter-round). Optional startRound/endRound limit the active window. */
+    /** Spawn every this many rounds (e.g. 0.25 = quarter-round). Optional startRound/endRound limit the active window by round number. */
     trigger: {
         intervalRounds: number;
         /** First round when spawning is active (inclusive). Omitted = round 1. */

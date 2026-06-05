@@ -12,8 +12,10 @@ import {
     getGeneralTestSidebarGroups,
     getScenarioById,
     getScenariosForSelectorKey,
+    inferScenarioAbilityId,
     isRegisteredGeneralGroupSelectorKey,
 } from '../games/minion_battles/testing/scenarios/registry';
+import { getAbility } from '../games/minion_battles/abilities/AbilityRegistry';
 import ScenarioPreviewModal from './ability-tests/ScenarioPreviewModal';
 import { PlaybackButton } from './ability-tests/PlaybackButton';
 import type { ScenarioDefinition } from '../games/minion_battles/testing/types';
@@ -72,6 +74,9 @@ function ScenarioPane({
     const dummyHp = dummy?.hp ?? null;
     const dummyMaxHp = dummy?.maxHp ?? dummy?.hp ?? null;
 
+    const abilityId = inferScenarioAbilityId(scenario);
+    const abilityImage = abilityId ? (getAbility(abilityId)?.image ?? null) : null;
+
     return (
         <div
             className={`rounded-lg border-2 p-3 bg-surface-light/80 flex flex-col gap-2 min-w-[300px] max-w-[360px] ${
@@ -81,15 +86,25 @@ function ScenarioPane({
             {onPreview ? (
                 <button
                     type="button"
-                    className="flex items-start justify-between gap-1 w-full text-left group rounded hover:bg-surface/50 -mx-1 px-1 transition-colors"
+                    className="flex items-center justify-between gap-1 w-full text-left group rounded hover:bg-surface/50 -mx-1 px-1 transition-colors"
                     onClick={onPreview}
                     aria-label="Preview in full view"
                 >
-                    <span className="text-sm font-semibold text-white leading-tight">{scenario.title}</span>
-                    <Eye size={13} className="shrink-0 mt-0.5 text-muted group-hover:text-white transition-colors" />
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        {abilityImage && (
+                            <img src={`data:image/svg+xml,${encodeURIComponent(abilityImage)}`} alt="" className="w-5 h-5 shrink-0" />
+                        )}
+                        <span className="text-sm font-semibold text-white leading-tight">{scenario.title}</span>
+                    </div>
+                    <Eye size={13} className="shrink-0 text-muted group-hover:text-white transition-colors" />
                 </button>
             ) : (
-                <div className="text-sm font-semibold text-white leading-tight">{scenario.title}</div>
+                <div className="flex items-center gap-1.5">
+                    {abilityImage && (
+                        <img src={`data:image/svg+xml,${encodeURIComponent(abilityImage)}`} alt="" className="w-5 h-5 shrink-0" />
+                    )}
+                    <span className="text-sm font-semibold text-white leading-tight">{scenario.title}</span>
+                </div>
             )}
             <div className="flex justify-center">
                 {engine ? <MiniTerrainView engine={engine} cellPx={30} renderVersion={renderVersion} renderLighting={scenario.renderLighting} /> : (

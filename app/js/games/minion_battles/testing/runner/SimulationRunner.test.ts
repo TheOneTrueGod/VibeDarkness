@@ -15,6 +15,7 @@ import {
 } from '../scenarios/abilities/punchResearch';
 import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordResearch';
 import { swingBatHitsThreeTargetsScenario } from '../scenarios/abilities/swingBatScenarios';
+import { throwKnifePiercingBleedScenario } from '../scenarios/abilities/throwKnifeScenarios';
 import { absorptionShieldEnergyChargeScenario } from '../scenarios/abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
@@ -240,6 +241,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes swarmling hunt-and-bite scenario (4 swarmlings land 4 bites)', () => {
         const r = runScenarioHeadless(swarmlingHuntAndBiteScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes throw knife piercing bleed scenario', () => {
+        const r = runScenarioHeadless(throwKnifePiercingBleedScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });
