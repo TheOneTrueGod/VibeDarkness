@@ -4,7 +4,6 @@
  */
 
 import type { CampaignCharacterData, CharacterDisallowReason } from './campaignCharacterTypes';
-import { getItemDef } from './items';
 
 export interface MissionTraitFilter {
     allowedTraits?: string[];

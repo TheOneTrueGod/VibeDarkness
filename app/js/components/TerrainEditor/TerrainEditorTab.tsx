@@ -55,7 +55,6 @@ export default function TerrainEditorTab() {
     const [createDir, setCreateDir] = useState<CreateDir | null>(null);
     const [createName, setCreateName] = useState('');
     const createInputRef = useRef<HTMLInputElement>(null);
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     const saveSegmentRef = useRef<() => Promise<void>>(async () => {});
 
     const adjacentSegments = useMemo(() => {

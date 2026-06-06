@@ -34,7 +34,6 @@ export abstract class GameObject {
     }
 
     /** Called every fixed-step tick. dt is in seconds. Override in subclasses that need engine context. */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     update(_dt: number, _engine: unknown): void { /* no-op by default */ }
 
     /** Serialize to a plain object for server sync. Override in subclasses that support serialization. */

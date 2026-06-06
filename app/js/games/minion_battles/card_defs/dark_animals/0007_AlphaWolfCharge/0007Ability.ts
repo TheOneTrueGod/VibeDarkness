@@ -1,5 +1,4 @@
 ﻿import { ChargeAttack } from '../../../abilities/templates/ChargeAttack';
-import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 
 const ALPHA_WOLF_CHARGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="24" fill="#3d3d3d" stroke="#1a1a1a" stroke-width="3"/>

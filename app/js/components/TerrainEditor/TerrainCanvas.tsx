@@ -282,8 +282,8 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
 
             if (state.activeTool === 'poi') {
                 const S = EDITOR_CELL_SIZE;
-                const clickX = cell.col * S + S / 2;
-                const clickY = cell.row * S + S / 2;
+                const _clickX = cell.col * S + S / 2;
+                const _clickY = cell.row * S + S / 2;
 
                 // Convert click to canvas pixel coords for distance check
                 const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();

@@ -145,7 +145,7 @@ export default function BattlePhase({
     const [activeLocalWaiter, setActiveLocalWaiter] = useState<OrderWaiter | null>(null);
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
-    const [isWaitHovered, setIsWaitHovered] = useState(false);
+    const [_isWaitHovered, setIsWaitHovered] = useState(false);
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
     /**
      * Named targets keyed by `SelectTargetDef.label` for new-style abilities.

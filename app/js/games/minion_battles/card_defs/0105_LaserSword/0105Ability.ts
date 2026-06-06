@@ -13,7 +13,6 @@ import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
-import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
 import type { Unit } from '../../game/units/Unit';

@@ -6,7 +6,6 @@ import type { MinionBattlesApi } from '../api/minionBattlesApi';
 import type { PlayerState } from '../../../types';
 import { BattleSession } from './BattleSession';
 import type { BattleOrder } from './types';
-import { GameEngine } from './GameEngine';
 import { OrderManager } from './managers/OrderManager';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 

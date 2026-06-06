@@ -99,7 +99,7 @@ export function GameSyncProvider({
         fullStateInFlightRef.current = false;
       }
     },
-    [gameId, lobbyClient, lobbyId, playerId],
+    [lobbyClient, lobbyId, playerId],
   );
 
   const fetchMessagesBatch = useCallback(async () => {

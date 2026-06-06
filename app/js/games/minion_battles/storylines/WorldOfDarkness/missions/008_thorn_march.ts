@@ -106,7 +106,7 @@ const NEST_49_52_WORLD = gridToWorld(NEST_49_52_COL, NEST_49_52_ROW);
 /** Third nest site — 48_52 thorn path 2. */
 const NEST_48_52_COL = SEG_48_52_COL + THORN2_NEST_POINT.col;   // 0 + 9 = 9
 const NEST_48_52_ROW = SEG_48_52_ROW + THORN2_NEST_POINT.row;   // 22 + 8 = 30
-const NEST_48_52_WORLD = gridToWorld(NEST_48_52_COL, NEST_48_52_ROW);
+const _NEST_48_52_WORLD = gridToWorld(NEST_48_52_COL, NEST_48_52_ROW);
 
 /** Stable unit ID for the first nest (so guard lanternites can reference it). */
 const NEST_49_51_UNIT_ID = 'nest_49_51_unit';

@@ -74,7 +74,7 @@ export default function SegmentSelector({ selectedId, onSelect, defaultId, onSeg
             console.log('[SegmentSelector] Auto-selecting:', seg.id, '| source:', apiSegments?.find((s) => s.id === seg.id) ? 'API' : 'registry');
             onSelectRef.current(seg);
         }
-    }, [bothReady, merged, selectedId, defaultId]);
+    }, [bothReady, merged, selectedId, defaultId, apiSegments]);
 
     // Notify parent when segment list changes.
     const onSegmentsChangeRef = useRef(onSegmentsChange);

@@ -162,11 +162,7 @@ export const BoarClawsAbility: AbilityStatic = {
             emitIntervalFrames: 2,
             factory: (em) => {
                 const effectData: Record<string, unknown> = { bodyColor, radius, characterSpriteKey };
-                // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
                 const angle = Math.random() * Math.PI * 2;
-                // cosmetic-only: not part of synced state
-                // eslint-disable-next-line no-restricted-syntax
                 const speed = 30 + Math.random() * 20;
                 effectData.vx = Math.cos(angle) * speed;
                 effectData.vy = Math.sin(angle) * speed;

@@ -1,5 +1,4 @@
 ﻿import { ChargeAttack } from '../../../abilities/templates/ChargeAttack';
-import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 
 const DARK_WOLF_BITE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="20" fill="#2d2d2d" stroke="#1a1a1a" stroke-width="2"/>

@@ -28,9 +28,6 @@ import { Effect } from '../effects/Effect';
  */
 const GOLDEN_ANGLE = 2.399963229728653;
 
-/** Default construction duration if not specified in nest config. */
-const DEFAULT_CONSTRUCTION_SEC = 10;
-
 const ROUND_DURATION_SEC = 8;
 
 function pruneSpawnedLanternIds(nest: Unit, units: readonly Unit[]): void {

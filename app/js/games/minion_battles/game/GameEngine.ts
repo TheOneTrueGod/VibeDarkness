@@ -7,15 +7,12 @@
  */
 
 import { EventBus, type DamageTakenEvent, type NearbyStoneDamagedEvent } from './EventBus';
-import { DarknessLevel } from './darknessLevels';
 import {
     normalizeWaitingForOrdersFromJSON,
-    type ActiveAbility,
     type OrderWaiter,
     type WaitingForOrders,
     type SerializedGameState,
     type GameEngineFromJSONOpts,
-    type BattleOrder,
     type OrderAtTick,
     type SpawnSource,
 } from './types';
@@ -28,8 +25,6 @@ import {
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
 } from '../abilities/abilityTimings';
-import type { AbilityStatic } from '../abilities/Ability';
-import { AbilityEventType } from '../abilities/Ability';
 import { areEnemies } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { BattleObjectiveDef, LevelEvent } from '../storylines/types';
@@ -41,7 +36,6 @@ import { LightTileGrid } from './lightTileGrid/LightTileGrid';
 import { LightSource } from './lightSources/LightSource';
 import { DarkCreatureIconDeathEffect } from './deathEffects/DarkCreatureIconDeathEffect';
 import { getDeathEffectDef } from './units/unit_defs/unitDef';
-import type { CardDefId } from '../card_defs';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
 import {
@@ -59,7 +53,6 @@ import {
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
 import { tickAllDots, DOT_TICKS_PER_ROUND } from './dotTick';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
-import { triggerAbilityEvent } from '../abilities/events';
 import { CantDieBuff } from '../buffs/CantDieBuff';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 import {
@@ -69,7 +62,7 @@ import {
 } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 import { TerrainLayerManager } from './TerrainLayerManager';
-import { resetGameObjectIdCounter, getCurrentGameObjectIdCounter } from './GameObject';
+import { resetGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import { AlphaWolfStoryEmitter } from './effects/AlphaWolfStoryEmitter';
 

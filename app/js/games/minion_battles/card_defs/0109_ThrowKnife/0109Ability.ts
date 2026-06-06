@@ -15,7 +15,7 @@ import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { type CardDef } from '../types';
-import { CRYSTAL_ROCKS_TREE_ID, CRYSTAL_ROCKS_NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/crystal_rocks';
+import { CRYSTAL_ROCKS_NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/crystal_rocks';
 
 interface GameEngineLike {
     addProjectile(projectile: Projectile): void;
