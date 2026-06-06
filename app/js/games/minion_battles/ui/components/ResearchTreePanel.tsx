@@ -159,6 +159,8 @@ export interface ResearchTreeContentProps {
 	campaignResources: CampaignResources;
 	saving: boolean;
 	canResetResearch: boolean;
+	/** When true, resource cost checks are skipped — node is enabled even if resources are insufficient. */
+	isAdmin?: boolean;
 	onResearchNode: (treeId: string, nodeId: string) => void;
 	onResetResearch: (treeIds: string[]) => void;
 }
@@ -173,6 +175,7 @@ export function ResearchTreeContent({
 	campaignResources,
 	saving,
 	canResetResearch,
+	isAdmin = false,
 	onResearchNode,
 	onResetResearch,
 }: ResearchTreeContentProps) {
@@ -332,7 +335,7 @@ export function ResearchTreeContent({
 
 						{tree.nodes.map((n) => {
 							const researched = researchedSet.has(n.id);
-							const check = canResearchNode(tree, n.id, ctx);
+							const check = canResearchNode(tree, n.id, ctx, { skipCostCheck: isAdmin });
 							const enabled = !researched && check.ok;
 							const blocked = !researched && !check.ok;
 							const pos = mapPos(n.position);

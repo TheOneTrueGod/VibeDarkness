@@ -27,7 +27,7 @@ import {
     crystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
-import { throwTorchUtilityItem } from '../../../character_defs/items/utility/005_throw_torch';
+import { MISC_TREE_ID, MISC_NODE_LIGHTBEARER } from '../../../../../researchTrees/trees/misc';
 
 const COLS = 66;
 const ROWS = 22;
@@ -155,7 +155,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
             voteId: 'towards_the_light_torchbearer',
             text: 'Who will carry the torch into the darkness?',
             optionSource: 'players',
-            effect: { type: 'grant_item_to_player', itemId: throwTorchUtilityItem.id },
+            effect: { type: 'grant_research_to_player', treeId: MISC_TREE_ID, nodeId: MISC_NODE_LIGHTBEARER },
         },
     ],
 };
@@ -189,6 +189,11 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             text: "You figure now is as good a time as any to catch your breath. What would you like to do with this moment of respite?",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
+        },
+        {
+            type: 'grant_research_auto',
+            treeId: MISC_TREE_ID,
+            nodeId: MISC_NODE_LIGHTBEARER,
         },
         {
             type: 'choice',

@@ -518,8 +518,8 @@ export default function CharacterSelectPhase({
                             isMySelection={mySelection === SPECTATOR_ID}
                             onSelect={() => handleSelectCharacter(SPECTATOR_ID, '')}
                         />
-                        {/* Control Enemy card - mission 004 (Monster) only */}
-                        {missionId === 'monster' && (
+                        {/* Control Enemy card - mission 004 (Monster) only, admins only */}
+                        {missionId === 'monster' && isAdmin && (
                             <ControlEnemyCard
                                 isMySelection={mySelection === CONTROL_ENEMY_ALPHA_WOLF}
                                 isDisabled={controlEnemySelectedBy != null && controlEnemySelectedBy !== playerId}

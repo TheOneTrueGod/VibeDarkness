@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
+import { useUser } from '../../../../contexts/UserContext';
 
 export interface ResearchRequirementBadge {
     id: string;
@@ -75,6 +76,9 @@ export default function ResearchNodeCard({
     requirementBadges = [],
     className = '',
 }: ResearchNodeCardProps) {
+    const { role } = useUser();
+    const isAdmin = role === 'admin';
+
     const mode = resolveVariant(variant, interactive);
     const isInteractive = mode === 'interactive';
     const costGains = campaignResourceGains(node.cost);
@@ -173,6 +177,12 @@ export default function ResearchNodeCard({
     const tierBadge = showTier && node.tier != null && (
         <span className={`absolute bottom-1 right-2 text-[10px] font-semibold leading-none pointer-events-none ${tierTextClass}`}>
             Tier {node.tier}
+        </span>
+    );
+
+    const adminIdBadge = isAdmin && (
+        <span className="absolute top-1 right-2 text-[9px] font-mono leading-none pointer-events-none text-zinc-500 select-all">
+            {node.id}
         </span>
     );
 
@@ -285,11 +295,13 @@ export default function ResearchNodeCard({
                 >
                     {content}
                     {tierBadge}
+                    {adminIdBadge}
                 </button>
             ) : (
                 <div className={cardClasses} aria-label={node.title}>
                     {content}
                     {tierBadge}
+                    {adminIdBadge}
                 </div>
             )}
             {flavorPortal}

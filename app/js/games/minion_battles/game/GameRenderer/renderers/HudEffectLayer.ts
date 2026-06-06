@@ -331,27 +331,12 @@ export class HudEffectLayer {
                 numText.y = ICON_BASE_Y + ICON_H / 2 - 7;
                 container.addChild(numText);
 
-                // Small charge-type label
-                const labelMap: Record<string, string> = {
-                    staminaCharge: 'STAMINA',
-                    roundCharge: 'ROUND',
-                    energyCharge: 'ENERGY',
-                    lightCharge: 'LIGHT',
-                };
-                const label = new Text({
-                    text: labelMap[res.chargeType] ?? res.chargeType.toUpperCase(),
-                    style: new TextStyle({
-                        fontFamily: 'Arial, Helvetica, sans-serif',
-                        fontSize: 9,
-                        fontWeight: '700',
-                        fill: col,
-                        letterSpacing: 1,
-                    }),
-                });
-                label.anchor.set(0.5, 0.5);
-                label.x = iconLeft + ICON_W / 2;
-                label.y = ICON_BASE_Y + ICON_H - 10;
-                container.addChild(label);
+                // Resource icon drawn at the bottom of the box.
+                const iconG = new Graphics();
+                iconG.x = iconLeft + ICON_W / 2;
+                iconG.y = ICON_BASE_Y + ICON_H - 10;
+                this.drawParticleIcon(iconG, res.chargeType, col, 9);
+                container.addChild(iconG);
             });
         }
 

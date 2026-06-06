@@ -131,7 +131,13 @@ export interface GroupVoteEffectGrantItemToPlayer {
     itemId: string;
 }
 
-export type GroupVoteEffect = GroupVoteEffectGrantItemToPlayer;
+export interface GroupVoteEffectGrantResearchToPlayer {
+    type: 'grant_research_to_player';
+    treeId: string;
+    nodeId: string;
+}
+
+export type GroupVoteEffect = GroupVoteEffectGrantItemToPlayer | GroupVoteEffectGrantResearchToPlayer;
 
 /**
  * Group vote: all players must select an option; story does not progress until everyone has voted.
@@ -163,8 +169,18 @@ export interface PreMissionStoryDef {
     phrases: PreMissionPhrase[];
 }
 
-/** Post-mission phrase: dialogue or per-player choice (each player chooses independently). */
-export type PostMissionPhrase = DialoguePhrase | ChoicePhrase;
+/**
+ * Auto-grant a research node to every non-spectator player at this point in the post-mission story.
+ * No UI is shown; the client sends the grant silently and advances. Idempotent on the server.
+ */
+export interface GrantResearchAutoPhrase {
+    type: 'grant_research_auto';
+    treeId: string;
+    nodeId: string;
+}
+
+/** Post-mission phrase: dialogue, per-player choice, or silent auto-grant. */
+export type PostMissionPhrase = DialoguePhrase | ChoicePhrase | GrantResearchAutoPhrase;
 
 /** Post-mission story shown after victory, before the victory screen. */
 export interface PostMissionStoryDef {

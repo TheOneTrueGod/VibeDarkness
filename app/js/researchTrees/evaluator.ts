@@ -112,7 +112,7 @@ export function computeEffectiveResourcesForTree(tree: ResearchTreeDef, ctx: Res
     return subtractCosts(ctx.campaignResources, costs);
 }
 
-export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: ResearchContext): { ok: boolean; missing: string[] } {
+export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: ResearchContext, options: { skipCostCheck?: boolean } = {}): { ok: boolean; missing: string[] } {
     const byId = nodeById(tree);
     const node = byId[nodeId];
     if (!node) return { ok: false, missing: ['unknown_node'] };
@@ -146,11 +146,13 @@ export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: Rese
     }
 
     // Cost must be affordable with effective resources, considering prerequisites being added in this action
-    const costTotal = sumCosts(neededNodes);
-    for (const [k, v] of Object.entries(costTotal)) {
-        const key = k as CampaignResourceKey;
-        if ((effective[key] ?? 0) < (v ?? 0)) {
-            return { ok: false, missing: [`insufficient_${key}`] };
+    if (!options.skipCostCheck) {
+        const costTotal = sumCosts(neededNodes);
+        for (const [k, v] of Object.entries(costTotal)) {
+            const key = k as CampaignResourceKey;
+            if ((effective[key] ?? 0) < (v ?? 0)) {
+                return { ok: false, missing: [`insufficient_${key}`] };
+            }
         }
     }
 
@@ -199,6 +201,29 @@ export function applyResearchEffects(tree: ResearchTreeDef, ctx: ResearchContext
     }
 
     return { equipment, extraEquippedItemIds };
+}
+
+/**
+ * Returns card IDs to add directly to the unit's ability list from `addCard` effects in researched nodes.
+ * Applied after equipment-based abilities are collected when building the battle deck.
+ */
+export function getDirectCardsFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): string[] {
+    const trees = researchTrees ?? {};
+    const cards: string[] = [];
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(trees[tree.id] ?? []);
+        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        for (const node of researchedNodes) {
+            for (const eff of node.effects) {
+                if (eff.type === 'addCard' && !cards.includes(eff.cardId)) {
+                    cards.push(eff.cardId);
+                }
+            }
+        }
+    }
+    return cards;
 }
 
 /**

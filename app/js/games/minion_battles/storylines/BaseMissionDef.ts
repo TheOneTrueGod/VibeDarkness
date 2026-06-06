@@ -35,7 +35,7 @@ import {
     applyStickSwordResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch } from '../../../researchTrees/evaluator';
+import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch } from '../../../researchTrees/evaluator';
 import { Ammo } from '../resources/Ammo';
 import {
     hydrateLanterniteNestFromMissionDef,
@@ -147,6 +147,11 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             // Fallback if no equipment (should not happen if new characters get a core).
             if (abilities.length === 0) {
                 abilities.push('0101', '0120');
+            }
+
+            // Add cards granted directly by research (bypasses item system).
+            for (const cardId of getDirectCardsFromResearch(researchByPlayer[pu.playerId])) {
+                if (!abilities.includes(cardId)) abilities.push(cardId);
             }
 
             // Apply card-level replacements from research (e.g. Double Punch replaces Punch).

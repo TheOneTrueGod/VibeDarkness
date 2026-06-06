@@ -4,8 +4,10 @@ import { techShieldTree } from './trees/tech_shield';
 import { crystalRocksTree } from './trees/crystal_rocks';
 import { trainingTree } from './trees/training';
 import { stickSwordTree } from './trees/stick_sword';
+import { miscTree } from './trees/misc';
+import { earthTree } from './trees/earth';
 
-export const RESEARCH_TREES: ResearchTreeDef[] = [techShieldTree, crystalRocksTree, trainingTree, stickSwordTree];
+export const RESEARCH_TREES: ResearchTreeDef[] = [techShieldTree, crystalRocksTree, trainingTree, stickSwordTree, miscTree, earthTree];
 
 export function getResearchTree(treeId: string): ResearchTreeDef | undefined {
     return RESEARCH_TREES.find((t) => t.id === treeId);

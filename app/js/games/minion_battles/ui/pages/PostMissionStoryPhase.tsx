@@ -12,6 +12,7 @@ import type {
     PostMissionStoryDef,
     DialoguePhrase,
     ChoicePhrase,
+    GrantResearchAutoPhrase,
     PostMissionPhrase,
     StoryChoiceAction,
     StoryChoiceActionGrantResearchConditional,
@@ -38,6 +39,10 @@ function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePh
 
 function isChoice(phrase: PostMissionPhrase | undefined): phrase is ChoicePhrase {
     return phrase?.type === 'choice';
+}
+
+function isGrantResearchAuto(phrase: PostMissionPhrase | undefined): phrase is GrantResearchAutoPhrase {
+    return phrase?.type === 'grant_research_auto';
 }
 
 function isGrantResources(action: { type: string } | undefined): action is StoryChoiceActionGrantResources {
@@ -177,6 +182,32 @@ export default function PostMissionStoryPhase({
             requestAnimationFrame(() => setBgOpacity(1));
         }
     }, [phraseIndex, currentPhrase]);
+
+    useEffect(() => {
+        if (!currentPhrase || !isGrantResearchAuto(currentPhrase) || amSpectator) {
+            if (currentPhrase && isGrantResearchAuto(currentPhrase) && amSpectator) {
+                advancePhrase();
+            }
+            return;
+        }
+        const phrase = currentPhrase;
+        const rewardId = `${phrase.treeId}+${phrase.nodeId}`;
+        void api.sendMessage(MessageType.STORY_CHOICE, {
+            choiceId: 'auto_grant_research',
+            optionId: 'auto',
+            actionType: 'grant_research_to_player' as const,
+            treeId: phrase.treeId,
+            nodeId: phrase.nodeId,
+            researchRewardId: rewardId,
+        }).catch((err) => console.error('Failed to auto-grant research:', err));
+        const node = getResearchNode(phrase.treeId, phrase.nodeId);
+        if (node) {
+            accumulatedResearchIdsRef.current.push(rewardId);
+            accumulatedResearchEntriesRef.current.push({ treeId: phrase.treeId, nodeId: phrase.nodeId });
+        }
+        advancePhrase();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [phraseIndex]);
 
     const completeIfNeeded = useCallback(() => {
         if (hasCompletedRef.current) return;
@@ -347,6 +378,10 @@ export default function PostMissionStoryPhase({
         return null;
     }
 
+    if (isGrantResearchAuto(currentPhrase)) {
+        return null;
+    }
+
     /** Choice phases use vertical centering + scroll; dialogue stays bottom-aligned (VN layout). */
     const centerChoiceInViewport = isChoice(currentPhrase);
     const dialoguePhrase: DialoguePhrase | null = isDialogue(currentPhrase) ? currentPhrase : null;
@@ -473,6 +508,22 @@ export default function PostMissionStoryPhase({
                                                     </button>
                                                 );
                                             })}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    handleChoice(currentPhrase.choiceId, 'skip', undefined, {
+                                                        disabled: false,
+                                                    })
+                                                }
+                                                className="block w-full text-left px-6 py-4 rounded-lg border-2 transition-colors text-lg flex flex-col gap-2 border-border-custom bg-surface/30 hover:border-zinc-500 hover:bg-surface/50 text-zinc-500 hover:text-zinc-400"
+                                            >
+                                                <span className="text-lg font-medium">
+                                                    Leave nothing but footprints
+                                                </span>
+                                                <span className="text-sm leading-snug">
+                                                    Take no upgrade and move on.
+                                                </span>
+                                            </button>
                                         </div>
                                     </div>
                                 </>

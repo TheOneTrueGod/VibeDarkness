@@ -16,7 +16,8 @@ export type ResearchEffect =
     | { type: 'equipItem'; itemId: string }
     | { type: 'replaceEquippedItem'; fromItemId: string; toItemId: string }
     | { type: 'addExtraCardsFromItem'; itemId: string; cardId: string; count: number }
-    | { type: 'replaceCard'; fromCardId: string; toCardId: string };
+    | { type: 'replaceCard'; fromCardId: string; toCardId: string }
+    | { type: 'addCard'; cardId: string };
 
 export interface ResearchNodeDef {
     id: string;

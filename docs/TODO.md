@@ -14,6 +14,8 @@
 
 | Todo | Notes |
 |------|-------|
+| Remove earth core item (`017`) | Delete `017_core_earth.ts` and its registry entries in `items/index.ts` (icon map, core ID list, item lookup). The `earth_core` research node and the Claw ability (`0111`) are unaffected — the node now uses `addCard` directly and no longer references the item. |
+| Remove beast/air/charged/blink core items (`014`, `018`, `019`, `020`) | The four misc-tree research nodes still use `equipItem` to grant these cores. First migrate each node's `effects` from `equipItem` to `addCard` for the abilities each core distinctively provides (mirroring what was done for the earth core), then delete the four item files and their registry entries in `items/index.ts`. Do not remove the research nodes or any abilities. |
 
 ## Medium
 

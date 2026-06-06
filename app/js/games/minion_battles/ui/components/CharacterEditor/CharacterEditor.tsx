@@ -755,6 +755,7 @@ export default function CharacterEditor({
                                                 campaignResources={resolvedCampaign.resources}
                                                 saving={saving}
                                                 canResetResearch
+                                                isAdmin={isAdmin}
                                                 onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
                                                 onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
                                             />

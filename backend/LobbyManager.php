@@ -1291,6 +1291,35 @@ class LobbyManager
             }
         }
 
+        if ($effectType === 'grant_research_to_player'
+            && isset($effect['treeId'], $effect['nodeId'])
+            && is_string($effect['treeId']) && $effect['treeId'] !== ''
+            && is_string($effect['nodeId']) && $effect['nodeId'] !== ''
+        ) {
+            $characterId = $selections[$winner] ?? null;
+            if (is_string($characterId) && $characterId !== '') {
+                $characterManager = CharacterManager::getInstance();
+                $character = $characterManager->getCharacter($characterId);
+                if ($character !== null) {
+                    $researchTrees = $character->getResearchTrees();
+                    if (!is_array($researchTrees)) {
+                        $researchTrees = [];
+                    }
+                    $treeId = $effect['treeId'];
+                    $nodeId = $effect['nodeId'];
+                    $existingTreeNodes = $researchTrees[$treeId] ?? [];
+                    if (!is_array($existingTreeNodes)) {
+                        $existingTreeNodes = [];
+                    }
+                    if (!in_array($nodeId, $existingTreeNodes, true)) {
+                        $existingTreeNodes[] = $nodeId;
+                        $researchTrees[$treeId] = array_values($existingTreeNodes);
+                        $characterManager->updateCharacter($characterId, ['researchTrees' => $researchTrees]);
+                    }
+                }
+            }
+        }
+
         $applied[$voteId] = true;
         $currentState['groupVoteApplied'] = $applied;
         $this->persistGameState($lobbyId, $gameId, $currentState);
