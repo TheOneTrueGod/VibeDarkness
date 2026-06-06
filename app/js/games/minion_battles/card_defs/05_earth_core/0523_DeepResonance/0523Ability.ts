@@ -9,6 +9,8 @@ const TIMINGS: AbilityTimingInterval[] = [
 ];
 
 export const DeepResonanceAbility: AbilityStatic = {
+    id: DEEP_RESONANCE_PASSIVE_ID,
+    name: 'Deep Resonance',
     image: '',
     resourceCost: null,
     rechargeTurns: 0,

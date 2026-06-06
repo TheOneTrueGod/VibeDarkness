@@ -77,6 +77,8 @@ const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http
 </svg>`;
 
 export const PunchNEWAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Punch',
     image: PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,

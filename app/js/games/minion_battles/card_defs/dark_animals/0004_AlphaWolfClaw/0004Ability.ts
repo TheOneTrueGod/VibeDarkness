@@ -106,6 +106,8 @@ const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/sv
 </svg>`;
 
 export const AlphaWolfClawAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Alpha Wolf Claw',
     image: CLAW_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -113,11 +115,13 @@ export const AlphaWolfClawAbility: AbilityStatic = {
     abilityTimings: [
         { id: 'windup', start: 0, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
         {
+            id: 'active',
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 0.1,
             abilityPhase: AbilityPhase.Active,
         },
         {
+            id: 'cooldown',
             start: PREFIRE_TIME + 0.1,
             end: PREFIRE_TIME + 1.6,
             abilityPhase: AbilityPhase.Cooldown,

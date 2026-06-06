@@ -44,17 +44,21 @@ const LASER_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org
 </svg>`;
 
 export const LaserShieldAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Laser Shield',
     image: LASER_SHIELD_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DURATION,
     abilityTimings: [
         {
+            id: 'juggernaut',
             start: 0,
             end: DURATION,
             abilityPhase: AbilityPhase.Juggernaut,
         },
         {
+            id: 'cooldown',
             start: DURATION,
             end: DURATION + COOLDOWN_TIME,
             abilityPhase: AbilityPhase.Cooldown,

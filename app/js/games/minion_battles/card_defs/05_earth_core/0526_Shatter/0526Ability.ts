@@ -50,6 +50,8 @@ function resolveNearestEnemy(engine: EngineLike, caster: Unit, targetPos: { x: n
 }
 
 export const ShatterAbility: AbilityStatic = {
+    id: SHATTER_ABILITY_ID,
+    name: 'Shatter',
     image: '',
     resourceCost: null,
     resourceCosts: [{ resourceId: 'resonance', amount: 35 }],

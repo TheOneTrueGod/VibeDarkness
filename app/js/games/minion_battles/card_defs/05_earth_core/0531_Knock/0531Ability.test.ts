@@ -14,6 +14,7 @@ function makeUnit(): Unit {
         teamId: 'player',
         ownerId: 'p1',
         characterId: 'player',
+        name: 'player',
     });
 }
 

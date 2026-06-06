@@ -41,6 +41,8 @@ function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }):
 }
 
 export const EnemyArcherShotAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Enemy Archer Shot',
     image: ENEMY_ARCHER_SHOT_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
@@ -48,11 +50,13 @@ export const EnemyArcherShotAbility: AbilityStatic = {
     abilityTimings: [
         { id: 'draw', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
         {
+            id: 'active',
             start: LOCK_TIME,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Active,
         },
         {
+            id: 'cooldown',
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 3.0,
             abilityPhase: AbilityPhase.Cooldown,

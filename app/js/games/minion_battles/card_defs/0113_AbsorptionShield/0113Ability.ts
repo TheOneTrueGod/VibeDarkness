@@ -32,12 +32,15 @@ const ABSORPTION_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w
 </svg>`;
 
 export const AbsorptionShieldAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Absorption Shield',
     image: ABSORPTION_SHIELD_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DURATION,
     abilityTimings: [
         {
+            id: 'juggernaut',
             start: 0,
             end: DURATION,
             abilityPhase: AbilityPhase.Juggernaut,

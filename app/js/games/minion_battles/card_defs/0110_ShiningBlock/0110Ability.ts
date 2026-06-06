@@ -142,12 +142,15 @@ function grantLightChargesToNearbyAllies(engine: unknown, defender: Unit): void 
 }
 
 export const ShiningBlockAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Shining Block',
     image: SHINING_BLOCK_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DURATION,
     abilityTimings: [
         {
+            id: 'juggernaut',
             start: 0,
             end: DURATION,
             abilityPhase: AbilityPhase.Juggernaut,

@@ -121,6 +121,8 @@ function maybeDamageCurrentTile(
 }
 
 export const BoarClawsAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Boar Claws',
     image: BOAR_CLAWS_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,

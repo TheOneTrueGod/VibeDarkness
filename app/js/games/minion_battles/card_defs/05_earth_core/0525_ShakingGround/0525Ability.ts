@@ -26,6 +26,8 @@ interface EngineLike {
 }
 
 export const ShakingGroundAbility: AbilityStatic = {
+    id: SHAKING_GROUND_ABILITY_ID,
+    name: 'Shaking Ground',
     image: '',
     resourceCost: null,
     resourceCosts: [{ resourceId: 'resonance', amount: 25 }],

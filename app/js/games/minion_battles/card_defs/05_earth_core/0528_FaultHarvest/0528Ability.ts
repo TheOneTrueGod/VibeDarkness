@@ -23,6 +23,8 @@ export function applyFaultHarvestOnArmourBreak(owner: Unit, previousArmourAmount
 }
 
 export const FaultHarvest: AbilityStatic = {
+    id: ABILITY_ID,
+    name: 'Fault Harvest',
     image: FAULT_HARVEST_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,

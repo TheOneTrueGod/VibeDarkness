@@ -169,6 +169,8 @@ const SWING_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 // ---- Ability export ----
 
 export const SwingSwordAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Swing Sword',
     image: SWING_SWORD_IMAGE,
     resourceCost: null,
     resourceCosts: [],

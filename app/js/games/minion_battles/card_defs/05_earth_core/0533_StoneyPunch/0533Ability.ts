@@ -28,6 +28,8 @@ interface GameEngineLike {
 }
 
 export const StoneyPunch: AbilityStatic = {
+    id: ABILITY_ID,
+    name: 'Stoney Punch',
     image: STONEY_PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,

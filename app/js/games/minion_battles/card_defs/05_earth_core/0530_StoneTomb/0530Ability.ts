@@ -43,6 +43,8 @@ interface GameEngineLike {
 }
 
 export const StoneTomb: AbilityStatic = {
+    id: ABILITY_ID,
+    name: 'Stone Tomb',
     image: STONE_TOMB_IMAGE,
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: 1,

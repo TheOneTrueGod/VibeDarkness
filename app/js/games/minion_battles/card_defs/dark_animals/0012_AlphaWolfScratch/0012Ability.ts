@@ -65,6 +65,8 @@ const SCRATCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="ht
 </svg>`;
 
 export const AlphaWolfScratchAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Alpha Wolf Scratch',
     image: SCRATCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,

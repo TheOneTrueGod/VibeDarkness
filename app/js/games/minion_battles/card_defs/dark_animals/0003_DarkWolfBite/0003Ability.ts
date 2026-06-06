@@ -6,6 +6,8 @@ const DARK_WOLF_BITE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.o
 </svg>`;
 
 const wolfBite = new ChargeAttack({
+    id: '0003',
+    name: 'Dark Wolf Bite',
     image: DARK_WOLF_BITE_IMAGE,
     damage: 3,
     windupTime: 1,

@@ -95,6 +95,8 @@ const LASER_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 </svg>`;
 
 export const LaserSwordAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Laser Sword',
     image: LASER_SWORD_IMAGE,
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 8, allowPartialIfPositive: true }],

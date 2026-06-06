@@ -29,6 +29,8 @@ const PISTOL_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/
 </svg>`;
 
 export const PistolAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Pistol',
     image: PISTOL_IMAGE,
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 10, allowPartialIfPositive: true }],
@@ -37,11 +39,13 @@ export const PistolAbility: AbilityStatic = {
     prefireTime: PREFIRE_FIRST_SHOT,
     abilityTimings: [
         {
+            id: 'windup',
             start: 0,
             end: PREFIRE_FIRST_SHOT,
             abilityPhase: AbilityPhase.Windup,
         },
         {
+            id: 'cooldown',
             start: PREFIRE_FIRST_SHOT,
             end: PREFIRE_FIRST_SHOT + COOLDOWN_TIME,
             abilityPhase: AbilityPhase.Cooldown,

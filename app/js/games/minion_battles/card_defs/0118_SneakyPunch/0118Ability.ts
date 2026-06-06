@@ -90,6 +90,8 @@ const SNEAKY_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmln
 </svg>`;
 
 export const SneakyPunchAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Sneaky Punch',
     image: SNEAKY_PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,

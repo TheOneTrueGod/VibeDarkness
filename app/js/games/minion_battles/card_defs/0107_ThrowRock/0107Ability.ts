@@ -40,6 +40,7 @@ type ThrowRockCastPayload = {
 
 const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
     {
+        id: 'windup',
         start: 0,
         end: 0.3,
         abilityPhase: AbilityPhase.Windup,
@@ -47,6 +48,7 @@ const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Winding up to throw the rock.',
     },
     {
+        id: 'active',
         start: 0.3,
         end: 1.0,
         abilityPhase: AbilityPhase.Active,
@@ -54,6 +56,7 @@ const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Rock is in flight and can hit enemies.',
     },
     {
+        id: 'cooldown',
         start: 1.0,
         end: 1.6,
         abilityPhase: AbilityPhase.Cooldown,
@@ -64,6 +67,7 @@ const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
 
 const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
     {
+        id: 'windup_1',
         start: 0,
         end: MORE_ROCK_FIRST_THROW,
         abilityPhase: AbilityPhase.Windup,
@@ -71,6 +75,7 @@ const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Winding up for the first throw.',
     },
     {
+        id: 'active_1',
         start: MORE_ROCK_FIRST_THROW,
         end: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Active,
@@ -78,6 +83,7 @@ const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'First rock is in flight.',
     },
     {
+        id: 'windup_2',
         start: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
         end: MORE_ROCK_SECOND_THROW,
         abilityPhase: AbilityPhase.Windup,
@@ -85,6 +91,7 @@ const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Brief pause before the second throw.',
     },
     {
+        id: 'active_2',
         start: MORE_ROCK_SECOND_THROW,
         end: MORE_ROCK_SECOND_THROW + MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Active,
@@ -92,6 +99,7 @@ const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Second rock is in flight.',
     },
     {
+        id: 'cooldown',
         start: MORE_ROCK_COOLDOWN_START,
         end: 14 * MORE_ROCK_TIME_SLICE,
         abilityPhase: AbilityPhase.Cooldown,
@@ -172,6 +180,8 @@ const THROW_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2
 </svg>`;
 
 export const ThrowRock: AbilityStatic & { range: number } = {
+    id: ABILITY_ID,
+    name: 'Throw Rock',
     range: RANGE,
     image: THROW_ROCK_IMAGE,
     resourceCost: null,

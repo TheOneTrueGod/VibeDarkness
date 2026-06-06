@@ -30,6 +30,8 @@ const SHOTGUN_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000
 </svg>`;
 
 export const ShotgunAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Shotgun',
     image: SHOTGUN_IMAGE,
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 15, allowPartialIfPositive: true }],
@@ -39,6 +41,7 @@ export const ShotgunAbility: AbilityStatic = {
     abilityTimings: [
         { id: 'shot', start: 0, end: SHOT_TIME, abilityPhase: AbilityPhase.Windup },
         {
+            id: 'cooldown',
             start: SHOT_TIME,
             end: SHOT_TIME + COOLDOWN_TIME,
             abilityPhase: AbilityPhase.Cooldown,

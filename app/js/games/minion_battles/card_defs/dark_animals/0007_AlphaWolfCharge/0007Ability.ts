@@ -9,6 +9,8 @@ const ALPHA_WOLF_CHARGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w
 import { UnitTag } from '../../../game/units/unitTag';
 
 const alphaWolfCharge = new ChargeAttack({
+    id: '0007',
+    name: 'Alpha Wolf Charge',
     image: ALPHA_WOLF_CHARGE_IMAGE,
     damage: 5,
     windupTime: 1.0,

@@ -30,12 +30,15 @@ const DODGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/s
 </svg>`;
 
 export const DodgeAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Dodge',
     image: DODGE_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DODGE_DURATION,
     abilityTimings: [
         {
+            id: 'iframe',
             start: 0,
             end: DODGE_DURATION,
             abilityPhase: AbilityPhase.Iframe,

@@ -54,6 +54,8 @@ function getStrikePosition(caster: Unit, active: { targets: ResolvedTarget[] }):
 }
 
 export const ThornbinderBrambleAbility: AbilityStatic = {
+    id: THORNBINDER_ABILITY_ID,
+    name: 'Thornbinder Bramble',
     image: '',
     resourceCost: null,
     rechargeTurns: 1,
@@ -141,6 +143,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
 
         const expiresAt = eng.gameTime + (COOLDOWN_END - STRIKE_TIME) - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
         eng.terrainLayers.add({
+            id: `bramble-${caster.id}-${eng.gameTime}`,
             layer: 'ground',
             effectType: 'bramble_slow',
             placedAtGameTime: eng.gameTime,

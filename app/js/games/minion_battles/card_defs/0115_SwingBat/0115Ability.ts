@@ -137,6 +137,8 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
 // ---- Ability export ----
 
 export const SwingBatAbility_0115: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Swing Bat',
     image: SWING_BAT_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,

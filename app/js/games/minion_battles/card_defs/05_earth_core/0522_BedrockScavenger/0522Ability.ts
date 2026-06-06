@@ -15,6 +15,8 @@ const TIMINGS: AbilityTimingInterval[] = [
 ];
 
 export const BedrockScavengerAbility: AbilityStatic = {
+    id: BEDROCK_SCAVENGER_PASSIVE_ID,
+    name: 'Bedrock Scavenger',
     image: '',
     resourceCost: null,
     rechargeTurns: 0,

@@ -37,6 +37,8 @@ function isTargetStandingOnStone(engine: EngineLike, target: Unit): boolean {
 }
 
 export const EarthernPunchAbility: AbilityStatic = {
+    id: EARTHERN_PUNCH_ABILITY_ID,
+    name: 'Earthern Punch',
     image: '',
     resourceCost: null,
     rechargeTurns: 1,

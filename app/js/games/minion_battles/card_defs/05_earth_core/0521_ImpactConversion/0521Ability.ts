@@ -9,6 +9,8 @@ const TIMINGS: AbilityTimingInterval[] = [
 ];
 
 export const ImpactConversionAbility: AbilityStatic = {
+    id: IMPACT_CONVERSION_PASSIVE_ID,
+    name: 'Impact Conversion',
     image: '',
     resourceCost: null,
     rechargeTurns: 0,

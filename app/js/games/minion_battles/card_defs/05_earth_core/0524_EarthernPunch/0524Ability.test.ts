@@ -12,6 +12,7 @@ function makeUnit(config: { id: string; x: number; y: number; teamId: 'player' |
         teamId: config.teamId,
         ownerId: config.teamId === 'player' ? 'p1' : 'ai',
         characterId: config.teamId === 'player' ? 'player' : 'dark_wolf',
+        name: config.teamId === 'player' ? 'player' : 'dark_wolf',
     });
 }
 

@@ -64,6 +64,8 @@ const BITE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http:
 </svg>`;
 
 export const SwarmlingBiteAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Swarmling Bite',
     image: BITE_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,

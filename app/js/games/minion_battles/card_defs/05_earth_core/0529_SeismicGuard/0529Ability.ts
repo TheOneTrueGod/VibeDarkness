@@ -49,6 +49,8 @@ export function handleSeismicGuardAttackStart(
 }
 
 export const SeismicGuard: AbilityStatic = {
+    id: ABILITY_ID,
+    name: 'Seismic Guard',
     image: SEISMIC_GUARD_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,

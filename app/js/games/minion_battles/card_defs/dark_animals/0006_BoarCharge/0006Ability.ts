@@ -6,6 +6,8 @@ const BOAR_CHARGE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 </svg>`;
 
 const boarCharge = new ChargeAttack({
+    id: '0006',
+    name: 'Boar Charge',
     image: BOAR_CHARGE_IMAGE,
     damage: 4,
     windupTime: 0.6,

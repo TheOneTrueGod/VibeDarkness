@@ -17,6 +17,7 @@ const RADIUS = 65;
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
     {
+        id: 'active',
         start: 0.2,
         end: 1.6,
         abilityPhase: AbilityPhase.Active,
@@ -51,6 +52,8 @@ function getCompletedPulseCount(prevTime: number, currentTime: number): number {
 }
 
 export const AnchoredTremor: AbilityStatic = {
+    id: ABILITY_ID,
+    name: 'Anchored Tremor',
     image: ANCHORED_TREMOR_IMAGE,
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: 1,

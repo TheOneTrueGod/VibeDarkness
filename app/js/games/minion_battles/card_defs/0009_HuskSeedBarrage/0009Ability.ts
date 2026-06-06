@@ -39,6 +39,8 @@ interface EngineLike {
 }
 
 export const HuskSeedBarrageAbility: AbilityStatic = {
+    id: HUSK_SEED_BARRAGE_ID,
+    name: 'Husk Seed Barrage',
     image: '',
     resourceCost: null,
     rechargeTurns: 1,
@@ -112,6 +114,7 @@ export const HuskSeedBarrageAbility: AbilityStatic = {
             const husk = createUnitFromSpawnConfig(
                 {
                     characterId: 'huskling',
+                    name: 'huskling',
                     x: projectile.x + ox,
                     y: projectile.y + oy,
                     teamId: 'enemy',

@@ -74,6 +74,8 @@ const STRONG_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmln
 </svg>`;
 
 export const StrongPunchAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Strong Punch',
     image: STRONG_PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,

@@ -29,6 +29,8 @@ interface GameEngineLike {
 }
 
 export const LanterniteStrikeAbility: AbilityStatic = {
+    id: LANTERNITE_STRIKE_ID,
+    name: 'Lanternite Strike',
     image: '',
     resourceCost: null,
     rechargeTurns: 0,

@@ -73,6 +73,8 @@ const CHARGING_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xm
 </svg>`;
 
 export const ChargingPunchAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Charging Punch',
     image: CHARGING_PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,

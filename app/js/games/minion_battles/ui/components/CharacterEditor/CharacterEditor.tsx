@@ -20,7 +20,7 @@ import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
 import { ResearchTreeList, ResearchTreeContent, ResearchedNodesGrid } from '../ResearchTreePanel';
-import type { AccountState, CampaignState } from '../../../../../types';
+import type { AccountState, CampaignResources, CampaignState } from '../../../../../types';
 import { getCoreFromEquipment } from '../../../character_defs/items';
 import { RESEARCH_TREES } from '../../../../../researchTrees/list';
 import {
@@ -156,7 +156,7 @@ export default function CharacterEditor({
         const ctx = {
             account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
             character: { ...character, equipment, researchTrees } as CampaignCharacter,
-            campaignResources: resolvedCampaign?.resources ?? {},
+            campaignResources: (resolvedCampaign?.resources ?? {}) as CampaignResources,
         };
         return RESEARCH_TREES.filter((t) => {
             const any = treeHasAnyResearch(ctx.character, t.id);

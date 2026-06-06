@@ -3,7 +3,6 @@ import { runScenarioHeadless } from './SimulationRunner';
 import { getScenarioById } from '../scenarios/registry';
 import { pathShortCommuteScenario } from '../scenarios/general/pathfinding';
 import {
-    punchBaselineScenario,
     punchNEWBaselineScenario,
     punchStrongScenario,
     punchDoubleScenario,
@@ -50,7 +49,7 @@ describe('runScenarioHeadless', () => {
     });
 
     it('passes punch baseline damage scenario', () => {
-        const r = runScenarioHeadless(punchBaselineScenario);
+        const r = runScenarioHeadless(punchNEWBaselineScenario);
         expect(r.passed).toBe(true);
     });
 

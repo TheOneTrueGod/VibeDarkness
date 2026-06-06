@@ -25,6 +25,8 @@ interface GameEngineLike {
 }
 
 export const KnockAbility: AbilityStatic = {
+    id: ABILITY_ID,
+    name: 'Knock',
     image: KNOCK_IMAGE,
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: 1,
