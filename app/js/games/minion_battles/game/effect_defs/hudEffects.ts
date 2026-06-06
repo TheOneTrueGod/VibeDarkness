@@ -64,6 +64,8 @@ export type ResourceFlightData = {
     softColor: number;
     particleCount: number;
     particles: ResourceFlightParticle[];
+    /** When true, particles scale from 0→1 in the first 15% of flight to produce a pop-out effect. */
+    scaleUp: boolean;
 };
 
 export class ResourceFlightEffect extends HudEffect {
@@ -77,6 +79,7 @@ export class ResourceFlightEffect extends HudEffect {
         color?: number;
         softColor?: number;
         particleCount?: number;
+        scaleUp?: boolean;
     }) {
         super('ResourceFlight', 0.8);
         const count = config.particleCount ?? 6;
@@ -103,6 +106,7 @@ export class ResourceFlightEffect extends HudEffect {
             softColor: config.softColor ?? 0xede9fe,
             particleCount: count,
             particles,
+            scaleUp: config.scaleUp ?? false,
         };
     }
 }

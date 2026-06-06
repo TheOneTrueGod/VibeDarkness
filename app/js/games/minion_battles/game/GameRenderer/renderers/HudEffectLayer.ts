@@ -1,6 +1,7 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { GameEngine } from '../../GameEngine';
-import type { RoundStartEvent } from '../../EventBus';
+import type { Camera } from '../../Camera';
+import type { RoundStartEvent, RecoveryChargeGrantedEvent } from '../../EventBus';
 import { HudEffect } from '../../effects/HudEffect';
 import {
     RoundStartBannerEffect,
@@ -51,17 +52,25 @@ export class HudEffectLayer {
     private effects: HudEffect[] = [];
     private effectVisuals: Map<string, Container> = new Map();
     private engineSource: GameEngine | null = null;
+    private camera: Camera | null = null;
+    private canvasPageOffset = { x: 0, y: 0 };
     private readonly onRoundStartBound: (data: RoundStartEvent) => void;
+    private readonly onRecoveryChargeGrantedBound: (data: RecoveryChargeGrantedEvent) => void;
 
     constructor(
         private readonly hudContainer: Container,
         private readonly hudTargets: ReadonlyMap<string, { x: number; y: number }>,
     ) {
         this.onRoundStartBound = this.onRoundStart.bind(this);
+        this.onRecoveryChargeGrantedBound = this.onRecoveryChargeGranted.bind(this);
     }
 
     addEffect(effect: HudEffect): void {
         this.effects.push(effect);
+    }
+
+    setCanvasPageOffset(x: number, y: number): void {
+        this.canvasPageOffset = { x, y };
     }
 
     /**
@@ -70,13 +79,17 @@ export class HudEffectLayer {
      * Continues running during game pause (render tick is independent of fixed update).
      * HudEffects are never serialized.
      */
-    render(engine: GameEngine, vw: number, vh: number, realDt: number): void {
+    render(engine: GameEngine, camera: Camera | null, vw: number, vh: number, realDt: number): void {
+        this.camera = camera;
+
         if (engine !== this.engineSource) {
             if (this.engineSource) {
                 this.engineSource.eventBus.off('round_start', this.onRoundStartBound);
+                this.engineSource.eventBus.off('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
             }
             this.engineSource = engine;
             engine.eventBus.on('round_start', this.onRoundStartBound);
+            engine.eventBus.on('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
         }
 
         // Advance all active effects; collect deferred effects to spawn.
@@ -134,6 +147,7 @@ export class HudEffectLayer {
     destroy(): void {
         if (this.engineSource) {
             this.engineSource.eventBus.off('round_start', this.onRoundStartBound);
+            this.engineSource.eventBus.off('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
             this.engineSource = null;
         }
         for (const visual of this.effectVisuals.values()) {
@@ -156,6 +170,44 @@ export class HudEffectLayer {
         }
 
         this.addEffect(new RoundStartBannerEffect(data.roundNumber, resources));
+    }
+
+    private onRecoveryChargeGranted(data: RecoveryChargeGrantedEvent): void {
+        const engine = this.engineSource;
+        const camera = this.camera;
+        if (!engine || !camera) return;
+
+        const unit = engine.getUnit(data.unitId);
+        if (!unit || !unit.isPlayerControlled()) return;
+
+        const screen = camera.worldToScreen(unit.x, unit.y);
+
+        // Clamp to game-canvas bounds first, then translate to HUD-canvas (page) coords.
+        const clampedX = Math.max(0, Math.min(camera.viewportWidth, screen.x));
+        const clampedY = Math.max(0, Math.min(camera.viewportHeight, screen.y));
+        const sourceX = clampedX + this.canvasPageOffset.x;
+        const sourceY = clampedY + this.canvasPageOffset.y;
+
+        const cardTargets = Array.from(this.hudTargets.entries())
+            .filter(([key]) => key.startsWith(`card:${data.chargeType}:`))
+            .map(([, pos]) => pos);
+
+        if (cardTargets.length === 0) return;
+
+        const col = iconColor(data.chargeType);
+        const soft = iconSoftColor(data.chargeType);
+        for (const dest of cardTargets) {
+            this.addEffect(new ResourceFlightEffect({
+                sourceX,
+                sourceY,
+                destX: dest.x,
+                destY: dest.y,
+                color: col,
+                softColor: soft,
+                particleCount: 2 * data.amount,
+                scaleUp: true,
+            }));
+        }
     }
 
     // ─── Flight spawning ─────────────────────────────────────────────────────
@@ -448,6 +500,10 @@ export class HudEffectLayer {
             const fadeIn = Math.min(1, localT / 0.1);
             const fadeOut = localT > 0.85 ? Math.max(0, 1 - (localT - 0.85) / 0.15) : 1;
             g.alpha = fadeIn * fadeOut;
+
+            // Pop-out scale: 0→1 in first 15% of flight, then hold at 1.
+            const scale = data.scaleUp ? Math.min(1, localT / 0.15) : 1;
+            g.scale.set(scale);
         }
     }
 

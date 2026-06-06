@@ -7,7 +7,7 @@ import { AbilityState, AbilityEventType } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import { createPixelTargetPreview } from '../../abilities/previewHelpers';
+import { createMovementTargetPreview } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
@@ -85,7 +85,7 @@ export const ClawAbility: AbilityStatic = {
 		// Melee blocked: no additional behaviour.
 	},
 
-	renderTargetingPreview: createPixelTargetPreview(CLAW_MAX_DISTANCE),
+	renderTargetingPreview: createMovementTargetPreview(CLAW_MAX_DISTANCE, COLLISION_STEP),
 };
 
 export const ClawCard: CardDef = {

@@ -10,6 +10,7 @@ import type { ResolvedTarget } from '../game/types';
 import { getUnitAtPosition } from './targeting';
 import { areEnemies } from '../game/teams';
 import { getDistanceBasedInaccuracy } from './gunHelpers';
+import { computeForcedDisplacement } from '../game/forceMove';
 
 /** Result of clamping a target position to max range from caster. */
 export interface ClampedRangeResult {
@@ -250,6 +251,7 @@ export type RenderTargetingPreviewFn = (
     currentTargets: ResolvedTarget[],
     mouseWorld: { x: number; y: number },
     units: Unit[],
+    gameState?: unknown,
 ) => void;
 
 /**
@@ -260,6 +262,34 @@ export function createPixelTargetPreview(maxDistance: number): RenderTargetingPr
     return (gr, caster, _currentTargets, mouseWorld, _units) => {
         gr.clear();
         drawClampedLine(gr, caster, mouseWorld, maxDistance);
+    };
+}
+
+/**
+ * Preset: Terrain-aware pixel-target preview for dash/movement abilities.
+ * Uses computeForcedDisplacement to show the actual reachable endpoint after terrain collision,
+ * matching how DashBehaviour resolves movement at runtime.
+ */
+export function createMovementTargetPreview(
+    maxDistance: number,
+    collisionStep: number = 4,
+): RenderTargetingPreviewFn {
+    return (gr, caster, _currentTargets, mouseWorld, _units, gameState) => {
+        gr.clear();
+        const terrainManager =
+            gameState && typeof gameState === 'object' && 'terrainManager' in gameState
+                ? ((gameState as { terrainManager?: { isPassable(x: number, y: number): boolean } | null }).terrainManager ?? null)
+                : null;
+        const { dx, dy, distance } = computeForcedDisplacement(
+            caster.x, caster.y,
+            mouseWorld.x, mouseWorld.y,
+            maxDistance,
+            { terrainManager, step: collisionStep },
+        );
+        if (distance <= 0) return;
+        gr.moveTo(caster.x, caster.y);
+        gr.lineTo(caster.x + dx, caster.y + dy);
+        gr.stroke({ color: 0xc0c0c0, width: 2, alpha: 0.6 });
     };
 }
 

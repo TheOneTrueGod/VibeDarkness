@@ -208,7 +208,8 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
             if (effect.amount <= 0) return;
             const recipient = effect.recipient ?? 'randomAbility';
             if (recipient === 'randomAbility') {
-                const opts = effect.excludeCurrentAbility ? { excludeAbilityId: context.ability.id } : undefined;
+                const baseOpts = effect.excludeCurrentAbility ? { excludeAbilityId: context.ability.id } : {};
+                const opts = { ...baseOpts, eventBus: context.engine.eventBus };
                 for (let i = 0; i < effect.amount; i++) {
                     grantRecoveryChargeToRandomAbility(
                         context.caster,
@@ -225,15 +226,17 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
                 ?? (context.engine.units ?? []).filter(
                     u => u.isAlive() && !areEnemies(u.teamId, context.caster.teamId) && u.id !== context.caster.id,
                 );
+            const rng = (min: number, max: number) => context.engine.generateRandomInteger(min, max);
+            const eventBus = context.engine.eventBus;
             for (const ally of allies) {
                 if (Math.hypot(ally.x - context.caster.x, ally.y - context.caster.y) > effect.radius) continue;
                 for (let i = 0; i < effect.amount; i++) {
-                    grantRecoveryChargeToRandomAbility(ally, effect.chargeType, (min, max) => context.engine.generateRandomInteger(min, max));
+                    grantRecoveryChargeToRandomAbility(ally, effect.chargeType, rng, { eventBus });
                 }
             }
             if (effect.includeSelf) {
                 for (let i = 0; i < effect.amount; i++) {
-                    grantRecoveryChargeToRandomAbility(context.caster, effect.chargeType, (min, max) => context.engine.generateRandomInteger(min, max));
+                    grantRecoveryChargeToRandomAbility(context.caster, effect.chargeType, rng, { eventBus });
                 }
             }
             return;

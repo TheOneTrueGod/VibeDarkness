@@ -1376,6 +1376,7 @@ export class GameEngine implements EngineContext {
                 'lightCharge',
                 CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND,
                 (min, max) => this.generateRandomInteger(min, max),
+                this.eventBus,
             );
             syncNestedCardAbilityState(unit);
         }

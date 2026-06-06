@@ -1,5 +1,6 @@
 import { abilityHasTag, type AbilityStatic } from './Ability';
 import type { Unit } from '../game/units/Unit';
+import type { EventBus } from '../game/EventBus';
 import {
     STICK_SWORD_NODE_EXTRA_USES,
     STICK_SWORD_TREE_ID,
@@ -144,6 +145,7 @@ export function addRecoveryChargeToUnitAbilities(
     chargeType: RecoveryChargeType,
     amount: number,
     generateRandomInteger: (min: number, max: number) => number,
+    eventBus?: EventBus,
 ): string[] {
     if (amount <= 0) return [];
 
@@ -176,7 +178,11 @@ export function addRecoveryChargeToUnitAbilities(
     }
 
     syncNestedCardAbilityState(unit);
-    return Array.from(new Set(selectedAbilityIds));
+    const unique = Array.from(new Set(selectedAbilityIds));
+    if (unique.length > 0 && eventBus) {
+        eventBus.emit('recovery_charge_granted', { unitId: unit.id, chargeType, amount: selectedAbilityIds.length });
+    }
+    return unique;
 }
 
 /**
@@ -320,7 +326,7 @@ export function grantRecoveryChargeToRandomAbility(
     unit: Unit,
     chargeType: RecoveryChargeType,
     generateRandomInteger: (min: number, max: number) => number,
-    opts?: { excludeAbilityId?: string },
+    opts?: { excludeAbilityId?: string; eventBus?: EventBus },
 ): boolean {
     const eligible = getAbilityIdsEligibleForRecovery(unit).filter((abilityId) => {
         if (opts?.excludeAbilityId && abilityId === opts.excludeAbilityId) return false;
@@ -332,7 +338,11 @@ export function grantRecoveryChargeToRandomAbility(
     const idx = pool.length === 1 ? 0 : generateRandomInteger(0, pool.length - 1);
     const selected = pool[idx];
     if (!selected) return false;
-    return applyRecoveryChargeToAbility(unit, selected, chargeType, 1);
+    const granted = applyRecoveryChargeToAbility(unit, selected, chargeType, 1);
+    if (granted && opts?.eventBus) {
+        opts.eventBus.emit('recovery_charge_granted', { unitId: unit.id, chargeType, amount: 1 });
+    }
+    return granted;
 }
 
 function getAbilityIdsEligibleForRecovery(unit: Unit): string[] {

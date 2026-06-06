@@ -9,8 +9,7 @@ import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { Unit } from '../../game/units/Unit';
-import type { TerrainManager } from '../../terrain/TerrainManager';
-import { computeForcedDisplacement } from '../../game/forceMove';
+import { createMovementTargetPreview } from '../../abilities/previewHelpers';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
@@ -77,25 +76,7 @@ export const DodgeAbility: AbilityStatic = {
         // Dodge has no attack that can be blocked.
     },
 
-    renderTargetingPreview(gr, caster, _currentTargets, mouseWorld, _units, gameState): void {
-        gr.clear();
-        const terrainManager =
-            gameState && typeof gameState === 'object' && 'terrainManager' in gameState
-                ? ((gameState as { terrainManager?: TerrainManager | null }).terrainManager ?? null)
-                : null;
-        const { dx, dy, distance } = computeForcedDisplacement(
-            caster.x,
-            caster.y,
-            mouseWorld.x,
-            mouseWorld.y,
-            DODGE_MAX_DISTANCE,
-            { terrainManager, step: DODGE_COLLISION_STEP },
-        );
-        if (distance <= 0) return;
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(caster.x + dx, caster.y + dy);
-        gr.stroke({ color: 0xc0c0c0, width: 2, alpha: 0.6 });
-    },
+    renderTargetingPreview: createMovementTargetPreview(DODGE_MAX_DISTANCE, DODGE_COLLISION_STEP),
 };
 
 export const DodgeCard: CardDef = {

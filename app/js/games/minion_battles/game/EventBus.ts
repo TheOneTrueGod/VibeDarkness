@@ -16,7 +16,8 @@ export type GameEventType =
     | 'ability_used'
     | 'projectile_hit'
     | 'terrain_stone_damaged'
-    | 'nearby_stone_damaged';
+    | 'nearby_stone_damaged'
+    | 'recovery_charge_granted';
 
 export interface DamageTakenEvent {
     unitId: string;
@@ -97,6 +98,15 @@ export interface TerrainStoneDamagedEvent {
     health: number;
 }
 
+export interface RecoveryChargeGrantedEvent {
+    /** Unit that received the charge(s). */
+    unitId: string;
+    /** Charge type granted (string to avoid cross-layer import). */
+    chargeType: string;
+    /** Number of charge units distributed. */
+    amount: number;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     round_start: RoundStartEvent;
@@ -109,6 +119,7 @@ export type GameEventDataMap = {
     projectile_hit: ProjectileHitEvent;
     terrain_stone_damaged: TerrainStoneDamagedEvent;
     nearby_stone_damaged: NearbyStoneDamagedEvent;
+    recovery_charge_granted: RecoveryChargeGrantedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

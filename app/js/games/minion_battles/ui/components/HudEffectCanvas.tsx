@@ -1,6 +1,7 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Application } from 'pixi.js';
 import type { GameEngine } from '../../game/GameEngine';
+import type { Camera } from '../../game/Camera';
 import type { HudEffect } from '../../game/effects/HudEffect';
 import { HudEffectLayer } from '../../game/GameRenderer/renderers/HudEffectLayer';
 
@@ -8,6 +9,10 @@ export interface HudEffectCanvasHandle {
     addHudEffect(effect: HudEffect): void;
     registerHudFlightTarget(key: string, pageX: number, pageY: number): void;
     unregisterHudFlightTarget(key: string): void;
+    /** Call once when the game camera is available; Camera is mutated in-place so one call suffices. */
+    setCamera(camera: Camera): void;
+    /** Update the game canvas's page-space offset so world→screen coords map to HUD-canvas coords. */
+    setCanvasPageOffset(x: number, y: number): void;
 }
 
 interface HudEffectCanvasProps {
@@ -30,6 +35,8 @@ const HudEffectCanvas = forwardRef<HudEffectCanvasHandle, HudEffectCanvasProps>(
         const containerRef = useRef<HTMLDivElement>(null);
         const engineRef = useRef(engine);
         engineRef.current = engine;
+        const cameraRef = useRef<Camera | null>(null);
+        const canvasPageOffsetRef = useRef({ x: 0, y: 0 });
 
         const stateRef = useRef<{
             app: Application;
@@ -48,6 +55,13 @@ const HudEffectCanvas = forwardRef<HudEffectCanvasHandle, HudEffectCanvasProps>(
             },
             unregisterHudFlightTarget(key: string) {
                 stateRef.current?.hudTargets.delete(key);
+            },
+            setCamera(camera: Camera) {
+                cameraRef.current = camera;
+            },
+            setCanvasPageOffset(x: number, y: number) {
+                canvasPageOffsetRef.current = { x, y };
+                stateRef.current?.layer.setCanvasPageOffset(x, y);
             },
         }));
 
@@ -88,12 +102,14 @@ const HudEffectCanvas = forwardRef<HudEffectCanvasHandle, HudEffectCanvasProps>(
                 }
 
                 const layer = new HudEffectLayer(app.stage, hudTargets);
+                const { x: ox, y: oy } = canvasPageOffsetRef.current;
+                if (ox !== 0 || oy !== 0) layer.setCanvasPageOffset(ox, oy);
                 let lastTs = 0;
                 const loop = (ts: number) => {
                     if (cancelled) return;
                     const realDt = lastTs > 0 ? Math.min((ts - lastTs) / 1000, 0.1) : 0;
                     lastTs = ts;
-                    layer.render(engineRef.current, window.innerWidth, window.innerHeight, realDt);
+                    layer.render(engineRef.current, cameraRef.current, window.innerWidth, window.innerHeight, realDt);
                     app.render();
                     const s = stateRef.current;
                     if (s) s.rafId = requestAnimationFrame(loop);

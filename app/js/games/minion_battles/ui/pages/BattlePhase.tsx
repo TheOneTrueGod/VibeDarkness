@@ -444,6 +444,32 @@ export default function BattlePhase({
         sessionRef.current?.updateLobbyContext(players, characterSelections);
     }, [players, characterSelections]);
 
+    const battleCanvasAreaRef = useRef<HTMLDivElement>(null);
+
+    // Pass the camera instance and initial canvas page offset to HudEffectCanvas once ready.
+    useEffect(() => {
+        if (battleInitPhase !== 'ready') return;
+        const cam = sessionRef.current?.getCamera();
+        if (cam) hudEffectCanvasRef.current?.setCamera(cam);
+        const el = battleCanvasAreaRef.current;
+        if (el) {
+            const rect = el.getBoundingClientRect();
+            hudEffectCanvasRef.current?.setCanvasPageOffset(rect.left, rect.top);
+        }
+    }, [battleInitPhase]);
+
+    // Keep canvas page offset current on window resize (reads refs lazily — stable listener).
+    useEffect(() => {
+        const onResize = () => {
+            const el = battleCanvasAreaRef.current;
+            if (!el) return;
+            const rect = el.getBoundingClientRect();
+            hudEffectCanvasRef.current?.setCanvasPageOffset(rect.left, rect.top);
+        };
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
     // ========================================================================
     // BattleSession lifecycle (mount load + UI subscription)
     // ========================================================================
@@ -1197,7 +1223,7 @@ export default function BattlePhase({
                 </aside>
 
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                    <div className="relative flex min-h-0 flex-1 flex-col">
+                    <div ref={battleCanvasAreaRef} className="relative flex min-h-0 flex-1 flex-col">
                         <BossFightHud boss={bossHud} />
                         <BattleSyncStatus
                             variant="battle"
