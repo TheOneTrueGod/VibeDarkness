@@ -13,7 +13,7 @@ import type { Unit, UnitAbilityRuntimeState } from '../../game/units/Unit';
 import AbilitySlot from './AbilitySlot';
 import AbilityTooltip from './AbilityTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
-import type { RecoveryChargeType } from '../../abilities/abilityUses';
+import { getAbilityUseConfig, type RecoveryChargeType } from '../../abilities/abilityUses';
 import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../game/GameEngine';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
@@ -59,7 +59,7 @@ interface AbilityBarProps {
     onWaitHoverChange?: (hovered: boolean) => void;
     /** Current game state for dynamic descriptions. */
     gameState?: unknown;
-    /** Register a card's page-center position as a HUD flight target (key = 'card:<abilityId>'). */
+    /** Register a card's page-center position per charge type (key = 'card:<chargeType>:<abilityId>'). */
     onRegisterCardTarget?: (key: string, pageX: number, pageY: number) => void;
 }
 
@@ -132,14 +132,22 @@ export default function AbilityBar({
         }
     }, [handCards, hoveredCardId]);
 
-    // Register card top-center page positions as HUD flight targets whenever the hand changes.
+    // Register card top-center page positions as HUD flight targets, keyed by charge type so
+    // particles only fly to cards that actually recover that resource.
     useEffect(() => {
         if (!onRegisterCardTarget) return;
         for (const card of handCards) {
             const el = cardRefs.current[card.abilityId];
             if (!el) continue;
             const rect = el.getBoundingClientRect();
-            onRegisterCardTarget(`card:${card.abilityId}`, rect.left + rect.width / 2, rect.top);
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top;
+            const chargeTypes = [...new Set(
+                getAbilityUseConfig(card.abilityId).recoveries.map(r => r.chargeType),
+            )];
+            for (const chargeType of chargeTypes) {
+                onRegisterCardTarget(`card:${chargeType}:${card.abilityId}`, cx, cy);
+            }
         }
     }, [handCards, onRegisterCardTarget]);
 

@@ -61,6 +61,7 @@ export type ResourceFlightData = {
     destX: number;
     destY: number;
     color: number;
+    softColor: number;
     particleCount: number;
     particles: ResourceFlightParticle[];
 };
@@ -74,6 +75,7 @@ export class ResourceFlightEffect extends HudEffect {
         destX: number;
         destY: number;
         color?: number;
+        softColor?: number;
         particleCount?: number;
     }) {
         super('ResourceFlight', 0.8);
@@ -98,6 +100,7 @@ export class ResourceFlightEffect extends HudEffect {
             destX: config.destX,
             destY: config.destY,
             color: config.color ?? 0x7c3aed,
+            softColor: config.softColor ?? 0xede9fe,
             particleCount: count,
             particles,
         };

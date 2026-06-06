@@ -48,6 +48,7 @@ import {
 } from './Fingerprint';
 import {
     addRecoveryChargeToUnitAbilities,
+    getAbilityUseConfig,
     syncNestedCardAbilityState,
 } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
@@ -1330,7 +1331,12 @@ export class GameEngine implements EngineContext {
         if (!this.appliedRoundStartRecovery) {
             const surgeUnit = this.units.find(u => u.isPlayerControlled() && u.isAlive());
             const staminaSurgeAmount = surgeUnit ? Math.max(0, Math.floor(surgeUnit.stamina)) : 0;
-            this.eventBus.emit('round_start', { roundNumber: this.roundNumber, staminaSurgeAmount });
+            const roundChargeCount = surgeUnit
+                ? surgeUnit.abilities.filter(id =>
+                    getAbilityUseConfig(id).recoveries.some(r => r.chargeType === 'roundCharge'),
+                ).length
+                : 0;
+            this.eventBus.emit('round_start', { roundNumber: this.roundNumber, staminaSurgeAmount, roundChargeCount });
             this.state.unitManager.onRoundStart(this.roundNumber, this);
             this.applyChargedRocksLightChargePulse();
             processLanternitePulseMilestone('round_start', {

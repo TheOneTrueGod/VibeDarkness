@@ -155,6 +155,10 @@ export class GameRenderer {
 		}
 
 		this.initialized = true;
+		// Stop the PixiJS auto-ticker so the GPU flush is driven only by our RAF loop.
+		// Without this the ticker flushes independently and can present a stale frame
+		// when the main thread is busy with simulation.
+		this.app.ticker.stop();
 
 		// Build terrain sprite if it was queued before init completed
 		if (this.pendingTerrainGrid) {
@@ -241,6 +245,7 @@ export class GameRenderer {
 		this.projectileRenderer.render(engine.projectiles, engine.gameTime);
 		this.effectRenderer.render(engine.effects);
 		this.previewRenderer.render(engine, this.localTeamId, targetingState ?? null);
+		this.app.render();
 	}
 
 	/** Full cleanup. Idempotent: safe to call multiple times. */

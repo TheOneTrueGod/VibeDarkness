@@ -18,47 +18,59 @@ export interface RecoveryChargeDefinition {
     strokeWidth: number;
     /** `title` / `aria-label` on recovery rule rows using this charge type. */
     rowExplanation: string;
+    /** Hex colour for the main accent (icon, border, stroke) — the darker of the pair. */
+    mainHex: number;
+    /** Hex colour for the soft background — the lighter of the pair. */
+    softHex: number;
 }
 
 export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryChargeDefinition> = {
     staminaCharge: {
-        fillClass: 'bg-gray-300',
-        iconCircleBorderClass: 'border-gray-300',
-        possessedBgClass: 'bg-gray-300',
+        fillClass: 'bg-amber-600',
+        iconCircleBorderClass: 'border-amber-600',
+        possessedBgClass: 'bg-white',
         Icon: Zap,
-        iconClassName: 'text-gray-300',
-        darkIconClassName: 'text-gray-800',
+        iconClassName: 'text-amber-400',
+        darkIconClassName: 'text-amber-600',
         strokeWidth: 2.25,
         rowExplanation: 'Stamina charges — gained from round-start surge and other effects; fill bars to recover uses.',
+        mainHex: 0xd97706,
+        softHex: 0xffffff,
     },
     lightCharge: {
-        fillClass: 'bg-yellow-300',
-        iconCircleBorderClass: 'border-yellow-300',
-        possessedBgClass: 'bg-yellow-300',
+        fillClass: 'bg-amber-700',
+        iconCircleBorderClass: 'border-amber-700',
+        possessedBgClass: 'bg-amber-50',
         Icon: Sun,
         iconClassName: 'text-yellow-300',
-        darkIconClassName: 'text-yellow-900',
+        darkIconClassName: 'text-amber-700',
         strokeWidth: 2.25,
         rowExplanation: 'Light charges — fill bars to recover uses.',
+        mainHex: 0xb45309,
+        softHex: 0xfffbeb,
     },
     energyCharge: {
-        fillClass: 'bg-cyan-300',
-        iconCircleBorderClass: 'border-cyan-300',
-        possessedBgClass: 'bg-cyan-300',
+        fillClass: 'bg-cyan-700',
+        iconCircleBorderClass: 'border-cyan-700',
+        possessedBgClass: 'bg-cyan-50',
         Icon: Zap,
         iconClassName: 'text-cyan-300',
-        darkIconClassName: 'text-cyan-900',
+        darkIconClassName: 'text-cyan-700',
         strokeWidth: 2.25,
         rowExplanation: 'Energy charges — fill bars to recover uses.',
+        mainHex: 0x0e7490,
+        softHex: 0xecfeff,
     },
     roundCharge: {
-        fillClass: 'bg-white',
-        iconCircleBorderClass: 'border-white',
+        fillClass: 'bg-gray-900',
+        iconCircleBorderClass: 'border-gray-900',
         possessedBgClass: 'bg-white',
         Icon: Clock,
         iconClassName: 'text-white',
         darkIconClassName: 'text-gray-900',
         strokeWidth: 2.25,
         rowExplanation: 'Round charges — gain one at the start of each round while this card can recharge.',
+        mainHex: 0x111827,
+        softHex: 0xffffff,
     },
 };

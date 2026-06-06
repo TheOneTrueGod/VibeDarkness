@@ -18,16 +18,29 @@ const ICON_GAP = 12;
 const ICON_BASE_Y = 6; // y offset from banner container origin to icon row top
 const BANNER_Y_FRAC = 0.40; // canvas-fraction for banner vertical center
 
-// Hex colors for each charge type (matches recoveryChargeDefinitions.ts Tailwind classes).
-const CHARGE_TYPE_COLORS: Record<string, number> = {
-    staminaCharge: 0xd1d5db, // gray-300
-    lightCharge: 0xfde047,   // yellow-300
-    energyCharge: 0x67e8f9,  // cyan-300
-    roundCharge: 0xffffff,   // white
+// Main (darker) and soft (lighter) hex color pairs per charge type.
+// Must stay in sync with recoveryChargeDefinitions.ts mainHex / softHex.
+// Must stay in sync with recoveryChargeDefinitions.ts mainHex / softHex.
+const CHARGE_TYPE_MAIN_COLORS: Record<string, number> = {
+    staminaCharge: 0xd97706, // amber-600
+    lightCharge:   0xb45309, // amber-700
+    energyCharge:  0x0e7490, // cyan-700
+    roundCharge:   0x111827, // gray-900
+};
+
+const CHARGE_TYPE_SOFT_COLORS: Record<string, number> = {
+    staminaCharge: 0xffffff, // white
+    lightCharge:   0xfffbeb, // amber-50
+    energyCharge:  0xecfeff, // cyan-50
+    roundCharge:   0xffffff, // white
 };
 
 function iconColor(chargeType: string): number {
-    return CHARGE_TYPE_COLORS[chargeType] ?? 0xaaaaaa;
+    return CHARGE_TYPE_MAIN_COLORS[chargeType] ?? 0x6b7280;
+}
+
+function iconSoftColor(chargeType: string): number {
+    return CHARGE_TYPE_SOFT_COLORS[chargeType] ?? 0xf3f4f6;
 }
 
 function iconsTotalWidth(count: number): number {
@@ -138,6 +151,9 @@ export class HudEffectLayer {
         if (surgeAmount > 0) {
             resources.push({ chargeType: 'staminaCharge', amount: surgeAmount, color: iconColor('staminaCharge') });
         }
+        if ((data.roundChargeCount ?? 0) > 0) {
+            resources.push({ chargeType: 'roundCharge', amount: 1, color: iconColor('roundCharge') });
+        }
 
         this.addEffect(new RoundStartBannerEffect(data.roundNumber, resources));
     }
@@ -156,17 +172,17 @@ export class HudEffectLayer {
         const bannerCenterY = vh * BANNER_Y_FRAC;
         const totalW = iconsTotalWidth(resources.length);
 
-        // Collect registered card targets.
-        const cardTargets = Array.from(this.hudTargets.entries())
-            .filter(([key]) => key.startsWith('card:'))
-            .map(([, pos]) => pos);
-
-        // Fallback: fire to canvas bottom center if no cards are registered.
-        const targets = cardTargets.length > 0
-            ? cardTargets
-            : [{ x: vw / 2, y: vh + 10 }];
-
         resources.forEach((res, i) => {
+            // Only target cards that actually recover this charge type.
+            const cardTargets = Array.from(this.hudTargets.entries())
+                .filter(([key]) => key.startsWith(`card:${res.chargeType}:`))
+                .map(([, pos]) => pos);
+
+            // Fallback: fire to canvas bottom center if no matching cards are registered.
+            const targets = cardTargets.length > 0
+                ? cardTargets
+                : [{ x: vw / 2, y: vh + 10 }];
+
             const iconLeft = bannerCenterX - totalW / 2 + i * (ICON_W + ICON_GAP);
             const sourceX = iconLeft + ICON_W / 2;
             const sourceY = bannerCenterY + ICON_BASE_Y + ICON_H / 2;
@@ -178,6 +194,7 @@ export class HudEffectLayer {
                     destX: dest.x,
                     destY: dest.y,
                     color: res.color,
+                    softColor: iconSoftColor(res.chargeType),
                     particleCount: 2 * res.amount,
                 }));
             }
@@ -234,24 +251,25 @@ export class HudEffectLayer {
             data.resources.forEach((res, i) => {
                 const iconLeft = -totalW / 2 + i * (ICON_W + ICON_GAP);
                 const col = res.color;
+                const soft = iconSoftColor(res.chargeType);
 
-                // Rounded background + border
+                // Rounded background + border: soft fill so main-colour text is readable.
                 const g = new Graphics();
                 g.roundRect(iconLeft, ICON_BASE_Y, ICON_W, ICON_H, 10);
-                g.fill({ color: col, alpha: 0.18 });
+                g.fill({ color: soft, alpha: 0.92 });
                 g.roundRect(iconLeft, ICON_BASE_Y, ICON_W, ICON_H, 10);
-                g.stroke({ color: col, width: 2, alpha: 0.9 });
+                g.stroke({ color: col, width: 2, alpha: 1 });
                 container.addChild(g);
 
-                // Large amount number
+                // Large amount number — use main colour for contrast over soft background.
                 const numText = new Text({
                     text: String(res.amount),
                     style: new TextStyle({
                         fontFamily: 'Arial, Helvetica, sans-serif',
                         fontSize: 28,
                         fontWeight: '800',
-                        fill: 0xffffff,
-                        dropShadow: { alpha: 0.6, angle: Math.PI / 2, blur: 4, color: 0x000000, distance: 2 },
+                        fill: col,
+                        dropShadow: { alpha: 0.25, angle: Math.PI / 2, blur: 2, color: 0x000000, distance: 1 },
                     }),
                 });
                 numText.anchor.set(0.5, 0.5);
@@ -382,10 +400,11 @@ export class HudEffectLayer {
         const r = 10;
         for (let i = 0; i < data.particleCount; i++) {
             const g = new Graphics();
+            // Soft background disc so the main-colour border is clearly readable.
             g.circle(0, 0, r);
-            g.fill({ color: data.color, alpha: 0.4 });
+            g.fill({ color: data.softColor, alpha: 0.92 });
             g.circle(0, 0, r);
-            g.stroke({ color: data.color, width: 2, alpha: 1 });
+            g.stroke({ color: data.color, width: 2.5, alpha: 1 });
             container.addChild(g);
         }
         return container;

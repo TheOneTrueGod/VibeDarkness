@@ -38,6 +38,8 @@ export interface RoundStartEvent {
     roundNumber: number;
     /** Stamina charges granted per eligible ability at round start (= floor(unit.stamina)). */
     staminaSurgeAmount?: number;
+    /** Number of player abilities that have roundCharge recovery rules (each receives 1 charge). */
+    roundChargeCount?: number;
 }
 
 export interface TurnEndEvent {
