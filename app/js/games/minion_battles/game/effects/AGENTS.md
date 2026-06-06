@@ -87,6 +87,34 @@ GameEngine.fixedUpdate() (game tick, FIXED_DT = 1/60 s, pauses when game pauses)
 
 ---
 
+## 3. HudEffect — screen-space HUD effects
+
+`HudEffect` objects (`HudEffect.ts`) are purely visual, like `Effect`, but live in **screen space** (no world x/y) and render in `hudContainer` on `app.stage`. `hudContainer` is a second child of `app.stage` that never receives the camera transform, so effects remain viewport-fixed regardless of pan/zoom.
+
+**Rules:**
+- **Never serialized** — client-side visual polish only. Not restored on reconnect. If a player reconnects mid-effect, it simply doesn't replay.
+- **Continue during game pause** — `HudEffectLayer.render()` is called from the render tick (rAF), not the fixed game tick. Effects keep animating through pause screens, story pauses, and order phases.
+- Managed by `HudEffectLayer` (`GameRenderer/renderers/HudEffectLayer.ts`).
+- Triggered via `GameRenderer.addHudEffect(effect)` or by `HudEffectLayer`'s engine event subscriptions (e.g. `round_start`).
+
+**Concrete types** (in `game/effect_defs/hudEffects.ts`):
+| Type | Trigger | Duration |
+|---|---|---|
+| `RoundStartBannerEffect` | `round_start` (round > 1) | 2.0s |
+| `ScreenFlashEffect` | manual | 0.5s |
+| `TeamworkTextEffect` | teamwork bonus detected in BattlePhase | 1.1s |
+| `ResourceFlightEffect` | manual | 0.8s |
+| `ResourceArrivalPulseEffect` | auto-spawned by layer when ResourceFlight completes | 0.4s |
+
+**Future:** When stamina meters and resource meters are added to the HUD, `ResourceFlightEffect` and `ResourceArrivalPulseEffect` should be the standard visual for resource transfers. Destination positions for meters will need a position registry so HUD effects can target them accurately. Currently effects are clipped to canvas bounds — a full-viewport overlay canvas would be needed for effects that must reach the AbilityBar or TurnIndicator areas.
+
+### Adding a new HudEffect
+1. Subclass `HudEffect` in `game/effect_defs/hudEffects.ts`. Set `hudEffectType`, `duration`, and any `effectData` fields in the constructor.
+2. Add a `case` to `createHudVisual` and `updateHudVisual` in `HudEffectLayer.ts`.
+3. Trigger via `renderer.addHudEffect(new MyEffect())` from BattlePhase, or add a new engine event subscription in `HudEffectLayer` following the `onRoundStart` pattern.
+
+---
+
 ## Phase notes
 
 - **Phase 2**: Added `renderUpdate` / `isGameDriven` separation and `EffectEmitter` infrastructure.

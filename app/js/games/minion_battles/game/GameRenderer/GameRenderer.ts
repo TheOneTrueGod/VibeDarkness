@@ -26,6 +26,8 @@ import { EffectRenderer } from './renderers/EffectRenderer';
 import { LightSourceRenderer } from './renderers/LightSourceRenderer';
 import { PreviewRenderer } from './renderers/PreviewRenderer';
 import { TerrainEffectRenderer } from './renderers/TerrainEffectRenderer';
+import { HudEffectLayer } from './renderers/HudEffectLayer';
+import type { HudEffect } from '../effects/HudEffect';
 
 export class GameRenderer {
 	app: Application;
@@ -44,6 +46,7 @@ export class GameRenderer {
 	private lightSourceRenderer!: LightSourceRenderer;
 	private previewRenderer!: PreviewRenderer;
 	private terrainEffectRenderer!: TerrainEffectRenderer;
+	private hudEffectLayer!: HudEffectLayer;
 
 	/** Optional debug: draw a yellow outline around this unit. */
 	private debugUnitOutlineId: string | null = null;
@@ -61,6 +64,9 @@ export class GameRenderer {
 	/** Engine whose eventBus is subscribed to `damage_taken` (must rebind when the engine instance changes). */
 	private eventBusSource: GameEngine | null = null;
 	private readonly damageTakenBound = (data: DamageTakenEvent) => this.unitRenderer.onDamageTaken(data);
+
+	/** Screen-space HUD effects container. Sits above gameContainer on app.stage; never camera-transformed. */
+	private hudContainer: Container = new Container();
 
 	constructor() {
 		this.app = new Application();
@@ -131,8 +137,10 @@ export class GameRenderer {
 		});
 		this.app.stage.addChild(this.gameContainer);
 		this.gameContainer.sortableChildren = true;
+		this.app.stage.addChild(this.hudContainer);
 
 		this.assetRegistry = new AssetRegistry();
+		this.hudEffectLayer = new HudEffectLayer(this.hudContainer);
 		this.overlayRenderer = new OverlayRenderer(this.gameContainer, this.assetRegistry);
 		this.unitRenderer = new UnitRenderer(this.gameContainer, this.assetRegistry, this.overlayRenderer);
 		this.specialTileRenderer = new SpecialTileRenderer(this.gameContainer, this.assetRegistry);
@@ -212,6 +220,7 @@ export class GameRenderer {
 			waitingForOrders: { unitId?: string } | null;
 			previewOrderUnitId?: string | null;
 		} | null,
+		realDt?: number,
 	): void {
 		if (!this.initialized) return;
 
@@ -240,6 +249,13 @@ export class GameRenderer {
 		this.projectileRenderer.render(engine.projectiles, engine.gameTime);
 		this.effectRenderer.render(engine.effects);
 		this.previewRenderer.render(engine, this.localTeamId, targetingState ?? null);
+		this.hudEffectLayer.render(engine, camera.viewportWidth, camera.viewportHeight, realDt ?? 0);
+	}
+
+	/** Add a screen-space HUD effect (e.g. TeamworkTextEffect, ScreenFlashEffect). */
+	addHudEffect(effect: HudEffect): void {
+		if (!this.initialized) return;
+		this.hudEffectLayer.addEffect(effect);
 	}
 
 	/** Full cleanup. Idempotent: safe to call multiple times. */
@@ -260,6 +276,7 @@ export class GameRenderer {
 		this.effectRenderer.destroy();
 		this.lightSourceRenderer.destroy();
 		this.previewRenderer.destroy();
+		this.hudEffectLayer.destroy();
 		this.gameContainer.destroy();
 		this.initInFlight = null;
 		this.app.destroy();

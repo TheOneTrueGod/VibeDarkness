@@ -43,6 +43,7 @@ import type { BossHudSlice } from '../components/boss/BossFightHud';
 import { getBossSpecialMoveCharges } from '../components/boss/bossSignatureHud';
 import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
+import { TeamworkTextEffect } from '../../game/effect_defs/hudEffects';
 import { computeSynchash } from '@/utils/synchash';
 import { logToLobbyLog } from '../../../../lobbyLog';
 import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
@@ -189,7 +190,6 @@ export default function BattlePhase({
     const [, forceRender] = useState(0);
     const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [storyPauseActive, setStoryPauseActive] = useState(false);
-    const [teamworkBurstKey, setTeamworkBurstKey] = useState(0);
     const [netSyncStatus, setNetSyncStatus] = useState<BattleNetSyncTerminalStatus>('waiting_for_host');
     const [battleInitPhase, setBattleInitPhase] = useState<BattleInitPhase>('fetching_assets');
     const [netSyncDetails, setNetSyncDetails] = useState<string | null>(null);
@@ -418,7 +418,7 @@ export default function BattlePhase({
             setStoryPauseActive(engine.storyPauseActive);
 
             if (info.teamworkCancelledOwnerIds?.includes(playerId)) {
-                setTeamworkBurstKey((k) => k + 1);
+                sessionRef.current?.getRenderer()?.addHudEffect(new TeamworkTextEffect());
             }
 
             const active = engine.state.orderMgr.getActiveOrderWaiterForPlayer(playerId);
@@ -1253,7 +1253,6 @@ export default function BattlePhase({
                                   ]?.name ?? 'Player'
                                 : undefined
                         }
-                        teamworkBurstKey={teamworkBurstKey}
                         hostCatchupPopover={
                             showHostCatchupPopover
                                 ? {

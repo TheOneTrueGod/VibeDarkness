@@ -27,7 +27,6 @@ interface TurnIndicatorProps {
     /** Ally player name when state is 'ally_turn'. */
     allyName?: string;
     /** Increment to play a one-shot “Teamwork” burst above the plaque (coop cooldown sync). */
-    teamworkBurstKey?: number;
     /** Non-host: compact warning over the marker when host is behind on accepting orders. */
     hostCatchupPopover?: HostCatchupPopoverProps | null;
     /** Local multiplayer: orders queued on device until POST is allowed (see timeline for in-flight count). */
@@ -48,7 +47,6 @@ const RIGHT_PLAQUE_CLIP = 'polygon(0% 0%, 82% 0%, 100% 50%, 82% 100%, 0% 100%)';
 export default function TurnIndicator({
     state,
     allyName = 'Player',
-    teamworkBurstKey = 0,
     hostCatchupPopover = null,
     orderPipeline = null,
 }: TurnIndicatorProps) {
@@ -60,20 +58,12 @@ export default function TurnIndicator({
     const [displayState, setDisplayState] = useState<TurnIndicatorState>(state);
     const prevStateRef = useRef(state);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const [teamworkVisible, setTeamworkVisible] = useState(false);
     const clearTimer = () => {
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
             timeoutRef.current = null;
         }
     };
-
-    useEffect(() => {
-        if (teamworkBurstKey <= 0) return;
-        setTeamworkVisible(true);
-        const t = window.setTimeout(() => setTeamworkVisible(false), 1100);
-        return () => window.clearTimeout(t);
-    }, [teamworkBurstKey]);
 
     useEffect(() => {
         const prev = prevStateRef.current;
@@ -207,38 +197,6 @@ export default function TurnIndicator({
                     >
                         Queued {orderPipeline.queued}
                     </span>
-                </div>
-            )}
-            {teamworkVisible && teamworkBurstKey > 0 && (
-                <div
-                    key={teamworkBurstKey}
-                    className="pointer-events-none absolute bottom-full left-1/2 z-[80] flex -translate-x-1/2 justify-center pb-1"
-                    aria-hidden
-                >
-                    <span
-                        className="teamwork-burst-text whitespace-nowrap bg-gradient-to-b from-amber-200 via-yellow-300 to-amber-500 bg-clip-text text-3xl font-black uppercase tracking-[0.2em] text-transparent drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]"
-                        style={{
-                            animation: 'teamworkArc 1.1s ease-out forwards',
-                        }}
-                    >
-                        Teamwork
-                    </span>
-                    <style>{`
-                        @keyframes teamworkArc {
-                            0% {
-                                opacity: 0;
-                                transform: translateY(10px) scale(0.35) rotate(-4deg);
-                            }
-                            12% {
-                                opacity: 1;
-                                transform: translateY(0) scale(1.08) rotate(2deg);
-                            }
-                            100% {
-                                opacity: 0;
-                                transform: translateY(-52px) scale(1.02) rotate(6deg);
-                            }
-                        }
-                    `}</style>
                 </div>
             )}
             <div className="flex w-full items-center justify-center gap-0">

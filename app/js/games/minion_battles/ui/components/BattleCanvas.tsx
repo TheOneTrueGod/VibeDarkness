@@ -84,14 +84,16 @@ export default function BattleCanvas({
             const renderLoop = (timestamp: number) => {
                 if (cancelled) return;
 
+                // Compute real elapsed time for this frame (capped at 100ms to handle tab-hide spikes).
+                const prev = lastRafTimestampRef.current;
+                const realDt = prev > 0 ? Math.min((timestamp - prev) / 1000, 0.1) : 0;
+                lastRafTimestampRef.current = timestamp;
+
                 // Drive visual effect animation (elapsed time, progress, expiry) when the engine is not
                 // running its own RAF loop (e.g. scenario preview modal steps the engine manually).
                 if (!engine.isRunningLoop) {
-                    const prev = lastRafTimestampRef.current;
-                    const dt = prev > 0 ? Math.min((timestamp - prev) / 1000, 0.1) : 0;
-                    engine.doRenderTick(dt);
+                    engine.doRenderTick(realDt);
                 }
-                lastRafTimestampRef.current = timestamp;
 
                 // WASD / arrow key camera pan
                 const keys = keysHeldRef.current;
@@ -121,7 +123,7 @@ export default function BattleCanvas({
                     }
                 }
                 const targetingState = targetingStateRef?.current ?? null;
-                renderer.render(engine, camera, targetingState as Parameters<GameRenderer['render']>[2]);
+                renderer.render(engine, camera, targetingState as Parameters<GameRenderer['render']>[2], realDt);
                 rafRef.current = requestAnimationFrame(renderLoop);
             };
             rafRef.current = requestAnimationFrame(renderLoop);
