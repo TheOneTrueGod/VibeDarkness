@@ -26,12 +26,15 @@ const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/sv
 </svg>`;
 
 export const ClawAbility: AbilityStatic = {
+	id: CARD_ID,
+	name: 'Claw',
 	image: CLAW_IMAGE,
 	resourceCost: null,
 	rechargeTurns: 0,
 	prefireTime: CLAW_DURATION,
 	abilityTimings: [
 		{
+			id: 'active',
 			start: 0,
 			end: CLAW_DURATION,
 			abilityPhase: AbilityPhase.Iframe,
@@ -44,11 +47,7 @@ export const ClawAbility: AbilityStatic = {
 					attackType: 'melee',
 				}),
 		},
-		{
-			start: CLAW_DURATION,
-			end: CLAW_DURATION + 0.8,
-			abilityPhase: AbilityPhase.Cooldown,
-		},
+		{ id: 'cooldown', start: CLAW_DURATION, end: CLAW_DURATION + 0.8, abilityPhase: AbilityPhase.Cooldown },
 	],
 	targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
 	aiSettings: { minRange: 0, maxRange: CLAW_MAX_DISTANCE },
