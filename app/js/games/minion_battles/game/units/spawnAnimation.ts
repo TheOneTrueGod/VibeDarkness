@@ -16,18 +16,18 @@ export function tickSpawnAnimation(unit: Unit, dt: number, engine: EngineContext
         const count = Math.floor(unit.spawnParticleAcc1);
         unit.spawnParticleAcc1 -= count;
         for (let i = 0; i < count; i++) {
-            const angle = Math.random() * 2 * Math.PI;
-            const radius = 40 + Math.random() * 30;
+            const angle = engine.generateRandomNumber() * 2 * Math.PI;
+            const radius = 40 + engine.generateRandomNumber() * 30;
             const px = unit.x + Math.cos(angle) * radius;
             const py = unit.y + Math.sin(angle) * radius;
-            const inwardSpeed = 120 + Math.random() * 60;
-            const tangentSpeed = 70 + Math.random() * 40;
+            const inwardSpeed = 120 + engine.generateRandomNumber() * 60;
+            const tangentSpeed = 70 + engine.generateRandomNumber() * 40;
             const vx = -Math.cos(angle) * inwardSpeed + -Math.sin(angle) * tangentSpeed;
             const vy = -Math.sin(angle) * inwardSpeed + Math.cos(angle) * tangentSpeed;
             engine.addEffect(new Effect({
                 x: px, y: py, duration: 0.35,
                 effectType: 'ParticleImage',
-                effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.2 + Math.random() * 0.15, tint: 0x9933cc },
+                effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.2 + engine.generateRandomNumber() * 0.15, tint: 0x9933cc },
             }));
         }
     }
@@ -39,18 +39,18 @@ export function tickSpawnAnimation(unit: Unit, dt: number, engine: EngineContext
         const count = Math.floor(unit.spawnParticleAcc2);
         unit.spawnParticleAcc2 -= count;
         for (let i = 0; i < count; i++) {
-            const angle = Math.random() * 2 * Math.PI;
-            const speed = 50 + Math.random() * 60;
+            const angle = engine.generateRandomNumber() * 2 * Math.PI;
+            const speed = 50 + engine.generateRandomNumber() * 60;
             engine.addEffect(new Effect({
-                x: unit.x + (Math.random() - 0.5) * 16,
-                y: unit.y + (Math.random() - 0.5) * 16,
+                x: unit.x + (engine.generateRandomNumber() - 0.5) * 16,
+                y: unit.y + (engine.generateRandomNumber() - 0.5) * 16,
                 duration: 0.3,
                 effectType: 'ParticleImage',
                 effectData: {
                     imageKey: 'darkBlob',
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed,
-                    scale: 0.4 + Math.random() * 0.25,
+                    scale: 0.4 + engine.generateRandomNumber() * 0.25,
                     tint: 0xbbbbbb,
                 },
             }));

@@ -53,8 +53,8 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
             const spawnCount = Math.floor(total);
             this.radialRemainder = total - spawnCount;
             for (let i = 0; i < spawnCount; i++) {
-                const angle = Math.random() * 2 * Math.PI;
-                const speed = 120 + Math.random() * 160;
+                const angle = engine.generateRandomNumber() * 2 * Math.PI;
+                const speed = 120 + engine.generateRandomNumber() * 160;
                 const vx = Math.cos(angle) * speed;
                 const vy = Math.sin(angle) * speed;
                 produced.push(
@@ -63,7 +63,7 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
                         y: this.y,
                         duration: 1,
                         effectType: 'ParticleImage',
-                        effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.7 + Math.random() * 0.5 },
+                        effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.7 + engine.generateRandomNumber() * 0.5 },
                     }),
                 );
             }
@@ -76,15 +76,15 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
                 const spawnCount = Math.floor(total);
                 this.homingRemainder = total - spawnCount;
                 for (let i = 0; i < spawnCount; i++) {
-                    const idx = Math.floor(Math.random() * homingTargets.length);
+                    const idx = engine.generateRandomInteger(0, homingTargets.length - 1);
                     const target = homingTargets[idx];
                     if (!target) continue;
-                    const spawnAngle = Math.random() * 2 * Math.PI;
-                    const spawnRadius = 16 + Math.random() * 20;
+                    const spawnAngle = engine.generateRandomNumber() * 2 * Math.PI;
+                    const spawnRadius = 16 + engine.generateRandomNumber() * 20;
                     const sx = this.x + Math.cos(spawnAngle) * spawnRadius;
                     const sy = this.y + Math.sin(spawnAngle) * spawnRadius;
-                    const mx = (sx + target.x) * 0.5 + (Math.random() * 240 - 120);
-                    const my = (sy + target.y) * 0.5 - (70 + Math.random() * 80);
+                    const mx = (sx + target.x) * 0.5 + (engine.generateRandomNumber() * 240 - 120);
+                    const my = (sy + target.y) * 0.5 - (70 + engine.generateRandomNumber() * 80);
                     engine.addEffectEmitter(
                         new StoryHomingParticleEmitter({
                             x: sx,

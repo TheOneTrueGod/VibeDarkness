@@ -24,17 +24,16 @@ const ENERGY_BLAST_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org
 </svg>`;
 
 export const EnergyBlastAbility: AbilityStatic = {
+    id: CARD_ID,
+    name: 'Energy Blast',
     image: ENERGY_BLAST_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: 0.2,
     abilityTimings: [
+        { id: 'windup',   start: 0,    end: 0.2,  abilityPhase: AbilityPhase.Windup },
         {
-            start: 0,
-            end: 0.2,
-            abilityPhase: AbilityPhase.Windup,
-        },
-        {
+            id: 'active',
             start: 0.2,
             end: 0.55,
             abilityPhase: AbilityPhase.Active,
@@ -44,11 +43,7 @@ export const EnergyBlastAbility: AbilityStatic = {
                 .withProjectileType('energy_blast')
                 .withMaxRange(RANGE),
         },
-        {
-            start: 0.55,
-            end: 0.95,
-            abilityPhase: AbilityPhase.Cooldown,
-        },
+        { id: 'cooldown', start: 0.55, end: 0.95, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: RANGE },

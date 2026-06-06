@@ -185,6 +185,7 @@ export function processLanterniteNests(params: {
             if (!far) continue;
         }
 
+        // eslint-disable-next-line no-restricted-syntax
         const rng = params.generateRandomNumber ?? (() => Math.floor(Math.random() * 0x7fffffff));
         const INT31 = 0x7fffffff;
         const burstCount = cfg.spawnCount ?? 1;

@@ -39,15 +39,15 @@ export class DarkCreatureIconDeathEffect extends DeathEffect {
             intervalSeconds: DARK_CREATURE_ICON_DEATH_DURATION_SECONDS / budget,
             factory: () => [
                 new Effect({
-                    x: x + (Math.random() * 2 - 1) * r * 0.35,
-                    y: y + (Math.random() * 2 - 1) * r * 0.35,
+                    x: x + (engine.generateRandomNumber() * 2 - 1) * r * 0.35,
+                    y: y + (engine.generateRandomNumber() * 2 - 1) * r * 0.35,
                     duration: 0.25,
                     effectType: 'ParticleImage',
                     effectData: {
                         imageKey: 'darkBlob',
-                        vx: (Math.random() * 2 - 1) * 0.8 * 55,
-                        vy: -150 - Math.random() * 120,
-                        scale: 0.55 + Math.random() * 0.45,
+                        vx: (engine.generateRandomNumber() * 2 - 1) * 0.8 * 55,
+                        vy: -150 - engine.generateRandomNumber() * 120,
+                        scale: 0.55 + engine.generateRandomNumber() * 0.45,
                     },
                 }),
             ],
