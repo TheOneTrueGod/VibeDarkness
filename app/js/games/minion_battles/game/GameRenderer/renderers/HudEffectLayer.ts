@@ -206,6 +206,7 @@ export class HudEffectLayer {
                 softColor: soft,
                 particleCount: 2 * data.amount,
                 scaleUp: true,
+                chargeType: data.chargeType,
             }));
         }
     }
@@ -248,6 +249,7 @@ export class HudEffectLayer {
                     color: res.color,
                     softColor: iconSoftColor(res.chargeType),
                     particleCount: 2 * res.amount,
+                    chargeType: res.chargeType,
                 }));
             }
         });
@@ -449,17 +451,58 @@ export class HudEffectLayer {
     private createResourceFlight(effect: HudEffect): Container {
         const data = effect.effectData as ResourceFlightData;
         const container = new Container();
-        const r = 10;
+        const r = 12;
         for (let i = 0; i < data.particleCount; i++) {
             const g = new Graphics();
-            // Soft background disc so the main-colour border is clearly readable.
             g.circle(0, 0, r);
             g.fill({ color: data.softColor, alpha: 0.92 });
             g.circle(0, 0, r);
-            g.stroke({ color: data.color, width: 2.5, alpha: 1 });
+            g.stroke({ color: data.color, width: 1.5, alpha: 1 });
+            if (data.chargeType) this.drawParticleIcon(g, data.chargeType, data.color, r);
             container.addChild(g);
         }
         return container;
+    }
+
+    private drawParticleIcon(g: Graphics, chargeType: string, color: number, r: number): void {
+        const s = r * 0.52;
+        switch (chargeType) {
+            case 'staminaCharge':
+            case 'energyCharge':
+                // Lightning bolt — zigzag stroke
+                g.moveTo(s * 0.35, -s);
+                g.lineTo(-s * 0.15, 0);
+                g.lineTo(s * 0.2, 0);
+                g.lineTo(-s * 0.35, s);
+                g.stroke({ color, width: r * 0.15, alpha: 1 });
+                break;
+            case 'lightCharge': {
+                // Small filled center + 4 diagonal rays (sun)
+                const inner = s * 0.35;
+                const outer = s * 0.9;
+                g.circle(0, 0, inner);
+                g.fill({ color, alpha: 1 });
+                for (let i = 0; i < 4; i++) {
+                    const angle = i * (Math.PI / 2) + Math.PI / 4;
+                    g.moveTo(Math.cos(angle) * (inner + 1), Math.sin(angle) * (inner + 1));
+                    g.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+                }
+                g.stroke({ color, width: r * 0.13, alpha: 1 });
+                break;
+            }
+            case 'roundCharge':
+                // Clock face — ring + two hands
+                g.circle(0, 0, s * 0.85);
+                g.stroke({ color, width: r * 0.13, alpha: 1 });
+                g.moveTo(0, 0);
+                g.lineTo(0, -s * 0.6);
+                g.moveTo(0, 0);
+                g.lineTo(s * 0.5, 0);
+                g.stroke({ color, width: r * 0.11, alpha: 1 });
+                break;
+            default:
+                break;
+        }
     }
 
     private updateResourceFlight(visual: Container, effect: HudEffect, vw: number, vh: number): void {
