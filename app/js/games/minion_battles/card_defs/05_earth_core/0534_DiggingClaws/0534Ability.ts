@@ -216,12 +216,12 @@ export const DiggingClawsAbility: AbilityStatic = {
             // First tick at dash end: decide whether to start slingshot
             if (prevTime < DASH_DURATION) {
                 if (tm && !tm.isPassable(caster.x, caster.y)) {
-                    // Compute slingshot direction: continuing through the wall
+                    // Compute slingshot direction: back toward the wall entry point (reversed)
                     let dirX = 0;
                     let dirY = 0;
                     if (note.wallEntryX !== null && note.wallEntryY !== null) {
-                        const dx = caster.x - note.wallEntryX;
-                        const dy = caster.y - note.wallEntryY;
+                        const dx = note.wallEntryX - caster.x;
+                        const dy = note.wallEntryY - caster.y;
                         const dist = Math.sqrt(dx * dx + dy * dy);
                         if (dist > 0) {
                             dirX = dx / dist;
@@ -257,6 +257,10 @@ export const DiggingClawsAbility: AbilityStatic = {
 
                 if (tm) {
                     maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
+                    // Suppress snap-back while slingshot pushes through rock.
+                    if (!tm.isPassable(caster.x, caster.y)) {
+                        caster.wallStuckTime = 0;
+                    }
                 }
 
                 if (!tm || tm.isPassable(caster.x, caster.y)) {
@@ -331,6 +335,13 @@ export const DiggingClawsAbility: AbilityStatic = {
                         note.wallEntryY = null;
                     }
                     maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
+                }
+
+                // Suppress wall-unstick snap-back while actively digging through rock.
+                // tickWallUnstick runs after doCardEffect each frame; resetting wallStuckTime
+                // prevents the 0.1s snap from undoing the wall-penetrating movement.
+                if (!nowPassable) {
+                    caster.wallStuckTime = 0;
                 }
             }
         }

@@ -188,7 +188,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('passes earth core boar claws dash scenario', () => {
+    it('passes earth core digging claws wall-dash scenario', () => {
         const r = runScenarioHeadless(earthCoreDiggingClawsScenario);
         expect(r.passed, r.message).toBe(true);
     });

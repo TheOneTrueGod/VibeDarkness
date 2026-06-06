@@ -337,36 +337,73 @@ export const earthCoreStoneyPunchArmourScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// 0534 â€” Digging Claws (dash through dummy deals 5 damage)
+// 0534 â€” Digging Claws: dash through enemy into rock, slingshot out
+//
+// Layout: player (col 2) â†' enemy (col 4) â†' large rock block (cols 5-6).
+// Player targets a point inside the rock. Expected behaviour:
+//   1. Enemy takes â‰¥5 damage and is knocked back without landing in the rock.
+//   2. Player penetrates the rock, reaching the target position inside it.
+//   3. Slingshot repels the player back out through the entry (left) side.
+//   4. Player ends in passable terrain to the left of the rock.
 // ---------------------------------------------------------------------------
+
+const DC_ROCK_START_COL = 5;
+const DC_ROCK_END_COL   = 6; // inclusive — 2 cells wide
+const DC_ROCK_START_ROW = 2;
+const DC_ROCK_END_ROW   = 8; // inclusive — 7 cells tall
+const DC_ROCK_LEFT_X    = DC_ROCK_START_COL * CELL; // x=200, left edge of rock (entry side)
+
+const DC_PLAYER_POS = { x: 2 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (100, 220)
+const DC_ENEMY_POS  = { x: 4 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (180, 220)
+// Target is the centre of the first rock column — 20 px inside the wall
+const DC_TARGET_POS = { x: DC_ROCK_START_COL * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (220, 220)
 
 export const earthCoreDiggingClawsScenario: ScenarioDefinition = {
     id: 'earth_core_0534_digging_claws',
-    title: 'Digging Claws (0534) dash deals 5 damage',
+    title: 'Digging Claws (0534): dash through enemy into rock, slingshot back out entry side',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine() {
-        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
+        const engine = buildTinyBattleEngine({ gridW: 14, gridH: 10, localPlayerId: P, grass: true });
+        for (let col = DC_ROCK_START_COL; col <= DC_ROCK_END_COL; col++) {
+            for (let row = DC_ROCK_START_ROW; row <= DC_ROCK_END_ROW; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
         placePlayerAndDummy(engine, {
             playerId: P,
-            playerWorld: PLAYER_POS,
-            dummyWorld: DUMMY_POS,
+            playerWorld: DC_PLAYER_POS,
+            dummyWorld: DC_ENEMY_POS,
             abilities: ['0534'],
         });
         return engine;
     },
     getInitialOrders(engine) {
         const u = engine.getLocalPlayerUnit()!;
-        // Dash target is past the dummy so the player passes through it
-        return [{ unitId: u.id, abilityId: '0534', targets: [{ type: 'pixel' as const, position: { x: DUMMY_POS.x + 80, y: DUMMY_POS.y } }] }];
+        return [{ unitId: u.id, abilityId: '0534', targets: [{ type: 'pixel' as const, position: DC_TARGET_POS }] }];
     },
-    assertPass(e) {
-        const d = e.getUnit('target_dummy');
-        return Boolean(d && d.maxHp - d.hp >= 5);
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const dummy  = engine.getUnit('target_dummy');
+        const tm     = engine.terrainManager;
+        if (!player || !dummy || !tm) return false;
+        const enemyDamaged       = dummy.maxHp - dummy.hp >= 5;
+        const enemyNotInRock     = tm.isPassable(dummy.x, dummy.y);
+        const playerExitedLeft   = player.x < DC_ROCK_LEFT_X;
+        const playerNotInRock    = tm.isPassable(player.x, player.y);
+        return enemyDamaged && enemyNotInRock && playerExitedLeft && playerNotInRock;
     },
-    failureMessage(e) {
-        const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected â‰¥5 from dash contact`;
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const dummy  = engine.getUnit('target_dummy');
+        const tm     = engine.terrainManager;
+        if (!player || !dummy || !tm) return 'units or terrain missing';
+        const parts: string[] = [];
+        if (dummy.maxHp - dummy.hp < 5)      parts.push(`dummy lost ${(dummy.maxHp - dummy.hp).toFixed(0)} hp (expected â‰¥5)`);
+        if (!tm.isPassable(dummy.x, dummy.y)) parts.push(`dummy stuck in wall at x=${dummy.x.toFixed(0)}`);
+        if (!(player.x < DC_ROCK_LEFT_X))     parts.push(`player at x=${player.x.toFixed(0)}, expected left of rock entry (x<${DC_ROCK_LEFT_X})`);
+        if (!tm.isPassable(player.x, player.y)) parts.push(`player stuck in wall at x=${player.x.toFixed(0)}`);
+        return parts.join('; ');
     },
 };
 
