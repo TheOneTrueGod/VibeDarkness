@@ -36,6 +36,8 @@ export interface TurnStartEvent {
 
 export interface RoundStartEvent {
     roundNumber: number;
+    /** Stamina charges granted per eligible ability at round start (= floor(unit.stamina)). */
+    staminaSurgeAmount?: number;
 }
 
 export interface TurnEndEvent {

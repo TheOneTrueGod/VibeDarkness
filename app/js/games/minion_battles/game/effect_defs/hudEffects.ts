@@ -1,15 +1,22 @@
 import { HudEffect } from '../effects/HudEffect';
 
 // ─── RoundStartBanner ──────────────────────────────────────────────────────────
-// Centered banner: "Round N" + "Stamina Restored". Only shown from round 2+.
+// Centered banner: "Round N" + resource icons. Only shown from round 2+.
 // Animation: pop-in (0–20%), hold (20–80%), float-up + fade (80–100%).
+// At p=0.2 (hold start), auto-spawns ResourceFlightEffect from each icon.
+
+export type RoundStartResourceGrant = {
+    chargeType: string;
+    amount: number;
+    color: number;
+};
 
 export class RoundStartBannerEffect extends HudEffect {
-    declare effectData: { roundNumber: number };
+    declare effectData: { roundNumber: number; resources: RoundStartResourceGrant[]; flightSent?: boolean };
 
-    constructor(roundNumber: number) {
+    constructor(roundNumber: number, resources: RoundStartResourceGrant[]) {
         super('RoundStartBanner', 2.0);
-        this.effectData = { roundNumber };
+        this.effectData = { roundNumber, resources };
     }
 }
 

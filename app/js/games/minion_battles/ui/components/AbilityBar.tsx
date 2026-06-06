@@ -59,6 +59,8 @@ interface AbilityBarProps {
     onWaitHoverChange?: (hovered: boolean) => void;
     /** Current game state for dynamic descriptions. */
     gameState?: unknown;
+    /** Register a card's page-center position as a HUD flight target (key = 'card:<abilityId>'). */
+    onRegisterCardTarget?: (key: string, pageX: number, pageY: number) => void;
 }
 
 export default function AbilityBar({
@@ -73,6 +75,7 @@ export default function AbilityBar({
     onWait,
     onWaitHoverChange,
     gameState,
+    onRegisterCardTarget,
 }: AbilityBarProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(getUsesMobileCardLayout);
@@ -80,7 +83,6 @@ export default function AbilityBar({
     const [animationNow, setAnimationNow] = useState<number>(() => performance.now());
     const [pulseParticles, setPulseParticles] = useState<PulseParticle[]>([]);
     const rowRef = React.useRef<HTMLDivElement | null>(null);
-    const roundTrackerRef = React.useRef<HTMLDivElement | null>(null);
     const cardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
     const recoveryPillRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
     const prevRoundRef = React.useRef<number>(roundNumber);
@@ -130,6 +132,18 @@ export default function AbilityBar({
         }
     }, [handCards, hoveredCardId]);
 
+    // Register card top-center page positions as HUD flight targets whenever the hand changes.
+    useEffect(() => {
+        if (!onRegisterCardTarget) return;
+        for (const card of handCards) {
+            const el = cardRefs.current[card.abilityId];
+            if (!el) continue;
+            const rect = el.getBoundingClientRect();
+            onRegisterCardTarget(`card:${card.abilityId}`, rect.left + rect.width / 2, rect.top);
+        }
+    }, [handCards, onRegisterCardTarget]);
+
+    // Same-round mid-round recovery: particles from radius around pill → pill center.
     useEffect(() => {
         const prevRound = prevRoundRef.current;
         const prev = prevRuntimeRef.current;
@@ -145,42 +159,9 @@ export default function AbilityBar({
             })
             .map((c) => c.abilityId);
 
-        if (gained.length > 0) {
+        if (gained.length > 0 && roundNumber === prevRound) {
             const rowEl = rowRef.current;
-            const trackerEl = roundTrackerRef.current;
-            if (roundNumber !== prevRound && rowEl && trackerEl) {
-                const rowRect = rowEl.getBoundingClientRect();
-                const trackerRect = trackerEl.getBoundingClientRect();
-                const trackerCenterX = trackerRect.left + trackerRect.width / 2 - rowRect.left;
-                const trackerCenterY = trackerRect.top + trackerRect.height / 2 - rowRect.top;
-                const start = performance.now();
-                const particles = gained.flatMap((abilityId, idx) => {
-                    const cardEl = cardRefs.current[abilityId];
-                    if (!cardEl) return [];
-                    const cardRect = cardEl.getBoundingClientRect();
-                    const cardBottomCenterX = cardRect.left + cardRect.width / 2 - rowRect.left;
-                    const cardBottomCenterY = cardRect.bottom - rowRect.top;
-                    const chordMidX = (trackerCenterX + cardBottomCenterX) / 2;
-                    const chordMidY = (trackerCenterY + cardBottomCenterY) / 2;
-                    return Array.from({ length: 4 }, (_, i) => ({
-                        id: `${abilityId}-${idx}-${i}-${start}`,
-                        startMs: start,
-                        durationMs: 850,
-                        fromX: trackerCenterX + (Math.random() - 0.5) * 12,
-                        fromY: trackerCenterY + (Math.random() - 0.5) * 12,
-                        toX: cardBottomCenterX + (Math.random() - 0.5) * 12,
-                        toY: cardBottomCenterY + (Math.random() - 0.5) * 12,
-                        controlX: chordMidX + (Math.random() - 0.5) * 44,
-                        // Screen Y grows downward; place control above chord midpoint so the arc bulges upward.
-                        controlY: chordMidY - (48 + Math.random() * 56),
-                        staggerMs: i * 45,
-                        sizeFrom: 6,
-                        sizeTo: 6,
-                        alphaMode: 'fade' as const,
-                    }));
-                });
-                setPulseParticles((prevParticles) => [...prevParticles, ...particles]);
-            } else if (roundNumber === prevRound && rowEl) {
+            if (rowEl) {
                 const rowRect = rowEl.getBoundingClientRect();
                 const start = performance.now();
                 const particles = gained.flatMap((abilityId, idx) => {
@@ -309,9 +290,6 @@ export default function AbilityBar({
                     progress={roundProgress}
                     isPaused={isPaused}
                     staminaSurge={playerUnit?.stamina ?? DEFAULT_PLAYER_ROUND_STAMINA_SURGE}
-                    onRootRef={(el) => {
-                        roundTrackerRef.current = el;
-                    }}
                 />
                 {playerUnit && (
                     <>

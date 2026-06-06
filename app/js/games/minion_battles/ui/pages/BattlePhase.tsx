@@ -47,6 +47,7 @@ import { TeamworkTextEffect } from '../../game/effect_defs/hudEffects';
 import { computeSynchash } from '@/utils/synchash';
 import { logToLobbyLog } from '../../../../lobbyLog';
 import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
+import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEffectCanvas';
 import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 
@@ -134,6 +135,7 @@ export default function BattlePhase({
 
     const sessionRef = useRef<BattleSession | null>(null);
     const netRef = useRef<BattleNet | null>(null);
+    const hudEffectCanvasRef = useRef<HudEffectCanvasHandle | null>(null);
     const prevLobbyHostPlayerIdRef = useRef<string | null>(null);
     const initialHeartbeatCheckedRef = useRef(false);
 
@@ -418,7 +420,7 @@ export default function BattlePhase({
             setStoryPauseActive(engine.storyPauseActive);
 
             if (info.teamworkCancelledOwnerIds?.includes(playerId)) {
-                sessionRef.current?.getRenderer()?.addHudEffect(new TeamworkTextEffect());
+                hudEffectCanvasRef.current?.addHudEffect(new TeamworkTextEffect());
             }
 
             const active = engine.state.orderMgr.getActiveOrderWaiterForPlayer(playerId);
@@ -1170,6 +1172,9 @@ export default function BattlePhase({
             onWait={handleWait}
             onWaitHoverChange={setIsWaitHovered}
             gameState={engine}
+            onRegisterCardTarget={(key, pageX, pageY) => {
+                hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);
+            }}
         />
     );
 
@@ -1273,6 +1278,7 @@ export default function BattlePhase({
             ) : (
                 <div className="shrink-0 min-w-0">{abilityBar}</div>
             )}
+            <HudEffectCanvas ref={hudEffectCanvasRef} engine={engine} />
         </div>
     );
 }

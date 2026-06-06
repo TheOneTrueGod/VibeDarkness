@@ -1328,7 +1328,9 @@ export class GameEngine implements EngineContext {
             generateRandomInteger: (min: number, max: number) => this.generateRandomInteger(min, max),
         };
         if (!this.appliedRoundStartRecovery) {
-            this.eventBus.emit('round_start', { roundNumber: this.roundNumber });
+            const surgeUnit = this.units.find(u => u.isPlayerControlled() && u.isAlive());
+            const staminaSurgeAmount = surgeUnit ? Math.max(0, Math.floor(surgeUnit.stamina)) : 0;
+            this.eventBus.emit('round_start', { roundNumber: this.roundNumber, staminaSurgeAmount });
             this.state.unitManager.onRoundStart(this.roundNumber, this);
             this.applyChargedRocksLightChargePulse();
             processLanternitePulseMilestone('round_start', {
