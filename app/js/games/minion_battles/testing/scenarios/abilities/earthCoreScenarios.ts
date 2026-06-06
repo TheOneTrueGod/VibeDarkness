@@ -337,12 +337,12 @@ export const earthCoreStoneyPunchArmourScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// 0534 â€” Boar Claws (dash through dummy deals 5 damage)
+// 0534 â€” Digging Claws (dash through dummy deals 5 damage)
 // ---------------------------------------------------------------------------
 
-export const earthCoreBoarClawsScenario: ScenarioDefinition = {
-    id: 'earth_core_0534_boar_claws',
-    title: 'Boar Claws (0534) dash deals 5 damage',
+export const earthCoreDiggingClawsScenario: ScenarioDefinition = {
+    id: 'earth_core_0534_digging_claws',
+    title: 'Digging Claws (0534) dash deals 5 damage',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine() {

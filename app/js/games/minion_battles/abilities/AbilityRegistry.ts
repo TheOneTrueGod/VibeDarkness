@@ -52,7 +52,7 @@ import { StoneTomb } from '../card_defs/05_earth_core/0530_StoneTomb/0530Ability
 import { KnockAbility } from '../card_defs/05_earth_core/0531_Knock/0531Ability';
 import { AnchoredTremor } from '../card_defs/05_earth_core/0532_AnchoredTremor/0532Ability';
 import { StoneyPunch } from '../card_defs/05_earth_core/0533_StoneyPunch/0533Ability';
-import { BoarClawsAbility } from '../card_defs/05_earth_core/0534_BoarClaws/0534Ability';
+import { DiggingClawsAbility } from '../card_defs/05_earth_core/0534_DiggingClaws/0534Ability';
 import { ThornbinderBrambleAbility } from '../card_defs/0008_ThornbinderBramble/0008Ability';
 import { HuskSeedBarrageAbility } from '../card_defs/0009_HuskSeedBarrage/0009Ability';
 import { LanterniteStrikeAbility } from '../card_defs/0010_LanterniteStrike/0010Ability';
@@ -115,7 +115,7 @@ register(StoneTomb);
 register(KnockAbility);
 register(AnchoredTremor);
 register(StoneyPunch);
-register(BoarClawsAbility);
+register(DiggingClawsAbility);
 register(ThornbinderBrambleAbility);
 register(HuskSeedBarrageAbility);
 register(LanterniteStrikeAbility);

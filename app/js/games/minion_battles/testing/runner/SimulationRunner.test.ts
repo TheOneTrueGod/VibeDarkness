@@ -35,7 +35,7 @@ import {
     earthCoreAnchoredTremorScenario,
     earthCoreStoneyPunchBaselineScenario,
     earthCoreStoneyPunchArmourScenario,
-    earthCoreBoarClawsScenario,
+    earthCoreDiggingClawsScenario,
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
@@ -189,7 +189,7 @@ describe('runScenarioHeadless', () => {
     });
 
     it('passes earth core boar claws dash scenario', () => {
-        const r = runScenarioHeadless(earthCoreBoarClawsScenario);
+        const r = runScenarioHeadless(earthCoreDiggingClawsScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

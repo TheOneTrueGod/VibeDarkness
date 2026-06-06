@@ -1,5 +1,5 @@
 ﻿/**
- * Boar Claws â€” Earth Core card. Wall-penetrating dash that damages rock tiles in transit.
+ * Digging Claws â€” Earth Core card. Wall-penetrating dash that damages rock tiles in transit.
  * If the dash ends inside a wall, the unit is steadily pushed out and launched (slingshot).
  */
 
@@ -50,7 +50,7 @@ interface GameEngineLike extends EngineContext {
     interruptUnitAndRefundAbilities(unit: Unit): void;
 }
 
-const BOAR_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+const DIGGING_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="28" fill="#3a3028" stroke="#1a1a1a"/>
   <path d="M18 46 L28 28 M24 48 L34 30 M30 46 L40 28"
         stroke="#a07840" stroke-width="3.5" fill="none" stroke-linecap="round"/>
@@ -120,10 +120,10 @@ function maybeDamageCurrentTile(
     tm.damageRock(cell.col, cell.row);
 }
 
-export const BoarClawsAbility: AbilityStatic = {
+export const DiggingClawsAbility: AbilityStatic = {
     id: CARD_ID,
-    name: 'Boar Claws',
-    image: BOAR_CLAWS_IMAGE,
+    name: 'Digging Claws',
+    image: DIGGING_CLAWS_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DASH_DURATION,
@@ -137,9 +137,9 @@ export const BoarClawsAbility: AbilityStatic = {
 
     getTooltipText(): string[] {
         return [
-            'Dash through walls with iframes, damaging rock tiles you pass through',
+            'Dig through walls with iframes, damaging rock tiles you pass through',
             `Deal {${DAMAGE}} damage and knock back enemies you touch`,
-            'If you end the dash inside a wall, you are flung out the other side',
+            'If you end the dig inside a wall, you are flung out the other side',
         ];
     },
 
@@ -382,6 +382,6 @@ export const BoarClawsAbility: AbilityStatic = {
     renderTargetingPreview: createPixelTargetPreview(MAX_DISTANCE),
 };
 
-export const BoarClawsCard: CardDef = {
+export const DiggingClawsCard: CardDef = {
     abilityId: CARD_ID,
 };
