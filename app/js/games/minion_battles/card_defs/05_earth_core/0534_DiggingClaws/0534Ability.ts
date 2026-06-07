@@ -18,12 +18,16 @@ import { getBodyColorForUnit, getCharacterSpriteKey } from '../../../game/units/
 import { areEnemies } from '../../../game/teams';
 import { isAbilityNote } from '../../../game/AbilityNote';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
-import type { EventBus } from '../../../game/EventBus';
 import { grantRecoveryChargeToRandomAbility } from '../../../abilities/abilityUses';
 import { ContinuousEmitter, IntervalEmitter } from '../../../game/effects/EffectEmitter';
 import type { EngineContext } from '../../../game/EngineContext';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
+import {
+    applySlingshotLaunch,
+    computeSlingshotDirection,
+    findNearestPassableDirection,
+} from '../../../game/units/slingshotHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
 const DASH_DURATION = 0.4;
@@ -36,10 +40,8 @@ const SLINGSHOT_SPEED = 400; // px/s
 const SLINGSHOT_LAUNCH_MAGNITUDE = 160;
 const SLINGSHOT_LAUNCH_AIR_TIME = 0.4;
 const SLINGSHOT_LAUNCH_SLIDE_TIME = 0.2;
+// ^ These remain intentionally distinct from GENERIC_* in slingshotHelpers — tune independently.
 const AFTERIMAGE_DURATION = 6 / 60;
-
-// Number of evenly-spaced directions to scan when looking for nearest passable tile
-const NEAREST_PASSABLE_DIR_COUNT = 16;
 
 interface TerrainManagerLike {
     grid: { worldToGrid(x: number, y: number): { col: number; row: number } };
@@ -57,56 +59,6 @@ const DIGGING_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.or
         stroke="#a07840" stroke-width="3.5" fill="none" stroke-linecap="round"/>
 </svg>`;
 
-/** Scan NEAREST_PASSABLE_DIR_COUNT evenly-spaced angles from caster position, return direction toward nearest passable tile. */
-function findNearestPassableDirection(
-    tm: TerrainManagerLike,
-    x: number,
-    y: number,
-): { x: number; y: number } | null {
-    const STEP = 4;
-    const MAX_STEPS = 50; // 200px
-    let bestDist = Infinity;
-    let bestDir: { x: number; y: number } | null = null;
-
-    for (let i = 0; i < NEAREST_PASSABLE_DIR_COUNT; i++) {
-        const angle = (i / NEAREST_PASSABLE_DIR_COUNT) * Math.PI * 2;
-        const dx = Math.cos(angle);
-        const dy = Math.sin(angle);
-        for (let s = 1; s <= MAX_STEPS; s++) {
-            const d = s * STEP;
-            if (tm.isPassable(x + dx * d, y + dy * d)) {
-                if (d < bestDist) {
-                    bestDist = d;
-                    bestDir = { x: dx, y: dy };
-                }
-                break;
-            }
-        }
-    }
-    return bestDir;
-}
-
-/** Apply launching self-knockback (slingshot launch). poiseDamage=0 so it always applies. */
-function applySlingshotLaunch(
-    caster: Unit,
-    dirX: number,
-    dirY: number,
-    eventBus: EventBus,
-): void {
-    caster.applyKnockback(
-        {
-            knockbackVector: {
-                x: dirX * SLINGSHOT_LAUNCH_MAGNITUDE,
-                y: dirY * SLINGSHOT_LAUNCH_MAGNITUDE,
-            },
-            knockbackAirTime: SLINGSHOT_LAUNCH_AIR_TIME,
-            knockbackSlideTime: SLINGSHOT_LAUNCH_SLIDE_TIME,
-            knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-        },
-        eventBus,
-    );
-}
-
 /** Set slingshotDirX/Y on the ability note when the caster is stuck inside rock. */
 function initSlingshotDirectionIfStuck(
     caster: Unit,
@@ -120,28 +72,10 @@ function initSlingshotDirectionIfStuck(
 ): void {
     if (note.slingshotDirX !== null || note.slingshotDirY !== null) return;
     if (tm.isPassable(caster.x, caster.y)) return;
-
-    let dirX = 0;
-    let dirY = 0;
-    if (note.wallEntryX !== null && note.wallEntryY !== null) {
-        const dx = note.wallEntryX - caster.x;
-        const dy = note.wallEntryY - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 0) {
-            dirX = dx / dist;
-            dirY = dy / dist;
-        }
-    }
-    if (dirX === 0 && dirY === 0) {
-        const nearest = findNearestPassableDirection(tm, caster.x, caster.y);
-        if (nearest) {
-            dirX = nearest.x;
-            dirY = nearest.y;
-        }
-    }
-    if (dirX !== 0 || dirY !== 0) {
-        note.slingshotDirX = dirX;
-        note.slingshotDirY = dirY;
+    const dir = computeSlingshotDirection(note.wallEntryX, note.wallEntryY, caster.x, caster.y, tm);
+    if (dir) {
+        note.slingshotDirX = dir.x;
+        note.slingshotDirY = dir.y;
     }
 }
 
@@ -181,7 +115,7 @@ export const DiggingClawsAbility: AbilityStatic = {
                 abilityTagFilter: ['Entombed'],
             },
         },
-        { id: 'slingshot', start: DASH_DURATION,                   end: DASH_DURATION + SLINGSHOT_PHASE,            abilityPhase: AbilityPhase.Cooldown },
+        { id: 'slingshot', start: DASH_DURATION,                   end: DASH_DURATION + SLINGSHOT_PHASE,            abilityPhase: AbilityPhase.Active },
         { id: 'cooldown',  start: DASH_DURATION + SLINGSHOT_PHASE, end: DASH_DURATION + SLINGSHOT_PHASE + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
@@ -321,15 +255,13 @@ export const DiggingClawsAbility: AbilityStatic = {
 
                 if (tm) {
                     maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
-                    // Suppress snap-back while slingshot pushes through rock.
-                    if (!tm.isPassable(caster.x, caster.y)) {
-                        caster.wallStuckTime = 0;
-                    }
                 }
 
                 if (!tm || tm.isPassable(caster.x, caster.y)) {
-                    // Exited wall â€” launch!
-                    applySlingshotLaunch(caster, note.slingshotDirX, note.slingshotDirY, eng.eventBus);
+                    // Exited wall — launch!
+                    applySlingshotLaunch(caster, note.slingshotDirX, note.slingshotDirY,
+                        SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
+                        eng.eventBus, caster.id, CARD_ID);
                     caster.clearAbilityNote();
                     return;
                 }
@@ -355,7 +287,9 @@ export const DiggingClawsAbility: AbilityStatic = {
                         if (distToExit > 0) {
                             caster.invalidateMovementPath();
                             caster.moveUnit(exitX, exitY, distToExit);
-                            applySlingshotLaunch(caster, dir.x, dir.y, eng.eventBus);
+                            applySlingshotLaunch(caster, dir.x, dir.y,
+                                SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
+                                eng.eventBus, caster.id, CARD_ID);
                         }
                     }
                 }
@@ -401,12 +335,6 @@ export const DiggingClawsAbility: AbilityStatic = {
                     maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
                 }
 
-                // Suppress wall-unstick snap-back while actively digging through rock.
-                // tickWallUnstick runs after doCardEffect each frame; resetting wallStuckTime
-                // prevents the 0.1s snap from undoing the wall-penetrating movement.
-                if (!nowPassable) {
-                    caster.wallStuckTime = 0;
-                }
             }
         }
 

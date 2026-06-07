@@ -23,7 +23,21 @@ import {
     ensureAbilityRuntimeState as ensureAbilityRuntimeStateUtil,
     grantRoundChargesToEligibleAbilities,
     syncNestedCardAbilityState,
+    unitAbilityHasTag,
 } from '../../abilities/abilityUses';
+import {
+    AbilityPhase,
+    getCoveringAbilityPhaseAtElapsed,
+    normalizeAbilityTimingsToIntervals,
+    resolveAbilityTimingEntries,
+} from '../../abilities/abilityTimings';
+import {
+    applySlingshotLaunch,
+    computeSlingshotDirection,
+    GENERIC_SLINGSHOT_AIR_TIME,
+    GENERIC_SLINGSHOT_MAGNITUDE,
+    GENERIC_SLINGSHOT_SLIDE_TIME,
+} from './slingshotHelpers';
 import type { ResolvedTarget } from '../types';
 import { triggerAbilityEvent } from '../../abilities/events';
 import { AbilityEventType } from '../../abilities/Ability';
@@ -255,6 +269,9 @@ export class Unit extends GameObject {
 
     /** Seconds this unit has spent inside an impassable tile (not serialized; resets on load). */
     wallStuckTime: number = 0;
+
+    /** Last world position where the unit was in passable terrain. Used for generic slingshot direction. */
+    wallEntryPoint: { x: number; y: number } | null = null;
 
     /** Active buffs/debuffs on this unit. Serialized for checkpoints. */
     buffs: Buff[] = [];
@@ -655,7 +672,7 @@ export class Unit extends GameObject {
         // Wall recovery: nudge/snap stuck units out of impassable terrain (runs before stun check so
         // stunned units can still recover from a wall they were diagonal-clipped into).
         if (grid && this.isAlive()) {
-            this.tickWallUnstick(dt, grid, gameTime);
+            this.tickWallUnstick(dt, grid, engine as EngineContext);
         }
 
         // Stunned/exposed units must not advance along a movement path (canAct already blocks new orders).
@@ -788,15 +805,25 @@ export class Unit extends GameObject {
 
     /**
      * If the unit is inside an impassable tile, nudge it toward the nearest passable cell each tick.
-     * After WALL_SNAP_DELAY seconds of continuous wall contact, snap directly to that cell's center.
+     * After WALL_SNAP_DELAY seconds of continuous wall contact, fire a slingshot launch (unless an
+     * Entombed ability is in a non-Cooldown phase, in which case suppression holds).
      */
-    private tickWallUnstick(dt: number, grid: TerrainGrid, gameTime: number): void {
+    private tickWallUnstick(dt: number, grid: TerrainGrid, engine: EngineContext): void {
+        const gameTime = engine.gameTime;
+
         if (grid.isPassable(this.x, this.y)) {
+            this.wallEntryPoint = { x: this.x, y: this.y };
             this.wallStuckTime = 0;
             return;
         }
 
         this.wallStuckTime += dt;
+
+        // Suppress while any Entombed ability is still in an active (non-Cooldown) phase.
+        if (isEntombedProtectionActive(this, engine)) {
+            this.wallStuckTime = 0;
+            return;
+        }
 
         const col = Math.floor(this.x / CELL_SIZE);
         const row = Math.floor(this.y / CELL_SIZE);
@@ -807,13 +834,33 @@ export class Unit extends GameObject {
         const targetY = nearest.row * CELL_SIZE + CELL_SIZE / 2;
 
         if (this.wallStuckTime >= Unit.WALL_SNAP_DELAY) {
-            this.x = targetX;
-            this.y = targetY;
-            this.wallStuckTime = 0;
+            const tm = engine.terrainManager;
+            const dir = tm
+                ? computeSlingshotDirection(this.wallEntryPoint?.x, this.wallEntryPoint?.y, this.x, this.y, tm)
+                : null;
+            if (dir) {
+                this.takeDamage(5, null, engine.eventBus);
+                // Snap to nearest passable cell first; knockback starting inside a wall is immediately
+                // cancelled by computeForcedDisplacement (distance = 0 when first step is also in wall).
+                this.x = targetX;
+                this.y = targetY;
+                applySlingshotLaunch(
+                    this, dir.x, dir.y,
+                    GENERIC_SLINGSHOT_MAGNITUDE, GENERIC_SLINGSHOT_AIR_TIME, GENERIC_SLINGSHOT_SLIDE_TIME,
+                    engine.eventBus, this.id, 'wall_eject',
+                );
+                this.wallStuckTime = 0;
+                this.wallEntryPoint = null;
+            } else {
+                // Last resort: teleport to nearest passable cell when no exit direction is found.
+                this.x = targetX;
+                this.y = targetY;
+                this.wallStuckTime = 0;
+            }
             return;
         }
 
-        // Option B: nudge toward the exit at normal movement speed
+        // Nudge toward the exit at normal movement speed while below the threshold.
         const dx = targetX - this.x;
         const dy = targetY - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1211,6 +1258,7 @@ export class Unit extends GameObject {
                 : {}),
             ...(this.tags.length > 0 ? { tags: [...this.tags] } : {}),
             ...(this.lanterniteNestOwnerUnitId != null ? { lanterniteNestOwnerUnitId: this.lanterniteNestOwnerUnitId } : {}),
+            ...(this.wallEntryPoint != null ? { wallEntryPoint: { ...this.wallEntryPoint } } : {}),
             ...(this.lanternPatrolFarWorld != null ? { lanternPatrolFarWorld: { ...this.lanternPatrolFarWorld } } : {}),
             ...(this.lanternPatrolLeg !== 'toFar' ? { lanternPatrolLeg: this.lanternPatrolLeg } : {}),
             ...(this.lanterniteNestConfig != null
@@ -1387,7 +1435,32 @@ export class Unit extends GameObject {
         );
         unit.abilityModifiers = (data.abilityModifiers as Record<string, AbilityModifier> | undefined) ?? {};
 
+        const wep = data.wallEntryPoint as { x?: number; y?: number } | undefined;
+        if (wep != null && typeof wep.x === 'number' && typeof wep.y === 'number') {
+            unit.wallEntryPoint = { x: wep.x, y: wep.y };
+        }
+
         // Resources are reattached by the unit subclass factory
         return unit;
     }
+}
+
+/**
+ * Returns true if the unit has an active Entombed-tagged ability that is NOT yet in a Cooldown/CoopCooldown phase.
+ * Used by tickWallUnstick to suppress the generic wall slingshot while abilities manage their own wall exit.
+ */
+function isEntombedProtectionActive(unit: Unit, engine: EngineContext): boolean {
+    for (const active of unit.activeAbilities) {
+        if (!unitAbilityHasTag(unit, active.abilityId, 'Entombed')) continue;
+        const ability = getAbility(active.abilityId);
+        if (!ability) continue;
+        const entries = resolveAbilityTimingEntries(ability, unit, engine);
+        const intervals = normalizeAbilityTimingsToIntervals(entries);
+        const elapsed = engine.gameTime - active.startTime;
+        const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
+        if (phase !== AbilityPhase.Cooldown && phase !== AbilityPhase.CoopCooldown) {
+            return true;
+        }
+    }
+    return false;
 }
