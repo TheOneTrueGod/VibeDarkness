@@ -14,6 +14,7 @@
 import type { Effect } from './Effect';
 import type { EngineContext } from '../EngineContext';
 import { generateGameObjectId } from '../GameObject';
+import { type TerrainType } from '../../terrain/TerrainType';
 
 export interface Vec2 { x: number; y: number; }
 
@@ -100,6 +101,12 @@ export class OneShotEmitter extends EffectEmitter {
 /** Fires effects on a fixed interval over a fixed lifetime (or until deactivated). */
 export class IntervalEmitter extends EffectEmitter {
     intervalSeconds: number;
+    /**
+     * When set, emission is gated to tiles whose terrain type is in this list.
+     * Position is synced from the attached unit (via attachedToUnitId) each game tick before the check.
+     * If terrainManager is absent, no effects are emitted.
+     */
+    terrainCondition?: TerrainType[];
     private accumulator = 0;
     private factory: (emitter: IntervalEmitter, engine: EngineContext) => Effect[];
 
@@ -107,11 +114,17 @@ export class IntervalEmitter extends EffectEmitter {
         intervalSeconds: number;
         /** When true, seeds the accumulator so the first fire happens on the very first tick. */
         fireImmediately?: boolean;
+        /**
+         * Restrict emission to the listed terrain types at the emitter's current position.
+         * Requires terrainManager to be present on the engine; emits nothing if absent.
+         */
+        terrainCondition?: TerrainType[];
         /** Called each interval; return the Effects to add. Not serialized. */
         factory: (emitter: IntervalEmitter, engine: EngineContext) => Effect[];
     }) {
         super(config);
         this.intervalSeconds = config.intervalSeconds;
+        this.terrainCondition = config.terrainCondition;
         this.factory = config.factory;
         if (config.fireImmediately) {
             this.accumulator = config.intervalSeconds;
@@ -119,12 +132,26 @@ export class IntervalEmitter extends EffectEmitter {
     }
 
     update(dt: number, engine: EngineContext): Effect[] {
+        // Sync position from attached unit before terrain check.
+        if (this.attachedToUnitId) {
+            const unit = engine.getUnit(this.attachedToUnitId);
+            if (unit) { this.x = unit.x; this.y = unit.y; }
+        }
+
         this.elapsed += dt;
         this.accumulator += dt;
         const results: Effect[] = [];
+
+        // Gate emission to specific terrain types when terrainCondition is specified.
+        const passesTerrainCondition = !this.terrainCondition || this.terrainCondition.length === 0 ||
+            (engine.terrainManager !== null &&
+             this.terrainCondition.includes(engine.terrainManager.getTerrainAt(this.x, this.y)));
+
         while (this.accumulator >= this.intervalSeconds) {
             this.accumulator -= this.intervalSeconds;
-            results.push(...this.factory(this, engine));
+            if (passesTerrainCondition) {
+                results.push(...this.factory(this, engine));
+            }
         }
         if (this.lifetime !== Infinity && this.elapsed >= this.lifetime) {
             this.active = false;

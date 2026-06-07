@@ -38,7 +38,7 @@ export const KnockAbility: AbilityStatic = {
         return ['Fire a Stonephase projectile for {6} damage.'];
     },
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= 0.25 || currentTime < 0.25) return;
+        if (prevTime > 0.25 || currentTime < 0.25) return;
         const target = getPixelTargetPosition(targets, 0);
         if (!target) return;
         const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, target.x, target.y);

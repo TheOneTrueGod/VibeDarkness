@@ -69,7 +69,7 @@ export const ShatterAbility: AbilityStatic = {
         return [];
     },
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (!(prevTime < 0.25 && currentTime >= 0.25)) return;
+        if (!(prevTime <= 0.25 && currentTime >= 0.25)) return;
         const eng = engine as EngineLike;
         const targetPos = getPixelTargetPosition(targets, 0);
         if (!targetPos) return;

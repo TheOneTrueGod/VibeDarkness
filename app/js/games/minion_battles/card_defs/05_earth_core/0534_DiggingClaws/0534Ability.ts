@@ -20,8 +20,9 @@ import { isAbilityNote } from '../../../game/AbilityNote';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import type { EventBus } from '../../../game/EventBus';
 import { grantRecoveryChargeToRandomAbility } from '../../../abilities/abilityUses';
-import { ContinuousEmitter } from '../../../game/effects/EffectEmitter';
+import { ContinuousEmitter, IntervalEmitter } from '../../../game/effects/EffectEmitter';
 import type { EngineContext } from '../../../game/EngineContext';
+import { TerrainType } from '../../../terrain/TerrainType';
 import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
@@ -178,6 +179,43 @@ export const DiggingClawsAbility: AbilityStatic = {
             },
         });
         eng.addEffectEmitter(emitter);
+
+        const casterRadius = caster.radius;
+        const rockDebrisEmitter = new IntervalEmitter({
+            x: caster.x,
+            y: caster.y,
+            attachedToUnitId: caster.id,
+            lifetime: DASH_DURATION + SLINGSHOT_PHASE,
+            intervalSeconds: 0.08,
+            fireImmediately: true,
+            terrainCondition: [TerrainType.Rock],
+            factory: (em) => {
+                const particles: Effect[] = [];
+                const count = 3 + Math.floor(Math.random() * 2);
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 55 + Math.random() * 85;
+                    const scale = 0.7 + Math.random() * 0.7;
+                    const rockTints = [0x8a7058, 0x706448, 0xa08868, 0x988060, 0x7a6850];
+                    const tint = rockTints[Math.floor(Math.random() * rockTints.length)];
+                    particles.push(new Effect({
+                        x: em.x + (Math.random() - 0.5) * casterRadius,
+                        y: em.y + (Math.random() - 0.5) * casterRadius,
+                        duration: 0.18 + Math.random() * 0.14,
+                        effectType: 'ParticleImage',
+                        effectData: {
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            scale,
+                            tint,
+                        },
+                    }));
+                }
+                return particles;
+            },
+        });
+        eng.addEffectEmitter(rockDebrisEmitter);
+
         active.castPayload = { afterimageEmitter: emitter };
     },
 
