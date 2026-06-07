@@ -5,6 +5,7 @@ import { isAbilityTimingInterval } from './abilityTimings';
 describe('AbilityRegistry', () => {
     it('every registered ability has non-empty interval abilityTimings', () => {
         for (const a of getAllAbilities()) {
+            if (a.passive) continue;
             const t = a.abilityTimings;
             expect(t.length, `${a.id} must define abilityTimings`).toBeGreaterThan(0);
             for (let i = 0; i < t.length; i++) {

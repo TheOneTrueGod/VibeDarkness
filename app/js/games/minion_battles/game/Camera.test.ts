@@ -23,18 +23,18 @@ describe('Camera', () => {
         });
     });
 
-    describe('bounded by level', () => {
+    describe('bounded by level (300px buffer outside map)', () => {
         it('does not pan past the left edge of the stage', () => {
             const cam = new Camera(400, 300, WORLD_WIDTH, WORLD_HEIGHT);
             cam.snapTo(-100, WORLD_HEIGHT / 2);
-            expect(cam.x).toBe(0);
+            expect(cam.x).toBe(-100);
             expect(cam.y).toBe(WORLD_HEIGHT / 2);
         });
 
         it('does not pan past the right edge of the stage', () => {
             const cam = new Camera(400, 300, WORLD_WIDTH, WORLD_HEIGHT);
             cam.snapTo(WORLD_WIDTH + 100, WORLD_HEIGHT / 2);
-            expect(cam.x).toBe(WORLD_WIDTH);
+            expect(cam.x).toBe(1300);
             expect(cam.y).toBe(WORLD_HEIGHT / 2);
         });
 
@@ -42,14 +42,14 @@ describe('Camera', () => {
             const cam = new Camera(400, 300, WORLD_WIDTH, WORLD_HEIGHT);
             cam.snapTo(WORLD_WIDTH / 2, -50);
             expect(cam.x).toBe(WORLD_WIDTH / 2);
-            expect(cam.y).toBe(0);
+            expect(cam.y).toBe(-50);
         });
 
         it('does not pan past the bottom edge of the stage', () => {
             const cam = new Camera(400, 300, WORLD_WIDTH, WORLD_HEIGHT);
             cam.snapTo(WORLD_WIDTH / 2, WORLD_HEIGHT + 100);
             expect(cam.x).toBe(WORLD_WIDTH / 2);
-            expect(cam.y).toBe(WORLD_HEIGHT);
+            expect(cam.y).toBe(900);
         });
     });
 
@@ -57,7 +57,7 @@ describe('Camera', () => {
         it('still follows target when viewport width is bigger than world (clamped to world bounds)', () => {
             const cam = new Camera(1600, 600, WORLD_WIDTH, WORLD_HEIGHT);
             cam.snapTo(999, WORLD_HEIGHT / 2);
-            expect(cam.x).toBe(999);
+            expect(cam.x).toBe(700);
             expect(cam.y).toBe(WORLD_HEIGHT / 2);
         });
 
@@ -65,14 +65,14 @@ describe('Camera', () => {
             const cam = new Camera(800, 1000, WORLD_WIDTH, WORLD_HEIGHT);
             cam.snapTo(WORLD_WIDTH / 2, 123);
             expect(cam.x).toBe(WORLD_WIDTH / 2);
-            expect(cam.y).toBe(123);
+            expect(cam.y).toBe(200);
         });
 
         it('clamps to the world bounds when viewport is larger and target is past right edge', () => {
             const cam = new Camera(1600, 1000, WORLD_WIDTH, WORLD_HEIGHT);
             cam.snapTo(WORLD_WIDTH + 100, WORLD_HEIGHT + 100);
-            expect(cam.x).toBe(WORLD_WIDTH);
-            expect(cam.y).toBe(WORLD_HEIGHT);
+            expect(cam.x).toBe(700);
+            expect(cam.y).toBe(600);
         });
     });
 

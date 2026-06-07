@@ -388,25 +388,14 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
         ]);
     });
 
-    it('falls back to initial-state replay when latest checkpoint is missing', async () => {
-        const loadFromSnapshot = vi.fn();
-        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
+    it('reloads the page when bootstrap and targeted snapshot both fail', async () => {
+        const reload = vi.fn();
+        vi.stubGlobal('window', { location: { reload } });
         const getBattleSnapshot = vi.fn(async () => null);
         const getBattleInitialState = vi.fn(async () => ({
             state: { gameTick: 0 } as SerializedGameState,
             initialFingerprint: '0011223344556677',
         }));
-        const getBattleOrdersRange = vi.fn(
-            async (_l: string, _g: string, params: { sinceTick?: number; untilTick?: number }) => {
-                if (params.untilTick !== undefined && params.sinceTick === undefined) {
-                    return { orders: [] };
-                }
-                if ((params.sinceTick ?? 0) === 0) {
-                    return { orders: [{ atTick: 30, playerId: 'p2', idHash: 'i1', order: makeOrder('initial') }] };
-                }
-                return { orders: [] };
-            },
-        );
         const getBattleFingerprintsRange = vi.fn(async () => ({ records: [{ tick: 75, fp: 'host75' }] }));
         const getBattleHeartbeat = vi.fn(async () => ({
             hostTick: 100,
@@ -424,7 +413,6 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
             apiOverrides: {
                 getBattleSnapshot,
                 getBattleInitialState,
-                getBattleOrdersRange,
                 getBattleFingerprintsRange,
                 getBattleHeartbeat,
             },
@@ -432,18 +420,15 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
                 getEngineTick: () => 100,
                 getFingerprintRange: () => [{ tick: 75, fp: 'local75', paused: false }],
                 getLatestFingerprint: () => ({ tick: 100, fp: 'host100', paused: false }),
-                loadFromSnapshot,
-                applyRemoteOrders,
             },
         });
         await h.coordinator.runDesyncRecovery('hash-mismatch');
-        expect(getBattleInitialState).toHaveBeenCalled();
-        expect(applyRemoteOrders).toHaveBeenCalledWith([
-            { atTick: 30, order: makeOrder('initial'), idHash: 'i1', playerId: 'p2' },
-        ]);
+        expect(getBattleSnapshot).toHaveBeenCalled();
+        expect(getBattleInitialState).not.toHaveBeenCalled();
+        expect(reload).toHaveBeenCalled();
         const statuses = h.statusCallback.mock.calls.map((c) => c[0]);
         expect(statuses).toContain('resyncing');
-        expect(statuses).toContain('synced');
+        expect(statuses).not.toContain('synced');
     });
 
     it('clears isRecovering flag in finally block even when caller throws', async () => {

@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { Unit } from '../game/units/Unit';
 import { resolveCcDuration } from './resolveCcDuration';
 import { tryApplyHardCcStun } from './tryApplyHardCcStun';
-import { STUNNED_BUFF_TYPE } from '../buffs/StunnedBuff';
+import { EXPOSED_BUFF_TYPE } from '../buffs/ExposedBuff';
 import { createUnitFromSpawnConfig } from '../game/units/index';
 import { UnitTag } from '../game/units/unitTag';
 import { EventBus } from '../game/EventBus';
+
+/** Armour break applies Exposed, not Stun; clear it before the next armour cycle in tests. */
+function clearExposed(u: Unit): void {
+    u.buffs = u.buffs.filter((b) => b._type !== EXPOSED_BUFF_TYPE);
+}
 
 function baseDummyUnit(): Unit {
     return new Unit({
@@ -54,7 +59,7 @@ describe('tryApplyHardCcStun threshold', () => {
         if (r.outcome !== 'applied') throw new Error('expected applied');
         expect(r.effectiveDuration).toBe(2);
         expect(u.hardCcArmourConsumed).toBe(0);
-        expect(u.hasBuff(STUNNED_BUFF_TYPE)).toBe(true);
+        expect(u.hasBuff(EXPOSED_BUFF_TYPE)).toBe(true);
     });
 
     it('treats effective duration below potency as no_potency', () => {
@@ -62,7 +67,7 @@ describe('tryApplyHardCcStun threshold', () => {
         u.ccDurationResistPct = { ALL: 0.9 };
         const r = tryApplyHardCcStun(u, 2, 0, 1);
         expect(r.outcome).toBe('no_potency');
-        expect(u.buffs.some((b) => b._type === STUNNED_BUFF_TYPE)).toBe(false);
+        expect(u.buffs.some((b) => b._type === EXPOSED_BUFF_TYPE)).toBe(false);
     });
 });
 
@@ -80,6 +85,7 @@ describe('chain CC golden scenario (stacking + decay)', () => {
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
         expect(u.getEffectiveHardCcThreshold()).toBe(3);
+        clearExposed(u);
 
         // Cycle 2 — effective 3: absorb ×3, land on 4th
         expect(hit().outcome).toBe('absorbed');
@@ -87,6 +93,7 @@ describe('chain CC golden scenario (stacking + decay)', () => {
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
         expect(u.getEffectiveHardCcThreshold()).toBe(5);
+        clearExposed(u);
     });
 
     it('from effective 5 (6-hit cycle state), each round decays bonus by one step', () => {
@@ -98,11 +105,13 @@ describe('chain CC golden scenario (stacking + decay)', () => {
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
+        clearExposed(u);
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
         expect(u.getEffectiveHardCcThreshold()).toBe(5);
+        clearExposed(u);
 
         u.tickHardCcChainDecayAtRoundEnd();
         expect(u.getEffectiveHardCcThreshold()).toBe(4);
@@ -118,11 +127,13 @@ describe('chain CC golden scenario (stacking + decay)', () => {
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
+        clearExposed(u);
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
         expect(u.getEffectiveHardCcThreshold()).toBe(5);
+        clearExposed(u);
         for (let i = 0; i < 5; i++) expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
     });
