@@ -320,7 +320,7 @@ export function exitedTimingIds(
     return out;
 }
 
-export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting';
+export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting' | 'defensive';
 
 export interface PrimaryTimelineSegment {
     start: number;
@@ -337,8 +337,9 @@ function abilityPhaseToTimelinePhaseId(phase: AbilityPhase): BattleTimelinePhase
         case AbilityPhase.Windup:
             return 'startup';
         case AbilityPhase.Active:
-        case AbilityPhase.Juggernaut:
             return 'active';
+        case AbilityPhase.Juggernaut:
+            return 'defensive';
         case AbilityPhase.Iframe:
             return 'iFrame';
         case AbilityPhase.Cooldown:
@@ -549,11 +550,11 @@ export function getTotalAbilityDurationForCast(
 /** Colors for each phase in the circular progress indicator. */
 export const ABILITY_PHASE_COLORS: Record<AbilityPhase, string> = {
     [AbilityPhase.Windup]: '#f97316', // orange
-    [AbilityPhase.Active]: '#ef4444', // red
+    [AbilityPhase.Active]: '#ef4444', // red — damage
     [AbilityPhase.Cooldown]: '#eab308', // yellow
     [AbilityPhase.CoopCooldown]: '#facc15', // brighter yellow (timeline / ring)
-    [AbilityPhase.Iframe]: '#ffffff', // white
-    [AbilityPhase.Juggernaut]: '#d1d5db', // light gray
+    [AbilityPhase.Iframe]: '#4ade80', // green — invincibility / swiftness
+    [AbilityPhase.Juggernaut]: '#7dd3fc', // sky blue — shields / armour
     [AbilityPhase.Waiting]: '#6b7280', // gray
 };
 
