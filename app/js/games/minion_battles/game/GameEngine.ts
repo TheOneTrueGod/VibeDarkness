@@ -48,7 +48,8 @@ import {
 } from './Fingerprint';
 import {
     addRecoveryChargeToUnitAbilities,
-    getAbilityUseConfig,
+    getRoundChargeEligibleAbilityIds,
+    getStaminaSurgeEligibleAbilityIds,
     syncNestedCardAbilityState,
 } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
@@ -1367,12 +1368,16 @@ export class GameEngine implements EngineContext {
         if (!this.appliedRoundStartRecovery) {
             const surgeUnit = this.units.find(u => u.isPlayerControlled() && u.isAlive());
             const staminaSurgeAmount = surgeUnit ? Math.max(0, Math.floor(surgeUnit.stamina)) : 0;
-            const roundChargeCount = surgeUnit
-                ? surgeUnit.abilities.filter(id =>
-                    getAbilityUseConfig(id).recoveries.some(r => r.chargeType === 'roundCharge'),
-                ).length
-                : 0;
-            this.eventBus.emit('round_start', { roundNumber: this.roundNumber, staminaSurgeAmount, roundChargeCount });
+            const roundChargeAbilityIds = surgeUnit ? getRoundChargeEligibleAbilityIds(surgeUnit) : [];
+            const staminaSurgeAbilityIds =
+                surgeUnit && staminaSurgeAmount > 0 ? getStaminaSurgeEligibleAbilityIds(surgeUnit) : [];
+            this.eventBus.emit('round_start', {
+                roundNumber: this.roundNumber,
+                staminaSurgeAmount,
+                roundChargeCount: roundChargeAbilityIds.length,
+                roundChargeAbilityIds,
+                staminaSurgeAbilityIds,
+            });
             this.state.unitManager.onRoundStart(this.roundNumber, this);
             this.applyChargedRocksLightChargePulse();
             processLanternitePulseMilestone('round_start', {
@@ -1515,7 +1520,8 @@ export class GameEngine implements EngineContext {
         // Without merging, we would clear pause while another human's unit still owes an order,
         // the host would not run GET /minimal, and remote orders would never apply.
         if (engine.waitingForOrders) {
-            const { waiters, atTick } = engine.waitingForOrders;
+            const pauseBatch = engine.waitingForOrders;
+            const { waiters, atTick } = pauseBatch;
             const waiterUnitIds = new Set(waiters.map((w) => w.unitId));
             const extra: OrderWaiter[] = [];
             for (const unit of engine.units) {
@@ -1534,7 +1540,16 @@ export class GameEngine implements EngineContext {
                 const merged = [...waiters, ...extra].sort((a, b) =>
                     a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
                 );
-                engine.waitingForOrders = { waiters: merged, atTick };
+                engine.waitingForOrders = {
+                    waiters: merged,
+                    atTick,
+                    ...(pauseBatch.conditionalCancelContext !== undefined
+                        ? { conditionalCancelContext: pauseBatch.conditionalCancelContext }
+                        : {}),
+                    ...(pauseBatch.teamworkCancelledOwnerIds !== undefined
+                        ? { teamworkCancelledOwnerIds: pauseBatch.teamworkCancelledOwnerIds }
+                        : {}),
+                };
             }
         }
 

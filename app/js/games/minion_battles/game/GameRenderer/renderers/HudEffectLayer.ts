@@ -162,11 +162,23 @@ export class HudEffectLayer {
 
         const resources: RoundStartResourceGrant[] = [];
         const surgeAmount = data.staminaSurgeAmount ?? 0;
-        if (surgeAmount > 0) {
-            resources.push({ chargeType: 'staminaCharge', amount: surgeAmount, color: iconColor('staminaCharge') });
+        const staminaSurgeAbilityIds = data.staminaSurgeAbilityIds ?? [];
+        if (surgeAmount > 0 && staminaSurgeAbilityIds.length > 0) {
+            resources.push({
+                chargeType: 'staminaCharge',
+                amount: surgeAmount,
+                color: iconColor('staminaCharge'),
+                targetAbilityIds: staminaSurgeAbilityIds,
+            });
         }
-        if ((data.roundChargeCount ?? 0) > 0) {
-            resources.push({ chargeType: 'roundCharge', amount: 1, color: iconColor('roundCharge') });
+        const roundChargeAbilityIds = data.roundChargeAbilityIds ?? [];
+        if (roundChargeAbilityIds.length > 0) {
+            resources.push({
+                chargeType: 'roundCharge',
+                amount: 1,
+                color: iconColor('roundCharge'),
+                targetAbilityIds: roundChargeAbilityIds,
+            });
         }
 
         this.addEffect(new RoundStartBannerEffect(data.roundNumber, resources));
@@ -226,9 +238,13 @@ export class HudEffectLayer {
         const totalW = iconsTotalWidth(resources.length);
 
         resources.forEach((res, i) => {
-            // Only target cards that actually recover this charge type.
+            const cardKeyPrefix = `card:${res.chargeType}:`;
             const cardTargets = Array.from(this.hudTargets.entries())
-                .filter(([key]) => key.startsWith(`card:${res.chargeType}:`))
+                .filter(([key]) => {
+                    if (!key.startsWith(cardKeyPrefix)) return false;
+                    const abilityId = key.slice(cardKeyPrefix.length);
+                    return res.targetAbilityIds.includes(abilityId);
+                })
                 .map(([, pos]) => pos);
 
             // Fallback: fire to canvas bottom center if no matching cards are registered.

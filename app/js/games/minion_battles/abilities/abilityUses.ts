@@ -360,13 +360,24 @@ function getAbilityIdsEligibleForRecovery(unit: Unit): string[] {
     return [...allAbilityIds];
 }
 
+/** Abilities that will receive a roundCharge at round start (pre-recovery snapshot). */
+export function getRoundChargeEligibleAbilityIds(unit: Unit): string[] {
+    return unit.abilities.filter((abilityId) =>
+        canAbilityReceiveRecoveryCharge(unit, abilityId, 'roundCharge'),
+    );
+}
+
+/** Abilities that will receive stamina surge charges at round start (pre-recovery snapshot). */
+export function getStaminaSurgeEligibleAbilityIds(unit: Unit): string[] {
+    return getAbilityIdsEligibleForRecovery(unit).filter((abilityId) =>
+        canAbilityReceiveRecoveryCharge(unit, abilityId, 'staminaCharge'),
+    );
+}
+
 /** One roundCharge per eligible ability at round start (not random pool distribution). */
 export function grantRoundChargesToEligibleAbilities(unit: Unit): void {
-    const roundChargeAbilityIds = unit.abilities.filter((abilityId) =>
-        getAbilityUseConfig(abilityId).recoveries.some((r) => r.chargeType === 'roundCharge'),
-    );
+    const roundChargeAbilityIds = getRoundChargeEligibleAbilityIds(unit);
     for (const abilityId of roundChargeAbilityIds) {
-        if (!canAbilityReceiveRecoveryCharge(unit, abilityId, 'roundCharge')) continue;
         applyRecoveryChargeToAbility(unit, abilityId, 'roundCharge', 1);
     }
     syncNestedCardAbilityState(unit);

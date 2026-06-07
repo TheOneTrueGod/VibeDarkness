@@ -202,7 +202,14 @@ export class BattleSession implements BattleSessionHandle {
             this.camera.snapTo(myUnit.x, myUnit.y, myUnit.radius);
         }
         this.emit({ type: 'card_state', engine });
-        if (!engine.waitingForOrders) {
+        if (engine.waitingForOrders) {
+            this.emit({
+                type: 'waiting_for_orders',
+                engine,
+                info: engine.waitingForOrders,
+                source: 'post_full_state_sync',
+            });
+        } else {
             engine.isPaused = false;
         }
         engine.clearDeferredOrderPauseAndAccumulator();
@@ -489,7 +496,13 @@ export class BattleSession implements BattleSessionHandle {
             gameTick: eng.gameTick,
             state: eng.toJSON() as unknown as Record<string, unknown>,
             waitingForOrders: w
-                ? { waiters: w.waiters.map((x) => ({ unitId: x.unitId, ownerId: x.ownerId })), atTick: w.atTick }
+                ? {
+                      waiters: w.waiters.map((x) => ({ unitId: x.unitId, ownerId: x.ownerId })),
+                      atTick: w.atTick,
+                      ...(w.conditionalCancelContext !== undefined
+                          ? { conditionalCancelContext: w.conditionalCancelContext }
+                          : {}),
+                  }
                 : null,
             synchash: eng.getRuntimeFingerprintHex(),
         };

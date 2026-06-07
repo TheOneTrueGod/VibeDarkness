@@ -195,4 +195,29 @@ describe('Reconnect / resync during order pause', () => {
         expect(restored.state.orderMgr.getActiveOrderWaiterForPlayer('p2')?.unitId).toBe('unit_p2');
         restored.destroy();
     });
+
+    it('fromJSON preserves conditionalCancelContext when merging extra parallel waiters', () => {
+        const engine = createTwoPlayerEngine();
+        advanceUntilOrderPause(engine);
+        const snap = engine.toJSON() as SerializedGameState;
+        const atTick = snap.waitingForOrders!.atTick;
+        snap.waitingForOrders = {
+            waiters: [{ unitId: 'unit_p1', ownerId: 'p1' }],
+            atTick,
+            conditionalCancelContext: {
+                unitId: 'unit_p1',
+                activeAbilityId: '0534',
+                abilityTagFilter: ['Entombed'],
+            },
+        };
+        engine.destroy();
+
+        const restored = GameEngine.fromJSON(snap, 'p1', null);
+        expect(restored.waitingForOrders?.conditionalCancelContext).toEqual({
+            unitId: 'unit_p1',
+            activeAbilityId: '0534',
+            abilityTagFilter: ['Entombed'],
+        });
+        restored.destroy();
+    });
 });

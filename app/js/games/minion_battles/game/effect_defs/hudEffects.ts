@@ -9,6 +9,8 @@ export type RoundStartResourceGrant = {
     chargeType: string;
     amount: number;
     color: number;
+    /** Only these ability bar slots receive flight particles for this grant. */
+    targetAbilityIds: string[];
 };
 
 export class RoundStartBannerEffect extends HudEffect {
