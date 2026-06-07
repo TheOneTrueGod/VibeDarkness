@@ -11,6 +11,7 @@ import { getUnitAtPosition } from './targeting';
 import { areEnemies } from '../game/teams';
 import { getDistanceBasedInaccuracy } from './gunHelpers';
 import { computeForcedDisplacement } from '../game/forceMove';
+import type { TerrainManager } from '../terrain/TerrainManager';
 
 /** Result of clamping a target position to max range from caster. */
 export interface ClampedRangeResult {
@@ -278,7 +279,7 @@ export function createMovementTargetPreview(
         gr.clear();
         const terrainManager =
             gameState && typeof gameState === 'object' && 'terrainManager' in gameState
-                ? ((gameState as { terrainManager?: { isPassable(x: number, y: number): boolean } | null }).terrainManager ?? null)
+                ? ((gameState as { terrainManager?: TerrainManager | null }).terrainManager ?? null)
                 : null;
         const { dx, dy, distance } = computeForcedDisplacement(
             caster.x, caster.y,
