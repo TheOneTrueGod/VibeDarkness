@@ -7,8 +7,8 @@ import type { EngineContext } from '../EngineContext';
 import type { BattleOrder, OrderAtTick, WaitingForOrders, OrderWaiter } from '../types';
 import type { Unit } from '../units/Unit';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { abilityHasTag, refundAbilityCost } from '../../abilities/Ability';
-import { refundAbilityUse } from '../../abilities/abilityUses';
+import { refundAbilityCost } from '../../abilities/Ability';
+import { refundAbilityUse, unitAbilityHasTag } from '../../abilities/abilityUses';
 
 const WAIT_ORDER_MIN_DURATION_SEC = 1.5;
 const WAIT_ORDER_MAX_DURATION_SEC = 1.5;
@@ -129,7 +129,7 @@ export class OrderManager {
         const tagFilter = ccCtx.abilityTagFilter;
         if (tagFilter && tagFilter.length > 0) {
             for (const tag of tagFilter) {
-                if (!abilityHasTag(order.abilityId, tag)) return false;
+                if (!unitAbilityHasTag(unit, order.abilityId, tag)) return false;
             }
         }
 

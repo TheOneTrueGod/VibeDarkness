@@ -7,7 +7,8 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { abilityHasTag, canAffordAbility, type AbilityTag } from '../../abilities/Ability';
+import { canAffordAbility } from '../../abilities/Ability';
+import { unitAbilityHasTag } from '../../abilities/abilityUses';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../game/units/Unit';
 import AbilitySlot from './AbilitySlot';
@@ -68,7 +69,7 @@ interface AbilityBarProps {
      */
     conditionalCancelContext?: {
         activeAbilityId: string;
-        abilityTagFilter?: readonly AbilityTag[];
+        abilityTagFilter?: readonly string[];
     };
 }
 
@@ -322,7 +323,7 @@ export default function AbilityBar({
                                 const tagFilter = conditionalCancelContext?.abilityTagFilter;
                                 const matchesTagFilter =
                                     !tagFilter || tagFilter.length === 0
-                                    || tagFilter.every((tag) => abilityHasTag(card.abilityId, tag));
+                                    || tagFilter.every((tag) => playerUnit ? unitAbilityHasTag(playerUnit, card.abilityId, tag) : false);
                                 const isDisabled =
                                     !isMyTurn
                                     || !canAfford

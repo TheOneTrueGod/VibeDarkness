@@ -33,9 +33,11 @@ import {
 import {
     applyCrystalRocksResearchToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
+    applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch } from '../../../researchTrees/evaluator';
+import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, computeAbilityModifiersFromResearch } from '../../../researchTrees/evaluator';
+import { getAbilityTagsForId } from '../abilities/Ability';
 import { Ammo } from '../resources/Ammo';
 import {
     hydrateLanterniteNestFromMissionDef,
@@ -202,7 +204,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             if (staminaRecoveryBonus > 0) {
                 unit.stamina += staminaRecoveryBonus;
             }
+            unit.abilityModifiers = computeAbilityModifiersFromResearch(researchByPlayer[pu.playerId], getAbilityTagsForId, unit.abilities);
             initializeAbilityRuntimeForUnit(unit);
+            applyAbilityResearchModifiersToRuntime(unit, unit.abilityModifiers);
             applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);

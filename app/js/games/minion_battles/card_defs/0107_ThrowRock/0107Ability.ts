@@ -9,6 +9,7 @@
 
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
 import type { ActiveAbility } from '../../game/types';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
@@ -184,6 +185,7 @@ export const ThrowRock: AbilityStatic & { range: number } = {
     name: 'Throw Rock',
     range: RANGE,
     image: THROW_ROCK_IMAGE,
+    tags: ['RockThrow'],
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: 0.3,
@@ -206,7 +208,9 @@ export const ThrowRock: AbilityStatic & { range: number } = {
         const eng = gameState as GameEngineLike | undefined;
         const research = eng ? getOwnerResearch(eng) : new Set<string>();
         const hasMoreRock = research.has('more_rock');
-        const dmg = eng ? rockProjectileDamage(eng, research) : rockDamageForResearch(research);
+        const baseRockDmg = eng ? rockProjectileDamage(eng, research) : rockDamageForResearch(research);
+        const mod = getAbilityModifier(gameState, undefined, ABILITY_ID);
+        const dmg = baseRockDmg + (mod.damageFlat ?? 0);
         if (hasMoreRock) {
             return [`Throws {2} rocks dealing {${dmg}} damage each to the first enemy hit`];
         }
@@ -242,7 +246,8 @@ export const ThrowRock: AbilityStatic & { range: number } = {
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         const eng = engine as GameEngineLike;
         const research = getResearchSet(eng, caster.ownerId);
-        const damage = rockProjectileDamage(eng, research);
+        const mod = caster.abilityModifiers[ABILITY_ID] ?? {};
+        const damage = rockProjectileDamage(eng, research) + (mod.damageFlat ?? 0);
         const hasMoreRock = research.has('more_rock');
 
         if (hasMoreRock) {

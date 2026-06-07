@@ -7,6 +7,7 @@
 
 import { AbilityState } from '../../abilities/Ability';
 import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
@@ -132,7 +133,7 @@ function hasKnifePierce(research: Set<string>): boolean {
     return research.has(CRYSTAL_ROCKS_NODE_PIERCING_KNIVES);
 }
 
-function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: number; y: number }, pierce = 0): void {
+function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: number; y: number }, pierce = 0, damage = BASE_DAMAGE): void {
     const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, targetPos.x, targetPos.y);
     if (dist === 0) return;
     const travelDistance = Math.min(dist, RANGE);
@@ -144,7 +145,7 @@ function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: n
             y: caster.y,
             velocityX: dirX * speed,
             velocityY: dirY * speed,
-            damage: BASE_DAMAGE,
+            damage,
             sourceTeamId: caster.teamId,
             sourceUnitId: caster.id,
             sourceAbilityId: ABILITY_ID,
@@ -166,6 +167,7 @@ export const ThrowKnife: AbilityStatic = {
     id: ABILITY_ID,
     name: 'Throw Knife',
     image: THROW_KNIFE_IMAGE,
+    tags: ['RockThrow'],
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: 0.3,
@@ -188,10 +190,12 @@ export const ThrowKnife: AbilityStatic = {
         const eng = gameState as GameEngineLike | undefined;
         const research = eng ? getOwnerResearch(eng) : new Set<string>();
         const pierceLine = hasKnifePierce(research) ? ' Pierces through the {first target}.' : '';
+        const mod = getAbilityModifier(gameState, undefined, ABILITY_ID);
+        const dmg = BASE_DAMAGE + (mod.damageFlat ?? 0);
         if (hasKnifeMultiThrow(research)) {
-            return [`Throws {2} knives dealing {${BASE_DAMAGE}} damage each to the first enemy hit`];
+            return [`Throws {2} knives dealing {${dmg}} damage each to the first enemy hit`];
         }
-        return [`Throws a knife dealing {${BASE_DAMAGE}} damage to the first enemy hit.${pierceLine}`];
+        return [`Throws a knife dealing {${dmg}} damage to the first enemy hit.${pierceLine}`];
     },
 
     beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
@@ -223,15 +227,17 @@ export const ThrowKnife: AbilityStatic = {
         const eng = engine as GameEngineLike;
         const research = getResearchSet(eng, caster.ownerId);
         const pierce = hasKnifePierce(research) ? 1 : 0;
+        const mod = caster.abilityModifiers[ABILITY_ID] ?? {};
+        const damage = BASE_DAMAGE + (mod.damageFlat ?? 0);
 
         if (hasKnifeMultiThrow(research)) {
             if (prevTime < MORE_ROCK_FIRST_THROW && currentTime >= MORE_ROCK_FIRST_THROW) {
                 const firstTarget = getPixelTargetPosition(targets, 0);
-                if (firstTarget) spawnProjectile(eng, caster, firstTarget, pierce);
+                if (firstTarget) spawnProjectile(eng, caster, firstTarget, pierce, damage);
             }
             if (prevTime < MORE_ROCK_SECOND_THROW && currentTime >= MORE_ROCK_SECOND_THROW) {
                 const secondTarget = getPixelTargetPosition(targets, 1);
-                if (secondTarget) spawnProjectile(eng, caster, secondTarget, pierce);
+                if (secondTarget) spawnProjectile(eng, caster, secondTarget, pierce, damage);
             }
             return;
         }
@@ -239,7 +245,7 @@ export const ThrowKnife: AbilityStatic = {
         if (prevTime >= 0.3 || currentTime < 0.3) return;
         const firstTarget = getPixelTargetPosition(targets, 0);
         if (!firstTarget) return;
-        spawnProjectile(eng, caster, firstTarget, pierce);
+        spawnProjectile(eng, caster, firstTarget, pierce, damage);
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {

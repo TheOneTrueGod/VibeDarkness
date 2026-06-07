@@ -6,6 +6,7 @@
  * Subclasses define per-character defaults.
  */
 
+import type { AbilityModifier } from '../../../../researchTrees/types';
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { areEnemies, type TeamId } from '../teams';
 import type { ActiveAbility } from '../types';
@@ -138,6 +139,8 @@ export class Unit extends GameObject {
     resources: Resource[] = [];
     /** Ability runtime state (uses and recharge charges) keyed by ability id. */
     abilityRuntime: Record<string, UnitAbilityRuntimeState> = {};
+    /** Per-ability modifiers derived from research. Computed once at unit creation; never changes mid-battle. */
+    abilityModifiers: Record<string, AbilityModifier> = {};
     /** Stamina stat: round-start surge grants this many stamina charges to each eligible ability. */
     stamina: number = 1;
 
@@ -1199,6 +1202,7 @@ export class Unit extends GameObject {
                     },
                 ]),
             ),
+            abilityModifiers: this.abilityModifiers,
             stamina: this.stamina,
             buffs: this.buffs.map((b) => b.toJSON()),
             combatSettings: this.combatSettings,
@@ -1381,6 +1385,7 @@ export class Unit extends GameObject {
                 },
             ]),
         );
+        unit.abilityModifiers = (data.abilityModifiers as Record<string, AbilityModifier> | undefined) ?? {};
 
         // Resources are reattached by the unit subclass factory
         return unit;

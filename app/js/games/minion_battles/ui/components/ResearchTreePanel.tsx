@@ -150,6 +150,8 @@ export function ResearchTreeList({
 /** Main content area for a selected research tree. */
 export interface ResearchTreeContentProps {
 	tree: ResearchTreeDef;
+	/** All available trees — used to look up cross-tree node refs. */
+	allTrees?: ResearchTreeDef[];
 	/** When true, entire panel is drawn at 50% opacity (tree not normally visible for this character). */
 	dimmed?: boolean;
 	account: AccountState | null;
@@ -167,6 +169,7 @@ export interface ResearchTreeContentProps {
 
 export function ResearchTreeContent({
 	tree,
+	allTrees = [],
 	dimmed = false,
 	account,
 	character,
@@ -208,16 +211,17 @@ export function ResearchTreeContent({
 		return out;
 	}, [researchTrees]);
 
-	const bounds = tree.nodes.reduce(
-		(acc, n) => {
-			const { x, y } = n.position;
-			return {
-				minX: Math.min(acc.minX, x),
-				maxX: Math.max(acc.maxX, x),
-				minY: Math.min(acc.minY, y),
-				maxY: Math.max(acc.maxY, y),
-			};
-		},
+	const allPositions = [
+		...tree.nodes.map((n) => n.position),
+		...(tree.crossTreeNodeRefs ?? []).map((ref) => ref.position),
+	];
+	const bounds = allPositions.reduce(
+		(acc, { x, y }) => ({
+			minX: Math.min(acc.minX, x),
+			maxX: Math.max(acc.maxX, x),
+			minY: Math.min(acc.minY, y),
+			maxY: Math.max(acc.maxY, y),
+		}),
 		{ minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
 	);
 	const VIEW_W = Math.max(VIEW_W_MIN, bounds.maxX + CANVAS_PAD_X);
@@ -396,6 +400,40 @@ export function ResearchTreeContent({
 								</div>
 							);
 						})}
+						{(tree.crossTreeNodeRefs ?? []).map((ref) => {
+							const fromTree = allTrees.find((t) => t.id === ref.fromTreeId);
+							const node = fromTree?.nodes.find((n) => n.id === ref.nodeId);
+							if (!fromTree || !node) return null;
+							const researched = (researchTrees[ref.fromTreeId] ?? []).includes(ref.nodeId);
+							const check = canResearchNode(fromTree, ref.nodeId, ctx, { skipCostCheck: isAdmin });
+							const enabled = !researched && check.ok;
+							const blocked = !researched && !check.ok;
+							const pos = mapPos(ref.position);
+							const selectionReason = researched
+								? 'Already researched.'
+								: blocked
+									? getResearchBlockReason(check.missing)
+									: null;
+							return (
+								<div
+									key={`cross:${ref.fromTreeId}:${ref.nodeId}`}
+									className="absolute -translate-x-1/2 -translate-y-1/2"
+									style={{ left: pos.x, top: pos.y }}
+								>
+									<ResearchNodeCard
+										node={node}
+										variant="interactive"
+										state={researched ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
+										showCost
+										showRequirements
+										showTier
+										onClick={() => enabled && onResearchNode(ref.fromTreeId, ref.nodeId)}
+										selectionReason={selectionReason}
+										requirementBadges={[]}
+									/>
+								</div>
+							);
+						})}
 					</div>
 				</div>
 			</div>
@@ -505,6 +543,7 @@ export default function ResearchTreePanel({
 					{tree && (
 						<ResearchTreeContent
 							tree={tree}
+							allTrees={availableTrees}
 							account={account}
 							character={character}
 							equipment={equipment}

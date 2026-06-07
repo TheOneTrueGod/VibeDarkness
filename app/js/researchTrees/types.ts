@@ -19,6 +19,29 @@ export type ResearchEffect =
     | { type: 'replaceCard'; fromCardId: string; toCardId: string }
     | { type: 'addCard'; cardId: string };
 
+/**
+ * Specifies which abilities a modifier targets.
+ * tag: applies to all abilities in the unit's deck that carry that tag (string to avoid circular imports — use AbilityTag values).
+ */
+export type AbilitySpecification =
+    | { type: 'abilityId'; abilityId: string }
+    | { type: 'tag'; tag: string };
+
+/** Aggregated per-ability modifier passed to ability logic at runtime. */
+export interface AbilityModifier {
+    damageFlat?: number;
+    maxUsesFlat?: number;
+    /** Flat bonus added to explosion/AOE damage (e.g. throw_charged_rock splash). */
+    explosionDamageFlat?: number;
+    /** Tags to add to this ability for this unit (e.g. 'Entombed'). String to avoid circular imports — use AbilityTag values. */
+    addTags?: readonly string[];
+}
+
+/** Goes on a research node — specifies which ability to target and what to change. */
+export interface AbilityResearchModifier extends AbilityModifier {
+    abilitySpecification: AbilitySpecification;
+}
+
 export interface ResearchNodeDef {
     id: string;
     title: string;
@@ -34,6 +57,8 @@ export interface ResearchNodeDef {
     requirements: Requirement[];
     cost: CampaignResourceCost;
     effects: ResearchEffect[];
+    /** Ability parameter modifications granted by this node. Merged additively across all researched nodes. */
+    abilityResearchModifiers?: AbilityResearchModifier[];
     /**
      * When true, `equipItem` effects on this node replace any conflicting same-slot items
      * instead of skipping. Use for starting-weapon nodes where research defines the item.
@@ -46,11 +71,20 @@ export interface ResearchNodeDef {
     modifiesAbility?: { from: string; to: string };
 }
 
+/** A node from another tree shown inside this tree's panel. Purchasing stores it under fromTreeId. */
+export interface CrossTreeNodeRef {
+    fromTreeId: string;
+    nodeId: string;
+    position: { x: number; y: number };
+}
+
 export interface ResearchTreeDef {
     id: string;
     title: string;
     /** Tree-level requirements to show/allow (unless it has any node researched). */
     accessRequirements: Requirement[];
     nodes: ResearchNodeDef[];
+    /** Nodes owned by other trees that are also displayed in this tree's panel. */
+    crossTreeNodeRefs?: CrossTreeNodeRef[];
 }
 

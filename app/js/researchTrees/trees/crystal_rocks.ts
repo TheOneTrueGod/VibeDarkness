@@ -1,4 +1,5 @@
 import type { ResearchTreeDef } from '../types';
+import { EARTH_TREE_ID, EARTH_NODE_ROCK_SYNERGY_DAMAGE, EARTH_NODE_ROCK_SYNERGY_ENTOMBED } from './earth';
 
 export const CRYSTAL_ROCKS_TREE_ID = 'crystal_rocks';
 export const CRYSTAL_ROCKS_NODE_BASE = 'throw_rock';
@@ -105,5 +106,9 @@ export const crystalRocksTree: ResearchTreeDef = {
             effects: [],
             modifiesAbility: { from: 'throw_knife', to: 'throw_knife' },
         },
+    ],
+    crossTreeNodeRefs: [
+        { fromTreeId: EARTH_TREE_ID, nodeId: EARTH_NODE_ROCK_SYNERGY_DAMAGE, position: { x: 120, y: 90 } },
+        { fromTreeId: EARTH_TREE_ID, nodeId: EARTH_NODE_ROCK_SYNERGY_ENTOMBED, position: { x: 370, y: 90 } },
     ],
 };

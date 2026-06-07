@@ -1,4 +1,4 @@
-import { abilityHasTag, type AbilityStatic } from './Ability';
+import { abilityHasTag, type AbilityStatic, type AbilityTag } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
 import {
@@ -7,6 +7,7 @@ import {
 } from '../../../researchTrees/trees/stick_sword';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 import { getAbility } from './AbilityRegistry';
+import type { AbilityModifier } from '../../../researchTrees/types';
 
 export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge' | 'roundCharge';
 
@@ -112,6 +113,27 @@ export function applyCrystalRocksResearchToAbilityRuntime(
     runtime.currentUses = Math.min(runtime.currentUses, runtime.maxUses);
 }
 
+
+/** Applies maxUsesFlat from ability research modifiers to an already-initialized abilityRuntime. Call after initializeAbilityRuntimeForUnit. */
+export function applyAbilityResearchModifiersToRuntime(
+    unit: Unit,
+    abilityModifiers: Record<string, AbilityModifier>,
+): void {
+    for (const [abilityId, modifier] of Object.entries(abilityModifiers)) {
+        if (!modifier.maxUsesFlat) continue;
+        if (!unit.abilityRuntime[abilityId]) continue;
+        const runtime = unit.abilityRuntime[abilityId];
+        const delta = modifier.maxUsesFlat;
+        runtime.maxUses = Math.max(0, runtime.maxUses + delta);
+        runtime.currentUses = Math.max(0, runtime.currentUses + delta);
+    }
+}
+
+/** Like abilityHasTag but also checks tags added via the unit's abilityModifiers (e.g. from research). */
+export function unitAbilityHasTag(unit: Unit, abilityId: string, tag: string): boolean {
+    if (abilityHasTag(abilityId, tag as AbilityTag)) return true;
+    return unit.abilityModifiers[abilityId]?.addTags?.includes(tag) ?? false;
+}
 
 export function initializeAbilityRuntimeForUnit(unit: Unit): void {
     for (const abilityId of unit.abilities) {

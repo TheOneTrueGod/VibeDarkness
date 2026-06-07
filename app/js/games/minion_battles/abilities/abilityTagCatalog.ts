@@ -9,6 +9,8 @@ export type AbilityTagSettingsByTag = {
     priority: PriorityTagSettings;
     meleeTracking: PriorityTagSettings;
     evade: PriorityTagSettings;
+    Entombed: PriorityTagSettings;
+    RockThrow: PriorityTagSettings;
 };
 
 /** Empty settings object type for tags with no catalog options yet. */
@@ -28,6 +30,8 @@ export const ABILITY_TAG_CATALOG: AbilityTagCatalog = {
     priority: { hint: 'Recovers First' },
     meleeTracking: { hint: 'Tracks Target' },
     evade: { hint: 'Evades' },
+    Entombed: { hint: 'Usable in Walls' },
+    RockThrow: { hint: 'Rock Throw' },
 };
 
 export function getAbilityTagCatalogEntry<K extends AbilityTag>(tag: K): AbilityTagCatalogEntry<K> {

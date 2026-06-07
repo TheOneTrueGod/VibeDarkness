@@ -2,7 +2,7 @@ import type { AccountState, CampaignResources } from '../types';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { getCoreFromEquipment, getItemDef } from '../games/minion_battles/character_defs/items';
-import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect } from './types';
+import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect, AbilityModifier, AbilitySpecification } from './types';
 import { RESEARCH_TREES } from './list';
 
 export interface ResearchContext {
@@ -304,6 +304,57 @@ export function getAvailableResearchNodes(
         }
     }
 
+    return result;
+}
+
+function mergeModifierInto(entry: AbilityModifier, modifier: AbilityModifier): void {
+    if (modifier.damageFlat !== undefined) entry.damageFlat = (entry.damageFlat ?? 0) + modifier.damageFlat;
+    if (modifier.maxUsesFlat !== undefined) entry.maxUsesFlat = (entry.maxUsesFlat ?? 0) + modifier.maxUsesFlat;
+    if (modifier.explosionDamageFlat !== undefined) entry.explosionDamageFlat = (entry.explosionDamageFlat ?? 0) + modifier.explosionDamageFlat;
+    if (modifier.addTags?.length) {
+        const existing = entry.addTags ? [...entry.addTags] : [];
+        for (const tag of modifier.addTags) {
+            if (!existing.includes(tag)) existing.push(tag);
+        }
+        entry.addTags = existing;
+    }
+}
+
+/**
+ * Computes per-ability modifiers from all researched nodes across all trees.
+ * Values from multiple nodes are merged additively. Call once at unit creation and store
+ * the result on the unit — research does not change mid-battle.
+ *
+ * @param getTagsForAbility  Optional: maps abilityId → tags. Required to resolve tag-based specs.
+ * @param unitAbilityIds     Optional: the unit's ability IDs. Required to resolve tag-based specs.
+ */
+export function computeAbilityModifiersFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+    getTagsForAbility?: (abilityId: string) => readonly string[],
+    unitAbilityIds?: string[],
+): Record<string, AbilityModifier> {
+    const trees = researchTrees ?? {};
+    const result: Record<string, AbilityModifier> = {};
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(trees[tree.id] ?? []);
+        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        for (const node of researchedNodes) {
+            for (const modifier of node.abilityResearchModifiers ?? []) {
+                const spec = modifier.abilitySpecification;
+                if (spec.type === 'abilityId') {
+                    const entry = result[spec.abilityId] ?? (result[spec.abilityId] = {});
+                    mergeModifierInto(entry, modifier);
+                } else if (spec.type === 'tag' && getTagsForAbility && unitAbilityIds) {
+                    for (const abilityId of unitAbilityIds) {
+                        if (getTagsForAbility(abilityId).includes(spec.tag)) {
+                            const entry = result[abilityId] ?? (result[abilityId] = {});
+                            mergeModifierInto(entry, modifier);
+                        }
+                    }
+                }
+            }
+        }
+    }
     return result;
 }
 

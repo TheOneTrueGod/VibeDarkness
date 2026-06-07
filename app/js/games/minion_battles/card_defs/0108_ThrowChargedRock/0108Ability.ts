@@ -4,6 +4,7 @@ import type {
     AbilityStateEntry,
     AttackBlockedInfo,
 } from '../../abilities/Ability';
+import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
 import type { ActiveAbility } from '../../game/types';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
@@ -186,6 +187,7 @@ export const ThrowChargedRock: AbilityStatic = {
     id: CARD_ID,
     name: 'Throw Charged Rock',
     image: THROW_CHARGED_ROCK_IMAGE,
+    tags: ['RockThrow'],
     resourceCost: null,
     rechargeTurns: 1,
     prefireTime: 0.3,
@@ -218,16 +220,21 @@ export const ThrowChargedRock: AbilityStatic = {
         const targets = hasMoreRock ? 2 : 1;
         let explosionDamage = hasMoreRock ? MORE_ROCK_EXPLOSION_DAMAGE : BASE_EXPLOSION_DAMAGE;
         let maxTargets = BASE_MAX_TARGETS;
-        
+
         let firstLine = '';
         if (hasMorePower) {
             explosionDamage = MORE_POWER_EXPLOSION_DAMAGE;
             maxTargets = MORE_POWER_MAX_TARGETS;
-            firstLine = `Throw a rock dealing {${DIRECT_HIT_DAMAGE}} damage.`;
-        } else if (hasMoreRock) {
-            firstLine = `Throws {${targets}} rocks dealing {${DIRECT_HIT_DAMAGE}} damage.`;
+        }
+
+        const mod = getAbilityModifier(gameState, undefined, CARD_ID);
+        const directHit = DIRECT_HIT_DAMAGE + (mod.damageFlat ?? 0);
+        explosionDamage += mod.explosionDamageFlat ?? 0;
+
+        if (hasMorePower || !hasMoreRock) {
+            firstLine = `Throw a rock dealing {${directHit}} damage.`;
         } else {
-            firstLine = `Throw a rock dealing {${DIRECT_HIT_DAMAGE}} damage.`;
+            firstLine = `Throws {${targets}} rocks dealing {${directHit}} damage.`;
         }
         return [
             firstLine,
@@ -307,6 +314,8 @@ export const ThrowChargedRock: AbilityStatic = {
             explosionDamage = MORE_POWER_EXPLOSION_DAMAGE;
             maxTargets = MORE_POWER_MAX_TARGETS;
         }
+        const mod = sourceUnit.abilityModifiers[CARD_ID] ?? {};
+        explosionDamage += mod.explosionDamageFlat ?? 0;
 
         eng.addEffect(
             new Effect({
