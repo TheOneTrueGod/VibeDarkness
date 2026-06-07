@@ -3,12 +3,19 @@ import type { ScenarioDefinition } from '../types';
 
 const FIXED_STEP_SEC = 1 / 60;
 
-/** Headless scenarios: auto-submit "wait" to resume a mid-cast conditional cancel pause. */
-function maybeAutoResolveConditionalCancel(engine: GameEngine): void {
+/** Headless scenarios: resolve a mid-cast conditional cancel pause (custom hook or auto-wait). */
+function maybeAutoResolveConditionalCancel(
+    engine: GameEngine,
+    onConditionalCancelPause?: (engine: GameEngine) => void,
+): void {
     const batch = engine.waitingForOrders;
     const cc = batch?.conditionalCancelContext;
     if (!batch || !cc) return;
     if (engine.state.orderMgr.hasPendingOrderForUnit(cc.unitId, batch.atTick)) return;
+    if (onConditionalCancelPause) {
+        onConditionalCancelPause(engine);
+        return;
+    }
     engine.state.orderMgr.applyOrder({ unitId: cc.unitId, abilityId: 'wait', targets: [] });
 }
 
@@ -105,7 +112,7 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
                     markSettled();
                     return;
                 }
-                maybeAutoResolveConditionalCancel(engine);
+                maybeAutoResolveConditionalCancel(engine, scenario.onConditionalCancelPause);
                 engine.stepSimulationFixedTicks(1);
                 ticks++;
             }
@@ -180,7 +187,7 @@ export function runScenarioHeadless(scenario: ScenarioDefinition): ScenarioRunRe
             if (engine.isScenarioRunnerBattleIdle()) {
                 break;
             }
-            maybeAutoResolveConditionalCancel(engine);
+            maybeAutoResolveConditionalCancel(engine, scenario.onConditionalCancelPause);
             engine.stepSimulationFixedTicks(1);
             ticks++;
         }

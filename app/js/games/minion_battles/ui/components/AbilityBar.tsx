@@ -63,8 +63,8 @@ interface AbilityBarProps {
     onRegisterCardTarget?: (key: string, pageX: number, pageY: number) => void;
     /**
      * When set, this pause is a mid-ability conditional cancel: only abilities matching
-     * all tags are selectable. The active cast is selectable when it matches the filter
-     * (click continues the cast — same as the Continue / Wait button).
+     * all tags are selectable (including the in-progress cast — click to cancel and retarget).
+     * Use the Continue / Wait button to resume the current cast instead.
      */
     conditionalCancelContext?: {
         activeAbilityId: string;
@@ -238,23 +238,10 @@ export default function AbilityBar({
         (handIndex: number) => {
             const card = handCards[handIndex];
             if (!card) return;
-            const tagFilter = conditionalCancelContext?.abilityTagFilter;
-            const matchesTagFilter =
-                !tagFilter || tagFilter.length === 0
-                || tagFilter.every((tag) => abilityHasTag(card.abilityId, tag));
-            const isConditionalCancelContinueCast =
-                conditionalCancelContext != null
-                && conditionalCancelContext.activeAbilityId === card.abilityId
-                && matchesTagFilter;
-            if (isConditionalCancelContinueCast) {
-                onWait?.();
-                setMobileDescIndex(null);
-                return;
-            }
             onSelectCard(handIndex, card.ability);
             setMobileDescIndex(null);
         },
-        [handCards, onSelectCard, onWait, conditionalCancelContext],
+        [handCards, onSelectCard],
     );
 
     const handleMobileDescToggle = useCallback(
@@ -336,16 +323,11 @@ export default function AbilityBar({
                                 const matchesTagFilter =
                                     !tagFilter || tagFilter.length === 0
                                     || tagFilter.every((tag) => abilityHasTag(card.abilityId, tag));
-                                const isCurrentCast =
-                                    conditionalCancelContext?.activeAbilityId === card.abilityId;
-                                const isConditionalCancelContinueCast =
-                                    isCurrentCast && matchesTagFilter && conditionalCancelContext != null;
                                 const isDisabled =
                                     !isMyTurn
                                     || !canAfford
-                                    || !matchesTagFilter
-                                    || (!canUse && !isConditionalCancelContinueCast)
-                                    || (isCurrentCast && !isConditionalCancelContinueCast);
+                                    || (conditionalCancelContext != null && !matchesTagFilter)
+                                    || (conditionalCancelContext == null && !canUse);
                                 const isHovered = hoveredCardId === card.abilityId;
                                 const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
                                 const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));

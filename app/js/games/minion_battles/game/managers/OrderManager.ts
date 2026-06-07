@@ -7,7 +7,8 @@ import type { EngineContext } from '../EngineContext';
 import type { BattleOrder, OrderAtTick, WaitingForOrders, OrderWaiter } from '../types';
 import type { Unit } from '../units/Unit';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { abilityHasTag } from '../../abilities/Ability';
+import { abilityHasTag, refundAbilityCost } from '../../abilities/Ability';
+import { refundAbilityUse } from '../../abilities/abilityUses';
 
 const WAIT_ORDER_MIN_DURATION_SEC = 1.5;
 const WAIT_ORDER_MAX_DURATION_SEC = 1.5;
@@ -132,7 +133,13 @@ export class OrderManager {
             }
         }
 
+        const cancelledAbility = getAbility(ccCtx.activeAbilityId);
+        if (cancelledAbility) {
+            refundAbilityCost(unit, cancelledAbility);
+            refundAbilityUse(unit, ccCtx.activeAbilityId);
+        }
         this.ctx.cancelActiveAbility(unit.id, ccCtx.activeAbilityId);
+        unit.clearAbilityNote();
         return true;
     }
 

@@ -14,6 +14,11 @@ export interface ScenarioDefinition {
     renderLighting?: boolean;
     buildEngine(): GameEngine | Promise<GameEngine>;
     getInitialOrders(engine: GameEngine): BattleOrder[];
+    /**
+     * When conditional cancel pauses the battle, run this instead of the default auto-wait resume.
+     * Use for scenarios that pick a replacement Entombed ability or retarget the same one.
+     */
+    onConditionalCancelPause?: (engine: GameEngine) => void;
     assertPass(engine: GameEngine): boolean;
     failureMessage(engine: GameEngine): string;
     /** Optional human-readable snapshot for UI/debug. */

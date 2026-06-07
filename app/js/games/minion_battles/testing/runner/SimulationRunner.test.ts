@@ -36,6 +36,7 @@ import {
     earthCoreStoneyPunchBaselineScenario,
     earthCoreStoneyPunchArmourScenario,
     earthCoreDiggingClawsScenario,
+    earthCoreDiggingClawsRetargetScenario,
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
@@ -190,6 +191,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes earth core digging claws wall-dash scenario', () => {
         const r = runScenarioHeadless(earthCoreDiggingClawsScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core digging claws conditional-cancel retarget scenario', () => {
+        const r = runScenarioHeadless(earthCoreDiggingClawsRetargetScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

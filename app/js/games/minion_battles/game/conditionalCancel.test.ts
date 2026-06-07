@@ -238,4 +238,70 @@ describe('conditional cancel', () => {
         const result = runScenarioHeadless(earthCoreDiggingClawsScenario);
         expect(result.passed, result.message).toBe(true);
     });
+
+    it('re-casting digging claws during conditional cancel dashes toward the new target instead of slingshotting', () => {
+        resetGameObjectIdCounter(1);
+        const engine = buildTinyBattleEngine({ gridW: 14, gridH: 10, localPlayerId: TINY_BATTLE_PLAYER_ID, grass: true });
+        const rockStartCol = 5;
+        const rockLeftX = rockStartCol * CELL_SIZE;
+        for (let col = rockStartCol; col <= 6; col++) {
+            for (let row = 2; row <= 8; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
+        const targetInRock = {
+            x: rockStartCol * CELL_SIZE + CELL_SIZE / 2,
+            y: 5 * CELL_SIZE + CELL_SIZE / 2,
+        };
+        placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: { x: 2 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            dummyWorld: { x: 4 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            abilities: ['0534'],
+        });
+
+        const player = engine.getLocalPlayerUnit()!;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0534',
+            targets: [{ type: 'pixel', position: targetInRock }],
+        });
+
+        let pauseY: number | null = null;
+        let retargetPos: { x: number; y: number } | null = null;
+        for (let i = 0; i < 120; i++) {
+            if (engine.waitingForOrders?.conditionalCancelContext) {
+                pauseY = player.y;
+                expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(false);
+                retargetPos = { x: player.x, y: player.y - 100 };
+                engine.state.orderMgr.applyOrder({
+                    unitId: player.id,
+                    abilityId: '0534',
+                    targets: [{ type: 'pixel', position: retargetPos }],
+                });
+                break;
+            }
+            engine.stepSimulationFixedTicks(1);
+        }
+
+        expect(pauseY).not.toBeNull();
+        for (let i = 0; i < 3; i++) {
+            engine.stepSimulationFixedTicks(1);
+        }
+
+        const active = player.activeAbilities[0];
+        expect(active?.abilityId).toBe('0534');
+        expect(active?.conditionalCancelPaused).toBeFalsy();
+        expect(active?.targets[0]).toEqual({ type: 'pixel', position: retargetPos });
+
+        const yAfterRetarget = player.y;
+        for (let i = 0; i < 36; i++) {
+            engine.stepSimulationFixedTicks(1);
+        }
+
+        expect(player.y).toBeLessThan(yAfterRetarget - 10);
+        expect(player.x).toBeGreaterThanOrEqual(rockLeftX - 5);
+
+        engine.destroy();
+    });
 });

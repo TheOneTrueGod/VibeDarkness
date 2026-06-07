@@ -141,6 +141,15 @@ export function consumeAbilityUse(unit: Unit, abilityId: string): boolean {
     return true;
 }
 
+/** Restore one use when a cast is cancelled before natural completion (e.g. conditional-cancel switch). */
+export function refundAbilityUse(unit: Unit, abilityId: string): void {
+    ensureAbilityRuntimeState(unit, abilityId);
+    const runtime = unit.abilityRuntime[abilityId];
+    if (!runtime) return;
+    runtime.currentUses = Math.min(runtime.maxUses, runtime.currentUses + 1);
+    syncNestedCardAbilityState(unit);
+}
+
 export function addRecoveryChargeToUnitAbilities(
     unit: Unit,
     chargeType: RecoveryChargeType,

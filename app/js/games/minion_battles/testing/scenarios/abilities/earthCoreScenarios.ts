@@ -407,6 +407,72 @@ export const earthCoreDiggingClawsScenario: ScenarioDefinition = {
     },
 };
 
+/** Tracks pause Y for {@link earthCoreDiggingClawsRetargetScenario} assertions. */
+export const diggingClawsRetargetScenarioState = { pauseY: null as number | null };
+
+/**
+ * Same rock layout as {@link earthCoreDiggingClawsScenario}, but on conditional cancel the player
+ * re-casts Digging Claws upward through the wall instead of continuing into slingshot.
+ */
+export const earthCoreDiggingClawsRetargetScenario: ScenarioDefinition = {
+    id: 'earth_core_0534_digging_claws_retarget',
+    title: 'Digging Claws (0534): conditional cancel retarget dashes through rock instead of slingshot',
+    category: 'ability',
+    maxDurationMs: 4000,
+    buildEngine() {
+        diggingClawsRetargetScenarioState.pauseY = null;
+        const engine = buildTinyBattleEngine({ gridW: 14, gridH: 10, localPlayerId: P, grass: true });
+        for (let col = DC_ROCK_START_COL; col <= DC_ROCK_END_COL; col++) {
+            for (let row = DC_ROCK_START_ROW; row <= DC_ROCK_END_ROW; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
+        placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: DC_PLAYER_POS,
+            dummyWorld: DC_ENEMY_POS,
+            abilities: ['0534'],
+        });
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        return [{ unitId: u.id, abilityId: '0534', targets: [{ type: 'pixel' as const, position: DC_TARGET_POS }] }];
+    },
+    onConditionalCancelPause(engine) {
+        const player = engine.getLocalPlayerUnit();
+        if (!player) return;
+        diggingClawsRetargetScenarioState.pauseY = player.y;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0534',
+            targets: [{ type: 'pixel', position: { x: player.x, y: player.y - 100 } }],
+        });
+    },
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const pauseY = diggingClawsRetargetScenarioState.pauseY;
+        if (!player || pauseY == null) return false;
+        const movedUpThroughRock = player.y < pauseY - 15;
+        const didNotSlingLeft = player.x >= DC_ROCK_LEFT_X - 5;
+        return movedUpThroughRock && didNotSlingLeft;
+    },
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const pauseY = diggingClawsRetargetScenarioState.pauseY;
+        if (!player) return 'player missing';
+        if (pauseY == null) return 'conditional cancel pause never fired';
+        const parts: string[] = [];
+        if (!(player.y < pauseY - 15)) {
+            parts.push(`player y=${player.y.toFixed(0)} expected < ${(pauseY - 15).toFixed(0)} after upward retarget`);
+        }
+        if (!(player.x >= DC_ROCK_LEFT_X - 5)) {
+            parts.push(`player x=${player.x.toFixed(0)} slingshot left instead of retarget dash`);
+        }
+        return parts.join('; ');
+    },
+};
+
 // ---------------------------------------------------------------------------
 // 0521 â€” Impact Conversion (resonance gained when armour is removed by damage)
 // ---------------------------------------------------------------------------
