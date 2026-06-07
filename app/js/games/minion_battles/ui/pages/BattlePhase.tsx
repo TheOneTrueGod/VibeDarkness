@@ -1096,6 +1096,7 @@ export default function BattlePhase({
         const engine = sessionRef.current?.getEngine();
         const camera = sessionRef.current?.getCamera();
         if (!engine || !camera || !canUseOrderUi || !activeLocalWaiter || !waitingForOrders) return;
+        if (waitingForOrders.conditionalCancelContext) return;
         if (!engine.terrainManager) return;
 
         const grid = engine.terrainManager.grid;
@@ -1181,6 +1182,12 @@ export default function BattlePhase({
 
     const actionRowHost = battleActionRow?.actionRowHost ?? null;
 
+    const conditionalCancelContext =
+        waitingForOrders?.conditionalCancelContext != null
+        && activeLocalWaiter?.unitId === waitingForOrders.conditionalCancelContext.unitId
+            ? waitingForOrders.conditionalCancelContext
+            : undefined;
+
     const abilityBar = (
         <AbilityBar
             abilityIds={myAbilityIds}
@@ -1198,6 +1205,7 @@ export default function BattlePhase({
             onWait={handleWait}
             onWaitHoverChange={setIsWaitHovered}
             gameState={engine}
+            conditionalCancelContext={conditionalCancelContext}
             onRegisterCardTarget={(key, pageX, pageY) => {
                 hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);
             }}

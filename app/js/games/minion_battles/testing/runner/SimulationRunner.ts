@@ -3,6 +3,15 @@ import type { ScenarioDefinition } from '../types';
 
 const FIXED_STEP_SEC = 1 / 60;
 
+/** Headless scenarios: auto-submit "wait" to resume a mid-cast conditional cancel pause. */
+function maybeAutoResolveConditionalCancel(engine: GameEngine): void {
+    const batch = engine.waitingForOrders;
+    const cc = batch?.conditionalCancelContext;
+    if (!batch || !cc) return;
+    if (engine.state.orderMgr.hasPendingOrderForUnit(cc.unitId, batch.atTick)) return;
+    engine.state.orderMgr.applyOrder({ unitId: cc.unitId, abilityId: 'wait', targets: [] });
+}
+
 /** Extra frames to step after assertPass first returns true, so the animation plays out. */
 const EXTRA_FRAMES_AFTER_PASS = 30;
 
@@ -96,6 +105,7 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
                     markSettled();
                     return;
                 }
+                maybeAutoResolveConditionalCancel(engine);
                 engine.stepSimulationFixedTicks(1);
                 ticks++;
             }
@@ -170,6 +180,7 @@ export function runScenarioHeadless(scenario: ScenarioDefinition): ScenarioRunRe
             if (engine.isScenarioRunnerBattleIdle()) {
                 break;
             }
+            maybeAutoResolveConditionalCancel(engine);
             engine.stepSimulationFixedTicks(1);
             ticks++;
         }

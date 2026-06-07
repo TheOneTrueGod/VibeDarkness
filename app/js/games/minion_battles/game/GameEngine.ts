@@ -120,7 +120,15 @@ export class GameEngine implements EngineContext {
      * Parallel order pause scheduled during a tick; committed in the **same** `fixedUpdate` after
      * `TICK_END` for that tick (see `commitDeferredOrderPauseAfterCompletedTick`).
      */
-    private deferredOrderPause: { waiters: OrderWaiter[]; naturalCompletionUnitIds: readonly string[] } | null = null;
+    private deferredOrderPause: {
+        waiters: OrderWaiter[];
+        naturalCompletionUnitIds: readonly string[];
+        conditionalCancelContext?: {
+            unitId: string;
+            activeAbilityId: string;
+            abilityTagFilter?: readonly string[];
+        };
+    } | null = null;
 
     /** Units whose casts ended by duration this tick (cleared each normal tick before `processActiveAbilities`). */
     private naturalAbilityCompletionUnitIdsThisTick = new Set<string>();
@@ -969,12 +977,14 @@ export class GameEngine implements EngineContext {
         if (this.deferredOrderPause == null || this.deferredOrderPause.waiters.length === 0) {
             return false;
         }
-        const { waiters: initialWaiters, naturalCompletionUnitIds } = this.deferredOrderPause;
+        const { waiters: initialWaiters, naturalCompletionUnitIds, conditionalCancelContext } = this.deferredOrderPause;
         this.deferredOrderPause = null;
         const atTick = this.gameTick + 1;
 
         const naturalSet = new Set(naturalCompletionUnitIds);
-        const hadNaturalWaiter = initialWaiters.some((w) => naturalSet.has(w.unitId));
+        // Conditional cancel is not a natural completion — suppress coop cancel to avoid
+        // unrelated team-ability interruptions during a single-unit decision.
+        const hadNaturalWaiter = conditionalCancelContext == null && initialWaiters.some((w) => naturalSet.has(w.unitId));
 
         let teamworkCancelledOwnerIds: string[] | undefined;
         let waiters = [...initialWaiters];
@@ -1039,6 +1049,7 @@ export class GameEngine implements EngineContext {
             waiters,
             atTick,
             ...(teamworkCancelledOwnerIds !== undefined ? { teamworkCancelledOwnerIds } : {}),
+            ...(conditionalCancelContext !== undefined ? { conditionalCancelContext } : {}),
         };
         this.isPaused = true;
         this.snapshotIndex++;
@@ -1270,6 +1281,31 @@ export class GameEngine implements EngineContext {
         unit.cancelActiveAbility(abilityId, this);
     }
 
+    requestConditionalCancelPause(
+        unit: Unit,
+        abilityId: string,
+        abilityTagFilter: readonly string[] | undefined,
+    ): void {
+        const waiter: OrderWaiter = { unitId: unit.id, ownerId: unit.ownerId };
+        const ctx = {
+            unitId: unit.id,
+            activeAbilityId: abilityId,
+            abilityTagFilter: abilityTagFilter ? [...abilityTagFilter] : undefined,
+        };
+        if (this.deferredOrderPause) {
+            if (!this.deferredOrderPause.waiters.some((w) => w.unitId === unit.id)) {
+                this.deferredOrderPause.waiters.push(waiter);
+            }
+            this.deferredOrderPause.conditionalCancelContext = ctx;
+        } else {
+            this.deferredOrderPause = {
+                waiters: [waiter],
+                naturalCompletionUnitIds: [],
+                conditionalCancelContext: ctx,
+            };
+        }
+    }
+
     interruptUnitAndRefundAbilities(unit: Unit): void {
         unit.interruptAndRefundAbilities(this);
     }
@@ -1412,6 +1448,9 @@ export class GameEngine implements EngineContext {
                 ? {
                       waiters: this.waitingForOrders.waiters,
                       atTick: this.waitingForOrders.atTick,
+                      ...(this.waitingForOrders.conditionalCancelContext !== undefined
+                          ? { conditionalCancelContext: this.waitingForOrders.conditionalCancelContext }
+                          : {}),
                   }
                 : null,
             orders: this.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),

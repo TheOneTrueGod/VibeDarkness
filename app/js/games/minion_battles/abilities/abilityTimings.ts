@@ -6,6 +6,10 @@
 
 import type { CastBehaviourEntry, CastBehaviour } from './castBehaviourTypes';
 import type { TimingTargetDef } from './timingTargetDef';
+import type { AbilityTag } from './Ability';
+import type { Unit } from '../game/units/Unit';
+import type { EngineContext } from '../game/EngineContext';
+import type { ResolvedTarget } from '../game/types';
 
 /** Phase of an ability's execution (for segment coloring). */
 export enum AbilityPhase {
@@ -76,6 +80,31 @@ export type AbilityTimingEmitterDef = EmitterDefShared & (
       }
 );
 
+/** Context passed to a `ConditionalCancelDef.condition` function. */
+export interface ConditionalCancelConditionContext {
+    caster: Unit;
+    engine: EngineContext;
+    targets: ResolvedTarget[];
+    abilityId: string;
+}
+
+/**
+ * Definition for a mid-ability conditional cancel decision point.
+ * Placed on a timing interval; evaluated when that interval exits.
+ * If the condition returns true, the engine pauses and offers the unit a choice:
+ *   - Pick an eligible ability → current cast cancelled, new ability starts.
+ *   - Wait → current cast resumes (e.g. slingshot fires).
+ */
+export interface ConditionalCancelDef {
+    /** Returns true to trigger the cancel decision. Evaluated at interval exit. */
+    condition: (context: ConditionalCancelConditionContext) => boolean;
+    /**
+     * Tags that eligible abilities must ALL have. Ineligible abilities are grayed out.
+     * Undefined = no filter (all abilities selectable).
+     */
+    abilityTagFilter?: readonly AbilityTag[];
+}
+
 /**
  * Half-open interval [start, end) from ability start, seconds.
  * Declaration order matters when intervals overlap (UI merge: first-listed wins).
@@ -113,6 +142,14 @@ export interface AbilityTimingInterval {
      * behavioral effects.
      */
     evadeEffect?: boolean;
+    /**
+     * Optional mid-ability decision point. Evaluated when this interval exits.
+     * If condition returns true, the engine pauses for an ability-selection decision:
+     *   - Pick eligible ability → cancel current cast, start new ability.
+     *   - Wait → resume (e.g. slingshot fires on the next tick).
+     * Does NOT trigger coop cancel. Compatible with checkpoints.
+     */
+    conditionalCancel?: ConditionalCancelDef;
 }
 
 export type AbilityTimingEntry = AbilityTiming | AbilityTimingInterval;

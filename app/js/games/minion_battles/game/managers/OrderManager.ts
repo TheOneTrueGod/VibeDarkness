@@ -7,6 +7,7 @@ import type { EngineContext } from '../EngineContext';
 import type { BattleOrder, OrderAtTick, WaitingForOrders, OrderWaiter } from '../types';
 import type { Unit } from '../units/Unit';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { abilityHasTag } from '../../abilities/Ability';
 
 const WAIT_ORDER_MIN_DURATION_SEC = 1.5;
 const WAIT_ORDER_MAX_DURATION_SEC = 1.5;
@@ -88,11 +89,51 @@ export class OrderManager {
             }
             atTick = batch.atTick;
         }
+        const ccCtx = this.waitingForOrders?.conditionalCancelContext;
+        const isConditionalCancelDecision =
+            ccCtx != null && ccCtx.unitId === order.unitId;
+
+        if (isConditionalCancelDecision) {
+            if (!this.applyConditionalCancelDecision(order, ccCtx)) {
+                return;
+            }
+        }
+
         this.queueOrder(atTick, order);
 
         if (this.waitingForOrders) {
             this.onAfterOrderQueued();
         }
+    }
+
+    /**
+     * Resolves a mid-ability conditional cancel choice while the parallel pause batch is still active.
+     * Returns false when the order should be rejected (invalid ability tag).
+     */
+    private applyConditionalCancelDecision(
+        order: BattleOrder,
+        ccCtx: NonNullable<WaitingForOrders['conditionalCancelContext']>,
+    ): boolean {
+        const unit = this.ctx.getUnit(order.unitId);
+        if (!unit || !unit.isAlive()) return false;
+
+        if (order.abilityId === 'wait') {
+            const active = unit.activeAbilities.find((a) => a.abilityId === ccCtx.activeAbilityId);
+            if (active) {
+                active.conditionalCancelPaused = false;
+            }
+            return true;
+        }
+
+        const tagFilter = ccCtx.abilityTagFilter;
+        if (tagFilter && tagFilter.length > 0) {
+            for (const tag of tagFilter) {
+                if (!abilityHasTag(order.abilityId, tag)) return false;
+            }
+        }
+
+        this.ctx.cancelActiveAbility(unit.id, ccCtx.activeAbilityId);
+        return true;
     }
 
     queueOrder(atTick: number, order: BattleOrder): void {
@@ -133,6 +174,10 @@ export class OrderManager {
         }
 
         if (order.abilityId === 'wait') {
+            // Mid-cast resume (conditional cancel): keep the active cast, skip turn wait lockout.
+            if (unit.activeAbilities.length > 0) {
+                return;
+            }
             unit.waitMinEndTime = this.ctx.gameTime + WAIT_ORDER_MIN_DURATION_SEC;
             unit.waitMaxEndTime = this.ctx.gameTime + WAIT_ORDER_MAX_DURATION_SEC;
             return;

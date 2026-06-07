@@ -7,7 +7,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { canAffordAbility } from '../../abilities/Ability';
+import { abilityHasTag, canAffordAbility, type AbilityTag } from '../../abilities/Ability';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../game/units/Unit';
 import AbilitySlot from './AbilitySlot';
@@ -61,6 +61,14 @@ interface AbilityBarProps {
     gameState?: unknown;
     /** Register a card's page-center position per charge type (key = 'card:<chargeType>:<abilityId>'). */
     onRegisterCardTarget?: (key: string, pageX: number, pageY: number) => void;
+    /**
+     * When set, this pause is a mid-ability conditional cancel: only abilities matching
+     * all tags are selectable; the active cast id is not re-selectable.
+     */
+    conditionalCancelContext?: {
+        activeAbilityId: string;
+        abilityTagFilter?: readonly AbilityTag[];
+    };
 }
 
 export default function AbilityBar({
@@ -76,6 +84,7 @@ export default function AbilityBar({
     onWaitHoverChange,
     gameState,
     onRegisterCardTarget,
+    conditionalCancelContext,
 }: AbilityBarProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(getUsesMobileCardLayout);
@@ -309,7 +318,14 @@ export default function AbilityBar({
                             {handCards.map((card, index) => {
                                 const canAfford = playerUnit ? canAffordAbility(playerUnit, card.ability) : false;
                                 const canUse = card.runtime.currentUses > 0;
-                                const isDisabled = !isMyTurn || !canAfford || !canUse;
+                                const tagFilter = conditionalCancelContext?.abilityTagFilter;
+                                const matchesTagFilter =
+                                    !tagFilter || tagFilter.length === 0
+                                    || tagFilter.every((tag) => abilityHasTag(card.abilityId, tag));
+                                const isCurrentCast =
+                                    conditionalCancelContext?.activeAbilityId === card.abilityId;
+                                const isDisabled =
+                                    !isMyTurn || !canAfford || !canUse || !matchesTagFilter || isCurrentCast;
                                 const isHovered = hoveredCardId === card.abilityId;
                                 const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
                                 const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
@@ -363,12 +379,14 @@ export default function AbilityBar({
                                     ? 'cursor-pointer border-dark-500 bg-dark-700 text-gray-200 hover:-translate-y-1 hover:border-gray-400 hover:bg-dark-600'
                                     : 'cursor-not-allowed border-dark-700 bg-dark-800 text-gray-600'
                             }`}
-                            title="Wait (Space)"
+                            title={conditionalCancelContext ? 'Continue current ability (Space)' : 'Wait (Space)'}
                             aria-keyshortcuts="Space"
                             onPointerEnter={() => onWaitHoverChange?.(true)}
                             onPointerLeave={() => onWaitHoverChange?.(false)}
                         >
-                            <span className="text-sm font-medium">Wait</span>
+                            <span className="text-sm font-medium">
+                                {conditionalCancelContext ? 'Continue' : 'Wait'}
+                            </span>
                             <kbd
                                 className={`mt-2 flex h-10 min-w-[3.5rem] items-center justify-center rounded border-2 px-2 font-mono text-[11px] font-semibold tracking-wide shadow-inner ${
                                     isMyTurn

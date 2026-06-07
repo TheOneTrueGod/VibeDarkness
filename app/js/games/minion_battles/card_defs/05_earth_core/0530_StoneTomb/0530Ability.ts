@@ -46,6 +46,7 @@ export const StoneTomb: AbilityStatic = {
     id: ABILITY_ID,
     name: 'Stone Tomb',
     image: STONE_TOMB_IMAGE,
+    tags: ['Entombed'],
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: 1,
     prefireTime: 0.3,

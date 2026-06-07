@@ -17,7 +17,8 @@ import type { LightSource } from './lightSources/LightSource';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import type { TerrainLayerManager } from './TerrainLayerManager';
 import type { MapSegmentPOI } from '../terrain/segmentSchema';
-import type { SpawnSource } from './types';
+import type { SpawnSource, WaitingForOrders } from './types';
+import type { AbilityTag } from '../abilities/Ability';
 
 export interface EngineContext {
     gameTime: number;
@@ -72,6 +73,26 @@ export interface EngineContext {
 
     /** Unpause when every frozen waiter has a pending order; called by OrderManager after queueing. */
     tryResumeParallel(): void;
+
+    /** Current parallel-order pause batch (null when the simulation is running). */
+    readonly waitingForOrders: WaitingForOrders | null;
+
+    /**
+     * Cancel an active ability on a unit by ID.
+     * Fires ON_CAST_END, runs onInterrupt on all active CastBehaviours, then removes the cast.
+     */
+    cancelActiveAbility(unitId: string, abilityId: string): void;
+
+    /**
+     * Called from unitAbilityTick when a conditionalCancel condition fires on interval exit.
+     * Schedules a deferred order pause scoped to the triggering unit so the player can
+     * choose an eligible ability or wait (which resumes the current cast).
+     */
+    requestConditionalCancelPause(
+        unit: Unit,
+        abilityId: string,
+        abilityTagFilter: readonly AbilityTag[] | undefined,
+    ): void;
 
     /**
      * Returns the light level (0–1+) at a world position, or null if light is disabled.

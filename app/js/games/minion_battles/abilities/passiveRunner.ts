@@ -34,6 +34,7 @@ function matchesFilter(target: Unit, filter: PassiveTargetFilter, caster: Unit):
 function applyEffects(caster: Unit, effects: PassiveEffect[], engine: EngineContext): void {
     for (const effect of effects) {
         if (effect.type === 'aoe_damage') {
+            let hitSomething = false;
             for (const target of engine.units) {
                 if (!target.isAlive()) continue;
                 if (!matchesFilter(target, effect.targetFilter, caster)) continue;
@@ -42,9 +43,10 @@ function applyEffects(caster: Unit, effects: PassiveEffect[], engine: EngineCont
                     const dy = target.y - caster.y;
                     if (dx * dx + dy * dy > effect.range * effect.range) continue;
                 }
-                target.takeDamage(effect.damage, caster.id, engine.eventBus);
+                const dealt = target.takeDamage(effect.damage, caster.id, engine.eventBus);
+                if (dealt > 0) hitSomething = true;
             }
-            if (effect.pulseRadius !== undefined) {
+            if (hitSomething && effect.pulseRadius !== undefined) {
                 engine.addEffect(new Effect({
                     x: caster.x,
                     y: caster.y,

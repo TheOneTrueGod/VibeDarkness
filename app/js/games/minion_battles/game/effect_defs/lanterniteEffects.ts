@@ -8,10 +8,9 @@ import type { IEffectDef } from './types';
 import { drawRingBursts, type RingPulseSpec } from './helpers';
 
 /**
- * Radiant aura pulse — emitted by the lanternite nest passive each tick.
- * A single bright green ring expands from the nest's body to `effectData.pulseRadius`,
- * with a softer trailing ring slightly behind it, both fading out as they reach full size.
- * `effectData.pulseRadius` (number) controls the maximum expansion radius.
+ * Radiant aura pulse — emitted by the lanternite nest passive when it damages a target.
+ * A soft green ring expands from the nest's body to `effectData.pulseRadius`, fading out
+ * as it reaches full size. `effectData.pulseRadius` (number) controls the maximum expansion radius.
  */
 export const auraPulseEffectDef: IEffectDef = {
     createVisual(_effect: Effect): Container {
@@ -24,12 +23,12 @@ export const auraPulseEffectDef: IEffectDef = {
         const endRadius = data.pulseRadius ?? 200;
         const startRadius = data.startRadius ?? 0;
         const rings: RingPulseSpec[] = [
-            { delay: 0,    startRadius, endRadius,             width: 3,   opacityMul: 1 },
-            { delay: 0.08, startRadius, endRadius: endRadius * 0.88, width: 1.5, opacityMul: 0.55 },
+            { delay: 0, startRadius, endRadius, width: 1.5, opacityMul: 1 },
+            { delay: 0.1, startRadius, endRadius: endRadius * 0.9, width: 1, opacityMul: 0.4 },
         ];
-        const colors = [0x34d399, 0x6ee7b7];
+        const colors = [0x4ade80, 0x86efac];
         drawRingBursts(g, effect.progress, colors, rings, (ep, ring) =>
-            Math.max(0, 0.85 * ring.opacityMul * (1 - ep * 1.1)),
+            Math.max(0, 0.45 * ring.opacityMul * (1 - ep * 1.15)),
         );
     },
 };

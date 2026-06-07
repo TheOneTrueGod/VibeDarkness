@@ -220,6 +220,29 @@ export function tickUnitActiveAbilities(
             }
         }
 
+        // conditionalCancel: evaluated on interval exit (after cast behaviour exit hooks)
+        if (!active.conditionalCancelPaused) {
+            for (const interval of intervals) {
+                if (!exited.has(interval.id)) continue;
+                const cc = interval.conditionalCancel;
+                if (!cc) continue;
+                if (cc.condition({
+                    caster: unit,
+                    engine,
+                    targets: active.targets,
+                    abilityId: active.abilityId,
+                })) {
+                    active.conditionalCancelPaused = true;
+                    engine.requestConditionalCancelPause(unit, active.abilityId, cc.abilityTagFilter);
+                    break;
+                }
+            }
+        }
+
+        if (active.conditionalCancelPaused) {
+            continue;
+        }
+
         // castBehaviours: evade-break on interval enter (declarative and legacy paths)
         for (const interval of intervals) {
             if (!entered.has(interval.id)) continue;

@@ -107,6 +107,44 @@ function applySlingshotLaunch(
     );
 }
 
+/** Set slingshotDirX/Y on the ability note when the caster is stuck inside rock. */
+function initSlingshotDirectionIfStuck(
+    caster: Unit,
+    note: {
+        wallEntryX: number | null;
+        wallEntryY: number | null;
+        slingshotDirX: number | null;
+        slingshotDirY: number | null;
+    },
+    tm: TerrainManagerLike,
+): void {
+    if (note.slingshotDirX !== null || note.slingshotDirY !== null) return;
+    if (tm.isPassable(caster.x, caster.y)) return;
+
+    let dirX = 0;
+    let dirY = 0;
+    if (note.wallEntryX !== null && note.wallEntryY !== null) {
+        const dx = note.wallEntryX - caster.x;
+        const dy = note.wallEntryY - caster.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0) {
+            dirX = dx / dist;
+            dirY = dy / dist;
+        }
+    }
+    if (dirX === 0 && dirY === 0) {
+        const nearest = findNearestPassableDirection(tm, caster.x, caster.y);
+        if (nearest) {
+            dirX = nearest.x;
+            dirY = nearest.y;
+        }
+    }
+    if (dirX !== 0 || dirY !== 0) {
+        note.slingshotDirX = dirX;
+        note.slingshotDirY = dirY;
+    }
+}
+
 /** Damage a rock tile at the caster's current position (once per unique tile per cast). */
 function maybeDamageCurrentTile(
     caster: Unit,
@@ -125,11 +163,24 @@ export const DiggingClawsAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Digging Claws',
     image: DIGGING_CLAWS_IMAGE,
+    tags: ['Entombed'],
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: DASH_DURATION,
     abilityTimings: [
-        { id: 'dash',      start: 0,                                end: DASH_DURATION,                              abilityPhase: AbilityPhase.Iframe },
+        {
+            id: 'dash',
+            start: 0,
+            end: DASH_DURATION,
+            abilityPhase: AbilityPhase.Iframe,
+            conditionalCancel: {
+                condition: ({ caster, engine }) => {
+                    const terrain = engine.terrainManager;
+                    return terrain != null && !terrain.isPassable(caster.x, caster.y);
+                },
+                abilityTagFilter: ['Entombed'],
+            },
+        },
         { id: 'slingshot', start: DASH_DURATION,                   end: DASH_DURATION + SLINGSHOT_PHASE,            abilityPhase: AbilityPhase.Cooldown },
         { id: 'cooldown',  start: DASH_DURATION + SLINGSHOT_PHASE, end: DASH_DURATION + SLINGSHOT_PHASE + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
     ],
@@ -251,34 +302,9 @@ export const DiggingClawsAbility: AbilityStatic = {
             }
             const note = caster.abilityNote.abilityNote;
 
-            // First tick at dash end: decide whether to start slingshot
-            if (prevTime < DASH_DURATION) {
-                if (tm && !tm.isPassable(caster.x, caster.y)) {
-                    // Compute slingshot direction: back toward the wall entry point (reversed)
-                    let dirX = 0;
-                    let dirY = 0;
-                    if (note.wallEntryX !== null && note.wallEntryY !== null) {
-                        const dx = note.wallEntryX - caster.x;
-                        const dy = note.wallEntryY - caster.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist > 0) {
-                            dirX = dx / dist;
-                            dirY = dy / dist;
-                        }
-                    }
-                    if (dirX === 0 && dirY === 0) {
-                        // Edge case: started inside wall with no recorded entry
-                        const nearest = findNearestPassableDirection(tm, caster.x, caster.y);
-                        if (nearest) {
-                            dirX = nearest.x;
-                            dirY = nearest.y;
-                        }
-                    }
-                    if (dirX !== 0 || dirY !== 0) {
-                        note.slingshotDirX = dirX;
-                        note.slingshotDirY = dirY;
-                    }
-                }
+            // Init slingshot direction when stuck (also runs after conditional-cancel "wait" resume).
+            if (tm) {
+                initSlingshotDirectionIfStuck(caster, note, tm);
             }
 
             // Active slingshot: push caster out each tick
