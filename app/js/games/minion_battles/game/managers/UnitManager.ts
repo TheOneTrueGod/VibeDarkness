@@ -10,6 +10,7 @@ import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
 import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from '../units/unitAI';
 import { tickSpawnAnimation } from '../units/spawnAnimation';
+import { processUnitPassives } from '../../abilities/passiveRunner';
 import type { AIContext } from '../units/unitAI';
 import type { Resource } from '../../resources/Resource';
 import { Rage } from '../../resources/Rage';
@@ -115,7 +116,12 @@ export class UnitManager {
         aiContext: AIContext,
         onBeforeEnemyAI?: () => void,
     ): void {
-        // Phase 1: ability tick for all units before any movement
+        // Phase 1a: passive ability tick (all alive units, no cast required)
+        for (const unit of this.units) {
+            if (!unit.active) continue;
+            processUnitPassives(unit, dt, engine);
+        }
+        // Phase 1b: active ability tick
         for (const unit of this.units) {
             if (!unit.active || unit.activeAbilities.length === 0) continue;
             unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));

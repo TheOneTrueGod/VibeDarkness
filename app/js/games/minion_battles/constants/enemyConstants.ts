@@ -115,7 +115,7 @@ export const ALLY_LANTERNITE_NEST: EnemySpawnDef = {
     name: 'Lanternite Nest',
     position: { x: 0, y: 0 },
     teamId: 'allied',
-    abilities: [],
+    abilities: ['0014'],
     aiSettings: { minRange: 0, maxRange: 0 },
     unitAITreeId: 'lanterniteNestIdle',
 };

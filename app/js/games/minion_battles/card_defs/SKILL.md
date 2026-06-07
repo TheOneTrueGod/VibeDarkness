@@ -154,6 +154,47 @@ Whenever an ability needs to store data for future use, it must be serializable.
 
 To avoid name collisions when importing multiple abilities, suffix the exported ability constant with its 4-digit ID: e.g. `SwingBatAbility_0103`, `SwingBatAbility_0115`. Apply this convention to all new abilities.
 
+## Passive abilities
+
+A **passive ability** is an `AbilityStatic` with a `passive?: PassiveDef` field (see `abilities/passiveDef.ts`). No cast order is ever issued; the engine's `processUnitPassives` (wired into `UnitManager.gameTick`) fires the passive automatically every tick for every alive unit that has the ability ID in its `abilities` list.
+
+**Anatomy of a PassiveDef:**
+
+```typescript
+const myPassive: PassiveDef = {
+    trigger: { type: 'onTick', intervalSec: 1.0 },   // once per second (1/8 of 8 s round)
+    effects: [
+        {
+            type: 'aoe_damage',
+            damage: 4,
+            // range?: number   — omit for unlimited (global)
+            targetFilter: { creatureType: 'dark_creature' },
+        },
+    ],
+};
+```
+
+**Available triggers:**
+| `type`    | Key field | Behaviour |
+|-----------|-----------|-----------|
+| `onTick`  | `intervalSec: number` | Fires whenever `gameTime` crosses an integer multiple of `intervalSec` (floor-crossing detection, no state stored on the unit). |
+
+**Available effects:**
+| `type`       | Fields | Behaviour |
+|--------------|--------|-----------|
+| `aoe_damage` | `damage`, `range?`, `targetFilter` | Deals flat damage to every alive unit that passes the filter. `range` omitted = unlimited (global aura). |
+
+**`targetFilter` options:**
+- `creatureType?: 'dark_creature' | 'beast'` — restricts to units whose character def has that creature type.
+- `teamRelation?: 'enemy' | 'ally' | 'any'` — restricts by team relation to the caster.
+
+**Passive-specific checklist:**
+- [ ] Ability file exports the ability with a non-empty `passive` def.
+- [ ] `abilityTimings: []` and `targets: []` (passive abilities have no cast lifecycle).
+- [ ] Ability registered in `AbilityRegistry.ts`.
+- [ ] Every spawn config that should have the passive includes the ability ID in its `abilities` array (check both static spawn defs and any dynamic `createUnitFromSpawnConfig` calls for that character).
+- [ ] No `CardDef` needed unless the passive also appears as a player card.
+
 ## Ability concepts
 
 - **Range**: Always calculate based on the range value plus the size of the source object plus the size of the target object.

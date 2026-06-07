@@ -13,6 +13,7 @@ import type { Unit } from '../game/units/Unit';
 import type { AbilityTimingEntry } from './abilityTimings';
 import type { AbilityEventRule } from './events/AbilityEventRule';
 import type { UnitTag } from '../game/units/unitTag';
+import type { PassiveDef } from './passiveDef';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
 export interface IAbilityPreviewGraphics {
@@ -153,6 +154,13 @@ export interface AbilityStatic {
     readonly tags?: readonly AbilityTag[];
     /** Optional declarative rules keyed by trigger event. */
     readonly abilityEvents?: Partial<Record<AbilityEventType, readonly AbilityEventRule[]>>;
+    /**
+     * Optional passive definition. When present, the engine's `processUnitPassives` fires this
+     * automatically each tick — no cast order is needed. The unit must have this ability's ID in
+     * its `abilities` list but never needs to cast it. See `abilities/passiveDef.ts` for the
+     * available trigger types and effects.
+     */
+    readonly passive?: PassiveDef;
     /**
      * Optional custom effect handlers for `{ type: 'custom' }` effects in `abilityEvents`.
      * Merged with any call-site handlers (call-site wins on key collision).

@@ -131,7 +131,7 @@ export function processLanterniteNests(params: {
                 ownerId: 'ai',
                 characterId: LANTERNITE_NEST_CHARACTER_ID,
                 name: 'Lanternite Nest',
-                abilities: [],
+                abilities: ['0014'],
                 unitAITreeId: 'lanterniteNestIdle',
                 aiSettings: { minRange: 0, maxRange: 0 },
                 hp: undefined,

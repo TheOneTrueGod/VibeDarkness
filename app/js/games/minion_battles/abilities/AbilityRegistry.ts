@@ -56,6 +56,7 @@ import { DiggingClawsAbility } from '../card_defs/05_earth_core/0534_DiggingClaw
 import { ThornbinderBrambleAbility } from '../card_defs/0008_ThornbinderBramble/0008Ability';
 import { HuskSeedBarrageAbility } from '../card_defs/0009_HuskSeedBarrage/0009Ability';
 import { LanterniteStrikeAbility } from '../card_defs/0010_LanterniteStrike/0010Ability';
+import { LanterniteNestAuraAbility } from '../card_defs/dark_animals/0014_LanterniteNestAura/0014Ability';
 import { WaitAbility } from './WaitAbility';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
@@ -119,6 +120,7 @@ register(DiggingClawsAbility);
 register(ThornbinderBrambleAbility);
 register(HuskSeedBarrageAbility);
 register(LanterniteStrikeAbility);
+register(LanterniteNestAuraAbility);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 
