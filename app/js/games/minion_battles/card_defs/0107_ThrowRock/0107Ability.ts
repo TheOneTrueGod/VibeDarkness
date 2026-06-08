@@ -21,6 +21,7 @@ import { Projectile } from '../../game/projectiles/Projectile';
 import { type CardDef } from '../types';
 import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 import { withEntombedWallConditionalCancelAndLinger } from '../../abilities/entombed/entombedWallCancel';
+import { buildTagDescriptionLines } from '../../abilities/abilityTagCatalog';
 
 const ABILITY_ID = 'throw_rock';
 const RANGE = 200;
@@ -232,10 +233,15 @@ export const ThrowRock: AbilityStatic & { range: number } = {
         const baseRockDmg = eng ? rockProjectileDamage(eng, research) : rockDamageForResearch(research);
         const mod = getAbilityModifier(gameState, undefined, ABILITY_ID);
         const dmg = baseRockDmg + (mod.damageFlat ?? 0);
-        if (hasMoreRock) {
-            return [`Throws {2} rocks dealing {${dmg}} damage each to the first enemy hit`];
-        }
-        return [`Throws a rock dealing {${dmg}} damage to the first enemy hit`];
+        const lines: string[] = hasMoreRock
+            ? [`Throws {2} rocks dealing {${dmg}} damage each to the first enemy hit`]
+            : [`Throws a rock dealing {${dmg}} damage to the first enemy hit`];
+
+        // Collect active tags including any added by research (e.g. Entombed via Buried Arsenal).
+        // TODO: add buildTagDescriptionLines() to the other abilities that have auto-described tags.
+        const activeTags: string[] = [...(ThrowRock.tags ?? [])];
+        if (mod.addTags) activeTags.push(...mod.addTags);
+        return [...lines, ...buildTagDescriptionLines(activeTags)];
     },
 
     beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {

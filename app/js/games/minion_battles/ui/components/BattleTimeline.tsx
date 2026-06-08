@@ -502,14 +502,16 @@ function renderPlayerTimelineTrack(
     hover: TimelinePanelHover,
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
-    const opacityClass = previewLevel === 'preview' ? 'opacity-70' : previewLevel === 'ghost' ? 'opacity-40' : '';
+    const segmentsOpacityClass = previewLevel === 'preview' ? 'opacity-70' : previewLevel === 'ghost' ? 'opacity-40' : '';
+    // Icon uses a slightly higher minimum opacity so dark-coloured SVGs remain visible against the dark background.
+    const iconOpacityClass = previewLevel === 'preview' ? 'opacity-70' : previewLevel === 'ghost' ? 'opacity-60' : '';
     return (
         <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
             <TimelineTimeRuler windowSeconds={windowSeconds} />
             {hasTimeline && (
                 <>
                     <div
-                        className={`absolute inset-0 overflow-hidden rounded-md ${opacityClass}`}
+                        className={`absolute inset-0 overflow-hidden rounded-md ${segmentsOpacityClass}`}
                     >
                         {segments.map((seg, idx) => (
                             <TimelinePhaseSegment
@@ -537,7 +539,7 @@ function renderPlayerTimelineTrack(
                     </div>
                     {/* Keep icon inside the track so the sidebar does not gain horizontal scroll */}
                     <div
-                        className={`pointer-events-none absolute top-1/2 right-1 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-dark-600 bg-dark-900 text-[10px] text-gray-100 shadow-sm ${opacityClass}`}
+                        className={`pointer-events-none absolute top-1/2 right-1 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-dark-600 bg-dark-900 text-[10px] text-gray-100 shadow-sm ${iconOpacityClass}`}
                         title={displayAbility.name}
                     >
                         <AbilityIconInBox html={displayAbility.image} className="h-5 w-5" />

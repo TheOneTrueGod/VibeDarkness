@@ -14,6 +14,8 @@ import {
     EARTH_CORE_RESONANCE_GAIN_ROUND_START,
     EARTH_CORE_RESONANCE_GAIN_STONE_DAMAGED_NEARBY,
     EARTH_CORE_RESONANCE_MAX,
+    EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
+    EARTH_CORE_STONE_HEALTH,
 } from '../card_defs/05_earth_core/earthCoreConstants';
 import { BEDROCK_SCAVENGER_PASSIVE_ID } from '../abilities/earthCoreMeleePassives';
 import { getEarthCoreArmour } from '../abilities/earthCoreArmour';
@@ -303,8 +305,8 @@ describe('GameEngine', () => {
             });
         });
 
-        terrainManager.damageRock(1, 1); // tier 0, no emit
-        terrainManager.damageRock(1, 1); // tier 0 -> 1
+        terrainManager.damageRock(1, 1); // tier none -> 1
+        terrainManager.damageRock(1, 1); // tier 1 -> 2
         while (terrainManager.getFloorTile(1, 1)?.destructible?.health) {
             terrainManager.damageRock(1, 1);
         }
@@ -343,7 +345,9 @@ describe('GameEngine', () => {
         const restoredTerrainManager = new TerrainManager(restoredGrid);
         const restored = GameEngine.fromJSON(json, 'p1', restoredTerrainManager);
 
-        expect(restoredTerrainManager.getFloorTile(1, 1)?.destructible?.health).toBe(24);
+        expect(restoredTerrainManager.getFloorTile(1, 1)?.destructible?.health).toBe(
+            EARTH_CORE_STONE_HEALTH - EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
+        );
         expect(restoredTerrainManager.getEffectiveTerrainType(2, 1)).toBe(TerrainType.Rubble);
 
         restored.destroy();

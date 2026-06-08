@@ -1,7 +1,7 @@
 import { Assets, Container, Sprite, Texture } from 'pixi.js';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { getDamageTier } from '../../../terrain/FloorTile';
+import { DAMAGE_TIER_NONE, getDamageTier } from '../../../terrain/FloorTile';
 import { DEFAULT_ROCK_DESTRUCTIBLE_KIND } from '../../../card_defs/05_earth_core/earthCoreConstants';
 import type { GameEngine } from '../../GameEngine';
 import { ROCK_FLOOR_VISUAL_TIERS, RUBBLE_FLOOR_VISUAL } from '../floorTileVisualDefs';
@@ -45,8 +45,9 @@ export class FloorTileRenderer {
 
             const tier = getDamageTier(tile.destructible);
             const key = cellKey(col, row);
+            if (tier === DAMAGE_TIER_NONE) continue;
             activeKeys.add(key);
-            const tierDef = ROCK_FLOOR_VISUAL_TIERS[Math.min(tier, ROCK_FLOOR_VISUAL_TIERS.length - 1)];
+            const tierDef = ROCK_FLOOR_VISUAL_TIERS[tier - 1];
             if (!tierDef) continue;
             const cacheKey = visualCacheKey(col, row, TerrainType.Rock, tier);
             this.ensureCellVisual(key, col, row, cacheKey, tierDef.svgString);
@@ -104,11 +105,11 @@ export class FloorTileRenderer {
         const container = new Container();
         container.label = textureKey;
         const sprite = new Sprite(texture);
-        sprite.anchor.set(0.5, 0.5);
+        sprite.anchor.set(0, 0);
         sprite.width = CELL_SIZE;
-        sprite.height = CELL_SIZE / 2;
-        sprite.x = col * CELL_SIZE + CELL_SIZE / 2;
-        sprite.y = row * CELL_SIZE + CELL_SIZE * 0.75;
+        sprite.height = CELL_SIZE;
+        sprite.x = col * CELL_SIZE;
+        sprite.y = row * CELL_SIZE;
         container.addChild(sprite);
         this.cellVisuals.set(cellKeyStr, container);
         this.floorTilesContainer.addChild(container);

@@ -382,28 +382,22 @@ export class PreviewRenderer {
         this.ghostPlanPreviewGraphics.alpha = GHOST_PLAN_LAYER_ALPHA;
 
         const plans = Object.values(ghostPlans);
-        if (plans.length > 0) {
-            console.log('[ghost plan renderer] plans:', plans.map((p) => ({ unitId: p.unitId, abilityId: p.abilityId })));
-        }
-
         const gr = this.ghostPlanPreviewGraphics as unknown as import('../../../abilities/Ability').IAbilityPreviewGraphics;
 
         for (const plan of plans) {
             const caster = engine.getUnit(plan.unitId);
-            if (!caster?.active || !caster.isAlive()) {
-                console.log('[ghost plan renderer] skipping unit', plan.unitId, 'caster:', caster, 'active:', caster?.active, 'alive:', caster?.isAlive?.());
-                continue;
-            }
+            if (!caster?.active || !caster.isAlive()) continue;
 
             const ability = getAbility(plan.abilityId);
             if (!ability) continue;
 
             const selectTargetDefs = getSelectTargetDefsFromTimings(ability);
             if (selectTargetDefs.length > 0) {
-                for (let i = 0; i < selectTargetDefs.length; i++) {
-                    const selectDef = selectTargetDefs[i]!;
-                    const target = plan.currentTargets[i];
-                    if (!target) continue;
+                // Render hitboxes for already-committed targets
+                for (let i = 0; i < plan.currentTargets.length; i++) {
+                    const selectDef = selectTargetDefs[i];
+                    if (!selectDef) break;
+                    const target = plan.currentTargets[i]!;
                     const pos =
                         target.type === 'unit' && target.unitId
                             ? (() => { const u = engine.getUnit(target.unitId!); return u ? { x: u.x, y: u.y } : null; })()
@@ -412,6 +406,11 @@ export class PreviewRenderer {
                               : null;
                     if (!pos) continue;
                     selectDef.hitbox.renderTargetingPreview(gr, caster, pos, engine.units);
+                }
+                // Render in-progress cursor for the next un-confirmed target (mirrors live targeting)
+                const nextSelectDef = selectTargetDefs[plan.currentTargets.length];
+                if (nextSelectDef) {
+                    nextSelectDef.hitbox.renderTargetingPreview(gr, caster, plan.mouseWorld, engine.units);
                 }
                 if (ability.renderTargetingPreviewSelectedTargets) {
                     ability.renderTargetingPreviewSelectedTargets(gr, caster, plan.currentTargets, plan.mouseWorld, engine.units, engine);

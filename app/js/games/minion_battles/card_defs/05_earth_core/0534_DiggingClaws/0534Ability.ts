@@ -24,9 +24,9 @@ import type { EngineContext } from '../../../game/EngineContext';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import {
-    applySlingshotLaunch,
-    computeSlingshotDirection,
-    findNearestPassableDirection,
+	applySlingshotLaunch,
+	computeSlingshotDirection,
+	findNearestPassableDirection,
 } from '../../../game/units/slingshotHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
@@ -34,7 +34,7 @@ const DASH_DURATION = 0.4;
 const SLINGSHOT_PHASE = 0.3;
 const COOLDOWN_DURATION = 0.8;
 const MAX_DISTANCE = 160;
-const DAMAGE = 5;
+const DAMAGE = 35;
 const KNOCKBACK_TIER = 2;
 const SLINGSHOT_SPEED = 400; // px/s
 const SLINGSHOT_LAUNCH_MAGNITUDE = 160;
@@ -44,13 +44,13 @@ const SLINGSHOT_LAUNCH_SLIDE_TIME = 0.2;
 const AFTERIMAGE_DURATION = 6 / 60;
 
 interface TerrainManagerLike {
-    grid: { worldToGrid(x: number, y: number): { col: number; row: number } };
-    isPassable(x: number, y: number): boolean;
-    damageRock(col: number, row: number, damage?: number, sourceUnitId?: string | null): unknown;
+	grid: { worldToGrid(x: number, y: number): { col: number; row: number } };
+	isPassable(x: number, y: number): boolean;
+	damageRock(col: number, row: number, damage?: number, sourceUnitId?: string | null): unknown;
 }
 
 interface GameEngineLike extends EngineContext {
-    interruptUnitAndRefundAbilities(unit: Unit): void;
+	interruptUnitAndRefundAbilities(unit: Unit): void;
 }
 
 const DIGGING_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -61,330 +61,328 @@ const DIGGING_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.or
 
 /** Set slingshotDirX/Y on the ability note when the caster is stuck inside rock. */
 function initSlingshotDirectionIfStuck(
-    caster: Unit,
-    note: {
-        wallEntryX: number | null;
-        wallEntryY: number | null;
-        slingshotDirX: number | null;
-        slingshotDirY: number | null;
-    },
-    tm: TerrainManagerLike,
+	caster: Unit,
+	note: {
+		wallEntryX: number | null;
+		wallEntryY: number | null;
+		slingshotDirX: number | null;
+		slingshotDirY: number | null;
+	},
+	tm: TerrainManagerLike,
 ): void {
-    if (note.slingshotDirX !== null || note.slingshotDirY !== null) return;
-    if (tm.isPassable(caster.x, caster.y)) return;
-    const dir = computeSlingshotDirection(note.wallEntryX, note.wallEntryY, caster.x, caster.y, tm);
-    if (dir) {
-        note.slingshotDirX = dir.x;
-        note.slingshotDirY = dir.y;
-    }
+	if (note.slingshotDirX !== null || note.slingshotDirY !== null) return;
+	if (tm.isPassable(caster.x, caster.y)) return;
+	const dir = computeSlingshotDirection(note.wallEntryX, note.wallEntryY, caster.x, caster.y, tm);
+	if (dir) {
+		note.slingshotDirX = dir.x;
+		note.slingshotDirY = dir.y;
+	}
 }
 
 /** Damage a rock tile at the caster's current position (once per unique tile per cast). */
 function maybeDamageCurrentTile(
-    caster: Unit,
-    tm: TerrainManagerLike,
-    damagedTileKeys: string[],
+	caster: Unit,
+	tm: TerrainManagerLike,
+	damagedTileKeys: string[],
 ): void {
-    if (tm.isPassable(caster.x, caster.y)) return;
-    const cell = tm.grid.worldToGrid(caster.x, caster.y);
-    const key = `${cell.col},${cell.row}`;
-    if (damagedTileKeys.includes(key)) return;
-    damagedTileKeys.push(key);
-    tm.damageRock(cell.col, cell.row, undefined, caster.id);
+	if (tm.isPassable(caster.x, caster.y)) return;
+	const cell = tm.grid.worldToGrid(caster.x, caster.y);
+	const key = `${cell.col},${cell.row}`;
+	if (damagedTileKeys.includes(key)) return;
+	damagedTileKeys.push(key);
+	tm.damageRock(cell.col, cell.row, DAMAGE, caster.id);
 }
 
 export const DiggingClawsAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Digging Claws',
-    image: DIGGING_CLAWS_IMAGE,
-    tags: ['Entombed'],
-    resourceCost: null,
-    rechargeTurns: 0,
-    prefireTime: DASH_DURATION,
-    abilityTimings: [
-        {
-            id: 'dash',
-            start: 0,
-            end: DASH_DURATION,
-            abilityPhase: AbilityPhase.Iframe,
-            conditionalCancel: {
-                condition: ({ caster, engine }) => {
-                    const terrain = engine.terrainManager;
-                    return terrain != null && !terrain.isPassable(caster.x, caster.y);
-                },
-                abilityTagFilter: ['Entombed'],
-            },
-        },
-        { id: 'slingshot', start: DASH_DURATION,                   end: DASH_DURATION + SLINGSHOT_PHASE,            abilityPhase: AbilityPhase.Active },
-        { id: 'cooldown',  start: DASH_DURATION + SLINGSHOT_PHASE, end: DASH_DURATION + SLINGSHOT_PHASE + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
-    ],
-    targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
-    aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
+	id: CARD_ID,
+	name: 'Digging Claws',
+	image: DIGGING_CLAWS_IMAGE,
+	tags: ['Entombed'],
+	resourceCost: null,
+	rechargeTurns: 0,
+	prefireTime: DASH_DURATION,
+	abilityTimings: [
+		{
+			id: 'dash',
+			start: 0,
+			end: DASH_DURATION,
+			abilityPhase: AbilityPhase.Iframe,
+			conditionalCancel: {
+				condition: ({ caster, engine }) => {
+					const terrain = engine.terrainManager;
+					return terrain != null && !terrain.isPassable(caster.x, caster.y);
+				},
+				abilityTagFilter: ['Entombed'],
+			},
+		},
+		{ id: 'slingshot', start: DASH_DURATION, end: DASH_DURATION + SLINGSHOT_PHASE, abilityPhase: AbilityPhase.Active },
+		{ id: 'cooldown', start: DASH_DURATION + SLINGSHOT_PHASE, end: DASH_DURATION + SLINGSHOT_PHASE + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
+	],
+	targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
+	aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
 
-    getTooltipText(): string[] {
-        return [
-            'Dig through walls with iframes, damaging rock tiles you pass through',
-            `Deal {${DAMAGE}} damage and knock back enemies you touch`,
-            'If you end the dig inside a wall, you are flung out the other side',
-        ];
-    },
+	getTooltipText(): string[] {
+		return [
+			`Dashing attack that deals {${DAMAGE}} damage and knock back enemies you touch`,
+		];
+	},
 
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < DASH_DURATION) {
-            return [{ state: AbilityState.IFRAMES }];
-        }
-        return [];
-    },
+	getAbilityStates(currentTime: number): AbilityStateEntry[] {
+		if (currentTime < DASH_DURATION) {
+			return [{ state: AbilityState.IFRAMES }];
+		}
+		return [];
+	},
 
-    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
-        const eng = engine as GameEngineLike;
-        const bodyColor = getBodyColorForUnit(caster);
-        const radius = caster.radius;
-        const characterSpriteKey = getCharacterSpriteKey(caster.characterId);
+	beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
+		const eng = engine as GameEngineLike;
+		const bodyColor = getBodyColorForUnit(caster);
+		const radius = caster.radius;
+		const characterSpriteKey = getCharacterSpriteKey(caster.characterId);
 
-        const emitter = new ContinuousEmitter({
-            x: caster.x,
-            y: caster.y,
-            attachedToUnitId: caster.id,
-            lifetime: DASH_DURATION,
-            emitIntervalFrames: 2,
-            factory: (em) => {
-                const effectData: Record<string, unknown> = { bodyColor, radius, characterSpriteKey };
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 30 + Math.random() * 20;
-                effectData.vx = Math.cos(angle) * speed;
-                effectData.vy = Math.sin(angle) * speed;
-                return [new Effect({
-                    x: em.x,
-                    y: em.y,
-                    duration: AFTERIMAGE_DURATION,
-                    effectType: 'Afterimage',
-                    effectData,
-                })];
-            },
-        });
-        eng.addEffectEmitter(emitter);
+		const emitter = new ContinuousEmitter({
+			x: caster.x,
+			y: caster.y,
+			attachedToUnitId: caster.id,
+			lifetime: DASH_DURATION,
+			emitIntervalFrames: 2,
+			factory: (em) => {
+				const effectData: Record<string, unknown> = { bodyColor, radius, characterSpriteKey };
+				const angle = Math.random() * Math.PI * 2;
+				const speed = 30 + Math.random() * 20;
+				effectData.vx = Math.cos(angle) * speed;
+				effectData.vy = Math.sin(angle) * speed;
+				return [new Effect({
+					x: em.x,
+					y: em.y,
+					duration: AFTERIMAGE_DURATION,
+					effectType: 'Afterimage',
+					effectData,
+				})];
+			},
+		});
+		eng.addEffectEmitter(emitter);
 
-        const casterRadius = caster.radius;
-        const rockDebrisEmitter = new IntervalEmitter({
-            x: caster.x,
-            y: caster.y,
-            attachedToUnitId: caster.id,
-            lifetime: DASH_DURATION + SLINGSHOT_PHASE,
-            intervalSeconds: 0.08,
-            fireImmediately: true,
-            terrainCondition: [TerrainType.Rock],
-            factory: (em) => {
-                const particles: Effect[] = [];
-                const count = 3 + Math.floor(Math.random() * 2);
-                for (let i = 0; i < count; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = 55 + Math.random() * 85;
-                    const scale = 0.7 + Math.random() * 0.7;
-                    const rockTints = [0x8a7058, 0x706448, 0xa08868, 0x988060, 0x7a6850];
-                    const tint = rockTints[Math.floor(Math.random() * rockTints.length)];
-                    particles.push(new Effect({
-                        x: em.x + (Math.random() - 0.5) * casterRadius,
-                        y: em.y + (Math.random() - 0.5) * casterRadius,
-                        duration: 0.18 + Math.random() * 0.14,
-                        effectType: 'ParticleImage',
-                        effectData: {
-                            vx: Math.cos(angle) * speed,
-                            vy: Math.sin(angle) * speed,
-                            scale,
-                            tint,
-                        },
-                    }));
-                }
-                return particles;
-            },
-        });
-        eng.addEffectEmitter(rockDebrisEmitter);
+		const casterRadius = caster.radius;
+		const rockDebrisEmitter = new IntervalEmitter({
+			x: caster.x,
+			y: caster.y,
+			attachedToUnitId: caster.id,
+			lifetime: DASH_DURATION + SLINGSHOT_PHASE,
+			intervalSeconds: 0.08,
+			fireImmediately: true,
+			terrainCondition: [TerrainType.Rock],
+			factory: (em) => {
+				const particles: Effect[] = [];
+				const count = 3 + Math.floor(Math.random() * 2);
+				for (let i = 0; i < count; i++) {
+					const angle = Math.random() * Math.PI * 2;
+					const speed = 55 + Math.random() * 85;
+					const scale = 0.7 + Math.random() * 0.7;
+					const rockTints = [0x8a7058, 0x706448, 0xa08868, 0x988060, 0x7a6850];
+					const tint = rockTints[Math.floor(Math.random() * rockTints.length)];
+					particles.push(new Effect({
+						x: em.x + (Math.random() - 0.5) * casterRadius,
+						y: em.y + (Math.random() - 0.5) * casterRadius,
+						duration: 0.18 + Math.random() * 0.14,
+						effectType: 'ParticleImage',
+						effectData: {
+							vx: Math.cos(angle) * speed,
+							vy: Math.sin(angle) * speed,
+							scale,
+							tint,
+						},
+					}));
+				}
+				return particles;
+			},
+		});
+		eng.addEffectEmitter(rockDebrisEmitter);
 
-        active.castPayload = { afterimageEmitter: emitter };
-    },
+		active.castPayload = { afterimageEmitter: emitter };
+	},
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        const eng = engine as GameEngineLike;
-        const tm = (eng.terrainManager as TerrainManagerLike | null) ?? null;
+	doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+		const eng = engine as GameEngineLike;
+		const tm = (eng.terrainManager as TerrainManagerLike | null) ?? null;
 
-        // â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        if (prevTime < 0.05 && currentTime >= 0.05) {
-            caster.setAbilityNote({
-                abilityId: CARD_ID,
-                abilityNote: {
-                    hitTargetIds: [],
-                    wallEntryX: null,
-                    wallEntryY: null,
-                    slingshotDirX: null,
-                    slingshotDirY: null,
-                    damagedTileKeys: [],
-                },
-            });
-            grantRecoveryChargeToRandomAbility(
-                caster,
-                'staminaCharge',
-                (min, max) => eng.generateRandomInteger(min, max),
-                { excludeAbilityId: CARD_ID },
-            );
-        }
+		// â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+		if (prevTime < 0.05 && currentTime >= 0.05) {
+			caster.setAbilityNote({
+				abilityId: CARD_ID,
+				abilityNote: {
+					hitTargetIds: [],
+					wallEntryX: null,
+					wallEntryY: null,
+					slingshotDirX: null,
+					slingshotDirY: null,
+					damagedTileKeys: [],
+				},
+			});
+			grantRecoveryChargeToRandomAbility(
+				caster,
+				'staminaCharge',
+				(min, max) => eng.generateRandomInteger(min, max),
+				{ excludeAbilityId: CARD_ID },
+			);
+		}
 
-        // â”€â”€ Slingshot phase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        if (currentTime >= DASH_DURATION) {
-            if (!isAbilityNote(caster.abilityNote, CARD_ID)) {
-                return;
-            }
-            const note = caster.abilityNote.abilityNote;
+		// â”€â”€ Slingshot phase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+		if (currentTime >= DASH_DURATION) {
+			if (!isAbilityNote(caster.abilityNote, CARD_ID)) {
+				return;
+			}
+			const note = caster.abilityNote.abilityNote;
 
-            // Init slingshot direction when stuck (also runs after conditional-cancel "wait" resume).
-            if (tm) {
-                initSlingshotDirectionIfStuck(caster, note, tm);
-            }
+			// Init slingshot direction when stuck (also runs after conditional-cancel "wait" resume).
+			if (tm) {
+				initSlingshotDirectionIfStuck(caster, note, tm);
+			}
 
-            // Active slingshot: push caster out each tick
-            if (note.slingshotDirX !== null && note.slingshotDirY !== null) {
-                const dt = currentTime - prevTime;
-                const movePerTick = SLINGSHOT_SPEED * dt;
-                caster.invalidateMovementPath();
-                // Move a fixed distance in slingshot direction, bypassing terrain
-                caster.moveUnit(
-                    caster.x + note.slingshotDirX * 10000,
-                    caster.y + note.slingshotDirY * 10000,
-                    movePerTick,
-                );
+			// Active slingshot: push caster out each tick
+			if (note.slingshotDirX !== null && note.slingshotDirY !== null) {
+				const dt = currentTime - prevTime;
+				const movePerTick = SLINGSHOT_SPEED * dt;
+				caster.invalidateMovementPath();
+				// Move a fixed distance in slingshot direction, bypassing terrain
+				caster.moveUnit(
+					caster.x + note.slingshotDirX * 10000,
+					caster.y + note.slingshotDirY * 10000,
+					movePerTick,
+				);
 
-                if (tm) {
-                    maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
-                }
+				if (tm) {
+					maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
+				}
 
-                if (!tm || tm.isPassable(caster.x, caster.y)) {
-                    // Exited wall — launch!
-                    applySlingshotLaunch(caster, note.slingshotDirX, note.slingshotDirY,
-                        SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
-                        eng.eventBus, caster.id, CARD_ID);
-                    caster.clearAbilityNote();
-                    return;
-                }
-            }
+				if (!tm || tm.isPassable(caster.x, caster.y)) {
+					// Exited wall — launch!
+					applySlingshotLaunch(caster, note.slingshotDirX, note.slingshotDirY,
+						SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
+						eng.eventBus, caster.id, CARD_ID);
+					caster.clearAbilityNote();
+					return;
+				}
+			}
 
-            // Slingshot phase expired but unit still stuck: force out via nearest direction
-            if (currentTime >= DASH_DURATION + SLINGSHOT_PHASE && isAbilityNote(caster.abilityNote, CARD_ID)) {
-                if (tm && !tm.isPassable(caster.x, caster.y)) {
-                    const dir = findNearestPassableDirection(tm, caster.x, caster.y);
-                    if (dir) {
-                        let exitX = caster.x;
-                        let exitY = caster.y;
-                        for (let d = 4; d <= 800; d += 4) {
-                            const tx = caster.x + dir.x * d;
-                            const ty = caster.y + dir.y * d;
-                            if (tm.isPassable(tx, ty)) {
-                                exitX = tx;
-                                exitY = ty;
-                                break;
-                            }
-                        }
-                        const distToExit = Math.sqrt((exitX - caster.x) ** 2 + (exitY - caster.y) ** 2);
-                        if (distToExit > 0) {
-                            caster.invalidateMovementPath();
-                            caster.moveUnit(exitX, exitY, distToExit);
-                            applySlingshotLaunch(caster, dir.x, dir.y,
-                                SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
-                                eng.eventBus, caster.id, CARD_ID);
-                        }
-                    }
-                }
-                caster.clearAbilityNote();
-            }
-            return;
-        }
+			// Slingshot phase expired but unit still stuck: force out via nearest direction
+			if (currentTime >= DASH_DURATION + SLINGSHOT_PHASE && isAbilityNote(caster.abilityNote, CARD_ID)) {
+				if (tm && !tm.isPassable(caster.x, caster.y)) {
+					const dir = findNearestPassableDirection(tm, caster.x, caster.y);
+					if (dir) {
+						let exitX = caster.x;
+						let exitY = caster.y;
+						for (let d = 4; d <= 800; d += 4) {
+							const tx = caster.x + dir.x * d;
+							const ty = caster.y + dir.y * d;
+							if (tm.isPassable(tx, ty)) {
+								exitX = tx;
+								exitY = ty;
+								break;
+							}
+						}
+						const distToExit = Math.sqrt((exitX - caster.x) ** 2 + (exitY - caster.y) ** 2);
+						if (distToExit > 0) {
+							caster.invalidateMovementPath();
+							caster.moveUnit(exitX, exitY, distToExit);
+							applySlingshotLaunch(caster, dir.x, dir.y,
+								SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
+								eng.eventBus, caster.id, CARD_ID);
+						}
+					}
+				}
+				caster.clearAbilityNote();
+			}
+			return;
+		}
 
-        // â”€â”€ Dash phase (currentTime < DASH_DURATION) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        const pos = getPixelTargetPosition(targets, 0);
-        const dirResult = pos ? getDirectionFromTo(caster.x, caster.y, pos.x, pos.y) : null;
-        const distToTarget = dirResult?.dist ?? 0;
-        const moveDistance =
-            distToTarget > 0
-                ? Math.min(
-                      ((currentTime - prevTime) / DASH_DURATION) * MAX_DISTANCE,
-                      distToTarget,
-                  )
-                : 0;
+		// â”€â”€ Dash phase (currentTime < DASH_DURATION) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+		const pos = getPixelTargetPosition(targets, 0);
+		const dirResult = pos ? getDirectionFromTo(caster.x, caster.y, pos.x, pos.y) : null;
+		const distToTarget = dirResult?.dist ?? 0;
+		const moveDistance =
+			distToTarget > 0
+				? Math.min(
+					((currentTime - prevTime) / DASH_DURATION) * MAX_DISTANCE,
+					distToTarget,
+				)
+				: 0;
 
-        // Wall-penetrating movement: bypass terrain check, call moveUnit directly
-        if (pos && distToTarget > 0 && moveDistance > 0) {
-            const prevX = caster.x;
-            const prevY = caster.y;
+		// Wall-penetrating movement: bypass terrain check, call moveUnit directly
+		if (pos && distToTarget > 0 && moveDistance > 0) {
+			const prevX = caster.x;
+			const prevY = caster.y;
 
-            caster.invalidateMovementPath();
-            caster.moveUnit(pos.x, pos.y, moveDistance);
+			caster.invalidateMovementPath();
+			caster.moveUnit(pos.x, pos.y, moveDistance);
 
-            // Wall entry/exit tracking and rock tile damage
-            if (tm) {
-                const wasPassable = tm.isPassable(prevX, prevY);
-                const nowPassable = tm.isPassable(caster.x, caster.y);
+			// Wall entry/exit tracking and rock tile damage
+			if (tm) {
+				const wasPassable = tm.isPassable(prevX, prevY);
+				const nowPassable = tm.isPassable(caster.x, caster.y);
 
-                if (isAbilityNote(caster.abilityNote, CARD_ID)) {
-                    const note = caster.abilityNote.abilityNote;
-                    if (wasPassable && !nowPassable) {
-                        note.wallEntryX = prevX;
-                        note.wallEntryY = prevY;
-                    } else if (!wasPassable && nowPassable) {
-                        note.wallEntryX = null;
-                        note.wallEntryY = null;
-                    }
-                    maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
-                }
+				if (isAbilityNote(caster.abilityNote, CARD_ID)) {
+					const note = caster.abilityNote.abilityNote;
+					if (wasPassable && !nowPassable) {
+						note.wallEntryX = prevX;
+						note.wallEntryY = prevY;
+					} else if (!wasPassable && nowPassable) {
+						note.wallEntryX = null;
+						note.wallEntryY = null;
+					}
+					maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
+				}
 
-            }
-        }
+			}
+		}
 
-        // Enemy hit detection (identical to Claw)
-        if (isAbilityNote(caster.abilityNote, CARD_ID) && dirResult && dirResult.dist > 0) {
-            const note = caster.abilityNote.abilityNote;
-            const touchRadius = caster.radius;
-            for (const unit of eng.units) {
-                if (!unit.active || !unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
-                if (unit.id === caster.id) continue;
-                if (note.hitTargetIds.includes(unit.id)) continue;
-                if (unit.hasIFrames(eng.gameTime)) continue;
+		// Enemy hit detection (identical to Claw)
+		if (isAbilityNote(caster.abilityNote, CARD_ID) && dirResult && dirResult.dist > 0) {
+			const note = caster.abilityNote.abilityNote;
+			const touchRadius = caster.radius;
+			for (const unit of eng.units) {
+				if (!unit.active || !unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
+				if (unit.id === caster.id) continue;
+				if (note.hitTargetIds.includes(unit.id)) continue;
+				if (unit.hasIFrames(eng.gameTime)) continue;
 
-                const dx = unit.x - caster.x;
-                const dy = unit.y - caster.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > touchRadius + unit.radius) continue;
+				const dx = unit.x - caster.x;
+				const dy = unit.y - caster.y;
+				const dist = Math.sqrt(dx * dx + dy * dy);
+				if (dist > touchRadius + unit.radius) continue;
 
-                const blocked = !tryDamageOrBlock(unit, {
-                    engine: eng,
-                    gameTime: eng.gameTime,
-                    eventBus: eng.eventBus,
-                    attackerX: caster.x,
-                    attackerY: caster.y,
-                    attackerId: caster.id,
-                    abilityId: CARD_ID,
-                    damage: DAMAGE,
-                    attackType: 'melee',
-                });
-                if (blocked) continue;
+				const blocked = !tryDamageOrBlock(unit, {
+					engine: eng,
+					gameTime: eng.gameTime,
+					eventBus: eng.eventBus,
+					attackerX: caster.x,
+					attackerY: caster.y,
+					attackerId: caster.id,
+					abilityId: CARD_ID,
+					damage: DAMAGE,
+					attackType: 'melee',
+				});
+				if (blocked) continue;
 
-                note.hitTargetIds.push(unit.id);
+				note.hitTargetIds.push(unit.id);
 
-                tryApplyKnockbackByTier(
-                    unit, KNOCKBACK_TIER,
-                    { unitId: caster.id, abilityId: CARD_ID },
-                    caster.x, caster.y,
-                    { gameTime: eng.gameTime, roundNumber: eng.roundNumber, eventBus: eng.eventBus, interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities.bind(eng) },
-                );
-            }
-        }
-    },
+				tryApplyKnockbackByTier(
+					unit, KNOCKBACK_TIER,
+					{ unitId: caster.id, abilityId: CARD_ID },
+					caster.x, caster.y,
+					{ gameTime: eng.gameTime, roundNumber: eng.roundNumber, eventBus: eng.eventBus, interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities.bind(eng) },
+				);
+			}
+		}
+	},
 
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        // Melee blocked: no additional behaviour.
-    },
+	onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
+		// Melee blocked: no additional behaviour.
+	},
 
-    renderTargetingPreview: createPixelTargetPreview(MAX_DISTANCE),
+	renderTargetingPreview: createPixelTargetPreview(MAX_DISTANCE),
 };
 
 export const DiggingClawsCard: CardDef = {
-    abilityId: CARD_ID,
+	abilityId: CARD_ID,
 };

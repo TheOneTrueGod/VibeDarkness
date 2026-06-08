@@ -14,6 +14,7 @@ import {
 } from '../card_defs/05_earth_core/earthCoreConstants';
 import type { FloorTile, TerrainStoneDamagedTransition } from './FloorTile';
 import {
+    DAMAGE_TIER_NONE,
     getDamageTier,
     getEffectiveTerrain,
     isIntactRock,
@@ -170,7 +171,7 @@ export class TerrainManager {
         this.terrainLayers.setFloorTile(col, row, floor);
         this.clearPathCache();
 
-        const nextTier = nextHealth <= 0 ? 3 : getDamageTier(floor.destructible);
+        const nextTier = nextHealth <= 0 ? DAMAGE_TIER_NONE : getDamageTier(floor.destructible);
         const tierChanged = nextTier !== previousTier;
         const destroyed = nextTerrainType === TerrainType.Rubble;
 

@@ -3,6 +3,7 @@ import { TerrainGrid, CELL_SIZE } from './TerrainGrid';
 import { TerrainType } from './TerrainType';
 import { TerrainLayerManager } from '../game/TerrainLayerManager';
 import {
+    DAMAGE_TIER_NONE,
     getDamageTier,
     getEffectiveTerrain,
     isIntactRock,
@@ -25,11 +26,13 @@ describe('FloorTile helpers', () => {
     });
 
     it('maps health percentage to damage tiers', () => {
-        expect(getDamageTier({ health: 30, maxHealth: 30, kind: 'rock' })).toBe(0);
-        expect(getDamageTier({ health: 18, maxHealth: 30, kind: 'rock' })).toBe(1);
-        expect(getDamageTier({ health: 9, maxHealth: 30, kind: 'rock' })).toBe(2);
-        expect(getDamageTier({ health: 0, maxHealth: 30, kind: 'rock' })).toBe(3);
-        expect(getDamageTier(undefined)).toBe(3);
+        expect(getDamageTier({ health: 100, maxHealth: 100, kind: 'rock' })).toBe(DAMAGE_TIER_NONE);
+        expect(getDamageTier({ health: 99, maxHealth: 100, kind: 'rock' })).toBe(1);
+        expect(getDamageTier({ health: 74, maxHealth: 100, kind: 'rock' })).toBe(2);
+        expect(getDamageTier({ health: 49, maxHealth: 100, kind: 'rock' })).toBe(3);
+        expect(getDamageTier({ health: 24, maxHealth: 100, kind: 'rock' })).toBe(4);
+        expect(getDamageTier({ health: 0, maxHealth: 100, kind: 'rock' })).toBe(DAMAGE_TIER_NONE);
+        expect(getDamageTier(undefined)).toBe(DAMAGE_TIER_NONE);
     });
 });
 

@@ -128,7 +128,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         hp: 50,
         speed: 90,
         size: 'Medium',
-        stamina: 3,
+        stamina: 2,
         uiDescription: 'Adventurer — stats and abilities from equipment and research.',
     },
     // Enemies

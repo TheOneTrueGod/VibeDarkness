@@ -248,7 +248,6 @@ export default function BattlePhase({
                       newPlan.currentTargets.length !== prev.currentTargets.length;
             if (changed) {
                 lastSentGhostPlanRef.current = newPlan;
-                console.log('[ghost plan] sending:', newPlan);
                 sendGhostPlan(newPlan);
             }
         }, 100);

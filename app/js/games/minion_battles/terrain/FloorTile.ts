@@ -53,17 +53,21 @@ export function isOnStone(effective: TerrainType, destructible?: DestructibleSta
     return isIntactRock(effective, destructible);
 }
 
+/** No crack overlay — intact rock at full health or destroyed (rubble is separate). */
+export const DAMAGE_TIER_NONE = -1;
+
 /**
  * Sprite damage tier from health percentage (render/events only).
- * 0 = 100–67%, 1 = 66–34%, 2 = 33–1%, 3 = destroyed.
+ * -1 = 100% (no overlay) or destroyed; 1–4 = escalating crack overlays.
  */
 export function getDamageTier(destructible: DestructibleState | undefined): number {
-    if (!destructible || destructible.health <= 0) return 3;
+    if (!destructible || destructible.health <= 0) return DAMAGE_TIER_NONE;
     const pct = destructible.health / destructible.maxHealth;
-    if (pct > 0.66) return 0;
-    if (pct > 0.33) return 1;
-    if (pct > 0) return 2;
-    return 3;
+    if (pct >= 1) return DAMAGE_TIER_NONE;
+    if (pct >= 0.75) return 1;
+    if (pct >= 0.5) return 2;
+    if (pct >= 0.25) return 3;
+    return 4;
 }
 
 /** Default destructible state for bedrock rock on first mutation. */

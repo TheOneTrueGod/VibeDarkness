@@ -30,7 +30,7 @@ export const EARTH_CORE_RESONANCE_GAIN_ON_ARMOUR_LOST_FROM_DAMAGE = 10;
 export const DEFAULT_ROCK_DESTRUCTIBLE_KIND = 'rock';
 
 /** Initial stone durability for Earth Core destructible rock states. */
-export const EARTH_CORE_STONE_HEALTH = 30;
+export const EARTH_CORE_STONE_HEALTH = 100;
 
 /** Durability damage dealt to stone per qualifying damage instance. */
-export const EARTH_CORE_STONE_DAMAGE_PER_INSTANCE = 6;
+export const EARTH_CORE_STONE_DAMAGE_PER_INSTANCE = 20;

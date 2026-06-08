@@ -153,6 +153,8 @@ function AppInner() {
     lobbyGameIdRef.current = lobbyGameId;
     const lobbyGameTypeRef = useRef(lobbyGameType);
     lobbyGameTypeRef.current = lobbyGameType;
+    const lobbyGameDataRef = useRef(lobbyGameData);
+    lobbyGameDataRef.current = lobbyGameData;
 
     const triggerPlayerFlash = useCallback((playerId: string) => {
         setFlashingPlayerIds((prev) => {
@@ -395,12 +397,10 @@ function AppInner() {
                     triggerPlayerFlash(fromPlayerId);
                 } else if ((event.type as string | undefined) === 'ghost_plan_update') {
                     const plan = (event.plan ?? null) as GhostPlanData | null;
-                    console.log('[ghost plan] received from', fromPlayerId, plan);
                     setGhostPlans((prev) => ({ ...prev, [fromPlayerId]: plan }));
                 }
             },
             onPeerConnected: (id) => {
-                console.log('[webrtc] peer connected:', id);
                 setWebRtcPeerConnected((prev) => ({ ...prev, [id]: true }));
                 if (currentGhostPlanRef.current !== null) {
                     webRtcMeshRef.current?.sendEventToAll({
@@ -415,6 +415,14 @@ function AppInner() {
             },
         });
         webRtcMeshRef.current = mesh;
+
+        // Bootstrap peer connections if the game is already in progress when the mesh is (re)created.
+        // Effect B only re-runs when players/lobbyGameData change; if currentLobby changes independently
+        // (common during mission-flow transitions) the new mesh would otherwise never get updatePeers called.
+        const phase = lobbyGameDataRef.current?.gamePhase as string | undefined;
+        const gameAlreadyStarted = phase === 'pre_mission_story' || phase === 'battle' || phase === 'post_mission_story';
+        mesh.updatePeers(gameAlreadyStarted ? Object.keys(playersRef.current) : []);
+
         setWebRtcReady(true);
 
         // Simple dev helper for testing ping from console

@@ -513,21 +513,6 @@ export default function CharacterSelectPhase({
             ) : (
                 <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
                     <div className="grid grid-cols-[repeat(auto-fill,200px)] justify-center gap-6">
-                        {/* Spectator card - first option */}
-                        <SpectatorCard
-                            isMySelection={mySelection === SPECTATOR_ID}
-                            onSelect={() => handleSelectCharacter(SPECTATOR_ID, '')}
-                        />
-                        {/* Control Enemy card - mission 004 (Monster) only, admins only */}
-                        {missionId === 'monster' && isAdmin && (
-                            <ControlEnemyCard
-                                isMySelection={mySelection === CONTROL_ENEMY_ALPHA_WOLF}
-                                isDisabled={controlEnemySelectedBy != null && controlEnemySelectedBy !== playerId}
-                                onSelect={() => handleSelectCharacter(CONTROL_ENEMY_ALPHA_WOLF, '')}
-                            />
-                        )}
-                        {/* Create Character card */}
-                        <CreateCharacterCard ref={setCreateCardRef} onClick={() => setCreatorOpen(true)} />
                         {charactersLoading ? (
                             <div className="w-[200px] h-[200px] flex items-center justify-center text-gray-400">
                                 Loading…
@@ -547,6 +532,21 @@ export default function CharacterSelectPhase({
                                     onDelete={handleDeleteCharacter}
                                 />
                             ))
+                        )}
+                        {/* Create Character card */}
+                        <CreateCharacterCard ref={setCreateCardRef} onClick={() => setCreatorOpen(true)} />
+                        {/* Spectator card */}
+                        <SpectatorCard
+                            isMySelection={mySelection === SPECTATOR_ID}
+                            onSelect={() => handleSelectCharacter(SPECTATOR_ID, '')}
+                        />
+                        {/* Control Enemy card - mission 004 (Monster) only, admins only */}
+                        {missionId === 'monster' && isAdmin && (
+                            <ControlEnemyCard
+                                isMySelection={mySelection === CONTROL_ENEMY_ALPHA_WOLF}
+                                isDisabled={controlEnemySelectedBy != null && controlEnemySelectedBy !== playerId}
+                                onSelect={() => handleSelectCharacter(CONTROL_ENEMY_ALPHA_WOLF, '')}
+                            />
                         )}
                     </div>
                 </div>

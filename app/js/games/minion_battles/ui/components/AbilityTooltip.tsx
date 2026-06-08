@@ -6,9 +6,14 @@
 
 import React from 'react';
 
-/** Splits a line into static and dynamic segments. Dynamic parts are inside {}. */
-function parseTooltipLine(line: string): Array<{ text: string; dynamic: boolean }> {
-    const segments: Array<{ text: string; dynamic: boolean }> = [];
+/**
+ * Splits a line into static and dynamic segments. Dynamic parts are inside {}.
+ * Supports optional colour override: {text:#RRGGBB} renders that segment in the given hex colour
+ * instead of the default amber. Any content with a colon where the part after is a hex colour
+ * (#RRGGBB or #RGB) is treated as a coloured segment.
+ */
+function parseTooltipLine(line: string): Array<{ text: string; dynamic: boolean; color?: string }> {
+    const segments: Array<{ text: string; dynamic: boolean; color?: string }> = [];
     const re = /\{([^}]*)\}/g;
     let lastIndex = 0;
     let m: RegExpExecArray | null;
@@ -16,7 +21,17 @@ function parseTooltipLine(line: string): Array<{ text: string; dynamic: boolean 
         if (m.index > lastIndex) {
             segments.push({ text: line.slice(lastIndex, m.index), dynamic: false });
         }
-        segments.push({ text: m[1], dynamic: true });
+        const content = m[1];
+        const colonIdx = content.indexOf(':');
+        if (colonIdx !== -1 && content[colonIdx + 1] === '#') {
+            segments.push({
+                text: content.slice(0, colonIdx),
+                dynamic: true,
+                color: content.slice(colonIdx + 1),
+            });
+        } else {
+            segments.push({ text: content, dynamic: true });
+        }
         lastIndex = m.index + m[0].length;
     }
     if (lastIndex < line.length) {
@@ -67,7 +82,8 @@ export default function AbilityTooltip({
                             {parseTooltipLine(line).map((seg, j) => (
                                 <span
                                     key={j}
-                                    className={seg.dynamic ? 'text-amber-300' : 'text-muted'}
+                                    className={seg.color ? undefined : (seg.dynamic ? 'text-amber-300' : 'text-muted')}
+                                    style={seg.color ? { color: seg.color } : undefined}
                                 >
                                     {seg.text}
                                 </span>
@@ -95,7 +111,8 @@ export default function AbilityTooltip({
                         {parseTooltipLine(line).map((seg, j) => (
                             <span
                                 key={j}
-                                className={seg.dynamic ? 'text-amber-300' : 'text-gray-200'}
+                                className={seg.color ? undefined : (seg.dynamic ? 'text-amber-300' : 'text-gray-200')}
+                                style={seg.color ? { color: seg.color } : undefined}
                             >
                                 {seg.text}
                             </span>

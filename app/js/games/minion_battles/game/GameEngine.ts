@@ -76,7 +76,7 @@ export { MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/CardManager';
 /** Seconds of game time per round. */
 const ROUND_DURATION = 8;
 /** Matches default player stamina in unit defs; each ability receives this many stamina charges per surge unless overridden by unit stamina. */
-export const DEFAULT_PLAYER_ROUND_STAMINA_SURGE = 3;
+export const DEFAULT_PLAYER_ROUND_STAMINA_SURGE = 2;
 const CHARGED_ROCKS_NODE_ID = 'charged_rocks';
 const CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND = 1;
 
