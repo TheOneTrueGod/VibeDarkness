@@ -1,19 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { EARTH_CORE_SHARED_DIAMETER } from '../card_defs/05_earth_core/earthCoreConstants';
+import { TerrainType } from '../terrain/TerrainType';
 import {
     getEarthCoreSharedRadiusTiles,
-    isEarthCoreStoneState,
+    isOnStone,
     isWithinEarthCoreNearbyStoneDamagedRange,
     isWithinEarthCoreSharedDiameterByTileDistance,
     isWithinEarthCoreTremorsenseRange,
 } from './earthCoreHelpers';
 
 describe('earthCoreHelpers', () => {
-    it('classifies Earth Core stone states for "on stone" checks', () => {
-        expect(isEarthCoreStoneState('natural_stone')).toBe(true);
-        expect(isEarthCoreStoneState('created_rock')).toBe(true);
-        expect(isEarthCoreStoneState('cracked_rock')).toBe(true);
-        expect(isEarthCoreStoneState('spent_rubble')).toBe(false);
+    it('classifies effective terrain for "on stone" checks', () => {
+        expect(isOnStone(TerrainType.Rock)).toBe(true);
+        expect(isOnStone(TerrainType.Rock, { health: 12, maxHealth: 30, kind: 'rock' })).toBe(true);
+        expect(isOnStone(TerrainType.Rock, { health: 0, maxHealth: 30, kind: 'rock' })).toBe(false);
+        expect(isOnStone(TerrainType.Rubble)).toBe(false);
+        expect(isOnStone(TerrainType.Grass)).toBe(false);
     });
 
     it('derives shared radius from shared diameter constant', () => {

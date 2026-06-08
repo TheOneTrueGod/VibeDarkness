@@ -10,6 +10,8 @@ export enum TerrainType {
     Grass = 1,
     ThickGrass = 2,
     Rock = 3,
+    /** Runtime-only: destroyed rock rubble (passable). Not in terrain editor bedrock palette. */
+    Rubble = 4,
 }
 
 export interface TerrainProperties {
@@ -58,6 +60,14 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         passable: false,
         speedMultiplier: 0,
         pathfindingWeight: Infinity,
+        projectilePassable: true,
+    },
+    [TerrainType.Rubble]: {
+        name: 'Rubble',
+        color: '#6b5b4f',
+        passable: true,
+        speedMultiplier: 0.85,
+        pathfindingWeight: 1.2,
         projectilePassable: true,
     },
 };

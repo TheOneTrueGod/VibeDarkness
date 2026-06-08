@@ -1,5 +1,12 @@
 import { CELL_SIZE } from '../terrain/TerrainGrid';
+import type { TerrainGrid } from '../terrain/TerrainGrid';
 import { TerrainType } from '../terrain/TerrainType';
+import type { FloorTile } from '../terrain/FloorTile';
+import { floorTileFromBedrock } from '../terrain/FloorTile';
+import {
+    DEFAULT_ROCK_DESTRUCTIBLE_KIND,
+    EARTH_CORE_STONE_HEALTH,
+} from '../card_defs/05_earth_core/earthCoreConstants';
 
 export type TerrainLayerName = 'floor' | 'ground' | 'air';
 
@@ -11,7 +18,7 @@ export type TerrainEffectArea =
 export interface TerrainEffectRecord {
     id: string;
     layer: TerrainLayerName;
-    /** Discriminator for interpreting params (e.g. 'bramble_slow', 'created_rock', 'rock_state'). */
+    /** Discriminator for interpreting params (e.g. 'bramble_slow'). */
     effectType: string;
     /** Used for oldest-wins cell ownership. */
     placedAtGameTime: number;
@@ -20,12 +27,25 @@ export interface TerrainEffectRecord {
     ownerUnitId?: string;
     ownerAbilityId?: string;
     area: TerrainEffectArea;
-    /** Mutable effect-specific state (e.g. { slowMult: 0.52 } or { state: 'cracked_rock', health: 18 }). */
+    /** Mutable effect-specific state (e.g. { slowMult: 0.52 }). */
     params: Record<string, unknown>;
 }
 
+export interface SerializedFloorTileEntry {
+    col: number;
+    row: number;
+    tile: FloorTile;
+}
+
+const ROCK_FLOOR_EFFECT_TYPES = new Set(['created_rock', 'rock_state']);
+
 function cellKey(col: number, row: number): string {
     return `${col},${row}`;
+}
+
+function parseCellKey(key: string): { col: number; row: number } {
+    const [colStr, rowStr] = key.split(',');
+    return { col: Number(colStr), row: Number(rowStr) };
 }
 
 /** Returns all grid cells whose center falls within the given area. */
@@ -77,23 +97,94 @@ function effectCoversCell(record: TerrainEffectRecord, col: number, row: number)
     return dx * dx + dy * dy <= area.radiusPx * area.radiusPx;
 }
 
+function migrateLegacyRockEffect(record: TerrainEffectRecord): SerializedFloorTileEntry[] {
+    if (!ROCK_FLOOR_EFFECT_TYPES.has(record.effectType)) return [];
+    const cells = rasterizeArea(record.area);
+    const state = record.params.state as string | undefined;
+    const health = typeof record.params.health === 'number' ? record.params.health : EARTH_CORE_STONE_HEALTH;
+    const maxHealth = EARTH_CORE_STONE_HEALTH;
+    const entries: SerializedFloorTileEntry[] = [];
+    for (const { col, row } of cells) {
+        if (state === 'spent_rubble') {
+            entries.push({ col, row, tile: { terrainType: TerrainType.Rubble } });
+        } else {
+            entries.push({
+                col,
+                row,
+                tile: {
+                    terrainType: TerrainType.Rock,
+                    destructible: {
+                        health,
+                        maxHealth,
+                        kind: DEFAULT_ROCK_DESTRUCTIBLE_KIND,
+                    },
+                },
+            });
+        }
+    }
+    return entries;
+}
+
 /**
- * Layered terrain effect system. Stores TerrainEffectRecord entries across three
- * layers (floor, ground, air). Each layer enforces one-effect-per-cell with
- * oldest-placement winning contested cells.
- *
- * Serialized form: `effectRegistry` as a flat array. Cell maps are derived on load.
+ * Layered terrain system. Floor tiles (sparse authoritative overrides) are stored
+ * separately from ground/air effect overlays (e.g. bramble_slow).
  */
 export class TerrainLayerManager {
     private effectRegistry = new Map<string, TerrainEffectRecord>();
-    private floorCells = new Map<string, string>();   // cellKey → effectId
+    private floorCells = new Map<string, string>();   // cellKey → effectId (ground/air only in practice)
     private groundCells = new Map<string, string>();
     private airCells = new Map<string, string>();
+    private floorTiles = new Map<string, FloorTile>();
 
     private getCellMap(layer: TerrainLayerName): Map<string, string> {
         if (layer === 'floor') return this.floorCells;
         if (layer === 'ground') return this.groundCells;
         return this.airCells;
+    }
+
+    // -------------------------------------------------------------------------
+    // Floor tile API (authoritative sparse overrides)
+    // -------------------------------------------------------------------------
+
+    getFloorTile(col: number, row: number): FloorTile | null {
+        return this.floorTiles.get(cellKey(col, row)) ?? null;
+    }
+
+    hasFloorTile(col: number, row: number): boolean {
+        return this.floorTiles.has(cellKey(col, row));
+    }
+
+    setFloorTile(col: number, row: number, tile: FloorTile): void {
+        this.floorTiles.set(cellKey(col, row), { ...tile, destructible: tile.destructible ? { ...tile.destructible } : undefined });
+    }
+
+    ensureFloorFromBedrock(col: number, row: number, bedrock: TerrainGrid, maxHealth: number = EARTH_CORE_STONE_HEALTH): FloorTile {
+        const existing = this.getFloorTile(col, row);
+        if (existing) return existing;
+        const tile = floorTileFromBedrock(bedrock.get(col, row), maxHealth);
+        this.setFloorTile(col, row, tile);
+        return tile;
+    }
+
+    /** Iterate all floor tile entries (for rendering and serialization). */
+    getFloorTileEntries(): SerializedFloorTileEntry[] {
+        const entries: SerializedFloorTileEntry[] = [];
+        for (const [key, tile] of this.floorTiles) {
+            const { col, row } = parseCellKey(key);
+            entries.push({
+                col,
+                row,
+                tile: { ...tile, destructible: tile.destructible ? { ...tile.destructible } : undefined },
+            });
+        }
+        return entries;
+    }
+
+    loadFloorTiles(entries: SerializedFloorTileEntry[]): void {
+        this.floorTiles.clear();
+        for (const { col, row, tile } of entries) {
+            this.setFloorTile(col, row, tile);
+        }
     }
 
     /**
@@ -176,7 +267,7 @@ export class TerrainLayerManager {
         for (const id of toRemove) this.remove(id);
     }
 
-    /** Mutate effect params in-place (e.g. rock damage state update). Does not change cell ownership. */
+    /** Mutate effect params in-place. Does not change cell ownership. */
     updateEffectParams(id: string, newParams: Partial<Record<string, unknown>>): void {
         const record = this.effectRegistry.get(id);
         if (!record) return;
@@ -184,13 +275,8 @@ export class TerrainLayerManager {
     }
 
     // -------------------------------------------------------------------------
-    // Layer queries
+    // Layer queries (ground/air overlays)
     // -------------------------------------------------------------------------
-
-    getFloorEffectAt(col: number, row: number): TerrainEffectRecord | null {
-        const id = this.floorCells.get(cellKey(col, row));
-        return id !== undefined ? (this.effectRegistry.get(id) ?? null) : null;
-    }
 
     getGroundEffectAt(col: number, row: number): TerrainEffectRecord | null {
         const id = this.groundCells.get(cellKey(col, row));
@@ -215,26 +301,7 @@ export class TerrainLayerManager {
         return typeof slowMult === 'number' ? slowMult : 1;
     }
 
-    /**
-     * Returns the effective TerrainType at a cell, accounting for floor-layer overrides.
-     * Returns null if no floor override exists (caller should use bedrock).
-     *
-     * Floor effectTypes with rock semantics:
-     *   'created_rock' | 'rock_state' with params.state:
-     *     'created_rock' | 'cracked_rock'  → TerrainType.Rock (impassable)
-     *     'spent_rubble'                   → TerrainType.Dirt (passable)
-     */
-    getFloorTerrainOverride(col: number, row: number): TerrainType | null {
-        const effect = this.getFloorEffectAt(col, row);
-        if (!effect) return null;
-        if (effect.effectType === 'created_rock' || effect.effectType === 'rock_state') {
-            const state = effect.params.state as string | undefined;
-            return state === 'spent_rubble' ? TerrainType.Dirt : TerrainType.Rock;
-        }
-        return null;
-    }
-
-    /** All effect records (read-only view). Used by TerrainManager for rock queries. */
+    /** All effect records (read-only view). Used by renderers for ground/air overlays. */
     get allEffects(): ReadonlyMap<string, TerrainEffectRecord> {
         return this.effectRegistry;
     }
@@ -243,24 +310,46 @@ export class TerrainLayerManager {
     // Serialization
     // -------------------------------------------------------------------------
 
-    toJSON(): Record<string, unknown>[] {
-        return Array.from(this.effectRegistry.values()).map((r) => ({
-            id: r.id,
-            layer: r.layer,
-            effectType: r.effectType,
-            placedAtGameTime: r.placedAtGameTime,
-            expiresAtGameTime: r.expiresAtGameTime,
-            ownerUnitId: r.ownerUnitId,
-            ownerAbilityId: r.ownerAbilityId,
-            area: r.area,
-            params: { ...r.params },
-        }));
+    toEffectsJSON(): Record<string, unknown>[] {
+        return Array.from(this.effectRegistry.values())
+            .filter((r) => !ROCK_FLOOR_EFFECT_TYPES.has(r.effectType))
+            .map((r) => ({
+                id: r.id,
+                layer: r.layer,
+                effectType: r.effectType,
+                placedAtGameTime: r.placedAtGameTime,
+                expiresAtGameTime: r.expiresAtGameTime,
+                ownerUnitId: r.ownerUnitId,
+                ownerAbilityId: r.ownerAbilityId,
+                area: r.area,
+                params: { ...r.params },
+            }));
     }
 
-    static fromJSON(data: Record<string, unknown>[]): TerrainLayerManager {
+    toFloorTilesJSON(): SerializedFloorTileEntry[] {
+        return this.getFloorTileEntries();
+    }
+
+    static fromJSON(
+        effects: Record<string, unknown>[],
+        floorTiles: SerializedFloorTileEntry[] = [],
+    ): TerrainLayerManager {
         const mgr = new TerrainLayerManager();
-        for (const item of data) {
-            mgr.add(item as unknown as TerrainEffectRecord);
+        const migratedFloor: SerializedFloorTileEntry[] = [...floorTiles];
+        const groundAirEffects: TerrainEffectRecord[] = [];
+
+        for (const item of effects) {
+            const record = item as unknown as TerrainEffectRecord;
+            if (ROCK_FLOOR_EFFECT_TYPES.has(record.effectType)) {
+                migratedFloor.push(...migrateLegacyRockEffect(record));
+            } else {
+                groundAirEffects.push(record);
+            }
+        }
+
+        mgr.loadFloorTiles(migratedFloor);
+        for (const record of groundAirEffects) {
+            mgr.add(record);
         }
         return mgr;
     }

@@ -28,7 +28,7 @@ interface EngineLike {
     getUnit(id: string): Unit | undefined;
     terrainManager?: {
         grid: { worldToGrid(x: number, y: number): { col: number; row: number } };
-        consumeRockInRadius(centerCol: number, centerRow: number, radius: number): unknown;
+        consumeRockInRadius(centerCol: number, centerRow: number, radius: number, sourceUnitId?: string | null): unknown;
     } | null;
 }
 
@@ -91,7 +91,7 @@ export const ShatterAbility: AbilityStatic = {
 
         if (!eng.terrainManager) return;
         const cell = eng.terrainManager.grid.worldToGrid(targetUnit.x, targetUnit.y);
-        eng.terrainManager.consumeRockInRadius(cell.col, cell.row, STONE_CONSUME_RADIUS);
+        eng.terrainManager.consumeRockInRadius(cell.col, cell.row, STONE_CONSUME_RADIUS, caster.id);
     },
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
     renderTargetingPreview(

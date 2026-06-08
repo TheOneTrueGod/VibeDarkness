@@ -11,22 +11,6 @@ import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
 /** Default cell size in pixels. */
 export const CELL_SIZE = 40;
 
-export type StoneTileState = 'natural_stone' | 'created_rock' | 'cracked_rock' | 'spent_rubble';
-
-export interface StoneTileStateData {
-    state: StoneTileState;
-    health: number;
-}
-
-export interface TerrainStoneDamagedTransition {
-    col: number;
-    row: number;
-    previousState: StoneTileState;
-    state: StoneTileState;
-    previousHealth: number;
-    health: number;
-}
-
 export class TerrainGrid {
     /** Number of columns. */
     readonly width: number;

@@ -26,8 +26,8 @@ describe('EarthernPunchAbility', () => {
             gameTime: 1,
             eventBus: new EventBus(),
             terrainManager: {
-                grid: { worldToGrid: () => ({ col: 2, row: 1 }) },
-                getStoneState: () => 'natural_stone',
+                grid: { worldToGrid: () => ({ col: 2, row: 1 }), get: () => 3 /* TerrainType.Rock */ },
+                getFloorTile: () => null,
             },
         };
 

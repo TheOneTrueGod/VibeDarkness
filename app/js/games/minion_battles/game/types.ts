@@ -131,8 +131,10 @@ export interface SerializedGameState {
     lightSources?: Record<string, unknown>[];
     /** Stored per-tile light levels (quadrant-organized). */
     lightTileGrid?: { w: number; h: number; q: number[][] } | null;
-    /** Layered terrain effects (floor/ground/air). Replaces bramblePatches + terrainStoneMutations. */
+    /** Ground/air terrain effect overlays (bramble, etc.). Legacy rock floor effects migrate on load. */
     terrainEffects?: Record<string, unknown>[];
+    /** Sparse authoritative floor tile overrides (rock damage, rubble, summoned rock). */
+    floorTiles?: import('./TerrainLayerManager').SerializedFloorTileEntry[];
     /** Map POIs (nest sites, etc.) used for networked lanternite spawning. */
     mapPOIs?: import('../terrain/segmentSchema').MapSegmentPOI[];
     /** Serialized effect emitters (runtime-only factories not included; short-lived, safe to drop on reconnect). */

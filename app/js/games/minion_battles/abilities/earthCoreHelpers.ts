@@ -1,15 +1,7 @@
 import { EARTH_CORE_SHARED_DIAMETER } from '../card_defs/05_earth_core/earthCoreConstants';
-import type { StoneTileState } from '../terrain/TerrainGrid';
-
-/**
- * Earth Core treats these as "stone" for passive/trigger logic.
- * spent_rubble is intentionally excluded.
- */
-const EARTH_CORE_ACTIVE_STONE_STATES: ReadonlySet<StoneTileState> = new Set([
-    'natural_stone',
-    'created_rock',
-    'cracked_rock',
-]);
+import type { DestructibleState } from '../terrain/FloorTile';
+import { isOnStone as isOnStoneTile } from '../terrain/FloorTile';
+import { TerrainType } from '../terrain/TerrainType';
 
 /**
  * Shared radius derived from Earth Core's gameplay diameter (in tile units).
@@ -19,10 +11,11 @@ export function getEarthCoreSharedRadiusTiles(): number {
 }
 
 /**
- * True when a stone tile state counts as "on stone" for Earth Core.
+ * True when effective terrain counts as "on stone" for Earth Core (intact rock).
+ * Rubble and destroyed rock are excluded.
  */
-export function isEarthCoreStoneState(state: StoneTileState): boolean {
-    return EARTH_CORE_ACTIVE_STONE_STATES.has(state);
+export function isOnStone(effectiveTerrainType: TerrainType, destructible?: DestructibleState): boolean {
+    return isOnStoneTile(effectiveTerrainType, destructible);
 }
 
 /**

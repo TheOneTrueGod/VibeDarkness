@@ -25,7 +25,7 @@ import {
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
 } from '../abilities/abilityTimings';
-import { areEnemies } from './teams';
+import { areAllies, areEnemies } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { BattleObjectiveDef, LevelEvent } from '../storylines/types';
 import type { SpecialTile } from './specialTiles/SpecialTile';
@@ -64,6 +64,7 @@ import {
 } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 import { TerrainLayerManager } from './TerrainLayerManager';
+import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCoreHelpers';
 import { resetGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import { AlphaWolfStoryEmitter } from './effects/AlphaWolfStoryEmitter';
@@ -558,6 +559,27 @@ export class GameEngine implements EngineContext {
                 duration: 0.75,
                 effectType: 'EnrageBurst',
             }));
+        });
+
+        this.eventBus.on('terrain_stone_damaged', (event) => {
+            if (!this.terrainManager) return;
+            const sourceUnitId = event.sourceUnitId ?? null;
+            const sourceUnit = sourceUnitId ? this.getUnit(sourceUnitId) : undefined;
+            for (const unit of this.units) {
+                if (!unit.isAlive() || !unit.getResource('resonance')) continue;
+                const { col: unitCol, row: unitRow } = this.terrainManager.grid.worldToGrid(unit.x, unit.y);
+                if (!isWithinEarthCoreNearbyStoneDamagedRange(unitCol, unitRow, event.col, event.row)) continue;
+                const causedBySelfOrAlly = sourceUnit
+                    ? (sourceUnit.id === unit.id || areAllies(sourceUnit.teamId, unit.teamId))
+                    : false;
+                this.emitNearbyStoneDamaged({
+                    unitId: unit.id,
+                    sourceUnitId,
+                    causedBySelfOrAlly,
+                    col: event.col,
+                    row: event.row,
+                });
+            }
         });
     }
 
@@ -1454,7 +1476,8 @@ export class GameEngine implements EngineContext {
             storyPauseEndsAt: this.storyPauseEndsAt,
             objectives: this.state.objectiveManager.toJSON(),
             lightSources: this.state.lightSourceManager.toJSON(),
-            terrainEffects: this.state.terrainLayers.toJSON(),
+            terrainEffects: this.state.terrainLayers.toEffectsJSON(),
+            floorTiles: this.state.terrainLayers.toFloorTilesJSON(),
             lightTileGrid: this.state.lightTileGrid?.toJSON() ?? null,
             nextObjectId: this.objectIdSeq,
             mapPOIs: this.mapPOIs,
@@ -1599,7 +1622,7 @@ export class GameEngine implements EngineContext {
         engine.registerMapPOIs((data.mapPOIs ?? []) as import('../terrain/segmentSchema').MapSegmentPOI[]);
 
         // Restore terrain layers (floor/ground/air effects)
-        engine.state.terrainLayers = TerrainLayerManager.fromJSON(data.terrainEffects ?? []);
+        engine.state.terrainLayers = TerrainLayerManager.fromJSON(data.terrainEffects ?? [], data.floorTiles ?? []);
         if (engine.terrainManager) engine.terrainManager.setTerrainLayers(engine.state.terrainLayers);
 
         // Restore cards + research trees

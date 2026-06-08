@@ -1,7 +1,8 @@
 import { EARTH_CORE_SHARED_DIAMETER } from '../card_defs/05_earth_core/earthCoreConstants';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { Unit } from '../game/units/Unit';
-import { isEarthCoreStoneState } from './earthCoreHelpers';
+import { isOnStone } from './earthCoreHelpers';
+import { getEffectiveTerrain } from '../terrain/FloorTile';
 
 export const IMPACT_CONVERSION_PASSIVE_ID = '0521';
 export const BEDROCK_SCAVENGER_PASSIVE_ID = '0522';
@@ -36,7 +37,9 @@ export function countStoneTilesInTremorsense(unit: Unit, terrainManager: Terrain
             const dx = col - unitCol;
             const dy = row - unitRow;
             if ((dx * dx) + (dy * dy) > radiusSq) continue;
-            if (!isEarthCoreStoneState(terrainManager.getStoneState(col, row))) continue;
+            const floor = terrainManager.getFloorTile(col, row);
+            const effective = getEffectiveTerrain(floor, terrainManager.grid.get(col, row));
+            if (!isOnStone(effective, floor?.destructible)) continue;
             count += 1;
         }
     }

@@ -26,6 +26,7 @@ import { EffectRenderer } from './renderers/EffectRenderer';
 import { LightSourceRenderer } from './renderers/LightSourceRenderer';
 import { PreviewRenderer } from './renderers/PreviewRenderer';
 import { TerrainEffectRenderer } from './renderers/TerrainEffectRenderer';
+import { FloorTileRenderer } from './renderers/FloorTileRenderer';
 
 export class GameRenderer {
 	app: Application;
@@ -44,6 +45,7 @@ export class GameRenderer {
 	private lightSourceRenderer!: LightSourceRenderer;
 	private previewRenderer!: PreviewRenderer;
 	private terrainEffectRenderer!: TerrainEffectRenderer;
+	private floorTileRenderer!: FloorTileRenderer;
 
 	/** Optional debug: draw a yellow outline around this unit. */
 	private debugUnitOutlineId: string | null = null;
@@ -140,6 +142,7 @@ export class GameRenderer {
 		this.effectRenderer = new EffectRenderer(this.gameContainer, this.assetRegistry);
 		this.lightSourceRenderer = new LightSourceRenderer(this.gameContainer, this.assetRegistry);
 		this.previewRenderer = new PreviewRenderer(this.gameContainer, this.assetRegistry, this.overlayRenderer);
+		this.floorTileRenderer = new FloorTileRenderer(this.gameContainer);
 		this.terrainEffectRenderer = new TerrainEffectRenderer(this.gameContainer);
 
 		const afterLoad = (): void => {
@@ -239,6 +242,7 @@ export class GameRenderer {
 		this.gameContainer.y = -camera.y * camera.zoom + camera.viewportHeight / 2;
 
 		this.overlayRenderer.render(engine);
+		this.floorTileRenderer.render(engine);
 		this.terrainEffectRenderer.render(engine);
 		this.unitRenderer.render(engine, this.localTeamId, this.debugUnitOutlineId);
 		this.specialTileRenderer.render(engine.specialTiles);
@@ -261,6 +265,7 @@ export class GameRenderer {
 		this.assetRegistry.destroy();
 		this.unitRenderer.destroy();
 		this.overlayRenderer.destroy();
+		this.floorTileRenderer.destroy();
 		this.terrainEffectRenderer.destroy();
 		this.specialTileRenderer.destroy();
 		this.projectileRenderer.destroy();

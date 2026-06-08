@@ -1,9 +1,8 @@
 /**
  * TerrainManager - High-level interface for terrain queries and pathfinding.
  *
- * Wraps a TerrainGrid (bedrock) and a Pathfinder. Floor-layer effects from
- * TerrainLayerManager override bedrock passability and terrain type for cells
- * that have been modified at runtime (e.g. created rocks, destroyed rocks).
+ * Wraps a TerrainGrid (bedrock) and a Pathfinder. Sparse floor tiles from
+ * TerrainLayerManager override bedrock for effective terrain reads.
  */
 
 import type { TerrainGrid } from './TerrainGrid';
@@ -13,30 +12,29 @@ import {
     EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
     EARTH_CORE_STONE_HEALTH,
 } from '../card_defs/05_earth_core/earthCoreConstants';
-import type {
-    StoneTileState,
-    StoneTileStateData,
-    TerrainStoneDamagedTransition,
-} from './TerrainGrid';
-import type { TerrainLayerManager, TerrainEffectRecord } from '../game/TerrainLayerManager';
+import type { FloorTile, TerrainStoneDamagedTransition } from './FloorTile';
+import {
+    getDamageTier,
+    getEffectiveTerrain,
+    isIntactRock,
+} from './FloorTile';
+import type { TerrainLayerManager } from '../game/TerrainLayerManager';
 
-export interface TerrainStoneDamagedEvent extends TerrainStoneDamagedTransition {
-    worldX: number;
-    worldY: number;
-}
+export type { TerrainStoneDamagedTransition as TerrainStoneDamagedEvent } from './FloorTile';
 
 export class TerrainManager {
     readonly grid: TerrainGrid;
     readonly pathfinder: Pathfinder;
     private terrainLayers: TerrainLayerManager | null = null;
-    private onStoneDamaged?: (event: TerrainStoneDamagedEvent) => void;
+    private onStoneDamaged?: (event: TerrainStoneDamagedTransition) => void;
+    private lastRockDamageSourceUnitId: string | null = null;
 
     constructor(grid: TerrainGrid) {
         this.grid = grid;
         this.pathfinder = new Pathfinder(grid);
     }
 
-    /** Attach the TerrainLayerManager so floor effects affect passability and rock queries. */
+    /** Attach the TerrainLayerManager so floor tiles affect passability and rock queries. */
     setTerrainLayers(layers: TerrainLayerManager): void {
         this.terrainLayers = layers;
         this.pathfinder.setPassabilityFn((col, row) => this.isCellPassableWithFloor(col, row));
@@ -46,12 +44,18 @@ export class TerrainManager {
     // Effective terrain (bedrock + floor layer)
     // -------------------------------------------------------------------------
 
-    private getEffectiveTerrainType(col: number, row: number): TerrainType {
-        if (this.terrainLayers) {
-            const override = this.terrainLayers.getFloorTerrainOverride(col, row);
-            if (override !== null) return override;
-        }
-        return this.grid.get(col, row);
+    getFloorTile(col: number, row: number): FloorTile | null {
+        return this.terrainLayers?.getFloorTile(col, row) ?? null;
+    }
+
+    getEffectiveTerrainType(col: number, row: number): TerrainType {
+        const floor = this.getFloorTile(col, row);
+        return getEffectiveTerrain(floor, this.grid.get(col, row));
+    }
+
+    getEffectiveTerrainAt(worldX: number, worldY: number): TerrainType {
+        const { col, row } = this.grid.worldToGrid(worldX, worldY);
+        return this.getEffectiveTerrainType(col, row);
     }
 
     private isCellPassableWithFloor(col: number, row: number): boolean {
@@ -60,8 +64,7 @@ export class TerrainManager {
 
     /** Get the terrain type at a world position (respects floor layer). */
     getTerrainAt(worldX: number, worldY: number): TerrainType {
-        const { col, row } = this.grid.worldToGrid(worldX, worldY);
-        return this.getEffectiveTerrainType(col, row);
+        return this.getEffectiveTerrainAt(worldX, worldY);
     }
 
     /** Check if a world position is passable for unit movement (respects floor layer). */
@@ -70,15 +73,16 @@ export class TerrainManager {
         return this.isCellPassableWithFloor(col, row);
     }
 
-    /** Get the speed multiplier at a world position. Uses bedrock terrain only (floor layer rocks are impassable, not slow). */
+    /** Get the speed multiplier at a world position (uses effective terrain). */
     getSpeedMultiplier(worldX: number, worldY: number): number {
         const { col, row } = this.grid.worldToGrid(worldX, worldY);
         return TERRAIN_PROPERTIES[this.getEffectiveTerrainType(col, row)].speedMultiplier;
     }
 
-    /** Check if a projectile can pass through a world position. */
+    /** Check if a projectile can pass through a world position (uses effective terrain). */
     isProjectilePassable(worldX: number, worldY: number): boolean {
-        return this.grid.isProjectilePassable(worldX, worldY);
+        const { col, row } = this.grid.worldToGrid(worldX, worldY);
+        return TERRAIN_PROPERTIES[this.getEffectiveTerrainType(col, row)].projectilePassable;
     }
 
     findPath(fromX: number, fromY: number, toX: number, toY: number): { x: number; y: number }[] | null {
@@ -104,124 +108,120 @@ export class TerrainManager {
     }
 
     // -------------------------------------------------------------------------
-    // Rock / stone system — delegates to floor layer
+    // Rock / stone system — floor tile layer
     // -------------------------------------------------------------------------
 
-    getStoneState(col: number, row: number): StoneTileState {
-        if (!this.terrainLayers) return 'natural_stone';
-        const effect = this.terrainLayers.getFloorEffectAt(col, row);
-        if (!effect) {
-            // Natural stone: bedrock is Rock, no floor override
-            return this.grid.get(col, row) === TerrainType.Rock ? 'natural_stone' : 'spent_rubble';
+    private implicitRockHealth(col: number, row: number): number {
+        const floor = this.getFloorTile(col, row);
+        if (floor?.destructible) return floor.destructible.health;
+        if (this.grid.get(col, row) === TerrainType.Rock && this.getEffectiveTerrainType(col, row) === TerrainType.Rock) {
+            return EARTH_CORE_STONE_HEALTH;
         }
-        const state = effect.params.state as StoneTileState | undefined;
-        return state ?? 'natural_stone';
+        return 0;
     }
 
-    getStoneHealth(col: number, row: number): number {
-        if (!this.terrainLayers) return EARTH_CORE_STONE_HEALTH;
-        const effect = this.terrainLayers.getFloorEffectAt(col, row);
-        if (!effect) {
-            return this.grid.get(col, row) === TerrainType.Rock ? EARTH_CORE_STONE_HEALTH : 0;
-        }
-        const health = effect.params.health as number | undefined;
-        return health ?? EARTH_CORE_STONE_HEALTH;
-    }
-
-    createOrMarkRock(col: number, row: number): StoneTileStateData | null {
+    createOrMarkRock(col: number, row: number, maxHealth: number = EARTH_CORE_STONE_HEALTH): FloorTile | null {
         if (!this.terrainLayers) return null;
         if (col < 0 || col >= this.grid.width || row < 0 || row >= this.grid.height) return null;
-        const entry: StoneTileStateData = { state: 'created_rock', health: EARTH_CORE_STONE_HEALTH };
-        this.terrainLayers.add({
-            id: `rock-${col}-${row}-${Date.now()}`,
-            layer: 'floor',
-            effectType: 'created_rock',
-            placedAtGameTime: 0,
-            area: { type: 'cell', col, row },
-            params: { state: entry.state, health: entry.health },
-        });
+        const tile: FloorTile = {
+            terrainType: TerrainType.Rock,
+            destructible: { health: maxHealth, maxHealth, kind: 'rock' },
+        };
+        this.terrainLayers.setFloorTile(col, row, tile);
         this.clearPathCache();
-        return { ...entry };
+        return { ...tile, destructible: { ...tile.destructible! } };
     }
 
     damageRock(
         col: number,
         row: number,
         damage: number = EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
+        sourceUnitId?: string | null,
     ): TerrainStoneDamagedTransition | null {
         if (!this.terrainLayers) return null;
 
-        const effectiveType = this.getEffectiveTerrainType(col, row);
-        if (effectiveType !== TerrainType.Rock) return null;
+        const bedrock = this.grid.get(col, row);
+        const previousFloor = this.getFloorTile(col, row);
+        const previousEffective = getEffectiveTerrain(previousFloor, bedrock);
+        if (!isIntactRock(previousEffective, previousFloor?.destructible)) return null;
 
-        const previousState = this.getStoneState(col, row);
-        const previousHealth = this.getStoneHealth(col, row);
-        if (previousState === 'spent_rubble' || previousHealth <= 0) return null;
+        const previousHealth = this.implicitRockHealth(col, row);
+        const maxHealth = previousFloor?.destructible?.maxHealth ?? EARTH_CORE_STONE_HEALTH;
+        const previousTier = getDamageTier(previousFloor?.destructible ?? { health: previousHealth, maxHealth, kind: 'rock' });
+        const previousTerrainType = previousEffective;
 
-        const nextHealth = Math.max(0, previousHealth - Math.max(0, damage));
-        const nextState: StoneTileState = nextHealth <= 0 ? 'spent_rubble'
-            : nextHealth < EARTH_CORE_STONE_HEALTH ? 'cracked_rock'
-            : previousState;
-
-        const effect = this.terrainLayers.getFloorEffectAt(col, row);
-        if (effect) {
-            this.terrainLayers.updateEffectParams(effect.id, { state: nextState, health: nextHealth });
-        } else {
-            // Natural stone: create a floor effect to track its damaged state
-            this.terrainLayers.add({
-                id: `rock-state-${col}-${row}-${Date.now()}`,
-                layer: 'floor',
-                effectType: 'rock_state',
-                placedAtGameTime: 0,
-                area: { type: 'cell', col, row },
-                params: { derivedFrom: 'natural_stone', state: nextState, health: nextHealth },
-            });
+        if (sourceUnitId !== undefined) {
+            this.lastRockDamageSourceUnitId = sourceUnitId;
         }
 
+        const floor = this.terrainLayers.ensureFloorFromBedrock(col, row, this.grid, maxHealth);
+        if (!floor.destructible) return null;
+
+        const nextHealth = Math.max(0, floor.destructible.health - Math.max(0, damage));
+        floor.destructible.health = nextHealth;
+
+        let nextTerrainType = TerrainType.Rock;
+        if (nextHealth <= 0) {
+            nextTerrainType = TerrainType.Rubble;
+            floor.terrainType = TerrainType.Rubble;
+            floor.destructible = undefined;
+        }
+
+        this.terrainLayers.setFloorTile(col, row, floor);
         this.clearPathCache();
 
-        if ((previousState !== 'cracked_rock' && nextState === 'cracked_rock') || nextState === 'spent_rubble') {
-            const transition: TerrainStoneDamagedTransition = { col, row, previousState, state: nextState, previousHealth, health: nextHealth };
-            this.emitStoneDamagedIfNeeded(transition);
-            return transition;
-        }
-        return null;
+        const nextTier = nextHealth <= 0 ? 3 : getDamageTier(floor.destructible);
+        const tierChanged = nextTier !== previousTier;
+        const destroyed = nextTerrainType === TerrainType.Rubble;
+
+        if (!destroyed && !tierChanged) return null;
+
+        return this.emitStoneDamaged({
+            col,
+            row,
+            previousHealth,
+            health: nextHealth,
+            maxHealth,
+            previousTerrainType,
+            terrainType: nextTerrainType,
+            tier: nextTier,
+            sourceUnitId: sourceUnitId ?? this.lastRockDamageSourceUnitId,
+        });
     }
 
-    consumeRockInRadius(centerCol: number, centerRow: number, radius: number): TerrainStoneDamagedTransition | null {
+    consumeRockInRadius(
+        centerCol: number,
+        centerRow: number,
+        radius: number,
+        sourceUnitId?: string | null,
+    ): TerrainStoneDamagedTransition | null {
         if (!this.terrainLayers) return null;
 
         interface Candidate {
             col: number;
             row: number;
-            state: StoneTileState;
-            effect: TerrainEffectRecord | null;
+            preference: number;
         }
 
         const candidates: Candidate[] = [];
         const radiusSq = Math.max(0, radius) * Math.max(0, radius);
         for (let row = 0; row < this.grid.height; row++) {
             for (let col = 0; col < this.grid.width; col++) {
-                if (this.getEffectiveTerrainType(col, row) !== TerrainType.Rock) continue;
+                const effective = this.getEffectiveTerrainType(col, row);
+                const floor = this.getFloorTile(col, row);
+                if (!isIntactRock(effective, floor?.destructible)) continue;
                 const dx = col - centerCol;
                 const dy = row - centerRow;
                 if (dx * dx + dy * dy > radiusSq) continue;
-                const state = this.getStoneState(col, row);
-                if (state === 'spent_rubble') continue;
-                candidates.push({ col, row, state, effect: this.terrainLayers.getFloorEffectAt(col, row) });
+                const preference = this.terrainLayers.hasFloorTile(col, row) ? 0 : 1;
+                candidates.push({ col, row, preference });
             }
         }
 
         if (candidates.length === 0) return null;
 
-        const preference = (state: StoneTileState): number => {
-            if (state === 'created_rock' || state === 'cracked_rock') return 0;
-            if (state === 'natural_stone') return 1;
-            return 2;
-        };
         candidates.sort((a, b) => {
-            const prefDiff = preference(a.state) - preference(b.state);
-            if (prefDiff !== 0) return prefDiff;
+            if (a.preference !== b.preference) return a.preference - b.preference;
             const da = (a.col - centerCol) ** 2 + (a.row - centerRow) ** 2;
             const db = (b.col - centerCol) ** 2 + (b.row - centerRow) ** 2;
             if (da !== db) return da - db;
@@ -230,43 +230,39 @@ export class TerrainManager {
         });
 
         const selected = candidates[0]!;
-        const previousHealth = this.getStoneHealth(selected.col, selected.row);
-        const previousState = selected.state;
+        const previousHealth = this.implicitRockHealth(selected.col, selected.row);
+        const floor = this.terrainLayers.ensureFloorFromBedrock(selected.col, selected.row, this.grid);
+        const maxHealth = floor.destructible?.maxHealth ?? EARTH_CORE_STONE_HEALTH;
+        const previousTerrainType = getEffectiveTerrain(floor, this.grid.get(selected.col, selected.row));
 
-        if (selected.effect) {
-            this.terrainLayers.updateEffectParams(selected.effect.id, { state: 'spent_rubble', health: 0 });
-        } else {
-            this.terrainLayers.add({
-                id: `rock-state-${selected.col}-${selected.row}-${Date.now()}`,
-                layer: 'floor',
-                effectType: 'rock_state',
-                placedAtGameTime: 0,
-                area: { type: 'cell', col: selected.col, row: selected.row },
-                params: { derivedFrom: 'natural_stone', state: 'spent_rubble', health: 0 },
-            });
+        if (sourceUnitId !== undefined) {
+            this.lastRockDamageSourceUnitId = sourceUnitId;
         }
 
+        this.terrainLayers.setFloorTile(selected.col, selected.row, { terrainType: TerrainType.Rubble });
         this.clearPathCache();
 
-        const transition: TerrainStoneDamagedTransition = {
+        return this.emitStoneDamaged({
             col: selected.col,
             row: selected.row,
-            previousState,
-            state: 'spent_rubble',
             previousHealth,
             health: 0,
-        };
-        this.emitStoneDamagedIfNeeded(transition);
-        return transition;
+            maxHealth,
+            previousTerrainType,
+            terrainType: TerrainType.Rubble,
+            tier: 3,
+            sourceUnitId: sourceUnitId ?? this.lastRockDamageSourceUnitId,
+        });
     }
 
-    setStoneDamagedEmitter(emitter: ((event: TerrainStoneDamagedEvent) => void) | undefined): void {
+    setStoneDamagedEmitter(emitter: ((event: TerrainStoneDamagedTransition) => void) | undefined): void {
         this.onStoneDamaged = emitter;
     }
 
-    private emitStoneDamagedIfNeeded(transition: TerrainStoneDamagedTransition): void {
-        if (!this.onStoneDamaged) return;
-        const world = this.grid.gridToWorld(transition.col, transition.row);
-        this.onStoneDamaged({ ...transition, worldX: world.x, worldY: world.y });
+    private emitStoneDamaged(partial: Omit<TerrainStoneDamagedTransition, 'worldX' | 'worldY'>): TerrainStoneDamagedTransition {
+        const world = this.grid.gridToWorld(partial.col, partial.row);
+        const event: TerrainStoneDamagedTransition = { ...partial, worldX: world.x, worldY: world.y };
+        this.onStoneDamaged?.(event);
+        return event;
     }
 }

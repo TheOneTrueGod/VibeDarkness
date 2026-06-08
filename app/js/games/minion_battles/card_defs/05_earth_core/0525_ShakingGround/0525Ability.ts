@@ -21,7 +21,7 @@ interface EngineLike {
     eventBus: EventBus;
     terrainManager?: {
         grid: { worldToGrid(x: number, y: number): { col: number; row: number } };
-        damageRock(col: number, row: number): unknown;
+        damageRock(col: number, row: number, damage?: number, sourceUnitId?: string | null): unknown;
     } | null;
 }
 
@@ -63,7 +63,7 @@ export const ShakingGroundAbility: AbilityStatic = {
         }
         if (!eng.terrainManager) return;
         const cell = eng.terrainManager.grid.worldToGrid(caster.x, caster.y);
-        eng.terrainManager.damageRock(cell.col, cell.row);
+        eng.terrainManager.damageRock(cell.col, cell.row, undefined, caster.id);
     },
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
     renderTargetingPreview(

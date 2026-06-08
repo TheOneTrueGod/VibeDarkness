@@ -295,24 +295,23 @@ describe('GameEngine', () => {
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1, terrainManager });
 
-        const emitted: Array<{ previousState: string; state: string }> = [];
+        const emitted: Array<{ terrainType: number; health: number }> = [];
         engine.eventBus.on('terrain_stone_damaged', (event) => {
             emitted.push({
-                previousState: event.previousState,
-                state: event.state,
+                terrainType: event.terrainType,
+                health: event.health,
             });
         });
 
-        terrainManager.damageRock(1, 1); // natural -> cracked
-        terrainManager.damageRock(1, 1); // cracked -> cracked, no event
-        terrainManager.damageRock(1, 1);
-        terrainManager.damageRock(1, 1);
-        terrainManager.damageRock(1, 1); // cracked -> spent
+        terrainManager.damageRock(1, 1); // tier 0, no emit
+        terrainManager.damageRock(1, 1); // tier 0 -> 1
+        while (terrainManager.getFloorTile(1, 1)?.destructible?.health) {
+            terrainManager.damageRock(1, 1);
+        }
 
-        expect(emitted).toEqual([
-            { previousState: 'natural_stone', state: 'cracked_rock' },
-            { previousState: 'cracked_rock', state: 'spent_rubble' },
-        ]);
+        expect(emitted.length).toBeGreaterThan(0);
+        expect(emitted[emitted.length - 1]?.health).toBe(0);
+        expect(emitted[emitted.length - 1]?.terrainType).toBe(TerrainType.Rubble);
 
         engine.destroy();
     });
@@ -331,8 +330,12 @@ describe('GameEngine', () => {
         terrainManager.consumeRockInRadius(2, 1, 0); // created -> spent
 
         const json = engine.toJSON();
-        expect(json.terrainEffects).toBeDefined();
-        expect(json.terrainEffects?.length).toBeGreaterThan(0);
+        expect(json.floorTiles).toBeDefined();
+        expect(json.floorTiles?.length).toBeGreaterThan(0);
+        expect(json.terrainEffects?.every((e) => {
+            const t = e as { effectType?: string };
+            return t.effectType !== 'rock_state' && t.effectType !== 'created_rock';
+        })).toBe(true);
 
         const restoredGrid = TerrainGrid.createFilledTerrain(4, 4, CELL_SIZE, TerrainType.Grass);
         restoredGrid.set(1, 1, TerrainType.Rock);
@@ -340,9 +343,8 @@ describe('GameEngine', () => {
         const restoredTerrainManager = new TerrainManager(restoredGrid);
         const restored = GameEngine.fromJSON(json, 'p1', restoredTerrainManager);
 
-        expect(restoredTerrainManager.getStoneState(1, 1)).toBe('cracked_rock');
-        expect(restoredTerrainManager.getStoneHealth(1, 1)).toBe(24);
-        expect(restoredTerrainManager.getStoneState(2, 1)).toBe('spent_rubble');
+        expect(restoredTerrainManager.getFloorTile(1, 1)?.destructible?.health).toBe(24);
+        expect(restoredTerrainManager.getEffectiveTerrainType(2, 1)).toBe(TerrainType.Rubble);
 
         restored.destroy();
         engine.destroy();

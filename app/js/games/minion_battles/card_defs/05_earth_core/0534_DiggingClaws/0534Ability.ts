@@ -46,7 +46,7 @@ const AFTERIMAGE_DURATION = 6 / 60;
 interface TerrainManagerLike {
     grid: { worldToGrid(x: number, y: number): { col: number; row: number } };
     isPassable(x: number, y: number): boolean;
-    damageRock(col: number, row: number): unknown;
+    damageRock(col: number, row: number, damage?: number, sourceUnitId?: string | null): unknown;
 }
 
 interface GameEngineLike extends EngineContext {
@@ -90,7 +90,7 @@ function maybeDamageCurrentTile(
     const key = `${cell.col},${cell.row}`;
     if (damagedTileKeys.includes(key)) return;
     damagedTileKeys.push(key);
-    tm.damageRock(cell.col, cell.row);
+    tm.damageRock(cell.col, cell.row, undefined, caster.id);
 }
 
 export const DiggingClawsAbility: AbilityStatic = {

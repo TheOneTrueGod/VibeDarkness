@@ -8,6 +8,8 @@ import { EARTHERN_PUNCH_ABILITY_ID } from '../../../abilities/earthCoreMeleePass
 import { getPixelTargetPosition, getAimPointClampedToMaxRange } from '../../../abilities/targetHelpers';
 import { ThickLineHitbox } from '../../../hitboxes';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
+import { isOnStone } from '../../../abilities/earthCoreHelpers';
+import { getEffectiveTerrain } from '../../../terrain/FloorTile';
 import type { EventBus } from '../../../game/EventBus';
 
 const MAX_RANGE = 75;
@@ -26,14 +28,21 @@ interface EngineLike {
     gameTime: number;
     eventBus: EventBus;
     getUnit(id: string): Unit | undefined;
-    terrainManager?: { grid: { worldToGrid(x: number, y: number): { col: number; row: number } }; getStoneState(col: number, row: number): string } | null;
+    terrainManager?: {
+        grid: {
+            worldToGrid(x: number, y: number): { col: number; row: number };
+            get(col: number, row: number): number;
+        };
+        getFloorTile(col: number, row: number): { terrainType: number; destructible?: { health: number } } | null;
+    } | null;
 }
 
 function isTargetStandingOnStone(engine: EngineLike, target: Unit): boolean {
     if (!engine.terrainManager) return false;
     const cell = engine.terrainManager.grid.worldToGrid(target.x, target.y);
-    const state = engine.terrainManager.getStoneState(cell.col, cell.row);
-    return state === 'natural_stone' || state === 'created_rock' || state === 'cracked_rock';
+    const floor = engine.terrainManager.getFloorTile(cell.col, cell.row);
+    const effective = getEffectiveTerrain(floor, engine.terrainManager.grid.get(cell.col, cell.row));
+    return isOnStone(effective, floor?.destructible);
 }
 
 export const EarthernPunchAbility: AbilityStatic = {

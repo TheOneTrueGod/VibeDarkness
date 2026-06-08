@@ -26,6 +26,9 @@ export const EARTH_CORE_RESONANCE_GAIN_ON_OWN_ARMOUR_BREAK = 12;
 /** Passive Resonance gain when taking damage that removes armour. */
 export const EARTH_CORE_RESONANCE_GAIN_ON_ARMOUR_LOST_FROM_DAMAGE = 10;
 
+/** Destructible kind string for rock floor tiles. */
+export const DEFAULT_ROCK_DESTRUCTIBLE_KIND = 'rock';
+
 /** Initial stone durability for Earth Core destructible rock states. */
 export const EARTH_CORE_STONE_HEALTH = 30;
 

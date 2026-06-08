@@ -1,3 +1,5 @@
+import type { TerrainType } from '../terrain/TerrainType';
+
 /**
  * EventBus - Typed pub/sub event system for the battle engine.
  *
@@ -96,10 +98,13 @@ export interface TerrainStoneDamagedEvent {
     row: number;
     worldX: number;
     worldY: number;
-    previousState: 'natural_stone' | 'created_rock' | 'cracked_rock' | 'spent_rubble';
-    state: 'natural_stone' | 'created_rock' | 'cracked_rock' | 'spent_rubble';
     previousHealth: number;
     health: number;
+    maxHealth: number;
+    previousTerrainType: TerrainType;
+    terrainType: TerrainType;
+    tier?: number;
+    sourceUnitId?: string | null;
 }
 
 export interface RecoveryChargeGrantedEvent {

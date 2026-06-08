@@ -23,7 +23,7 @@ Abilities are generally **usable off stone** but **stronger on or through stone*
 | Theme | Role in Earth Core |
 |--------|-------------------|
 | **Tremorsense** | Reveal and interact with enemies in a **shared diameter** (tuning: `EARTH_CORE_SHARED_DIAMETER` in `earthCoreConstants.ts`). Helpers in `abilities/earthCoreHelpers.ts` centralize “on stone” and distance checks. |
-| **Stone / terrain** | Earth uses **stone tile states** (`natural_stone`, `created_rock`, `cracked_rock`; not `spent_rubble`) for “on stone” and events. **Stone durability** and damage per instance are tuned in `earthCoreConstants.ts` and applied from terrain code (e.g. `TerrainManager`, `TerrainGrid`). |
+| **Stone / terrain** | Earth uses a **sparse floor tile layer** (`FloorTile`: `terrainType` + optional `destructible` with health). Intact **Rock** counts as “on stone”; destroyed rock becomes runtime **`TerrainType.Rubble`** (passable, not bedrock). **Stone durability** and damage per instance are tuned in `earthCoreConstants.ts` and applied via `TerrainManager` / `TerrainLayerManager`. Sprite damage tiers are render-only (derived from `health / maxHealth`). |
 | **Stonephase** | **Projectiles** can be granted rules so travel **inside rock** does not eat range / durability the same way as in air (see **Knock** and projectile pipeline). |
 | **Armour (Rock / Earth)** | Multiple abilities grant or spend armour; some paths use **per-source caps and diminishing returns** (see below). **Armour break** and **armour lost to damage** feed **Resonance** in some passives. |
 | **Tremor / pulse effects** | Field and pulse skills (e.g. **Anchored Tremor**, **Shaking Ground**) build on the same “stone matters” and shared-radius vocabulary. |
