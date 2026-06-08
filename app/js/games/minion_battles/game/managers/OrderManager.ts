@@ -91,13 +91,8 @@ export class OrderManager {
             atTick = batch.atTick;
         }
         const orderingUnit = this.ctx.getUnit(order.unitId);
-        const pausedAbility = orderingUnit?.activeAbilities.find((a) => a.conditionalCancelPaused);
-        const isConditionalCancelDecision = pausedAbility != null;
-
-        if (isConditionalCancelDecision) {
-            if (!this.applyConditionalCancelDecision(order, orderingUnit!, pausedAbility!)) {
-                return;
-            }
+        if (orderingUnit && !this.resolveConditionalCancelIfNeeded(orderingUnit, order)) {
+            return;
         }
 
         this.queueOrder(atTick, order);
@@ -164,9 +159,20 @@ export class OrderManager {
         }
     }
 
+    /**
+     * When a unit is mid conditional-cancel pause, resolve the player's choice before the order runs.
+     * Returns false when the order is rejected (e.g. ineligible ability tag).
+     */
+    private resolveConditionalCancelIfNeeded(unit: Unit, order: BattleOrder): boolean {
+        const pausedAbility = unit.activeAbilities.find((a) => a.conditionalCancelPaused);
+        if (!pausedAbility) return true;
+        return this.applyConditionalCancelDecision(order, unit, pausedAbility);
+    }
+
     applyOrderLogic(order: BattleOrder): void {
         const unit = this.ctx.getUnit(order.unitId);
         if (!unit || !unit.isAlive()) return;
+        if (!this.resolveConditionalCancelIfNeeded(unit, order)) return;
         this.ctx.mixOrderFingerprint(order.unitId, order.abilityId);
 
         unit.waitMinEndTime = null;

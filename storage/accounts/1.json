@@ -7,6 +7,8 @@
     "earth": 6,
     "air": 9,
     "recentLobbies": [
+        "ABC096",
+        "5BA98F",
         "E9F75D",
         "BE496F",
         "1C67F6",
@@ -14,9 +16,7 @@
         "31DE5A",
         "8DB012",
         "69CB0E",
-        "5278EC",
-        "1AAC5F",
-        "C5AEE9"
+        "5278EC"
     ],
     "campaignIds": [
         "c2fd6eee52b4a0d2"
