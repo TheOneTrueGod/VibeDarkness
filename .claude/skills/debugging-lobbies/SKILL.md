@@ -98,7 +98,7 @@ For **why orders, fingerprints, checkpoints, or host/client ticks diverged**, op
 
 Implementations worth opening during investigation:
 
-- **`app/js/games/minion_battles/game/BattleNet.ts`** — client heartbeat, deferral, resync gates.
+- **`app/js/games/minion_battles/game/battlenet/BattleNet.ts`** — client heartbeat, deferral, resync gates.
 - **`backend/Http/Handlers/Battle/AppendOrderHandler.php`** — order acceptance windows (`tick_in_past`, `tick_ahead_of_host`, ownership).
 - **`backend/Http/Handlers/Battle/GetHeartbeatHandler.php`** — heartbeat JSON: **`hostTick`** / **`hostFingerprint`** = **last completed** via **`BattleStorage::resolveLastCompletedTickAndFingerprint`**. **`orderBatchAtTick`** (and legacy **`pausedAtTick`** alias when paused) = **`waitingForOrders.atTick`** — **not** the snapshot envelope **`tick`** field.
 

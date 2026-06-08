@@ -8,6 +8,19 @@ import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainType } from '../terrain/TerrainType';
 import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
+import { getAbilityTagsForId } from '../abilities/Ability';
+import { computeAbilityModifiersFromResearch } from '../../../researchTrees/evaluator';
+import {
+    EARTH_TREE_ID,
+    EARTH_NODE_ROCK_SYNERGY_ENTOMBED,
+} from '../../../researchTrees/trees/earth';
+import { getAbility } from '../abilities/AbilityRegistry';
+import {
+    AbilityPhase,
+    getCoveringAbilityPhaseAtElapsed,
+    normalizeAbilityTimingsToIntervals,
+    resolveAbilityTimingEntries,
+} from '../abilities/abilityTimings';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
@@ -284,6 +297,130 @@ describe('conditional cancel', () => {
         expect(player.y).toBeLessThan(yAfterRetarget - 10);
         expect(player.x).toBeGreaterThanOrEqual(rockLeftX - 5);
 
+        engine.destroy();
+    });
+
+    it('Entomb Chain (Digging Claws & Throw Rock) ejects from rock during throw rock cooldown', () => {
+        resetGameObjectIdCounter(1);
+        const researchByPlayer = {
+            [TINY_BATTLE_PLAYER_ID]: { [EARTH_TREE_ID]: [EARTH_NODE_ROCK_SYNERGY_ENTOMBED] },
+        };
+        const engine = buildTinyBattleEngine({
+            gridW: 14,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        const rockStartCol = 5;
+        const targetInRock = {
+            x: rockStartCol * CELL_SIZE + CELL_SIZE / 2,
+            y: 5 * CELL_SIZE + CELL_SIZE / 2,
+        };
+        for (let col = rockStartCol; col <= 6; col++) {
+            for (let row = 2; row <= 8; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
+        const { dummy } = placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: { x: 2 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            dummyWorld: { x: 4 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            abilities: ['0534', 'throw_rock'],
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        const player = engine.getLocalPlayerUnit()!;
+        player.abilityModifiers = computeAbilityModifiersFromResearch(
+            researchByPlayer[TINY_BATTLE_PLAYER_ID],
+            getAbilityTagsForId,
+            player.abilities,
+        );
+
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0534',
+            targets: [{ type: 'pixel', position: targetInRock }],
+        });
+
+        let throwRockSubmitted = false;
+        let ejectedDuringThrowRockCooldown = false;
+        let ticksInRockDuringThrowRockCooldown = 0;
+
+        for (let i = 0; i < 400; i++) {
+            if (!throwRockSubmitted && player.activeAbilities.some((a) => a.conditionalCancelPaused)) {
+                engine.state.orderMgr.applyOrder({
+                    unitId: player.id,
+                    abilityId: 'throw_rock',
+                    targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+                });
+                throwRockSubmitted = true;
+            }
+
+            const throwRockActive = player.activeAbilities.find((a) => a.abilityId === 'throw_rock');
+            const tm = engine.terrainManager!;
+            if (throwRockActive) {
+                const ability = getAbility('throw_rock')!;
+                const intervals = normalizeAbilityTimingsToIntervals(
+                    resolveAbilityTimingEntries(ability, player, engine),
+                );
+                const elapsed = engine.gameTime - throwRockActive.startTime;
+                const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
+                if (phase === AbilityPhase.Cooldown) {
+                    if (!tm.isPassable(player.x, player.y)) {
+                        ticksInRockDuringThrowRockCooldown++;
+                    } else {
+                        ejectedDuringThrowRockCooldown = true;
+                    }
+                }
+            }
+
+            if (throwRockSubmitted && tm.isPassable(player.x, player.y) && !player.activeAbilities.some((a) => a.abilityId === 'throw_rock')) {
+                break;
+            }
+
+            engine.stepSimulationFixedTicks(1);
+        }
+
+        expect(throwRockSubmitted).toBe(true);
+        expect(ejectedDuringThrowRockCooldown).toBe(true);
+        expect(ticksInRockDuringThrowRockCooldown).toBeLessThan(12);
+        expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(true);
+
+        engine.destroy();
+    });
+
+    it('generic wall eject runs while entombed throw rock is in cooldown phase', () => {
+        resetGameObjectIdCounter(1);
+        const engine = buildTinyBattleEngine({ gridW: 10, gridH: 10, localPlayerId: TINY_BATTLE_PLAYER_ID, grass: true });
+        for (let col = 4; col <= 5; col++) {
+            for (let row = 2; row <= 7; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
+        const { player } = placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: { x: 4 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            dummyWorld: { x: 8 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            abilities: ['throw_rock'],
+        });
+        player.abilityModifiers = { throw_rock: { addTags: ['Entombed'] } };
+        player.x = 4 * CELL_SIZE + CELL_SIZE / 2;
+        player.y = 5 * CELL_SIZE + CELL_SIZE / 2;
+        player.wallEntryPoint = { x: 3 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 };
+        player.activeAbilities = [
+            {
+                abilityId: 'throw_rock',
+                startTime: engine.gameTime - 1.05,
+                targets: [{ type: 'pixel', position: { x: player.x + 80, y: player.y } }],
+            },
+        ];
+
+        for (let i = 0; i < 30; i++) {
+            engine.stepSimulationFixedTicks(1);
+            if (engine.terrainManager!.isPassable(player.x, player.y)) break;
+        }
+
+        expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(true);
         engine.destroy();
     });
 });

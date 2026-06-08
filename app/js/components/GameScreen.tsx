@@ -325,7 +325,7 @@ export default function GameScreen({
                 <button
                     type="button"
                     className="px-4 py-2 bg-danger text-white font-semibold text-sm rounded hover:bg-danger-hover transition-colors shrink-0"
-                    onClick={onLeave}
+                    onClick={isHost && inBattle ? () => { window.location.href = '/'; } : onLeave}
                 >
                     Leave
                 </button>
@@ -334,6 +334,8 @@ export default function GameScreen({
         [
             adminRestartLoading,
             handleAdminRestartBattle,
+            inBattle,
+            isHost,
             onLeave,
             onPing,
             pingEnabled,

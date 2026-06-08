@@ -28,6 +28,7 @@ import {
 import {
     AbilityPhase,
     getCoveringAbilityPhaseAtElapsed,
+    getTotalAbilityDurationForCast,
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
 } from '../../abilities/abilityTimings';
@@ -1463,10 +1464,18 @@ function isEntombedProtectionActive(unit: Unit, engine: EngineContext): boolean 
         const entries = resolveAbilityTimingEntries(ability, unit, engine);
         const intervals = normalizeAbilityTimingsToIntervals(entries);
         const elapsed = engine.gameTime - active.startTime;
+        const totalDuration = getTotalAbilityDurationForCast(ability, unit, engine);
+        if (elapsed >= totalDuration) continue;
         const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
-        if (phase !== AbilityPhase.Cooldown && phase !== AbilityPhase.CoopCooldown) {
-            return true;
+        // Cooldown / coop-cooldown and uncovered elapsed (gaps or post-interval) allow generic wall eject.
+        if (
+            phase === null
+            || phase === AbilityPhase.Cooldown
+            || phase === AbilityPhase.CoopCooldown
+        ) {
+            continue;
         }
+        return true;
     }
     return false;
 }

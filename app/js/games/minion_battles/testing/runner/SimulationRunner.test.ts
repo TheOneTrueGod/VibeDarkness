@@ -37,6 +37,7 @@ import {
     earthCoreStoneyPunchArmourScenario,
     earthCoreDiggingClawsScenario,
     earthCoreDiggingClawsRetargetScenario,
+    earthCoreDiggingClawsThrowRockEntombScenario,
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
@@ -196,6 +197,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes earth core digging claws conditional-cancel retarget scenario', () => {
         const r = runScenarioHeadless(earthCoreDiggingClawsRetargetScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Entomb Chain (Digging Claws & Throw Rock)', () => {
+        const r = runScenarioHeadless(earthCoreDiggingClawsThrowRockEntombScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

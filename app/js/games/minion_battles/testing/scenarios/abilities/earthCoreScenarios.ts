@@ -10,6 +10,12 @@ import {
 } from '../../harness/buildTinyBattleEngine';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
+import { getAbilityTagsForId } from '../../../abilities/Ability';
+import { computeAbilityModifiersFromResearch } from '../../../../../researchTrees/evaluator';
+import {
+    EARTH_TREE_ID,
+    EARTH_NODE_ROCK_SYNERGY_ENTOMBED,
+} from '../../../../../researchTrees/trees/earth';
 import {
     grantEarthCoreArmourFromSource,
     getEarthCoreArmour as getEarthCoreArmourBySources,
@@ -470,6 +476,85 @@ export const earthCoreDiggingClawsRetargetScenario: ScenarioDefinition = {
             parts.push(`player x=${player.x.toFixed(0)} slingshot left instead of retarget dash`);
         }
         return parts.join('; ');
+    },
+};
+
+/** Tracks whether conditional cancel fired for {@link earthCoreDiggingClawsThrowRockEntombScenario}. */
+export const diggingClawsThrowRockEntombScenarioState = { cancelFired: false };
+
+/**
+ * Dig into rock with Digging Claws, switch to Entombed Throw Rock on conditional cancel,
+ * then eject from the wall once Throw Rock enters its cooldown phase.
+ */
+export const earthCoreDiggingClawsThrowRockEntombScenario: ScenarioDefinition = {
+    id: 'earth_core_0534_entomb_chain_throw_rock',
+    title: 'Entomb Chain (Digging Claws & Throw Rock)',
+    category: 'ability',
+    maxDurationMs: 6000,
+    buildEngine() {
+        diggingClawsThrowRockEntombScenarioState.cancelFired = false;
+        const researchByPlayer = {
+            [P]: { [EARTH_TREE_ID]: [EARTH_NODE_ROCK_SYNERGY_ENTOMBED] },
+        };
+        const engine = buildTinyBattleEngine({
+            gridW: 14,
+            gridH: 10,
+            localPlayerId: P,
+            grass: true,
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        for (let col = DC_ROCK_START_COL; col <= DC_ROCK_END_COL; col++) {
+            for (let row = DC_ROCK_START_ROW; row <= DC_ROCK_END_ROW; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
+        const { player } = placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: DC_PLAYER_POS,
+            dummyWorld: DC_ENEMY_POS,
+            abilities: ['0534', 'throw_rock'],
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        player.abilityModifiers = computeAbilityModifiersFromResearch(
+            researchByPlayer[P],
+            getAbilityTagsForId,
+            player.abilities,
+        );
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        return [{ unitId: u.id, abilityId: '0534', targets: [{ type: 'pixel' as const, position: DC_TARGET_POS }] }];
+    },
+    onConditionalCancelPause(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const dummy = engine.getUnit('target_dummy');
+        if (!player || !dummy) return;
+        diggingClawsThrowRockEntombScenarioState.cancelFired = true;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: 'throw_rock',
+            targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+        });
+    },
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const tm = engine.terrainManager;
+        if (!player || !tm) return false;
+        if (!diggingClawsThrowRockEntombScenarioState.cancelFired) return false;
+        return tm.isPassable(player.x, player.y);
+    },
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const tm = engine.terrainManager;
+        if (!player || !tm) return 'units or terrain missing';
+        if (!diggingClawsThrowRockEntombScenarioState.cancelFired) {
+            return 'conditional cancel pause never fired';
+        }
+        if (!tm.isPassable(player.x, player.y)) {
+            return `player stuck in wall at (${player.x.toFixed(0)}, ${player.y.toFixed(0)}) after throw rock cooldown`;
+        }
+        return 'unknown failure';
     },
 };
 

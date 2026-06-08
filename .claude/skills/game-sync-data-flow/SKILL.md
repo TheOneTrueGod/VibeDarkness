@@ -7,7 +7,7 @@ description: Describes Minion Battles multiplayer battle sync — lobby-scoped P
 
 ## Architecture overview
 
-Battle networking is implemented in **`BattleNet`** ([`BattleNet.ts`](app/js/games/minion_battles/game/BattleNet.ts)) with **`HostBattleNet`** / **`ClientBattleNet`** façade classes (`createBattleNet(...)`) instantiated from **`BattlePhase`**. **`GameSyncContext`** only polls lobby JSON + lobby messages (~500 ms during non-battle phases); it does **not** own battle checkpoints or heartbeat I/O anymore.
+Battle networking is implemented in **`BattleNet`** ([`BattleNet.ts`](app/js/games/minion_battles/game/battlenet/BattleNet.ts)) with **`HostBattleNet`** / **`ClientBattleNet`** façade classes (`createBattleNet(...)`) instantiated from **`BattlePhase`**. **`GameSyncContext`** only polls lobby JSON + lobby messages (~500 ms during non-battle phases); it does **not** own battle checkpoints or heartbeat I/O anymore.
 
 | Layer | Responsibility |
 |-------|----------------|
@@ -73,7 +73,7 @@ Host **`saveBattleSnapshot`** → **`SaveSnapshotHandler`**: persists snapshot w
 
 | File | Role |
 |------|------|
-| [`app/js/games/minion_battles/game/BattleNet.ts`](app/js/games/minion_battles/game/BattleNet.ts) | Heartbeat poll, merges, **`HostBattleNet`/`ClientBattleNet`**, **`createBattleNet`** |
+| [`app/js/games/minion_battles/game/battlenet/BattleNet.ts`](app/js/games/minion_battles/game/battlenet/BattleNet.ts) | Heartbeat poll, merges, **`HostBattleNet`/`ClientBattleNet`**, **`createBattleNet`** |
 | [`app/js/LobbyClient.ts`](app/js/LobbyClient.ts) | Wire methods + **`HeartbeatResponse`** extended fields |
 | [`app/js/contexts/GameSyncContext.tsx`](app/js/contexts/GameSyncContext.tsx) | Lobby/message polling only (battle sync is **`BattleNet`**) |
 | [`backend/BattleStorage.php`](backend/BattleStorage.php) | Lobby-scoped paths, **`getOrdersRangeSplit`**, **`getAppliedOrdersRangeForWire`** (applied slice = **`GET …/orders`** `appliedOrders`), **`mergeFinalizedPendingForBatch`**, **`prunePendingOrdersAfterSnapshot`** |

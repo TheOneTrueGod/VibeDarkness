@@ -5,10 +5,12 @@
 
 import type { Unit } from './Unit';
 import type { EventBus } from '../EventBus';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
 
 const NEAREST_PASSABLE_DIR_COUNT = 16;
 
-export const GENERIC_SLINGSHOT_MAGNITUDE = 320;
+/** Knockback travels ≈ 1.5× magnitude (air + slide). CELL_SIZE → ~1.5 tiles; ~CELL_SIZE*4/3 → ~2 tiles. */
+export const GENERIC_SLINGSHOT_MAGNITUDE = CELL_SIZE;
 export const GENERIC_SLINGSHOT_AIR_TIME = 0.4;
 export const GENERIC_SLINGSHOT_SLIDE_TIME = 0.2;
 
