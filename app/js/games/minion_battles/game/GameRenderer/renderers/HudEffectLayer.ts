@@ -13,10 +13,11 @@ import {
 } from '../../effect_defs/hudEffects';
 
 // Banner icon layout constants (shared between create and flight-spawn logic).
-const ICON_W = 60;
-const ICON_H = 52;
+const ICON_CIRCLE_R = 28;           // radius of the main icon circle
+const ICON_W = ICON_CIRCLE_R * 2;   // = 56, used for spacing calculations
+const BADGE_R = 12;                 // radius of the count badge circle
 const ICON_GAP = 12;
-const ICON_BASE_Y = 6; // y offset from banner container origin to icon row top
+const ICON_BASE_Y = 6; // y offset from banner container origin to icon circle centre-y
 const BANNER_Y_FRAC = 0.40; // canvas-fraction for banner vertical center
 
 // Main (darker) and soft (lighter) hex color pairs per charge type.
@@ -252,9 +253,8 @@ export class HudEffectLayer {
                 ? cardTargets
                 : [{ x: vw / 2, y: vh + 10 }];
 
-            const iconLeft = bannerCenterX - totalW / 2 + i * (ICON_W + ICON_GAP);
-            const sourceX = iconLeft + ICON_W / 2;
-            const sourceY = bannerCenterY + ICON_BASE_Y + ICON_H / 2;
+            const sourceX = bannerCenterX - totalW / 2 + i * (ICON_W + ICON_GAP) + ICON_CIRCLE_R;
+            const sourceY = bannerCenterY + ICON_BASE_Y + ICON_CIRCLE_R;
 
             for (const dest of targets) {
                 out.push(new ResourceFlightEffect({
@@ -304,7 +304,7 @@ export class HudEffectLayer {
             text: `Round ${data.roundNumber}`,
             style: new TextStyle({
                 fontFamily: 'Arial, Helvetica, sans-serif',
-                fontSize: 42,
+                fontSize: 36,
                 fontWeight: '800',
                 fill: 0xffffff,
                 stroke: { color: 0xf59e0b, width: 4 },
@@ -312,47 +312,55 @@ export class HudEffectLayer {
             }),
         });
         roundText.anchor.set(0.5, 0.5);
-        roundText.y = -30;
+        roundText.y = -28;
         container.addChild(roundText);
 
         if (data.resources.length > 0) {
             const totalW = iconsTotalWidth(data.resources.length);
 
             data.resources.forEach((res, i) => {
-                const iconLeft = -totalW / 2 + i * (ICON_W + ICON_GAP);
+                const cx = -totalW / 2 + i * (ICON_W + ICON_GAP) + ICON_CIRCLE_R;
+                const cy = ICON_BASE_Y + ICON_CIRCLE_R;
                 const col = res.color;
                 const soft = iconSoftColor(res.chargeType);
 
-                // Rounded background + border: soft fill so main-colour text is readable.
+                // Large icon circle: soft fill with main-colour border.
                 const g = new Graphics();
-                g.roundRect(iconLeft, ICON_BASE_Y, ICON_W, ICON_H, 10);
+                g.circle(cx, cy, ICON_CIRCLE_R);
                 g.fill({ color: soft, alpha: 0.92 });
-                g.roundRect(iconLeft, ICON_BASE_Y, ICON_W, ICON_H, 10);
+                g.circle(cx, cy, ICON_CIRCLE_R);
                 g.stroke({ color: col, width: 2, alpha: 1 });
                 container.addChild(g);
 
-                // Large amount number — use main colour for contrast over soft background.
+                // Resource icon drawn large to fill the circle.
+                const iconG = new Graphics();
+                iconG.x = cx;
+                iconG.y = cy;
+                this.drawParticleIcon(iconG, res.chargeType, col, ICON_CIRCLE_R);
+                container.addChild(iconG);
+
+                // Count badge: small black circle at the bottom of the icon, white number.
+                const badgeCy = cy + ICON_CIRCLE_R - BADGE_R * 0.5;
+                const badgeG = new Graphics();
+                badgeG.circle(cx, badgeCy, BADGE_R);
+                badgeG.fill({ color: 0xffffff, alpha: 1 });
+                badgeG.circle(cx, badgeCy, BADGE_R);
+                badgeG.stroke({ color: 0x000000, width: 1.5, alpha: 1 });
+                container.addChild(badgeG);
+
                 const numText = new Text({
                     text: String(res.amount),
                     style: new TextStyle({
                         fontFamily: 'Arial, Helvetica, sans-serif',
-                        fontSize: 28,
+                        fontSize: 14,
                         fontWeight: '800',
-                        fill: col,
-                        dropShadow: { alpha: 0.25, angle: Math.PI / 2, blur: 2, color: 0x000000, distance: 1 },
+                        fill: 0x000000,
                     }),
                 });
                 numText.anchor.set(0.5, 0.5);
-                numText.x = iconLeft + ICON_W / 2;
-                numText.y = ICON_BASE_Y + ICON_H / 2 - 7;
+                numText.x = cx;
+                numText.y = badgeCy;
                 container.addChild(numText);
-
-                // Resource icon drawn at the bottom of the box.
-                const iconG = new Graphics();
-                iconG.x = iconLeft + ICON_W / 2;
-                iconG.y = ICON_BASE_Y + ICON_H - 10;
-                this.drawParticleIcon(iconG, res.chargeType, col, 9);
-                container.addChild(iconG);
             });
         }
 

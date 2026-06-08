@@ -62,6 +62,7 @@ export const DodgeAbility: AbilityStatic = {
     getTooltipText(_gameState?: unknown): string[] {
         return [
             'Avoid attacks while dodging towards a point',
+						'Recovers {1} stamina charge',
         ];
     },
 

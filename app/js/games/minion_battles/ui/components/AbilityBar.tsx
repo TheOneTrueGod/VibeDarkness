@@ -327,8 +327,8 @@ export default function AbilityBar({
                                 const isDisabled =
                                     !isMyTurn
                                     || !canAfford
-                                    || (conditionalCancelContext != null && !matchesTagFilter)
-                                    || (conditionalCancelContext == null && !canUse);
+                                    || !canUse
+                                    || (conditionalCancelContext != null && !matchesTagFilter);
                                 const isHovered = hoveredCardId === card.abilityId;
                                 const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
                                 const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
