@@ -124,11 +124,6 @@ export class GameEngine implements EngineContext {
     private deferredOrderPause: {
         waiters: OrderWaiter[];
         naturalCompletionUnitIds: readonly string[];
-        conditionalCancelContext?: {
-            unitId: string;
-            activeAbilityId: string;
-            abilityTagFilter?: readonly string[];
-        };
     } | null = null;
 
     /** Units whose casts ended by duration this tick (cleared each normal tick before `processActiveAbilities`). */
@@ -978,14 +973,18 @@ export class GameEngine implements EngineContext {
         if (this.deferredOrderPause == null || this.deferredOrderPause.waiters.length === 0) {
             return false;
         }
-        const { waiters: initialWaiters, naturalCompletionUnitIds, conditionalCancelContext } = this.deferredOrderPause;
+        const { waiters: initialWaiters, naturalCompletionUnitIds } = this.deferredOrderPause;
         this.deferredOrderPause = null;
         const atTick = this.gameTick + 1;
 
         const naturalSet = new Set(naturalCompletionUnitIds);
         // Conditional cancel is not a natural completion — suppress coop cancel to avoid
         // unrelated team-ability interruptions during a single-unit decision.
-        const hadNaturalWaiter = conditionalCancelContext == null && initialWaiters.some((w) => naturalSet.has(w.unitId));
+        // Detect conditional cancel by checking if any waiter unit has a paused ability.
+        const isConditionalCancelPause = initialWaiters.some(
+            (w) => this.getUnit(w.unitId)?.activeAbilities.some((a) => a.conditionalCancelPaused) ?? false,
+        );
+        const hadNaturalWaiter = !isConditionalCancelPause && initialWaiters.some((w) => naturalSet.has(w.unitId));
 
         let teamworkCancelledOwnerIds: string[] | undefined;
         let waiters = [...initialWaiters];
@@ -1050,7 +1049,6 @@ export class GameEngine implements EngineContext {
             waiters,
             atTick,
             ...(teamworkCancelledOwnerIds !== undefined ? { teamworkCancelledOwnerIds } : {}),
-            ...(conditionalCancelContext !== undefined ? { conditionalCancelContext } : {}),
         };
         this.isPaused = true;
         this.snapshotIndex++;
@@ -1282,27 +1280,16 @@ export class GameEngine implements EngineContext {
         unit.cancelActiveAbility(abilityId, this);
     }
 
-    requestConditionalCancelPause(
-        unit: Unit,
-        abilityId: string,
-        abilityTagFilter: readonly string[] | undefined,
-    ): void {
+    requestConditionalCancelPause(unit: Unit): void {
         const waiter: OrderWaiter = { unitId: unit.id, ownerId: unit.ownerId };
-        const ctx = {
-            unitId: unit.id,
-            activeAbilityId: abilityId,
-            abilityTagFilter: abilityTagFilter ? [...abilityTagFilter] : undefined,
-        };
         if (this.deferredOrderPause) {
             if (!this.deferredOrderPause.waiters.some((w) => w.unitId === unit.id)) {
                 this.deferredOrderPause.waiters.push(waiter);
             }
-            this.deferredOrderPause.conditionalCancelContext = ctx;
         } else {
             this.deferredOrderPause = {
                 waiters: [waiter],
                 naturalCompletionUnitIds: [],
-                conditionalCancelContext: ctx,
             };
         }
     }
@@ -1453,9 +1440,6 @@ export class GameEngine implements EngineContext {
                 ? {
                       waiters: this.waitingForOrders.waiters,
                       atTick: this.waitingForOrders.atTick,
-                      ...(this.waitingForOrders.conditionalCancelContext !== undefined
-                          ? { conditionalCancelContext: this.waitingForOrders.conditionalCancelContext }
-                          : {}),
                   }
                 : null,
             orders: this.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
@@ -1543,9 +1527,6 @@ export class GameEngine implements EngineContext {
                 engine.waitingForOrders = {
                     waiters: merged,
                     atTick,
-                    ...(pauseBatch.conditionalCancelContext !== undefined
-                        ? { conditionalCancelContext: pauseBatch.conditionalCancelContext }
-                        : {}),
                     ...(pauseBatch.teamworkCancelledOwnerIds !== undefined
                         ? { teamworkCancelledOwnerIds: pauseBatch.teamworkCancelledOwnerIds }
                         : {}),
@@ -1565,6 +1546,27 @@ export class GameEngine implements EngineContext {
                 if (!waiterIds.has(uid)) continue;
                 if (entry.gameTick === engine.gameTick && entry.gameTick < atTick) {
                     entry.gameTick = atTick;
+                }
+            }
+        }
+
+        // Backward-compat: old snapshots stored conditionalCancelContext on waitingForOrders.
+        // Migrate: set conditionalCancelPaused + conditionalCancelTagFilter on the matching ability.
+        {
+            const rawWFO = (data.waitingForOrders ?? null) as Record<string, unknown> | null;
+            const rawCC = rawWFO?.conditionalCancelContext;
+            if (rawCC && typeof rawCC === 'object') {
+                const cc = rawCC as Record<string, unknown>;
+                if (typeof cc.unitId === 'string' && typeof cc.activeAbilityId === 'string') {
+                    const unit = engine.getUnit(cc.unitId);
+                    const active = unit?.activeAbilities.find((a) => a.abilityId === cc.activeAbilityId);
+                    if (active && !active.conditionalCancelPaused) {
+                        active.conditionalCancelPaused = true;
+                        const tagFilter = Array.isArray(cc.abilityTagFilter)
+                            ? (cc.abilityTagFilter as unknown[]).filter((t): t is string => typeof t === 'string')
+                            : undefined;
+                        active.conditionalCancelTagFilter = tagFilter;
+                    }
                 }
             }
         }

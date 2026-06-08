@@ -90,12 +90,12 @@ export class OrderManager {
             }
             atTick = batch.atTick;
         }
-        const ccCtx = this.waitingForOrders?.conditionalCancelContext;
-        const isConditionalCancelDecision =
-            ccCtx != null && ccCtx.unitId === order.unitId;
+        const orderingUnit = this.ctx.getUnit(order.unitId);
+        const pausedAbility = orderingUnit?.activeAbilities.find((a) => a.conditionalCancelPaused);
+        const isConditionalCancelDecision = pausedAbility != null;
 
         if (isConditionalCancelDecision) {
-            if (!this.applyConditionalCancelDecision(order, ccCtx)) {
+            if (!this.applyConditionalCancelDecision(order, orderingUnit!, pausedAbility!)) {
                 return;
             }
         }
@@ -113,32 +113,31 @@ export class OrderManager {
      */
     private applyConditionalCancelDecision(
         order: BattleOrder,
-        ccCtx: NonNullable<WaitingForOrders['conditionalCancelContext']>,
+        unit: Unit,
+        pausedAbility: NonNullable<Unit['activeAbilities'][number]>,
     ): boolean {
-        const unit = this.ctx.getUnit(order.unitId);
-        if (!unit || !unit.isAlive()) return false;
+        if (!unit.isAlive()) return false;
 
         if (order.abilityId === 'wait') {
-            const active = unit.activeAbilities.find((a) => a.abilityId === ccCtx.activeAbilityId);
-            if (active) {
-                active.conditionalCancelPaused = false;
-            }
+            pausedAbility.conditionalCancelPaused = false;
+            pausedAbility.conditionalCancelTagFilter = undefined;
             return true;
         }
 
-        const tagFilter = ccCtx.abilityTagFilter;
+        const tagFilter = pausedAbility.conditionalCancelTagFilter;
         if (tagFilter && tagFilter.length > 0) {
             for (const tag of tagFilter) {
                 if (!unitAbilityHasTag(unit, order.abilityId, tag)) return false;
             }
         }
 
-        const cancelledAbility = getAbility(ccCtx.activeAbilityId);
+        const cancelledAbilityId = pausedAbility.abilityId;
+        const cancelledAbility = getAbility(cancelledAbilityId);
         if (cancelledAbility) {
             refundAbilityCost(unit, cancelledAbility);
-            refundAbilityUse(unit, ccCtx.activeAbilityId);
+            refundAbilityUse(unit, cancelledAbilityId);
         }
-        this.ctx.cancelActiveAbility(unit.id, ccCtx.activeAbilityId);
+        this.ctx.cancelActiveAbility(unit.id, cancelledAbilityId);
         unit.clearAbilityNote();
         return true;
     }

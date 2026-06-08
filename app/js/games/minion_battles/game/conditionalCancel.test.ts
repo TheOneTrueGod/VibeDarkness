@@ -20,41 +20,27 @@ type EnginePrivatePauseTest = {
     deferredOrderPause: {
         waiters: import('./types').OrderWaiter[];
         naturalCompletionUnitIds: readonly string[];
-        conditionalCancelContext?: {
-            unitId: string;
-            activeAbilityId: string;
-            abilityTagFilter?: readonly string[];
-        };
     } | null;
     commitDeferredOrderPauseAfterCompletedTick(): boolean;
     waitingForOrders: import('./types').WaitingForOrders | null;
 };
 
 describe('conditional cancel', () => {
-    it('toJSON serializes conditionalCancelContext on waitingForOrders', () => {
+    it('toJSON serializes conditionalCancelPaused on the active ability, not on waitingForOrders', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
         engine.waitingForOrders = {
             waiters: [{ unitId: 'unit_1', ownerId: 'p1' }],
             atTick: 12,
-            conditionalCancelContext: {
-                unitId: 'unit_1',
-                activeAbilityId: '0534',
-                abilityTagFilter: ['Entombed'],
-            },
         };
 
         const json = engine.toJSON();
         expect(json.waitingForOrders).toEqual({
             waiters: [{ unitId: 'unit_1', ownerId: 'p1' }],
             atTick: 12,
-            conditionalCancelContext: {
-                unitId: 'unit_1',
-                activeAbilityId: '0534',
-                abilityTagFilter: ['Entombed'],
-            },
         });
+        expect((json.waitingForOrders as unknown as Record<string, unknown>)?.conditionalCancelContext).toBeUndefined();
 
         engine.destroy();
     });
@@ -115,20 +101,20 @@ describe('conditional cancel', () => {
             },
         ];
 
+        // Mark the active ability as conditional-cancel-paused so the engine detects it
+        unitP1.activeAbilities[0]!.conditionalCancelPaused = true;
+
         const eng = engine as unknown as EnginePrivatePauseTest;
         eng.deferredOrderPause = {
             waiters: [{ unitId: 'unit_p1', ownerId: 'p1' }],
             naturalCompletionUnitIds: ['unit_p1'],
-            conditionalCancelContext: {
-                unitId: 'unit_p1',
-                activeAbilityId: '0534',
-            },
         };
 
         expect(eng.commitDeferredOrderPauseAfterCompletedTick()).toBe(true);
         expect(unitP1.activeAbilities.length).toBe(1);
         expect(unitP2.activeAbilities.length).toBe(1);
-        expect(engine.waitingForOrders?.conditionalCancelContext?.unitId).toBe('unit_p1');
+        // Conditional cancel suppresses coop cancel — only unit_p1 should be a waiter
+        expect(engine.waitingForOrders?.waiters.some((w) => w.unitId === 'unit_p1')).toBe(true);
         expect(engine.waitingForOrders?.teamworkCancelledOwnerIds).toBeUndefined();
 
         engine.destroy();
@@ -158,7 +144,7 @@ describe('conditional cancel', () => {
 
         let pausedWithContext = false;
         for (let i = 0; i < 120; i++) {
-            if (engine.waitingForOrders?.conditionalCancelContext) {
+            if (player.activeAbilities.some((a) => a.conditionalCancelPaused)) {
                 pausedWithContext = true;
                 engine.state.orderMgr.applyOrder({ unitId: player.id, abilityId: 'wait', targets: [] });
                 break;
@@ -207,6 +193,7 @@ describe('conditional cancel', () => {
                 startTime: 0,
                 targets: [{ type: 'pixel', position: { x: 140, y: 100 } }],
                 conditionalCancelPaused: true,
+                conditionalCancelTagFilter: ['Entombed'],
             },
         ];
 
@@ -214,11 +201,6 @@ describe('conditional cancel', () => {
         engine.waitingForOrders = {
             waiters: [{ unitId: 'unit_p1', ownerId: 'p1' }],
             atTick: 6,
-            conditionalCancelContext: {
-                unitId: 'unit_p1',
-                activeAbilityId: '0534',
-                abilityTagFilter: ['Entombed'],
-            },
         };
         engine.isPaused = true;
 
@@ -270,7 +252,7 @@ describe('conditional cancel', () => {
         let pauseY: number | null = null;
         let retargetPos: { x: number; y: number } | null = null;
         for (let i = 0; i < 120; i++) {
-            if (engine.waitingForOrders?.conditionalCancelContext) {
+            if (player.activeAbilities.some((a) => a.conditionalCancelPaused)) {
                 pauseY = player.y;
                 expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(false);
                 retargetPos = { x: player.x, y: player.y - 100 };

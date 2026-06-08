@@ -233,7 +233,8 @@ export function tickUnitActiveAbilities(
                     abilityId: active.abilityId,
                 })) {
                     active.conditionalCancelPaused = true;
-                    engine.requestConditionalCancelPause(unit, active.abilityId, cc.abilityTagFilter);
+                    active.conditionalCancelTagFilter = cc.abilityTagFilter ? [...cc.abilityTagFilter] : undefined;
+                    engine.requestConditionalCancelPause(unit);
                     break;
                 }
             }

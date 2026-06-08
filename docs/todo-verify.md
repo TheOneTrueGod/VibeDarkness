@@ -21,6 +21,8 @@
 
 | Todo | Notes | Date |
 |------|-------|------|
+| Remove earth core item (`017`) | Deleted `017_core_earth.ts`, its SVG asset, and all registry entries (import, icon map, `ALL_PLAYER_ITEMS`, `ITEMS`) from `items/index.ts`. Earth research node already used `addCard`. | 2026-06-07 |
+| Remove beast/air/charged/blink core items (`014`, `018`, `019`, `020`) | Migrated misc tree nodes: Beast Core → `addCard 0111`; Air/Charged/Blink → `effects: []` (placeholders with no distinctive ability). Deleted four item TS files and SVG assets; removed all registry entries from `items/index.ts`. | 2026-06-07 |
 | Migrate LaserSword (0105) to castBehaviours | Replaced `doCardEffect`, `beginActiveCast`, `renderTargetingPreview`, and `meleeTrackingHelpers` usage with `CastBehaviours.MeleeAttack().withHitbox().withSlide().withImpactVFX().withDamage()`. Added `targetDef` on the slash timing interval; set `targets: []` and removed `meleeTracking` tag. | 2026-05-31 |
 | Migrate SwingBat / 0115 to castBehaviours | Already done — `doCardEffect` removed, `targets: []`, full `CastBehaviours.MeleeAttack()` chain with `targetDef` on the hit interval; todo was stale. | 2026-06-02 |
 | Migrate RaiseShield (0104) to castBehaviours | Added `setAbilityNote` to `AbilityEffect` and `AbilityEventRuntime`; replaced `doCardEffect` with an `ON_CAST_START` `abilityEvents` rule that initialises `{ blockCount: 0 }`. | 2026-06-02 |

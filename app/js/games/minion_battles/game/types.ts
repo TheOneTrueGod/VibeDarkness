@@ -42,15 +42,6 @@ export interface WaitingForOrders {
      * Omitted from checkpoints; used only for live UI (e.g. Teamwork burst).
      */
     teamworkCancelledOwnerIds?: string[];
-    /**
-     * Present when this pause is a mid-ability conditional cancel decision point.
-     * Serialized to checkpoints so the UI restores the filtered ability picker after load.
-     */
-    conditionalCancelContext?: {
-        unitId: string;
-        activeAbilityId: string;
-        abilityTagFilter?: readonly string[];
-    };
 }
 
 /** Normalize checkpoint `waitingForOrders` (current shape or legacy `{ unitId, ownerId }`). */
@@ -75,20 +66,6 @@ export function normalizeWaitingForOrdersFromJSON(raw: unknown, gameTick: number
             a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
         );
         const result: WaitingForOrders = { waiters, atTick };
-        const rawCC = o.conditionalCancelContext;
-        if (rawCC && typeof rawCC === 'object') {
-            const cc = rawCC as Record<string, unknown>;
-            if (typeof cc.unitId === 'string' && typeof cc.activeAbilityId === 'string') {
-                const tagFilter = Array.isArray(cc.abilityTagFilter)
-                    ? (cc.abilityTagFilter as unknown[]).filter((t): t is string => typeof t === 'string')
-                    : undefined;
-                result.conditionalCancelContext = {
-                    unitId: cc.unitId,
-                    activeAbilityId: cc.activeAbilityId,
-                    abilityTagFilter: tagFilter,
-                };
-            }
-        }
         return result;
     }
     if (typeof o.unitId === 'string' && typeof o.ownerId === 'string') {
@@ -242,7 +219,12 @@ export interface ActiveAbility {
      * Set by the conditionalCancel system when a condition fires on interval exit.
      * Prevents doCardEffect from running until the player resolves the decision.
      * Cleared when "wait" is chosen; ability is cancelled if an ability is chosen instead.
-     * NOT serialized — the pause is represented by waitingForOrders.conditionalCancelContext.
+     * Serialized.
      */
     conditionalCancelPaused?: boolean;
+    /**
+     * Tag filter stored when conditionalCancelPaused is set — defines which abilities the player
+     * may choose as a replacement. Undefined means any ability is valid. Serialized.
+     */
+    conditionalCancelTagFilter?: readonly string[];
 }

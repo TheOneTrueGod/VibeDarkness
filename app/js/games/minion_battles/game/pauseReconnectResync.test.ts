@@ -196,12 +196,13 @@ describe('Reconnect / resync during order pause', () => {
         restored.destroy();
     });
 
-    it('fromJSON preserves conditionalCancelContext when merging extra parallel waiters', () => {
+    it('fromJSON migrates legacy conditionalCancelContext onto the unit active ability', () => {
         const engine = createTwoPlayerEngine();
         advanceUntilOrderPause(engine);
         const snap = engine.toJSON() as SerializedGameState;
         const atTick = snap.waitingForOrders!.atTick;
-        snap.waitingForOrders = {
+        // Inject the legacy format: conditionalCancelContext on waitingForOrders, no fields on ability
+        (snap as unknown as Record<string, unknown>).waitingForOrders = {
             waiters: [{ unitId: 'unit_p1', ownerId: 'p1' }],
             atTick,
             conditionalCancelContext: {
@@ -210,14 +211,25 @@ describe('Reconnect / resync during order pause', () => {
                 abilityTagFilter: ['Entombed'],
             },
         };
+        // Inject a matching active ability that has no conditionalCancelPaused yet
+        const p1UnitData = (snap.units as Record<string, unknown>[]).find(
+            (u) => (u as Record<string, unknown>).id === 'unit_p1',
+        ) as Record<string, unknown> | undefined;
+        if (p1UnitData) {
+            (p1UnitData.activeAbilities as unknown[]) = [
+                { abilityId: '0534', startTime: 0, targets: [] },
+            ];
+        }
         engine.destroy();
 
         const restored = GameEngine.fromJSON(snap, 'p1', null);
-        expect(restored.waitingForOrders?.conditionalCancelContext).toEqual({
-            unitId: 'unit_p1',
-            activeAbilityId: '0534',
-            abilityTagFilter: ['Entombed'],
-        });
+        // waitingForOrders should NOT have conditionalCancelContext
+        expect((restored.waitingForOrders as Record<string, unknown> | null)?.conditionalCancelContext).toBeUndefined();
+        // The unit's active ability should have been migrated
+        const unit = restored.getUnit('unit_p1');
+        const active = unit?.activeAbilities.find((a) => a.abilityId === '0534');
+        expect(active?.conditionalCancelPaused).toBe(true);
+        expect(active?.conditionalCancelTagFilter).toEqual(['Entombed']);
         restored.destroy();
     });
 });

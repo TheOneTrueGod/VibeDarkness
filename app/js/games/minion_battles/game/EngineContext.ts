@@ -18,7 +18,6 @@ import type { EffectEmitter } from './effects/EffectEmitter';
 import type { TerrainLayerManager } from './TerrainLayerManager';
 import type { MapSegmentPOI } from '../terrain/segmentSchema';
 import type { SpawnSource, WaitingForOrders } from './types';
-import type { AbilityTag } from '../abilities/Ability';
 
 export interface EngineContext {
     gameTime: number;
@@ -87,12 +86,9 @@ export interface EngineContext {
      * Called from unitAbilityTick when a conditionalCancel condition fires on interval exit.
      * Schedules a deferred order pause scoped to the triggering unit so the player can
      * choose an eligible ability or wait (which resumes the current cast).
+     * The eligible ability filter is stored on the unit's active ability (conditionalCancelTagFilter).
      */
-    requestConditionalCancelPause(
-        unit: Unit,
-        abilityId: string,
-        abilityTagFilter: readonly AbilityTag[] | undefined,
-    ): void;
+    requestConditionalCancelPause(unit: Unit): void;
 
     /**
      * Returns the light level (0–1+) at a world position, or null if light is disabled.

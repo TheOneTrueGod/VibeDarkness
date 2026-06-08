@@ -499,9 +499,6 @@ export class BattleSession implements BattleSessionHandle {
                 ? {
                       waiters: w.waiters.map((x) => ({ unitId: x.unitId, ownerId: x.ownerId })),
                       atTick: w.atTick,
-                      ...(w.conditionalCancelContext !== undefined
-                          ? { conditionalCancelContext: w.conditionalCancelContext }
-                          : {}),
                   }
                 : null,
             synchash: eng.getRuntimeFingerprintHex(),

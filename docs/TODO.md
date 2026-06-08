@@ -14,8 +14,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Remove earth core item (`017`) | Delete `017_core_earth.ts` and its registry entries in `items/index.ts` (icon map, core ID list, item lookup). The `earth_core` research node and the Claw ability (`0111`) are unaffected — the node now uses `addCard` directly and no longer references the item. |
-| Remove beast/air/charged/blink core items (`014`, `018`, `019`, `020`) | The four misc-tree research nodes still use `equipItem` to grant these cores. First migrate each node's `effects` from `equipItem` to `addCard` for the abilities each core distinctively provides (mirroring what was done for the earth core), then delete the four item files and their registry entries in `items/index.ts`. Do not remove the research nodes or any abilities. |
 
 ## Medium
 
@@ -38,7 +36,6 @@
 | Migrate Knock (0531) to castBehaviours | `doCardEffect` fires a stone projectile at a threshold. Straightforward projectile CastBehaviour on the active timing interval; stone-terrain side effects handled via `onProjectileExpired`. |
 | Migrate AnchoredTremor (0532) to castBehaviours | `doCardEffect` applies repeating pulse damage on each game tick during the active window. Needs a multi-pulse CastBehaviour (or per-interval repeating hits via `enteredTimingIds` logic); more complex than single-threshold abilities. |
 | Migrate StoneyPunch (0533) to castBehaviours | `doCardEffect` applies a melee hit that consumes all armour for bonus damage per armour point. Use `MeleeAttackBehaviour` with an armour-consumption side effect; armour drain can go in `ON_ATTACK_HIT` abilityEvents. |
-| Migrate BoarClaws (0534) to castBehaviours | `doCardEffect` applies a claw hit at a threshold. Convert to `MeleeAttackBehaviour` on the active timing interval; follow the existing BoarCharge/Claw pattern. |
 | Migrate BeastClaw (0611) to castBehaviours | `doCardEffect` handles dash movement plus a hit on impact, similar to Claw (0111). Needs a movement CastBehaviour paired with a hit CastBehaviour; coordinate with the Claw migration. |
 | Migrate ThrowTorch (0601) to castBehaviours | `doCardEffect` fires a torch projectile and grants a copy of the torch card to a random ally — a unique side effect. Needs a projectile CastBehaviour plus an `ON_CAST_TICK` or `ON_ATTACK_HIT` abilityEvents rule for the card-grant. |
 | Migrate EnemyArcherShot (0001) to castBehaviours | `doCardEffect` sets an ability note at LOCK_TIME (position snapshot) then fires a projectile at prefire — two-phase. Map to castBehaviours on the windup and active intervals; ability-note init can move to `ON_CAST_START`. |

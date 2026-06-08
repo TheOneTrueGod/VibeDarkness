@@ -267,7 +267,7 @@ export class Unit extends GameObject {
     /** Active knockback state; unit cannot move while set. */
     knockback: KnockbackState | null = null;
 
-    /** Seconds this unit has spent inside an impassable tile (not serialized; resets on load). */
+    /** Seconds this unit has spent inside an impassable tile. Serialized. */
     wallStuckTime: number = 0;
 
     /** Last world position where the unit was in passable terrain. Used for generic slingshot direction. */
@@ -1199,6 +1199,10 @@ export class Unit extends GameObject {
                     a.castPayload !== undefined
                         ? JSON.parse(JSON.stringify(a.castPayload)) as unknown
                         : undefined,
+                ...(a.conditionalCancelPaused ? { conditionalCancelPaused: true } : {}),
+                ...(a.conditionalCancelTagFilter !== undefined
+                    ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
+                    : {}),
             })),
             abilityNote: this.abilityNote,
             radius: this.radius,
@@ -1231,6 +1235,7 @@ export class Unit extends GameObject {
             hardCcArmourEventSerial: this.hardCcArmourEventSerial,
             lastHardCcEventGameTime: this.lastHardCcEventGameTime,
             lastHardCcEventKind: this.lastHardCcEventKind,
+            wallStuckTime: this.wallStuckTime,
             knockback: this.knockback ? {
                 knockbackVector: { ...this.knockback.knockbackVector },
                 knockbackAirTime: this.knockback.knockbackAirTime,
@@ -1416,6 +1421,7 @@ export class Unit extends GameObject {
                 knockbackElapsed: kb.knockbackElapsed,
             };
         }
+        unit.wallStuckTime = typeof data.wallStuckTime === 'number' ? data.wallStuckTime : 0;
         unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
         unit.abilityNote = (data.abilityNote as AbilityNote | null) ?? null;
 

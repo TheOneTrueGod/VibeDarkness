@@ -39,8 +39,7 @@ export const miscTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [],
             cost: {},
-            effects: [{ type: 'equipItem', itemId: '014' }],
-            overrideCurrentEquipment: true,
+            effects: [{ type: 'addCard', cardId: '0111' }],
             modifiesAbility: { from: '0111', to: '0111' },
         },
         {
@@ -54,8 +53,7 @@ export const miscTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [],
             cost: {},
-            effects: [{ type: 'equipItem', itemId: '018' }],
-            overrideCurrentEquipment: true,
+            effects: [],
         },
         {
             id: MISC_NODE_CHARGED_CORE,
@@ -68,8 +66,7 @@ export const miscTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [],
             cost: {},
-            effects: [{ type: 'equipItem', itemId: '019' }],
-            overrideCurrentEquipment: true,
+            effects: [],
         },
         {
             id: MISC_NODE_BLINK_CORE,
@@ -82,8 +79,7 @@ export const miscTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [],
             cost: {},
-            effects: [{ type: 'equipItem', itemId: '020' }],
-            overrideCurrentEquipment: true,
+            effects: [],
         },
     ],
 };

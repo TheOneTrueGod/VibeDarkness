@@ -9,14 +9,17 @@ function maybeAutoResolveConditionalCancel(
     onConditionalCancelPause?: (engine: GameEngine) => void,
 ): void {
     const batch = engine.waitingForOrders;
-    const cc = batch?.conditionalCancelContext;
-    if (!batch || !cc) return;
-    if (engine.state.orderMgr.hasPendingOrderForUnit(cc.unitId, batch.atTick)) return;
+    if (!batch) return;
+    const pausedWaiter = batch.waiters.find((w) =>
+        engine.getUnit(w.unitId)?.activeAbilities.some((a) => a.conditionalCancelPaused),
+    );
+    if (!pausedWaiter) return;
+    if (engine.state.orderMgr.hasPendingOrderForUnit(pausedWaiter.unitId, batch.atTick)) return;
     if (onConditionalCancelPause) {
         onConditionalCancelPause(engine);
         return;
     }
-    engine.state.orderMgr.applyOrder({ unitId: cc.unitId, abilityId: 'wait', targets: [] });
+    engine.state.orderMgr.applyOrder({ unitId: pausedWaiter.unitId, abilityId: 'wait', targets: [] });
 }
 
 /** Extra frames to step after assertPass first returns true, so the animation plays out. */
