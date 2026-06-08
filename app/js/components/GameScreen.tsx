@@ -112,6 +112,8 @@ interface GameScreenProps {
     pingEnabled?: boolean;
     /** Player IDs whose cards should currently flash (e.g. WebRTC ping highlight). */
     flashingPlayerIds?: string[];
+    /** Map of playerId → whether their WebRTC peer connection is currently open. */
+    webRtcPeerConnected?: Record<string, boolean>;
 }
 
 export default function GameScreen({
@@ -139,6 +141,7 @@ export default function GameScreen({
     onPing,
     pingEnabled = true,
     flashingPlayerIds,
+    webRtcPeerConnected,
 }: GameScreenProps) {
     const { role } = useUser();
     const { showToast } = useToast();
@@ -153,9 +156,19 @@ export default function GameScreen({
     const effectiveLobbyGameId = gameSync?.gameState?.gameId ?? lobbyGameId;
     const effectiveLobbyGameType = gameSync?.gameState?.gameType ?? lobbyGameType;
     const effectiveLobbyGameData = gameSync?.gameState?.game ?? lobbyGameData;
-    const effectivePlayers = gameSync?.gameState?.players
+    const basePlayers: Record<string, PlayerState> = gameSync?.gameState?.players
         ? Object.fromEntries(Object.entries(gameSync.gameState.players).map(([k, p]) => [k, p as PlayerState]))
         : players;
+    const effectivePlayers = useMemo(() => {
+        if (!webRtcPeerConnected || Object.keys(webRtcPeerConnected).length === 0) return basePlayers;
+        return Object.fromEntries(
+            Object.entries(basePlayers).map(([id, p]) => {
+                const connected = webRtcPeerConnected[id];
+                if (id === player.id || connected === undefined) return [id, p];
+                return [id, { ...p, isConnected: connected }];
+            })
+        );
+    }, [basePlayers, webRtcPeerConnected, player.id]);
 
     const minionBattlesApi = useMemo((): MinionBattlesApi | undefined => {
         if (effectiveLobbyGameType !== 'minion_battles') return undefined;

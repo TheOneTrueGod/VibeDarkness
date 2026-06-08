@@ -33,7 +33,7 @@ import { campaignPathForTab } from './components/ability-tests/campaignTabPaths'
 const LOBBY_PATH_PREFIX = '/lobby/';
 
 // Feature flag: controls whether the WebRTC lobby mesh is set up and used.
-const ENABLE_WEBRTC_LOBBY = false;
+const ENABLE_WEBRTC_LOBBY = true;
 
 function getLobbyCodeFromPath(): string | null {
     const match = window.location.pathname.match(/^\/lobby\/([A-Za-z0-9]+)$/);
@@ -130,6 +130,7 @@ function AppInner() {
     // WebRTC mesh for peer-to-peer events (e.g. Ping)
     const webRtcMeshRef = useRef<WebRtcLobbyMesh | null>(null);
     const [webRtcReady, setWebRtcReady] = useState(false);
+    const [webRtcPeerConnected, setWebRtcPeerConnected] = useState<Record<string, boolean>>({});
 
     // Track which players should currently have flashing cards due to WebRTC pings
     const [flashingPlayerIds, setFlashingPlayerIds] = useState<string[]>([]);
@@ -368,6 +369,7 @@ function AppInner() {
             return;
         }
 
+        setWebRtcPeerConnected({});
         const mesh = new WebRtcLobbyMesh({
             localPlayerId: currentPlayer.id,
             sendSignal: (toPlayerId, signal) => {
@@ -382,6 +384,8 @@ function AppInner() {
                     triggerPlayerFlash(fromPlayerId);
                 }
             },
+            onPeerConnected: (id) => setWebRtcPeerConnected((prev) => ({ ...prev, [id]: true })),
+            onPeerDisconnected: (id) => setWebRtcPeerConnected((prev) => ({ ...prev, [id]: false })),
         });
         webRtcMeshRef.current = mesh;
         setWebRtcReady(true);
@@ -403,12 +407,13 @@ function AppInner() {
         };
     }, [currentLobby, currentPlayer, lobbyClient, triggerPlayerFlash]);
 
-    // Keep WebRTC peers in sync with current player list
+    // Keep WebRTC peers in sync with current player list; only connect once the game starts
     useEffect(() => {
         if (!ENABLE_WEBRTC_LOBBY || !webRtcMeshRef.current) return;
-        const ids = Object.keys(players);
-        webRtcMeshRef.current.updatePeers(ids);
-    }, [players]);
+        const phase = lobbyGameData?.gamePhase as string | undefined;
+        const gameStarted = phase === 'pre_mission_story' || phase === 'battle' || phase === 'post_mission_story';
+        webRtcMeshRef.current.updatePeers(gameStarted ? Object.keys(players) : []);
+    }, [players, lobbyGameData]);
 
     const startInLobby = useCallback(
         async (lobby: LobbyState, player: PlayerState) => {
@@ -787,6 +792,7 @@ function AppInner() {
                         }}
                         pingEnabled={webRtcReady}
                         flashingPlayerIds={flashingPlayerIds}
+                        webRtcPeerConnected={webRtcPeerConnected}
                     />
                     <DebugConsoleInGame
                         user={user}

@@ -9,6 +9,14 @@ export interface WebRtcLobbyMeshOptions {
      * Called when a data message is received from a peer over WebRTC.
      */
     onPeerEvent?: (fromPlayerId: string, event: Record<string, unknown>) => void;
+    /**
+     * Called when a peer's data channel opens (connection established).
+     */
+    onPeerConnected?: (playerId: string) => void;
+    /**
+     * Called when a peer's connection drops (before cleanup).
+     */
+    onPeerDisconnected?: (playerId: string) => void;
 }
 
 interface PeerEntry {
@@ -21,6 +29,8 @@ const ICE_SERVERS: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' },
 ];
 
+const RECONNECT_DELAY_MS = 3000;
+
 /**
  * WebRtcLobbyMesh maintains a lightweight mesh of data channels between players in a lobby.
  * It relies on the existing HTTP message system for signaling (offer/answer/candidates).
@@ -29,12 +39,18 @@ export class WebRtcLobbyMesh {
     private readonly localPlayerId: string;
     private readonly sendSignalFn: (toPlayerId: string, signal: Record<string, unknown>) => void;
     private readonly onPeerEvent?: (fromPlayerId: string, event: Record<string, unknown>) => void;
+    private readonly onPeerConnected?: (playerId: string) => void;
+    private readonly onPeerDisconnected?: (playerId: string) => void;
     private readonly peers: Map<string, PeerEntry> = new Map();
+    private lastKnownPeerIds: string[] = [];
+    private readonly reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
     constructor(options: WebRtcLobbyMeshOptions) {
         this.localPlayerId = options.localPlayerId;
         this.sendSignalFn = options.sendSignal;
         this.onPeerEvent = options.onPeerEvent;
+        this.onPeerConnected = options.onPeerConnected;
+        this.onPeerDisconnected = options.onPeerDisconnected;
     }
 
     /**
@@ -43,12 +59,21 @@ export class WebRtcLobbyMesh {
      * becomes the initiator (creates the offer).
      */
     updatePeers(allPlayerIds: string[]): void {
+        this.lastKnownPeerIds = allPlayerIds;
         const others = allPlayerIds.filter((id) => id !== this.localPlayerId);
 
         // Tear down connections to players that are no longer present
         for (const remoteId of Array.from(this.peers.keys())) {
             if (!others.includes(remoteId)) {
-                this.closeConnection(remoteId);
+                this.closeConnection(remoteId, true);
+            }
+        }
+
+        // Cancel any pending reconnect timers for players no longer in the list
+        for (const [id, timer] of this.reconnectTimers.entries()) {
+            if (!others.includes(id)) {
+                clearTimeout(timer);
+                this.reconnectTimers.delete(id);
             }
         }
 
@@ -142,15 +167,19 @@ export class WebRtcLobbyMesh {
      * Close all peer connections.
      */
     dispose(): void {
+        for (const timer of this.reconnectTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.reconnectTimers.clear();
+        this.lastKnownPeerIds = [];
         for (const remoteId of Array.from(this.peers.keys())) {
-            this.closeConnection(remoteId);
+            this.closeConnection(remoteId, true);
         }
         this.peers.clear();
     }
 
     private async createConnection(remoteId: string, isInitiator: boolean): Promise<void> {
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-        let dataChannel: RTCDataChannel | null = null;
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
@@ -160,12 +189,18 @@ export class WebRtcLobbyMesh {
 
         pc.onconnectionstatechange = () => {
             if (pc.connectionState === 'failed' || pc.connectionState === 'closed' || pc.connectionState === 'disconnected') {
-                this.closeConnection(remoteId);
+                this.closeConnection(remoteId, false);
             }
         };
 
         const setupChannel = (channel: RTCDataChannel) => {
-            dataChannel = channel;
+            const entry = this.peers.get(remoteId);
+            if (entry) entry.dataChannel = channel;
+
+            channel.onopen = () => {
+                this.onPeerConnected?.(remoteId);
+            };
+
             channel.onmessage = (event) => {
                 if (!this.onPeerEvent) return;
                 try {
@@ -179,14 +214,14 @@ export class WebRtcLobbyMesh {
 
         if (isInitiator) {
             const channel = pc.createDataChannel('lobby');
+            this.peers.set(remoteId, { pc, dataChannel: channel, pendingCandidates: [] });
             setupChannel(channel);
         } else {
+            this.peers.set(remoteId, { pc, dataChannel: null, pendingCandidates: [] });
             pc.ondatachannel = (ev) => {
                 setupChannel(ev.channel);
             };
         }
-
-        this.peers.set(remoteId, { pc, dataChannel, pendingCandidates: [] });
 
         if (isInitiator) {
             const offer = await pc.createOffer();
@@ -195,9 +230,12 @@ export class WebRtcLobbyMesh {
         }
     }
 
-    private closeConnection(remoteId: string): void {
+    private closeConnection(remoteId: string, intentional: boolean): void {
         const entry = this.peers.get(remoteId);
         if (!entry) return;
+
+        this.onPeerDisconnected?.(remoteId);
+
         try {
             entry.dataChannel?.close();
         } catch {
@@ -209,6 +247,18 @@ export class WebRtcLobbyMesh {
             // ignore
         }
         this.peers.delete(remoteId);
+
+        // Schedule an auto-reconnect if this was an unintentional drop and the peer
+        // is still in our last-known list (i.e. they're still in the lobby).
+        if (!intentional && this.lastKnownPeerIds.includes(remoteId)) {
+            const existing = this.reconnectTimers.get(remoteId);
+            if (existing) clearTimeout(existing);
+            const timer = setTimeout(() => {
+                this.reconnectTimers.delete(remoteId);
+                this.updatePeers(this.lastKnownPeerIds);
+            }, RECONNECT_DELAY_MS);
+            this.reconnectTimers.set(remoteId, timer);
+        }
     }
 }
 
@@ -218,4 +268,3 @@ export class WebRtcLobbyMesh {
  *   window.__vibeTestWebRtcPing?.();
  */
 export type WebRtcPingTestFn = () => void;
-

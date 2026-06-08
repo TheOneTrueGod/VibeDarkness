@@ -542,7 +542,11 @@ export const earthCoreDiggingClawsThrowRockEntombScenario: ScenarioDefinition = 
         const tm = engine.terrainManager;
         if (!player || !tm) return false;
         if (!diggingClawsThrowRockEntombScenarioState.cancelFired) return false;
-        return tm.isPassable(player.x, player.y);
+        if (!tm.isPassable(player.x, player.y)) return false;
+        if (player.isInKnockback()) return false;
+        if (!player.canAct()) return false;
+        if (engine.waitingForOrders == null) return false;
+        return engine.state.orderMgr.getActiveOrderWaiterForPlayer(player.ownerId) != null;
     },
     failureMessage(engine) {
         const player = engine.getLocalPlayerUnit();
@@ -553,6 +557,19 @@ export const earthCoreDiggingClawsThrowRockEntombScenario: ScenarioDefinition = 
         }
         if (!tm.isPassable(player.x, player.y)) {
             return `player stuck in wall at (${player.x.toFixed(0)}, ${player.y.toFixed(0)}) after throw rock cooldown`;
+        }
+        if (player.isInKnockback()) {
+            return `player still in slingshot knockback at (${player.x.toFixed(0)}, ${player.y.toFixed(0)})`;
+        }
+        if (!player.canAct()) {
+            const abilities = player.activeAbilities.map((a) => a.abilityId).join(', ') || 'none';
+            return `player cannot act (active abilities: ${abilities})`;
+        }
+        if (engine.waitingForOrders == null) {
+            return 'game did not pause for player orders after slingshot landing';
+        }
+        if (engine.state.orderMgr.getActiveOrderWaiterForPlayer(player.ownerId) == null) {
+            return 'no active order waiter for local player after slingshot landing';
         }
         return 'unknown failure';
     },

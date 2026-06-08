@@ -205,6 +205,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
+
     it('passes earth core impact conversion resonance scenario', () => {
         const r = runScenarioHeadless(earthCoreImpactConversionScenario);
         expect(r.passed, r.message).toBe(true);
