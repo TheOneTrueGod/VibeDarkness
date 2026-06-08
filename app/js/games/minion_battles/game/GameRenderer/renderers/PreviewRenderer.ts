@@ -12,14 +12,16 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import type { AssetRegistry } from '../AssetRegistry';
 import type { OverlayRenderer } from './OverlayRenderer';
 import type { AbilityStatic } from '../../../abilities/Ability';
-import type { ResolvedTarget } from '../../types';
+import type { ResolvedTarget, GhostPlanData } from '../../types';
 
 const MOVE_TARGET_COLOR = 0x333333;
 const MOVE_TARGET_PATH_BG_COLOR = 0xffffff;
 const GHOST_PREVIEW_LAYER_ALPHA = 0.5;
+const GHOST_PLAN_LAYER_ALPHA = 0.3;
 
 const Z_MOVE_TARGETS = 7;
 const Z_GHOST_PREVIEW = 8;
+const Z_GHOST_PLAN_PREVIEW = 9;
 const Z_ABILITY_PREVIEW = 100;
 const Z_TARGETING_PREVIEW = 101;
 
@@ -28,6 +30,7 @@ export class PreviewRenderer {
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
     private ghostPreviewGraphics: Graphics = new Graphics();
+    private ghostPlanPreviewGraphics: Graphics = new Graphics();
 
     constructor(
         private readonly gameContainer: Container,
@@ -40,6 +43,8 @@ export class PreviewRenderer {
         this.gameContainer.addChild(this.targetingPreviewGraphics);
         this.ghostPreviewGraphics.zIndex = Z_GHOST_PREVIEW;
         this.gameContainer.addChild(this.ghostPreviewGraphics);
+        this.ghostPlanPreviewGraphics.zIndex = Z_GHOST_PLAN_PREVIEW;
+        this.gameContainer.addChild(this.ghostPlanPreviewGraphics);
     }
 
     render(
@@ -51,11 +56,13 @@ export class PreviewRenderer {
             mouseWorld: { x: number; y: number };
             waitingForOrders: { unitId?: string } | null;
             previewOrderUnitId?: string | null;
+            ghostPlans?: Record<string, GhostPlanData>;
         } | null,
     ): void {
         this.renderMoveTargets(engine.units, localTeamId);
         this.renderGhostPreviews(engine, localTeamId);
         this.renderActiveAbilityPreviews(engine, localTeamId);
+        this.renderGhostPlanPreviews(engine, targetingState?.ghostPlans ?? {});
         this.renderTargetingPreview(engine, targetingState);
     }
 
@@ -370,10 +377,61 @@ export class PreviewRenderer {
         return { x: fallbackX, y: fallbackY };
     }
 
+    private renderGhostPlanPreviews(engine: GameEngine, ghostPlans: Record<string, GhostPlanData>): void {
+        this.ghostPlanPreviewGraphics.clear();
+        this.ghostPlanPreviewGraphics.alpha = GHOST_PLAN_LAYER_ALPHA;
+
+        const plans = Object.values(ghostPlans);
+        if (plans.length > 0) {
+            console.log('[ghost plan renderer] plans:', plans.map((p) => ({ unitId: p.unitId, abilityId: p.abilityId })));
+        }
+
+        const gr = this.ghostPlanPreviewGraphics as unknown as import('../../../abilities/Ability').IAbilityPreviewGraphics;
+
+        for (const plan of plans) {
+            const caster = engine.getUnit(plan.unitId);
+            if (!caster?.active || !caster.isAlive()) {
+                console.log('[ghost plan renderer] skipping unit', plan.unitId, 'caster:', caster, 'active:', caster?.active, 'alive:', caster?.isAlive?.());
+                continue;
+            }
+
+            const ability = getAbility(plan.abilityId);
+            if (!ability) continue;
+
+            const selectTargetDefs = getSelectTargetDefsFromTimings(ability);
+            if (selectTargetDefs.length > 0) {
+                for (let i = 0; i < selectTargetDefs.length; i++) {
+                    const selectDef = selectTargetDefs[i]!;
+                    const target = plan.currentTargets[i];
+                    if (!target) continue;
+                    const pos =
+                        target.type === 'unit' && target.unitId
+                            ? (() => { const u = engine.getUnit(target.unitId!); return u ? { x: u.x, y: u.y } : null; })()
+                            : target.type === 'pixel' && target.position
+                              ? target.position
+                              : null;
+                    if (!pos) continue;
+                    selectDef.hitbox.renderTargetingPreview(gr, caster, pos, engine.units);
+                }
+                if (ability.renderTargetingPreviewSelectedTargets) {
+                    ability.renderTargetingPreviewSelectedTargets(gr, caster, plan.currentTargets, plan.mouseWorld, engine.units, engine);
+                }
+                continue;
+            }
+
+            if (!ability.renderTargetingPreview) continue;
+            ability.renderTargetingPreview(gr, caster, plan.currentTargets, plan.mouseWorld, engine.units, engine);
+            if (ability.renderTargetingPreviewSelectedTargets) {
+                ability.renderTargetingPreviewSelectedTargets(gr, caster, plan.currentTargets, plan.mouseWorld, engine.units, engine);
+            }
+        }
+    }
+
     destroy(): void {
         this.abilityPreviewGraphics.destroy();
         this.targetingPreviewGraphics.destroy();
         this.ghostPreviewGraphics.destroy();
+        this.ghostPlanPreviewGraphics.destroy();
         for (const visual of this.moveTargetVisuals.values()) visual.destroy();
         this.moveTargetVisuals.clear();
     }

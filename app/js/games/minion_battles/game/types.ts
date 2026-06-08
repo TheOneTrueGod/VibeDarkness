@@ -179,6 +179,14 @@ export interface OrderAtTick {
     order: BattleOrder;
 }
 
+/** A peer player's in-progress ability selection, shared via WebRTC for ghost preview rendering. */
+export interface GhostPlanData {
+    unitId: string;
+    abilityId: string;
+    currentTargets: ResolvedTarget[];
+    mouseWorld: { x: number; y: number };
+}
+
 /** A resolved target from the targeting system. */
 export interface ResolvedTarget {
     type: 'player' | 'unit' | 'pixel';

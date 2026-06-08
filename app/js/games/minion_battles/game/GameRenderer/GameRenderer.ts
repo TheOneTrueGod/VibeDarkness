@@ -16,7 +16,7 @@ import type { TerrainGrid } from '../../terrain/TerrainGrid';
 import { TerrainRenderer } from '../../terrain/TerrainRenderer';
 import type { DamageTakenEvent } from '../EventBus';
 import type { AbilityStatic } from '../../abilities/Ability';
-import type { ResolvedTarget } from '../types';
+import type { ResolvedTarget, GhostPlanData } from '../types';
 import { AssetRegistry } from './AssetRegistry';
 import { UnitRenderer } from './renderers/UnitRenderer';
 import { OverlayRenderer } from './renderers/OverlayRenderer';
@@ -215,6 +215,7 @@ export class GameRenderer {
 			mouseWorld: { x: number; y: number };
 			waitingForOrders: { unitId?: string } | null;
 			previewOrderUnitId?: string | null;
+			ghostPlans?: Record<string, GhostPlanData>;
 		} | null,
 		realDt?: number,
 	): void {

@@ -152,14 +152,24 @@ export class WebRtcLobbyMesh {
      */
     sendEventToAll(event: Record<string, unknown>): void {
         const payload = JSON.stringify(event);
+        let sent = 0;
         for (const [remoteId, entry] of this.peers.entries()) {
             const channel = entry.dataChannel;
-            if (!channel || channel.readyState !== 'open') continue;
+            if (!channel || channel.readyState !== 'open') {
+                if (event['type'] === 'ghost_plan_update') {
+                    console.log('[webrtc] ghost plan skipped for', remoteId, 'channel state:', channel?.readyState ?? 'null');
+                }
+                continue;
+            }
             try {
                 channel.send(payload);
+                sent++;
             } catch (err) {
                 console.warn('Failed to send data over WebRTC to', remoteId, err);
             }
+        }
+        if (event['type'] === 'ghost_plan_update' && sent > 0) {
+            console.log('[webrtc] ghost plan sent to', sent, 'peer(s)');
         }
     }
 

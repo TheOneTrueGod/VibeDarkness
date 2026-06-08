@@ -5,13 +5,14 @@
  * round tracking, targeting flow, order submission, and server sync.
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
-import type { OrderWaiter, WaitingForOrders, BattleOrder, ResolvedTarget } from '../../game/types';
+import type { OrderWaiter, WaitingForOrders, BattleOrder, ResolvedTarget, GhostPlanData } from '../../game/types';
+import { GhostPlanContext } from '../../../../contexts/GhostPlanContext';
 import { BattleSession } from '../../game/BattleSession';
 import {
     createBattleNet,
@@ -165,6 +166,8 @@ export default function BattlePhase({
         /** All highlighted candidates sorted by proximity to mouse, up to hitbox numTargets. */
         allCandidates: Array<{ unitId: string }>;
     } | null>(null);
+    const { ghostPlans, sendGhostPlan } = useContext(GhostPlanContext);
+
     const targetingStateRef = useRef<{
         selectedAbility: AbilityStatic | null;
         currentTargets: ResolvedTarget[];
@@ -172,6 +175,7 @@ export default function BattlePhase({
         waitingForOrders: WaitingForOrders | null;
         /** Caster unit for targeting preview (parallel batch active local unit). */
         previewOrderUnitId: string | null;
+        ghostPlans?: Record<string, GhostPlanData>;
     }>({
         selectedAbility: null,
         currentTargets: [],
@@ -185,6 +189,9 @@ export default function BattlePhase({
         mouseWorld: mouseWorldRef.current,
         waitingForOrders,
         previewOrderUnitId: activeLocalWaiter?.unitId ?? null,
+        ghostPlans: Object.fromEntries(
+            Object.entries(ghostPlans).filter(([, v]) => v !== null)
+        ) as Record<string, GhostPlanData>,
     };
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     /** Up to {@link PLAYER_MOVE_WAYPOINT_MAX} queued destinations (shift-right-click chain). */
@@ -215,6 +222,41 @@ export default function BattlePhase({
     const battleActionRow = useBattleActionRowHost();
 
     const dismissResyncInformAck = useCallback(() => setResyncInformAck(null), []);
+
+    const lastSentGhostPlanRef = useRef<GhostPlanData | null>(null);
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const ts = targetingStateRef.current;
+            const newPlan: GhostPlanData | null =
+                ts.selectedAbility && ts.previewOrderUnitId
+                    ? {
+                          unitId: ts.previewOrderUnitId,
+                          abilityId: ts.selectedAbility.id,
+                          currentTargets: ts.currentTargets,
+                          mouseWorld: { ...ts.mouseWorld },
+                      }
+                    : null;
+            const prev = lastSentGhostPlanRef.current;
+            const changed =
+                newPlan === null
+                    ? prev !== null
+                    : prev === null ||
+                      newPlan.unitId !== prev.unitId ||
+                      newPlan.abilityId !== prev.abilityId ||
+                      newPlan.mouseWorld.x !== prev.mouseWorld.x ||
+                      newPlan.mouseWorld.y !== prev.mouseWorld.y ||
+                      newPlan.currentTargets.length !== prev.currentTargets.length;
+            if (changed) {
+                lastSentGhostPlanRef.current = newPlan;
+                console.log('[ghost plan] sending:', newPlan);
+                sendGhostPlan(newPlan);
+            }
+        }, 100);
+        return () => {
+            clearInterval(interval);
+            sendGhostPlan(null);
+        };
+    }, [sendGhostPlan]);
 
     const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS;
 
@@ -1228,6 +1270,7 @@ export default function BattlePhase({
                         layout="rail"
                         previewAbility={canUseOrderUi ? (selectedAbility ?? WaitAbility) : null}
                         previewOrderUnitId={activeLocalWaiter?.unitId ?? null}
+                        ghostPlans={ghostPlans}
                     />
                 </aside>
 

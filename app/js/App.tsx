@@ -27,6 +27,8 @@ import type {
     ChatMessageData,
 } from './types';
 import { WebRtcLobbyMesh, WebRtcPingTestFn } from './WebRtcLobbyMesh';
+import { GhostPlanContext } from './contexts/GhostPlanContext';
+import type { GhostPlanData } from './games/minion_battles/game/types';
 import { GameSyncProvider, useGameSyncOptional } from './contexts/GameSyncContext';
 import { campaignPathForTab } from './components/ability-tests/campaignTabPaths';
 
@@ -132,6 +134,10 @@ function AppInner() {
     const [webRtcReady, setWebRtcReady] = useState(false);
     const [webRtcPeerConnected, setWebRtcPeerConnected] = useState<Record<string, boolean>>({});
 
+    // Ghost plans: other players' live ability targeting state, shared over WebRTC
+    const [ghostPlans, setGhostPlans] = useState<Record<string, GhostPlanData | null>>({});
+    const currentGhostPlanRef = useRef<GhostPlanData | null>(null);
+
     // Track which players should currently have flashing cards due to WebRTC pings
     const [flashingPlayerIds, setFlashingPlayerIds] = useState<string[]>([]);
     const flashTimersRef = useRef<Record<string, number[]>>({});
@@ -185,6 +191,11 @@ function AppInner() {
         schedule(1000, false);
         schedule(2000, true);
         schedule(3000, false);
+    }, []);
+
+    const sendGhostPlan = useCallback((plan: GhostPlanData | null) => {
+        currentGhostPlanRef.current = plan;
+        webRtcMeshRef.current?.sendEventToAll({ type: 'ghost_plan_update', plan: plan as Record<string, unknown> | null });
     }, []);
 
     // ==================== Message handling ====================
@@ -382,10 +393,26 @@ function AppInner() {
             onPeerEvent: (fromPlayerId, event) => {
                 if ((event.type as string | undefined) === 'ping') {
                     triggerPlayerFlash(fromPlayerId);
+                } else if ((event.type as string | undefined) === 'ghost_plan_update') {
+                    const plan = (event.plan ?? null) as GhostPlanData | null;
+                    console.log('[ghost plan] received from', fromPlayerId, plan);
+                    setGhostPlans((prev) => ({ ...prev, [fromPlayerId]: plan }));
                 }
             },
-            onPeerConnected: (id) => setWebRtcPeerConnected((prev) => ({ ...prev, [id]: true })),
-            onPeerDisconnected: (id) => setWebRtcPeerConnected((prev) => ({ ...prev, [id]: false })),
+            onPeerConnected: (id) => {
+                console.log('[webrtc] peer connected:', id);
+                setWebRtcPeerConnected((prev) => ({ ...prev, [id]: true }));
+                if (currentGhostPlanRef.current !== null) {
+                    webRtcMeshRef.current?.sendEventToAll({
+                        type: 'ghost_plan_update',
+                        plan: currentGhostPlanRef.current as unknown as Record<string, unknown>,
+                    });
+                }
+            },
+            onPeerDisconnected: (id) => {
+                setWebRtcPeerConnected((prev) => ({ ...prev, [id]: false }));
+                setGhostPlans((prev) => ({ ...prev, [id]: null }));
+            },
         });
         webRtcMeshRef.current = mesh;
         setWebRtcReady(true);
@@ -725,6 +752,7 @@ function AppInner() {
     // ==================== Render ====================
 
     return (
+        <GhostPlanContext.Provider value={{ ghostPlans, sendGhostPlan }}>
         <>
             {screen === 'lobby' && (
                 <Routes>
@@ -827,6 +855,7 @@ function AppInner() {
                 />
             )}
         </>
+        </GhostPlanContext.Provider>
     );
 }
 

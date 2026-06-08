@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import type { PlayerState } from '../../../../types';
 import type { GameEngine } from '../../game/GameEngine';
+import type { GhostPlanData } from '../../game/types';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
@@ -155,6 +156,8 @@ interface BattleTimelineProps {
     previewAbility?: AbilityStatic | null;
     /** Unit currently receiving an order in parallel batch; timeline preview applies to this unit only. */
     previewOrderUnitId?: string | null;
+    /** Other players' live ability selections shared via WebRTC; shown at lower opacity on their rows. */
+    ghostPlans?: Record<string, GhostPlanData | null>;
     /**
      * `strip` — full-width bar (e.g. below canvas). `rail` — left sidebar: fill parent height, scroll rows internally.
      */
@@ -495,17 +498,18 @@ function renderPlayerTimelineTrack(
     }[],
     hasTimeline: boolean,
     displayAbility: AbilityStatic,
-    isPreview: boolean,
+    previewLevel: 'none' | 'preview' | 'ghost',
     hover: TimelinePanelHover,
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
+    const opacityClass = previewLevel === 'preview' ? 'opacity-70' : previewLevel === 'ghost' ? 'opacity-40' : '';
     return (
         <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
             <TimelineTimeRuler windowSeconds={windowSeconds} />
             {hasTimeline && (
                 <>
                     <div
-                        className={`absolute inset-0 overflow-hidden rounded-md ${isPreview ? 'opacity-70' : ''}`}
+                        className={`absolute inset-0 overflow-hidden rounded-md ${opacityClass}`}
                     >
                         {segments.map((seg, idx) => (
                             <TimelinePhaseSegment
@@ -533,7 +537,7 @@ function renderPlayerTimelineTrack(
                     </div>
                     {/* Keep icon inside the track so the sidebar does not gain horizontal scroll */}
                     <div
-                        className={`pointer-events-none absolute top-1/2 right-1 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-dark-600 bg-dark-900 text-[10px] text-gray-100 shadow-sm ${isPreview ? 'opacity-70' : ''}`}
+                        className={`pointer-events-none absolute top-1/2 right-1 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-dark-600 bg-dark-900 text-[10px] text-gray-100 shadow-sm ${opacityClass}`}
                         title={displayAbility.name}
                     >
                         <AbilityIconInBox html={displayAbility.image} className="h-5 w-5" />
@@ -553,6 +557,7 @@ function renderPlayerUnitTimelineUnified(
     localPlayerId: string,
     previewAbility: AbilityStatic | null | undefined,
     previewOrderUnitId: string | null | undefined,
+    ghostPlans: Record<string, GhostPlanData | null> | undefined,
     compact: boolean,
     /** When global rail is expanded, toggles this row between expanded (timeline + hp bar) and compact strip. */
     toggleRowContractOrExpand: (() => void) | null,
@@ -572,6 +577,12 @@ function renderPlayerUnitTimelineUnified(
         previewAbility
     );
 
+    const ghostPlan =
+        !showPreview && playerId !== localPlayerId
+            ? (ghostPlans?.[playerId] ?? null)
+            : null;
+    const ghostAbility = ghostPlan?.unitId === unit.id ? getAbility(ghostPlan.abilityId) : null;
+
     const active = unit.activeAbilities[0];
     const ability = active ? getAbility(active.abilityId) : null;
 
@@ -582,14 +593,14 @@ function renderPlayerUnitTimelineUnified(
         label: string;
         description: string;
     }[] = [];
-    let isPreview = false;
+    let previewLevel: 'none' | 'preview' | 'ghost' = 'none';
 
     let isWaitLockout = false;
     if (showPreview && previewAbility) {
         const intervals = intervalsForAbility(previewAbility, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
         segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
-        isPreview = true;
+        previewLevel = 'preview';
     } else if (active && ability) {
         const intervals = intervalsForAbility(ability, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
@@ -602,9 +613,15 @@ function renderPlayerUnitTimelineUnified(
         const merged = buildPrimaryTimelineSegments(intervals);
         segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
         isWaitLockout = true;
+    } else if (ghostAbility) {
+        const intervals = intervalsForAbility(ghostAbility, unit, engine);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
+        previewLevel = 'ghost';
     }
 
-    const displayAbility = ability ?? (isWaitLockout ? WaitAbility : null) ?? (showPreview ? previewAbility : null);
+    const displayAbility =
+        ability ?? (isWaitLockout ? WaitAbility : null) ?? (showPreview ? previewAbility : null) ?? ghostAbility ?? null;
     const hasTimeline = !!(displayAbility && segments.length > 0 && alive);
 
     const track =
@@ -616,7 +633,7 @@ function renderPlayerUnitTimelineUnified(
                   segments,
                   true,
                   displayAbility,
-                  isPreview,
+                  previewLevel,
                   hover,
                   setHover,
               )
@@ -707,6 +724,7 @@ function renderPlayerRow(
     windowSeconds: number,
     localPlayerId: string,
     previewAbility: AbilityStatic | null | undefined,
+    ghostPlans: Record<string, GhostPlanData | null> | undefined,
     layout: BattleTimelineLayout,
     hover: TimelinePanelHover,
     setHover: (next: TimelinePanelHover) => void,
@@ -766,6 +784,12 @@ function renderPlayerRow(
     const isLocalPlayer = playerId === localPlayerId;
     const showPreview = !!(isLocalPlayer && previewAbility);
 
+    const ghostPlan =
+        !showPreview && playerId !== localPlayerId
+            ? (ghostPlans?.[playerId] ?? null)
+            : null;
+    const ghostAbility = ghostPlan?.unitId === unit.id ? getAbility(ghostPlan.abilityId) : null;
+
     let segments: {
         phaseId: BattleTimelinePhaseId;
         start: number;
@@ -773,14 +797,14 @@ function renderPlayerRow(
         label: string;
         description: string;
     }[] = [];
-    let isPreview = false;
+    let previewLevel: 'none' | 'preview' | 'ghost' = 'none';
 
     let isWaitLockout = false;
     if (showPreview && previewAbility) {
         const intervals = intervalsForAbility(previewAbility, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
         segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
-        isPreview = true;
+        previewLevel = 'preview';
     } else if (active && ability) {
         const intervals = intervalsForAbility(ability, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
@@ -793,9 +817,15 @@ function renderPlayerRow(
         const merged = buildPrimaryTimelineSegments(intervals);
         segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
         isWaitLockout = true;
+    } else if (ghostAbility) {
+        const intervals = intervalsForAbility(ghostAbility, unit, engine);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
+        previewLevel = 'ghost';
     }
 
-    const displayAbility = ability ?? (isWaitLockout ? WaitAbility : null) ?? (showPreview ? previewAbility : null);
+    const displayAbility =
+        ability ?? (isWaitLockout ? WaitAbility : null) ?? (showPreview ? previewAbility : null) ?? ghostAbility ?? null;
     const hasTimeline = !!(displayAbility && segments.length > 0);
 
     const track =
@@ -807,7 +837,7 @@ function renderPlayerRow(
                   segments,
                   true,
                   displayAbility,
-                  isPreview,
+                  previewLevel,
                   hover,
                   setHover,
               )
@@ -857,6 +887,7 @@ export default function BattleTimeline({
     windowSeconds = 2,
     previewAbility = null,
     previewOrderUnitId = null,
+    ghostPlans,
     layout = 'strip',
 }: BattleTimelineProps) {
     const [panelHover, setPanelHover] = useState<TimelinePanelHover>(null);
@@ -929,6 +960,7 @@ export default function BattleTimeline({
                     windowSeconds,
                     localPlayerId,
                     previewAbility,
+                    ghostPlans,
                     'strip',
                     panelHover,
                     setPanelHover,
@@ -1009,6 +1041,7 @@ export default function BattleTimeline({
                                                     localPlayerId,
                                                     previewAbility,
                                                     previewOrderUnitId,
+                                                    ghostPlans,
                                                     compactThisUnit,
                                                     rowToggle,
                                                     panelHover,
