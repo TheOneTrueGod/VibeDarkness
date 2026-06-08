@@ -80,7 +80,7 @@ export function TimelinePhaseSegment({
 
     return (
         <div
-            className="group absolute top-1/2 flex -translate-y-1/2 cursor-default items-center"
+            className="group absolute top-[36%] flex -translate-y-1/2 cursor-default items-center"
             style={{
                 left: `${clampedLeft}%`,
                 width: `${clampedWidth}%`,

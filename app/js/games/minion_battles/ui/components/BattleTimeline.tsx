@@ -475,12 +475,21 @@ function renderEnemyRow(
     );
 }
 
+/** SVGs with width/height but no viewBox don't scale via CSS — inject the missing attribute. */
+function ensureSvgViewBox(svg: string): string {
+    if (svg.includes('viewBox')) return svg;
+    const w = svg.match(/width="(\d+(?:\.\d+)?)"/)?.[1];
+    const h = svg.match(/height="(\d+(?:\.\d+)?)"/)?.[1];
+    if (!w || !h) return svg;
+    return svg.replace('<svg ', `<svg viewBox="0 0 ${w} ${h}" `);
+}
+
 /** Inline ability art (SVG string) scaled to a fixed box; flex min-size + explicit SVG attrs can otherwise block scaling. */
 function AbilityIconInBox({ html, className = '' }: { html: string; className?: string }) {
     return (
         <div
             className={`flex min-h-0 min-w-0 items-center justify-center [&>img]:max-h-full [&>img]:max-w-full [&>img]:min-h-0 [&>img]:min-w-0 [&>img]:h-full [&>img]:w-full [&>img]:object-contain [&>svg]:block [&>svg]:h-full [&>svg]:w-full [&>svg]:max-h-full [&>svg]:max-w-full [&>svg]:min-h-0 [&>svg]:min-w-0 ${className}`}
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={{ __html: ensureSvgViewBox(html) }}
         />
     );
 }
@@ -503,8 +512,9 @@ function renderPlayerTimelineTrack(
     setHover: (next: TimelinePanelHover) => void,
 ): React.ReactNode {
     const segmentsOpacityClass = previewLevel === 'preview' ? 'opacity-70' : previewLevel === 'ghost' ? 'opacity-40' : '';
-    // Icon uses a slightly higher minimum opacity so dark-coloured SVGs remain visible against the dark background.
-    const iconOpacityClass = previewLevel === 'preview' ? 'opacity-70' : previewLevel === 'ghost' ? 'opacity-60' : '';
+    // Icon stays fully opaque for ghost plans — the faded segments already signal "ghost" status,
+    // and dark-coloured SVGs would disappear against the dark background at lower opacity.
+    const iconOpacityClass = previewLevel === 'preview' ? 'opacity-70' : '';
     return (
         <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
             <TimelineTimeRuler windowSeconds={windowSeconds} />
@@ -539,7 +549,7 @@ function renderPlayerTimelineTrack(
                     </div>
                     {/* Keep icon inside the track so the sidebar does not gain horizontal scroll */}
                     <div
-                        className={`pointer-events-none absolute top-1/2 right-1 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-dark-600 bg-dark-900 text-[10px] text-gray-100 shadow-sm ${iconOpacityClass}`}
+                        className={`pointer-events-none absolute top-[36%] right-1 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-dark-600 bg-surface-light text-[10px] text-gray-100 shadow-sm ${iconOpacityClass}`}
                         title={displayAbility.name}
                     >
                         <AbilityIconInBox html={displayAbility.image} className="h-5 w-5" />

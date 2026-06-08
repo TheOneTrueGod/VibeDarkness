@@ -4,11 +4,19 @@ import type { Unit } from '../../game/units/Unit';
 import { getUnitUiDescription } from '../../game/units/unit_defs/unitDef';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
 
+function ensureSvgViewBox(svg: string): string {
+    if (svg.includes('viewBox')) return svg;
+    const w = svg.match(/width="(\d+(?:\.\d+)?)"/)?.[1];
+    const h = svg.match(/height="(\d+(?:\.\d+)?)"/)?.[1];
+    if (!w || !h) return svg;
+    return svg.replace('<svg ', `<svg viewBox="0 0 ${w} ${h}" `);
+}
+
 function AbilityIconInBox({ html, className = '' }: { html: string; className?: string }) {
     return (
         <div
             className={`flex min-h-0 min-w-0 items-center justify-center [&>img]:max-h-full [&>img]:max-w-full [&>img]:min-h-0 [&>img]:min-w-0 [&>img]:h-full [&>img]:w-full [&>img]:object-contain [&>svg]:block [&>svg]:h-full [&>svg]:w-full [&>svg]:max-h-full [&>svg]:max-w-full [&>svg]:min-h-0 [&>svg]:min-w-0 ${className}`}
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={{ __html: ensureSvgViewBox(html) }}
         />
     );
 }
