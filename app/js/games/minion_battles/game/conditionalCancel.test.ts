@@ -423,4 +423,75 @@ describe('conditional cancel', () => {
         expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(true);
         engine.destroy();
     });
+
+    it('after slingshot ejects player, game pauses for player orders', () => {
+        resetGameObjectIdCounter(1);
+        const researchByPlayer = {
+            [TINY_BATTLE_PLAYER_ID]: { [EARTH_TREE_ID]: [EARTH_NODE_ROCK_SYNERGY_ENTOMBED] },
+        };
+        const engine = buildTinyBattleEngine({
+            gridW: 14,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        const rockStartCol = 5;
+        const targetInRock = {
+            x: rockStartCol * CELL_SIZE + CELL_SIZE / 2,
+            y: 5 * CELL_SIZE + CELL_SIZE / 2,
+        };
+        for (let col = rockStartCol; col <= 6; col++) {
+            for (let row = 2; row <= 8; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
+        const { dummy } = placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: { x: 2 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            dummyWorld: { x: 4 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            abilities: ['0534', 'throw_rock'],
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        const player = engine.getLocalPlayerUnit()!;
+        player.abilityModifiers = computeAbilityModifiersFromResearch(
+            researchByPlayer[TINY_BATTLE_PLAYER_ID],
+            getAbilityTagsForId,
+            player.abilities,
+        );
+
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0534',
+            targets: [{ type: 'pixel', position: targetInRock }],
+        });
+
+        // Step until conditional cancel pause fires and submit throw_rock
+        let throwRockSubmitted = false;
+        for (let i = 0; i < 300; i++) {
+            if (!throwRockSubmitted && player.activeAbilities.some((a) => a.conditionalCancelPaused)) {
+                engine.state.orderMgr.applyOrder({
+                    unitId: player.id,
+                    abilityId: 'throw_rock',
+                    targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+                });
+                throwRockSubmitted = true;
+            }
+            // Stop once game pauses for a regular (non-conditional-cancel) order
+            if (engine.waitingForOrders != null) {
+                const isConditionalCancel = engine.waitingForOrders.waiters.some((w) =>
+                    engine.getUnit(w.unitId)?.activeAbilities.some((a) => a.conditionalCancelPaused),
+                );
+                if (!isConditionalCancel) break;
+            }
+            engine.stepSimulationFixedTicks(1);
+        }
+
+        expect(throwRockSubmitted).toBe(true);
+        expect(engine.waitingForOrders).not.toBeNull();
+        expect(engine.state.orderMgr.getActiveOrderWaiterForPlayer(TINY_BATTLE_PLAYER_ID)).not.toBeNull();
+        expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(true);
+
+        engine.destroy();
+    });
 });
