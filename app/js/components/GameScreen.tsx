@@ -426,7 +426,19 @@ export default function GameScreen({
     const centralSection = useMemo(
         () => (gamePanelRounding: string, overlayRounding: string) => (
             <div className="flex-1 relative flex flex-col min-h-0">
-                {effectiveLobbyPageState === 'home' && <GameList isHost={isHost} onSelectGame={onSelectGame} />}
+                {isLoading && effectiveLobbyPageState !== 'in_game' && (
+                    <div
+                        className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-surface"
+                        aria-busy="true"
+                        aria-live="polite"
+                    >
+                        <div className="flex flex-col items-center gap-4 px-6 py-6 bg-surface rounded-xl border border-border-custom shadow-xl">
+                            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                            <p className="text-muted">Loading game state...</p>
+                        </div>
+                    </div>
+                )}
+                {effectiveLobbyPageState === 'home' && !isLoading && <GameList isHost={isHost} onSelectGame={onSelectGame} />}
                 {effectiveLobbyPageState === 'in_game' && effectiveLobbyGameType && (
                     <div
                         className={`flex-1 relative flex items-center justify-center bg-surface overflow-hidden min-h-0 ${gamePanelRounding}`}
@@ -494,7 +506,7 @@ export default function GameScreen({
                         )}
                     </div>
                 )}
-                {effectiveLobbyPageState === 'home' && <GameCanvas clicks={clicks} onCanvasClick={onCanvasClick} />}
+                {effectiveLobbyPageState === 'home' && !isLoading && <GameCanvas clicks={clicks} onCanvasClick={onCanvasClick} />}
             </div>
         ),
         [

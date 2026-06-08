@@ -18,7 +18,6 @@ import { getBodyColorForUnit, getCharacterSpriteKey } from '../../../game/units/
 import { areEnemies } from '../../../game/teams';
 import { isAbilityNote } from '../../../game/AbilityNote';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
-import { grantRecoveryChargeToRandomAbility } from '../../../abilities/abilityUses';
 import { ContinuousEmitter, IntervalEmitter } from '../../../game/effects/EffectEmitter';
 import type { EngineContext } from '../../../game/EngineContext';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -34,7 +33,8 @@ const DASH_DURATION = 0.4;
 const SLINGSHOT_PHASE = 0.3;
 const COOLDOWN_DURATION = 0.8;
 const MAX_DISTANCE = 160;
-const DAMAGE = 35;
+const UNIT_DAMAGE = 6;
+const ROCK_DAMAGE = 35;
 const KNOCKBACK_TIER = 2;
 const SLINGSHOT_SPEED = 400; // px/s
 const SLINGSHOT_LAUNCH_MAGNITUDE = 160;
@@ -90,7 +90,7 @@ function maybeDamageCurrentTile(
 	const key = `${cell.col},${cell.row}`;
 	if (damagedTileKeys.includes(key)) return;
 	damagedTileKeys.push(key);
-	tm.damageRock(cell.col, cell.row, DAMAGE, caster.id);
+	tm.damageRock(cell.col, cell.row, ROCK_DAMAGE, caster.id);
 }
 
 export const DiggingClawsAbility: AbilityStatic = {
@@ -123,7 +123,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 
 	getTooltipText(): string[] {
 		return [
-			`Dashing attack that deals {${DAMAGE}} damage and knock back enemies you touch`,
+			`Dashing attack that deals {${UNIT_DAMAGE}} damage and knock back enemies you touch`,
 		];
 	},
 
@@ -219,12 +219,6 @@ export const DiggingClawsAbility: AbilityStatic = {
 					damagedTileKeys: [],
 				},
 			});
-			grantRecoveryChargeToRandomAbility(
-				caster,
-				'staminaCharge',
-				(min, max) => eng.generateRandomInteger(min, max),
-				{ excludeAbilityId: CARD_ID },
-			);
 		}
 
 		// â”€â”€ Slingshot phase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -359,7 +353,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 					attackerY: caster.y,
 					attackerId: caster.id,
 					abilityId: CARD_ID,
-					damage: DAMAGE,
+					damage: UNIT_DAMAGE,
 					attackType: 'melee',
 				});
 				if (blocked) continue;
