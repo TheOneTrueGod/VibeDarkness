@@ -8,6 +8,8 @@ npx vitest run <path>
 ```
 Never use `npx jest` — it will fail.
 
+Vitest config lives in `vite.config.ts` (`test.include` / `test.exclude`). Discovery is scoped to `app/**/*.{test,spec}.{ts,tsx}` so `node_modules` and `.claude/worktrees/**` are never collected. If you add a separate `vitest.config.ts`, merge settings into `vite.config.ts` instead — a standalone config can override Vitest’s default excludes and accidentally run dependency tests.
+
 ## Debugging behavior bugs
 
 **Write a failing test first** before tracing code paths. Engine bugs show up as test failures. If the test passes, the engine is correct and the bug is in the BattleNet/UI layer. Deep static analysis of the engine is rarely the right first move for a "game isn't pausing" or "player can't act" report.

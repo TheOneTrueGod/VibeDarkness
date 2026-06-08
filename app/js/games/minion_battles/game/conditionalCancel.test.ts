@@ -343,17 +343,28 @@ describe('conditional cancel', () => {
         });
 
         let throwRockSubmitted = false;
+        let throwRockWaitSubmitted = false;
         let ejectedDuringThrowRockCooldown = false;
         let ticksInRockDuringThrowRockCooldown = 0;
 
         for (let i = 0; i < 400; i++) {
-            if (!throwRockSubmitted && player.activeAbilities.some((a) => a.conditionalCancelPaused)) {
-                engine.state.orderMgr.applyOrder({
-                    unitId: player.id,
-                    abilityId: 'throw_rock',
-                    targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
-                });
-                throwRockSubmitted = true;
+            const paused = player.activeAbilities.find((a) => a.conditionalCancelPaused);
+            if (paused) {
+                if (paused.abilityId === '0534' && !throwRockSubmitted) {
+                    engine.state.orderMgr.applyOrder({
+                        unitId: player.id,
+                        abilityId: 'throw_rock',
+                        targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+                    });
+                    throwRockSubmitted = true;
+                } else if (paused.abilityId === 'throw_rock' && throwRockSubmitted && !throwRockWaitSubmitted) {
+                    engine.state.orderMgr.applyOrder({
+                        unitId: player.id,
+                        abilityId: 'wait',
+                        targets: [],
+                    });
+                    throwRockWaitSubmitted = true;
+                }
             }
 
             const throwRockActive = player.activeAbilities.find((a) => a.abilityId === 'throw_rock');
@@ -424,6 +435,81 @@ describe('conditional cancel', () => {
         engine.destroy();
     });
 
+    it('throw rock triggers conditional cancel pause while inside rock, then can take a turn', () => {
+        resetGameObjectIdCounter(1);
+        const engine = buildTinyBattleEngine({
+            gridW: 10,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        // Rock block around the player.
+        for (let col = 4; col <= 5; col++) {
+            for (let row = 2; row <= 7; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
+
+        const { dummy } = placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: { x: 4 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            dummyWorld: { x: 8 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 },
+            abilities: ['throw_rock'],
+        });
+
+        const player = engine.getLocalPlayerUnit()!;
+        player.abilityModifiers = { throw_rock: { addTags: ['Entombed'] } };
+        player.wallEntryPoint = { x: 3 * CELL_SIZE + CELL_SIZE / 2, y: player.y };
+
+        // Start close to the end of the base `active` band, so conditional cancel fires on interval exit.
+        player.activeAbilities = [
+            {
+                abilityId: 'throw_rock',
+                startTime: engine.gameTime - 0.99,
+                targets: [{ type: 'pixel', position: { x: dummy.x, y: player.y } }],
+            },
+        ];
+
+        // Step until conditional-cancel pause triggers.
+        for (let i = 0; i < 120; i++) {
+            engine.stepSimulationFixedTicks(1);
+            if (engine.waitingForOrders != null && player.activeAbilities.some((a) => a.conditionalCancelPaused)) {
+                break;
+            }
+        }
+
+        const paused = player.activeAbilities.find((a) => a.abilityId === 'throw_rock');
+        expect(engine.waitingForOrders).not.toBeNull();
+        expect(paused?.conditionalCancelPaused).toBe(true);
+        expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(false);
+
+        // Resume cast via `wait` (does not require eligible Entombed ability selection).
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: 'wait',
+            targets: [],
+        });
+
+        // Step until cast finishes and the engine pauses normally for player orders.
+        for (let i = 0; i < 300; i++) {
+            engine.stepSimulationFixedTicks(1);
+            if (
+                engine.waitingForOrders != null &&
+                engine.state.orderMgr.getActiveOrderWaiterForPlayer(TINY_BATTLE_PLAYER_ID) != null &&
+                player.canAct()
+            ) {
+                break;
+            }
+        }
+
+        expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(true);
+        expect(player.canAct()).toBe(true);
+        expect(engine.state.orderMgr.getActiveOrderWaiterForPlayer(TINY_BATTLE_PLAYER_ID)).not.toBeNull();
+
+        engine.destroy();
+    });
+
     it('after slingshot ejects player, game pauses for player orders', () => {
         resetGameObjectIdCounter(1);
         const researchByPlayer = {
@@ -468,14 +554,25 @@ describe('conditional cancel', () => {
 
         // Step until conditional cancel pause fires and submit throw_rock
         let throwRockSubmitted = false;
+        let throwRockWaitSubmitted = false;
         for (let i = 0; i < 300; i++) {
-            if (!throwRockSubmitted && player.activeAbilities.some((a) => a.conditionalCancelPaused)) {
-                engine.state.orderMgr.applyOrder({
-                    unitId: player.id,
-                    abilityId: 'throw_rock',
-                    targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
-                });
-                throwRockSubmitted = true;
+            const paused = player.activeAbilities.find((a) => a.conditionalCancelPaused);
+            if (paused) {
+                if (paused.abilityId === '0534' && !throwRockSubmitted) {
+                    engine.state.orderMgr.applyOrder({
+                        unitId: player.id,
+                        abilityId: 'throw_rock',
+                        targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+                    });
+                    throwRockSubmitted = true;
+                } else if (paused.abilityId === 'throw_rock' && !throwRockWaitSubmitted) {
+                    engine.state.orderMgr.applyOrder({
+                        unitId: player.id,
+                        abilityId: 'wait',
+                        targets: [],
+                    });
+                    throwRockWaitSubmitted = true;
+                }
             }
             // Stop once game pauses for a regular (non-conditional-cancel) order
             if (engine.waitingForOrders != null) {
@@ -555,7 +652,21 @@ describe('conditional cancel', () => {
         });
         engine.tryResumeParallel();
 
+        let throwRockWaitSubmitted = false;
         for (let i = 0; i < 400; i++) {
+            const paused = player.activeAbilities.find((a) => a.conditionalCancelPaused);
+            if (
+                engine.waitingForOrders != null &&
+                paused?.abilityId === 'throw_rock' &&
+                !throwRockWaitSubmitted
+            ) {
+                engine.state.orderMgr.applyOrder({
+                    unitId: player.id,
+                    abilityId: 'wait',
+                    targets: [],
+                });
+                throwRockWaitSubmitted = true;
+            }
             engine.stepSimulationFixedTicks(1);
             if (
                 engine.waitingForOrders != null

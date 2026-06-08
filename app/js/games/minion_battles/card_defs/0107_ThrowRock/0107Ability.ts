@@ -20,6 +20,7 @@ import type { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { type CardDef } from '../types';
 import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
+import { withEntombedWallConditionalCancelAndLinger } from '../../abilities/entombed/entombedWallCancel';
 
 const ABILITY_ID = 'throw_rock';
 const RANGE = 200;
@@ -39,7 +40,7 @@ type ThrowRockCastPayload = {
     movementPenaltyUntil: number;
 };
 
-const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
+const THROW_ROCK_BASE_TIMINGS_UNMODIFIED: AbilityTimingInterval[] = [
     {
         id: 'windup',
         start: 0,
@@ -66,7 +67,7 @@ const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
     },
 ];
 
-const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
+const THROW_ROCK_MORE_ROCK_TIMINGS_UNMODIFIED: AbilityTimingInterval[] = [
     {
         id: 'windup_1',
         start: 0,
@@ -108,6 +109,26 @@ const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Recovering after both throws.',
     },
 ];
+
+const THROW_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = withEntombedWallConditionalCancelAndLinger(
+    THROW_ROCK_BASE_TIMINGS_UNMODIFIED,
+    {
+        cancelIntervalId: 'active',
+        cooldownIntervalId: 'cooldown',
+        lingerSec: 1 / 60,
+        lingerIdPrefix: 'active',
+    },
+);
+
+const THROW_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = withEntombedWallConditionalCancelAndLinger(
+    THROW_ROCK_MORE_ROCK_TIMINGS_UNMODIFIED,
+    {
+        cancelIntervalId: 'active_2',
+        cooldownIntervalId: 'cooldown',
+        lingerSec: 1 / 60,
+        lingerIdPrefix: 'active_2',
+    },
+);
 
 interface GameEngineLike {
     addProjectile(projectile: Projectile): void;

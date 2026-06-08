@@ -128,10 +128,29 @@ Implement the rest of `AbilityStatic` (`getDescription`, `getAbilityStates`, `ta
 | `start`, `end` | Seconds from cast start; **half-open** `[start, end)` (`end` exclusive). |
 | `abilityPhase` | `AbilityPhase` for ring UI and timeline colour. |
 | `timelineLabel` / `timelineDescription` | Optional; battle timeline tooltips default from phase if omitted. |
+| `conditionalCancel` | Optional mid-cast decision point (evaluated on **interval exit**). When the condition is true, the engine pauses and the player may pick an eligible ability or `wait` to resume the current cast. See `ConditionalCancelDef` in `abilities/abilityTimings.ts`. |
 
 **Order matters** when intervals overlap: the battle timeline's single merged band uses **first-listed wins** for overlapping time. Total active duration for the engine is **`max(end)`** across intervals (see `getTotalAbilityDuration`).
 
 Legacy `{ duration, abilityPhase }` remains in the type union for adapters/tests; new card defs should use interval rows only.
+
+#### Entombed / inside-wall conditional cancel (rock tree)
+
+When a unit casts while **inside impassable terrain** (rock/wall), some abilities should pause near the end of the cast so the player can chain another **`Entombed`** ability or **`wait`** to resume (e.g. slingshot out of the wall).
+
+**Condition pattern** (same as Digging Claws):
+
+```typescript
+condition: ({ caster, engine }) => {
+    const tm = engine.terrainManager;
+    return tm != null && !tm.isPassable(caster.x, caster.y);
+},
+abilityTagFilter: ['Entombed'],
+```
+
+**Linger interval requirement:** If the last **`Active`** band ends exactly when **`Cooldown`** starts, the conditional-cancel pause would fire after the cast is already in `Cooldown`. Generic wall eject (`Unit.tickWallUnstick`) is only suppressed while an `Entombed` ability is in a **non-`Cooldown`** phase. Fix: insert a tiny **`Active`** “linger” interval (one tick, `1/60` s) immediately **before** `cooldown`, and shift `cooldown.start` forward by the same amount. The pause then fires on exit of the last real active band while the cast is still considered active.
+
+**Reuse helper:** `abilities/entombed/entombedWallCancel.ts` exports `ENTOMB_WALL_CONDITIONAL_CANCEL` and `withEntombedWallConditionalCancelAndLinger(timings, { cancelIntervalId, cooldownIntervalId, … })`. Apply to the **final throw** interval (`active` or `active_2` on more-rock timelines). Examples: `0107_ThrowRock/0107Ability.ts`, `0108_ThrowChargedRock/0108Ability.ts`. Digging Claws (`0534`) inlines `conditionalCancel` on its dash interval instead.
 
 ### Blocking and `onAttackBlocked`
 

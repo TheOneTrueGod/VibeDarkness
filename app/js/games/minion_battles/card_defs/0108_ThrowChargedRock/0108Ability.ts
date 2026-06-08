@@ -20,6 +20,7 @@ import type { EventBus } from '../../game/EventBus';
 import { type CardDef } from '../types';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
+import { withEntombedWallConditionalCancelAndLinger } from '../../abilities/entombed/entombedWallCancel';
 
 const THROW_CHARGED_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <path d="M20 4 L32 12 L36 24 L28 36 L12 34 L4 20 Z" fill="#6b6b6b" stroke="#5a5a5a" stroke-width="1"/>
@@ -55,7 +56,7 @@ type ThrowChargedRockCastPayload = {
     movementPenaltyUntil: number;
 };
 
-const THROW_CHARGED_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
+const THROW_CHARGED_ROCK_BASE_TIMINGS_UNMODIFIED: AbilityTimingInterval[] = [
     {
         id: 'windup',
         start: 0,
@@ -83,7 +84,7 @@ const THROW_CHARGED_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = [
 ];
 
 /** Timeline: `::::::=:::=...` (windup / throw / short windup / throw / cooldown). */
-const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
+const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS_UNMODIFIED: AbilityTimingInterval[] = [
     {
         id: 'windup_1',
         start: 0,
@@ -125,6 +126,26 @@ const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
         timelineDescription: 'Recovering after both throws.',
     },
 ];
+
+const THROW_CHARGED_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = withEntombedWallConditionalCancelAndLinger(
+    THROW_CHARGED_ROCK_BASE_TIMINGS_UNMODIFIED,
+    {
+        cancelIntervalId: 'active',
+        cooldownIntervalId: 'cooldown',
+        lingerSec: 1 / 60,
+        lingerIdPrefix: 'active',
+    },
+);
+
+const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = withEntombedWallConditionalCancelAndLinger(
+    THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS_UNMODIFIED,
+    {
+        cancelIntervalId: 'active_2',
+        cooldownIntervalId: 'cooldown',
+        lingerSec: 1 / 60,
+        lingerIdPrefix: 'active_2',
+    },
+);
 
 const KNOCKBACK_TIER = 1;
 const PREVIEW_TEAL = 0x2dd4bf;

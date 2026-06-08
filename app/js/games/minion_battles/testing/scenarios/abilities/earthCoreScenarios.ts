@@ -530,12 +530,28 @@ export const earthCoreDiggingClawsThrowRockEntombScenario: ScenarioDefinition = 
         const player = engine.getLocalPlayerUnit();
         const dummy = engine.getUnit('target_dummy');
         if (!player || !dummy) return;
+        const paused = player.activeAbilities.find((a) => a.conditionalCancelPaused);
+        if (!paused) return;
+
         diggingClawsThrowRockEntombScenarioState.cancelFired = true;
-        engine.state.orderMgr.applyOrder({
-            unitId: player.id,
-            abilityId: 'throw_rock',
-            targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
-        });
+
+        if (paused.abilityId === '0534') {
+            engine.state.orderMgr.applyOrder({
+                unitId: player.id,
+                abilityId: 'throw_rock',
+                targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+            });
+            return;
+        }
+
+        if (paused.abilityId === 'throw_rock') {
+            // Resume the slingshot sequence when throw_rock triggers its own entombed wall cancel.
+            engine.state.orderMgr.applyOrder({
+                unitId: player.id,
+                abilityId: 'wait',
+                targets: [],
+            });
+        }
     },
     assertPass(engine) {
         const player = engine.getLocalPlayerUnit();
