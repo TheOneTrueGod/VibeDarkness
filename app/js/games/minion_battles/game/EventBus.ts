@@ -114,6 +114,8 @@ export interface RecoveryChargeGrantedEvent {
     chargeType: string;
     /** Number of charge units distributed. */
     amount: number;
+    /** The specific ability that received the charge, if known. */
+    abilityId?: string;
 }
 
 export type GameEventDataMap = {

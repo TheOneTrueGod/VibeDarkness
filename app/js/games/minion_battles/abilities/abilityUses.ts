@@ -372,7 +372,7 @@ export function grantRecoveryChargeToRandomAbility(
     if (!selected) return false;
     const granted = applyRecoveryChargeToAbility(unit, selected, chargeType, 1);
     if (granted && opts?.eventBus) {
-        opts.eventBus.emit('recovery_charge_granted', { unitId: unit.id, chargeType, amount: 1 });
+        opts.eventBus.emit('recovery_charge_granted', { unitId: unit.id, chargeType, amount: 1, abilityId: selected });
     }
     return granted;
 }

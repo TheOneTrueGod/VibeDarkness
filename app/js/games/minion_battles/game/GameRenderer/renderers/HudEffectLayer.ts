@@ -201,9 +201,11 @@ export class HudEffectLayer {
         const sourceX = clampedX + this.canvasPageOffset.x;
         const sourceY = clampedY + this.canvasPageOffset.y;
 
-        const cardTargets = Array.from(this.hudTargets.entries())
-            .filter(([key]) => key.startsWith(`card:${data.chargeType}:`))
-            .map(([, pos]) => pos);
+        const cardTargets = data.abilityId
+            ? [this.hudTargets.get(`card:${data.chargeType}:${data.abilityId}`)].filter(Boolean) as { x: number; y: number }[]
+            : Array.from(this.hudTargets.entries())
+                .filter(([key]) => key.startsWith(`card:${data.chargeType}:`))
+                .map(([, pos]) => pos);
 
         if (cardTargets.length === 0) return;
 
