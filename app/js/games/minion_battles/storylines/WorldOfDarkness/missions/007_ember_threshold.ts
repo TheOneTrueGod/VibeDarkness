@@ -75,6 +75,7 @@ const NEST_50_51_WORLD = gridToWorld(NEST_50_51_COL, NEST_50_51_ROW);
 /** Second nest site: west glade (49_51 local col 7, row 15). */
 const NEST_49_51_COL = 7;                           // global 7
 const NEST_49_51_ROW = SEG_ROW_51_ORIGIN + 15;     // global 37
+const NEST_49_51_WORLD = gridToWorld(NEST_49_51_COL, NEST_49_51_ROW);
 
 /** Mission-specific POIs for the lanternite nest network. */
 const MISSION_POIS: MapSegmentPOI[] = [
@@ -153,10 +154,10 @@ export class EmberThresholdMission extends BaseMissionDef {
 
 	battleObjectives: BattleObjectiveDef[] = [
 		{
-			id: 'follow_lanternites',
+			id: 'find_first_nest',
 			label: 'Find out what the creatures want',
-			toComplete: { type: 'aliveUnitCount', characterId: 'lanternite_nest', minCount: 2 },
-			onComplete: [{ type: 'revealObjective', id: 'survive_2_rounds' }],
+			toComplete: { type: 'aliveUnitCount', characterId: 'lanternite_nest', minCount: 1 },
+			onComplete: [{ type: 'revealObjective', id: 'find_second_nest' }],
 			showObjectiveMarker: {
 				enable: true,
 				target: { type: 'position', x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y },
@@ -164,11 +165,23 @@ export class EmberThresholdMission extends BaseMissionDef {
 			},
 		},
 		{
-			id: 'survive_2_rounds',
-			label: 'Survive for 2 more rounds',
+			id: 'find_second_nest',
+			label: 'Follow the lanternites',
 			revealedInitially: false,
-			requiresCompletedId: 'follow_lanternites',
-			toComplete: { type: 'atLeastRound', round: 6 },
+			toComplete: { type: 'aliveUnitCount', characterId: 'lanternite_nest', minCount: 2 },
+			onComplete: [{ type: 'revealObjective', id: 'survive_1_round' }],
+			showObjectiveMarker: {
+				enable: true,
+				target: { type: 'position', x: NEST_49_51_WORLD.x, y: NEST_49_51_WORLD.y },
+				showOffscreen: true,
+			},
+		},
+		{
+			id: 'survive_1_round',
+			label: 'Survive 1 more round',
+			revealedInitially: false,
+			requiresCompletedId: 'find_second_nest',
+			toComplete: { type: 'atLeastRound', round: 5 },
 		},
 	];
 
@@ -236,10 +249,10 @@ export class EmberThresholdMission extends BaseMissionDef {
 				},
 			],
 		},
-		// Victory: both nests still alive after surviving the surge.
+		// Victory: both nests still alive after surviving 1 round of the surge.
 		{
 			type: 'victoryCheck',
-			trigger: { afterRound: 6 },
+			trigger: { afterRound: 5 },
 			conditions: [{ type: 'aliveUnitCount', characterId: 'lanternite_nest', minCount: 2 }],
 		},
 	];
