@@ -83,7 +83,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 0.85,
         pathfindingWeight: 1.2,
         projectilePassable: true,
-        renderStrategy: 'marching-squares',
-        blocksBleed: false,
+        renderStrategy: 'hard-edge',
+        blocksBleed: true,
     },
 };

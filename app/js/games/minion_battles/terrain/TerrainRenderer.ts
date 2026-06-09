@@ -11,7 +11,6 @@
  */
 
 import { Sprite, Texture } from 'pixi.js';
-import { TerrainGrid } from './TerrainGrid';
 import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
 import type { TerrainManager } from './TerrainManager';
 import type { TerrainLayerRenderer } from './TerrainLayerRenderer';
@@ -65,9 +64,10 @@ export class TerrainRenderer {
      * Build the terrain sprite. Call once when the battle starts.
      * Returns a PixiJS Sprite that should be added at the bottom of the scene.
      */
-    buildSprite(grid: TerrainGrid): Sprite {
+    buildSprite(tm: TerrainManager): Sprite {
         if (this.cachedSprite) return this.cachedSprite;
 
+        const { grid } = tm;
         const worldW = grid.width * grid.cellSize;
         const worldH = grid.height * grid.cellSize;
 
@@ -80,8 +80,10 @@ export class TerrainRenderer {
         ctx.fillStyle = TERRAIN_PROPERTIES[TerrainType.Dirt].color;
         ctx.fillRect(0, 0, worldW, worldH);
 
+        const getTypeAt = (c: number, r: number): TerrainType => tm.getEffectiveTerrainType(c, r);
+
         for (const terrainType of LAYER_ORDER) {
-            this.getRenderer(terrainType).drawLayer(ctx, grid);
+            this.getRenderer(terrainType).drawLayer(ctx, getTypeAt, grid.width, grid.height, grid.cellSize);
         }
 
         this.drawGridOverlay(ctx, grid.cellSize, grid.width, grid.height);

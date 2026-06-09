@@ -1,4 +1,3 @@
-import type { TerrainGrid } from './TerrainGrid';
 import type { TerrainType } from './TerrainType';
 
 /**
@@ -8,7 +7,13 @@ import type { TerrainType } from './TerrainType';
  */
 export abstract class TerrainLayerRenderer {
     /** Draw all cells of this terrain type — full-grid pass used by buildSprite. */
-    abstract drawLayer(ctx: CanvasRenderingContext2D, grid: TerrainGrid): void;
+    abstract drawLayer(
+        ctx: CanvasRenderingContext2D,
+        getTypeAt: (c: number, r: number) => TerrainType,
+        width: number,
+        height: number,
+        cellSize: number,
+    ): void;
 
     /**
      * Repaint a single cell — used by repaintCell.

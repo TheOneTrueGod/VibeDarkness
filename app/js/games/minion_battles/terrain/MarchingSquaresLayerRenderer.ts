@@ -1,5 +1,4 @@
 import { TerrainLayerRenderer } from './TerrainLayerRenderer';
-import type { TerrainGrid } from './TerrainGrid';
 import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
 
 export class MarchingSquaresLayerRenderer extends TerrainLayerRenderer {
@@ -14,10 +13,16 @@ export class MarchingSquaresLayerRenderer extends TerrainLayerRenderer {
      * Builds a (W+1)×(H+1) vertex field, then iterates cells to draw blended fill shapes.
      * Skips cells whose terrain type blocks bleed (e.g. hard-edge rock).
      */
-    override drawLayer(ctx: CanvasRenderingContext2D, grid: TerrainGrid): void {
-        const cs = grid.cellSize;
-        const W = grid.width;
-        const H = grid.height;
+    override drawLayer(
+        ctx: CanvasRenderingContext2D,
+        getTypeAt: (c: number, r: number) => TerrainType,
+        width: number,
+        height: number,
+        cellSize: number,
+    ): void {
+        const cs = cellSize;
+        const W = width;
+        const H = height;
         const terrainType = this.terrainType;
 
         // Build vertex field: (W+1) × (H+1).
@@ -34,7 +39,7 @@ export class MarchingSquaresLayerRenderer extends TerrainLayerRenderer {
                         const cx = vx + dx;
                         const cy = vy + dy;
                         if (cx >= 0 && cx < W && cy >= 0 && cy < H) {
-                            if (grid.get(cx, cy) === terrainType) {
+                            if (getTypeAt(cx, cy) === terrainType) {
                                 inside = true;
                             }
                         }
@@ -48,7 +53,7 @@ export class MarchingSquaresLayerRenderer extends TerrainLayerRenderer {
 
         for (let cy = 0; cy < H; cy++) {
             for (let cx = 0; cx < W; cx++) {
-                if (TERRAIN_PROPERTIES[grid.get(cx, cy)].blocksBleed) continue;
+                if (TERRAIN_PROPERTIES[getTypeAt(cx, cy)].blocksBleed) continue;
 
                 const tl = field[cy * vW + cx];
                 const tr = field[cy * vW + (cx + 1)];

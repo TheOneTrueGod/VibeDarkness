@@ -12,7 +12,7 @@ import { WAIT_FOR_ALL_ASSETS_TO_LOAD_BEFORE_GAME_START } from '../../../../gameC
 import type { GameEngine } from '../GameEngine';
 import type { Camera } from '../Camera';
 import type { TeamId } from '../teams';
-import type { TerrainGrid } from '../../terrain/TerrainGrid';
+import type { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainRenderer } from '../../terrain/TerrainRenderer';
 import type { DamageTakenEvent, TerrainStoneDamagedEvent } from '../EventBus';
 import type { AbilityStatic } from '../../abilities/Ability';
@@ -56,7 +56,7 @@ export class GameRenderer {
 	/** Terrain renderer (builds and caches the terrain sprite). */
 	private readonly terrainRenderer: TerrainRenderer = new TerrainRenderer();
 	private terrainSprite: Sprite | null = null;
-	private pendingTerrainGrid: TerrainGrid | null = null;
+	private pendingTerrainManager: TerrainManager | null = null;
 	/** Mission light config. Defaults: enabled true, global 0. */
 	private lightLevelEnabled: boolean = true;
 
@@ -167,9 +167,9 @@ export class GameRenderer {
 		this.app.ticker.stop();
 
 		// Build terrain sprite if it was queued before init completed
-		if (this.pendingTerrainGrid) {
-			this.buildTerrainSprite(this.pendingTerrainGrid);
-			this.pendingTerrainGrid = null;
+		if (this.pendingTerrainManager) {
+			this.buildTerrainSprite(this.pendingTerrainManager);
+			this.pendingTerrainManager = null;
 		}
 	}
 
@@ -177,11 +177,11 @@ export class GameRenderer {
 	 * Set the terrain to render. If the renderer is already initialized,
 	 * builds the sprite immediately; otherwise queues it for after init.
 	 */
-	setTerrain(terrainGrid: TerrainGrid): void {
+	setTerrain(tm: TerrainManager): void {
 		if (this.initialized) {
-			this.buildTerrainSprite(terrainGrid);
+			this.buildTerrainSprite(tm);
 		} else {
-			this.pendingTerrainGrid = terrainGrid;
+			this.pendingTerrainManager = tm;
 		}
 	}
 
@@ -193,12 +193,12 @@ export class GameRenderer {
 	}
 
 	/** Build the cached terrain sprite and add it at the bottom of the scene. */
-	private buildTerrainSprite(terrainGrid: TerrainGrid): void {
+	private buildTerrainSprite(tm: TerrainManager): void {
 		if (this.terrainSprite) {
 			this.gameContainer.removeChild(this.terrainSprite);
 		}
 
-		this.terrainSprite = this.terrainRenderer.buildSprite(terrainGrid);
+		this.terrainSprite = this.terrainRenderer.buildSprite(tm);
 		this.terrainSprite.zIndex = 0;
 		this.gameContainer.addChildAt(this.terrainSprite, 0);
 

@@ -1,5 +1,4 @@
 import { TerrainLayerRenderer } from './TerrainLayerRenderer';
-import type { TerrainGrid } from './TerrainGrid';
 import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
 
 /** Neighbour terrain visible at rock edges (pixels). */
@@ -22,20 +21,25 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
      * Pass 1 draws all cell bases (solid fill + neighbour bleeds) before Pass 2 draws
      * all chamfers and borders — ensuring bleed strips are never painted over borders.
      */
-    override drawLayer(ctx: CanvasRenderingContext2D, grid: TerrainGrid): void {
-        const cs = grid.cellSize;
+    override drawLayer(
+        ctx: CanvasRenderingContext2D,
+        getTypeAt: (c: number, r: number) => TerrainType,
+        width: number,
+        height: number,
+        cellSize: number,
+    ): void {
+        const cs = cellSize;
         const terrainType = this.terrainType;
-        const getTypeAt = (c: number, r: number): TerrainType => grid.get(c, r);
 
-        for (let row = 0; row < grid.height; row++) {
-            for (let col = 0; col < grid.width; col++) {
-                if (grid.get(col, row) !== terrainType) continue;
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (getTypeAt(col, row) !== terrainType) continue;
                 this.drawCellBase(ctx, col * cs, row * cs, cs, col, row, getTypeAt);
             }
         }
-        for (let row = 0; row < grid.height; row++) {
-            for (let col = 0; col < grid.width; col++) {
-                if (grid.get(col, row) !== terrainType) continue;
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (getTypeAt(col, row) !== terrainType) continue;
                 this.drawCellSurface(ctx, col * cs, row * cs, cs, col, row, getTypeAt);
             }
         }

@@ -244,7 +244,7 @@ export class BattleSession implements BattleSessionHandle {
         const terrainManager = new TerrainManager(terrainGrid);
         const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
         this.camera = camera;
-        renderer.setTerrain(terrainGrid);
+        renderer.setTerrain(terrainManager);
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
 
         const snapshotRecord = (initialSnapshot ?? null) as Record<string, unknown> | null;
@@ -349,9 +349,9 @@ export class BattleSession implements BattleSessionHandle {
         const terrainManager = new TerrainManager(terrainGrid);
         const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
         this.camera = camera;
-        renderer.setTerrain(terrainGrid);
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         const engine = GameEngine.fromJSON(gameState, playerId, terrainManager, opts);
+        renderer.setTerrain(terrainManager);
         engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         if (mission.levelEvents && mission.levelEvents.length > 0) {
             engine.setLevelEvents(mission.levelEvents);
