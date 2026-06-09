@@ -14,6 +14,8 @@ export enum TerrainType {
     Rubble = 4,
 }
 
+export type TerrainRenderStrategy = 'marching-squares' | 'hard-edge';
+
 export interface TerrainProperties {
     /** Display name. */
     name: string;
@@ -27,6 +29,10 @@ export interface TerrainProperties {
     pathfindingWeight: number;
     /** Whether ranged attacks (projectiles) can pass over this terrain. */
     projectilePassable: boolean;
+    /** Which layer renderer to use for this terrain type. */
+    renderStrategy: TerrainRenderStrategy;
+    /** If true, soft-terrain (marching-squares) layers must not bleed into cells of this type. */
+    blocksBleed: boolean;
 }
 
 export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
@@ -37,6 +43,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 1.0,
         pathfindingWeight: 1.0,
         projectilePassable: true,
+        renderStrategy: 'marching-squares',
+        blocksBleed: false,
     },
     [TerrainType.Grass]: {
         name: 'Grass',
@@ -45,6 +53,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 1.0,
         pathfindingWeight: 1.0,
         projectilePassable: true,
+        renderStrategy: 'marching-squares',
+        blocksBleed: false,
     },
     [TerrainType.ThickGrass]: {
         name: 'Thick Grass',
@@ -53,6 +63,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 0.75,
         pathfindingWeight: 1.5,
         projectilePassable: true,
+        renderStrategy: 'marching-squares',
+        blocksBleed: false,
     },
     [TerrainType.Rock]: {
         name: 'Rock',
@@ -61,6 +73,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 0,
         pathfindingWeight: Infinity,
         projectilePassable: true,
+        renderStrategy: 'hard-edge',
+        blocksBleed: true,
     },
     [TerrainType.Rubble]: {
         name: 'Rubble',
@@ -69,5 +83,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 0.85,
         pathfindingWeight: 1.2,
         projectilePassable: true,
+        renderStrategy: 'marching-squares',
+        blocksBleed: false,
     },
 };
