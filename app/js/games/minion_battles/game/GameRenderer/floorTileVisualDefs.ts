@@ -60,11 +60,14 @@ export const ROCK_FLOOR_VISUAL_TIERS: FloorTileVisualDef[] = [
 
 export const RUBBLE_FLOOR_VISUAL: FloorTileVisualDef = {
     svgString: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
-  <rect x="0" y="0" width="40" height="40" fill="#6b5b4f" stroke="#4a3f36" stroke-width="0.8" opacity="0.85"/>
-  <circle cx="12" cy="22" r="1.5" fill="#8a7a6a"/>
-  <circle cx="20" cy="18" r="1.2" fill="#7a6a5a"/>
-  <circle cx="28" cy="24" r="1.4" fill="#9a8a7a"/>
-  <circle cx="16" cy="28" r="1" fill="#6a5a4a"/>
-  <circle cx="24" cy="26" r="0.9" fill="#5a4a3a"/>
+  <polygon points="6,9 11,8 12,13 7,14" fill="#8a7a6a" opacity="0.7"/>
+  <polygon points="23,6 28,8 27,12 22,11" fill="#7a6a5a" opacity="0.65"/>
+  <polygon points="4,23 9,21 10,27 5,28" fill="#5a4a3a" opacity="0.7"/>
+  <polygon points="28,19 33,18 34,24 29,25" fill="#9a8a7a" opacity="0.6"/>
+  <polygon points="16,29 21,27 22,33 17,34" fill="#6a5a4a" opacity="0.7"/>
+  <polygon points="17,12 22,11 23,16 18,17" fill="#7a6b5b" opacity="0.6"/>
+  <polygon points="30,29 35,27 36,32 31,33" fill="#8a7a6a" opacity="0.65"/>
+  <polygon points="10,19 14,18 15,22 11,23" fill="#5a4a3a" opacity="0.55"/>
+  <polygon points="25,31 29,30 30,35 26,36" fill="#7a6a5a" opacity="0.6"/>
 </svg>`,
 };
