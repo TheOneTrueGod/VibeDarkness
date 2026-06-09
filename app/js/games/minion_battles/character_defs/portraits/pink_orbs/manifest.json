@@ -1,0 +1,14 @@
+{
+  "id": "pink_orbs",
+  "name": "Pink Orbs",
+  "portraitRef": "portrait.svg",
+  "battleModel": {
+    "type": "procedural",
+    "bodyColor": "#1565c0",
+    "size": "Medium",
+    "showNameLetter": false,
+    "innerCircle": null,
+    "modelImage": "battleModel.svg"
+  },
+  "allowedPlayerIds": [1]
+}

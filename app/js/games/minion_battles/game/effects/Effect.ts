@@ -63,8 +63,8 @@ export class Effect extends GameObject {
         if (!this.active) return;
         this.elapsed += realDt;
 
-        // ParticleImage: simple 2D particle with velocity damping
-        if (this.effectType === 'ParticleImage') {
+        // ParticleImage / RockChipParticle: simple 2D particle with velocity damping
+        if (this.effectType === 'ParticleImage' || this.effectType === 'RockChipParticle') {
             const data = this.effectData as { vx?: number; vy?: number };
             const vx = data.vx ?? 0;
             const vy = data.vy ?? 0;

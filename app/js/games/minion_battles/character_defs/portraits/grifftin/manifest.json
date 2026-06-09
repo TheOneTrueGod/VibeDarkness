@@ -1,0 +1,14 @@
+{
+  "id": "grifftin",
+  "name": "Grifftin",
+  "portraitRef": "portrait.png",
+  "battleModel": {
+    "type": "procedural",
+    "bodyColor": "#BE8538",
+    "size": "Medium",
+    "showNameLetter": false,
+    "innerCircle": null,
+    "modelImage": "battleModel.png"
+  },
+  "allowedPlayerIds": [1, 9]
+}

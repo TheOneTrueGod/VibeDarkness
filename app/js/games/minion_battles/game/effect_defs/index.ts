@@ -59,6 +59,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     CorruptionOrb: corruptionOrbEffectDef,
     TorchProjectile: torchProjectileEffectDef,
     ParticleImage: particleImageEffectDef,
+    RockChipParticle: particleImageEffectDef,
     BulletTrail: bulletTrailEffectDef,
     SlashingSword: slashingSwordEffectDef,
     SlashTrail: slashTrailEffectDef,
