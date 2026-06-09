@@ -33,6 +33,8 @@ export interface TerrainProperties {
     renderStrategy: TerrainRenderStrategy;
     /** If true, soft-terrain (marching-squares) layers must not bleed into cells of this type. */
     blocksBleed: boolean;
+    /** Other hard-edge terrain types treated as same material (no bleed/chamfer/border at shared edges). */
+    hardEdgeFamily: TerrainType[];
 }
 
 export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
@@ -45,6 +47,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         projectilePassable: true,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
+        hardEdgeFamily: [],
     },
     [TerrainType.Grass]: {
         name: 'Grass',
@@ -55,6 +58,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         projectilePassable: true,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
+        hardEdgeFamily: [],
     },
     [TerrainType.ThickGrass]: {
         name: 'Thick Grass',
@@ -65,6 +69,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         projectilePassable: true,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
+        hardEdgeFamily: [],
     },
     [TerrainType.Rock]: {
         name: 'Rock',
@@ -75,6 +80,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         projectilePassable: true,
         renderStrategy: 'hard-edge',
         blocksBleed: true,
+        hardEdgeFamily: [],
     },
     [TerrainType.Rubble]: {
         name: 'Rubble',
@@ -85,5 +91,6 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         projectilePassable: true,
         renderStrategy: 'hard-edge',
         blocksBleed: true,
+        hardEdgeFamily: [TerrainType.Rock],
     },
 };

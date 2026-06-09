@@ -63,6 +63,11 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         this.drawCellSurface(ctx, x, y, cellSize, col, row, getTypeAt);
     }
 
+    /** Returns true if t should be treated as the same material (no bleed/chamfer/border at shared edge). */
+    private isSameFamily(t: TerrainType): boolean {
+        return t === this.terrainType || TERRAIN_PROPERTIES[this.terrainType].hardEdgeFamily.includes(t);
+    }
+
     /** Pass 1 — solid base and neighbour bleed strips (drawn for all cells before chamfers). */
     private drawCellBase(
         ctx: CanvasRenderingContext2D,
@@ -84,33 +89,33 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         ctx.fillStyle = rockColor;
         ctx.fillRect(x, y, size, size);
 
-        if (north !== rock) {
+        if (!this.isSameFamily(north)) {
             ctx.fillStyle = TERRAIN_PROPERTIES[north].color;
             ctx.fillRect(x, y, size, b);
         }
-        if (south !== rock) {
+        if (!this.isSameFamily(south)) {
             ctx.fillStyle = TERRAIN_PROPERTIES[south].color;
             ctx.fillRect(x, y + size - b, size, b);
         }
-        if (west !== rock) {
+        if (!this.isSameFamily(west)) {
             ctx.fillStyle = TERRAIN_PROPERTIES[west].color;
             ctx.fillRect(x, y, b, size);
         }
-        if (east !== rock) {
+        if (!this.isSameFamily(east)) {
             ctx.fillStyle = TERRAIN_PROPERTIES[east].color;
             ctx.fillRect(x + size - b, y, b, size);
         }
 
-        if (north !== rock && west !== rock && north !== west) {
+        if (!this.isSameFamily(north) && !this.isSameFamily(west) && north !== west) {
             this.fillSplitCorner(ctx, x, y, b, TERRAIN_PROPERTIES[west].color, TERRAIN_PROPERTIES[north].color);
         }
-        if (north !== rock && east !== rock && north !== east) {
+        if (!this.isSameFamily(north) && !this.isSameFamily(east) && north !== east) {
             this.fillSplitCorner(ctx, x + size - b, y, b, TERRAIN_PROPERTIES[north].color, TERRAIN_PROPERTIES[east].color);
         }
-        if (south !== rock && west !== rock && south !== west) {
+        if (!this.isSameFamily(south) && !this.isSameFamily(west) && south !== west) {
             this.fillSplitCorner(ctx, x, y + size - b, b, TERRAIN_PROPERTIES[west].color, TERRAIN_PROPERTIES[south].color);
         }
-        if (south !== rock && east !== rock && south !== east) {
+        if (!this.isSameFamily(south) && !this.isSameFamily(east) && south !== east) {
             this.fillSplitCorner(ctx, x + size - b, y + size - b, b, TERRAIN_PROPERTIES[south].color, TERRAIN_PROPERTIES[east].color);
         }
     }
@@ -137,18 +142,18 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         const b = ROCK_BLEED_PX;
         const rockColor = TERRAIN_PROPERTIES[rock].color;
 
-        const coreX = x + (west === rock ? 0 : b);
-        const coreY = y + (north === rock ? 0 : b);
-        const coreW = size - (west === rock ? 0 : b) - (east === rock ? 0 : b);
-        const coreH = size - (north === rock ? 0 : b) - (south === rock ? 0 : b);
-        const allCardinalsRock = north === rock && south === rock && west === rock && east === rock;
+        const coreX = x + (this.isSameFamily(west) ? 0 : b);
+        const coreY = y + (this.isSameFamily(north) ? 0 : b);
+        const coreW = size - (this.isSameFamily(west) ? 0 : b) - (this.isSameFamily(east) ? 0 : b);
+        const coreH = size - (this.isSameFamily(north) ? 0 : b) - (this.isSameFamily(south) ? 0 : b);
+        const allCardinalsRock = this.isSameFamily(north) && this.isSameFamily(south) && this.isSameFamily(west) && this.isSameFamily(east);
         const chamferW = allCardinalsRock ? size : coreW;
         const chamferH = allCardinalsRock ? size : coreH;
         const chamferX = allCardinalsRock ? x : coreX;
         const chamferY = allCardinalsRock ? y : coreY;
 
         const chamfer = this.computeChamfers(
-            rock, north, south, west, east,
+            north, south, west, east,
             northWest, northEast, southWest, southEast,
             chamferW, chamferH,
         );
@@ -160,12 +165,11 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
 
         this.fillWrapCorners(ctx, x, y, size, rockColor, north, south, west, east, northWest, northEast, southWest, southEast);
 
-        this.strokeBorders(ctx, x, y, size, chamferX, chamferY, chamferW, chamferH, chamfer, north, south, west, east, northWest, northEast, southWest, southEast, rock);
+        this.strokeBorders(ctx, x, y, size, chamferX, chamferY, chamferW, chamferH, chamfer, north, south, west, east, northWest, northEast, southWest, southEast);
     }
 
     /** Chamfer only exterior convex corners (both cardinals open). */
     private computeChamfers(
-        rock: TerrainType,
         north: TerrainType,
         south: TerrainType,
         west: TerrainType,
@@ -179,7 +183,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
     ): { nw: number; ne: number; se: number; sw: number } {
         const maxCh = Math.max(1, Math.min(ROCK_CHAMFER_PX, Math.floor(Math.min(coreW, coreH) / 2)));
         const convex = (cardA: TerrainType, cardB: TerrainType): boolean =>
-            cardA !== rock && cardB !== rock;
+            !this.isSameFamily(cardA) && !this.isSameFamily(cardB);
 
         return {
             nw: convex(north, west) ? maxCh : 0,
@@ -255,7 +259,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         ctx.fillStyle = color;
 
         // Top edge wraps (north bleed strip, b pixels tall)
-        if (west === rock && north !== rock && northWest === rock) {
+        if (this.isSameFamily(west) && !this.isSameFamily(north) && this.isSameFamily(northWest)) {
             ctx.beginPath();
             ctx.moveTo(tileX, tileY);
             ctx.lineTo(tileX, tileY + b);
@@ -263,7 +267,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
             ctx.closePath();
             ctx.fill();
         }
-        if (east === rock && north !== rock && northEast === rock) {
+        if (this.isSameFamily(east) && !this.isSameFamily(north) && this.isSameFamily(northEast)) {
             ctx.beginPath();
             ctx.moveTo(tileX + size, tileY);
             ctx.lineTo(tileX + size, tileY + b);
@@ -273,7 +277,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         }
 
         // Right edge wraps (east bleed strip, b pixels wide)
-        if (north === rock && east !== rock && northEast === rock) {
+        if (this.isSameFamily(north) && !this.isSameFamily(east) && this.isSameFamily(northEast)) {
             ctx.beginPath();
             ctx.moveTo(tileX + size - b, tileY);
             ctx.lineTo(tileX + size, tileY);
@@ -281,7 +285,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
             ctx.closePath();
             ctx.fill();
         }
-        if (south === rock && east !== rock && southEast === rock) {
+        if (this.isSameFamily(south) && !this.isSameFamily(east) && this.isSameFamily(southEast)) {
             ctx.beginPath();
             ctx.moveTo(tileX + size - b, tileY + size);
             ctx.lineTo(tileX + size, tileY + size);
@@ -291,7 +295,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         }
 
         // Bottom edge wraps (south bleed strip, b pixels tall)
-        if (east === rock && south !== rock && southEast === rock) {
+        if (this.isSameFamily(east) && !this.isSameFamily(south) && this.isSameFamily(southEast)) {
             ctx.beginPath();
             ctx.moveTo(tileX + size, tileY + size);
             ctx.lineTo(tileX + size, tileY + size - b);
@@ -299,7 +303,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
             ctx.closePath();
             ctx.fill();
         }
-        if (west === rock && south !== rock && southWest === rock) {
+        if (this.isSameFamily(west) && !this.isSameFamily(south) && this.isSameFamily(southWest)) {
             ctx.beginPath();
             ctx.moveTo(tileX, tileY + size);
             ctx.lineTo(tileX, tileY + size - b);
@@ -309,7 +313,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         }
 
         // Left edge wraps (west bleed strip, b pixels wide)
-        if (south === rock && west !== rock && southWest === rock) {
+        if (this.isSameFamily(south) && !this.isSameFamily(west) && this.isSameFamily(southWest)) {
             ctx.beginPath();
             ctx.moveTo(tileX + b, tileY + size);
             ctx.lineTo(tileX, tileY + size);
@@ -317,7 +321,7 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
             ctx.closePath();
             ctx.fill();
         }
-        if (north === rock && west !== rock && northWest === rock) {
+        if (this.isSameFamily(north) && !this.isSameFamily(west) && this.isSameFamily(northWest)) {
             ctx.beginPath();
             ctx.moveTo(tileX + b, tileY);
             ctx.lineTo(tileX, tileY);
@@ -349,7 +353,6 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         northEast: TerrainType,
         southWest: TerrainType,
         southEast: TerrainType,
-        rock: TerrainType,
     ): void {
         const { nw, ne, se, sw } = ch;
         const wrap = ROCK_CHAMFER_PX;
@@ -366,34 +369,34 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         const tileRight = tileX + tileSize - 0.5;
         const tileBottom = tileY + tileSize - 0.5;
 
-        const topWrapNw = west === rock && north !== rock && northWest === rock;
-        const topWrapNe = east === rock && north !== rock && northEast === rock;
-        const rightWrapNe = north === rock && east !== rock && northEast === rock;
-        const rightWrapSe = south === rock && east !== rock && southEast === rock;
-        const bottomWrapSe = east === rock && south !== rock && southEast === rock;
-        const bottomWrapSw = west === rock && south !== rock && southWest === rock;
-        const leftWrapSw = south === rock && west !== rock && southWest === rock;
-        const leftWrapNw = north === rock && west !== rock && northWest === rock;
+        const topWrapNw = this.isSameFamily(west) && !this.isSameFamily(north) && this.isSameFamily(northWest);
+        const topWrapNe = this.isSameFamily(east) && !this.isSameFamily(north) && this.isSameFamily(northEast);
+        const rightWrapNe = this.isSameFamily(north) && !this.isSameFamily(east) && this.isSameFamily(northEast);
+        const rightWrapSe = this.isSameFamily(south) && !this.isSameFamily(east) && this.isSameFamily(southEast);
+        const bottomWrapSe = this.isSameFamily(east) && !this.isSameFamily(south) && this.isSameFamily(southEast);
+        const bottomWrapSw = this.isSameFamily(west) && !this.isSameFamily(south) && this.isSameFamily(southWest);
+        const leftWrapSw = this.isSameFamily(south) && !this.isSameFamily(west) && this.isSameFamily(southWest);
+        const leftWrapNw = this.isSameFamily(north) && !this.isSameFamily(west) && this.isSameFamily(northWest);
 
-        if (north !== rock) {
+        if (!this.isSameFamily(north)) {
             const startX = topWrapNw ? tileX + wrap + 0.5 : (nw > 0 ? left + nw : left);
             const endX = topWrapNe ? tileRight - wrap : (ne > 0 ? right - ne : right);
             ctx.moveTo(startX, top);
             ctx.lineTo(endX, top);
         }
-        if (east !== rock) {
+        if (!this.isSameFamily(east)) {
             const startY = rightWrapNe ? tileY + wrap + 0.5 : (ne > 0 ? top + ne : top);
             const endY = rightWrapSe ? tileBottom - wrap : (se > 0 ? bottom - se : bottom);
             ctx.moveTo(right, startY);
             ctx.lineTo(right, endY);
         }
-        if (south !== rock) {
+        if (!this.isSameFamily(south)) {
             const startX = bottomWrapSe ? tileRight - wrap : (se > 0 ? right - se : right);
             const endX = bottomWrapSw ? tileX + wrap + 0.5 : (sw > 0 ? left + sw : left);
             ctx.moveTo(startX, bottom);
             ctx.lineTo(endX, bottom);
         }
-        if (west !== rock) {
+        if (!this.isSameFamily(west)) {
             const startY = leftWrapSw ? tileBottom - wrap : (sw > 0 ? bottom - sw : bottom);
             const endY = leftWrapNw ? tileY + wrap + 0.5 : (nw > 0 ? top + nw : top);
             ctx.moveTo(left, startY);
