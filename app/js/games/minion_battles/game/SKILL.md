@@ -59,6 +59,14 @@ Some types are re-exported from `GameEngine.ts` for backward compatibility. See 
 
 ---
 
+## Law of Demeter for manager objects
+
+All terrain queries must go through `TerrainManager`'s public API. Never reach through a manager's internal fields from outside (e.g. `tm.grid.width` from a caller is a violation; add a helper like `tm.getGridSize()` instead). This applies to all manager objects in the engine: access state through the manager's methods, not by chaining through its fields.
+
+When a caller needs something that currently requires reaching into a manager's internals, add a small helper method on the manager rather than exposing the field.
+
+---
+
 ## Patterns
 
 ### Static unit properties from unit def

@@ -110,8 +110,12 @@ export function GameSyncProvider({
       const out: PollMessagePayload[] = [];
       for (const msg of messages) {
         if (msg.type === MessageType.GAME_PHASE_CHANGED) {
-          debugLog('sync tracking', 'info', 'GAME_PHASE_CHANGED message — forcing full state fetch');
-          forceResyncRef.current = true;
+          const currentPhase = (gameStateRef.current?.game as Record<string, unknown> | undefined)
+              ?.gamePhase as string | undefined;
+          if (currentPhase !== 'battle') {
+            debugLog('sync tracking', 'info', 'GAME_PHASE_CHANGED message — forcing full state fetch');
+            forceResyncRef.current = true;
+          }
         }
         out.push(msg as PollMessagePayload);
         if (

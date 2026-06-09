@@ -86,6 +86,10 @@ export class TerrainManager {
         return TERRAIN_PROPERTIES[this.getEffectiveTerrainType(col, row)].projectilePassable;
     }
 
+    getGridSize(): { width: number; height: number; cellSize: number } {
+        return { width: this.grid.width, height: this.grid.height, cellSize: this.grid.cellSize };
+    }
+
     findPath(fromX: number, fromY: number, toX: number, toY: number): { x: number; y: number }[] | null {
         return this.pathfinder.findPath(fromX, fromY, toX, toY);
     }

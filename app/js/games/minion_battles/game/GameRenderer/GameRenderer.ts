@@ -14,7 +14,7 @@ import type { Camera } from '../Camera';
 import type { TeamId } from '../teams';
 import type { TerrainGrid } from '../../terrain/TerrainGrid';
 import { TerrainRenderer } from '../../terrain/TerrainRenderer';
-import type { DamageTakenEvent } from '../EventBus';
+import type { DamageTakenEvent, TerrainStoneDamagedEvent } from '../EventBus';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { ResolvedTarget, GhostPlanData } from '../types';
 import { AssetRegistry } from './AssetRegistry';
@@ -63,6 +63,8 @@ export class GameRenderer {
 	/** Engine whose eventBus is subscribed to `damage_taken` (must rebind when the engine instance changes). */
 	private eventBusSource: GameEngine | null = null;
 	private readonly damageTakenBound = (data: DamageTakenEvent) => this.unitRenderer.onDamageTaken(data);
+	private readonly terrainStoneDamagedBound = (e: TerrainStoneDamagedEvent) =>
+		this.terrainRenderer.invalidateTile(e.col, e.row);
 
 	constructor() {
 		this.app = new Application();
@@ -96,6 +98,7 @@ export class GameRenderer {
 	unbindFromEngine(engine: GameEngine | null | undefined): void {
 		if (!engine || this.eventBusSource !== engine) return;
 		engine.eventBus.off('damage_taken', this.damageTakenBound);
+		engine.eventBus.off('terrain_stone_damaged', this.terrainStoneDamagedBound);
 		this.eventBusSource = null;
 		this.unitRenderer.clearHitFlashes();
 		this.overlayRenderer.reset();
@@ -227,10 +230,12 @@ export class GameRenderer {
 		if (engine !== this.eventBusSource) {
 			if (this.eventBusSource) {
 				this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
+				this.eventBusSource.eventBus.off('terrain_stone_damaged', this.terrainStoneDamagedBound);
 			}
 			this.eventBusSource = engine;
 			if (engine) {
 				engine.eventBus.on('damage_taken', this.damageTakenBound);
+				engine.eventBus.on('terrain_stone_damaged', this.terrainStoneDamagedBound);
 			}
 			this.unitRenderer.clearHitFlashes();
 			this.overlayRenderer.reset();
@@ -241,6 +246,7 @@ export class GameRenderer {
 		this.gameContainer.x = -camera.x * camera.zoom + camera.viewportWidth / 2;
 		this.gameContainer.y = -camera.y * camera.zoom + camera.viewportHeight / 2;
 
+		if (engine.terrainManager) this.terrainRenderer.update(engine.terrainManager);
 		this.overlayRenderer.render(engine);
 		this.floorTileRenderer.render(engine);
 		this.terrainEffectRenderer.render(engine);

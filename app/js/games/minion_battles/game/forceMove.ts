@@ -3,15 +3,15 @@ import type { TerrainGrid } from '../terrain/TerrainGrid';
 
 /**
  * BFS from a grid cell to find the nearest cell whose center is passable.
+ * Uses effective terrain (floor overrides + bedrock) via TerrainManager.
  * Returns grid coords of the nearest passable cell, or null if none found.
  */
 export function findNearestPassableCell(
-    grid: TerrainGrid,
+    tm: TerrainManager,
     col: number,
     row: number,
 ): { col: number; row: number } | null {
-    const W = grid.width;
-    const H = grid.height;
+    const { width: W, height: H, cellSize } = tm.getGridSize();
     const clampedCol = Math.max(0, Math.min(W - 1, col));
     const clampedRow = Math.max(0, Math.min(H - 1, row));
 
@@ -21,9 +21,9 @@ export function findNearestPassableCell(
 
     while (queue.length > 0) {
         const current = queue.shift()!;
-        const cx = current.col * grid.cellSize + grid.cellSize / 2;
-        const cy = current.row * grid.cellSize + grid.cellSize / 2;
-        if (grid.isPassable(cx, cy)) {
+        const cx = current.col * cellSize + cellSize / 2;
+        const cy = current.row * cellSize + cellSize / 2;
+        if (tm.isPassable(cx, cy)) {
             return current;
         }
         for (const [dc, dr] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {

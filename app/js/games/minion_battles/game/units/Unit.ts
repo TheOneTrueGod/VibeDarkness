@@ -666,14 +666,14 @@ export class Unit extends GameObject {
 
         // Knockback: unit cannot move normally; apply push and wall bounce
         if (this.knockback) {
-            this.updateKnockback(dt, grid);
+            this.updateKnockback(dt, grid, terrainManager);
             return;
         }
 
         // Wall recovery: nudge/snap stuck units out of impassable terrain (runs before stun check so
         // stunned units can still recover from a wall they were diagonal-clipped into).
-        if (grid && this.isAlive()) {
-            this.tickWallUnstick(dt, grid, engine as EngineContext);
+        if (terrainManager && this.isAlive()) {
+            this.tickWallUnstick(dt, engine as EngineContext);
         }
 
         // Stunned/exposed units must not advance along a movement path (canAct already blocks new orders).
@@ -745,7 +745,7 @@ export class Unit extends GameObject {
      * If the next position would be out of bounds or unwalkable, knockback is cleared
      * immediately and no movement is applied.
      */
-    private updateKnockback(dt: number, grid: TerrainGrid | null): void {
+    private updateKnockback(dt: number, grid: TerrainGrid | null, terrainManager?: TerrainManager | null): void {
         const k = this.knockback!;
         const airTime = k.knockbackAirTime;
         const slideTime = k.knockbackSlideTime;
@@ -774,14 +774,14 @@ export class Unit extends GameObject {
         const newY = this.y + pushY;
 
         const segmentLength = Math.sqrt(pushX * pushX + pushY * pushY);
-        if (segmentLength > 0 && grid) {
+        if (segmentLength > 0 && (terrainManager || grid)) {
             const { distance } = computeForcedDisplacement(
                 this.x,
                 this.y,
                 newX,
                 newY,
                 segmentLength,
-                { grid },
+                terrainManager ? { terrainManager } : { grid: grid! },
             );
             if (distance <= 0) {
                 this.knockback = null;
@@ -809,10 +809,10 @@ export class Unit extends GameObject {
      * After WALL_SNAP_DELAY seconds of continuous wall contact, fire a slingshot launch (unless an
      * Entombed ability is in a non-Cooldown phase, in which case suppression holds).
      */
-    private tickWallUnstick(dt: number, grid: TerrainGrid, engine: EngineContext): void {
+    private tickWallUnstick(dt: number, engine: EngineContext): void {
         const gameTime = engine.gameTime;
 
-        if (grid.isPassable(this.x, this.y)) {
+        if (engine.terrainManager!.isPassable(this.x, this.y)) {
             this.wallEntryPoint = { x: this.x, y: this.y };
             this.wallStuckTime = 0;
             return;
@@ -828,7 +828,7 @@ export class Unit extends GameObject {
 
         const col = Math.floor(this.x / CELL_SIZE);
         const row = Math.floor(this.y / CELL_SIZE);
-        const nearest = findNearestPassableCell(grid, col, row);
+        const nearest = findNearestPassableCell(engine.terrainManager!, col, row);
         if (!nearest) return;
 
         const targetX = nearest.col * CELL_SIZE + CELL_SIZE / 2;

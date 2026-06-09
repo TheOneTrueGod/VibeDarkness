@@ -189,7 +189,7 @@ export default function GameScreen({
         getAlwaysShowSyncStatus,
         getAlwaysShowSyncStatus,
     );
-    const showResyncOverlay = isLoading || (isResyncing && inBattle) || (battleNetResyncing && inBattle);
+    const showResyncOverlay = isLoading || (battleNetResyncing && inBattle);
     const showAdminRestartBattle =
         role === 'admin' &&
         inBattle &&
