@@ -11,8 +11,8 @@ const RANGE = 220;
 const DAMAGE = 6;
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.25, abilityPhase: AbilityPhase.Windup },
-    { id: 'active', start: 0.25, end: 0.9, abilityPhase: AbilityPhase.Active },
-    { id: 'cooldown', start: 0.9, end: 1.3, abilityPhase: AbilityPhase.Cooldown },
+    { id: 'active', start: 0.25, end: 0.35, abilityPhase: AbilityPhase.Active },
+    { id: 'cooldown', start: 0.35, end: 1.3, abilityPhase: AbilityPhase.Cooldown },
 ];
 
 const KNOCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">

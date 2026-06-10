@@ -42,14 +42,15 @@ const punchBehaviour = CastBehaviours.MeleeAttack()
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,    end: 0.2, abilityPhase: AbilityPhase.Windup },
-    { id: 'punch1',   start: 0.2, end: 0.4, abilityPhase: AbilityPhase.Active,
+    { id: 'punch1',   start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active,
       targetDef: { kind: 'select', label: 'Target 1', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
       behaviour: punchBehaviour },
-    { id: 'gap',      start: 0.4, end: 0.6, abilityPhase: AbilityPhase.Active },
-    { id: 'punch2',   start: 0.6, end: 0.8, abilityPhase: AbilityPhase.Active,
+    { id: 'gap',      start: 0.3, end: 0.5, abilityPhase: AbilityPhase.Waiting,
+      timelineLabel: 'Between hits', timelineDescription: 'Brief pause before the second punch.' },
+    { id: 'punch2',   start: 0.5, end: 0.6, abilityPhase: AbilityPhase.Active,
       targetDef: { kind: 'select', label: 'Target 2', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
       behaviour: punchBehaviour },
-    { id: 'cooldown', start: 0.8, end: 1.0, abilityPhase: AbilityPhase.Cooldown },
+    { id: 'cooldown', start: 0.6, end: 1.0, abilityPhase: AbilityPhase.Cooldown },
 ];
 
 const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -99,7 +100,7 @@ export const DoublePunchAbility: AbilityStatic = {
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
         // Lock movement through both strikes; release during cooldown.
-        if (currentTime < 1.10) {
+        if (currentTime < 0.6) {
             return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
         }
         return [];

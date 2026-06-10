@@ -31,6 +31,7 @@ const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
 const punchBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(PUNCH_HITBOX)
     .withImpact('punch')
+    .withImpactAt(0.5)
     .withSlide({ forwardDistance: 12, backwardDistance: 6 })
     .withDamage((_ctx, hitUnits) => {
         const target = hitUnits[0];
@@ -60,9 +61,32 @@ const punchBehaviour = CastBehaviours.MeleeAttack()
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,    end: 0.15, abilityPhase: AbilityPhase.Windup },
-    { id: 'punch',    start: 0.15, end: 0.55, abilityPhase: AbilityPhase.Active,
-      targetDef: { kind: 'select', label: 'Target', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
-      behaviour: punchBehaviour },
+    {
+        id: 'swing',
+        start: 0.15,
+        end: 0.25,
+        abilityPhase: AbilityPhase.Windup,
+        timelineLabel: 'Swing',
+        timelineDescription: 'Lunge forward.',
+        targetDef: { kind: 'select', label: 'Target', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
+        castBehaviours: [{ timingStart: 'start', timingEnd: 0.4, behaviour: punchBehaviour }],
+    },
+    {
+        id: 'punch',
+        start: 0.25,
+        end: 0.35,
+        abilityPhase: AbilityPhase.Active,
+        timelineLabel: 'Active',
+        timelineDescription: 'Strike connects.',
+    },
+    {
+        id: 'recoil',
+        start: 0.35,
+        end: 0.55,
+        abilityPhase: AbilityPhase.Waiting,
+        timelineLabel: 'Recoil',
+        timelineDescription: 'Pull back.',
+    },
     { id: 'cooldown', start: 0.55, end: 1.40, abilityPhase: AbilityPhase.Cooldown },
 ];
 

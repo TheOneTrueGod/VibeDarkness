@@ -26,7 +26,7 @@ export const lnet_assign_role: AINode<'lanterniteNetwork', LanterniteNetworkNode
             },
         },
         {
-            targetNodeId: 'lnet_defend',
+            targetNodeId: 'lnet_guard',
             evaluate(unit: Unit): boolean {
                 return unit.lanterniteRole === 'defender';
             },

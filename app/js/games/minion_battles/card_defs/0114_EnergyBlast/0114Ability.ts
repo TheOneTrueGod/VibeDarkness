@@ -35,7 +35,7 @@ export const EnergyBlastAbility: AbilityStatic = {
         {
             id: 'active',
             start: 0.2,
-            end: 0.55,
+            end: 0.3,
             abilityPhase: AbilityPhase.Active,
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(PROJECTILE_SPEED)
@@ -43,7 +43,7 @@ export const EnergyBlastAbility: AbilityStatic = {
                 .withProjectileType('energy_blast')
                 .withMaxRange(RANGE),
         },
-        { id: 'cooldown', start: 0.55, end: 0.95, abilityPhase: AbilityPhase.Cooldown },
+        { id: 'cooldown', start: 0.3, end: 0.95, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: RANGE },

@@ -45,10 +45,10 @@ const punchBehaviour = CastBehaviours.MeleeAttack()
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,    end: 0.15, abilityPhase: AbilityPhase.Windup },
-    { id: 'punch',    start: 0.15, end: 0.55, abilityPhase: AbilityPhase.Active,
+    { id: 'punch',    start: 0.15, end: 0.25, abilityPhase: AbilityPhase.Active,
       targetDef: { kind: 'select', label: 'Target', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
       behaviour: punchBehaviour },
-    { id: 'cooldown', start: 0.55, end: 1.40, abilityPhase: AbilityPhase.Cooldown },
+    { id: 'cooldown', start: 0.25, end: 1.40, abilityPhase: AbilityPhase.Cooldown },
 ];
 
 const STRONG_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -105,7 +105,7 @@ export const StrongPunchAbility: AbilityStatic = {
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < 0.55) {
+        if (currentTime < 0.25) {
             return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
         }
         return [];

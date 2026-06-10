@@ -4,9 +4,15 @@ Clarence:  Crystal + Crystal
 Kerry: Bleeding sword.  Likes shotgun builds
 Voen: metal
 
+Feedback June 9
+[] Bug where the Alpha Wolf's triple charge is interrupted by a stunning punch
+[] Alpha wolf seemed to use triple attack while stunned
+[] Make sure 'active' frames are only for as long as the attack is hitting -- make them 1 frame if possible
+
+
 Feedback May 28
 [] Rocks should travel the full distance, not be limited by the targeter
-[] The gradual light changing system is client side, so refreshing fixes it
+[x] The gradual light changing system is client side, so refreshing fixes it
 [] LOTS of desyncs today.  Gobi's on brave
 [] Gobi winds up resynching to the start fo the game frequently
 [] Gobi got stuck in the rock too

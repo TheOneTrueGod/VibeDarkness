@@ -5,9 +5,11 @@
  * Matches the base Punch (0102) behaviour without research upgrades.
  *
  * Timings:
- *   0.00â€“0.20  windup
- *   0.20â€“0.40  active strike (impact fires at 40% through window, ~0.28 s)
- *   0.40â€“1.60  cooldown
+ *   0.00–0.20  windup
+ *   0.20–0.25  swing (forward lunge)
+ *   0.25–0.35  active strike
+ *   0.35–0.40  recoil
+ *   0.40–1.60  cooldown
  */
 
 import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
@@ -32,6 +34,7 @@ const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
 const punchBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(PUNCH_HITBOX)
     .withImpact('punch')
+    .withImpactAt(0.75)
     .withSlide({ forwardDistance: 12, backwardDistance: 0 })
     .withDamage((_ctx, hitUnits) => {
         const target = hitUnits[0];
@@ -51,9 +54,32 @@ const punchBehaviour = CastBehaviours.MeleeAttack()
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,   end: 0.2, abilityPhase: AbilityPhase.Windup },
-    { id: 'punch',    start: 0.2, end: 0.4, abilityPhase: AbilityPhase.Active,
-      targetDef: { kind: 'select', label: 'Target', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
-      behaviour: punchBehaviour },
+    {
+        id: 'swing',
+        start: 0.2,
+        end: 0.25,
+        abilityPhase: AbilityPhase.Windup,
+        timelineLabel: 'Swing',
+        timelineDescription: 'Lunge forward.',
+        targetDef: { kind: 'select', label: 'Target', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
+        castBehaviours: [{ timingStart: 'start', timingEnd: 0.2, behaviour: punchBehaviour }],
+    },
+    {
+        id: 'punch',
+        start: 0.25,
+        end: 0.35,
+        abilityPhase: AbilityPhase.Active,
+        timelineLabel: 'Active',
+        timelineDescription: 'Strike connects.',
+    },
+    {
+        id: 'recoil',
+        start: 0.35,
+        end: 0.4,
+        abilityPhase: AbilityPhase.Waiting,
+        timelineLabel: 'Recoil',
+        timelineDescription: 'Pull back.',
+    },
     { id: 'cooldown', start: 0.4, end: 1.6, abilityPhase: AbilityPhase.Cooldown },
 ];
 

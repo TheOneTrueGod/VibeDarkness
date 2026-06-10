@@ -50,14 +50,14 @@ const THROW_KNIFE_BASE_TIMINGS: AbilityTimingInterval[] = [
     {
         id: 'active',
         start: 0.3,
-        end: 1.0,
+        end: 0.4,
         abilityPhase: AbilityPhase.Active,
         timelineLabel: 'Active',
-        timelineDescription: 'Knife is in flight.',
+        timelineDescription: 'Release frame — knife is thrown.',
     },
     {
         id: 'cooldown',
-        start: 1.0,
+        start: 0.4,
         end: 1.6,
         abilityPhase: AbilityPhase.Cooldown,
         timelineLabel: 'Cooldown',

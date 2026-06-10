@@ -466,7 +466,7 @@ describe('conditional cancel', () => {
         player.activeAbilities = [
             {
                 abilityId: 'throw_rock',
-                startTime: engine.gameTime - 0.99,
+                startTime: engine.gameTime - 0.39,
                 targets: [{ type: 'pixel', position: { x: dummy.x, y: player.y } }],
             },
         ];

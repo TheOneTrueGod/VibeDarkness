@@ -17,8 +17,8 @@ const IMPACT_RADIUS = 55;
 const KNOCKBACK_TIER = 1;
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.3, abilityPhase: AbilityPhase.Windup },
-    { id: 'active', start: 0.3, end: 1.0, abilityPhase: AbilityPhase.Active },
-    { id: 'cooldown', start: 1.0, end: 1.5, abilityPhase: AbilityPhase.Cooldown },
+    { id: 'active', start: 0.3, end: 0.4, abilityPhase: AbilityPhase.Active },
+    { id: 'cooldown', start: 0.4, end: 1.5, abilityPhase: AbilityPhase.Cooldown },
 ];
 
 const STONE_TOMB_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">

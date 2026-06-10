@@ -121,16 +121,24 @@ export const BeastClawAbility: AbilityStatic = {
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'slash1', start: PREFIRE_TIME, end: PREFIRE_TIME + 0.4, abilityPhase: AbilityPhase.Active },
+        { id: 'slash1', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
+        {
+            id: 'gap',
+            start: 0.3,
+            end: 0.6,
+            abilityPhase: AbilityPhase.Waiting,
+            timelineLabel: 'Between slashes',
+            timelineDescription: 'Brief pause before the second slash.',
+        },
         {
             id: 'slash2',
-            start: PREFIRE_TIME + 0.4,
-            end: PREFIRE_TIME + 0.8,
+            start: 0.6,
+            end: 0.7,
             abilityPhase: AbilityPhase.Active,
         },
         {
             id: 'cooldown',
-            start: PREFIRE_TIME + 0.8,
+            start: 0.7,
             end: PREFIRE_TIME + 2.3,
             abilityPhase: AbilityPhase.Cooldown,
         },
