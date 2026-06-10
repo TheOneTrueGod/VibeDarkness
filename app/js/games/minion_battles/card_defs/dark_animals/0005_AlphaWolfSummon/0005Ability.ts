@@ -96,7 +96,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
     },
 
     getTooltipText(_gameState?: unknown): string[] {
-        return ['Summon 2 wolves that immediately attack the closest enemy.'];
+        return ['Summon 3 wolves that immediately attack the closest enemy.'];
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {
@@ -140,9 +140,10 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
         const spawnOffsets = [
             { dx: WOLF_SPAWN_OFFSET, dy: 0 },
             { dx: -WOLF_SPAWN_OFFSET * 0.7, dy: WOLF_SPAWN_OFFSET * 0.7 },
+            { dx: -WOLF_SPAWN_OFFSET * 0.7, dy: -WOLF_SPAWN_OFFSET * 0.7 },
         ];
 
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < 3; i++) {
             const off = spawnOffsets[i]!;
             const spawnX = caster.x + off.dx;
             const spawnY = caster.y + off.dy;

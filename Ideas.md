@@ -13,12 +13,12 @@ Feedback June 9
 Feedback May 28
 [] Rocks should travel the full distance, not be limited by the targeter
 [x] The gradual light changing system is client side, so refreshing fixes it
-[] LOTS of desyncs today.  Gobi's on brave
-[] Gobi winds up resynching to the start fo the game frequently
+[x] LOTS of desyncs today.  Gobi's on brave
+[x] Gobi winds up resynching to the start fo the game frequently
 [] Gobi got stuck in the rock too
   - It might be because I queue up a move that uses the line of sight and takes 
 [] Enemies in mission 3 walk past players frequently
-[] Put the exclamation mark out on mission 3 when returning to the cave
+[x] Put the exclamation mark out on mission 3 when returning to the cave
 [] Gobi wants pets as a mechanic
 
 Feedback May 18

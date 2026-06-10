@@ -8,11 +8,11 @@ import { UnitTag } from '../game/units/unitTag';
 
 /** Enemy health multiplier by player count (2–6 players). 1 player uses 1.0. */
 export const ENEMY_HEALTH_MULTIPLIER_BY_PLAYER_COUNT: Readonly<Record<number, number>> = {
-    2: 1.5,
-    3: 2,
-    4: 2.5,
-    5: 3,
-    6: 3.5,
+    2: 2,
+    3: 3,
+    4: 4,
+    5: 5,
+    6: 6,
 };
 
 /** Returns the enemy health multiplier for the given player count. Defaults to 1.0 for 1 or unknown. */
