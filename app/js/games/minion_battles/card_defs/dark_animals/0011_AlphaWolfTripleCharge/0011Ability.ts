@@ -65,12 +65,12 @@ class TripleChargeAbilityDef extends AbilityBase<TripleChargeNote> {
     readonly renderTargetingPreview: AbilityStatic['renderTargetingPreview'];
 
     readonly abilityTimings: AbilityTimingInterval[] = [
-        { id: 'windup1', start: 0,            end: DASH1_START,  abilityPhase: AbilityPhase.Windup },
-        { id: 'dash1',   start: DASH1_START,  end: DASH1_END,    abilityPhase: AbilityPhase.Active },
-        { id: 'windup2', start: DASH1_END,    end: DASH2_START,  abilityPhase: AbilityPhase.Windup },
-        { id: 'dash2',   start: DASH2_START,  end: DASH2_END,    abilityPhase: AbilityPhase.Active },
-        { id: 'windup3', start: DASH2_END,    end: DASH3_START,  abilityPhase: AbilityPhase.Windup },
-        { id: 'dash3',   start: DASH3_START,  end: DASH3_END,    abilityPhase: AbilityPhase.Active },
+        { id: 'windup1', start: 0,            end: DASH1_START,  abilityPhase: AbilityPhase.Windup, tags: ['juggernaut'] as const },
+        { id: 'dash1',   start: DASH1_START,  end: DASH1_END,    abilityPhase: AbilityPhase.Active, tags: ['juggernaut'] as const },
+        { id: 'windup2', start: DASH1_END,    end: DASH2_START,  abilityPhase: AbilityPhase.Windup, tags: ['juggernaut'] as const },
+        { id: 'dash2',   start: DASH2_START,  end: DASH2_END,    abilityPhase: AbilityPhase.Active, tags: ['juggernaut'] as const },
+        { id: 'windup3', start: DASH2_END,    end: DASH3_START,  abilityPhase: AbilityPhase.Windup, tags: ['juggernaut'] as const },
+        { id: 'dash3',   start: DASH3_START,  end: DASH3_END,    abilityPhase: AbilityPhase.Active, tags: ['juggernaut'] as const },
         { id: 'cooldown', start: ACTIVE_END,  end: ACTIVE_END + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
     ];
 

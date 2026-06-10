@@ -109,6 +109,14 @@ export class OverlayRenderer {
         this.lastRenderTime = 0;
     }
 
+    setLayerVisible(visible: boolean): void {
+        if (visible) return;
+        if (this.darknessOverlaySprite) this.darknessOverlaySprite.visible = false;
+        if (this.fogTintSprite) this.fogTintSprite.visible = false;
+        this.crystalAuraGraphics.visible = false;
+        this.darkCrystalAuraGraphics.visible = false;
+    }
+
     /** Main render call. Handles darkness overlay, fog animation, and crystal auras. */
     render(engine: GameEngine): void {
         this.currentEngine = engine;

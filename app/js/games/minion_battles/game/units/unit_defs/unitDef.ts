@@ -151,7 +151,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 400,
         creatureType: 'dark_creature',
-        deathEffect: darkCreatureIconFlashDeathEffect(10),
+        deathEffect: darkCreatureIconFlashDeathEffect(5),
         uiDescription: 'Stays back and harasses with ranged attacks.',
     },
     dark_wolf: {
@@ -163,7 +163,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 300,
         creatureType: 'dark_creature',
-        deathEffect: darkCreatureIconFlashDeathEffect(10),
+        deathEffect: darkCreatureIconFlashDeathEffect(5),
         uiDescription: 'Fast predator that lunges in for a quick bite.',
     },
     alpha_wolf: {
@@ -175,14 +175,14 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 2,
         perceptionRange: 350,
         creatureType: 'dark_creature',
-        deathEffect: darkCreatureDissolutionDeathEffect(12),
+        deathEffect: darkCreatureDissolutionDeathEffect(6),
         uiDescription: 'Pack leader with heavy claws and howling support.',
         combatCc: {
             ccDurationResistPct: { ALL: 0.5 },
             hardCcArmourFloor: 2,
             chainCcDecayRounds: 0,
             ccArmourBreakStunDuration: 5,
-            knockbackResistance: 1,
+            knockbackResistance: 2,
         },
         enrageDef: {
             conditionType: 'health_below_percent',
@@ -199,7 +199,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         size: 'Large',
         stamina: 1,
         perceptionRange: 280,
-        deathEffect: darkCreatureDissolutionDeathEffect(10),
+        deathEffect: darkCreatureDissolutionDeathEffect(5),
         uiDescription: 'Tough charger that bowls through the front line.',
     },
     thornbinder: {
@@ -211,7 +211,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 380,
         creatureType: 'dark_creature',
-        deathEffect: darkCreatureIconFlashDeathEffect(10),
+        deathEffect: darkCreatureIconFlashDeathEffect(5),
         uiDescription:
             'Zone controller — slams bramble into the ground, slowing foes. Weakens in bright light (Light Hate).',
     },
@@ -224,7 +224,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 420,
         creatureType: 'dark_creature',
-        deathEffect: darkCreatureDissolutionDeathEffect(11),
+        deathEffect: darkCreatureDissolutionDeathEffect(5),
         uiDescription:
             'Summoner — launches seed pods that hatch short-lived husks. Channels are telegraphed; weakens in bright light.',
     },
@@ -237,7 +237,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 220,
         creatureType: 'dark_creature',
-        deathEffect: darkCreatureIconFlashDeathEffect(8),
+        deathEffect: darkCreatureIconFlashDeathEffect(4),
         uiDescription: 'Ephemeral husk spawned by artillery — reckless melee punches.',
     },
     swarmling: {
@@ -249,7 +249,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 2,
         perceptionRange: 250,
         creatureType: 'dark_creature',
-        deathEffect: darkCreatureIconFlashDeathEffect(8),
+        deathEffect: darkCreatureIconFlashDeathEffect(4),
         uiDescription: 'Fast skittering biter — snaps twice per round.',
     },
     lanternite: {

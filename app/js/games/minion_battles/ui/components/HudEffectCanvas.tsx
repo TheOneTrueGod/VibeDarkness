@@ -4,6 +4,7 @@ import type { GameEngine } from '../../game/GameEngine';
 import type { Camera } from '../../game/Camera';
 import type { HudEffect } from '../../game/effects/HudEffect';
 import { HudEffectLayer } from '../../game/GameRenderer/renderers/HudEffectLayer';
+import { isRenderLayerVisible } from '../../../../debug/renderVisibilityStore';
 
 export interface HudEffectCanvasHandle {
     addHudEffect(effect: HudEffect): void;
@@ -107,9 +108,13 @@ const HudEffectCanvas = forwardRef<HudEffectCanvasHandle, HudEffectCanvasProps>(
                 let lastTs = 0;
                 const loop = (ts: number) => {
                     if (cancelled) return;
+                    const hudEffectsVisible = isRenderLayerVisible('hudEffects');
+                    canvas.style.visibility = hudEffectsVisible ? 'visible' : 'hidden';
                     const realDt = lastTs > 0 ? Math.min((ts - lastTs) / 1000, 0.1) : 0;
                     lastTs = ts;
-                    layer.render(engineRef.current, cameraRef.current, window.innerWidth, window.innerHeight, realDt);
+                    if (hudEffectsVisible) {
+                        layer.render(engineRef.current, cameraRef.current, window.innerWidth, window.innerHeight, realDt);
+                    }
                     app.render();
                     const s = stateRef.current;
                     if (s) s.rafId = requestAnimationFrame(loop);

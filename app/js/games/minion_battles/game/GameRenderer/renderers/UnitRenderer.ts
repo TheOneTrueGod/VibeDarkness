@@ -82,6 +82,19 @@ export class UnitRenderer {
         this.hitFlashState.clear();
     }
 
+    setLayerVisible(visible: boolean): void {
+        if (visible) return;
+        for (const visual of this.unitVisuals.values()) {
+            visual.visible = false;
+        }
+        for (const shadow of this.knockbackShadowVisuals.values()) {
+            shadow.visible = false;
+        }
+        for (const ghost of this.constructionGhostVisuals.values()) {
+            ghost.visible = false;
+        }
+    }
+
     private syncAllUnitCharacterSprites(engine: GameEngine, localTeamId: TeamId): void {
         const context = this.getUnitRenderContext(localTeamId);
         for (const unit of engine.units) {

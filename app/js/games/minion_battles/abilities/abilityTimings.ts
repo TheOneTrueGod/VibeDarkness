@@ -17,10 +17,15 @@ export enum AbilityPhase {
     Active = 'active',
     Cooldown = 'cooldown',
     CoopCooldown = 'coopCooldown',
-    Iframe = 'iframe',
-    Juggernaut = 'juggernaut',
     Waiting = 'waiting',
 }
+
+/**
+ * Modifier tags on a timing interval that refine how it behaves and displays.
+ * - `'iframe'`      — invincibility frames (unit cannot be hit); renders green.
+ * - `'juggernaut'`  — defensive stance (shield active); renders sky-blue.
+ */
+export type AbilityTimingTag = 'iframe' | 'juggernaut';
 
 /**
  * Legacy sequential segment: interpreted as non-overlapping blocks in declaration order.
@@ -114,7 +119,9 @@ export interface AbilityTimingInterval {
     start: number;
     end: number;
     abilityPhase: AbilityPhase;
-    /** Optional battle timeline tooltip title (defaults from phase). */
+    /** Modifier tags that refine display and engine behavior (e.g. 'iframe', 'juggernaut'). */
+    tags?: readonly AbilityTimingTag[];
+    /** Optional battle timeline tooltip title (defaults from phase + tags). */
     timelineLabel?: string;
     /** Optional battle timeline tooltip body. */
     timelineDescription?: string;
@@ -134,10 +141,10 @@ export interface AbilityTimingInterval {
     behaviour?: CastBehaviour;
     /**
      * When true, the engine fires evade-break logic for the caster as soon as this
-     * interval is entered. Use on the first Active/Iframe interval of any new evade ability.
+     * interval is entered. Use on the first Active (or Active+iframe-tagged) interval of any new evade ability.
      *
      * WARNING: applyCoopTailSplit creates new interval objects that do NOT preserve
-     * castBehaviours, emitterDef, evadeEffect, targetDef, behaviour, or any other
+     * castBehaviours, emitterDef, evadeEffect, targetDef, behaviour, tags, or any other
      * extension fields. CoopCooldown intervals must always be last and must have no
      * behavioral effects.
      */
@@ -222,9 +229,11 @@ export function normalizeAbilityTimingsToIntervals(entries: AbilityTimingEntry[]
 
 const COOP_TAIL_SPLIT_EPS = 1e-6;
 
-function isTailBoundaryEffectPhase(phase: AbilityPhase): boolean {
+function isTailBoundaryEffectInterval(it: AbilityTimingInterval): boolean {
     return (
-        phase === AbilityPhase.Active || phase === AbilityPhase.Juggernaut || phase === AbilityPhase.Iframe
+        it.abilityPhase === AbilityPhase.Active ||
+        it.tags?.includes('iframe') === true ||
+        it.tags?.includes('juggernaut') === true
     );
 }
 
@@ -240,7 +249,7 @@ function isTailBoundaryEffectPhase(phase: AbilityPhase): boolean {
  * subject to tail splitting must be free of these fields.
  */
 /**
- * Second half of the terminal tail (after the last Active/Juggernaut/Iframe segment) becomes
+ * Second half of the terminal tail (after the last Active / iframe / juggernaut segment) becomes
  * {@link AbilityPhase.CoopCooldown} so coop sync can trim casts without changing total duration.
  */
 export function applyCoopTailSplit(intervals: AbilityTimingInterval[]): AbilityTimingInterval[] {
@@ -248,7 +257,7 @@ export function applyCoopTailSplit(intervals: AbilityTimingInterval[]): AbilityT
     const T = getTotalAbilityDurationFromIntervals(intervals);
     let tailStart = -Infinity;
     for (const it of intervals) {
-        if (isTailBoundaryEffectPhase(it.abilityPhase)) {
+        if (isTailBoundaryEffectInterval(it)) {
             tailStart = Math.max(tailStart, it.end);
         }
     }
@@ -290,6 +299,7 @@ export function applyCoopTailSplit(intervals: AbilityTimingInterval[]): AbilityT
                 start: s1,
                 end: e1,
                 abilityPhase: it.abilityPhase,
+                tags: it.tags,
                 timelineLabel: it.timelineLabel,
                 timelineDescription: it.timelineDescription,
             });
@@ -369,16 +379,14 @@ export interface PrimaryTimelineSegment {
     description: string;
 }
 
-function abilityPhaseToTimelinePhaseId(phase: AbilityPhase): BattleTimelinePhaseId {
-    switch (phase) {
+function abilityPhaseToTimelinePhaseId(interval: AbilityTimingInterval): BattleTimelinePhaseId {
+    if (interval.tags?.includes('juggernaut')) return 'defensive';
+    if (interval.tags?.includes('iframe')) return 'iFrame';
+    switch (interval.abilityPhase) {
         case AbilityPhase.Windup:
             return 'startup';
         case AbilityPhase.Active:
             return 'active';
-        case AbilityPhase.Juggernaut:
-            return 'defensive';
-        case AbilityPhase.Iframe:
-            return 'iFrame';
         case AbilityPhase.Cooldown:
             return 'cooldown';
         case AbilityPhase.CoopCooldown:
@@ -388,18 +396,16 @@ function abilityPhaseToTimelinePhaseId(phase: AbilityPhase): BattleTimelinePhase
     }
 }
 
-function defaultTimelineLabel(phase: AbilityPhase): string {
-    switch (phase) {
+function defaultTimelineLabel(interval: AbilityTimingInterval): string {
+    if (interval.tags?.includes('juggernaut')) return 'Juggernaut';
+    if (interval.tags?.includes('iframe')) return 'iFrame';
+    switch (interval.abilityPhase) {
         case AbilityPhase.Windup:
             return 'Startup';
         case AbilityPhase.Active:
             return 'Active';
         case AbilityPhase.Cooldown:
             return 'Cooldown';
-        case AbilityPhase.Iframe:
-            return 'iFrame';
-        case AbilityPhase.Juggernaut:
-            return 'Juggernaut';
         case AbilityPhase.CoopCooldown:
             return 'Team cooldown';
         default:
@@ -407,18 +413,16 @@ function defaultTimelineLabel(phase: AbilityPhase): string {
     }
 }
 
-function defaultTimelineDescription(phase: AbilityPhase): string {
-    switch (phase) {
+function defaultTimelineDescription(interval: AbilityTimingInterval): string {
+    if (interval.tags?.includes('juggernaut')) return 'Strong defensive stance.';
+    if (interval.tags?.includes('iframe')) return 'Invincibility frames.';
+    switch (interval.abilityPhase) {
         case AbilityPhase.Windup:
             return 'Preparing the ability.';
         case AbilityPhase.Active:
             return 'The ability is hitting or taking effect.';
         case AbilityPhase.Cooldown:
             return 'Recovering before the next action.';
-        case AbilityPhase.Iframe:
-            return 'Invincibility frames.';
-        case AbilityPhase.Juggernaut:
-            return 'Strong defensive stance.';
         case AbilityPhase.CoopCooldown:
             return 'An ally taking their turn can end this recovery early.';
         default:
@@ -452,16 +456,16 @@ export function buildPrimaryTimelineSegments(intervals: AbilityTimingInterval[])
 
         covering.sort((x, y) => x.originalIndex - y.originalIndex);
         const { it: winner } = covering[0];
-        const phaseId = abilityPhaseToTimelinePhaseId(winner.abilityPhase);
+        const phaseId = abilityPhaseToTimelinePhaseId(winner);
         out.push({
             start: a,
             end: b,
             sourceId: winner.id,
             abilityPhase: winner.abilityPhase,
             phaseId,
-            label: winner.timelineLabel ?? defaultTimelineLabel(winner.abilityPhase),
+            label: winner.timelineLabel ?? defaultTimelineLabel(winner),
             description:
-                winner.timelineDescription ?? defaultTimelineDescription(winner.abilityPhase),
+                winner.timelineDescription ?? defaultTimelineDescription(winner),
         });
     }
 
@@ -590,9 +594,13 @@ export const ABILITY_PHASE_COLORS: Record<AbilityPhase, string> = {
     [AbilityPhase.Active]: '#ef4444', // red — damage
     [AbilityPhase.Cooldown]: '#eab308', // yellow
     [AbilityPhase.CoopCooldown]: '#facc15', // brighter yellow (timeline / ring)
-    [AbilityPhase.Iframe]: '#4ade80', // green — invincibility / swiftness
-    [AbilityPhase.Juggernaut]: '#7dd3fc', // sky blue — shields / armour
     [AbilityPhase.Waiting]: '#6b7280', // gray
+};
+
+/** Colors for timing tag modifiers (override phase color when a tag is present). */
+export const ABILITY_TIMING_TAG_COLORS: Record<AbilityTimingTag, string> = {
+    iframe: '#4ade80', // green — invincibility / swiftness
+    juggernaut: '#7dd3fc', // sky blue — shields / armour
 };
 
 /** Earliest-declared covering interval at `elapsed` wins (same as timeline merge). */

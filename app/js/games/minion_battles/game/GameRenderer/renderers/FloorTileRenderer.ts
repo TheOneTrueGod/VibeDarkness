@@ -27,6 +27,10 @@ export class FloorTileRenderer {
         this.gameContainer.addChild(this.floorTilesContainer);
     }
 
+    setLayerVisible(visible: boolean): void {
+        this.floorTilesContainer.visible = visible;
+    }
+
     render(engine: GameEngine): void {
         const entries = engine.terrainLayers.getFloorTileEntries();
         const activeKeys = new Set<string>();

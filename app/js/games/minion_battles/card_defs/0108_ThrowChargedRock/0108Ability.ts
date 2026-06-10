@@ -348,7 +348,11 @@ export const ThrowChargedRock: AbilityStatic = {
             }),
         );
 
-        eng.addLightSource(createCrystalLightEffect(projectile.x, projectile.y));
+        eng.addLightSource(createCrystalLightEffect(projectile.x, projectile.y, {
+            color: PREVIEW_TEAL,
+            radius: 2,
+            decayInterval: 0.08,
+        }));
 
         const units = eng
             .getUnits()

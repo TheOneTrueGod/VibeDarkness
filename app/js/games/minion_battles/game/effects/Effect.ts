@@ -63,15 +63,15 @@ export class Effect extends GameObject {
         if (!this.active) return;
         this.elapsed += realDt;
 
-        // ParticleImage / RockChipParticle: simple 2D particle with velocity damping
+        // ParticleImage / RockChipParticle: velocity + optional acceleration and damping
         if (this.effectType === 'ParticleImage' || this.effectType === 'RockChipParticle') {
-            const data = this.effectData as { vx?: number; vy?: number };
-            const vx = data.vx ?? 0;
-            const vy = data.vy ?? 0;
+            const data = this.effectData as { vx?: number; vy?: number; ay?: number; dampingK?: number };
+            let vx = data.vx ?? 0;
+            let vy = data.vy ?? 0;
+            vy += (data.ay ?? 0) * realDt;
             this.x += vx * realDt;
             this.y += vy * realDt;
-            // Exponential decay so particles slow down quickly (matches short 0.3s lifetime).
-            const dampingK = 8;
+            const dampingK = data.dampingK ?? 8;
             const factor = Math.exp(-dampingK * realDt);
             data.vx = vx * factor;
             data.vy = vy * factor;

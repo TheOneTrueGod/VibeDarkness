@@ -20,6 +20,11 @@ export function tryApplyHardCcStun(
     gameTime: number,
     roundNumber: number,
 ): HardCcStunAttemptResult {
+    // Units in a juggernaut window are immune to CC interruption — no armour consumed, no stun.
+    if (target.isInJuggernautWindow(gameTime)) {
+        return { outcome: 'absorbed' };
+    }
+
     // Exposed units are immune to further hard CC; absorbed CC extends the exposed window instead.
     if (target.hasBuff('exposed')) {
         const exposedBuff = target.buffs.find(b => b._type === EXPOSED_BUFF_TYPE) as ExposedBuff | undefined;

@@ -18,6 +18,10 @@ export class SpecialTileRenderer {
         this.gameContainer.addChild(this.specialTilesContainer);
     }
 
+    setLayerVisible(visible: boolean): void {
+        this.specialTilesContainer.visible = visible;
+    }
+
     render(specialTiles: SpecialTile[]): void {
         for (const tile of specialTiles) {
             if (tile.hp <= 0) continue;

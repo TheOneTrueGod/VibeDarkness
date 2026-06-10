@@ -25,6 +25,19 @@ describe('Effect', () => {
         expect(effect.active).toBe(false);
     });
 
+    it('applies upward acceleration to ParticleImage effects', () => {
+        const effect = new Effect({
+            x: 100,
+            y: 100,
+            duration: 1,
+            effectType: 'ParticleImage',
+            effectData: { vx: 0, vy: 0, ay: -200, dampingK: 0 },
+        });
+        effect.renderUpdate(0.1);
+        expect(effect.y).toBeLessThan(100);
+        expect(effect.effectData.vy).toBeCloseTo(-20);
+    });
+
     it('computes progress correctly', () => {
         const effect = new Effect({
             x: 0,

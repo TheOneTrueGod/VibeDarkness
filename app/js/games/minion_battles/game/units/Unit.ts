@@ -936,6 +936,20 @@ export class Unit extends GameObject {
         );
     }
 
+    /** True while the unit is executing a timing interval tagged 'juggernaut' (immune to CC interruption). */
+    isInJuggernautWindow(gameTime: number): boolean {
+        for (const active of this.activeAbilities) {
+            const ability = getAbility(active.abilityId);
+            if (!ability) continue;
+            const elapsed = gameTime - active.startTime;
+            const intervals = normalizeAbilityTimingsToIntervals(ability.abilityTimings);
+            if (intervals.some((it) => it.start <= elapsed && elapsed < it.end && it.tags?.includes('juggernaut'))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Fast check: does this unit have a buff of the given type? */
     hasBuff(buffType: string): boolean {
         return this.buffs.some((b) => b._type === buffType);

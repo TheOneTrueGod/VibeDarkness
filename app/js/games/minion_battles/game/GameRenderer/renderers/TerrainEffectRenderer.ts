@@ -17,6 +17,10 @@ export class TerrainEffectRenderer {
         this.gameContainer.addChild(this.terrainEffectsContainer);
     }
 
+    setLayerVisible(visible: boolean): void {
+        this.terrainEffectsContainer.visible = visible;
+    }
+
     render(engine: GameEngine): void {
         const activeEffects = engine.terrainLayers.allEffects;
         const activeIds = new Set<string>();

@@ -56,6 +56,11 @@ export function tryApplyKnockbackByTier(
     casterY: number,
     engine: KnockbackEngineCtx,
 ): KnockbackAttemptResult {
+    // Units in a juggernaut window are immune to knockback — no armour consumed, no launch.
+    if (target.isInJuggernautWindow(engine.gameTime)) {
+        return { outcome: 'fully_resisted' };
+    }
+
     const effectiveTier = tier - target.knockbackResistance;
     if (effectiveTier <= 0) return { outcome: 'fully_resisted' };
 
@@ -89,6 +94,7 @@ export function tryApplyKnockbackByTier(
     if (target.ccArmourBreakStunDuration > 0) {
         // A fixed break stun is defined — apply it instead of physical knockback.
         target.addBuff(new ExposedBuff(target.ccArmourBreakStunDuration), engine.gameTime, engine.roundNumber);
+        engine.interruptUnitAndRefundAbilities?.(target);
     } else {
         // No break stun defined — the knockback itself is the CC payoff.
         _launchKnockback(target, tierDef, source, casterX, casterY, engine);

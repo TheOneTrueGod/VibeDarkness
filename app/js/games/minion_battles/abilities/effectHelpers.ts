@@ -45,6 +45,7 @@ export interface CrystalLightEffectOptions {
     radius?: number;
     decayRate?: number;
     decayInterval?: number;
+    color?: number;
 }
 
 const DEFAULT_LIGHT_AMOUNT = 10;
@@ -70,6 +71,7 @@ export function createCrystalLightEffect(
         y,
         lightAmount,
         radius,
+        color: options.color,
         decay: {
             roundCreated: 0,
             initialLightAmount: lightAmount,

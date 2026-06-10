@@ -106,7 +106,8 @@ export const DiggingClawsAbility: AbilityStatic = {
 			id: 'dash',
 			start: 0,
 			end: DASH_DURATION,
-			abilityPhase: AbilityPhase.Iframe,
+			abilityPhase: AbilityPhase.Active,
+			tags: ['iframe'] as const,
 			conditionalCancel: {
 				condition: ({ caster, engine }) => {
 					const terrain = engine.terrainManager;

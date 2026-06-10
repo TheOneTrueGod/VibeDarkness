@@ -37,7 +37,8 @@ export const ClawAbility: AbilityStatic = {
 			id: 'active',
 			start: 0,
 			end: CLAW_DURATION,
-			abilityPhase: AbilityPhase.Iframe,
+			abilityPhase: AbilityPhase.Active,
+			tags: ['iframe'] as const,
 			behaviour: CastBehaviours.Dash()
 				.withMaxDistance(CLAW_MAX_DISTANCE)
 				.withCollisionStep(COLLISION_STEP)

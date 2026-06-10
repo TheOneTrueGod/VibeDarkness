@@ -47,6 +47,17 @@ export class PreviewRenderer {
         this.gameContainer.addChild(this.ghostPlanPreviewGraphics);
     }
 
+    setLayerVisible(visible: boolean): void {
+        if (visible) return;
+        this.abilityPreviewGraphics.visible = false;
+        this.targetingPreviewGraphics.visible = false;
+        this.ghostPreviewGraphics.visible = false;
+        this.ghostPlanPreviewGraphics.visible = false;
+        for (const visual of this.moveTargetVisuals.values()) {
+            visual.visible = false;
+        }
+    }
+
     render(
         engine: GameEngine,
         localTeamId: TeamId,

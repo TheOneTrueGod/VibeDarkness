@@ -251,7 +251,7 @@ export function tickUnitActiveAbilities(
             const isLegacyEvade =
                 !active.evadeFired &&
                 abilityHasTag(active.abilityId, 'evade') &&
-                (interval.abilityPhase === AbilityPhase.Active || interval.abilityPhase === AbilityPhase.Iframe);
+                (interval.abilityPhase === AbilityPhase.Active || interval.tags?.includes('iframe') === true);
             if (!isDeclarativeEvade && !isLegacyEvade) continue;
 
             active.evadeFired = true;

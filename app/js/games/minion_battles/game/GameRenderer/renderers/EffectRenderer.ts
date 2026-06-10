@@ -6,6 +6,8 @@ import type { EffectImageKey } from '../../effectImages';
 import type { AssetRegistry } from '../AssetRegistry';
 
 const Z_EFFECTS = 12;
+/** Max on-screen diameter (px) for batched particles — prevents one-frame full-viewport wash. */
+const MAX_PARTICLE_PX = 28;
 
 export class EffectRenderer {
     private effectVisuals: Map<string, Container> = new Map();
@@ -27,6 +29,14 @@ export class EffectRenderer {
     setParticleTexture(tex: Texture): void {
         if (this.particleContainer) {
             this.particleContainer.texture = tex;
+        }
+    }
+
+    setLayerVisible(visible: boolean): void {
+        if (visible) return;
+        if (this.particleContainer) this.particleContainer.visible = false;
+        for (const visual of this.effectVisuals.values()) {
+            visual.visible = false;
         }
     }
 
@@ -94,8 +104,8 @@ export class EffectRenderer {
 
         particle.x = effect.x;
         particle.y = effect.y;
-        const texW = pc.texture.width || 1;
-        const texH = pc.texture.height || 1;
+        const texW = Math.max(pc.texture.width || 0, 1);
+        const texH = Math.max(pc.texture.height || 0, 1);
 
         if (effect.effectType === 'ParticleImage') {
             const data = effect.effectData as { scale?: number; tint?: number };
@@ -103,14 +113,14 @@ export class EffectRenderer {
             const life = 1 - effect.progress;
             particle.alpha = life * life;
             const base = (data.scale ?? 1) * 18;
-            const s = base * (0.6 + 0.4 * life);
+            const s = Math.min(base * (0.6 + 0.4 * life), MAX_PARTICLE_PX);
             particle.scaleX = s / texW;
             particle.scaleY = s / texH;
         } else {
             // StoryHomingParticle
             const life = Math.max(0.35, 1 - effect.progress * 0.4);
             particle.alpha = life;
-            const size = 14 + (1 - effect.progress) * 6;
+            const size = Math.min(14 + (1 - effect.progress) * 6, MAX_PARTICLE_PX);
             particle.scaleX = size / texW;
             particle.scaleY = size / texH;
         }

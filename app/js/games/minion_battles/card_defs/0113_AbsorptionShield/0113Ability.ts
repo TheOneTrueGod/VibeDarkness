@@ -43,7 +43,7 @@ export const AbsorptionShieldAbility: AbilityStatic = {
             id: 'juggernaut',
             start: 0,
             end: DURATION,
-            abilityPhase: AbilityPhase.Juggernaut,
+            abilityPhase: AbilityPhase.Active,
         },
     ],
     targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],

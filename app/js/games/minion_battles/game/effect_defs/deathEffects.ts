@@ -4,6 +4,7 @@ import type { IEffectDef, IEffectRenderContext } from './types';
 import type { EffectImageKey } from '../effectImages';
 import {
     DARK_CREATURE_CORRUPTION_TINT,
+    DARK_CREATURE_DEATH_ICON_TINT_ALPHA,
     DARK_CREATURE_ICON_TINT_ALPHA,
 } from '../deathEffects/darkCreatureVisualConstants';
 import { CHARACTER_SPRITE_SCALE } from '../units/unit_defs/unitDef';
@@ -33,7 +34,7 @@ export const darkCreatureIconDeathEffectDef: IEffectDef = {
         tint.height = spriteSize;
         tint.blendMode = 'multiply';
         tint.tint = DARK_CREATURE_CORRUPTION_TINT;
-        tint.alpha = DARK_CREATURE_ICON_TINT_ALPHA;
+        tint.alpha = DARK_CREATURE_DEATH_ICON_TINT_ALPHA;
         tint.label = 'deathIconTint';
         masked.addChild(base, tint);
         const maskG = new Graphics();

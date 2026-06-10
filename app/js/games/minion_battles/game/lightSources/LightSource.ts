@@ -27,6 +27,7 @@ export class LightSource {
     active: boolean = true;
     lightAmount: number;
     radius: number;
+    color?: number;
     followUnitId?: string;
     decay: LightSourceDecay;
 
@@ -36,6 +37,7 @@ export class LightSource {
         y: number;
         lightAmount: number;
         radius: number;
+        color?: number;
         followUnitId?: string;
         decay: LightSourceDecay;
     }) {
@@ -44,6 +46,7 @@ export class LightSource {
         this.y = config.y;
         this.lightAmount = config.lightAmount;
         this.radius = config.radius;
+        this.color = config.color;
         this.followUnitId = config.followUnitId;
         this.decay = { ...config.decay };
     }
@@ -56,6 +59,7 @@ export class LightSource {
             active: this.active,
             lightAmount: this.lightAmount,
             radius: this.radius,
+            ...(this.color !== undefined ? { color: this.color } : {}),
             ...(this.followUnitId !== undefined ? { followUnitId: this.followUnitId } : {}),
             decay: { ...this.decay },
         };
@@ -68,6 +72,7 @@ export class LightSource {
             y: data.y as number,
             lightAmount: data.lightAmount as number,
             radius: data.radius as number,
+            color: data.color as number | undefined,
             followUnitId: data.followUnitId as string | undefined,
             decay: data.decay as LightSourceDecay,
         });

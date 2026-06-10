@@ -5,9 +5,9 @@ Kerry: Bleeding sword.  Likes shotgun builds
 Voen: metal
 
 Feedback June 9
-[] Bug where the Alpha Wolf's triple charge is interrupted by a stunning punch
-[] Alpha wolf seemed to use triple attack while stunned
-[] Make sure 'active' frames are only for as long as the attack is hitting -- make them 1 frame if possible
+[x] Bug where the Alpha Wolf's triple charge is interrupted by a stunning punch
+[x] Alpha wolf seemed to use triple attack while stunned
+[x] Make sure 'active' frames are only for as long as the attack is hitting -- make them 1 frame if possible
 
 
 Feedback May 28

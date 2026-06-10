@@ -40,7 +40,8 @@ export const DodgeAbility: AbilityStatic = {
             id: 'iframe',
             start: 0,
             end: DODGE_DURATION,
-            abilityPhase: AbilityPhase.Iframe,
+            abilityPhase: AbilityPhase.Active,
+            tags: ['iframe'] as const,
             behaviour: CastBehaviours.Dash()
                 .withMaxDistance(DODGE_MAX_DISTANCE)
                 .withCollisionStep(DODGE_COLLISION_STEP)

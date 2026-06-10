@@ -50,7 +50,7 @@ export const RaiseShieldAbility: AbilityStatic = {
             id: 'juggernaut',
             start: 0,
             end: DURATION,
-            abilityPhase: AbilityPhase.Juggernaut,
+            abilityPhase: AbilityPhase.Active,
         },
         {
             id: 'cooldown',

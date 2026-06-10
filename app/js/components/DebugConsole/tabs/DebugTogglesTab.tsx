@@ -26,6 +26,14 @@ import {
     LOBBY_LOG_TYPE_LABELS,
     lobbyLogPostThresholdState,
 } from '../../../lobbyLogPostThresholds';
+import {
+    RENDER_LAYER_IDS,
+    RENDER_LAYER_LABELS,
+    type RenderLayerId,
+    getRenderVisibilitySnapshot,
+    setRenderLayerVisible,
+    subscribeRenderVisibility,
+} from '../../../debug/renderVisibilityStore';
 
 interface DebugTogglesTabProps {
     isActive: boolean;
@@ -77,6 +85,12 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
 
     useSyncExternalStore(subscribeLobbyLogPost, getLobbyLogPostSnapshot, getLobbyLogPostSnapshot);
 
+    const renderVisibility = useSyncExternalStore(
+        subscribeRenderVisibility,
+        getRenderVisibilitySnapshot,
+        getRenderVisibilitySnapshot,
+    );
+
     if (!isActive) return null;
 
     return (
@@ -121,6 +135,27 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                     />
                     <span className="leading-snug">Log user state to server</span>
                 </label>
+            </div>
+
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mt-8 mb-2">
+                RENDER VISIBILITY
+            </h3>
+            <p className="text-xs text-muted mb-3 max-w-xl">
+                Toggle battle canvas render layers on or off. All layers start visible; settings reset when you
+                refresh the page.
+            </p>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 items-start">
+                {RENDER_LAYER_IDS.map((layerId) => (
+                    <label key={layerId} className="flex items-start gap-2 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 rounded border border-border-custom bg-surface text-primary focus:ring-primary shrink-0"
+                            checked={renderVisibility[layerId]}
+                            onChange={(e) => setRenderLayerVisible(layerId as RenderLayerId, e.target.checked)}
+                        />
+                        <span className="leading-snug">{RENDER_LAYER_LABELS[layerId]}</span>
+                    </label>
+                ))}
             </div>
 
             <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mt-8 mb-2">Debug logging</h3>

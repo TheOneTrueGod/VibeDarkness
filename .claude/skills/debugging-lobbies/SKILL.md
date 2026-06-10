@@ -85,6 +85,7 @@ Entries are batched client-side (up to 20 per flush, with a 5-second debounce) a
 | **`desyncDebug-getFingerprints`** | Reads `fingerprints.jsonl` entries within a tick range. | Use to check fingerprint agreement before digging into full state, or when user-state logs are absent. |
 | **`desyncDebug-getLobbyLog`** | Filters `lobby_log.jsonl` by tick range and/or `--keyword` (repeatable); shows all matching structured log events. | Use to surface desync/resync events, rejection reasons, and timestamps in the incident window. |
 | **`desyncDebug-getOrders`** | Reads `applied_orders.jsonl` (or `--file pending`) within a tick range. | Use to correlate which orders were applied at specific ticks with observed state divergence. |
+| **`desyncDebug-getCombatEvents`** | Diffs consecutive battle snapshots (or `user_state`) tick-by-tick; reports unit deaths/spawns and inferred Effect-layer VFX (purple death/spawn particles). Supports `--last N`, `--near <px>`. | Use when investigating visual flashes or combat timing — effects are not serialized, but unit changes between snapshots reveal when death/spawn VFX would have fired. |
 
 ## Ephemeral lobbies
 

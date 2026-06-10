@@ -12,6 +12,13 @@ export class ProjectileRenderer {
         private readonly _assets: AssetRegistry,
     ) {}
 
+    setLayerVisible(visible: boolean): void {
+        if (visible) return;
+        for (const visual of this.projectileVisuals.values()) {
+            visual.visible = false;
+        }
+    }
+
     render(projectiles: Projectile[], gameTime: number): void {
         for (const proj of projectiles) {
             let visual = this.projectileVisuals.get(proj.id);

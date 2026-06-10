@@ -18,6 +18,7 @@
     "desyncDebug-getLobbyLog": "node scripts/desyncDebug-getLobbyLog.js",
     "desyncDebug-diffTick": "node scripts/desyncDebug-diffTick.js",
     "desyncDebug-getOrders": "node scripts/desyncDebug-getOrders.js",
+    "desyncDebug-getCombatEvents": "node scripts/desyncDebug-getCombatEvents.js",
     "terrain-backup": "node scripts/terrain-backup.js",
     "terrain-restore": "node scripts/terrain-restore.js"
   },
