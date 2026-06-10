@@ -1,4 +1,10 @@
 ﻿import { ChargeAttack } from '../../../abilities/templates/ChargeAttack';
+import type { AbilityRecoveryRule } from '../../../abilities/Ability';
+
+const MAX_USES = 4;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 
 const DARK_WOLF_BITE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="20" fill="#2d2d2d" stroke="#1a1a1a" stroke-width="2"/>
@@ -21,6 +27,8 @@ const wolfBite = new ChargeAttack({
     effectType: 'bite',
     effectDuration: 0.2,
     tooltipText: 'Lunge at a target, dealing {3} damage to each enemy crossed',
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
 });
 
 export const DarkWolfBiteAbility = wolfBite;

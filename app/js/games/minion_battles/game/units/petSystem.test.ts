@@ -198,4 +198,24 @@ describe('commandHeel', () => {
         });
         expect(engine._effects.length).toBeGreaterThan(0);
     });
+
+    it('revives a dead pet at heal fraction HP and sets heel state', () => {
+        const owner = makeUnit({ id: 'owner', x: 100, y: 100 });
+        const pet = makeUnit({ hp: 0, maxHp: 40, active: false, x: 200, y: 200 });
+        pet.aiContext = { aiTree: 'pet' } as PetAITreeContext;
+        const engine = makeEngineLike([owner, pet]);
+
+        commandHeel(owner, [pet], engine, {
+            healFraction: 0.30,
+            tetherRange: 30,
+            durationSeconds: 10,
+        });
+
+        expect(pet.isAlive()).toBe(true);
+        expect(pet.hp).toBe(12); // floor(40 * 0.30)
+        expect(pet.x).toBe(owner.x);
+        expect(pet.y).toBe(owner.y);
+        const ctx = pet.aiContext as PetAITreeContext;
+        expect(ctx.aiState).toBe('pet_heel');
+    });
 });

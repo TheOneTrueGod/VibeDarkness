@@ -1,4 +1,4 @@
-﻿import type { AbilityStatic } from '../../abilities/Ability';
+﻿import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability';
 import { AbilityEventType } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
@@ -7,6 +7,10 @@ import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { type CardDef } from '../types';
 
 const CARD_ID = '0114';
+const MAX_USES = 1;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'energyCharge', chargesPerRecovery: 3, usesRecovered: 1 },
+];
 const RANGE = 100;
 const EXPLOSION_RADIUS = 40;
 const EXPLOSION_DAMAGE = 30;
@@ -29,6 +33,9 @@ export const EnergyBlastAbility: AbilityStatic = {
     image: ENERGY_BLAST_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
+    maxUses: MAX_USES,
+    startingUses: 0,
+    recoveries: RECOVERIES,
     prefireTime: 0.2,
     abilityTimings: [
         { id: 'windup',   start: 0,    end: 0.2,  abilityPhase: AbilityPhase.Windup },

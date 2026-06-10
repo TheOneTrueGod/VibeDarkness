@@ -5,7 +5,7 @@
  * Exclusive upgrade to Punch via the Training research tree.
  */
 
-import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityEventType, AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
@@ -16,6 +16,10 @@ import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}19`;
+const MAX_USES = 4;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const MAX_RANGE = 30; // px
 const LINE_THICKNESS = 20; // px
 const PUNCH_DAMAGE = 8;
@@ -78,6 +82,8 @@ export const ChargingPunchAbility: AbilityStatic = {
     image: CHARGING_PUNCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: 0.15,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,

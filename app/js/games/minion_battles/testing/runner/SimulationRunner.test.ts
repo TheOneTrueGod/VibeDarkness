@@ -267,7 +267,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('passes pet Heel scenario (0703): heals 25% max HP', () => {
+    it('passes pet Heel scenario (0703): heals 30% max HP', () => {
         const r = runScenarioHeadless(petHeelScenario);
         expect(r.passed, r.message).toBe(true);
     });

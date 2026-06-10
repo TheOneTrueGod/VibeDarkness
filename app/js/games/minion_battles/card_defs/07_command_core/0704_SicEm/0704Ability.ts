@@ -5,7 +5,7 @@
  * see the actual dash line. If there are no living pets, the cast fizzles (no order queued).
  */
 
-import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { resolveAbilitySourceUnits, commandPetAbility } from '../../../abilities/petCommands';
@@ -15,6 +15,10 @@ import { type CardDef } from '../../types';
 import sicEmIconUrl from './sic_em.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}04`;
+const MAX_USES = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
+];
 const POUNCE_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
 const MAX_POUNCE_RANGE = 180;
 
@@ -45,6 +49,8 @@ export const SicEmAbility: AbilityStatic = {
     image: SICE_EM_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: 0,
     targets: [{ type: 'pixel', label: 'Pounce target' }],
     abilityTimings: ABILITY_TIMINGS,

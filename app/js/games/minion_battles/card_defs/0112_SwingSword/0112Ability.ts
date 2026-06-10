@@ -13,7 +13,7 @@
  *   0.30â€“1.30  cooldown
  */
 
-import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
@@ -40,6 +40,10 @@ import { Effect } from '../../game/effects/Effect';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}12`;
+const MAX_USES = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 
 const BASE_MAX_RANGE = 48;
 const DAMAGE = 10;
@@ -175,6 +179,8 @@ export const SwingSwordAbility: AbilityStatic = {
     resourceCost: null,
     resourceCosts: [],
     rechargeTurns: 1,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,

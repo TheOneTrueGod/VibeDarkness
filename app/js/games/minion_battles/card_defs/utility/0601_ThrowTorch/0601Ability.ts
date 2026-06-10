@@ -8,7 +8,7 @@
  * is added to their ability list.
  */
 
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { TargetDef } from '../../../abilities/targeting';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
@@ -21,6 +21,10 @@ import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants
 import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromTo } from '../../../abilities/targetHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}01`;
+const MAX_USES = 1;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const PREFIRE_TIME = 0.2;
 const MAX_RANGE = 200;
 const TORCH_LIGHT_AMOUNT = 4;
@@ -56,6 +60,8 @@ export const ThrowTorchAbility: AbilityStatic = {
     image: THROW_TORCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         {

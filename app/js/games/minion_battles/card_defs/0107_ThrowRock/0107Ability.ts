@@ -8,7 +8,7 @@
  */
 
 import { AbilityState } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
 import type { ActiveAbility } from '../../game/types';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
@@ -24,6 +24,10 @@ import { withEntombedWallConditionalCancelAndLinger } from '../../abilities/ento
 import { buildTagDescriptionLines } from '../../abilities/abilityTagCatalog';
 
 const ABILITY_ID = 'throw_rock';
+const MAX_USES = 6;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const RANGE = 200;
 const BASE_DAMAGE = 5;
 /** Matches More Power bump used on Throw Charged Rock explosion damage. */
@@ -210,6 +214,8 @@ export const ThrowRock: AbilityStatic & { range: number } = {
     tags: ['RockThrow'],
     resourceCost: null,
     rechargeTurns: 1,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: 0.3,
     abilityTimings: THROW_ROCK_BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {

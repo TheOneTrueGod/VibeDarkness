@@ -1,4 +1,4 @@
-﻿import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+﻿import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createConeTargetPreviewWithDistanceInaccuracy } from '../../abilities/previewHelpers';
@@ -11,6 +11,10 @@ import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { getPixelTargetPosition } from '../../abilities/targetHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}04`;
+const MAX_USES = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const FIRST_SHOT_TIME = 0.5;
 const LAST_SHOT_TIME = 1.0;
 const NUM_SHOTS = 8;
@@ -34,6 +38,8 @@ export const SMGAbility: AbilityStatic = {
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 20, allowPartialIfPositive: true }],
     rechargeTurns: 0,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: LAST_SHOT_TIME,
     abilityTimings: [
         {

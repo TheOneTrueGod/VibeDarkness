@@ -6,7 +6,7 @@
  */
 
 import { AbilityState } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
@@ -25,6 +25,10 @@ interface GameEngineLike {
 }
 
 const ABILITY_ID = 'throw_knife';
+const MAX_USES = 5;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const RANGE = 200;
 const BASE_DAMAGE = 7;
 
@@ -170,6 +174,8 @@ export const ThrowKnife: AbilityStatic = {
     tags: ['RockThrow'],
     resourceCost: null,
     rechargeTurns: 1,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: 0.3,
     abilityTimings: THROW_KNIFE_BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {

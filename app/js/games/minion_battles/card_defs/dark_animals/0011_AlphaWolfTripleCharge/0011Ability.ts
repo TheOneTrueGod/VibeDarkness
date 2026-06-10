@@ -1,6 +1,6 @@
 ﻿import { AbilityBase } from '../../../abilities/AbilityBase';
 import { AbilityPhase, type AbilityTimingInterval, activeTimingIds } from '../../../abilities/abilityTimings';
-import type { AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { Unit } from '../../../game/units/Unit';
 import type { TargetDef } from '../../../abilities/targeting';
@@ -20,6 +20,11 @@ import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { UnitTag } from '../../../game/units/unitTag';
 
 const ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}11`;
+
+const MAX_USES = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 
 // First windup is slow (telegraphs intent); the two follow-up windups are fast (quick combos).
 const WINDUP1_TIME = 1.2;
@@ -58,6 +63,8 @@ class TripleChargeAbilityDef extends AbilityBase<TripleChargeNote> {
     readonly id = ABILITY_ID;
     readonly name = 'Frenzied Charge';
     readonly image = IMAGE;
+    readonly maxUses = MAX_USES;
+    readonly recoveries = RECOVERIES;
     readonly prefireTime = ACTIVE_END;
     readonly targets: TargetDef[] = [{ type: 'unit', label: 'Target enemy' }];
     readonly aiSettings = { minRange: 0, maxRange: 100 };

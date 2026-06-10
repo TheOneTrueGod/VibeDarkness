@@ -1,4 +1,10 @@
-import { abilityHasTag, type AbilityStatic, type AbilityTag } from './Ability';
+import {
+    abilityHasTag,
+    type AbilityRecoveryRule,
+    type AbilityStatic,
+    type AbilityTag,
+    type RecoveryChargeType,
+} from './Ability';
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
 import {
@@ -9,13 +15,7 @@ import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rock
 import { getAbility } from './AbilityRegistry';
 import type { AbilityModifier } from '../../../researchTrees/types';
 
-export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge' | 'roundCharge';
-
-export interface AbilityRecoveryRule {
-    chargeType: RecoveryChargeType;
-    chargesPerRecovery: number;
-    usesRecovered: number;
-}
+export type { RecoveryChargeType, AbilityRecoveryRule };
 
 export interface AbilityUseConfig {
     maxUses: number;
@@ -28,40 +28,14 @@ const DEFAULT_USE_CONFIG: AbilityUseConfig = {
     recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
 };
 
-const ABILITY_USE_CONFIGS: Record<string, AbilityUseConfig> = {
-    '0003': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Dark Wolf Bite
-    '0007': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Alpha Charge
-    '0011': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Alpha Frenzied Charge (post-enrage)
-    '0101': { maxUses: 2, recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Dodge
-    '0111': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 }] }, // Claw
-    '0534': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 }] }, // Digging Claws
-    '0120': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Bash
-    '0116': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Double Punch
-    '0117': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Strong Punch
-    '0118': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Sneaky Punch
-    '0119': { maxUses: 4, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Charging Punch
-    '0103': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 2 }] }, // Swing Stick
-    '0115': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 }] }, // Swing Bat (pipe bat)
-    throw_rock: { maxUses: 6, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
-    throw_knife: { maxUses: 5, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
-    '0601': { maxUses: 1, recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Throw Torch
-    throw_charged_rock: { maxUses: 3, recoveries: [{ chargeType: 'lightCharge', chargesPerRecovery: 1, usesRecovered: 1 }] },
-    '0104': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Raise Shield
-    '0106': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Laser Shield
-    '0110': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Shining Block
-    '0105': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Laser Sword
-    '0112': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Swing Sword
-    '0113': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Absorption Shield
-    '0114': { maxUses: 1, startingUses: 0, recoveries: [{ chargeType: 'energyCharge', chargesPerRecovery: 3, usesRecovered: 1 }] }, // Energy Blast
-    '0203': { maxUses: 3, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Pistol
-    '0204': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // SMG
-    '0205': { maxUses: 2, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Shotgun
-    '0008': { maxUses: 1, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Thornbinder Bramble
-    '0009': { maxUses: 1, recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }] }, // Husk Seed Barrage
-};
-
 export function getAbilityUseConfig(abilityId: string): AbilityUseConfig {
-    return ABILITY_USE_CONFIGS[abilityId] ?? DEFAULT_USE_CONFIG;
+    const ability = getAbility(abilityId);
+    if (!ability) return DEFAULT_USE_CONFIG;
+    return {
+        maxUses: ability.getMaxUses?.() ?? ability.maxUses ?? DEFAULT_USE_CONFIG.maxUses,
+        startingUses: ability.startingUses,
+        recoveries: [...(ability.recoveries ?? DEFAULT_USE_CONFIG.recoveries)],
+    };
 }
 
 export function ensureAbilityRuntimeState(unit: Unit, abilityId: string): void {

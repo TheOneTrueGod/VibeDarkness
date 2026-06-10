@@ -3,7 +3,7 @@
  * If the dash ends inside a wall, the unit is steadily pushed out and launched (slingshot).
  */
 
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityState } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { TargetDef } from '../../../abilities/targeting';
@@ -29,6 +29,10 @@ import {
 } from '../../../game/units/slingshotHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
+const MAX_USES = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+	{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
+];
 const DASH_DURATION = 0.4;
 const SLINGSHOT_PHASE = 0.3;
 const COOLDOWN_DURATION = 0.8;
@@ -100,6 +104,8 @@ export const DiggingClawsAbility: AbilityStatic = {
 	tags: ['Entombed'],
 	resourceCost: null,
 	rechargeTurns: 0,
+	maxUses: MAX_USES,
+	recoveries: RECOVERIES,
 	prefireTime: DASH_DURATION,
 	abilityTimings: [
 		{

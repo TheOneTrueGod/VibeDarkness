@@ -1,4 +1,5 @@
 import { AbilityBase } from '../AbilityBase';
+import type { AbilityRecoveryRule } from '../Ability';
 import { AbilityPhase, type AbilityTimingInterval, activeTimingIds } from '../abilityTimings';
 import type { AbilityStatic, IAbilityPreviewGraphics, AttackBlockedInfo } from '../Ability';
 import type { UnitTag } from '../../game/units/unitTag';
@@ -49,6 +50,8 @@ export interface ChargeAttackConfig {
 	tooltipText: string;
 	requiredTags?: readonly UnitTag[];
 	forbiddenTags?: readonly UnitTag[];
+	maxUses?: number;
+	recoveries?: readonly AbilityRecoveryRule[];
 }
 
 export class ChargeAttack extends AbilityBase<ChargeNote> {
@@ -64,6 +67,8 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	readonly renderTargetingPreview: AbilityStatic['renderTargetingPreview'];
 	readonly requiredTags?: readonly UnitTag[];
 	readonly forbiddenTags?: readonly UnitTag[];
+	readonly maxUses: number;
+	readonly recoveries?: readonly AbilityRecoveryRule[];
 
 	private readonly config: ChargeAttackConfig;
 	private readonly lunge: LungeMovement;
@@ -99,6 +104,8 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		});
 		if (config.requiredTags) this.requiredTags = config.requiredTags;
 		if (config.forbiddenTags) this.forbiddenTags = config.forbiddenTags;
+		this.maxUses = config.maxUses ?? 1;
+		if (config.recoveries) this.recoveries = config.recoveries;
 	}
 
 	get cardDef(): CardDef {

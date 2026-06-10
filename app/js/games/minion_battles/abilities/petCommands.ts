@@ -98,14 +98,24 @@ export function commandHeel(
     opts: HeelOptions,
 ): void {
     for (const pet of pets) {
-        if (!pet.isAlive()) continue;
-
-        // Heal.
         const healAmount = Math.max(1, Math.floor(pet.maxHp * opts.healFraction));
-        pet.hp = Math.min(pet.maxHp, pet.hp + healAmount);
+
+        if (!pet.isAlive()) {
+            pet.active = true;
+            pet.hp = healAmount;
+            pet.clearMovement();
+            pet.clearAbilityNote();
+            if (owner.isAlive()) {
+                pet.x = owner.x;
+                pet.y = owner.y;
+            }
+        } else {
+            pet.hp = Math.min(pet.maxHp, pet.hp + healAmount);
+        }
 
         // Heel state.
         const ctx = pet.aiContext as PetAITreeContext;
+        ctx.aiState = 'pet_heel';
         ctx.heelUntilGameTime = engine.gameTime + opts.durationSeconds;
         ctx.heelTetherRange = opts.tetherRange;
         ctx.targetUnitId = undefined;

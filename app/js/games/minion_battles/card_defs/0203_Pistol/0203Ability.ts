@@ -1,4 +1,4 @@
-﻿import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
+﻿import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createConeTargetPreviewWithDistanceInaccuracy, drawClampedLine } from '../../abilities/previewHelpers';
@@ -15,6 +15,10 @@ import {
 } from '../../abilities/damageModifiers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}03`;
+const MAX_USES = 3;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const PREFIRE_FIRST_SHOT = 0.5;
 const COOLDOWN_TIME = 1.3;
 const MAX_DISTANCE = 520;
@@ -35,6 +39,8 @@ export const PistolAbility: AbilityStatic = {
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 10, allowPartialIfPositive: true }],
     rechargeTurns: 0,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     damageModifierMultiplier: ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES[CARD_ID] ?? DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
     prefireTime: PREFIRE_FIRST_SHOT,
     abilityTimings: [

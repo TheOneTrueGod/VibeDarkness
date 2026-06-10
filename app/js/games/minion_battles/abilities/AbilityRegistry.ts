@@ -69,6 +69,9 @@ function register(ability: AbilityStatic): void {
     if (!ability.getTargets) {
         ability.getTargets = () => ability.targets;
     }
+    if (!ability.getMaxUses) {
+        ability.getMaxUses = () => ability.maxUses ?? 1;
+    }
     ABILITY_MAP.set(ability.id, ability);
 }
 

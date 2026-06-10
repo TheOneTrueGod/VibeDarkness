@@ -23,8 +23,8 @@ Feedback May 28
 
 Feedback May 18
 [] Turn indicator says "stamina surge recovers 3 stamina".  Pot lid says "get 2 stamina surges"
-[] Darkness damage is a little too low, and it's possible to speedrun the second mission
-[] Movement target can be in a rock
+[x] Darkness damage is a little too low, and it's possible to speedrun the second mission
+[x] Movement target can be in a rock
 Ammo shows up for swing sword.  It shouldn't.
 Something's slightly off with the target locking.  It seems 
 Put the boar on the path

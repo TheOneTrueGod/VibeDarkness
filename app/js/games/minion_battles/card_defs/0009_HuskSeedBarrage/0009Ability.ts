@@ -2,7 +2,7 @@
  * Husk Artillery â€” telegraphed channel; seed pod arcs to target, spawns ephemeral husks at landing (no direct damage).
  */
 
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
@@ -17,6 +17,10 @@ import { createUnitFromSpawnConfig } from '../../game/units/index';
 
 export const HUSK_SEED_BARRAGE_ID = `${formatGroupId(AbilityGroupId.Enemy)}09`;
 
+const MAX_USES = 1;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const CHANNEL_END = 1.95;
 const FIRE_TIME = 2.95;
 const COOLDOWN_END = 8.5;
@@ -44,6 +48,8 @@ export const HuskSeedBarrageAbility: AbilityStatic = {
     image: '',
     resourceCost: null,
     rechargeTurns: 1,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: FIRE_TIME,
     abilityTimings: [
         { id: 'channel', start: 0, end: CHANNEL_END, abilityPhase: AbilityPhase.Windup },

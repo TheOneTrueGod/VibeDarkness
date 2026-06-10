@@ -5,7 +5,7 @@
  */
 
 import { AbilityEventType } from '../../abilities/Ability';
-import type { AbilityStatic } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createArcTargetPreview } from '../../abilities/previewHelpers';
@@ -19,6 +19,10 @@ import {
 } from '../../abilities/shieldHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}04`;
+const MAX_USES = 3;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const DURATION = 1.3;
 const COOLDOWN_TIME = 0.2;
 const MOVEMENT_PENALTY = 0.1;
@@ -44,6 +48,8 @@ export const RaiseShieldAbility: AbilityStatic = {
     image: RAISE_SHIELD_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: DURATION,
     abilityTimings: [
         {

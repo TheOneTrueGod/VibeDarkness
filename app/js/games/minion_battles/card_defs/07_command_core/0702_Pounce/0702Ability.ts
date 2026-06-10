@@ -5,7 +5,7 @@
  * Sic 'em (0704) card causes the pet to use Pounce. Quick charge (~0.3 s windup)
  * then dash (~0.25 s) toward a pixel target, passing through up to 3 enemies and
  * stopping on the 4th hit. On each hit:
- * 4 damage, ~1 s stun, and tier-2 knockback opposite the dash direction (flung over
+ * 3 damage, ~1 s stun, and tier-2 knockback opposite the dash direction (flung over
  * the dog's shoulder).
  */
 
@@ -27,7 +27,7 @@ const WINDUP_TIME = 0.3;
 const DASH_DURATION = 0.25;
 const COOLDOWN_DURATION = 0.8;
 const MAX_DASH_DISTANCE = 180;
-const DAMAGE = 4;
+const DAMAGE = 3;
 const STUN_DURATION = 1.0;
 const KNOCKBACK_TIER = 2;
 /** Pass through this many hits; dash ends on the next one. */

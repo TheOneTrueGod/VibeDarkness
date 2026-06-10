@@ -159,13 +159,13 @@ export const petAutoEngageScenario: ScenarioDefinition = {
 
 /**
  * A dog mid-engage transitions into the heel state when Heel (0703) is cast.
- * The dog heals 25% of max HP and moves within the heel tether range of the player.
+ * The dog heals 30% of max HP and moves within the heel tether range of the player.
  *
  * Also covers Pounce (0702) transitively — the dog has Pounce in its ability list.
  */
 export const petHeelScenario: ScenarioDefinition = {
     id: 'pet_heel',
-    title: 'Heel (0703): heals 25% max HP and holds dog within tether range',
+    title: 'Heel (0703): heals 30% max HP and holds dog within tether range',
     category: 'general',
     generalSection: 'Pets',
     maxDurationMs: 10000,
@@ -224,8 +224,8 @@ export const petHeelScenario: ScenarioDefinition = {
         const dog = engine.getUnit('dog1');
         const player = engine.getLocalPlayerUnit()!;
         if (!dog) return false;
-        // Should have healed: floor(24 * 0.25) = 6, so 12 + 6 = 18.
-        const healed = dog.hp >= 18;
+        // Should have healed: floor(24 * 0.30) = 7, so 12 + 7 = 19.
+        const healed = dog.hp >= 19;
         // Dog should have disengaged and moved within ~ 2× tether range (30 px) of the player.
         const dist = Math.hypot(dog.x - player.x, dog.y - player.y);
         const nearOwner = dist <= 60;
@@ -244,7 +244,7 @@ export const petHeelScenario: ScenarioDefinition = {
 
 /**
  * Player casts Sic 'em (0704) at a point beyond an enemy in the dog's southward dash lane.
- * The dog pounces via Pounce (0702), stops on the enemy (stopOnHit), deals ~4 damage,
+ * The dog pounces via Pounce (0702), stops on the enemy (stopOnHit), deals ~3 damage,
  * stuns the enemy, and displaces it opposite the dash direction (northward).
  *
  * This scenario also covers Pounce (0702) — the pet command ability used by Sic 'em.
@@ -321,8 +321,8 @@ export const petSicEmPounceScenario: ScenarioDefinition = {
 
         const ENEMY_ORIGINAL_Y = 5 * CELL + 50 + 130; // DOG_POS.y + 130
 
-        // Enemy should have taken Pounce damage (4).
-        const tookDamage = enemy.maxHp - enemy.hp >= 4;
+        // Enemy should have taken Pounce damage (3).
+        const tookDamage = enemy.maxHp - enemy.hp >= 3;
         // Dog should have stopped before passing through the enemy.
         // If it didn't stop, it would reach DOG_POS.y + 180 = 430; enemy was at 380.
         const dogStoppedEarly = dog.y <= ENEMY_ORIGINAL_Y + 30;

@@ -5,6 +5,7 @@ import {
     type AttackBlockedInfo,
     type ResourceCost,
     type AbilityAISettings,
+    type AbilityRecoveryRule,
 } from './Ability';
 import {
     AbilityPhase,
@@ -37,8 +38,15 @@ export abstract class AbilityBase<TNote = never> implements AbilityStatic {
     readonly resourceCost: ResourceCost | null = null;
     readonly resourceCosts?: ResourceCost[];
     readonly rechargeTurns: number = 0;
+    readonly maxUses: number = 1;
+    readonly startingUses?: number;
+    readonly recoveries?: readonly AbilityRecoveryRule[];
     readonly aiSettings?: AbilityAISettings;
     abstract readonly abilityTimings: AbilityTimingEntry[];
+
+    getMaxUses(): number {
+        return this.maxUses;
+    }
 
     // -- Typed note management ------------------------------------------------
 

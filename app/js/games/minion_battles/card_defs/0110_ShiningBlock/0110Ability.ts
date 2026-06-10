@@ -5,7 +5,7 @@
  */
 
 import { AbilityEventType } from '../../abilities/Ability';
-import type { AbilityStatic } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createArcTargetPreview } from '../../abilities/previewHelpers';
@@ -32,6 +32,10 @@ import type { EventBus } from '../../game/EventBus';
 import type { LightSource } from '../../game/lightSources/LightSource';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}10` as '0110';
+const MAX_USES = 3;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const DURATION = 1;
 const MOVEMENT_PENALTY = 0.1;
 const SHIELD_ARC_DEG = 120;
@@ -147,6 +151,8 @@ export const ShiningBlockAbility: AbilityStatic = {
     image: SHINING_BLOCK_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: DURATION,
     abilityTimings: [
         {

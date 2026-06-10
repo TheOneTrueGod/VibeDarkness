@@ -2,7 +2,7 @@
  * Thornbinder â€” AoE bramble slam: damage + slowing patch until shortly before next cast.
  */
 
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import type { ActiveAbility } from '../../game/types';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { Effect } from '../../game/effects/Effect';
@@ -22,6 +22,10 @@ import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
 
 export const THORNBINDER_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}08`;
 
+const MAX_USES = 1;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const LOCK_TIME = 0.85;
 const STRIKE_TIME = 1.85;
 const COOLDOWN_END = 5.5;
@@ -59,6 +63,8 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
     image: '',
     resourceCost: null,
     rechargeTurns: 1,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: STRIKE_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },

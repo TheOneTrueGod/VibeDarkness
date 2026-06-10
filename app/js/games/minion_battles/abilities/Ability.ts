@@ -132,6 +132,14 @@ export interface AbilityKeywordDefs {
     };
 }
 
+export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge' | 'roundCharge';
+
+export interface AbilityRecoveryRule {
+    chargeType: RecoveryChargeType;
+    chargesPerRecovery: number;
+    usesRecovered: number;
+}
+
 /** The shape every static ability class must implement. */
 export interface AbilityStatic {
     /** Unique ability ID. */
@@ -146,6 +154,14 @@ export interface AbilityStatic {
     readonly resourceCosts?: ResourceCost[];
     /** Rounds the card spends in exile before returning to deck. */
     readonly rechargeTurns: number;
+    /** Base max uses for this ability (default 1 when omitted). */
+    readonly maxUses?: number;
+    /** Uses available at battle start when different from maxUses (e.g. Energy Blast starts at 0). */
+    readonly startingUses?: number;
+    /** Recovery rules restoring uses. Default: 1 staminaCharge -> 1 use. */
+    readonly recoveries?: readonly AbilityRecoveryRule[];
+    /** Max-uses lookup. Default implementation returns this.maxUses; override for dynamic values. */
+    getMaxUses?(): number;
     /** Ordered list of targets the player must select. */
     readonly targets: TargetDef[];
     /** Optional ability keywords that alter card lifecycle behavior. */

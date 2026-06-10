@@ -4,7 +4,7 @@
  */
 
 import { AbilityState, AbilityEventType } from '../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { createMovementTargetPreview } from '../../abilities/previewHelpers';
@@ -14,6 +14,10 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11` as '0111';
+const MAX_USES = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+	{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
+];
 const CLAW_DURATION = 0.4;
 const CLAW_MAX_DISTANCE = 160;
 const COLLISION_STEP = 4;
@@ -31,6 +35,8 @@ export const ClawAbility: AbilityStatic = {
 	image: CLAW_IMAGE,
 	resourceCost: null,
 	rechargeTurns: 0,
+	maxUses: MAX_USES,
+	recoveries: RECOVERIES,
 	prefireTime: CLAW_DURATION,
 	abilityTimings: [
 		{

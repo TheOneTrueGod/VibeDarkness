@@ -6,7 +6,7 @@
  * the player holds for grouped targets or finish attempts rather than a rotation filler.
  */
 
-import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
@@ -20,6 +20,10 @@ import { type CardDef } from '../types';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}05`;
+const MAX_USES = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 const PREFIRE_TIME = 0.2;
 const BASE_MAX_RANGE = 56;
 const DAMAGE = 20;
@@ -101,6 +105,8 @@ export const LaserSwordAbility: AbilityStatic = {
     resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 8, allowPartialIfPositive: true }],
     rechargeTurns: 1,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: PREFIRE_TIME,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,

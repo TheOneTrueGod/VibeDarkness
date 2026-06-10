@@ -12,7 +12,7 @@
  *   0.30â€“1.55  cooldown
  */
 
-import type { AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityEventType, AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
@@ -33,6 +33,10 @@ import { type CardDef } from '../types';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
+const MAX_USES = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 2 },
+];
 
 const BASE_MAX_RANGE = 25;
 const DAMAGE = 10;
@@ -121,6 +125,8 @@ export const SwingBatAbility_0103: AbilityStatic = {
     image: SWING_BAT_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
