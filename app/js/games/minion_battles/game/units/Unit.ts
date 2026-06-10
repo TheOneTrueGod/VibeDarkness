@@ -284,6 +284,15 @@ export class Unit extends GameObject {
      */
     ephemeralDespawnAtGameTime: number | null = null;
 
+    /** Unit id of the player unit that owns this pet. Set on pet units only. */
+    petOwnerUnitId: string | undefined = undefined;
+
+    /** Unit ids of this unit's living pets. Maintained by spawn logic; never set on pets. */
+    petUnitIds: string[] = [];
+
+    /** Pet def id (from PET_DEFS) for pet units. Undefined on non-pet units. Def-based stats (leash ranges) resolve through getPetDef. */
+    petDefId: string | undefined = undefined;
+
     /** Set on Lanternites from a nest; skips global Lanternite corpse respawn. */
     lanterniteNestOwnerUnitId: string | null = null;
 
@@ -1299,6 +1308,9 @@ export class Unit extends GameObject {
             ...(this.lanterniteAttackReadyAtGameTime !== 0 ? { lanterniteAttackReadyAtGameTime: this.lanterniteAttackReadyAtGameTime } : {}),
             ...(this.lanterniteConstructionAngle != null ? { lanterniteConstructionAngle: this.lanterniteConstructionAngle } : {}),
             ...(this.invulnerabilityGenerations != null ? { invulnerabilityGenerations: this.invulnerabilityGenerations } : {}),
+            ...(this.petOwnerUnitId !== undefined ? { petOwnerUnitId: this.petOwnerUnitId } : {}),
+            ...(this.petUnitIds.length > 0 ? { petUnitIds: [...this.petUnitIds] } : {}),
+            ...(this.petDefId !== undefined ? { petDefId: this.petDefId } : {}),
         };
     }
 
@@ -1376,6 +1388,15 @@ export class Unit extends GameObject {
         }
         if (typeof data.invulnerabilityGenerations === 'number') {
             unit.invulnerabilityGenerations = data.invulnerabilityGenerations;
+        }
+        if (typeof data.petOwnerUnitId === 'string') {
+            unit.petOwnerUnitId = data.petOwnerUnitId;
+        }
+        unit.petUnitIds = Array.isArray(data.petUnitIds)
+            ? (data.petUnitIds as unknown[]).filter((x): x is string => typeof x === 'string')
+            : [];
+        if (typeof data.petDefId === 'string') {
+            unit.petDefId = data.petDefId;
         }
 
         // Restore movement

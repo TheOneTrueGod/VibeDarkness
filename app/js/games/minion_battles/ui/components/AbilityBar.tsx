@@ -11,6 +11,7 @@ import { canAffordAbility } from '../../abilities/Ability';
 import { unitAbilityHasTag } from '../../abilities/abilityUses';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../game/units/Unit';
+import { getLivingPetsOfUnit } from '../../game/units/petHelpers';
 import AbilitySlot from './AbilitySlot';
 import AbilityTooltip from './AbilityTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
@@ -60,6 +61,8 @@ interface AbilityBarProps {
     onWaitHoverChange?: (hovered: boolean) => void;
     /** Current game state for dynamic descriptions. */
     gameState?: unknown;
+    /** All battle units (for pet-sourced ability availability). */
+    allUnits?: readonly Unit[];
     /** Register a card's page-center position per charge type (key = 'card:<chargeType>:<abilityId>'). */
     onRegisterCardTarget?: (key: string, pageX: number, pageY: number) => void;
     /**
@@ -85,6 +88,7 @@ export default function AbilityBar({
     onWait,
     onWaitHoverChange,
     gameState,
+    allUnits = [],
     onRegisterCardTarget,
     conditionalCancelContext,
 }: AbilityBarProps) {
@@ -320,6 +324,9 @@ export default function AbilityBar({
                             {handCards.map((card, index) => {
                                 const canAfford = playerUnit ? canAffordAbility(playerUnit, card.ability) : false;
                                 const canUse = card.runtime.currentUses > 0;
+                                const hasPetSource =
+                                    card.ability.abilitySource?.type !== 'pet'
+                                    || (playerUnit != null && getLivingPetsOfUnit(playerUnit, allUnits).length > 0);
                                 const tagFilter = conditionalCancelContext?.abilityTagFilter;
                                 const matchesTagFilter =
                                     !tagFilter || tagFilter.length === 0
@@ -328,6 +335,7 @@ export default function AbilityBar({
                                     !isMyTurn
                                     || !canAfford
                                     || !canUse
+                                    || !hasPetSource
                                     || (conditionalCancelContext != null && !matchesTagFilter);
                                 const isHovered = hoveredCardId === card.abilityId;
                                 const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];

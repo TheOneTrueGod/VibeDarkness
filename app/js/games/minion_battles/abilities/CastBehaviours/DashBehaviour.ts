@@ -48,6 +48,9 @@ interface DashPayload {
     } | null;
     // Hit-dedup set — null when no hitbox is configured.
     hitIds: Set<string> | null;
+    // When stopAfterHits is set, set to true once that many units have been hit so
+    // subsequent ticks skip movement.
+    stopped: boolean;
 }
 
 export class DashBehaviour implements CastBehaviour {
@@ -56,6 +59,9 @@ export class DashBehaviour implements CastBehaviour {
     private _afterimagesEnabled: boolean = false;
     private _afterimageEveryNTicks: number = 2;
     private _hitbox: DashHitboxConfig | null = null;
+    /** Stop dash movement after this many successful hits; null = never stop on hit. */
+    private _stopAfterHits: number | null = null;
+    private _onHitCallback: ((hitUnit: Unit, ctx: CastBehaviourTickContext) => void) | null = null;
 
     withMaxDistance(px: number): this {
         this._maxDistance = px;
@@ -71,6 +77,28 @@ export class DashBehaviour implements CastBehaviour {
     withAfterimages(enabled = true, everyNTicks = 2): this {
         this._afterimagesEnabled = enabled;
         this._afterimageEveryNTicks = everyNTicks;
+        return this;
+    }
+
+    /** Optional callback fired once per hit unit during `_processHitbox`. Runs after the hit is confirmed. */
+    withOnHit(cb: (hitUnit: Unit, ctx: CastBehaviourTickContext) => void): this {
+        this._onHitCallback = cb;
+        return this;
+    }
+
+    /**
+     * Stop dash movement after the touch hitbox registers its Nth successful hit.
+     * The timing window continues to run (for afterimages, effects, etc.) but
+     * no further displacement is applied. Existing dashes without this are unaffected.
+     */
+    withStopAfterHits(count: number): this {
+        this._stopAfterHits = count;
+        return this;
+    }
+
+    /** Shorthand for {@link withStopAfterHits}(1). */
+    withStopOnHit(enabled = true): this {
+        this._stopAfterHits = enabled ? 1 : null;
         return this;
     }
 
@@ -97,7 +125,7 @@ export class DashBehaviour implements CastBehaviour {
     onSetup(ctx: CastBehaviourSetupContext): void {
         const target = ctx.target;
         if (target.type !== 'pixel' || !target.position) {
-            ctx.setBehaviourPayload({ targetX: ctx.caster.x, targetY: ctx.caster.y, maxDistance: 0, afterimage: null, hitIds: null });
+            ctx.setBehaviourPayload({ targetX: ctx.caster.x, targetY: ctx.caster.y, maxDistance: 0, afterimage: null, hitIds: null, stopped: false });
             return;
         }
 
@@ -123,6 +151,7 @@ export class DashBehaviour implements CastBehaviour {
             maxDistance,
             afterimage,
             hitIds: this._hitbox ? new Set<string>() : null,
+            stopped: false,
         } satisfies DashPayload);
     }
 
@@ -133,7 +162,7 @@ export class DashBehaviour implements CastBehaviour {
         const { targetX, targetY, maxDistance } = payload;
         const distToTarget = Math.hypot(targetX - ctx.caster.x, targetY - ctx.caster.y);
 
-        if (distToTarget > 0) {
+        if (!payload.stopped && distToTarget > 0) {
             const progressDelta = ctx.windowProgress - ctx.prevWindowProgress;
             const moveThisTick = Math.min(progressDelta * maxDistance, distToTarget);
             if (moveThisTick > 0) {
@@ -187,6 +216,10 @@ export class DashBehaviour implements CastBehaviour {
             });
             if (hit) {
                 payload.hitIds!.add(unit.id);
+                if (this._stopAfterHits !== null && payload.hitIds!.size >= this._stopAfterHits) {
+                    payload.stopped = true;
+                }
+                this._onHitCallback?.(unit, ctx);
             }
         }
         ctx.setBehaviourPayload(payload);

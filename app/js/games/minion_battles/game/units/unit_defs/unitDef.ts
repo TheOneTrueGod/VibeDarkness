@@ -83,7 +83,8 @@ export type EnemyUnitId =
     | 'huskling'
     | 'swarmling'
     | 'lanternite'
-    | 'lanternite_nest';
+    | 'lanternite_nest'
+    | 'dog';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
 /**
@@ -275,6 +276,17 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'beast',
         uiDescription:
             'Living nursery — births lantern scouts on a rhythm; needs protection when stirred.',
+    },
+    dog: {
+        bodyColor: 0x8a5a2b,
+        characterSpriteKey: 'dog',
+        hp: 24,
+        speed: 140,
+        size: 'Small',
+        stamina: 2,
+        perceptionRange: 250,
+        creatureType: 'beast',
+        uiDescription: 'Loyal hound — fights close to its master, biting enemies that stray too near.',
     },
 };
 

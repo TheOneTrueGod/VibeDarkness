@@ -184,6 +184,14 @@ export interface AbilityStatic {
      */
     readonly damageModifierMultiplier?: number;
     /**
+     * Declares that this ability's targeting and effect originate from a unit other than the caster.
+     * - `type: 'pet'` — resolve from the caster's living pets.
+     * - `selector: 'nearest'` — the single pet closest to the aim point (or caster if no aim point).
+     * - `selector: 'all'` — all living pets of the caster.
+     * Use `resolveAbilitySourceUnits` from `abilities/petCommands.ts` to evaluate at runtime.
+     */
+    readonly abilitySource?: { type: 'pet'; selector: 'nearest' | 'all' };
+    /**
      * Time in seconds before the ability's main effect typically fires (windup / telegraph end).
      * The engine calls `doCardEffect` every tick until the cast ends; use this (or interval ids from
      * `abilityTimings`) inside `doCardEffect` for threshold checks. `AbilityBase` also uses it for the

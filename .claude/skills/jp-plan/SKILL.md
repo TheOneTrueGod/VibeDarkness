@@ -1,7 +1,6 @@
 ---
 name: jp-plan
-description: Create an Implementation plan
-A skill for creating an implementation plan out of something.  If you encounter this text, prompt the user to enter a better summary and suggest it.
+description: Creates an implementation plan file that breaks work into numbered steps with checklist items, per-step file lists, agent handoff instructions, and high-level AbilityTest coverage, formatted for /jp-implement-plan to execute one step at a time. Use when the user says /jp-plan or asks to turn a design or discussion into a plan file.
 ---
 Please create a plan file, and break this plan down into individual changes.  Keep changes to a minimal number of files.  Use a checklist item for each one so we can clean it up after.  Include instructions to agents on how to work with the file;
 - Handing off each item in the file to a subagent for implementation

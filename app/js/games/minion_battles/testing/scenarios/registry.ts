@@ -46,6 +46,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from './abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from './general/lanternites';
+import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from './general/pets';
 import { swarmlingHuntAndBiteScenario } from './general/swarmlings';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from './general/lightingSystem';
 import {
@@ -119,6 +120,9 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     laserSwordHitsTwoTargetsScenario,
     swingBatHitsThreeTargetsScenario,
     throwKnifePiercingBleedScenario,
+    petAutoEngageScenario,
+    petHeelScenario,
+    petSicEmPounceScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -164,6 +168,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'enemies', section: 'Enemies' },
     { slug: 'lanternites', section: 'Lanternites' },
     { slug: 'lighting', section: 'Lighting' },
+    { slug: 'pets', section: 'Pets' },
 ];
 
 export interface GeneralTestSidebarGroup {

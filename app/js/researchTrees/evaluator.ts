@@ -2,7 +2,7 @@ import type { AccountState, CampaignResources } from '../types';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { getCoreFromEquipment, getItemDef } from '../games/minion_battles/character_defs/items';
-import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect, AbilityModifier, AbilitySpecification } from './types';
+import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect, AbilityModifier } from './types';
 import { RESEARCH_TREES } from './list';
 
 export interface ResearchContext {
@@ -224,6 +224,29 @@ export function getDirectCardsFromResearch(
         }
     }
     return cards;
+}
+
+/**
+ * Returns pet IDs granted by `grantPet` effects in researched nodes across all trees.
+ * Call pre-battle to determine which pets to spawn alongside the player.
+ */
+export function getPetsFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): string[] {
+    const trees = researchTrees ?? {};
+    const petIds: string[] = [];
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(trees[tree.id] ?? []);
+        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        for (const node of researchedNodes) {
+            for (const eff of node.effects) {
+                if (eff.type === 'grantPet' && !petIds.includes(eff.petId)) {
+                    petIds.push(eff.petId);
+                }
+            }
+        }
+    }
+    return petIds;
 }
 
 /**

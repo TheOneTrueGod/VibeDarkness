@@ -36,7 +36,8 @@ import {
     applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, computeAbilityModifiersFromResearch } from '../../../researchTrees/evaluator';
+import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, computeAbilityModifiersFromResearch, getPetsFromResearch } from '../../../researchTrees/evaluator';
+import { getPetDef } from '../game/units/pet_defs/petDef';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { Ammo } from '../resources/Ammo';
 import {
@@ -211,6 +212,32 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
             engine.addUnit(unit, 'initialGameSpawn');
+
+            // Spawn pets granted by research alongside this player unit.
+            for (const petId of getPetsFromResearch(researchByPlayer[pu.playerId])) {
+                const petDef = getPetDef(petId);
+                if (!petDef) continue;
+                const pet = createUnitFromSpawnConfig(
+                    {
+                        characterId: petDef.unitCharacterId,
+                        name: petDef.name,
+                        teamId: 'player',
+                        ownerId: 'ai',
+                        unitAITreeId: 'pet',
+                        abilities: [...petDef.abilityIds],
+                        x: spawnX + 40,
+                        y: spawnY,
+                        aiSettings: { minRange: 0, maxRange: 50 },
+                    },
+                    params.eventBus,
+                    engine,
+                );
+                pet.petDefId = petId;
+                pet.petOwnerUnitId = unit.id;
+                unit.petUnitIds.push(pet.id);
+                initializeAbilityRuntimeForUnit(pet);
+                engine.addUnit(pet, 'initialGameSpawn');
+            }
         }
 
         // Register level events (if any)

@@ -1247,6 +1247,7 @@ export default function BattlePhase({
             onWait={handleWait}
             onWaitHoverChange={setIsWaitHovered}
             gameState={engine}
+            allUnits={engine.units}
             conditionalCancelContext={conditionalCancelContext}
             onRegisterCardTarget={(key, pageX, pageY) => {
                 hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);

@@ -25,6 +25,7 @@ import {
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
 import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario, exposedDurationExtensionScenario } from '../scenarios/general/enemies';
 import { swarmlingHuntAndBiteScenario } from '../scenarios/general/swarmlings';
+import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
@@ -258,6 +259,21 @@ describe('runScenarioHeadless', () => {
 
     it('passes throw knife piercing bleed scenario', () => {
         const r = runScenarioHeadless(throwKnifePiercingBleedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes pet auto-engage scenario (dog bites enemy within leash)', () => {
+        const r = runScenarioHeadless(petAutoEngageScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes pet Heel scenario (0703): heals 25% max HP', () => {
+        const r = runScenarioHeadless(petHeelScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it("passes pet Sic 'em + Pounce scenario (0704/0702): dog dashes, stops on hit, stuns enemy", () => {
+        const r = runScenarioHeadless(petSicEmPounceScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

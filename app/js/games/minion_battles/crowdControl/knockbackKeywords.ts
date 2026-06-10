@@ -103,6 +103,25 @@ export function tryApplyKnockbackByTier(
     return { outcome: 'applied' };
 }
 
+/**
+ * Apply knockback along an explicit unit-vector direction rather than away from a source point.
+ * Implemented by synthesising a source point one pixel behind the target along the direction,
+ * so `_launchKnockback`'s away-from-source computation resolves to `direction`.
+ */
+export function applyDirectionalKnockback(
+    target: Unit,
+    tier: number,
+    direction: { x: number; y: number },
+    source: KnockbackSource,
+    engine: KnockbackEngineCtx,
+): KnockbackAttemptResult {
+    // Place a synthetic source one unit behind the target along the direction vector,
+    // so the computed away-vector equals the passed direction.
+    const synthX = target.x - direction.x;
+    const synthY = target.y - direction.y;
+    return tryApplyKnockbackByTier(target, tier, source, synthX, synthY, engine);
+}
+
 function _launchKnockback(
     target: Unit,
     tierDef: KnockbackTierDef,

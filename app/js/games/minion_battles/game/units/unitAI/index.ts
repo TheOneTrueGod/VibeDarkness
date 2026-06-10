@@ -10,6 +10,7 @@ import { LANTERNITE_PATROL_AI_TREE } from './lanternitePatrol/index';
 import { LANTERNITE_NEST_IDLE_TREE } from './lanterniteNestIdle/index';
 import { LANTERNITE_NETWORK_AI_TREE } from './lanterniteNetwork/index';
 import { HUNT_AI_TREE } from './hunt/index';
+import { PET_AI_TREE } from './pet/index';
 
 export type { AIContext, AILightSource, UnitAITree, AINode, AIEdgeCondition, AINodeId } from './types';
 export { isNodeInTree } from './types';
@@ -62,6 +63,7 @@ const TREE_REGISTRY: Record<string, UnitAITree> = {
     lanterniteNestIdle: LANTERNITE_NEST_IDLE_TREE,
     lanterniteNetwork: LANTERNITE_NETWORK_AI_TREE,
     hunt: HUNT_AI_TREE,
+    pet: PET_AI_TREE,
 };
 
 export function getUnitAITree(treeId: string): UnitAITree | null {
