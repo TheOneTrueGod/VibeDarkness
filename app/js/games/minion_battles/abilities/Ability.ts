@@ -132,7 +132,7 @@ export interface AbilityKeywordDefs {
     };
 }
 
-export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge' | 'roundCharge';
+export type RecoveryChargeType = 'staminaCharge' | 'lightCharge' | 'energyCharge' | 'roundCharge' | 'commandCharge';
 
 export interface AbilityRecoveryRule {
     chargeType: RecoveryChargeType;

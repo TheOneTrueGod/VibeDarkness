@@ -9,7 +9,7 @@
  * the dog's shoulder).
  */
 
-import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityState } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { DashBehaviour } from '../../../abilities/CastBehaviours/DashBehaviour';
@@ -20,8 +20,14 @@ import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { getDirectionFromTo } from '../../../abilities/targetHelpers';
 import type { KnockbackEngineCtx } from '../../../crowdControl/knockbackKeywords';
+import { drawChargeCapsuleTimingTelegraph } from '../../../abilities/previewHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
+
+/** Pounce is restored only by Sic 'em granting a commandCharge — never by stamina. */
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'commandCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+];
 
 const WINDUP_TIME = 0.3;
 const DASH_DURATION = 0.25;
@@ -103,6 +109,8 @@ export const PounceAbility: AbilityStatic = {
     image: POUNCE_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
+    maxUses: 1,
+    recoveries: RECOVERIES,
     prefireTime: WINDUP_TIME,
     // No aiSettings — AI never auto-queues Pounce; only Sic 'em (0704) triggers it.
     targets: [{ type: 'pixel', label: 'Pounce target' }],
@@ -134,7 +142,13 @@ export const PounceAbility: AbilityStatic = {
             targetX = t.position.x;
             targetY = t.position.y;
         }
-        active.castPayload = { targetX, targetY };
+        const rawDx = targetX - caster.x;
+        const rawDy = targetY - caster.y;
+        const rawDist = Math.hypot(rawDx, rawDy);
+        const clampedDist = Math.min(MAX_DASH_DISTANCE, rawDist);
+        const endX = rawDist > 0 ? caster.x + (rawDx / rawDist) * clampedDist : caster.x;
+        const endY = rawDist > 0 ? caster.y + (rawDy / rawDist) * clampedDist : caster.y;
+        active.castPayload = { startX: caster.x, startY: caster.y, targetX, targetY, endX, endY };
     },
 
     renderActivePreview(
@@ -143,30 +157,36 @@ export const PounceAbility: AbilityStatic = {
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const payload = activeAbility.castPayload as { targetX?: number; targetY?: number } | undefined;
+        const payload = activeAbility.castPayload as {
+            startX?: number; startY?: number;
+            endX?: number; endY?: number;
+        } | undefined;
         if (!payload) return;
 
-        const targetX = payload.targetX ?? caster.x;
-        const targetY = payload.targetY ?? caster.y;
         const elapsed = gameTime - activeAbility.startTime;
-        const windupFraction = Math.min(1, elapsed / WINDUP_TIME);
+        if (elapsed >= WINDUP_TIME + DASH_DURATION) return;
 
-        // Draw dash line from caster toward target (clamped to max dash distance).
-        const rawDx = targetX - caster.x;
-        const rawDy = targetY - caster.y;
-        const rawDist = Math.hypot(rawDx, rawDy);
-        const clampedDist = Math.min(MAX_DASH_DISTANCE, rawDist);
-        const endX = rawDist > 0 ? caster.x + (rawDx / rawDist) * clampedDist : caster.x;
-        const endY = rawDist > 0 ? caster.y + (rawDy / rawDist) * clampedDist : caster.y;
+        const startX = payload.startX ?? caster.x;
+        const startY = payload.startY ?? caster.y;
+        const endX = payload.endX ?? caster.x;
+        const endY = payload.endY ?? caster.y;
 
-        const alpha = 0.3 + 0.5 * windupFraction;
-
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(endX, endY);
-        gr.stroke({ color: 0xff8800, width: 8, alpha });
-
-        gr.circle(endX, endY, caster.radius * 1.1);
-        gr.stroke({ color: 0xff8800, width: 2, alpha });
+        if (elapsed < WINDUP_TIME) {
+            // Windup: expanding capsule telegraph from start toward clamped target.
+            drawChargeCapsuleTimingTelegraph(
+                gr, startX, startY, endX, endY,
+                caster.radius * 0.8,
+                elapsed, WINDUP_TIME,
+                0xff8800,
+            );
+        } else {
+            // Dash: shrinking line from caster's live position toward the fixed endpoint.
+            gr.moveTo(caster.x, caster.y);
+            gr.lineTo(endX, endY);
+            gr.stroke({ color: 0xff8800, width: 8, alpha: 0.7 });
+            gr.circle(endX, endY, caster.radius * 1.1);
+            gr.stroke({ color: 0xff8800, width: 2, alpha: 0.8 });
+        }
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {

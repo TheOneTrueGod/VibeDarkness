@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Clock, Sun, Zap } from 'lucide-react';
+import { Clock, Sun, Zap, ShieldAlert } from 'lucide-react';
 
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
 
@@ -72,5 +72,17 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
         rowExplanation: 'Round charges — gain one at the start of each round while this card can recharge.',
         mainHex: 0x111827,
         softHex: 0xffffff,
+    },
+    commandCharge: {
+        fillClass: 'bg-orange-600',
+        iconCircleBorderClass: 'border-orange-600',
+        possessedBgClass: 'bg-orange-50',
+        Icon: ShieldAlert,
+        iconClassName: 'text-orange-300',
+        darkIconClassName: 'text-orange-700',
+        strokeWidth: 2.25,
+        rowExplanation: 'Command charges — restored when the player issues a command.',
+        mainHex: 0xea580c,
+        softHex: 0xfff7ed,
     },
 };

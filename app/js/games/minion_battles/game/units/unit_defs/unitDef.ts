@@ -41,8 +41,10 @@ export type UnitCombatCcDef = {
     knockbackResistance?: number;
 };
 
-/** Color for allied unit glows. */
-const ALLY_GLOW_COLOR = 0x22c55e; // green-500
+/** Color for non-player allied units (pets, summoned NPCs). */
+const ALLY_PET_GLOW_COLOR = 0x3b82f6; // blue-500
+/** Color for allied player-controlled units. */
+const ALLY_PLAYER_GLOW_COLOR = 0x9ca3af; // gray-400
 /** Color for enemy unit glows. */
 const ENEMY_GLOW_COLOR = 0xef4444; // red-500
 /** Glow radius around units. */
@@ -391,7 +393,12 @@ class DefaultUnitDef implements IUnitDef {
     createVisual(unit: Unit, context: IUnitRenderContext): Container {
         const container = new Container();
         const isEnemy = areEnemies(context.localTeamId, unit.teamId);
-        const glowColor = isEnemy ? ENEMY_GLOW_COLOR : ALLY_GLOW_COLOR;
+        const glowColor = isEnemy
+            ? ENEMY_GLOW_COLOR
+            : unit.isPlayerControlled()
+                ? ALLY_PLAYER_GLOW_COLOR
+                : ALLY_PET_GLOW_COLOR;
+        const glowAlpha = isEnemy ? 0.3 : unit.isPlayerControlled() ? 0.4 : 0.55;
         const def = UNIT_DEFS[unit.characterId as UnitDefId] ?? { bodyColor: DEFAULT_BODY_COLOR };
 
         const playerPortrait =
@@ -414,7 +421,7 @@ class DefaultUnitDef implements IUnitDef {
         // Glow circle
         const glow = new Graphics();
         glow.circle(0, 0, unit.radius + GLOW_RADIUS);
-        glow.fill({ color: glowColor, alpha: 0.3 });
+        glow.fill({ color: glowColor, alpha: glowAlpha });
         glow.label = 'glow';
         container.addChild(glow);
 

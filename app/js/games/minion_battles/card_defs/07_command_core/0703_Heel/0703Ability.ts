@@ -63,7 +63,7 @@ export const HeelAbility: AbilityStatic = {
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
     prefireTime: 0,
-    targets: [],
+    targets: [{ type: 'pixel', label: 'Confirm' }],
     abilityTimings: ABILITY_TIMINGS,
 
     getTooltipText(): string[] {

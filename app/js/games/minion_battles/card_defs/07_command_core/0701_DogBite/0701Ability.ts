@@ -74,7 +74,7 @@ export const DogBiteAbility: AbilityStatic = {
     prefireTime: PREFIRE_TIME,
     targets: [{ type: 'unit', label: 'Target' }],
     abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: MAX_RANGE + LINE_THICKNESS + 20, priority: 0 },
+    aiSettings: { minRange: 0, maxRange: BITE_HITBOX.maxRange, priority: 0 },
 
     getTooltipText(): string[] {
         return [`Snap at the target for {${DAMAGE}} damage.`];

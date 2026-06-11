@@ -11,6 +11,7 @@ import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { resolveAbilitySourceUnits, commandPetAbility } from '../../../abilities/petCommands';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
+import type { Effect } from '../../../game/effects/Effect';
 import { type CardDef } from '../../types';
 import sicEmIconUrl from './sic_em.png';
 
@@ -34,6 +35,7 @@ interface SicEmEngineLike {
     gameTime: number;
     gameTick: number;
     units: Unit[];
+    addEffect(effect: Effect): void;
     state: {
         orderMgr: {
             queueOrder(atTick: number, order: { unitId: string; abilityId: string; targets: ResolvedTarget[] }): void;
@@ -79,7 +81,9 @@ export const SicEmAbility: AbilityStatic = {
         const sourcePets = resolveAbilitySourceUnits(SicEmAbility, caster, eng.units, aimPoint);
         if (sourcePets.length === 0) return;
 
-        commandPetAbility(sourcePets, POUNCE_ABILITY_ID, targets, eng);
+        commandPetAbility(sourcePets, POUNCE_ABILITY_ID, targets, eng, {
+            preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+        });
     },
 
     renderTargetingPreview(

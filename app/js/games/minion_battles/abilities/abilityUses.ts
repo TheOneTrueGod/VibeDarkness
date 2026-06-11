@@ -315,6 +315,11 @@ function applyRecoveryChargeToAbility(unit: Unit, abilityId: string, chargeType:
     return changed;
 }
 
+/** Grant a recovery charge directly to a specific ability on a unit (bypasses random distribution). */
+export function grantRecoveryChargeToAbility(unit: Unit, abilityId: string, chargeType: RecoveryChargeType, amount: number): void {
+    applyRecoveryChargeToAbility(unit, abilityId, chargeType, amount);
+}
+
 export function canAbilityReceiveRecoveryCharge(unit: Unit, abilityId: string, chargeType: RecoveryChargeType): boolean {
     const config = getAbilityUseConfig(abilityId);
     const rules = config.recoveries.filter((rule) => rule.chargeType === chargeType);

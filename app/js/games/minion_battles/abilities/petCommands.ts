@@ -11,10 +11,12 @@
 
 import type { Unit } from '../game/units/Unit';
 import type { AbilityStatic } from './Ability';
+import type { RecoveryChargeType } from './Ability';
 import type { ResolvedTarget } from '../game/types';
 import type { PetAITreeContext } from '../game/units/unitAI/pet/context';
 import { getLivingPetsOfUnit } from '../game/units/petHelpers';
 import { Effect } from '../game/effects/Effect';
+import { grantRecoveryChargeToAbility } from './abilityUses';
 
 // ---- Engine context shape needed by these helpers ----
 
@@ -138,18 +140,32 @@ export function commandHeel(
 
 // ---- commandPetAbility ----
 
+export interface CommandPetAbilityOpts {
+    /**
+     * If set, grant this many charges of the given type to `abilityId` on each pet
+     * before queuing the order. Use `commandCharge` for player-command abilities so
+     * repeated commands always restore a use even when the ability is at 0.
+     */
+    preGrantCharge?: { chargeType: RecoveryChargeType; amount: number };
+}
+
 /**
  * Queue `abilityId` with `targets` on each of the given pets at `engine.gameTick + 1`.
  * Pattern mirrors AlphaWolfSummon: the pet starts its cast on the very next simulation tick.
+ * Pass `opts.preGrantCharge` to restore a use before queuing (needed for commandCharge abilities).
  */
 export function commandPetAbility(
     pets: Unit[],
     abilityId: string,
     targets: ResolvedTarget[],
     engine: PetCommandEngineCtx,
+    opts?: CommandPetAbilityOpts,
 ): void {
     for (const pet of pets) {
         if (!pet.isAlive()) continue;
+        if (opts?.preGrantCharge) {
+            grantRecoveryChargeToAbility(pet, abilityId, opts.preGrantCharge.chargeType, opts.preGrantCharge.amount);
+        }
         engine.state.orderMgr.queueOrder(engine.gameTick + 1, {
             unitId: pet.id,
             abilityId,
