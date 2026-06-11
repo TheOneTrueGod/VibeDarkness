@@ -109,6 +109,27 @@ export const ALLY_LANTERNITE: EnemySpawnDef = {
     aiSettings: { minRange: 0, maxRange: 600 },
 };
 
+/** Thornling: small fast beast that bites and retreats. */
+export const ENEMY_THORNLING: EnemySpawnDef = {
+    characterId: 'thornling',
+    name: 'Thornling',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: ['0002'],
+    aiSettings: { minRange: 0, maxRange: 80 },
+};
+
+/** Thornling Nest: static enemy structure that roots the spawn cycle. */
+export const ENEMY_THORNLING_NEST: EnemySpawnDef = {
+    characterId: 'thornling_nest',
+    name: 'Thornling Nest',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
+    abilities: [],
+    aiSettings: { minRange: 0, maxRange: 0 },
+    unitAITreeId: 'default',
+};
+
 /** Nest object — spawns timed Lanternites; stays put (lanterniteNest mission field required). */
 export const ALLY_LANTERNITE_NEST: EnemySpawnDef = {
     characterId: 'lanternite_nest',

@@ -30,6 +30,8 @@ import {
     ENEMY_HUSK_ARTILLERY,
     ENEMY_SWARMLING,
     ALLY_LANTERNITE,
+    ENEMY_THORNLING,
+    ENEMY_THORNLING_NEST,
     getEnemyHealthMultiplier,
 } from '../../constants/enemyConstants';
 
@@ -43,6 +45,8 @@ const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
     husk_artillery: ENEMY_HUSK_ARTILLERY,
     swarmling: ENEMY_SWARMLING,
     lanternite: ALLY_LANTERNITE,
+    thornling: ENEMY_THORNLING,
+    thornling_nest: ENEMY_THORNLING_NEST,
 };
 import { getLightGrid } from '../LightGrid';
 

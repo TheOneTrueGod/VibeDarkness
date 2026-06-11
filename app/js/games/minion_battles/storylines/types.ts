@@ -50,6 +50,8 @@ export interface SpawnWaveEntry {
     spawnTarget?: SpawnTarget;
     /** How many units to attempt spawning for this entry. Defaults to 1. */
     spawnCount?: number;
+    /** Number of individual creatures represented by each spawned token. Defaults to 1. */
+    stackSize?: number;
     /** Override the AI tree for this spawn entry (e.g. 'aggroWander'). Falls back to mission aiController mapping. */
     unitAITreeId?: string;
     /** Tags applied to each spawned unit (e.g. boss HUD). */

@@ -13,5 +13,6 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
         { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'ember_threshold' },
         { fromMissionId: 'ember_threshold', result: 'victory', toMissionId: 'thorn_march' },
+        { fromMissionId: 'thorn_march', result: 'victory', toMissionId: 'thornling_rise' },
     ],
 };

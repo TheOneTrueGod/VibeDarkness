@@ -84,6 +84,8 @@ export type EnemyUnitId =
     | 'swarmling'
     | 'lanternite'
     | 'lanternite_nest'
+    | 'thornling'
+    | 'thornling_nest'
     | 'dog';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
@@ -276,6 +278,28 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'beast',
         uiDescription:
             'Living nursery — births lantern scouts on a rhythm; needs protection when stirred.',
+    },
+    thornling: {
+        bodyColor: 0x3a6b1f,
+        characterSpriteKey: 'enemy_melee',
+        hp: 8,
+        speed: 110,
+        size: 'Extra Small',
+        stamina: 1,
+        perceptionRange: 250,
+        creatureType: 'beast',
+        uiDescription: 'Thorny skittering creature — rushes in and bites.',
+    },
+    thornling_nest: {
+        bodyColor: 0x1e3d0f,
+        characterSpriteKey: 'enemy_ranged',
+        hp: 80,
+        speed: 0,
+        size: 'Large',
+        stamina: 1,
+        perceptionRange: 0,
+        creatureType: 'beast',
+        uiDescription: 'Thornling brood nest — destroyable; roots the spawn cycle while it lives.',
     },
     dog: {
         bodyColor: 0x8a5a2b,

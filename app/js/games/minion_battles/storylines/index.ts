@@ -15,6 +15,7 @@ import { MONSTER } from './WorldOfDarkness/missions/005_monster';
 import { CORE_AWAKENING } from './WorldOfDarkness/missions/006_core_awakening';
 import { EMBER_THRESHOLD } from './WorldOfDarkness/missions/007_ember_threshold';
 import { THORN_MARCH } from './WorldOfDarkness/missions/008_thorn_march';
+import { THORNLING_RISE } from './WorldOfDarkness/missions/009_thornling_rise';
 import { LAST_HOLDOUT } from './BunkerAtTheEnd/missions/last_holdout';
 
 /** Default mission when missionId is unknown (e.g. fallback in BattlePhase). */
@@ -35,6 +36,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     core_awakening: CORE_AWAKENING,
     ember_threshold: EMBER_THRESHOLD,
     thorn_march: THORN_MARCH,
+    thornling_rise: THORNLING_RISE,
     last_holdout: LAST_HOLDOUT,
 };
 

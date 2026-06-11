@@ -87,6 +87,7 @@ export function createUnitFromSpawnConfig(
         name: string;
         hp?: number;
         speed?: number;
+        stackSize?: number;
         x: number;
         y: number;
         teamId: TeamId;
@@ -104,7 +105,7 @@ export function createUnitFromSpawnConfig(
     _eventBus: EventBus,
     idSource?: Pick<EngineContext, 'allocateObjectId'>,
 ): Unit {
-    const { hp, speed } = resolveEnemySpawnStats(config);
+    const { hp, speed, stackSize } = resolveEnemySpawnStats(config);
     const unit = new Unit({
         id: config.id ?? idSource?.allocateObjectId?.('unit') ?? generateGameObjectId('unit'),
         x: config.x,
@@ -116,6 +117,7 @@ export function createUnitFromSpawnConfig(
         hp,
         maxHp: hp,
         speed,
+        stackSize,
         characterId: config.characterId,
         radius: config.radius ?? getDefaultRadius(config.characterId, DEFAULT_UNIT_RADIUS),
         unitAITreeId: config.unitAITreeId,
