@@ -10,10 +10,13 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
 import {
     MISC_TREE_ID,
-    MISC_NODE_AIR_CORE,
     MISC_NODE_CHARGED_CORE,
     MISC_NODE_BLINK_CORE,
 } from '../../../../../researchTrees/trees/misc';
+import {
+    COMMAND_CORE_TREE_ID,
+    COMMAND_CORE_NODE_LOYAL_COMPANION,
+} from '../../../../../researchTrees/trees/command_core';
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
@@ -52,9 +55,9 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
                     action: { type: 'grant_research_to_player', treeId: EARTH_TREE_ID, nodeId: EARTH_NODE_EARTH_CORE },
                 },
                 {
-                    id: 'air_core',
-                    label: 'The Air Core',
-                    action: { type: 'grant_research_to_player', treeId: MISC_TREE_ID, nodeId: MISC_NODE_AIR_CORE },
+                    id: 'command_core',
+                    label: 'The Command Core',
+                    action: { type: 'grant_research_to_player', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_LOYAL_COMPANION },
                 },
                 {
                     id: 'charged_core',

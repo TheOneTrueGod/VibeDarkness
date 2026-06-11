@@ -11,6 +11,7 @@ import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abi
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { getPetsOfUnit } from '../../../game/units/petHelpers';
 import { commandHeel } from '../../../abilities/petCommands';
+import { DoubleDamageBuff } from '../../../buffs/DoubleDamageBuff';
 import { ROUND_DURATION } from '../../../game/units/unitAI/utils';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
@@ -19,6 +20,7 @@ import { type CardDef } from '../../types';
 import heelIconUrl from './heel.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}03`;
+const SIC_EM_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}04`;
 const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
@@ -27,10 +29,10 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 const HEAL_FRACTION = 0.30;
 const HEEL_TETHER_RANGE = 30;
 // Duration: ~1 round in game-time seconds.
-const HEEL_DURATION = ROUND_DURATION;
+const HEEL_DURATION = ROUND_DURATION / 4;
 
 const CAST_DURATION = 0.1;
-const COOLDOWN_DURATION = 1.5;
+const COOLDOWN_DURATION = 0.5;
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'active', start: 0, end: CAST_DURATION, abilityPhase: AbilityPhase.Active },
@@ -93,6 +95,7 @@ export const HeelAbility: AbilityStatic = {
             tetherRange: HEEL_TETHER_RANGE,
             durationSeconds: HEEL_DURATION,
         });
+        caster.addBuff(new DoubleDamageBuff(SIC_EM_ABILITY_ID), eng.gameTime, 1);
     },
 
     onAttackBlocked(): void {},

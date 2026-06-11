@@ -10,6 +10,7 @@
  * as knockback). Uses touch semantics: a unit is hit when the two circles overlap.
  */
 
+import type { Unit } from '../../game/units/Unit';
 import type {
     CastBehaviour,
     CastBehaviourSetupContext,
@@ -28,7 +29,7 @@ const AFTERIMAGE_INITIAL_ALPHA = 0.75;
 
 interface DashHitboxConfig {
     def: HitboxDef;
-    damage: number;
+    damage: number | ((ctx: CastBehaviourTickContext) => number);
     attackType: 'melee' | 'charging';
     filter: 'enemy' | 'ally' | 'any';
 }
@@ -111,7 +112,7 @@ export class DashBehaviour implements CastBehaviour {
     addHitbox(
         _anchor: 'caster',
         def: HitboxDef,
-        attack: { damage: number; attackType: 'melee' | 'charging'; filter?: 'enemy' | 'ally' | 'any' },
+        attack: { damage: number | ((ctx: CastBehaviourTickContext) => number); attackType: 'melee' | 'charging'; filter?: 'enemy' | 'ally' | 'any' },
     ): this {
         this._hitbox = {
             def,
@@ -187,7 +188,7 @@ export class DashBehaviour implements CastBehaviour {
     }
 
     private _processHitbox(ctx: CastBehaviourTickContext, payload: DashPayload): void {
-        const { def, damage, attackType, filter } = this._hitbox!;
+        const { def, damage: damageOrFn, attackType, filter } = this._hitbox!;
         const hitRadius = def.shape === 'circle'
             ? (def.range === 'caster' ? ctx.caster.radius : def.range)
             : ctx.caster.radius;
@@ -203,6 +204,7 @@ export class DashBehaviour implements CastBehaviour {
             const dist = Math.hypot(unit.x - ctx.caster.x, unit.y - ctx.caster.y);
             if (dist > hitRadius + unit.radius) continue;
 
+            const damage = typeof damageOrFn === 'function' ? damageOrFn(ctx) : damageOrFn;
             const hit = tryDamageOrBlock(unit, {
                 engine: ctx.engine,
                 gameTime: ctx.engine.gameTime,

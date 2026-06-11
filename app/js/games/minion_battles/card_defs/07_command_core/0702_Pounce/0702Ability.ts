@@ -21,6 +21,7 @@ import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { getDirectionFromTo } from '../../../abilities/targetHelpers';
 import type { KnockbackEngineCtx } from '../../../crowdControl/knockbackKeywords';
 import { drawChargeCapsuleTimingTelegraph } from '../../../abilities/previewHelpers';
+import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
 
@@ -33,7 +34,7 @@ const WINDUP_TIME = 0.3;
 const DASH_DURATION = 0.25;
 const COOLDOWN_DURATION = 0.8;
 export const MAX_DASH_DISTANCE = 120;
-const DAMAGE = 3;
+const DAMAGE = 8;
 const STUN_DURATION = 1.0;
 const KNOCKBACK_TIER = 2;
 /** Pass through this many hits; dash ends on the next one. */
@@ -43,7 +44,16 @@ const pounceDash = new DashBehaviour()
     .withMaxDistance(MAX_DASH_DISTANCE)
     .withStopAfterHits(STOP_AFTER_HITS)
     .addHitbox('caster', { shape: 'circle', range: 'caster' }, {
-        damage: DAMAGE,
+        damage: (ctx) => {
+            const idx = ctx.caster.buffs.findIndex(
+                (b) => b._type === DOUBLE_DAMAGE_BUFF_TYPE && (b as DoubleDamageBuff).abilityId === ctx.abilityId,
+            );
+            if (idx >= 0) {
+                ctx.caster.buffs.splice(idx, 1);
+                return DAMAGE * 2;
+            }
+            return DAMAGE;
+        },
         attackType: 'charging',
         filter: 'enemy',
     })

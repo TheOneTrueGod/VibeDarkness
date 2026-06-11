@@ -9,6 +9,7 @@ import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, IAbilityPre
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { resolveAbilitySourceUnits, commandPetAbility } from '../../../abilities/petCommands';
+import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
 import type { Effect } from '../../../game/effects/Effect';
@@ -24,7 +25,7 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 const POUNCE_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
 
 const CAST_DURATION = 0.1;
-const COOLDOWN_DURATION = 2.0;
+const COOLDOWN_DURATION = 0.4;
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'active', start: 0, end: CAST_DURATION, abilityPhase: AbilityPhase.Active },
@@ -80,6 +81,17 @@ export const SicEmAbility: AbilityStatic = {
         const eng = engine as SicEmEngineLike;
         const sourcePets = resolveAbilitySourceUnits(SicEmAbility, caster, eng.units, aimPoint);
         if (sourcePets.length === 0) return;
+
+        // Consume DoubleDamage buff from the player and transfer it to each pet as a Pounce buff.
+        const ddIdx = caster.buffs.findIndex(
+            (b) => b._type === DOUBLE_DAMAGE_BUFF_TYPE && (b as DoubleDamageBuff).abilityId === CARD_ID,
+        );
+        if (ddIdx >= 0) {
+            caster.buffs.splice(ddIdx, 1);
+            for (const pet of sourcePets) {
+                pet.addBuff(new DoubleDamageBuff(POUNCE_ABILITY_ID), eng.gameTime, 1);
+            }
+        }
 
         commandPetAbility(sourcePets, POUNCE_ABILITY_ID, targets, eng, {
             preGrantCharge: { chargeType: 'commandCharge', amount: 1 },

@@ -9,6 +9,7 @@ import { StunnedBuff, STUNNED_BUFF_TYPE } from './StunnedBuff';
 import { BleedBuff, BLEED_BUFF_TYPE } from './BleedBuff';
 import { CantDieBuff, CANT_DIE_BUFF_TYPE } from './CantDieBuff';
 import { ExposedBuff, EXPOSED_BUFF_TYPE } from './ExposedBuff';
+import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from './DoubleDamageBuff';
 
 type BuffDeserializer = (data: BuffSerialized) => Buff;
 
@@ -17,6 +18,7 @@ const registry: Record<string, BuffDeserializer> = {
     [BLEED_BUFF_TYPE]: BleedBuff.fromJSON as BuffDeserializer,
     [CANT_DIE_BUFF_TYPE]: CantDieBuff.fromJSON as BuffDeserializer,
     [EXPOSED_BUFF_TYPE]: ExposedBuff.fromSerialized as BuffDeserializer,
+    [DOUBLE_DAMAGE_BUFF_TYPE]: DoubleDamageBuff.fromJSON as BuffDeserializer,
 };
 
 /** Deserialize a buff from JSON. Returns the buff instance or throws if type unknown. */

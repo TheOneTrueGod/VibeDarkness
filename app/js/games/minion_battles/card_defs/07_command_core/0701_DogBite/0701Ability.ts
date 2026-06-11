@@ -71,6 +71,7 @@ export const DogBiteAbility: AbilityStatic = {
     image: BITE_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
+    maxUses: 4,
     prefireTime: PREFIRE_TIME,
     targets: [{ type: 'unit', label: 'Target' }],
     abilityTimings: ABILITY_TIMINGS,
