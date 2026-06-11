@@ -32,6 +32,7 @@ import {
     ALLY_LANTERNITE,
     ENEMY_THORNLING,
     ENEMY_THORNLING_NEST,
+    ALLY_THORNLING,
     getEnemyHealthMultiplier,
 } from '../../constants/enemyConstants';
 
@@ -47,6 +48,7 @@ const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
     lanternite: ALLY_LANTERNITE,
     thornling: ENEMY_THORNLING,
     thornling_nest: ENEMY_THORNLING_NEST,
+    ally_thornling: ALLY_THORNLING,
 };
 import { getLightGrid } from '../LightGrid';
 

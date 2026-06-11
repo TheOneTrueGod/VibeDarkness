@@ -307,6 +307,12 @@ export class Unit extends GameObject {
     /** Spawn pacing + bookkeeping for Lanternites created by this nest. */
     lanterniteNestSpawnState: { spawnedIds: string[]; nextSpawnAtGameTime: number } | null = null;
 
+    /** Runtime config for `thornling_nest`. */
+    thornlingNestConfig: import('../../storylines/types').ThornlingNestMissionConfig | null = null;
+
+    /** Spawn pacing + bookkeeping for thornlings created by this nest. */
+    thornlingNestSpawnState: { spawnedIds: string[]; nextSpawnAtGameTime: number } | null = null;
+
     /** Role assigned by the nest at spawn for networked behavior. */
     lanterniteRole: 'scout' | 'defender' | null = null;
 
@@ -472,6 +478,7 @@ export class Unit extends GameObject {
         const armourDamage = applyDamageToEarthCoreArmour(this, incomingAmount);
 
         let remaining = armourDamage.remainingDamage;
+        const prevStackSize = this.stackSize;
         if (this.stackSize > 1 && remaining >= this.hp) {
             remaining -= this.hp;
             const extraDeaths = Math.min(Math.floor(remaining / this.maxHp), this.stackSize - 1);
@@ -486,6 +493,13 @@ export class Unit extends GameObject {
             this.hp = Math.max(0, this.hp - remaining);
         }
         const actual = armourDamage.remainingDamage;
+        const membersKilled = prevStackSize - Math.max(0, this.stackSize);
+        if (membersKilled > 0 && this.hp > 0) {
+            eventBus.emit('stack_members_died', { unitId: this.id, count: membersKilled });
+        } else if (membersKilled >= 2 && this.hp <= 0) {
+            // Emit ghosts for all-but-last member; unit_died handles the final death visually.
+            eventBus.emit('stack_members_died', { unitId: this.id, count: membersKilled - 1 });
+        }
 
         eventBus.emit('damage_taken', {
             unitId: this.id,
@@ -1301,6 +1315,17 @@ export class Unit extends GameObject {
                       },
                   }
                 : {}),
+            ...(this.thornlingNestConfig != null
+                ? { thornlingNestConfig: JSON.parse(JSON.stringify(this.thornlingNestConfig)) as import('../../storylines/types').ThornlingNestMissionConfig }
+                : {}),
+            ...(this.thornlingNestSpawnState != null
+                ? {
+                      thornlingNestSpawnState: {
+                          spawnedIds: [...this.thornlingNestSpawnState.spawnedIds],
+                          nextSpawnAtGameTime: this.thornlingNestSpawnState.nextSpawnAtGameTime,
+                      },
+                  }
+                : {}),
             ...(this.lanterniteRole != null ? { lanterniteRole: this.lanterniteRole } : {}),
             ...(this.lanterniteTargetNestPoiId != null ? { lanterniteTargetNestPoiId: this.lanterniteTargetNestPoiId } : {}),
             ...(this.lanterniteHomeNestPoiId != null ? { lanterniteHomeNestPoiId: this.lanterniteHomeNestPoiId } : {}),
@@ -1366,6 +1391,18 @@ export class Unit extends GameObject {
                 : [];
             if (typeof s.nextSpawnAtGameTime === 'number') {
                 unit.lanterniteNestSpawnState = { spawnedIds: ids, nextSpawnAtGameTime: s.nextSpawnAtGameTime };
+            }
+        }
+        if (data.thornlingNestConfig != null) {
+            unit.thornlingNestConfig = data.thornlingNestConfig as import('../../storylines/types').ThornlingNestMissionConfig;
+        }
+        if (data.thornlingNestSpawnState != null) {
+            const s = data.thornlingNestSpawnState as { spawnedIds?: unknown; nextSpawnAtGameTime?: number };
+            const ids = Array.isArray(s.spawnedIds)
+                ? (s.spawnedIds as unknown[]).filter((x): x is string => typeof x === 'string')
+                : [];
+            if (typeof s.nextSpawnAtGameTime === 'number') {
+                unit.thornlingNestSpawnState = { spawnedIds: ids, nextSpawnAtGameTime: s.nextSpawnAtGameTime };
             }
         }
         if (data.lanterniteRole === 'scout' || data.lanterniteRole === 'defender') {

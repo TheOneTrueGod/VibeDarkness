@@ -4,17 +4,16 @@
  * Terrain: two segments side by side (44×22):
  *   [48_52 thorn path 2 | 49_52 thorn path]
  *
- * A damageable thornling nest sits on 49_52 at NEST_POINT_1.
- * Each round, two stacks of thornlings (stackSize 5) and two stacks of wolves
- * (stackSize 6) spawn anywhere within the 48_52 segment and hunt the players.
- * No objectives — the map does not end.
+ * An allied thornling nest pre-spawns near the players and periodically births
+ * thornlings (stackSize 1, allied). Enemy wolves (stackSize 6) spawn every round
+ * from the 48_52 side. No objectives — the map does not end.
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { BattleObjectiveDef, EnemySpawnDef, LevelEvent, PlayerSpawnPoint } from '../../types';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { MAP_SEGMENT_49_52_THORN_PATH, NEST_POINT_1 } from '../MapSegments/49_52_thorn_path';
+import { MAP_SEGMENT_49_52_THORN_PATH } from '../MapSegments/49_52_thorn_path';
 import { MAP_SEGMENT_48_52_THORN_PATH_2 } from '../MapSegments/48_52_thorn_path_2';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
@@ -30,7 +29,6 @@ const SEG_48_52_ROW = 0;
 
 /** Right segment: 49_52 thorn path. */
 const SEG_49_52_COL = 22;
-const SEG_49_52_ROW = 0;
 
 const WORLD_WIDTH = COLS * CELL_SIZE;
 const WORLD_HEIGHT = ROWS * CELL_SIZE;
@@ -54,12 +52,15 @@ function createTerrain(): TerrainGrid {
 // Key positions
 // ---------------------------------------------------------------------------
 
-/** Thornling nest — 49_52 NEST_POINT_1 in global coords. */
-const NEST_COL = SEG_49_52_COL + NEST_POINT_1.col;   // 22 + 11 = 33
-const NEST_ROW = SEG_49_52_ROW + NEST_POINT_1.row;   // 0  + 13 = 13
+/**
+ * Allied thornling nest — placed just south of the player spawn cluster in the
+ * open grass area of 49_52 (local col 20, row 8 = global col 42, row 8).
+ */
+const NEST_COL = SEG_49_52_COL + 20;  // 42
+const NEST_ROW = 8;
 const NEST_WORLD = gridToWorld(NEST_COL, NEST_ROW);
 
-/** Center of 48_52 in world space — spawn target for enemies. */
+/** Center of 48_52 in world space — spawn target for enemy wolves. */
 const SPAWN_SEGMENT_CENTER_X = (SEG_48_52_COL + 11) * CELL_SIZE + CELL_SIZE / 2;
 const SPAWN_SEGMENT_CENTER_Y = (SEG_48_52_ROW + 11) * CELL_SIZE + CELL_SIZE / 2;
 
@@ -80,43 +81,28 @@ export class ThornlingRiseMission extends BaseMissionDef {
 
     battleObjectives: BattleObjectiveDef[] = [];
 
-    enemies: EnemySpawnDef[] = [];
+    enemies: EnemySpawnDef[] = [
+        // Allied thornling nest — spawns up to 8 thornlings, 2 per interval every 12 seconds.
+        {
+            characterId: 'thornling_nest',
+            name: 'Thornling Nest',
+            position: NEST_WORLD,
+            teamId: 'allied',
+            abilities: [],
+            aiSettings: { minRange: 0, maxRange: 0 },
+            unitAITreeId: 'default',
+            thornlingNest: {
+                maxThornlings: 8,
+                spawnIntervalSec: 12,
+                spawnCount: 2,
+                spawnCharacterId: 'lanternite',
+                spawnAbilities: ['0010'],
+                spawnAITreeId: 'hunt',
+            },
+        },
+    ];
 
     levelEvents: LevelEvent[] = [
-        // Spawn the thornling nest on 49_52 at the nest site at the start of round 1.
-        {
-            type: 'spawnWave' as const,
-            trigger: { atRound: 1 },
-            spawns: [
-                {
-                    characterId: 'thornling_nest',
-                    name: 'Thornling Nest',
-                    spawnBehaviour: 'anywhere' as const,
-                    spawnTarget: { x: NEST_WORLD.x, y: NEST_WORLD.y, radius: 2 },
-                    spawnCount: 1,
-                },
-            ],
-        },
-        // Two stacks of thornlings (5 per stack) every round, spawning within 48_52.
-        {
-            type: 'continuousSpawn' as const,
-            trigger: { intervalRounds: 1 },
-            spawns: [
-                {
-                    characterId: 'thornling',
-                    name: 'Thornling',
-                    spawnBehaviour: 'anywhere' as const,
-                    spawnTarget: {
-                        x: SPAWN_SEGMENT_CENTER_X,
-                        y: SPAWN_SEGMENT_CENTER_Y,
-                        radius: 11,
-                    },
-                    spawnCount: 2,
-                    stackSize: 5,
-                    unitAITreeId: 'hunt',
-                },
-            ],
-        },
         // Two stacks of wolves (6 per stack) every round, spawning within 48_52.
         {
             type: 'continuousSpawn' as const,
@@ -141,14 +127,14 @@ export class ThornlingRiseMission extends BaseMissionDef {
 
     createTerrain = createTerrain;
 
-    // Players spawn in the right portion of 49_52 (grass tiles, global coords).
+    // Players spawn in the far-right corner of 49_52 (open grass tiles).
     playerSpawnPoints: PlayerSpawnPoint[] = [
         { col: 40, row: 3 },
         { col: 41, row: 3 },
         { col: 42, row: 3 },
-        { col: 36, row: 5 },
-        { col: 37, row: 5 },
-        { col: 38, row: 5 },
+        { col: 40, row: 5 },
+        { col: 41, row: 5 },
+        { col: 42, row: 5 },
     ];
 
     lightLevelEnabled = true;

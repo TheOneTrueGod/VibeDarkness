@@ -13,6 +13,7 @@ import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
 import type { Effect } from '../../../game/effects/Effect';
 import { type CardDef } from '../../types';
+import { MAX_DASH_DISTANCE as MAX_POUNCE_RANGE } from '../0702_Pounce/0702Ability';
 import sicEmIconUrl from './sic_em.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}04`;
@@ -21,7 +22,6 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];
 const POUNCE_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
-const MAX_POUNCE_RANGE = 180;
 
 const CAST_DURATION = 0.1;
 const COOLDOWN_DURATION = 2.0;

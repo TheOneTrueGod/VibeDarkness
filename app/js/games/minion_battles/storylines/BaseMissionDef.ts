@@ -46,6 +46,10 @@ import {
     upsertNestLightSource,
     LANTERNITE_NEST_CHARACTER_ID,
 } from '../game/lanternite/lanternitePulse';
+import {
+    initializeThornlingNestSpawnState,
+    THORNLING_NEST_CHARACTER_ID,
+} from '../game/lanternite/thornlingNestTick';
 
 const AMMO_ABILITIES = new Set(['0105', '0112', '0203', '0204', '0205']);
 
@@ -267,6 +271,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             if (spawn.lanterniteNest != null && spawn.characterId === LANTERNITE_NEST_CHARACTER_ID) {
                 hydrateLanterniteNestFromMissionDef(unit, spawn.lanterniteNest);
             }
+            if (spawn.thornlingNest != null && spawn.characterId === THORNLING_NEST_CHARACTER_ID) {
+                unit.thornlingNestConfig = spawn.thornlingNest;
+            }
             if (spawn.lanterniteNestOwnerUnitId != null) {
                 unit.lanterniteNestOwnerUnitId = spawn.lanterniteNestOwnerUnitId;
             }
@@ -303,6 +310,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                         lightSources: engine.lightSources,
                     });
                 }
+            }
+            if (u.characterId === THORNLING_NEST_CHARACTER_ID && u.thornlingNestConfig != null) {
+                initializeThornlingNestSpawnState(u, engine.gameTime);
             }
         }
 

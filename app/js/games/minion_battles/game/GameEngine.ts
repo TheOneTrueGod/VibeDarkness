@@ -35,7 +35,8 @@ import { computeLightGrid, type LightSource as GridLightInput } from './LightGri
 import { LightTileGrid } from './lightTileGrid/LightTileGrid';
 import { LightSource } from './lightSources/LightSource';
 import { DarkCreatureIconDeathEffect } from './deathEffects/DarkCreatureIconDeathEffect';
-import { getDeathEffectDef } from './units/unit_defs/unitDef';
+import { getDeathEffectDef, getBodyColorForUnit, getCharacterSpriteKey } from './units/unit_defs/unitDef';
+import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
 import {
@@ -63,6 +64,7 @@ import {
     LANTERNITE_CHARACTER_ID,
 } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
+import { processThornlingNests } from './lanternite/thornlingNestTick';
 import { TerrainLayerManager } from './TerrainLayerManager';
 import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCoreHelpers';
 import { resetGameObjectIdCounter } from './GameObject';
@@ -514,6 +516,32 @@ export class GameEngine implements EngineContext {
                 }).doEffect(this, unit);
             } else {
                 new DarkCreatureIconDeathEffect(deathEffectDef.particleCount).doEffect(this, unit);
+            }
+        });
+
+        this.eventBus.on('stack_members_died', (data) => {
+            const unit = this.getUnit(data.unitId);
+            if (!unit) return;
+            const ghostCount = Math.min(5, Math.ceil(Math.sqrt(data.count)));
+            const bodyColor = getBodyColorForUnit(unit);
+            const characterSpriteKey = getCharacterSpriteKey(unit.characterId);
+            for (let i = 0; i < ghostCount; i++) {
+                const direction = this.generateRandomInteger(0, 1) === 0 ? -1 : 1;
+                this.addEffect(new Effect({
+                    x: unit.x,
+                    y: unit.y,
+                    duration: STACK_GHOST_DURATION,
+                    effectType: 'StackGhost',
+                    effectData: {
+                        bodyColor,
+                        radius: unit.radius,
+                        characterSpriteKey,
+                        vx: direction * this.generateRandomInteger(80, 120),
+                        vy: -this.generateRandomInteger(100, 150),
+                        direction,
+                        initialAlpha: 0.8,
+                    },
+                }));
             }
         });
 
@@ -1171,6 +1199,14 @@ export class GameEngine implements EngineContext {
             addLightSource: (ls) => this.addLightSource(ls),
             lightSources: this.state.lightSourceManager.lightSources,
             addEffectEmitter: (em) => this.addEffectEmitter(em),
+            generateRandomNumber: () => this.generateRandomNumber(),
+        });
+        processThornlingNests({
+            gameTime: this.gameTime,
+            units: this.units,
+            eventBus: this.eventBus,
+            addUnit: (u) => this.addUnit(u, 'nestSpawn'),
+            idSource: this,
             generateRandomNumber: () => this.generateRandomNumber(),
         });
         this.state.lanterniteRespawnManager.gameTick(this.gameTime, this, this.eventBus);

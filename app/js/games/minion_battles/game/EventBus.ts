@@ -19,7 +19,8 @@ export type GameEventType =
     | 'projectile_hit'
     | 'terrain_stone_damaged'
     | 'nearby_stone_damaged'
-    | 'recovery_charge_granted';
+    | 'recovery_charge_granted'
+    | 'stack_members_died';
 
 export interface DamageTakenEvent {
     unitId: string;
@@ -118,6 +119,12 @@ export interface RecoveryChargeGrantedEvent {
     abilityId?: string;
 }
 
+export interface StackMembersDiedEvent {
+    unitId: string;
+    /** Number of stack members that died in this damage application. */
+    count: number;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     round_start: RoundStartEvent;
@@ -131,6 +138,7 @@ export type GameEventDataMap = {
     terrain_stone_damaged: TerrainStoneDamagedEvent;
     nearby_stone_damaged: NearbyStoneDamagedEvent;
     recovery_charge_granted: RecoveryChargeGrantedEvent;
+    stack_members_died: StackMembersDiedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

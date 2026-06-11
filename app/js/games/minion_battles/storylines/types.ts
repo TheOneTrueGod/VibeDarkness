@@ -252,6 +252,22 @@ export type LevelEvent =
     | LevelEventProximitySpawn
     | LevelEventConvertSpecialTile;
 
+/** Config for a `thornling_nest` unit — spawns creatures near itself at intervals. */
+export interface ThornlingNestMissionConfig {
+    /** Hard cap on living children. */
+    maxThornlings: number;
+    /** Seconds between spawn bursts. */
+    spawnIntervalSec: number;
+    /** How many units to spawn per interval (default 1). Capped by maxThornlings. */
+    spawnCount?: number;
+    /** Character ID to spawn (default 'thornling'). */
+    spawnCharacterId?: string;
+    /** Ability IDs for spawned units (default ['0002']). */
+    spawnAbilities?: string[];
+    /** AI tree for spawned units (default 'hunt'). */
+    spawnAITreeId?: string;
+}
+
 /** Patrol endpoint for Lanternites spawned from a {@link lanterniteNest} nest. */
 export type LanternitePatrolDestination =
     | { kind: 'nestUnit'; unitId: string }
@@ -303,6 +319,8 @@ export interface EnemySpawnDef {
     unitId?: string;
     /** When spawning a `lanternite_nest`, wires spawn pacing and patrol corridor for Lanternites from this nest. */
     lanterniteNest?: LanterniteNestMissionConfig;
+    /** When spawning a `thornling_nest`, wires spawn pacing for thornlings from this nest. */
+    thornlingNest?: ThornlingNestMissionConfig;
     /** Optional Lanternite ecology wiring beyond nest auto-spawns (e.g. proximity reinforcements). */
     lanterniteNestOwnerUnitId?: string;
     lanternPatrolFarWorld?: { x: number; y: number };

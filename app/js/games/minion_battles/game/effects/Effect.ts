@@ -84,6 +84,18 @@ export class Effect extends GameObject {
             this.x += vx * realDt;
             this.y += vy * realDt;
         }
+        // StackGhost: drifts up and sideways with light damping
+        if (this.effectType === 'StackGhost') {
+            const data = this.effectData as { vx?: number; vy?: number };
+            let vx = data.vx ?? 0;
+            let vy = data.vy ?? 0;
+            this.x += vx * realDt;
+            this.y += vy * realDt;
+            const dampingK = 2;
+            const factor = Math.exp(-dampingK * realDt);
+            data.vx = vx * factor;
+            data.vy = vy * factor;
+        }
         // DamageNumber / FloatingText: parabolic path + ease-out (see damageNumberMotion)
         if (this.effectType === 'DamageNumber' || this.effectType === 'FloatingText') {
             const pos = computeDamageNumberWorldPosition(this.effectData as Partial<DamageNumberMotionData>, this.progress);

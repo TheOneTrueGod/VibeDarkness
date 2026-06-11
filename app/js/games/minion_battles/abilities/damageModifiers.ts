@@ -27,5 +27,5 @@ export function getModifiedAbilityDamage(
     if (!attacker) return Math.max(0, Math.round(baseDamage));
     const damageModifier = attacker.getDamageModifier();
     const flatBonus = damageModifier.flatAmt * damageModifier.multiplier * abilityDamageModifierMultiplier;
-    return Math.max(0, Math.round(baseDamage + flatBonus));
+    return Math.max(0, Math.round((baseDamage + flatBonus) * attacker.stackSize));
 }

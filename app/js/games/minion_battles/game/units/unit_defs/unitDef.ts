@@ -283,7 +283,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     thornling: {
         bodyColor: 0x3a6b1f,
-        characterSpriteKey: 'enemy_melee',
+        characterSpriteKey: 'thornbinder',
         hp: 8,
         speed: 110,
         size: 'Extra Small',
@@ -294,7 +294,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     thornling_nest: {
         bodyColor: 0x1e3d0f,
-        characterSpriteKey: 'enemy_ranged',
+        characterSpriteKey: 'lanternite_nest',
         hp: 80,
         speed: 0,
         size: 'Large',

@@ -12,7 +12,7 @@ import type { IEffectDef, IEffectRenderContext } from './types';
 // --- Sub-module imports ---
 import { punchEffectDef, biteEffectDef, slashingSwordEffectDef, coneFlashEffectDef } from './impactEffects';
 import { bulletTrailEffectDef, slashTrailEffectDef } from './trailEffects';
-import { afterimageEffectDef } from './movementEffects';
+import { afterimageEffectDef, stackGhostEffectDef } from './movementEffects';
 import { chargedRockExplosionEffectDef, energyBlastExplosionEffectDef } from './explosionEffects';
 import { chargeUpEffectDef } from './chargeEffects';
 import { pulseEffectDef, howlShockwaveEffectDef, critShockwaveEffectDef, enrageBurstEffectDef } from './aoeEffects';
@@ -45,6 +45,7 @@ const defaultEffectDef: IEffectDef = {
 export const effectDefRegistry: Record<string, IEffectDef> = {
     default: defaultEffectDef,
     Afterimage: afterimageEffectDef,
+    StackGhost: stackGhostEffectDef,
     punch: punchEffectDef,
     ConeFlash: coneFlashEffectDef,
     Pulse: pulseEffectDef,

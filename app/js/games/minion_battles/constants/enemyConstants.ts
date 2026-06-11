@@ -119,12 +119,33 @@ export const ENEMY_THORNLING: EnemySpawnDef = {
     aiSettings: { minRange: 0, maxRange: 80 },
 };
 
+/** Allied thornling — same stats as enemy version but fights alongside players. */
+export const ALLY_THORNLING: EnemySpawnDef = {
+    characterId: 'thornling',
+    name: 'Thornling',
+    position: { x: 0, y: 0 },
+    teamId: 'allied',
+    abilities: ['0002'],
+    aiSettings: { minRange: 0, maxRange: 80 },
+};
+
 /** Thornling Nest: static enemy structure that roots the spawn cycle. */
 export const ENEMY_THORNLING_NEST: EnemySpawnDef = {
     characterId: 'thornling_nest',
     name: 'Thornling Nest',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
+    abilities: [],
+    aiSettings: { minRange: 0, maxRange: 0 },
+    unitAITreeId: 'default',
+};
+
+/** Allied thornling nest — sits near players and spawns allied thornlings. */
+export const ALLY_THORNLING_NEST: EnemySpawnDef = {
+    characterId: 'thornling_nest',
+    name: 'Thornling Nest',
+    position: { x: 0, y: 0 },
+    teamId: 'allied',
     abilities: [],
     aiSettings: { minRange: 0, maxRange: 0 },
     unitAITreeId: 'default',
