@@ -298,7 +298,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			if (note.hitTargetIds.includes(unit.id)) continue;
 			if (unit.hasIFrames(eng.gameTime)) continue;
 
-			const dealt = tryDamageOrBlock(unit, {
+			const outcome = tryDamageOrBlock(unit, {
 				engine: eng,
 				gameTime: eng.gameTime,
 				eventBus: eng.eventBus,
@@ -309,7 +309,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 				damage: this.config.damage,
 				attackType: 'charging',
 			});
-			if (!dealt) return;
+			if (!outcome.hit) return;
 			note.hitTargetIds.push(unit.id);
 
 			const angleDeg = eng.generateRandomInteger(0, 359);

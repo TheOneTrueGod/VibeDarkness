@@ -337,7 +337,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 			if (dashNote.hitTargetIds.includes(unit.id)) continue;
 			if (unit.hasIFrames(eng.gameTime)) continue;
 
-			const dealt = tryDamageOrBlock(unit, {
+			const outcome = tryDamageOrBlock(unit, {
 				engine: eng,
 				gameTime: eng.gameTime,
 				eventBus: eng.eventBus,
@@ -348,7 +348,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 				damage: this.config.damage,
 				attackType: 'charging',
 			});
-			if (!dealt) continue;
+			if (!outcome.hit) continue;
 			dashNote.hitTargetIds.push(unit.id);
 
 			eng.addEffect(new Effect({

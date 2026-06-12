@@ -2,9 +2,7 @@ import { Unit } from '../../game/units/Unit';
 import type { CastBehaviourTickContext } from '../castBehaviourTypes';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import { tryApplyKnockbackByTier, knockbackCtxFromEngine } from '../../crowdControl/knockbackKeywords';
-import { tryDamageOrBlock } from '../blockingHelpers';
-import { getAbility } from '../AbilityRegistry';
-import { getModifiedAbilityDamage } from '../damageModifiers';
+import { tryDamageOrBlock, type TryDamageOrBlockParams } from '../blockingHelpers';
 
 /**
  * Shared base for attack CastBehaviours (melee, ranged, etc.).
@@ -13,7 +11,7 @@ import { getModifiedAbilityDamage } from '../damageModifiers';
 export abstract class BaseAttackBehaviour {
     private _knockbackTier: number | null = null;
     private _damageAmount: number | null = null;
-    private _damageAttackType: string = 'melee';
+    private _damageAttackType: TryDamageOrBlockParams['attackType'] = 'melee';
     private _onDamageHook: ((ctx: CastBehaviourTickContext, unit: Unit, amountDealt: number) => void) | null = null;
     private _onBlockedHook: ((ctx: CastBehaviourTickContext, unit: Unit) => void) | null = null;
 
@@ -34,7 +32,7 @@ export abstract class BaseAttackBehaviour {
         return this;
     }
 
-    protected setDeclarativeDamage(amount: number, attackType: string): void {
+    protected setDeclarativeDamage(amount: number, attackType: TryDamageOrBlockParams['attackType']): void {
         this._damageAmount = amount;
         this._damageAttackType = attackType;
     }
@@ -46,11 +44,8 @@ export abstract class BaseAttackBehaviour {
     /** Run tryDamageOrBlock for each hit unit, then fire onDamage/onBlocked hooks. */
     protected runDeclarativeDamage(hitUnits: Unit[], ctx: CastBehaviourTickContext): void {
         if (this._damageAmount === null || hitUnits.length === 0) return;
-        const ability = getAbility(ctx.abilityId);
-        const modMultiplier = ability?.damageModifierMultiplier;
         for (const unit of hitUnits) {
-            const amountDealt = getModifiedAbilityDamage(ctx.caster, this._damageAmount, modMultiplier);
-            const hit = tryDamageOrBlock(unit, {
+            const outcome = tryDamageOrBlock(unit, {
                 engine: ctx.engine,
                 gameTime: ctx.engine.gameTime,
                 eventBus: ctx.engine.eventBus,
@@ -59,10 +54,10 @@ export abstract class BaseAttackBehaviour {
                 attackerId: ctx.caster.id,
                 abilityId: ctx.abilityId,
                 damage: this._damageAmount,
-                attackType: this._damageAttackType as 'melee' | 'charging',
+                attackType: this._damageAttackType,
             });
-            if (hit) {
-                this._onDamageHook?.(ctx, unit, amountDealt);
+            if (outcome.hit) {
+                this._onDamageHook?.(ctx, unit, outcome.amountDealt);
             } else {
                 this._onBlockedHook?.(ctx, unit);
             }

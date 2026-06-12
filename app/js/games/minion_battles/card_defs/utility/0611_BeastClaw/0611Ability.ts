@@ -215,7 +215,7 @@ export const BeastClawAbility: AbilityStatic = {
             for (const targetUnit of hitUnits) {
                 if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) continue;
 
-                const blocked = !tryDamageOrBlock(targetUnit, {
+                const outcome = tryDamageOrBlock(targetUnit, {
                     engine: eng,
                     gameTime: eng.gameTime,
                     eventBus: eng.eventBus,
@@ -226,7 +226,7 @@ export const BeastClawAbility: AbilityStatic = {
                     damage: DAMAGE,
                     attackType: 'melee',
                 });
-                if (blocked) continue;
+                if (!outcome.hit) continue;
 
                 tryApplyKnockbackByTier(
                     targetUnit, KNOCKBACK_TIER,

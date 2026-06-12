@@ -348,7 +348,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 				const dy = unit.y - caster.y;
 				const touchDist = Math.sqrt(dx * dx + dy * dy);
 				if (touchDist > caster.radius + unit.radius) continue;
-				const hit = tryDamageOrBlock(unit, {
+				const outcome = tryDamageOrBlock(unit, {
 					engine: eng,
 					gameTime: eng.gameTime,
 					eventBus: eng.eventBus,
@@ -359,7 +359,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 					damage: UNIT_DAMAGE,
 					attackType: 'melee',
 				});
-				if (hit) note.hitTargetIds.push(unit.id);
+				if (outcome.hit) note.hitTargetIds.push(unit.id);
 			}
 		}
 	},

@@ -13,6 +13,7 @@ import type {
     CastBehaviourRenderContext,
 } from '../castBehaviourTypes';
 import { BaseAttackBehaviour } from './BaseAttackBehaviour';
+import type { TryDamageOrBlockParams } from '../blockingHelpers';
 import { getLockOnRange as getLockOnRangeFromMax } from '../targetLockTracking';
 
 // ---- Easing (mirrored from meleeAnimationProfile.ts) ----
@@ -146,12 +147,12 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         return this;
     }
 
-    withDamage(amount: number, opts?: { attackType?: string }): this;
+    withDamage(amount: number, opts?: { attackType?: TryDamageOrBlockParams['attackType'] }): this;
     /** @deprecated Use withDamage(amount) and onDamage() for per-unit riders instead. */
     withDamage(fn: (ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void): this;
     withDamage(
         amountOrFn: number | ((ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void),
-        opts?: { attackType?: string },
+        opts?: { attackType?: TryDamageOrBlockParams['attackType'] },
     ): this {
         if (typeof amountOrFn === 'number') {
             this.setDeclarativeDamage(amountOrFn, opts?.attackType ?? 'melee');

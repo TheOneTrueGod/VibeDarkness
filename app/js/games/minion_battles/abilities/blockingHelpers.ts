@@ -164,14 +164,20 @@ export interface TryDamageOrBlockParams {
     attackType: 'melee' | 'charging';
 }
 
+export interface DamageOutcome {
+    hit: boolean;
+    /** Post-attacker-modifier damage passed to takeDamage. 0 when blocked. */
+    amountDealt: number;
+}
+
 /**
- * If the defender can block the attack (from attacker position), execute block and return false.
- * Otherwise deal damage to the defender and return true.
+ * If the defender can block the attack (from attacker position), execute block and return
+ * `{ hit: false, amountDealt: 0 }`. Otherwise deal damage and return the modified amount.
  */
 export function tryDamageOrBlock(
     defender: Unit,
     params: TryDamageOrBlockParams,
-): boolean {
+): DamageOutcome {
     const { engine, gameTime, eventBus, attackerX, attackerY, attackerId, abilityId, damage, attackType } = params;
     if (canAttackBeBlocked(defender, attackerX, attackerY, gameTime)) {
         const block = getBlockingArcForUnit(defender, gameTime);
@@ -183,7 +189,7 @@ export function tryDamageOrBlock(
                 abilityId,
                 block,
             );
-            return false;
+            return { hit: false, amountDealt: 0 };
         }
     }
     const attacker = (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(attackerId);
@@ -206,5 +212,5 @@ export function tryDamageOrBlock(
         hitResult: 'hit',
         primaryTarget: defender,
     });
-    return true;
+    return { hit: true, amountDealt: modifiedDamage };
 }

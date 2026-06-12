@@ -217,7 +217,7 @@ export class DashBehaviour implements CastBehaviour {
             if (dist > hitRadius + unit.radius) continue;
 
             const damage = typeof damageOrFn === 'function' ? damageOrFn(ctx) : damageOrFn;
-            const hit = tryDamageOrBlock(unit, {
+            const outcome = tryDamageOrBlock(unit, {
                 engine: ctx.engine,
                 gameTime: ctx.engine.gameTime,
                 eventBus: ctx.engine.eventBus,
@@ -228,7 +228,7 @@ export class DashBehaviour implements CastBehaviour {
                 damage,
                 attackType,
             });
-            if (hit) {
+            if (outcome.hit) {
                 payload.hitIds!.add(unit.id);
                 if (this._stopAfterHits !== null && payload.hitIds!.size >= this._stopAfterHits) {
                     payload.stopped = true;
