@@ -20,7 +20,7 @@ import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { getDirectionFromTo } from '../../../abilities/targetHelpers';
 import type { KnockbackEngineCtx } from '../../../crowdControl/knockbackKeywords';
-import { drawChargeCapsuleTimingTelegraph } from '../../../abilities/previewHelpers';
+import { drawChargeCapsuleTimingTelegraph, resolveTerrainAwareMovementDisplacement } from '../../../abilities/previewHelpers';
 import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
@@ -34,6 +34,8 @@ const WINDUP_TIME = 0.3;
 const DASH_DURATION = 0.25;
 const COOLDOWN_DURATION = 0.8;
 export const MAX_DASH_DISTANCE = 120;
+/** Step size when probing passability along the pounce path (matches DashBehaviour default). */
+export const POUNCE_COLLISION_STEP = 4;
 const DAMAGE = 8;
 const STUN_DURATION = 1.0;
 const KNOCKBACK_TIER = 2;
@@ -42,6 +44,7 @@ const STOP_AFTER_HITS = 4;
 
 const pounceDash = new DashBehaviour()
     .withMaxDistance(MAX_DASH_DISTANCE)
+    .withCollisionStep(POUNCE_COLLISION_STEP)
     .withStopAfterHits(STOP_AFTER_HITS)
     .addHitbox('caster', { shape: 'circle', range: 'caster' }, {
         damage: (ctx) => {
@@ -140,7 +143,7 @@ export const PounceAbility: AbilityStatic = {
     },
 
     beginActiveCast(
-        _engine: unknown,
+        engine: unknown,
         caster: Unit,
         targets: ResolvedTarget[],
         active: ActiveAbility,
@@ -152,12 +155,17 @@ export const PounceAbility: AbilityStatic = {
             targetX = t.position.x;
             targetY = t.position.y;
         }
-        const rawDx = targetX - caster.x;
-        const rawDy = targetY - caster.y;
-        const rawDist = Math.hypot(rawDx, rawDy);
-        const clampedDist = Math.min(MAX_DASH_DISTANCE, rawDist);
-        const endX = rawDist > 0 ? caster.x + (rawDx / rawDist) * clampedDist : caster.x;
-        const endY = rawDist > 0 ? caster.y + (rawDy / rawDist) * clampedDist : caster.y;
+        const { dx, dy } = resolveTerrainAwareMovementDisplacement(
+            caster.x,
+            caster.y,
+            targetX,
+            targetY,
+            MAX_DASH_DISTANCE,
+            engine,
+            POUNCE_COLLISION_STEP,
+        );
+        const endX = caster.x + dx;
+        const endY = caster.y + dy;
         active.castPayload = { startX: caster.x, startY: caster.y, targetX, targetY, endX, endY };
     },
 

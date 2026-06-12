@@ -66,6 +66,15 @@ The runner calls `isScenarioRunnerBattleIdle()` after each tick; if every unit i
 
 Keep `gridW`/`gridH` just large enough to contain the units involved. Small maps are easier to read in the mini terrain preview, faster to pathfind, and keep the visual frame on the interesting action. Rule of thumb: rightmost/bottommost unit column/row + 2–3 cells of margin.
 
+## Proxy / command abilities (preview coverage)
+
+Open-grass E2E scenarios (e.g. `petSicEmPounceScenario`) validate gameplay but **do not** catch dash-preview drift. When changing a command card that delegates movement to a pet:
+
+- Add or extend **unit tests** on `abilities/previewHelpers.ts` (`resolveTerrainAwareMovementDisplacement`, `createPetSourcedMovementPreview`) with a mock impassable `terrainManager`.
+- Manual playtest on a map with walls in the dash lane is still valuable for windup telegraphs on the delegate ability (Pounce `beginActiveCast`).
+
+See **`## Command cards and delegated abilities`** in `card_defs/SKILL.md` and the checklist in `abilities/petCommands.ts`.
+
 ## Modifying behaviour safely
 
 - Prefer changing **scenario setup/assertions** before changing core engine idle rules, so battle semantics stay centralized.

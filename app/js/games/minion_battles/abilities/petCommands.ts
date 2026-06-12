@@ -7,59 +7,35 @@
  * commandHeel — instant heal + heel state on all living pets.
  *
  * commandPetAbility — queue an ability order on pet(s) at the next game tick.
+ *
+ * ## Sic 'em → Pounce preview checklist
+ *
+ * When a command card delegates movement to a pet ability (0704 → 0702 Pounce):
+ *
+ * 1. **Preview origin** — `createPetSourcedMovementPreview` (not `createPixelTargetPreview`).
+ *    Never draw the dash line from the player caster.
+ * 2. **Preview path** — terrain-aware via `resolveTerrainAwareMovementDisplacement` /
+ *    `computeForcedDisplacement`, matching the delegate's `DashBehaviour`.
+ * 3. **Constants** — import `MAX_DASH_DISTANCE` and collision step from the delegate ability
+ *    file (0702), do not duplicate literals on the command card.
+ * 4. **Anti-patterns** — editing only `getRange` on the command card; straight-line
+ *    `Math.hypot` clamp in `renderTargetingPreview`; fixing Pounce without fixing Sic 'em preview.
+ *
+ * See `abilities/previewHelpers.ts` and `card_defs/SKILL.md` (Command cards section).
  */
 
 import type { Unit } from '../game/units/Unit';
-import type { AbilityStatic } from './Ability';
 import type { RecoveryChargeType } from './Ability';
 import type { ResolvedTarget } from '../game/types';
 import type { PetAITreeContext } from '../game/units/unitAI/pet/context';
-import { getLivingPetsOfUnit } from '../game/units/petHelpers';
 import { Effect } from '../game/effects/Effect';
 import { grantRecoveryChargeToAbility } from './abilityUses';
 import type { AbilityEngineContext } from './AbilityEngineContext';
 
+export { resolveAbilitySourceUnits } from './abilitySourceUnits';
+
 // ---- resolveAbilitySourceUnits ----
-
-/**
- * Resolve the unit(s) an ability originates from based on its `abilitySource` field.
- * If no `abilitySource` is set, returns `[caster]`.
- *
- * Supported selectors:
- *  - `'nearest'` — the single living pet of `caster` closest to `aimPoint`.
- *  - `'all'` — all living pets of `caster`.
- *
- * `aimPoint` is optional; when absent (e.g. for unit-targeted abilities), nearest
- * is determined by distance from the caster.
- */
-export function resolveAbilitySourceUnits(
-    ability: AbilityStatic & { abilitySource?: { type: 'pet'; selector: 'nearest' | 'all' } },
-    caster: Unit,
-    units: readonly Unit[],
-    aimPoint?: { x: number; y: number },
-): Unit[] {
-    const src = ability.abilitySource;
-    if (!src || src.type !== 'pet') return [caster];
-
-    const pets = getLivingPetsOfUnit(caster, units);
-    if (pets.length === 0) return [];
-
-    if (src.selector === 'all') return pets;
-
-    // selector === 'nearest'
-    const pivot = aimPoint ?? caster;
-    let nearest: Unit = pets[0]!;
-    let nearestDist = Math.hypot(nearest.x - pivot.x, nearest.y - pivot.y);
-    for (let i = 1; i < pets.length; i++) {
-        const p = pets[i]!;
-        const d = Math.hypot(p.x - pivot.x, p.y - pivot.y);
-        if (d < nearestDist) {
-            nearestDist = d;
-            nearest = p;
-        }
-    }
-    return [nearest];
-}
+// Implemented in abilitySourceUnits.ts (re-exported above).
 
 // ---- commandHeel ----
 

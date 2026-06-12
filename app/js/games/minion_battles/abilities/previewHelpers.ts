@@ -2,16 +2,27 @@
  * Reusable helpers and presets for ability targeting previews.
  *
  * Use these to avoid duplicating canvas/graphics logic across abilities.
+ *
+ * Preview helper choice (must match runtime movement):
+ * | Runtime movement | Preview helper |
+ * |------------------|----------------|
+ * | Caster `DashBehaviour` | `createMovementTargetPreview(max, step)` |
+ * | Pet-sourced dash (Sic 'em → Pounce) | `createPetSourcedMovementPreview(...)` |
+ * | Straight pixel clamp (projectiles, no terrain) | `createPixelTargetPreview(max)` |
+ *
+ * Rule: if runtime uses `computeForcedDisplacement` / `applyForcedDisplacementToward`,
+ * preview must use `resolveTerrainAwareMovementDisplacement` (or a preset built on it).
  */
 
-import type { IAbilityPreviewGraphics } from './Ability';
+import type { AbilityStatic, IAbilityPreviewGraphics } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
 import { getUnitAtPosition } from './targeting';
 import { areEnemies } from '../game/teams';
-import { getDistanceBasedInaccuracy } from './gunHelpers';
-import { computeForcedDisplacement } from '../game/forceMove';
+import { getDistanceBasedInaccuracy } from './gunInaccuracy';
+import { computeForcedDisplacement, type ForcedDisplacement } from '../game/forceMove';
 import type { TerrainManager } from '../terrain/TerrainManager';
+import { resolveAbilitySourceUnits } from './abilitySourceUnits';
 
 /** Result of clamping a target position to max range from caster. */
 export interface ClampedRangeResult {
@@ -255,6 +266,150 @@ export type RenderTargetingPreviewFn = (
     gameState?: unknown,
 ) => void;
 
+/** Read terrain from the engine passed as `gameState` in preview callbacks. */
+export function getTerrainManagerFromGameState(gameState?: unknown): TerrainManager | null {
+    if (!gameState || typeof gameState !== 'object' || !('terrainManager' in gameState)) {
+        return null;
+    }
+    return (gameState as { terrainManager?: TerrainManager | null }).terrainManager ?? null;
+}
+
+/**
+ * Terrain-aware displacement toward a pixel target — same math as `DashBehaviour` /
+ * `applyForcedDisplacementToward`. Use for previews and windup endpoint calculation.
+ */
+export function resolveTerrainAwareMovementDisplacement(
+    originX: number,
+    originY: number,
+    towardX: number,
+    towardY: number,
+    maxDistance: number,
+    gameState?: unknown,
+    collisionStep: number = 4,
+): ForcedDisplacement {
+    return computeForcedDisplacement(
+        originX,
+        originY,
+        towardX,
+        towardY,
+        maxDistance,
+        { terrainManager: getTerrainManagerFromGameState(gameState), step: collisionStep },
+    );
+}
+
+export interface TerrainAwareMovementLineStyle {
+    lineStroke: { color: number; width: number; alpha?: number };
+    endpointRingStroke?: { color: number; width: number; alpha?: number };
+    endpointRadiusScale?: number;
+}
+
+const DEFAULT_MOVEMENT_LINE_STROKE = { color: 0xc0c0c0, width: 2, alpha: 0.6 };
+
+/**
+ * Draw a terrain-aware dash line from origin toward target. Returns endpoint and distance moved.
+ */
+export function drawTerrainAwareMovementLine(
+    gr: IAbilityPreviewGraphics,
+    originX: number,
+    originY: number,
+    towardX: number,
+    towardY: number,
+    maxDistance: number,
+    options: {
+        gameState?: unknown;
+        collisionStep?: number;
+        style?: Partial<TerrainAwareMovementLineStyle>;
+        endpointRadius?: number;
+    } = {},
+): ForcedDisplacement & { endX: number; endY: number } {
+    const { dx, dy, distance } = resolveTerrainAwareMovementDisplacement(
+        originX,
+        originY,
+        towardX,
+        towardY,
+        maxDistance,
+        options.gameState,
+        options.collisionStep ?? 4,
+    );
+    if (distance <= 0) {
+        return { dx: 0, dy: 0, distance: 0, endX: originX, endY: originY };
+    }
+    const endX = originX + dx;
+    const endY = originY + dy;
+    const lineStroke = options.style?.lineStroke ?? DEFAULT_MOVEMENT_LINE_STROKE;
+    gr.moveTo(originX, originY);
+    gr.lineTo(endX, endY);
+    gr.stroke(lineStroke);
+
+    const ringRadius = options.endpointRadius ?? 0;
+    if (ringRadius > 0) {
+        const ringStroke = options.style?.endpointRingStroke ?? {
+            color: lineStroke.color,
+            width: 2,
+            alpha: 0.8,
+        };
+        gr.circle(endX, endY, ringRadius);
+        gr.stroke(ringStroke);
+    }
+
+    return { dx, dy, distance, endX, endY };
+}
+
+/** Draw a faint X at the caster when a pet-sourced command has no living pets. */
+export function drawNoPetSourceFizzle(
+    gr: IAbilityPreviewGraphics,
+    caster: Unit,
+): void {
+    gr.moveTo(caster.x - 8, caster.y - 8);
+    gr.lineTo(caster.x + 8, caster.y + 8);
+    gr.moveTo(caster.x + 8, caster.y - 8);
+    gr.lineTo(caster.x - 8, caster.y + 8);
+    gr.stroke({ color: 0x888888, width: 2, alpha: 0.5 });
+}
+
+export interface PetSourcedMovementPreviewOptions {
+    maxDistance: number;
+    collisionStep?: number;
+    style?: Partial<TerrainAwareMovementLineStyle>;
+}
+
+/**
+ * Preset: command card that orders a pet dash (e.g. Sic 'em → Pounce).
+ * Origin = `resolveAbilitySourceUnits` (nearest pet to aim point), not the caster.
+ * Path = terrain-aware displacement matching the delegate ability's `DashBehaviour`.
+ */
+export function createPetSourcedMovementPreview(
+    ability: Pick<AbilityStatic, 'abilitySource'> & {
+        abilitySource: { type: 'pet'; selector: 'nearest' | 'all' };
+    },
+    options: PetSourcedMovementPreviewOptions,
+): RenderTargetingPreviewFn {
+    const collisionStep = options.collisionStep ?? 4;
+    return (gr, caster, _currentTargets, mouseWorld, units, gameState) => {
+        gr.clear();
+        const sourcePets = resolveAbilitySourceUnits(ability, caster, units, mouseWorld);
+        const pet = sourcePets[0];
+        if (!pet) {
+            drawNoPetSourceFizzle(gr, caster);
+            return;
+        }
+        drawTerrainAwareMovementLine(
+            gr,
+            pet.x,
+            pet.y,
+            mouseWorld.x,
+            mouseWorld.y,
+            options.maxDistance,
+            {
+                gameState,
+                collisionStep,
+                style: options.style,
+                endpointRadius: pet.radius * (options.style?.endpointRadiusScale ?? 1.1),
+            },
+        );
+    };
+}
+
 /**
  * Preset: Pixel-target ability with max range. Draws a clamped line from caster to mouse.
  * Use for abilities that target a point within maxDistance (e.g. Throw Knife, Dodge).
@@ -277,20 +432,15 @@ export function createMovementTargetPreview(
 ): RenderTargetingPreviewFn {
     return (gr, caster, _currentTargets, mouseWorld, _units, gameState) => {
         gr.clear();
-        const terrainManager =
-            gameState && typeof gameState === 'object' && 'terrainManager' in gameState
-                ? ((gameState as { terrainManager?: TerrainManager | null }).terrainManager ?? null)
-                : null;
-        const { dx, dy, distance } = computeForcedDisplacement(
-            caster.x, caster.y,
-            mouseWorld.x, mouseWorld.y,
+        drawTerrainAwareMovementLine(
+            gr,
+            caster.x,
+            caster.y,
+            mouseWorld.x,
+            mouseWorld.y,
             maxDistance,
-            { terrainManager, step: collisionStep },
+            { gameState, collisionStep },
         );
-        if (distance <= 0) return;
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(caster.x + dx, caster.y + dy);
-        gr.stroke({ color: 0xc0c0c0, width: 2, alpha: 0.6 });
     };
 }
 

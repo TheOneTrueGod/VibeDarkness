@@ -54,19 +54,9 @@ export function spawnGunProjectile(params: GunShotParams): void {
  * - At distance <= minDistance (50):      penalty = baseInaccuracy * 1.1.
  * - Between: linearly interpolated between those two values.
  */
-export function getDistanceBasedInaccuracy(
-    distance: number,
-    baseInaccuracy: number,
-    minDistance: number = 50,
-    maxAccurateDist: number = 400,
-): number {
-    if (!Number.isFinite(distance) || distance <= 0) return baseInaccuracy;
-    if (distance <= minDistance) return baseInaccuracy * 2;
-    if (distance >= maxAccurateDist) return baseInaccuracy;
-    const t = (distance - minDistance) / (maxAccurateDist - minDistance);
-    const factor = 2 - 1 * t;
-    return baseInaccuracy * factor;
-}
+import { getDistanceBasedInaccuracy } from './gunInaccuracy';
+
+export { getDistanceBasedInaccuracy } from './gunInaccuracy';
 
 export function getRandomConeAngle(
     engine: unknown,

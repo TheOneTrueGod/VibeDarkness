@@ -1,8 +1,8 @@
 /**
  * Sic 'em — player command card that triggers the dog's Pounce from a distance.
  * The player clicks a target point; the nearest living pet leaps at it using Pounce (0702).
- * The targeting preview draws from the pet's position, not the caster, so the player can
- * see the actual dash line. If there are no living pets, the cast fizzles (no order queued).
+ * Targeting preview draws from the pet's position using the same terrain-aware dash math as
+ * Pounce's DashBehaviour. If there are no living pets, the cast fizzles (no order queued).
  */
 
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
@@ -10,12 +10,15 @@ import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { resolveAbilitySourceUnits, commandPetAbility } from '../../../abilities/petCommands';
 import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
 import type { Unit } from '../../../game/units/Unit';
-import type { ResolvedTarget } from '../../../game/types';
 import { type CardDef } from '../../types';
-import { MAX_DASH_DISTANCE as MAX_POUNCE_RANGE } from '../0702_Pounce/0702Ability';
+import {
+    MAX_DASH_DISTANCE as MAX_POUNCE_RANGE,
+    POUNCE_COLLISION_STEP,
+} from '../0702_Pounce/0702Ability';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
-import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import { createPetSourcedMovementPreview } from '../../../abilities/previewHelpers';
+import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import sicEmIconUrl from './sic_em.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}04`;
@@ -69,6 +72,8 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
 
 const SICE_EM_IMAGE = `<img src="${sicEmIconUrl}" width="56" height="56" alt="" style="object-fit: contain; display: block; margin: 0 auto;" />`;
 
+const SIC_EM_PET_SOURCE = { type: 'pet' as const, selector: 'nearest' as const };
+
 export const SicEmAbility = defineAbility({
     id: CARD_ID,
     name: "Sic 'em",
@@ -80,7 +85,7 @@ export const SicEmAbility = defineAbility({
     prefireTime: 0,
     targets: [{ type: 'pixel', label: 'Pounce target' }],
     abilityTimings: ABILITY_TIMINGS,
-    abilitySource: { type: 'pet', selector: 'nearest' },
+    abilitySource: SIC_EM_PET_SOURCE,
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {
         return { minRange: 0, maxRange: MAX_POUNCE_RANGE };
@@ -90,43 +95,18 @@ export const SicEmAbility = defineAbility({
         return [`Command the nearest pet to {Pounce} through enemies at the target point (stops on the 4th hit).`];
     },
 
-    renderTargetingPreview(
-        gr: IAbilityPreviewGraphics,
-        caster: Unit,
-        currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-        units: readonly Unit[],
-    ): void {
-        // Draw from the nearest pet's position rather than the caster.
-        const sourcePets = resolveAbilitySourceUnits(SicEmAbility, caster, units, mouseWorld);
-        const pet = sourcePets[0];
-        if (!pet) {
-            // No pet — draw a faint X at the caster to signal fizzle.
-            gr.moveTo(caster.x - 8, caster.y - 8);
-            gr.lineTo(caster.x + 8, caster.y + 8);
-            gr.moveTo(caster.x + 8, caster.y - 8);
-            gr.lineTo(caster.x - 8, caster.y + 8);
-            gr.stroke({ color: 0x888888, width: 2, alpha: 0.5 });
-            return;
-        }
-
-        // Clamp the dash to max pounce range from the pet.
-        const dx = mouseWorld.x - pet.x;
-        const dy = mouseWorld.y - pet.y;
-        const dist = Math.hypot(dx, dy);
-        const clampedDist = Math.min(MAX_POUNCE_RANGE, dist);
-        const endX = dist > 0 ? pet.x + (dx / dist) * clampedDist : pet.x;
-        const endY = dist > 0 ? pet.y + (dy / dist) * clampedDist : pet.y;
-
-        gr.moveTo(pet.x, pet.y);
-        gr.lineTo(endX, endY);
-        gr.stroke({ color: 0xff8800, width: 8, alpha: 0.6 });
-        gr.circle(endX, endY, pet.radius * 1.1);
-        gr.stroke({ color: 0xff8800, width: 2, alpha: 0.8 });
-
-        // Suppress unused param lint.
-        void currentTargets;
-    },
+    renderTargetingPreview: createPetSourcedMovementPreview(
+        { abilitySource: SIC_EM_PET_SOURCE },
+        {
+            maxDistance: MAX_POUNCE_RANGE,
+            collisionStep: POUNCE_COLLISION_STEP,
+            style: {
+                lineStroke: { color: 0xff8800, width: 8, alpha: 0.6 },
+                endpointRingStroke: { color: 0xff8800, width: 2, alpha: 0.8 },
+                endpointRadiusScale: 1.1,
+            },
+        },
+    ),
 });
 
 export const SicEmCard: CardDef = {

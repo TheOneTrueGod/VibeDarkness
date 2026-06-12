@@ -15,7 +15,7 @@ Important: ability implementation files belong in `card_defs/` folders (not dire
 
 - **Do**: Implement `doCardEffect` by calling helpers keyed to clear behaviours (e.g. "at 0.05s draw a card", "during windup apply forced displacement toward target").
 - **Don't**: Inline geometry, damage/block checks, or drawing logic in the ability file when a shared helper already exists or can be added.
-- **Helpers**: See utility files in `abilities/` (`targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`) for available helpers. When adding new reusable behaviour, add or extend a helper first, then call it from the ability.
+- **Helpers**: See utility files in `abilities/` (`targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`, `petCommands.ts`) for available helpers. When adding new reusable behaviour, add or extend a helper first, then call it from the ability.
 - **Hitboxes**: For hit-detection shapes, see the **working-with-hitboxes** skill.
 
 ## Reuse before you build
@@ -37,6 +37,21 @@ Keep two concerns separate in the `castBehaviours` system:
 - **`abilityEvents`** — declare *what to do* when an event fires: damage multipliers, knockback tiers, buffs, secondary effects.
 
 Hitbox geometry and per-unit dedup live on the `CastBehaviour`; damage values and effect tiers live in `abilityEvents`. A good sign the split is correct: you can change what happens on hit by editing only `abilityEvents`, without touching the hitbox shape or detection logic.
+
+## Command cards and delegated abilities
+
+Some player cards trigger another unit's ability (e.g. Sic 'em 0704 → Pounce 0702 on the nearest pet).
+
+- **Preview origin** — when `abilitySource: { type: 'pet' }` is set, `renderTargetingPreview` must draw from `resolveAbilitySourceUnits`, **not** from the caster. Use `createPetSourcedMovementPreview` in `previewHelpers.ts`.
+- **Preview path** — must match the **delegate** ability's movement, not the command card's `getRange`. For dashes, use terrain-aware helpers (`resolveTerrainAwareMovementDisplacement` / `createMovementTargetPreview`), not manual straight-line clamp or `createPixelTargetPreview` from the caster.
+- **Constants** — import max distance and collision step from the delegate ability file (e.g. `0702_Pounce/0702Ability.ts`), do not duplicate literals on the command card.
+- **Module docs** — see the Sic 'em → Pounce checklist in `abilities/petCommands.ts`.
+
+Reference implementation: `card_defs/07_command_core/0704_SicEm/0704Ability.ts`.
+
+## Targeting preview helper choice
+
+See the decision table at the top of `abilities/previewHelpers.ts`. Rule of thumb: if runtime movement uses `DashBehaviour` / `computeForcedDisplacement`, the preview must use the matching terrain-aware preset.
 
 ## Juicing the game
 
@@ -238,6 +253,6 @@ While knockback is active, the unit cannot move or act. If it hits a wall, it bo
 ### Juice / feel
 
 - [ ] Windup / impact / recovery line up with **`abilityTimings`** so the timeline matches the sim.
-- [ ] **`renderTargetingPreview`** matches what the ability actually hits where it affects fairness or clarity.
+- [ ] **`renderTargetingPreview`** matches what the ability actually hits where it affects fairness or clarity (for dashes: terrain-aware path and correct origin — see **Command cards** and **Targeting preview helper choice** above).
 - [ ] Damage path: if damage goes through usual `takeDamage` / event flow, hit flash applies; otherwise intentional extra feedback (effects / other presentation) was considered.
 - [ ] Tooltip and timeline wording don't contradict timings (coordinate with narrative skill if needed).

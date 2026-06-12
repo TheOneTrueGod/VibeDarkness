@@ -272,7 +272,7 @@ export const petSicEmPounceScenario: ScenarioDefinition = {
         const DOG_POS = { x: PLAYER_POS.x, y: PLAYER_POS.y + 50 };
         spawnDog(engine, player, DOG_POS);
 
-        // Enemy 130 px south of dog — within Pounce max range (180 px), directly in the dash lane.
+        // Enemy 130 px south of dog — within Pounce max range (120 px), directly in the dash lane.
         const ENEMY_POS = { x: DOG_POS.x, y: DOG_POS.y + 130 };
         const enemy = createUnitFromSpawnConfig(
             {
@@ -305,7 +305,7 @@ export const petSicEmPounceScenario: ScenarioDefinition = {
     getInitialOrders(engine) {
         const player = engine.getLocalPlayerUnit()!;
         const dog = engine.getUnit('dog1')!;
-        // Target point: 200 px south of dog — beyond the enemy (at +130) but clamped to Pounce max (180 px).
+        // Target point: 200 px south of dog — beyond the enemy (at +130); dash clamped to Pounce max (120 px).
         const targetY = dog.y + 200;
         return [{
             unitId: player.id,

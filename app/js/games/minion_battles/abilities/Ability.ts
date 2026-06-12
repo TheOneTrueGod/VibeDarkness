@@ -232,6 +232,11 @@ export interface AbilityStatic {
      * - `selector: 'nearest'` — the single pet closest to the aim point (or caster if no aim point).
      * - `selector: 'all'` — all living pets of the caster.
      * Use `resolveAbilitySourceUnits` from `abilities/petCommands.ts` to evaluate at runtime.
+     *
+     * **Preview rule:** when set, `renderTargetingPreview` must draw from the resolved source unit
+     * (via `createPetSourcedMovementPreview`), not from the caster. If the command orders a dash
+     * on the source unit, import max distance and collision step from the delegate ability (e.g.
+     * Pounce 0702) and use terrain-aware preview helpers — not `createPixelTargetPreview`.
      */
     readonly abilitySource?: { type: 'pet'; selector: 'nearest' | 'all' };
     /**
