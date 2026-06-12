@@ -1,22 +1,14 @@
-﻿/**
+/**
  * Shining Block - Crystal shield variant. Hold a shield for 1s in a direction.
  * Same blocking arc as Raise Shield. On first block: flash retaliation in a cone
  * toward the attacker - 5 damage to up to 3 enemies, stun 2s, ConeFlash effect.
  */
 
 import { AbilityEventType } from '../../abilities/Ability';
-import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability';
-import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { TargetDef } from '../../abilities/targeting';
-import { createArcTargetPreview } from '../../abilities/previewHelpers';
+import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { defineDirectionalShield } from '../../abilities/archetypes/defineDirectionalShield';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import {
-    createDirectionalBlockingArc,
-    createMovementPenaltyStates,
-    createShieldActivePreview,
-    STANDARD_SHIELD_HALF_ARC_RAD,
-} from '../../abilities/shieldHelpers';
 import { createCrystalLightEffect } from '../../abilities/effectHelpers';
 import { getDirectionFromTo, pointInCone } from '../../abilities/targetHelpers';
 import { Effect } from '../../game/effects/Effect';
@@ -30,6 +22,7 @@ import type { AttackBlockedInfo } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
 import type { EventBus } from '../../game/EventBus';
 import type { LightSource } from '../../game/lightSources/LightSource';
+import { STANDARD_SHIELD_HALF_ARC_RAD } from '../../abilities/shieldHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}10` as '0110';
 const MAX_USES = 3;
@@ -37,15 +30,6 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 const DURATION = 1;
-const MOVEMENT_PENALTY = 0.1;
-const SHIELD_ARC_DEG = 120;
-const SHIELD_INNER_OFFSET = 5;
-const SHIELD_THICKNESS_PX = 10;
-const SHIELD_FILL_ALPHA = 0.9;
-const SHIELD_STROKE_ALPHA = 0.9;
-const MAX_RANGE = 300;
-const MIN_RANGE = 10;
-
 const SHIELD_FILL_COLOR = 0x27d3c8;
 const SHIELD_STROKE_COLOR = 0x1a9d94;
 
@@ -145,7 +129,7 @@ function grantLightChargesToNearbyAllies(engine: unknown, defender: Unit): void 
     }
 }
 
-export const ShiningBlockAbility: AbilityStatic = {
+export const ShiningBlockAbility = defineDirectionalShield({
     id: CARD_ID,
     name: 'Shining Block',
     image: SHINING_BLOCK_IMAGE,
@@ -153,17 +137,9 @@ export const ShiningBlockAbility: AbilityStatic = {
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: DURATION,
-    abilityTimings: [
-        {
-            id: 'juggernaut',
-            start: 0,
-            end: DURATION,
-            abilityPhase: AbilityPhase.Active,
-        },
-    ],
-    targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
-    aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },
+    duration: DURATION,
+    fillColor: SHIELD_FILL_COLOR,
+    strokeColor: SHIELD_STROKE_COLOR,
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
@@ -172,34 +148,6 @@ export const ShiningBlockAbility: AbilityStatic = {
             'Nearby allies gain {2} stamina surges, {1} light charge, and heal for 5',
         ];
     },
-
-    getAbilityStates: createMovementPenaltyStates(MOVEMENT_PENALTY, DURATION),
-
-    getBlockingArc: createDirectionalBlockingArc({
-        blockDuration: DURATION,
-        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
-    }),
-
-    renderActivePreview: createShieldActivePreview({
-        blockDuration: DURATION,
-        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
-        innerOffset: SHIELD_INNER_OFFSET,
-        thicknessPx: SHIELD_THICKNESS_PX,
-        fillColor: SHIELD_FILL_COLOR,
-        strokeColor: SHIELD_STROKE_COLOR,
-        fillAlpha: SHIELD_FILL_ALPHA,
-        strokeAlpha: SHIELD_STROKE_ALPHA,
-    }),
-
-    renderTargetingPreview: createArcTargetPreview({
-        arcDeg: SHIELD_ARC_DEG,
-        innerOffset: SHIELD_INNER_OFFSET,
-        outerThickness: SHIELD_THICKNESS_PX,
-        fillAlpha: SHIELD_FILL_ALPHA,
-        strokeAlpha: SHIELD_STROKE_ALPHA,
-        strokeColor: SHIELD_STROKE_COLOR,
-        fillColor: SHIELD_FILL_COLOR,
-    }),
 
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
@@ -253,7 +201,7 @@ export const ShiningBlockAbility: AbilityStatic = {
         shiningBlockConeFlash: (_params, ctx) => {
             const c = ctx as AbilityEventRuntimeContext;
             if (!c.attackInfo) {
-                console.warn('shiningBlockConeFlash fired without attackInfo â€” skipping retaliation');
+                console.warn('shiningBlockConeFlash fired without attackInfo — skipping retaliation');
                 return;
             }
             executeShiningBlockRetaliation(c.engine, c.caster, c.attackInfo);
@@ -263,7 +211,7 @@ export const ShiningBlockAbility: AbilityStatic = {
             applyStrengtheningLightHeal(c.engine, c.caster);
         },
     },
-};
+});
 
 export const ShiningBlockCard: CardDef = {
     abilityId: CARD_ID,

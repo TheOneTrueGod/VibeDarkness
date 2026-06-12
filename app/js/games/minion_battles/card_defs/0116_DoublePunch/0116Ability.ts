@@ -1,18 +1,20 @@
-﻿/**
+/**
  * Double Punch - Warrior melee ability.
  *
  * Strikes twice in sequence, each using a thick-line hitbox with lock-on targeting.
  * Built entirely on the CastBehaviours system (no doCardEffect / beginActiveCast).
+ *
+ * Note: two-strike timing cannot be expressed via defineMeleeStrike (single-interval);
+ * uses defineAbility() directly to at least remove getRange/onAttackBlocked/getAbilityStates
+ * boilerplate.
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
-import { AbilityState } from '../../abilities/Ability';
+import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { defineAbility } from '../../abilities/defineAbility';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { meleeLineHitbox } from '../../hitboxes';
-import type { Unit } from '../../game/units/Unit';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}16`;
 const MAX_USES = 2;
@@ -28,21 +30,7 @@ const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
 const punchBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(PUNCH_HITBOX)
     .withImpact('punch')
-    .withDamage((_ctx, hitUnits) => {
-        const target = hitUnits[0];
-        if (!target) return;
-        tryDamageOrBlock(target, {
-            engine: _ctx.engine,
-            gameTime: _ctx.engine.gameTime,
-            eventBus: _ctx.engine.eventBus,
-            attackerX: _ctx.caster.x,
-            attackerY: _ctx.caster.y,
-            attackerId: _ctx.caster.id,
-            abilityId: CARD_ID,
-            damage: PUNCH_DAMAGE,
-            attackType: 'melee',
-        });
-    });
+    .withDamage(PUNCH_DAMAGE);
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,    end: 0.2, abilityPhase: AbilityPhase.Windup },
@@ -87,7 +75,7 @@ const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http
   <path d="M32 12 L32 18" stroke="#f97316" stroke-width="2" stroke-linecap="round"/>
 </svg>`;
 
-export const DoublePunchAbility: AbilityStatic = {
+export const DoublePunchAbility = defineAbility({
     id: CARD_ID,
     name: 'Double Punch',
     image: PUNCH_IMAGE,
@@ -98,25 +86,10 @@ export const DoublePunchAbility: AbilityStatic = {
     prefireTime: 0.15,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: MAX_RANGE },
+    // Lock movement through both strikes; release during cooldown.
+    movementLock: { until: 0.6 },
 
     getTooltipText(): string[] {
         return ['Hit {2} enemies in sequence for {8} damage each'];
     },
-
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        // Lock movement through both strikes; release during cooldown.
-        if (currentTime < 0.6) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
-        }
-        return [];
-    },
-
-    getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: PUNCH_HITBOX.maxRange };
-    },
-
-    onAttackBlocked(): void {
-        // Melee blocked: no additional behaviour.
-    },
-};
+});

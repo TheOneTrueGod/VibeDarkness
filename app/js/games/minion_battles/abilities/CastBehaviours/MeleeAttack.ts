@@ -149,8 +149,18 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         return this;
     }
 
-    withDamage(fn: (ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void): this {
-        this.damageCallback = fn;
+    withDamage(amount: number, opts?: { attackType?: string }): this;
+    /** @deprecated Use withDamage(amount) and onDamage() for per-unit riders instead. */
+    withDamage(fn: (ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void): this;
+    withDamage(
+        amountOrFn: number | ((ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void),
+        opts?: { attackType?: string },
+    ): this {
+        if (typeof amountOrFn === 'number') {
+            this.setDeclarativeDamage(amountOrFn, opts?.attackType ?? 'melee');
+        } else {
+            this.damageCallback = amountOrFn;
+        }
         return this;
     }
 
@@ -403,9 +413,13 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
             }));
         }
 
-        // Apply damage.
-        if (hitUnits.length > 0 && this.damageCallback != null) {
-            this.damageCallback(ctx, hitUnits);
+        // Apply damage — declarative path takes priority over legacy callback.
+        if (hitUnits.length > 0) {
+            if (this.hasDeclarativeDamage) {
+                this.runDeclarativeDamage(hitUnits, ctx);
+            } else if (this.damageCallback != null) {
+                this.damageCallback(ctx, hitUnits);
+            }
         }
 
         // Apply tier-based knockback (if configured via withKnockback).

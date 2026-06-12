@@ -9,6 +9,7 @@ import type { TerrainManager } from '../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../game/forceMove';
 import { Effect } from '../game/effects/Effect';
 import { LightSource } from '../game/lightSources/LightSource';
+import { SPRITE_EFFECT_DEFS, type SpriteEffectDef } from '../game/effect_defs/spriteEffectDefs';
 
 /** Default slash trail color (light cyan). */
 const DEFAULT_SLASH_TRAIL_COLOR = 0x7fdfef;
@@ -140,4 +141,79 @@ export function applyForcedDisplacementToward(
     if (distance <= 0) return;
     caster.invalidateMovementPath();
     caster.moveUnit(targetX, targetY, distance);
+}
+
+/** Engine interface required by spawnSpriteEffect. */
+interface EffectEngine {
+    addEffect(effect: Effect): void;
+}
+
+/**
+ * Spawn a named, def-based sprite effect at the given world position.
+ *
+ * `defId` must be a key in `SPRITE_EFFECT_DEFS`. Per-call `overrides` can
+ * customise appearance (tint, scale, fadeOut, rotation) or supply motion
+ * data (vx, vy, ay, dampingK) — these are stored in effectData and handled
+ * by Effect.ts's renderUpdate, exactly like ParticleImage.
+ *
+ * The `aimX` / `aimY` overrides compute an aim angle for `rotation: 'aim'`
+ * defs; pass them when the visual should point toward a target.
+ */
+export function spawnSpriteEffect(
+    engine: EffectEngine,
+    defId: string,
+    x: number,
+    y: number,
+    overrides?: Partial<SpriteEffectDef> & {
+        /** Motion: horizontal velocity (px/s). */
+        vx?: number;
+        /** Motion: vertical velocity (px/s). */
+        vy?: number;
+        /** Motion: vertical acceleration (px/s²). */
+        ay?: number;
+        /** Motion: exponential velocity damping coefficient (1/s). Default: 8. */
+        dampingK?: number;
+        /** Rotation target for rotation:'aim' defs. */
+        aimX?: number;
+        /** Rotation target for rotation:'aim' defs. */
+        aimY?: number;
+    },
+): void {
+    const def = SPRITE_EFFECT_DEFS[defId];
+    if (!def) {
+        if (process.env.NODE_ENV !== 'production') {
+            console.warn('[spawnSpriteEffect] Unknown defId:', defId);
+        }
+        return;
+    }
+
+    // Compute aimAngle if aimX/aimY provided (used when rotation === 'aim').
+    let aimAngle: number | undefined;
+    if (overrides?.aimX !== undefined && overrides.aimY !== undefined) {
+        aimAngle = Math.atan2(overrides.aimY - y, overrides.aimX - x);
+    }
+
+    // Build effectData: defId + per-call overrides packed with override-suffix keys
+    // so the SpriteEffectDef renderer can distinguish "not set" from "set to default".
+    const effectData: Record<string, unknown> = { defId };
+
+    if (overrides?.tint !== undefined) effectData.tintOverride = overrides.tint;
+    if (overrides?.scale !== undefined) effectData.scaleOverride = overrides.scale;
+    if (overrides?.fadeOut !== undefined) effectData.fadeOutOverride = overrides.fadeOut;
+    if (overrides?.rotation !== undefined) effectData.rotationOverride = overrides.rotation;
+    if (aimAngle !== undefined) effectData.aimAngle = aimAngle;
+
+    // Motion fields (passed through to Effect.ts renderUpdate).
+    if (overrides?.vx !== undefined) effectData.vx = overrides.vx;
+    if (overrides?.vy !== undefined) effectData.vy = overrides.vy;
+    if (overrides?.ay !== undefined) effectData.ay = overrides.ay;
+    if (overrides?.dampingK !== undefined) effectData.dampingK = overrides.dampingK;
+
+    engine.addEffect(new Effect({
+        x,
+        y,
+        duration: def.duration,
+        effectType: 'SpriteEffect',
+        effectData,
+    }));
 }

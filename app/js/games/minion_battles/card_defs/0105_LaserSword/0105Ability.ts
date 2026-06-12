@@ -10,14 +10,11 @@ import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../.
 import { AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
 import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
-import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}05`;
 const MAX_USES = 2;
@@ -36,11 +33,6 @@ const SWING_LENGTH = 80;
 
 const LASER_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
 
-type LaserSwordEngineExt = AbilityEngineContext & {
-    roundNumber?: number;
-    interruptUnitAndRefundAbilities?(unit: Unit): void;
-};
-
 const laserSwordBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(LASER_SWORD_HITBOX)
     .withSlide({ forwardDistance: 9, backwardDistance: 4 })
@@ -50,38 +42,8 @@ const laserSwordBehaviour = CastBehaviours.MeleeAttack()
             createSlashTrailEffect(ep.leftX, ep.leftY, ep.rightX, ep.rightY, SLASH_TRAIL_DURATION, SLASH_TRAIL_THICKNESS),
         );
     })
-    .withDamage((ctx, hitUnits) => {
-        if (hitUnits.length === 0) return;
-        const eng = ctx.engine as LaserSwordEngineExt;
-        for (const targetUnit of hitUnits) {
-            const blocked = !tryDamageOrBlock(targetUnit, {
-                engine: eng,
-                gameTime: eng.gameTime,
-                eventBus: eng.eventBus,
-                attackerX: ctx.caster.x,
-                attackerY: ctx.caster.y,
-                attackerId: ctx.caster.id,
-                abilityId: CARD_ID,
-                damage: DAMAGE,
-                attackType: 'melee',
-            });
-            if (blocked) continue;
-
-            tryApplyKnockbackByTier(
-                targetUnit,
-                KNOCKBACK_TIER,
-                { unitId: ctx.caster.id, abilityId: CARD_ID },
-                ctx.caster.x,
-                ctx.caster.y,
-                {
-                    gameTime: eng.gameTime,
-                    roundNumber: eng.roundNumber ?? 1,
-                    eventBus: eng.eventBus,
-                    interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities,
-                },
-            );
-        }
-    });
+    .withDamage(DAMAGE)
+    .withKnockback(KNOCKBACK_TIER);
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,   end: 0.2, abilityPhase: AbilityPhase.Windup },

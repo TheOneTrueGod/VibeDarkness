@@ -17,24 +17,7 @@ import type { PetAITreeContext } from '../game/units/unitAI/pet/context';
 import { getLivingPetsOfUnit } from '../game/units/petHelpers';
 import { Effect } from '../game/effects/Effect';
 import { grantRecoveryChargeToAbility } from './abilityUses';
-
-// ---- Engine context shape needed by these helpers ----
-
-interface PetCommandEngineCtx {
-    gameTime: number;
-    gameTick: number;
-    roundNumber?: number;
-    units: Unit[];
-    addEffect(effect: Effect): void;
-    state: {
-        orderMgr: {
-            queueOrder(
-                atTick: number,
-                order: { unitId: string; abilityId: string; targets: ResolvedTarget[] },
-            ): void;
-        };
-    };
-}
+import type { AbilityEngineContext } from './AbilityEngineContext';
 
 // ---- resolveAbilitySourceUnits ----
 
@@ -96,7 +79,7 @@ export interface HeelOptions {
 export function commandHeel(
     owner: Unit,
     pets: Unit[],
-    engine: PetCommandEngineCtx,
+    engine: AbilityEngineContext,
     opts: HeelOptions,
 ): void {
     for (const pet of pets) {
@@ -158,15 +141,18 @@ export function commandPetAbility(
     pets: Unit[],
     abilityId: string,
     targets: ResolvedTarget[],
-    engine: PetCommandEngineCtx,
+    engine: AbilityEngineContext,
     opts?: CommandPetAbilityOpts,
 ): void {
+    if (!engine.state?.orderMgr || engine.gameTick === undefined) return;
+    const { orderMgr } = engine.state;
+    const currentTick = engine.gameTick;
     for (const pet of pets) {
         if (!pet.isAlive()) continue;
         if (opts?.preGrantCharge) {
             grantRecoveryChargeToAbility(pet, abilityId, opts.preGrantCharge.chargeType, opts.preGrantCharge.amount);
         }
-        engine.state.orderMgr.queueOrder(engine.gameTick + 1, {
+        orderMgr.queueOrder(currentTick + 1, {
             unitId: pet.id,
             abilityId,
             targets,

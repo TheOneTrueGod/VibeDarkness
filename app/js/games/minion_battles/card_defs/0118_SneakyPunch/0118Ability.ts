@@ -1,21 +1,16 @@
-﻿/**
+/**
  * Sneaky Punch - Warrior melee ability.
  *
  * Deals bonus damage against stunned or bleeding targets.
  * Exclusive upgrade to Punch via the Training research tree.
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
-import { AbilityState } from '../../abilities/Ability';
-import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
-import { CastBehaviours } from '../../abilities/CastBehaviours';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { defineMeleeStrike } from '../../abilities/archetypes/defineMeleeStrike';
 import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { meleeLineHitbox } from '../../hitboxes';
 import { STUNNED_BUFF_TYPE } from '../../buffs/StunnedBuff';
 import { BLEED_BUFF_TYPE } from '../../buffs/BleedBuff';
-import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}18`;
@@ -26,73 +21,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 const MAX_RANGE = 30; // px
 const LINE_THICKNESS = 20; // px
 const BASE_DAMAGE = 8;
-// ~30% medium bonus on top of base = 10
+// ~30% medium bonus on top of base = 12
 const BONUS_DAMAGE = 12;
-const BONUS_TOTAL = BASE_DAMAGE + BONUS_DAMAGE;
-
-const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
-
-const punchBehaviour = CastBehaviours.MeleeAttack()
-    .withHitbox(PUNCH_HITBOX)
-    .withImpact('punch')
-    .withImpactAt(0.5)
-    .withSlide({ forwardDistance: 12, backwardDistance: 6 })
-    .withDamage((_ctx, hitUnits) => {
-        const target = hitUnits[0];
-        if (!target) return;
-        const isVulnerable = target.hasBuff(STUNNED_BUFF_TYPE) || target.hasBuff(BLEED_BUFF_TYPE);
-        const damage = isVulnerable ? BONUS_TOTAL : BASE_DAMAGE;
-        const didHit = tryDamageOrBlock(target, {
-            engine: _ctx.engine,
-            gameTime: _ctx.engine.gameTime,
-            eventBus: _ctx.engine.eventBus,
-            attackerX: _ctx.caster.x,
-            attackerY: _ctx.caster.y,
-            attackerId: _ctx.caster.id,
-            abilityId: CARD_ID,
-            damage,
-            attackType: 'melee',
-        });
-        if (didHit && isVulnerable) {
-            _ctx.engine.addEffect(new Effect({
-                x: target.x,
-                y: target.y,
-                duration: 0.3,
-                effectType: 'CritShockwave',
-            }));
-        }
-    });
-
-const ABILITY_TIMINGS: AbilityTimingInterval[] = [
-    { id: 'windup',   start: 0,    end: 0.15, abilityPhase: AbilityPhase.Windup },
-    {
-        id: 'swing',
-        start: 0.15,
-        end: 0.25,
-        abilityPhase: AbilityPhase.Windup,
-        timelineLabel: 'Swing',
-        timelineDescription: 'Lunge forward.',
-        targetDef: { kind: 'select', label: 'Target', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
-        castBehaviours: [{ timingStart: 'start', timingEnd: 0.4, behaviour: punchBehaviour }],
-    },
-    {
-        id: 'punch',
-        start: 0.25,
-        end: 0.35,
-        abilityPhase: AbilityPhase.Active,
-        timelineLabel: 'Active',
-        timelineDescription: 'Strike connects.',
-    },
-    {
-        id: 'recoil',
-        start: 0.35,
-        end: 0.55,
-        abilityPhase: AbilityPhase.Waiting,
-        timelineLabel: 'Recoil',
-        timelineDescription: 'Pull back.',
-    },
-    { id: 'cooldown', start: 0.55, end: 1.40, abilityPhase: AbilityPhase.Cooldown },
-];
 
 const SNEAKY_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -117,7 +47,7 @@ const SNEAKY_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmln
   <path d="M47 36 L47 39" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round"/>
 </svg>`;
 
-export const SneakyPunchAbility: AbilityStatic = {
+export const SneakyPunchAbility = defineMeleeStrike({
     id: CARD_ID,
     name: 'Sneaky Punch',
     image: SNEAKY_PUNCH_IMAGE,
@@ -125,10 +55,30 @@ export const SneakyPunchAbility: AbilityStatic = {
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: 0.15,
-    targets: [],
-    abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: PUNCH_HITBOX.maxRange },
+    damage: BASE_DAMAGE,
+    range: MAX_RANGE,
+    thickness: LINE_THICKNESS,
+    impactType: 'punch',
+    impactAt: 0.5,
+    forwardDistance: 12,
+    backwardDistance: 6,
+    windupDuration: 0.15,
+    activeDuration: 0.4,
+    cooldownDuration: 0.85,
+    movementLockUntil: 0.55,
+
+    onDamage(ctx, unit) {
+        const isVulnerable = unit.hasBuff(STUNNED_BUFF_TYPE) || unit.hasBuff(BLEED_BUFF_TYPE);
+        if (isVulnerable) {
+            unit.takeDamage(BONUS_DAMAGE, ctx.caster.id, ctx.engine.eventBus);
+            ctx.engine.addEffect(new Effect({
+                x: unit.x,
+                y: unit.y,
+                duration: 0.3,
+                effectType: 'CritShockwave',
+            }));
+        }
+    },
 
     getTooltipText(): string[] {
         return [
@@ -136,22 +86,7 @@ export const SneakyPunchAbility: AbilityStatic = {
             `+{${BONUS_DAMAGE}} bonus damage vs stunned or {bleeding} enemies`,
         ];
     },
-
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < 0.55) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
-        }
-        return [];
-    },
-
-    getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: PUNCH_HITBOX.maxRange };
-    },
-
-    onAttackBlocked(): void {
-        // Melee blocked: no additional behaviour.
-    },
-};
+});
 
 export const SneakyPunchCard: CardDef = {
     abilityId: CARD_ID,

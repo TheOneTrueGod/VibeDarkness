@@ -5,159 +5,66 @@
  * If both Throwing Knives and More Rock are researched, throws a second knife.
  */
 
-import { AbilityState } from '../../abilities/Ability';
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo } from '../../abilities/Ability';
 import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
-import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
-import { getDirectionFromTo, getPixelTargetPosition } from '../../abilities/targetHelpers';
-import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
-import { Projectile } from '../../game/projectiles/Projectile';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { type CardDef } from '../types';
 import { CRYSTAL_ROCKS_NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/crystal_rocks';
-
-interface GameEngineLike {
-    addProjectile(projectile: Projectile): void;
-    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
-    localPlayerId?: string;
-}
+import {
+    beginThrowCastPayload,
+    buildMoreRockTimings,
+    buildThrowBaseTimings,
+    getCrystalRocksResearch,
+    hasMoreRockResearch,
+    ONE_PIXEL_TARGET,
+    THROW_PROJECTILE_SPEED,
+    THROW_RANGE,
+    throwMovementPenaltyStates,
+    throwMovementPenaltyStatesForActive,
+    TWO_PIXEL_TARGETS,
+} from '../throwSharedTimings';
+import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const ABILITY_ID = 'throw_knife';
 const MAX_USES = 5;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
-const RANGE = 200;
 const BASE_DAMAGE = 7;
 
-const MORE_ROCK_TIME_SLICE = 0.1;
-const MORE_ROCK_FIRST_THROW = 6 * MORE_ROCK_TIME_SLICE;
-const MORE_ROCK_SECOND_THROW = 10 * MORE_ROCK_TIME_SLICE;
-const MORE_ROCK_COOLDOWN_START = 11 * MORE_ROCK_TIME_SLICE;
-const BASE_MOVEMENT_PENALTY_UNTIL = 0.6;
-
-type ThrowKnifeCastPayload = {
-    movementPenaltyUntil: number;
-};
-
-const THROW_KNIFE_BASE_TIMINGS: AbilityTimingInterval[] = [
-    {
-        id: 'windup',
-        start: 0,
-        end: 0.3,
-        abilityPhase: AbilityPhase.Windup,
-        timelineLabel: 'Startup',
-        timelineDescription: 'Preparing to throw the knife.',
-    },
-    {
-        id: 'active',
-        start: 0.3,
-        end: 0.4,
-        abilityPhase: AbilityPhase.Active,
-        timelineLabel: 'Active',
-        timelineDescription: 'Release frame — knife is thrown.',
-    },
-    {
-        id: 'cooldown',
-        start: 0.4,
-        end: 1.6,
-        abilityPhase: AbilityPhase.Cooldown,
-        timelineLabel: 'Cooldown',
-        timelineDescription: 'Recovering after the throw.',
-    },
-];
-
-const THROW_KNIFE_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = [
-    {
-        id: 'windup_1',
-        start: 0,
-        end: MORE_ROCK_FIRST_THROW,
-        abilityPhase: AbilityPhase.Windup,
-        timelineLabel: 'Startup',
-        timelineDescription: 'Preparing the first knife throw.',
-    },
-    {
-        id: 'active_1',
-        start: MORE_ROCK_FIRST_THROW,
-        end: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
-        abilityPhase: AbilityPhase.Active,
-        timelineLabel: 'First throw',
-        timelineDescription: 'First knife is in flight.',
-    },
-    {
-        id: 'windup_2',
-        start: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
-        end: MORE_ROCK_SECOND_THROW,
-        abilityPhase: AbilityPhase.Windup,
-        timelineLabel: 'Quick windup',
-        timelineDescription: 'Quick follow-up before second knife.',
-    },
-    {
-        id: 'active_2',
-        start: MORE_ROCK_SECOND_THROW,
-        end: MORE_ROCK_SECOND_THROW + MORE_ROCK_TIME_SLICE,
-        abilityPhase: AbilityPhase.Active,
-        timelineLabel: 'Second throw',
-        timelineDescription: 'Second knife is in flight.',
-    },
-    {
-        id: 'cooldown',
-        start: MORE_ROCK_COOLDOWN_START,
-        end: 14 * MORE_ROCK_TIME_SLICE,
-        abilityPhase: AbilityPhase.Cooldown,
-        timelineLabel: 'Cooldown',
-        timelineDescription: 'Recovering after both throws.',
-    },
-];
-
-const ONE_TARGETS: TargetDef[] = [{ type: 'pixel', label: 'Target location' }];
-const TWO_TARGETS: TargetDef[] = [
-    { type: 'pixel', label: 'Target location' },
-    { type: 'pixel', label: 'Second target (More Rock)' },
-];
-
-function getResearchSet(engine: GameEngineLike, playerId: string): Set<string> {
-    const researched = engine.getPlayerResearchNodes?.(playerId, 'crystal_rocks') ?? [];
-    return new Set(researched);
-}
-
-function getOwnerResearch(engine: GameEngineLike | undefined, caster?: Unit): Set<string> {
-    if (!engine) return new Set<string>();
-    const ownerId = caster?.ownerId ?? engine.localPlayerId ?? '';
-    return ownerId ? getResearchSet(engine, ownerId) : new Set<string>();
-}
-
 function hasKnifeMultiThrow(research: Set<string>): boolean {
-    return research.has('throwing_knives') && research.has('more_rock');
+    return research.has('throwing_knives') && hasMoreRockResearch(research);
 }
 
 function hasKnifePierce(research: Set<string>): boolean {
     return research.has(CRYSTAL_ROCKS_NODE_PIERCING_KNIVES);
 }
 
-function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: number; y: number }, pierce = 0, damage = BASE_DAMAGE): void {
-    const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, targetPos.x, targetPos.y);
-    if (dist === 0) return;
-    const travelDistance = Math.min(dist, RANGE);
-    const speed = 900;
+function resolveKnifeDamage(ctx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext): number {
+    const mod = ctx.caster.abilityModifiers[ABILITY_ID] ?? {};
+    return BASE_DAMAGE + (mod.damageFlat ?? 0);
+}
 
-    engine.addProjectile(
-        new Projectile({
-            x: caster.x,
-            y: caster.y,
-            velocityX: dirX * speed,
-            velocityY: dirY * speed,
-            damage,
-            sourceTeamId: caster.teamId,
-            sourceUnitId: caster.id,
-            sourceAbilityId: ABILITY_ID,
-            maxDistance: travelDistance,
-            projectileType: 'throwing_knife',
-            pierce,
-        }),
-    );
+function knifeLaunchBehaviour(pierce: number) {
+    return CastBehaviours.ProjectileLaunch()
+        .withSpeed(THROW_PROJECTILE_SPEED)
+        .withMaxRange(THROW_RANGE)
+        .withProjectileType('throwing_knife')
+        .withPierce(pierce)
+        .withResolveDamage(resolveKnifeDamage);
+}
+
+function buildKnifeTimings(research: Set<string>) {
+    const pierce = hasKnifePierce(research) ? 1 : 0;
+    const launch = knifeLaunchBehaviour(pierce);
+    if (hasKnifeMultiThrow(research)) {
+        return buildMoreRockTimings({ launchBehaviour: launch });
+    }
+    return buildThrowBaseTimings({ launchBehaviour: launch });
 }
 
 const THROW_KNIFE_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -177,24 +84,21 @@ export const ThrowKnife: AbilityStatic = {
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
     prefireTime: 0.3,
-    abilityTimings: THROW_KNIFE_BASE_TIMINGS,
+    abilityTimings: buildThrowBaseTimings({ launchBehaviour: knifeLaunchBehaviour(0) }),
     getAbilityTimings(caster, gameState) {
-        const eng = gameState as GameEngineLike | undefined;
-        const research = getOwnerResearch(eng, caster);
-        return hasKnifeMultiThrow(research) ? THROW_KNIFE_MORE_ROCK_TIMINGS : THROW_KNIFE_BASE_TIMINGS;
+        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
+        return buildKnifeTimings(research);
     },
-    targets: TWO_TARGETS,
+    targets: TWO_PIXEL_TARGETS,
     getTargets(caster?: Unit, gameState?: unknown): TargetDef[] {
-        const eng = gameState as GameEngineLike | undefined;
-        if (!eng) return ONE_TARGETS;
-        const research = getOwnerResearch(eng, caster);
-        return hasKnifeMultiThrow(research) ? TWO_TARGETS : ONE_TARGETS;
+        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
+        return hasKnifeMultiThrow(research) ? TWO_PIXEL_TARGETS : ONE_PIXEL_TARGET;
     },
-    aiSettings: { minRange: 0, maxRange: RANGE },
+    aiSettings: { minRange: 0, maxRange: THROW_RANGE },
 
     getTooltipText(gameState?: unknown): string[] {
-        const eng = gameState as GameEngineLike | undefined;
-        const research = eng ? getOwnerResearch(eng) : new Set<string>();
+        const eng = gameState as AbilityEngineContext | undefined;
+        const research = getCrystalRocksResearch(eng);
         const pierceLine = hasKnifePierce(research) ? ' Pierces through the {first target}.' : '';
         const mod = getAbilityModifier(gameState, undefined, ABILITY_ID);
         const dmg = BASE_DAMAGE + (mod.damageFlat ?? 0);
@@ -204,79 +108,39 @@ export const ThrowKnife: AbilityStatic = {
         return [`Throws a knife dealing {${dmg}} damage to the first enemy hit.${pierceLine}`];
     },
 
-    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
-        const eng = engine as GameEngineLike;
-        const research = getResearchSet(eng, caster.ownerId);
-        const payload: ThrowKnifeCastPayload = {
-            movementPenaltyUntil: hasKnifeMultiThrow(research) ? MORE_ROCK_SECOND_THROW : BASE_MOVEMENT_PENALTY_UNTIL,
-        };
-        active.castPayload = payload;
+    beginActiveCast(engine, caster, _targets, active) {
+        const research = getCrystalRocksResearch(engine, caster);
+        active.castPayload = beginThrowCastPayload(hasKnifeMultiThrow(research));
     },
 
-    getAbilityStatesForActive(currentTime: number, active: ActiveAbility): AbilityStateEntry[] {
-        const payload = active.castPayload as ThrowKnifeCastPayload | undefined;
-        const until = payload?.movementPenaltyUntil ?? BASE_MOVEMENT_PENALTY_UNTIL;
-        if (currentTime < until) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } }];
-        }
-        return [];
+    getAbilityStatesForActive(currentTime, active) {
+        return throwMovementPenaltyStatesForActive(currentTime, active);
     },
 
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < BASE_MOVEMENT_PENALTY_UNTIL) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } }];
-        }
-        return [];
+    getAbilityStates(currentTime) {
+        return throwMovementPenaltyStates(currentTime);
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        const eng = engine as GameEngineLike;
-        const research = getResearchSet(eng, caster.ownerId);
-        const pierce = hasKnifePierce(research) ? 1 : 0;
-        const mod = caster.abilityModifiers[ABILITY_ID] ?? {};
-        const damage = BASE_DAMAGE + (mod.damageFlat ?? 0);
-
-        if (hasKnifeMultiThrow(research)) {
-            if (prevTime < MORE_ROCK_FIRST_THROW && currentTime >= MORE_ROCK_FIRST_THROW) {
-                const firstTarget = getPixelTargetPosition(targets, 0);
-                if (firstTarget) spawnProjectile(eng, caster, firstTarget, pierce, damage);
-            }
-            if (prevTime < MORE_ROCK_SECOND_THROW && currentTime >= MORE_ROCK_SECOND_THROW) {
-                const secondTarget = getPixelTargetPosition(targets, 1);
-                if (secondTarget) spawnProjectile(eng, caster, secondTarget, pierce, damage);
-            }
-            return;
-        }
-
-        if (prevTime >= 0.3 || currentTime < 0.3) return;
-        const firstTarget = getPixelTargetPosition(targets, 0);
-        if (!firstTarget) return;
-        spawnProjectile(eng, caster, firstTarget, pierce, damage);
-    },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
-        if (attackInfo.type === 'projectile' && attackInfo.projectile) {
-            (attackInfo.projectile as Projectile).active = false;
-        }
+    onAttackBlocked(_engine, _defender, attackInfo: AttackBlockedInfo): void {
+        deactivateProjectileOnBlock(attackInfo);
     },
 
     renderTargetingPreview(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
         gr.clear();
-        const eng = gameState as GameEngineLike | undefined;
-        const research = eng ? getOwnerResearch(eng, caster) : new Set<string>();
+        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
         if (!hasKnifeMultiThrow(research)) {
-            drawClampedLine(gr, caster, mouseWorld, RANGE);
+            drawClampedLine(gr, caster, mouseWorld, THROW_RANGE);
             return;
         }
 
-        drawClampedLine(gr, caster, mouseWorld, RANGE, { color: 0xd8dde3, width: 2, alpha: 0.75 });
-        const clamped = clampToMaxRange(caster, mouseWorld, RANGE);
+        drawClampedLine(gr, caster, mouseWorld, THROW_RANGE, { color: 0xd8dde3, width: 2, alpha: 0.75 });
+        const clamped = clampToMaxRange(caster, mouseWorld, THROW_RANGE);
         drawCrosshair(gr, clamped.endX, clamped.endY, 10, { color: 0xd8dde3, width: 2, alpha: 0.95 });
 
         if (currentTargets.length >= 1) {
             const first = currentTargets[0];
             if (first?.type === 'pixel' && first.position) {
-                const c = clampToMaxRange(caster, first.position, RANGE);
+                const c = clampToMaxRange(caster, first.position, THROW_RANGE);
                 gr.moveTo(caster.x, caster.y);
                 gr.lineTo(c.endX, c.endY);
                 gr.stroke({ color: 0xd8dde3, width: 2, alpha: 0.35 });
@@ -285,13 +149,12 @@ export const ThrowKnife: AbilityStatic = {
     },
 
     renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, _mouseWorld, _units, gameState): void {
-        const eng = gameState as GameEngineLike | undefined;
-        const research = eng ? getOwnerResearch(eng, caster) : new Set<string>();
+        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
         if (!hasKnifeMultiThrow(research)) return;
 
         for (const t of currentTargets) {
             if (t.type === 'pixel' && t.position) {
-                const clamped = clampToMaxRange(caster, t.position, RANGE);
+                const clamped = clampToMaxRange(caster, t.position, THROW_RANGE);
                 drawCrosshair(gr, clamped.endX, clamped.endY, 10, { color: 0xd8dde3, width: 2, alpha: 0.95 });
             }
         }

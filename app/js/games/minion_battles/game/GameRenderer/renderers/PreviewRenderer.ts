@@ -11,8 +11,8 @@ import type { TeamId } from '../../teams';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import type { AssetRegistry } from '../AssetRegistry';
 import type { OverlayRenderer } from './OverlayRenderer';
-import type { AbilityStatic } from '../../../abilities/Ability';
-import type { ResolvedTarget, GhostPlanData } from '../../types';
+import type { AbilityStatic, AbilityTelegraph, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import type { ResolvedTarget, GhostPlanData, ActiveAbility } from '../../types';
 
 const MOVE_TARGET_COLOR = 0x333333;
 const MOVE_TARGET_PATH_BG_COLOR = 0xffffff;
@@ -292,15 +292,42 @@ export class PreviewRenderer {
             }
             for (const active of unit.activeAbilities) {
                 const ability = getAbility(active.abilityId);
-                if (ability?.renderActivePreview) {
-                    ability.renderActivePreview(
-                        this.abilityPreviewGraphics as unknown as import('../../../abilities/Ability').IAbilityPreviewGraphics,
-                        unit,
-                        active,
-                        engine.gameTime,
-                    );
+                if (!ability) continue;
+                const gr = this.abilityPreviewGraphics as unknown as IAbilityPreviewGraphics;
+                if (ability.renderActivePreview) {
+                    ability.renderActivePreview(gr, unit, active, engine.gameTime);
+                } else if (ability.telegraph) {
+                    this.renderTelegraphPreview(gr, ability.telegraph, ability.prefireTime, unit, active, engine.gameTime);
                 }
             }
+        }
+    }
+
+    private renderTelegraphPreview(
+        gr: IAbilityPreviewGraphics,
+        telegraph: AbilityTelegraph,
+        prefireTime: number,
+        caster: Unit,
+        active: ActiveAbility,
+        gameTime: number,
+    ): void {
+        const payload = active.castPayload as { telegraphTargetX?: number; telegraphTargetY?: number } | undefined;
+        if (payload == null) return;
+        const targetX = payload.telegraphTargetX;
+        const targetY = payload.telegraphTargetY;
+        if (targetX === undefined || targetY === undefined) return;
+
+        const elapsed = gameTime - active.startTime;
+        const progress = prefireTime > 0 ? Math.min(1, elapsed / prefireTime) : 1;
+        const circleRadius = telegraph.startRadius * (1 - progress);
+
+        gr.moveTo(caster.x, caster.y);
+        gr.lineTo(targetX, targetY);
+        gr.stroke({ color: telegraph.color, width: 2, alpha: 0.75 });
+
+        if (circleRadius > 0.5) {
+            gr.circle(targetX, targetY, circleRadius);
+            gr.stroke({ color: telegraph.color, width: 2, alpha: 0.8 });
         }
     }
 

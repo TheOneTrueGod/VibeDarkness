@@ -13,9 +13,7 @@ import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
-import { areEnemies } from '../../game/teams';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
-import { getPixelTargetPosition } from '../../abilities/targetHelpers';
+import { getPixelTargetPosition, damageEnemiesInCircle } from '../../abilities/targetHelpers';
 import type { EventBus } from '../../game/EventBus';
 import { isLightHateWeakened } from '../../game/lightHate';
 import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
@@ -126,26 +124,16 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         const slowMult = weakened ? SLOW_MULT_WEAKENED : SLOW_MULT_NORMAL;
 
         eng.terrainLayers.removeByOwner(caster.id, 'ground');
-        const r2 = radius * radius;
 
-        for (const u of eng.units) {
-            if (!u.isAlive() || u.id === caster.id) continue;
-            if (!areEnemies(caster.teamId, u.teamId)) continue;
-            const dx = u.x - pos.x;
-            const dy = u.y - pos.y;
-            if (dx * dx + dy * dy > r2) continue;
-            tryDamageOrBlock(u, {
-                engine: eng,
-                gameTime: eng.gameTime,
-                eventBus: eng.eventBus,
-                attackerX: pos.x,
-                attackerY: pos.y,
-                attackerId: caster.id,
-                abilityId: THORNBINDER_ABILITY_ID,
-                damage,
-                attackType: 'melee',
-            });
-        }
+        damageEnemiesInCircle({
+            engine: eng,
+            caster,
+            center: pos,
+            radius,
+            damage,
+            abilityId: THORNBINDER_ABILITY_ID,
+            attackType: 'melee',
+        });
 
         const expiresAt = eng.gameTime + (COOLDOWN_END - STRIKE_TIME) - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
         eng.terrainLayers.add({

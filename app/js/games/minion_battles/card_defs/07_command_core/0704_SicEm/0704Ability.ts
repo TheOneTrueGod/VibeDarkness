@@ -5,16 +5,17 @@
  * see the actual dash line. If there are no living pets, the cast fizzles (no order queued).
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { resolveAbilitySourceUnits, commandPetAbility } from '../../../abilities/petCommands';
 import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
-import type { Effect } from '../../../game/effects/Effect';
 import { type CardDef } from '../../types';
 import { MAX_DASH_DISTANCE as MAX_POUNCE_RANGE } from '../0702_Pounce/0702Ability';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { defineAbility } from '../../../abilities/defineAbility';
+import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import sicEmIconUrl from './sic_em.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}04`;
@@ -28,25 +29,47 @@ const CAST_DURATION = 0.1;
 const COOLDOWN_DURATION = 0.4;
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
-    { id: 'active', start: 0, end: CAST_DURATION, abilityPhase: AbilityPhase.Active },
+    {
+        id: 'active',
+        start: 0,
+        end: CAST_DURATION,
+        abilityPhase: AbilityPhase.Active,
+        castBehaviours: [
+            {
+                timingStart: 'start',
+                behaviour: CastBehaviours.Instant((ctx) => {
+                    const targets = ctx.allTargets;
+                    const t = targets[0];
+                    const aimPoint = t?.type === 'pixel' && t.position ? t.position : undefined;
+
+                    const eng = ctx.engine;
+                    const sourcePets = resolveAbilitySourceUnits(SicEmAbility, ctx.caster, eng.units, aimPoint);
+                    if (sourcePets.length === 0) return;
+
+                    // Consume DoubleDamage buff from the player and transfer it to each pet as a Pounce buff.
+                    const ddIdx = ctx.caster.buffs.findIndex(
+                        (b) => b._type === DOUBLE_DAMAGE_BUFF_TYPE && (b as DoubleDamageBuff).abilityId === CARD_ID,
+                    );
+                    if (ddIdx >= 0) {
+                        ctx.caster.buffs.splice(ddIdx, 1);
+                        for (const pet of sourcePets) {
+                            pet.addBuff(new DoubleDamageBuff(POUNCE_ABILITY_ID), eng.gameTime, 1);
+                        }
+                    }
+
+                    commandPetAbility(sourcePets, POUNCE_ABILITY_ID, targets, eng, {
+                        preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+                    });
+                }),
+            },
+        ],
+    },
     { id: 'cooldown', start: CAST_DURATION, end: CAST_DURATION + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
 ];
 
-interface SicEmEngineLike {
-    gameTime: number;
-    gameTick: number;
-    units: Unit[];
-    addEffect(effect: Effect): void;
-    state: {
-        orderMgr: {
-            queueOrder(atTick: number, order: { unitId: string; abilityId: string; targets: ResolvedTarget[] }): void;
-        };
-    };
-}
-
 const SICE_EM_IMAGE = `<img src="${sicEmIconUrl}" width="56" height="56" alt="" style="object-fit: contain; display: block; margin: 0 auto;" />`;
 
-export const SicEmAbility: AbilityStatic = {
+export const SicEmAbility = defineAbility({
     id: CARD_ID,
     name: "Sic 'em",
     image: SICE_EM_IMAGE,
@@ -59,43 +82,12 @@ export const SicEmAbility: AbilityStatic = {
     abilityTimings: ABILITY_TIMINGS,
     abilitySource: { type: 'pet', selector: 'nearest' },
 
+    getRange(_caster: Unit): { minRange: number; maxRange: number } {
+        return { minRange: 0, maxRange: MAX_POUNCE_RANGE };
+    },
+
     getTooltipText(): string[] {
         return [`Command the nearest pet to {Pounce} through enemies at the target point (stops on the 4th hit).`];
-    },
-
-    getAbilityStates(): AbilityStateEntry[] {
-        return [];
-    },
-
-    doCardEffect(
-        engine: unknown,
-        caster: Unit,
-        targets: ResolvedTarget[],
-        prevTime: number,
-    ): void {
-        if (prevTime > 0) return;
-
-        const t = targets[0];
-        const aimPoint = t?.type === 'pixel' && t.position ? t.position : undefined;
-
-        const eng = engine as SicEmEngineLike;
-        const sourcePets = resolveAbilitySourceUnits(SicEmAbility, caster, eng.units, aimPoint);
-        if (sourcePets.length === 0) return;
-
-        // Consume DoubleDamage buff from the player and transfer it to each pet as a Pounce buff.
-        const ddIdx = caster.buffs.findIndex(
-            (b) => b._type === DOUBLE_DAMAGE_BUFF_TYPE && (b as DoubleDamageBuff).abilityId === CARD_ID,
-        );
-        if (ddIdx >= 0) {
-            caster.buffs.splice(ddIdx, 1);
-            for (const pet of sourcePets) {
-                pet.addBuff(new DoubleDamageBuff(POUNCE_ABILITY_ID), eng.gameTime, 1);
-            }
-        }
-
-        commandPetAbility(sourcePets, POUNCE_ABILITY_ID, targets, eng, {
-            preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
-        });
     },
 
     renderTargetingPreview(
@@ -135,13 +127,7 @@ export const SicEmAbility: AbilityStatic = {
         // Suppress unused param lint.
         void currentTargets;
     },
-
-    getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: MAX_POUNCE_RANGE };
-    },
-
-    onAttackBlocked(): void {},
-};
+});
 
 export const SicEmCard: CardDef = {
     abilityId: CARD_ID,

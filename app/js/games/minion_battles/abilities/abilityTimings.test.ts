@@ -60,6 +60,14 @@ describe('enteredTimingIds / exitedTimingIds', () => {
         const exited = exitedTimingIds(0.29, 0.3, intervals);
         expect(exited.has('w')).toBe(true);
     });
+
+    it('detects start=0 interval entry on first cast tick (prevElapsed=0)', () => {
+        const startZero = [
+            { id: 'active', start: 0, end: 0.1, abilityPhase: AbilityPhase.Active },
+        ];
+        const entered = enteredTimingIds(0, 1 / 60, startZero);
+        expect(entered.has('active')).toBe(true);
+    });
 });
 
 describe('getTotalAbilityDuration', () => {

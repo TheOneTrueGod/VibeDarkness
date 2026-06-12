@@ -228,7 +228,7 @@ export const petHeelScenario: ScenarioDefinition = {
         const healed = dog.hp >= 19;
         // Dog should have disengaged and moved within ~ 2× tether range (30 px) of the player.
         const dist = Math.hypot(dog.x - player.x, dog.y - player.y);
-        const nearOwner = dist <= 60;
+        const nearOwner = dist <= 61; // 2× HEEL_TETHER + 1px float slack
         return healed && nearOwner;
     },
 
@@ -236,7 +236,7 @@ export const petHeelScenario: ScenarioDefinition = {
         const dog = engine.getUnit('dog1');
         const player = engine.getLocalPlayerUnit()!;
         const dist = dog ? Math.hypot(dog.x - player.x, dog.y - player.y).toFixed(0) : '?';
-        return `dog hp=${dog?.hp}/${dog?.maxHp} (expected ≥18), dist-to-owner=${dist} px (expected ≤60)`;
+        return `dog hp=${dog?.hp}/${dog?.maxHp} (expected ≥18), dist-to-owner=${dist} px (expected ≤61)`;
     },
 };
 

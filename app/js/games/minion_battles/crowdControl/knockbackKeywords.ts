@@ -34,6 +34,27 @@ export interface KnockbackEngineCtx {
     interruptUnitAndRefundAbilities?(unit: Unit): void;
 }
 
+// ---- Engine context factory ----
+
+/**
+ * Build a `KnockbackEngineCtx` from any object that satisfies `AbilityEngineContext`.
+ * Centralises the `roundNumber ?? 1` fallback and `bind` call that appear in every
+ * `applyKnockbackToHits` / `tryApplyKnockbackByTier` call site.
+ */
+export function knockbackCtxFromEngine(engine: {
+    gameTime: number;
+    roundNumber?: number;
+    eventBus: unknown;
+    interruptUnitAndRefundAbilities?(unit: Unit): void;
+}): KnockbackEngineCtx {
+    return {
+        gameTime: engine.gameTime,
+        roundNumber: engine.roundNumber ?? 1,
+        eventBus: engine.eventBus,
+        interruptUnitAndRefundAbilities: engine.interruptUnitAndRefundAbilities?.bind(engine),
+    };
+}
+
 // ---- Main entry point ----
 
 /**

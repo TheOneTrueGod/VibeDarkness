@@ -33,6 +33,7 @@ import {
     renderMeleeTrackingHighlights,
 } from '../../abilities/meleeTrackingHelpers';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
+import { hasResearchNode } from '../../abilities/abilityModifierHelpers';
 import {
     STICK_SWORD_TREE_ID,
     STICK_SWORD_NODE_PIPE_BAT_DAMAGE,
@@ -71,13 +72,8 @@ const SWING_BAT_PROFILE: MeleeAnimationProfile = {
     }),
 };
 
-interface GameEngineLike extends AbilityEngineContext {
-    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
-}
-
-function getDamage(engine: GameEngineLike | undefined, caster: Unit): number {
-    const nodes = engine?.getPlayerResearchNodes?.(caster.ownerId, STICK_SWORD_TREE_ID) ?? [];
-    return nodes.includes(STICK_SWORD_NODE_PIPE_BAT_DAMAGE)
+function getDamage(engine: AbilityEngineContext | undefined, caster: Unit): number {
+    return hasResearchNode(engine, caster, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT_DAMAGE)
         ? BASE_DAMAGE + DAMAGE_RESEARCH_BONUS
         : BASE_DAMAGE;
 }
@@ -106,7 +102,7 @@ const swingBatBehaviour = CastBehaviours.MeleeAttack()
         }));
     })
     .withDamage((ctx, hitUnits) => {
-        const eng = ctx.engine as GameEngineLike;
+        const eng = ctx.engine as AbilityEngineContext;
         const baseDmg = getDamage(eng, ctx.caster);
         for (const targetUnit of hitUnits) {
             let dmg = baseDmg;

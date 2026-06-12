@@ -1178,6 +1178,24 @@ export class Unit extends GameObject {
             evadeFired: false,
         };
         ability.beginActiveCast?.(engine, this, active.targets, active);
+        // Generic telegraph: capture primary target position when no beginActiveCast set it.
+        if (ability.telegraph && active.castPayload == null) {
+            const t = active.targets[0];
+            let tx: number | undefined;
+            let ty: number | undefined;
+            if (t) {
+                if (t.type === 'unit' && t.unitId) {
+                    const u = engine.getUnit(t.unitId);
+                    if (u) { tx = u.x; ty = u.y; }
+                } else if (t.type === 'pixel' && t.position) {
+                    tx = t.position.x;
+                    ty = t.position.y;
+                }
+            }
+            if (tx !== undefined && ty !== undefined) {
+                active.castPayload = { telegraphTargetX: tx, telegraphTargetY: ty };
+            }
+        }
         this.activeAbilities.push(active);
         triggerAbilityEvent({
             engine,

@@ -13,13 +13,11 @@
  *   0.30â€“1.30  cooldown
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
-import { AbilityState } from '../../abilities/Ability';
+import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { defineAbility } from '../../abilities/defineAbility';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
@@ -38,6 +36,7 @@ import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import { type CardDef } from '../types';
 import { Effect } from '../../game/effects/Effect';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
+import { hasResearchNode } from '../../abilities/abilityModifierHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}12`;
 const MAX_USES = 2;
@@ -82,19 +81,6 @@ function spawnChargeUp(engine: { addEffect(effect: Effect): void }, caster: Unit
     spawnMeleeChargeUpEffect(engine, caster, { ...BASE_PROFILE, chargeUp });
 }
 
-// ---- Research helpers ----
-
-type SwingSwordEngineExt = AbilityEngineContext & {
-    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
-    roundNumber?: number;
-    localPlayerId?: string;
-};
-
-function hasJaggedEdge(engine: SwingSwordEngineExt, caster: Unit): boolean {
-    const nodes = engine.getPlayerResearchNodes?.(caster.ownerId, STICK_SWORD_TREE_ID) ?? [];
-    return nodes.includes(STICK_SWORD_NODE_JAGGED_EDGE);
-}
-
 // ---- Behaviour ----
 
 const swingSwordBehaviour = CastBehaviours.MeleeAttack()
@@ -112,42 +98,11 @@ const swingSwordBehaviour = CastBehaviours.MeleeAttack()
             ),
         );
     })
-    .withDamage((ctx, hitUnits) => {
-        if (hitUnits.length === 0) return;
-        const eng = ctx.engine as SwingSwordEngineExt;
-        const applyBleed = hasJaggedEdge(eng, ctx.caster);
-        const roundNumber = eng.roundNumber ?? 0;
-
-        for (const targetUnit of hitUnits) {
-            const blocked = !tryDamageOrBlock(targetUnit, {
-                engine: eng,
-                gameTime: eng.gameTime,
-                eventBus: eng.eventBus,
-                attackerX: ctx.caster.x,
-                attackerY: ctx.caster.y,
-                attackerId: ctx.caster.id,
-                abilityId: CARD_ID,
-                damage: DAMAGE,
-                attackType: 'melee',
-            });
-            if (blocked) continue;
-
-            if (applyBleed) {
-                applyBleedStack(targetUnit, eng.gameTime, roundNumber, 5);
-            }
-
-            tryApplyKnockbackByTier(
-                targetUnit,
-                KNOCKBACK_TIER,
-                { unitId: ctx.caster.id, abilityId: CARD_ID },
-                ctx.caster.x,
-                ctx.caster.y,
-                {
-                    gameTime: eng.gameTime,
-                    roundNumber: roundNumber,
-                    eventBus: eng.eventBus,
-                },
-            );
+    .withDamage(DAMAGE)
+    .withKnockback(KNOCKBACK_TIER)
+    .onDamage((ctx, unit) => {
+        if (hasResearchNode(ctx.engine, ctx.caster, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_JAGGED_EDGE)) {
+            applyBleedStack(unit, ctx.engine.gameTime, ctx.engine.roundNumber ?? 0, 5);
         }
     });
 
@@ -172,7 +127,7 @@ const SWING_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 
 // ---- Ability export ----
 
-export const SwingSwordAbility: AbilityStatic = {
+export const SwingSwordAbility = defineAbility({
     id: CARD_ID,
     name: 'Swing Sword',
     image: SWING_SWORD_IMAGE,
@@ -184,37 +139,22 @@ export const SwingSwordAbility: AbilityStatic = {
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange },
+    // movementLock: lock movement through windup; release on lunge.
+    movementLock: { until: 0.2 },
 
     getTooltipText(gameState?: unknown): string[] {
-        const engine = gameState as SwingSwordEngineExt | undefined;
-        const ownerId = engine?.localPlayerId ?? '';
-        const nodes = engine?.getPlayerResearchNodes?.(ownerId, STICK_SWORD_TREE_ID) ?? [];
-        const bleedLine = nodes.includes(STICK_SWORD_NODE_JAGGED_EDGE) ? ' Inflicts {Bleed}.' : '';
+        const bleedLine = hasResearchNode(gameState as AbilityEngineContext | undefined, undefined, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_JAGGED_EDGE)
+            ? ' Inflicts {Bleed}.'
+            : '';
         return [
             `Slash with the sword dealing {${DAMAGE}} damage to up to ${MAX_TARGETS} enemies, nudging them back.${bleedLine}`,
         ];
     },
 
-    getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange };
-    },
-
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < 0.2) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
-        }
-        return [];
-    },
-
     beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {
         spawnChargeUp(engine as { addEffect(effect: Effect): void }, caster);
     },
-
-    onAttackBlocked(): void {
-        // Melee blocked: no additional behaviour.
-    },
-};
+});
 
 export const SwingSwordCard: CardDef = {
     abilityId: CARD_ID,

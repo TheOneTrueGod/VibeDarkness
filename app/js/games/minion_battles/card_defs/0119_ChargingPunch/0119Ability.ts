@@ -1,18 +1,14 @@
-﻿/**
+/**
  * Charging Punch - Warrior melee ability.
  *
  * On hit: grants 1 Light Charge to a random ability.
  * Exclusive upgrade to Punch via the Training research tree.
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
-import { AbilityEventType, AbilityState } from '../../abilities/Ability';
-import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
-import { CastBehaviours } from '../../abilities/CastBehaviours';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { AbilityEventType } from '../../abilities/Ability';
+import { defineMeleeStrike } from '../../abilities/archetypes/defineMeleeStrike';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { meleeLineHitbox } from '../../hitboxes';
-import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}19`;
@@ -23,35 +19,6 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 const MAX_RANGE = 30; // px
 const LINE_THICKNESS = 20; // px
 const PUNCH_DAMAGE = 8;
-
-const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
-
-const punchBehaviour = CastBehaviours.MeleeAttack()
-    .withHitbox(PUNCH_HITBOX)
-    .withImpact('punch')
-    .withDamage((_ctx, hitUnits) => {
-        const target = hitUnits[0];
-        if (!target) return;
-        tryDamageOrBlock(target, {
-            engine: _ctx.engine,
-            gameTime: _ctx.engine.gameTime,
-            eventBus: _ctx.engine.eventBus,
-            attackerX: _ctx.caster.x,
-            attackerY: _ctx.caster.y,
-            attackerId: _ctx.caster.id,
-            abilityId: CARD_ID,
-            damage: PUNCH_DAMAGE,
-            attackType: 'melee',
-        });
-    });
-
-const ABILITY_TIMINGS: AbilityTimingInterval[] = [
-    { id: 'windup',   start: 0,    end: 0.15, abilityPhase: AbilityPhase.Windup },
-    { id: 'punch',    start: 0.15, end: 0.25, abilityPhase: AbilityPhase.Active,
-      targetDef: { kind: 'select', label: 'Target', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
-      behaviour: punchBehaviour },
-    { id: 'cooldown', start: 0.25, end: 1.40, abilityPhase: AbilityPhase.Cooldown },
-];
 
 const CHARGING_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -76,7 +43,7 @@ const CHARGING_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xm
   <path d="M52 32 L46 32" stroke="#facc15" stroke-width="2" stroke-linecap="round"/>
 </svg>`;
 
-export const ChargingPunchAbility: AbilityStatic = {
+export const ChargingPunchAbility = defineMeleeStrike({
     id: CARD_ID,
     name: 'Charging Punch',
     image: CHARGING_PUNCH_IMAGE,
@@ -84,10 +51,13 @@ export const ChargingPunchAbility: AbilityStatic = {
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: 0.15,
-    targets: [],
-    abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: PUNCH_HITBOX.maxRange },
+    damage: PUNCH_DAMAGE,
+    range: MAX_RANGE,
+    thickness: LINE_THICKNESS,
+    impactType: 'punch',
+    windupDuration: 0.15,
+    activeDuration: 0.1,
+    cooldownDuration: 1.15,
 
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [
@@ -106,22 +76,7 @@ export const ChargingPunchAbility: AbilityStatic = {
             'On hit: grant {1} Light Charge to a random ability',
         ];
     },
-
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < 0.25) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
-        }
-        return [];
-    },
-
-    getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: PUNCH_HITBOX.maxRange };
-    },
-
-    onAttackBlocked(): void {
-        // Melee blocked: no additional behaviour.
-    },
-};
+});
 
 export const ChargingPunchCard: CardDef = {
     abilityId: CARD_ID,

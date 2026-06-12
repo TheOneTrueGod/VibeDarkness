@@ -1,34 +1,78 @@
 import { Unit } from '../../game/units/Unit';
 import type { CastBehaviourTickContext } from '../castBehaviourTypes';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
-import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
-
-interface KnockbackCapableEngine extends AbilityEngineContext {
-    roundNumber?: number;
-    interruptUnitAndRefundAbilities?(unit: Unit): void;
-}
+import { tryApplyKnockbackByTier, knockbackCtxFromEngine } from '../../crowdControl/knockbackKeywords';
+import { tryDamageOrBlock } from '../blockingHelpers';
+import { getAbility } from '../AbilityRegistry';
+import { getModifiedAbilityDamage } from '../damageModifiers';
 
 /**
  * Shared base for attack CastBehaviours (melee, ranged, etc.).
- * Provides withKnockback(); future attack behaviours extend this class and get it for free.
+ * Provides withKnockback(), declarative withDamage(amount), onDamage(), and onBlocked().
  */
 export abstract class BaseAttackBehaviour {
     private _knockbackTier: number | null = null;
+    private _damageAmount: number | null = null;
+    private _damageAttackType: string = 'melee';
+    private _onDamageHook: ((ctx: CastBehaviourTickContext, unit: Unit, amountDealt: number) => void) | null = null;
+    private _onBlockedHook: ((ctx: CastBehaviourTickContext, unit: Unit) => void) | null = null;
 
     withKnockback(tier: number): this {
         this._knockbackTier = tier;
         return this;
     }
 
+    /** Called for each unit that actually took damage (post-block). Only fires on the declarative damage path. */
+    onDamage(fn: (ctx: CastBehaviourTickContext, unit: Unit, amountDealt: number) => void): this {
+        this._onDamageHook = fn;
+        return this;
+    }
+
+    /** Called for each unit whose attack was blocked. Only fires on the declarative damage path. */
+    onBlocked(fn: (ctx: CastBehaviourTickContext, unit: Unit) => void): this {
+        this._onBlockedHook = fn;
+        return this;
+    }
+
+    protected setDeclarativeDamage(amount: number, attackType: string): void {
+        this._damageAmount = amount;
+        this._damageAttackType = attackType;
+    }
+
+    protected get hasDeclarativeDamage(): boolean {
+        return this._damageAmount !== null;
+    }
+
+    /** Run tryDamageOrBlock for each hit unit, then fire onDamage/onBlocked hooks. */
+    protected runDeclarativeDamage(hitUnits: Unit[], ctx: CastBehaviourTickContext): void {
+        if (this._damageAmount === null || hitUnits.length === 0) return;
+        const ability = getAbility(ctx.abilityId);
+        const modMultiplier = ability?.damageModifierMultiplier;
+        for (const unit of hitUnits) {
+            const amountDealt = getModifiedAbilityDamage(ctx.caster, this._damageAmount, modMultiplier);
+            const hit = tryDamageOrBlock(unit, {
+                engine: ctx.engine,
+                gameTime: ctx.engine.gameTime,
+                eventBus: ctx.engine.eventBus,
+                attackerX: ctx.caster.x,
+                attackerY: ctx.caster.y,
+                attackerId: ctx.caster.id,
+                abilityId: ctx.abilityId,
+                damage: this._damageAmount,
+                attackType: this._damageAttackType as 'melee' | 'charging',
+            });
+            if (hit) {
+                this._onDamageHook?.(ctx, unit, amountDealt);
+            } else {
+                this._onBlockedHook?.(ctx, unit);
+            }
+        }
+    }
+
     protected applyKnockbackToHits(hitUnits: Unit[], ctx: CastBehaviourTickContext): void {
         if (this._knockbackTier === null || hitUnits.length === 0) return;
-        const eng = ctx.engine as KnockbackCapableEngine;
-        const engineCtx = {
-            gameTime: eng.gameTime,
-            roundNumber: eng.roundNumber ?? 1,
-            eventBus: eng.eventBus,
-            interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities?.bind(eng),
-        };
+        const eng = ctx.engine as AbilityEngineContext;
+        const engineCtx = knockbackCtxFromEngine(eng);
 
         // Count how many hit slots each unit received (stacks may appear multiple times).
         const hitCountById = new Map<string, { unit: Unit; count: number }>();

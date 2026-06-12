@@ -1,5 +1,6 @@
 import type { AbilityModifier } from '../../../researchTrees/types';
 import type { Unit } from '../game/units/Unit';
+import type { AbilityEngineContext } from './AbilityEngineContext';
 
 interface EngineWithLocalUnit {
     getLocalPlayerUnit?(): Unit | null;
@@ -24,4 +25,23 @@ export function getAbilityModifier(
     if (caster) return caster.abilityModifiers[abilityId] ?? {};
     const eng = gameState as EngineWithLocalUnit | undefined;
     return eng?.getLocalPlayerUnit?.()?.abilityModifiers[abilityId] ?? {};
+}
+
+/**
+ * Returns true if the player that owns `caster` has unlocked the given research node.
+ *
+ * Works for both runtime (doCardEffect / onDamage) and tooltip contexts:
+ *   - Runtime: pass `engine` and `caster` — owner id comes from `caster.ownerId`.
+ *   - Tooltip (no caster): pass `engine` with `engine.localPlayerId` set; `caster` may be
+ *     undefined and the local player id is used as fallback.
+ */
+export function hasResearchNode(
+    engine: AbilityEngineContext | undefined,
+    caster: Unit | undefined,
+    treeId: string,
+    nodeId: string,
+): boolean {
+    const ownerId = caster?.ownerId ?? (engine as AbilityEngineContext & { localPlayerId?: string } | undefined)?.localPlayerId ?? '';
+    if (!ownerId || !engine?.getPlayerResearchNodes) return false;
+    return engine.getPlayerResearchNodes(ownerId, treeId).includes(nodeId);
 }

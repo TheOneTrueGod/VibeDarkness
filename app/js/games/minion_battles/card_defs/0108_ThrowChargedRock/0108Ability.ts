@@ -1,27 +1,35 @@
-﻿import { AbilityState } from '../../abilities/Ability';
-import type {
+﻿import type {
     AbilityRecoveryRule,
     AbilityStatic,
-    AbilityStateEntry,
     AttackBlockedInfo,
 } from '../../abilities/Ability';
 import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
-import type { ActiveAbility } from '../../game/types';
-import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
-import { getDirectionFromTo, getPixelTargetPosition } from '../../abilities/targetHelpers';
-import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
-import { Projectile } from '../../game/projectiles/Projectile';
 import { Effect } from '../../game/effects/Effect';
-import { createCrystalLightEffect } from '../../abilities/effectHelpers';
+import { createCrystalLightEffect, deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { areEnemies } from '../../game/teams';
-import type { EventBus } from '../../game/EventBus';
-import { type CardDef } from '../types';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
-import { withEntombedWallConditionalCancelAndLinger } from '../../abilities/entombed/entombedWallCancel';
+import { type CardDef } from '../types';
+import {
+    beginThrowCastPayload,
+    buildMoreRockTimings,
+    buildThrowBaseTimings,
+    getCrystalRocksResearch,
+    hasMorePowerResearch,
+    hasMoreRockResearch,
+    ONE_PIXEL_TARGET,
+    THROW_PROJECTILE_SPEED,
+    THROW_RANGE,
+    throwMovementPenaltyStates,
+    throwMovementPenaltyStatesForActive,
+    TWO_PIXEL_TARGETS,
+} from '../throwSharedTimings';
+import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
+import type { LightSource } from '../../game/lightSources/LightSource';
 
 const THROW_CHARGED_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <path d="M20 4 L32 12 L36 24 L28 36 L12 34 L4 20 Z" fill="#6b6b6b" stroke="#5a5a5a" stroke-width="1"/>
@@ -37,7 +45,6 @@ const MAX_USES = 3;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'lightCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
-const RANGE = 200;
 const BASE_EXPLOSION_RADIUS = 50;
 const BASE_EXPLOSION_DAMAGE = 5;
 const BASE_MAX_TARGETS = 3;
@@ -49,165 +56,47 @@ const MORE_ROCK_EXPLOSION_DAMAGE = 3;
 const MORE_POWER_EXPLOSION_DAMAGE = 8;
 const MORE_POWER_MAX_TARGETS = 4;
 
-/** One timeline cell for more-rock pattern `::::::=:::=...` (14 Ã— slice = 1.4s total). */
-const MORE_ROCK_TIME_SLICE = 0.1;
-const MORE_ROCK_FIRST_THROW = 6 * MORE_ROCK_TIME_SLICE;
-const MORE_ROCK_SECOND_THROW = 10 * MORE_ROCK_TIME_SLICE;
-const MORE_ROCK_COOLDOWN_START = 11 * MORE_ROCK_TIME_SLICE;
-
-const BASE_MOVEMENT_PENALTY_UNTIL = 0.6;
-
-type ThrowChargedRockCastPayload = {
-    movementPenaltyUntil: number;
-};
-
-const THROW_CHARGED_ROCK_BASE_TIMINGS_UNMODIFIED: AbilityTimingInterval[] = [
-    {
-        id: 'windup',
-        start: 0,
-        end: 0.3,
-        abilityPhase: AbilityPhase.Windup,
-        timelineLabel: 'Startup',
-        timelineDescription: 'Winding up to throw the rock.',
-    },
-    {
-        id: 'active',
-        start: 0.3,
-        end: 0.4,
-        abilityPhase: AbilityPhase.Active,
-        timelineLabel: 'Active',
-        timelineDescription: 'Release frame — rock is thrown.',
-    },
-    {
-        id: 'cooldown',
-        start: 0.4,
-        end: 1.6,
-        abilityPhase: AbilityPhase.Cooldown,
-        timelineLabel: 'Cooldown',
-        timelineDescription: 'Recovering after the throw.',
-    },
-];
-
-/** Timeline: `::::::=:::=...` (windup / throw / short windup / throw / cooldown). */
-const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS_UNMODIFIED: AbilityTimingInterval[] = [
-    {
-        id: 'windup_1',
-        start: 0,
-        end: MORE_ROCK_FIRST_THROW,
-        abilityPhase: AbilityPhase.Windup,
-        timelineLabel: 'Startup',
-        timelineDescription: 'Winding up for the first throw.',
-    },
-    {
-        id: 'active_1',
-        start: MORE_ROCK_FIRST_THROW,
-        end: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
-        abilityPhase: AbilityPhase.Active,
-        timelineLabel: 'First throw',
-        timelineDescription: 'First rock is in flight.',
-    },
-    {
-        id: 'windup_2',
-        start: MORE_ROCK_FIRST_THROW + MORE_ROCK_TIME_SLICE,
-        end: MORE_ROCK_SECOND_THROW,
-        abilityPhase: AbilityPhase.Windup,
-        timelineLabel: 'Quick windup',
-        timelineDescription: 'Brief pause before the second throw.',
-    },
-    {
-        id: 'active_2',
-        start: MORE_ROCK_SECOND_THROW,
-        end: MORE_ROCK_SECOND_THROW + MORE_ROCK_TIME_SLICE,
-        abilityPhase: AbilityPhase.Active,
-        timelineLabel: 'Second throw',
-        timelineDescription: 'Second rock is in flight.',
-    },
-    {
-        id: 'cooldown',
-        start: MORE_ROCK_COOLDOWN_START,
-        end: 14 * MORE_ROCK_TIME_SLICE,
-        abilityPhase: AbilityPhase.Cooldown,
-        timelineLabel: 'Cooldown',
-        timelineDescription: 'Recovering after both throws.',
-    },
-];
-
-const THROW_CHARGED_ROCK_BASE_TIMINGS: AbilityTimingInterval[] = withEntombedWallConditionalCancelAndLinger(
-    THROW_CHARGED_ROCK_BASE_TIMINGS_UNMODIFIED,
-    {
-        cancelIntervalId: 'active',
-        cooldownIntervalId: 'cooldown',
-        lingerSec: 1 / 60,
-        lingerIdPrefix: 'active',
-    },
-);
-
-const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS: AbilityTimingInterval[] = withEntombedWallConditionalCancelAndLinger(
-    THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS_UNMODIFIED,
-    {
-        cancelIntervalId: 'active_2',
-        cooldownIntervalId: 'cooldown',
-        lingerSec: 1 / 60,
-        lingerIdPrefix: 'active_2',
-    },
-);
-
 const KNOCKBACK_TIER = 1;
 const PREVIEW_TEAL = 0x2dd4bf;
 
-interface GameEngineLike {
-    addProjectile(projectile: Projectile): void;
-    addEffect(effect: Effect): void;
-    addLightSource(ls: import('../../game/lightSources/LightSource').LightSource): void;
-    getUnit(id: string): Unit | undefined;
-    getUnits(): Unit[];
-    eventBus: EventBus;
-    gameTime?: number;
-    roundNumber?: number;
-    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
-    localPlayerId?: string;
-}
+const ENTOMBED_OPTS = {
+    cancelIntervalId: 'active',
+    cooldownIntervalId: 'cooldown',
+    lingerIdPrefix: 'active',
+} as const;
 
-function getResearchSet(engine: GameEngineLike, playerId: string): Set<string> {
-    const researched = engine.getPlayerResearchNodes?.(playerId, 'crystal_rocks') ?? [];
-    return new Set(researched);
-}
-
-const ONE_TARGETS: TargetDef[] = [{ type: 'pixel', label: 'Target location' }];
-const TWO_TARGETS: TargetDef[] = [
-    { type: 'pixel', label: 'Target location' },
-    { type: 'pixel', label: 'Second target (More Rock)' },
-];
+const ENTOMBED_MORE_ROCK_OPTS = {
+    cancelIntervalId: 'active_2',
+    cooldownIntervalId: 'cooldown',
+    lingerIdPrefix: 'active_2',
+} as const;
 
 function getExplosionRadiusForResearch(research: Set<string>): number {
-    return research.has('more_rock') ? BASE_EXPLOSION_RADIUS * MORE_ROCK_EXPLOSION_RADIUS_MULT : BASE_EXPLOSION_RADIUS;
+    return hasMoreRockResearch(research) ? BASE_EXPLOSION_RADIUS * MORE_ROCK_EXPLOSION_RADIUS_MULT : BASE_EXPLOSION_RADIUS;
 }
 
-function getOwnerResearch(engine: GameEngineLike, caster?: Unit): Set<string> {
-    const ownerId = caster?.ownerId ?? engine.localPlayerId ?? '';
-    return ownerId ? getResearchSet(engine, ownerId) : new Set<string>();
+function resolveDirectHitDamage(ctx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext): number {
+    const mod = ctx.caster.abilityModifiers[CARD_ID] ?? {};
+    return DIRECT_HIT_DAMAGE + (mod.damageFlat ?? 0);
 }
 
-function spawnProjectile(engine: GameEngineLike, caster: Unit, targetPos: { x: number; y: number }): void {
-    const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, targetPos.x, targetPos.y);
-    if (dist === 0) return;
-    const travelDistance = Math.min(dist, RANGE);
-
-    const speed = 900;
-    const projectile = new Projectile({
-        x: caster.x,
-        y: caster.y,
-        velocityX: dirX * speed,
-        velocityY: dirY * speed,
-        damage: DIRECT_HIT_DAMAGE,
-        sourceTeamId: caster.teamId,
-        sourceUnitId: caster.id,
-        sourceAbilityId: CARD_ID,
-        maxDistance: travelDistance,
-        projectileType: 'charged_rock',
-    });
-    engine.addProjectile(projectile);
+function chargedRockLaunchBehaviour() {
+    return CastBehaviours.ProjectileLaunch()
+        .withSpeed(THROW_PROJECTILE_SPEED)
+        .withMaxRange(THROW_RANGE)
+        .withProjectileType('charged_rock')
+        .withResolveDamage(resolveDirectHitDamage);
 }
+
+const THROW_CHARGED_ROCK_BASE_TIMINGS = buildThrowBaseTimings({
+    launchBehaviour: chargedRockLaunchBehaviour(),
+    entombed: ENTOMBED_OPTS,
+});
+
+const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS = buildMoreRockTimings({
+    launchBehaviour: chargedRockLaunchBehaviour(),
+    entombed: ENTOMBED_MORE_ROCK_OPTS,
+});
 
 export const ThrowChargedRock: AbilityStatic = {
     id: CARD_ID,
@@ -221,30 +110,26 @@ export const ThrowChargedRock: AbilityStatic = {
     prefireTime: 0.3,
     abilityTimings: THROW_CHARGED_ROCK_BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {
-        const eng = gameState as GameEngineLike | undefined;
-        if (!eng) return THROW_CHARGED_ROCK_BASE_TIMINGS;
-        const research = getOwnerResearch(eng, caster);
-        return research.has('more_rock') ? THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS : THROW_CHARGED_ROCK_BASE_TIMINGS;
+        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
+        return hasMoreRockResearch(research) ? THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS : THROW_CHARGED_ROCK_BASE_TIMINGS;
     },
-    targets: TWO_TARGETS,
+    targets: TWO_PIXEL_TARGETS,
     keywords: {
         nestedCard: {
             fallbackAbilityId: 'throw_rock',
         },
     },
     getTargets(caster?: Unit, gameState?: unknown): TargetDef[] {
-        const eng = gameState as GameEngineLike | undefined;
-        if (!eng) return ONE_TARGETS;
-        const research = getOwnerResearch(eng, caster);
-        return research.has('more_rock') ? TWO_TARGETS : ONE_TARGETS;
+        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
+        return hasMoreRockResearch(research) ? TWO_PIXEL_TARGETS : ONE_PIXEL_TARGET;
     },
-    aiSettings: { minRange: 0, maxRange: RANGE },
+    aiSettings: { minRange: 0, maxRange: THROW_RANGE },
 
     getTooltipText(gameState?: unknown): string[] {
-        const eng = gameState as GameEngineLike | undefined;
-        const research = eng ? getOwnerResearch(eng) : new Set<string>();
-        const hasMoreRock = research.has('more_rock');
-        const hasMorePower = research.has('more_power');
+        const eng = gameState as AbilityEngineContext | undefined;
+        const research = getCrystalRocksResearch(eng);
+        const hasMoreRock = hasMoreRockResearch(research);
+        const hasMorePower = hasMorePowerResearch(research);
         const targets = hasMoreRock ? 2 : 1;
         let explosionDamage = hasMoreRock ? MORE_ROCK_EXPLOSION_DAMAGE : BASE_EXPLOSION_DAMAGE;
         let maxTargets = BASE_MAX_TARGETS;
@@ -271,71 +156,33 @@ export const ThrowChargedRock: AbilityStatic = {
         ];
     },
 
-    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
-        const eng = engine as GameEngineLike;
-        const research = getResearchSet(eng, caster.ownerId);
-        const hasMoreRock = research.has('more_rock');
-        const payload: ThrowChargedRockCastPayload = {
-            movementPenaltyUntil: hasMoreRock ? MORE_ROCK_SECOND_THROW : BASE_MOVEMENT_PENALTY_UNTIL,
-        };
-        active.castPayload = payload;
+    beginActiveCast(engine, caster, _targets, active) {
+        const research = getCrystalRocksResearch(engine, caster);
+        active.castPayload = beginThrowCastPayload(hasMoreRockResearch(research));
     },
 
-    getAbilityStatesForActive(currentTime: number, active: ActiveAbility): AbilityStateEntry[] {
-        const payload = active.castPayload as ThrowChargedRockCastPayload | undefined;
-        const until = payload?.movementPenaltyUntil ?? BASE_MOVEMENT_PENALTY_UNTIL;
-        if (currentTime < until) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } }];
-        }
-        return [];
+    getAbilityStatesForActive(currentTime, active) {
+        return throwMovementPenaltyStatesForActive(currentTime, active);
     },
 
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < BASE_MOVEMENT_PENALTY_UNTIL) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } }];
-        }
-        return [];
+    getAbilityStates(currentTime) {
+        return throwMovementPenaltyStates(currentTime);
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        const eng = engine as GameEngineLike;
-        const research = getResearchSet(eng, caster.ownerId);
-        const hasMoreRock = research.has('more_rock');
-
-        if (hasMoreRock) {
-            if (prevTime < MORE_ROCK_FIRST_THROW && currentTime >= MORE_ROCK_FIRST_THROW) {
-                const firstTarget = getPixelTargetPosition(targets, 0);
-                if (firstTarget) spawnProjectile(eng, caster, firstTarget);
-            }
-            if (prevTime < MORE_ROCK_SECOND_THROW && currentTime >= MORE_ROCK_SECOND_THROW) {
-                const secondTarget = getPixelTargetPosition(targets, 1);
-                if (secondTarget) spawnProjectile(eng, caster, secondTarget);
-            }
-            return;
-        }
-
-        if (prevTime >= 0.3 || currentTime < 0.3) return;
-        const firstTarget = getPixelTargetPosition(targets, 0);
-        if (!firstTarget) return;
-        spawnProjectile(eng, caster, firstTarget);
+    onAttackBlocked(_engine, _defender, attackInfo: AttackBlockedInfo): void {
+        deactivateProjectileOnBlock(attackInfo);
     },
 
-    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
-        if (attackInfo.type === 'projectile' && attackInfo.projectile) {
-            (attackInfo.projectile as Projectile).active = false;
-        }
-    },
-
-    onProjectileExpired(engine: unknown, caster: Unit, projectile: Projectile, _hitUnitId?: string): void {
-        const eng = engine as GameEngineLike;
+    onProjectileExpired(engine, caster, projectile, _hitUnitId?: string): void {
+        const eng = engine as AbilityEngineContext;
         const sourceUnit = eng.getUnit(caster.id);
         if (!sourceUnit) return;
 
-        const research = getResearchSet(eng, sourceUnit.ownerId);
-        const hasMoreRock = research.has('more_rock');
-        const hasMorePower = research.has('more_power');
+        const research = getCrystalRocksResearch(eng, sourceUnit);
+        const hasMoreRock = hasMoreRockResearch(research);
+        const hasMorePower = hasMorePowerResearch(research);
 
-        const explosionRadius = hasMoreRock ? BASE_EXPLOSION_RADIUS * MORE_ROCK_EXPLOSION_RADIUS_MULT : BASE_EXPLOSION_RADIUS;
+        const explosionRadius = getExplosionRadiusForResearch(research);
         let explosionDamage = hasMoreRock ? MORE_ROCK_EXPLOSION_DAMAGE : BASE_EXPLOSION_DAMAGE;
         let maxTargets = BASE_MAX_TARGETS;
         if (hasMorePower) {
@@ -355,14 +202,15 @@ export const ThrowChargedRock: AbilityStatic = {
             }),
         );
 
-        eng.addLightSource(createCrystalLightEffect(projectile.x, projectile.y, {
-            color: PREVIEW_TEAL,
-            radius: 2,
-            decayInterval: 0.08,
-        }));
+        (eng as AbilityEngineContext & { addLightSource(ls: LightSource): void }).addLightSource(
+            createCrystalLightEffect(projectile.x, projectile.y, {
+                color: PREVIEW_TEAL,
+                radius: 2,
+                decayInterval: 0.08,
+            }),
+        );
 
-        const units = eng
-            .getUnits()
+        const units = (eng.units ?? [])
             .filter((u) => u.isAlive() && areEnemies(sourceUnit.teamId, u.teamId))
             .map((u) => ({ unit: u, dist: Math.hypot(u.x - projectile.x, u.y - projectile.y) }))
             .filter((entry) => entry.dist <= explosionRadius + entry.unit.radius)
@@ -379,27 +227,22 @@ export const ThrowChargedRock: AbilityStatic = {
                 { unitId: sourceUnit.id, abilityId: CARD_ID },
                 projectile.x,
                 projectile.y,
-                {
-                    gameTime: eng.gameTime ?? 0,
-                    roundNumber: eng.roundNumber ?? 1,
-                    eventBus: eng.eventBus,
-                },
+                eng,
             );
         }
     },
 
-    renderTargetingPreview(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
+    renderTargetingPreview(gr, caster, _currentTargets, mouseWorld, _units, gameState): void {
         gr.clear();
         const target = mouseWorld;
         if (!target) return;
-        const eng = gameState as GameEngineLike | undefined;
-        const research = eng ? getOwnerResearch(eng, caster) : new Set<string>();
+        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
         const explosionRadius = getExplosionRadiusForResearch(research);
-        const clamped = clampToMaxRange(caster, target, RANGE);
+        const clamped = clampToMaxRange(caster, target, THROW_RANGE);
         const impactX = clamped.endX;
         const impactY = clamped.endY;
 
-        drawClampedLine(gr, caster, target, RANGE, { color: 0x8ef9ff, width: 2, alpha: 0.7 });
+        drawClampedLine(gr, caster, target, THROW_RANGE, { color: 0x8ef9ff, width: 2, alpha: 0.7 });
         gr.circle(impactX, impactY, explosionRadius);
         gr.fill({ color: PREVIEW_TEAL, alpha: 0.15 });
         gr.circle(impactX, impactY, explosionRadius);
@@ -407,13 +250,12 @@ export const ThrowChargedRock: AbilityStatic = {
     },
 
     renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, _mouseWorld, _units, gameState): void {
-        const eng = gameState as GameEngineLike | undefined;
-        const research = eng ? getOwnerResearch(eng, caster) : new Set<string>();
+        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
         const explosionRadius = getExplosionRadiusForResearch(research);
 
         for (const t of currentTargets) {
             if (t.type === 'pixel' && t.position) {
-                const clamped = clampToMaxRange(caster, t.position, RANGE);
+                const clamped = clampToMaxRange(caster, t.position, THROW_RANGE);
                 drawCrosshair(gr, clamped.endX, clamped.endY, 10, { color: 0x8ef9ff, width: 2, alpha: 0.95 });
                 gr.circle(clamped.endX, clamped.endY, explosionRadius);
                 gr.fill({ color: PREVIEW_TEAL, alpha: 0.1 });

@@ -26,7 +26,8 @@ describe('Anchored Tremor', () => {
         const units = [caster, enemyOnStone, enemyOnGrass];
 
         const engine = {
-            getUnits: () => units,
+            units,
+            gameTime: 0,
             eventBus: new EventBus(),
             addEffect: () => {},
             terrainManager: {

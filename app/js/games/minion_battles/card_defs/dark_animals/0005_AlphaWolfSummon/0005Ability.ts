@@ -13,6 +13,7 @@ import type { TargetDef } from '../../../abilities/targeting';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import { type CardDef } from '../../types';
 import { Effect } from '../../../game/effects/Effect';
+import { spawnSpriteEffect } from '../../../abilities/effectHelpers';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { areEnemies } from '../../../game/teams';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
@@ -165,19 +166,19 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
             for (let p = 0; p < 10; p++) {
                 const angle = Math.random() * 2 * Math.PI;
                 const speed = 80 + Math.random() * 100;
-                eng.addEffect(new Effect({
-                    x: spawnX + (Math.random() - 0.5) * 12,
-                    y: spawnY + (Math.random() - 0.5) * 12,
-                    duration: 0.45 + Math.random() * 0.15,
-                    effectType: 'ParticleImage',
-                    effectData: {
-                        imageKey: 'darkBlob',
+                const particleScale = (0.4 + Math.random() * 0.35) * 18;
+                spawnSpriteEffect(
+                    eng,
+                    'darkBlobBurst',
+                    spawnX + (Math.random() - 0.5) * 12,
+                    spawnY + (Math.random() - 0.5) * 12,
+                    {
+                        scale: { from: particleScale, to: particleScale * 0.4 },
+                        rotation: Math.random() * Math.PI * 2,
                         vx: Math.cos(angle) * speed,
                         vy: Math.sin(angle) * speed,
-                        scale: 0.4 + Math.random() * 0.35,
-                        tint: 0x9933cc,
                     },
-                }));
+                );
             }
 
             const closest = enemies.reduce<Unit | null>((best, e) => {

@@ -350,6 +350,14 @@ export function enteredTimingIds(
     for (const id of next) {
         if (!prev.has(id)) out.add(id);
     }
+    // Intervals with start=0 are already active at prevElapsed=0 (first cast tick after
+    // order apply), so the crossing check above misses them. Treat the first positive
+    // elapsed step as entry — matches doCardEffect's `if (prevTime > 0) return` gate.
+    if (prevElapsed <= 0 && nextElapsed > 0) {
+        for (const it of intervals) {
+            if (it.start === 0 && next.has(it.id)) out.add(it.id);
+        }
+    }
     return out;
 }
 

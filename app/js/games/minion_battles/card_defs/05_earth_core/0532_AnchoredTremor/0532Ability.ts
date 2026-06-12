@@ -2,11 +2,19 @@
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
-import { getPixelTargetPosition } from '../../../abilities/targetHelpers';
-import { areEnemies } from '../../../game/teams';
 import { TerrainType } from '../../../terrain/TerrainType';
 import type { EventBus } from '../../../game/EventBus';
+import { areEnemies } from '../../../game/teams';
 import { type CardDef } from '../../types';
+
+function getPixelTargetPosition(
+    targets: ResolvedTarget[],
+    index: number = 0,
+): { x: number; y: number } | null {
+    const target = targets[index];
+    if (!target || target.type !== 'pixel' || !target.position) return null;
+    return target.position;
+}
 
 const ABILITY_ID = '0532';
 const PULSE_INTERVAL = 0.35;
@@ -38,7 +46,8 @@ const ANCHORED_TREMOR_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.
 </svg>`;
 
 interface GameEngineLike {
-    getUnits(): Unit[];
+    units: Unit[];
+    gameTime: number;
     eventBus: EventBus;
     terrainManager?: {
         getTerrainAt(x: number, y: number): TerrainType;
@@ -72,13 +81,15 @@ export const AnchoredTremor: AbilityStatic = {
         const eng = engine as GameEngineLike;
         const completedPulseCountBefore = Math.floor(Math.max(0, prevTime - 0.2) / PULSE_INTERVAL);
 
+        const r2 = RADIUS * RADIUS;
         for (let p = 0; p < pulses; p++) {
             const pulseNumber = completedPulseCountBefore + p + 1;
             const damage = BASE_DAMAGE + Math.max(0, pulseNumber - 1) * RAMP_PER_PULSE;
-            for (const unit of eng.getUnits()) {
+            for (const unit of eng.units) {
                 if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
-                const dist = Math.hypot(unit.x - target.x, unit.y - target.y);
-                if (dist > RADIUS + unit.radius) continue;
+                const dx = unit.x - target.x;
+                const dy = unit.y - target.y;
+                if (dx * dx + dy * dy > r2) continue;
                 const onStone = eng.terrainManager?.getTerrainAt(unit.x, unit.y) === TerrainType.Rock;
                 unit.takeDamage(damage + (onStone ? STONE_BONUS_DAMAGE : 0), caster.id, eng.eventBus);
             }

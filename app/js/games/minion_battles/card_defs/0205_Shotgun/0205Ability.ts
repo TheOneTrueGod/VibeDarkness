@@ -1,14 +1,7 @@
-﻿import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
-import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { TargetDef } from '../../abilities/targeting';
-import { createConeTargetPreviewWithDistanceInaccuracy } from '../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../game/types';
-import type { Unit } from '../../game/units/Unit';
+import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { fireGunShotAtTarget, getRandomSpeedFactor } from '../../abilities/gunHelpers';
-import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
-import { getPixelTargetPosition } from '../../abilities/targetHelpers';
+import { defineGunAbility } from '../../abilities/archetypes/defineGunAbility';
 import {
     ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES,
     DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
@@ -33,69 +26,30 @@ const SHOTGUN_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000
   <rect x="12" y="34" width="8" height="8" rx="2" fill="#5c4033" />
 </svg>`;
 
-export const ShotgunAbility: AbilityStatic = {
+export const ShotgunAbility: AbilityStatic = defineGunAbility({
     id: CARD_ID,
     name: 'Shotgun',
     image: SHOTGUN_IMAGE,
-    resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 15, allowPartialIfPositive: true }],
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
     damageModifierMultiplier: ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES[CARD_ID] ?? DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
+    damage: BULLET_DAMAGE,
+    maxDistance: MAX_DISTANCE,
+    bulletSpeed: BULLET_SPEED,
+    baseInaccuracy: INACCURACY_BASE,
+    pelletsPerShot: PELLETS,
+    pelletSpeedVariation: { min: 0.9, max: 1.1 },
+    targetLabel: 'Blast direction',
     prefireTime: SHOT_TIME,
-    abilityTimings: [
-        { id: 'shot', start: 0, end: SHOT_TIME, abilityPhase: AbilityPhase.Windup },
-        {
-            id: 'cooldown',
-            start: SHOT_TIME,
-            end: SHOT_TIME + COOLDOWN_TIME,
-            abilityPhase: AbilityPhase.Cooldown,
-        },
+    cooldownDuration: COOLDOWN_TIME,
+    getTooltipText: () => [
+        `Fire ${PELLETS} pellets in a cone`,
+        'Each pellet deals {10} damage',
     ],
-    targets: [{ type: 'pixel', label: 'Blast direction' }] as TargetDef[],
-    aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
-
-    getTooltipText(): string[] {
-        return [
-            `Fire ${PELLETS} pellets in a cone`,
-            'Each pellet deals {10} damage',
-        ];
-    },
-
-    getAbilityStates(_currentTime: number): AbilityStateEntry[] {
-        return [];
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= SHOT_TIME || currentTime < SHOT_TIME) return;
-        const pos = getPixelTargetPosition(targets, 0);
-        if (!pos) return;
-
-        for (let i = 0; i < PELLETS; i++) {
-            const speed = BULLET_SPEED * getRandomSpeedFactor(engine, 0.9, 1.1);
-            fireGunShotAtTarget({
-                engine,
-                caster,
-                targetX: pos.x,
-                targetY: pos.y,
-                damage: BULLET_DAMAGE,
-                maxDistance: MAX_DISTANCE,
-                speed,
-                abilityId: CARD_ID,
-                baseInaccuracy: INACCURACY_BASE,
-            });
-        }
-    },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
-        deactivateProjectileOnBlock(attackInfo);
-    },
-
-    renderTargetingPreview: createConeTargetPreviewWithDistanceInaccuracy(MAX_DISTANCE, INACCURACY_BASE),
-};
+});
 
 export const ShotgunCard: CardDef = {
     abilityId: CARD_ID,
 };
-

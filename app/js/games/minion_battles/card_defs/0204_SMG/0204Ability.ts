@@ -1,14 +1,7 @@
-﻿import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
-import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { TargetDef } from '../../abilities/targeting';
-import { createConeTargetPreviewWithDistanceInaccuracy } from '../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../game/types';
-import type { Unit } from '../../game/units/Unit';
+import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { fireGunShotAtTarget } from '../../abilities/gunHelpers';
-import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
-import { getPixelTargetPosition } from '../../abilities/targetHelpers';
+import { defineGunAbility } from '../../abilities/archetypes/defineGunAbility';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}04`;
 const MAX_USES = 2;
@@ -31,77 +24,29 @@ const SMG_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg
   <rect x="18" y="34" width="6" height="10" rx="1" fill="#5a5a5a" />
 </svg>`;
 
-export const SMGAbility: AbilityStatic = {
+export const SMGAbility: AbilityStatic = defineGunAbility({
     id: CARD_ID,
     name: 'SMG',
     image: SMG_IMAGE,
-    resourceCost: null,
     resourceCosts: [{ resourceId: 'ammo', amount: 20, allowPartialIfPositive: true }],
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: LAST_SHOT_TIME,
-    abilityTimings: [
-        {
-            id: 'windup',
-            start: 0,
-            end: LAST_SHOT_TIME,
-            abilityPhase: AbilityPhase.Windup,
-        },
-        {
-            id: 'cooldown',
-            start: LAST_SHOT_TIME,
-            end: LAST_SHOT_TIME + COOLDOWN_TIME,
-            abilityPhase: AbilityPhase.Cooldown,
-        },
+    damage: BULLET_DAMAGE,
+    maxDistance: MAX_DISTANCE,
+    bulletSpeed: BULLET_SPEED,
+    baseInaccuracy: INACCURACY_BASE,
+    numShots: NUM_SHOTS,
+    shotSpacing: (LAST_SHOT_TIME - FIRST_SHOT_TIME) / (NUM_SHOTS - 1),
+    targetLabel: 'Spray direction',
+    prefireTime: FIRST_SHOT_TIME,
+    cooldownDuration: COOLDOWN_TIME,
+    getTooltipText: () => [
+        'Spray {8} bullets in a cone',
+        'Each bullet deals {10} damage',
     ],
-    targets: [{ type: 'pixel', label: 'Spray direction' }] as TargetDef[],
-    aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
-
-    getTooltipText(): string[] {
-        return [
-            'Spray {8} bullets in a cone',
-            'Each bullet deals {10} damage',
-        ];
-    },
-
-    getAbilityStates(_currentTime: number): AbilityStateEntry[] {
-        return [];
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        const pos = getPixelTargetPosition(targets, 0);
-        if (!pos) return;
-
-        const totalWindow = LAST_SHOT_TIME - FIRST_SHOT_TIME;
-        const spacing = totalWindow / (NUM_SHOTS - 1);
-
-        for (let i = 0; i < NUM_SHOTS; i++) {
-            const t = FIRST_SHOT_TIME + spacing * i;
-            if (prevTime < t && currentTime >= t) {
-                fireGunShotAtTarget({
-                    engine,
-                    caster,
-                    targetX: pos.x,
-                    targetY: pos.y,
-                    damage: BULLET_DAMAGE,
-                    maxDistance: MAX_DISTANCE,
-                    speed: BULLET_SPEED,
-                    abilityId: CARD_ID,
-                    baseInaccuracy: INACCURACY_BASE,
-                });
-            }
-        }
-    },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
-        deactivateProjectileOnBlock(attackInfo);
-    },
-
-    renderTargetingPreview: createConeTargetPreviewWithDistanceInaccuracy(MAX_DISTANCE, INACCURACY_BASE),
-};
+});
 
 export const SMGCard: CardDef = {
     abilityId: CARD_ID,
 };
-

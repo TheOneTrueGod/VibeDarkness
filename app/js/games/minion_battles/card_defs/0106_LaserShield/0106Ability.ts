@@ -1,22 +1,14 @@
-﻿/**
+/**
  * Laser Shield - Warrior skill. Hold a cyan energy shield for 3s in a direction.
- * Movement speed penalty 0.1, blocks attacks from within a 120Â° arc.
- * Same reward logic as Raise Shield â€” longer duration and laser color theme.
+ * Movement speed penalty 0.1, blocks attacks from within a 120° arc.
+ * Same reward logic as Raise Shield — longer duration and laser color theme.
  */
 
 import { AbilityEventType } from '../../abilities/Ability';
-import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability';
-import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { TargetDef } from '../../abilities/targeting';
-import { createArcTargetPreview } from '../../abilities/previewHelpers';
+import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { defineDirectionalShield } from '../../abilities/archetypes/defineDirectionalShield';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import {
-    createDirectionalBlockingArc,
-    createMovementPenaltyStates,
-    createShieldActivePreview,
-    STANDARD_SHIELD_HALF_ARC_RAD,
-} from '../../abilities/shieldHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}06`;
 const MAX_USES = 3;
@@ -25,14 +17,6 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 const DURATION = 3;
 const COOLDOWN_TIME = 1;
-const MOVEMENT_PENALTY = 0.1;
-const SHIELD_ARC_DEG = 120;
-const SHIELD_INNER_OFFSET = 2;
-const SHIELD_THICKNESS_PX = 15;
-const SHIELD_FILL_ALPHA = 0.85;
-const SHIELD_STROKE_ALPHA = 1.0;
-const MAX_RANGE = 300;
-const MIN_RANGE = 10;
 
 const LASER_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -47,7 +31,7 @@ const LASER_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org
   <path d="M32 20 L32 44 M26 32 L38 32" stroke="#afffff" stroke-width="2"/>
 </svg>`;
 
-export const LaserShieldAbility: AbilityStatic = {
+export const LaserShieldAbility = defineDirectionalShield({
     id: CARD_ID,
     name: 'Laser Shield',
     image: LASER_SHIELD_IMAGE,
@@ -55,23 +39,12 @@ export const LaserShieldAbility: AbilityStatic = {
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: DURATION,
-    abilityTimings: [
-        {
-            id: 'juggernaut',
-            start: 0,
-            end: DURATION,
-            abilityPhase: AbilityPhase.Active,
-        },
-        {
-            id: 'cooldown',
-            start: DURATION,
-            end: DURATION + COOLDOWN_TIME,
-            abilityPhase: AbilityPhase.Cooldown,
-        },
-    ],
-    targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
-    aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },
+    duration: DURATION,
+    cooldownDuration: COOLDOWN_TIME,
+    innerOffset: 2,
+    thicknessPx: 15,
+    fillAlpha: 0.85,
+    strokeAlpha: 1.0,
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
@@ -80,30 +53,6 @@ export const LaserShieldAbility: AbilityStatic = {
             'Lasts for 3 seconds with only 1 second cooldown',
         ];
     },
-
-    getAbilityStates: createMovementPenaltyStates(MOVEMENT_PENALTY, DURATION),
-
-    getBlockingArc: createDirectionalBlockingArc({
-        blockDuration: DURATION,
-        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
-    }),
-
-    renderActivePreview: createShieldActivePreview({
-        blockDuration: DURATION,
-        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
-        innerOffset: SHIELD_INNER_OFFSET,
-        thicknessPx: SHIELD_THICKNESS_PX,
-        fillAlpha: SHIELD_FILL_ALPHA,
-        strokeAlpha: SHIELD_STROKE_ALPHA,
-    }),
-
-    renderTargetingPreview: createArcTargetPreview({
-        arcDeg: SHIELD_ARC_DEG,
-        innerOffset: SHIELD_INNER_OFFSET,
-        outerThickness: SHIELD_THICKNESS_PX,
-        fillAlpha: SHIELD_FILL_ALPHA,
-        strokeAlpha: SHIELD_STROKE_ALPHA,
-    }),
 
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
@@ -143,7 +92,7 @@ export const LaserShieldAbility: AbilityStatic = {
             },
         ],
     },
-};
+});
 
 export const LaserShieldCard: CardDef = {
     abilityId: CARD_ID,

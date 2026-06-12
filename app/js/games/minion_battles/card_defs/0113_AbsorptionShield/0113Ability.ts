@@ -1,15 +1,7 @@
-﻿import { AbilityEventType } from '../../abilities/Ability';
-import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability';
-import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { TargetDef } from '../../abilities/targeting';
-import { createArcTargetPreview } from '../../abilities/previewHelpers';
+import { AbilityEventType } from '../../abilities/Ability';
+import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { defineDirectionalShield } from '../../abilities/archetypes/defineDirectionalShield';
 import { type CardDef } from '../types';
-import {
-    createDirectionalBlockingArc,
-    createMovementPenaltyStates,
-    createShieldActivePreview,
-    STANDARD_SHIELD_HALF_ARC_RAD,
-} from '../../abilities/shieldHelpers';
 
 const CARD_ID = '0113';
 const MAX_USES = 3;
@@ -17,16 +9,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 const DURATION = 1.5;
-const MOVEMENT_PENALTY = 0.1;
-const SHIELD_ARC_DEG = 120;
-const SHIELD_INNER_OFFSET = 5;
-const SHIELD_THICKNESS_PX = 10;
-const SHIELD_FILL_ALPHA = 0.9;
-const SHIELD_STROKE_ALPHA = 0.9;
 const SHIELD_FILL_COLOR = 0x7de2f5;
 const SHIELD_STROKE_COLOR = 0x35a7c1;
-const MAX_RANGE = 300;
-const MIN_RANGE = 10;
 const MAX_BLOCK_SURGES = 2;
 
 const ABSORPTION_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -35,7 +19,7 @@ const ABSORPTION_SHIELD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w
   <path d="M32 20 L32 44 M26 32 L38 32" stroke="#d9f8ff" stroke-width="2"/>
 </svg>`;
 
-export const AbsorptionShieldAbility: AbilityStatic = {
+export const AbsorptionShieldAbility = defineDirectionalShield({
     id: CARD_ID,
     name: 'Absorption Shield',
     image: ABSORPTION_SHIELD_IMAGE,
@@ -43,17 +27,9 @@ export const AbsorptionShieldAbility: AbilityStatic = {
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: DURATION,
-    abilityTimings: [
-        {
-            id: 'juggernaut',
-            start: 0,
-            end: DURATION,
-            abilityPhase: AbilityPhase.Active,
-        },
-    ],
-    targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
-    aiSettings: { minRange: MIN_RANGE, maxRange: MAX_RANGE },
+    duration: DURATION,
+    fillColor: SHIELD_FILL_COLOR,
+    strokeColor: SHIELD_STROKE_COLOR,
 
     getTooltipText(_gameState?: unknown): string[] {
         return [
@@ -61,34 +37,6 @@ export const AbsorptionShieldAbility: AbilityStatic = {
             `On Block: Gain {1} energy charge (up to {${MAX_BLOCK_SURGES}}x per use)`,
         ];
     },
-
-    getAbilityStates: createMovementPenaltyStates(MOVEMENT_PENALTY, DURATION),
-
-    getBlockingArc: createDirectionalBlockingArc({
-        blockDuration: DURATION,
-        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
-    }),
-
-    renderActivePreview: createShieldActivePreview({
-        blockDuration: DURATION,
-        halfArcRad: STANDARD_SHIELD_HALF_ARC_RAD,
-        innerOffset: SHIELD_INNER_OFFSET,
-        thicknessPx: SHIELD_THICKNESS_PX,
-        fillColor: SHIELD_FILL_COLOR,
-        strokeColor: SHIELD_STROKE_COLOR,
-        fillAlpha: SHIELD_FILL_ALPHA,
-        strokeAlpha: SHIELD_STROKE_ALPHA,
-    }),
-
-    renderTargetingPreview: createArcTargetPreview({
-        arcDeg: SHIELD_ARC_DEG,
-        innerOffset: SHIELD_INNER_OFFSET,
-        outerThickness: SHIELD_THICKNESS_PX,
-        fillAlpha: SHIELD_FILL_ALPHA,
-        strokeAlpha: SHIELD_STROKE_ALPHA,
-        strokeColor: SHIELD_STROKE_COLOR,
-        fillColor: SHIELD_FILL_COLOR,
-    }),
 
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
@@ -107,7 +55,7 @@ export const AbsorptionShieldAbility: AbilityStatic = {
             },
         ],
     },
-};
+});
 
 export const AbsorptionShieldCard: CardDef = {
     abilityId: CARD_ID,

@@ -104,6 +104,20 @@ export interface AbilityAISettings {
 export type AbilityKeyword = 'nestedCard';
 
 /**
+ * Declarative windup telegraph rendered generically by `PreviewRenderer`.
+ * When set, `Unit.executeAbility` captures the primary target position into
+ * `castPayload` at cast start and no per-ability `beginActiveCast` / `renderActivePreview`
+ * is needed for the standard shrinking-circle + aim-line visual.
+ */
+export interface AbilityTelegraph {
+    kind: 'shrinkingCircle';
+    /** Starting radius of the shrinking circle in world-space pixels. */
+    startRadius: number;
+    /** Pixi tint color (e.g. 0xff0000 for red). */
+    color: number;
+}
+
+/**
  * Simple capability / classification tags on an ability (distinct from structured `keywords` like nestedCard).
  * Extend this union when new tags are needed.
  */
@@ -170,6 +184,14 @@ export interface AbilityStatic {
     readonly tags?: readonly AbilityTag[];
     /** Optional declarative rules keyed by trigger event. */
     readonly abilityEvents?: Partial<Record<AbilityEventType, readonly AbilityEventRule[]>>;
+    /**
+     * Optional declarative windup telegraph. When set, `Unit.executeAbility` automatically
+     * captures the primary target position into `castPayload` at cast start, and
+     * `PreviewRenderer` draws an aim line plus a shrinking circle at the target over
+     * `prefireTime`. No per-ability `beginActiveCast` or `renderActivePreview` is needed for
+     * this visual.
+     */
+    readonly telegraph?: AbilityTelegraph;
     /**
      * Optional passive definition. When present, the engine's `processUnitPassives` fires this
      * automatically each tick — no cast order is needed. The unit must have this ability's ID in

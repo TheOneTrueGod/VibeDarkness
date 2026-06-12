@@ -1,18 +1,14 @@
-﻿/**
+/**
  * Strong Punch - Warrior melee ability.
  *
  * Single strike with bonus damage, knockback, and stun.
  * Exclusive upgrade to Punch via the Training research tree.
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
-import { AbilityEventType, AbilityState } from '../../abilities/Ability';
-import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
-import { CastBehaviours } from '../../abilities/CastBehaviours';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { AbilityEventType } from '../../abilities/Ability';
+import { defineMeleeStrike } from '../../abilities/archetypes/defineMeleeStrike';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { meleeLineHitbox } from '../../hitboxes';
-import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}17`;
@@ -25,35 +21,6 @@ const LINE_THICKNESS = 20; // px
 // 8 base + ~20% small bonus = 10
 const PUNCH_DAMAGE = 10;
 const STUN_DURATION = 1.2; // seconds
-
-const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
-
-const punchBehaviour = CastBehaviours.MeleeAttack()
-    .withHitbox(PUNCH_HITBOX)
-    .withImpact('punch')
-    .withDamage((_ctx, hitUnits) => {
-        const target = hitUnits[0];
-        if (!target) return;
-        tryDamageOrBlock(target, {
-            engine: _ctx.engine,
-            gameTime: _ctx.engine.gameTime,
-            eventBus: _ctx.engine.eventBus,
-            attackerX: _ctx.caster.x,
-            attackerY: _ctx.caster.y,
-            attackerId: _ctx.caster.id,
-            abilityId: CARD_ID,
-            damage: PUNCH_DAMAGE,
-            attackType: 'melee',
-        });
-    });
-
-const ABILITY_TIMINGS: AbilityTimingInterval[] = [
-    { id: 'windup',   start: 0,    end: 0.15, abilityPhase: AbilityPhase.Windup },
-    { id: 'punch',    start: 0.15, end: 0.25, abilityPhase: AbilityPhase.Active,
-      targetDef: { kind: 'select', label: 'Target', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
-      behaviour: punchBehaviour },
-    { id: 'cooldown', start: 0.25, end: 1.40, abilityPhase: AbilityPhase.Cooldown },
-];
 
 const STRONG_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -77,7 +44,7 @@ const STRONG_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmln
   <path d="M52 28 L45 28" stroke="#f97316" stroke-width="2.5" stroke-linecap="round"/>
 </svg>`;
 
-export const StrongPunchAbility: AbilityStatic = {
+export const StrongPunchAbility = defineMeleeStrike({
     id: CARD_ID,
     name: 'Strong Punch',
     image: STRONG_PUNCH_IMAGE,
@@ -85,10 +52,13 @@ export const StrongPunchAbility: AbilityStatic = {
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: 0.15,
-    targets: [],
-    abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: PUNCH_HITBOX.maxRange },
+    damage: PUNCH_DAMAGE,
+    range: MAX_RANGE,
+    thickness: LINE_THICKNESS,
+    impactType: 'punch',
+    windupDuration: 0.15,
+    activeDuration: 0.1,
+    cooldownDuration: 1.15,
 
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [
@@ -109,22 +79,7 @@ export const StrongPunchAbility: AbilityStatic = {
             `{knockback 1} and {${STUN_DURATION}s} stun.`,
         ];
     },
-
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < 0.25) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
-        }
-        return [];
-    },
-
-    getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: PUNCH_HITBOX.maxRange };
-    },
-
-    onAttackBlocked(): void {
-        // Melee blocked: no additional behaviour.
-    },
-};
+});
 
 export const StrongPunchCard: CardDef = {
     abilityId: CARD_ID,

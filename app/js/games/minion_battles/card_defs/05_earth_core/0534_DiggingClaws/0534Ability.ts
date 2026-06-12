@@ -1,10 +1,10 @@
-﻿/**
- * Digging Claws â€” Earth Core card. Wall-penetrating dash that damages rock tiles in transit.
+/**
+ * Digging Claws – Earth Core card. Wall-penetrating dash that damages rock tiles in transit.
  * If the dash ends inside a wall, the unit is steadily pushed out and launched (slingshot).
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../../abilities/Ability';
-import { AbilityState } from '../../../abilities/Ability';
+import { AbilityState, AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { TargetDef } from '../../../abilities/targeting';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
@@ -15,13 +15,12 @@ import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../../abilities/targetHelpers';
 import { getBodyColorForUnit, getCharacterSpriteKey } from '../../../game/units/unit_defs/unitDef';
-import { areEnemies } from '../../../game/teams';
 import { isAbilityNote } from '../../../game/AbilityNote';
-import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { ContinuousEmitter, IntervalEmitter } from '../../../game/effects/EffectEmitter';
 import type { EngineContext } from '../../../game/EngineContext';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
+import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
+import { areEnemies } from '../../../game/teams';
 import {
 	applySlingshotLaunch,
 	computeSlingshotDirection,
@@ -53,9 +52,7 @@ interface TerrainManagerLike {
 	damageRock(col: number, row: number, damage?: number, sourceUnitId?: string | null): unknown;
 }
 
-interface GameEngineLike extends EngineContext {
-	interruptUnitAndRefundAbilities(unit: Unit): void;
-}
+type GameEngineLike = EngineContext;
 
 const DIGGING_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="28" fill="#3a3028" stroke="#1a1a1a"/>
@@ -127,6 +124,12 @@ export const DiggingClawsAbility: AbilityStatic = {
 	],
 	targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
 	aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
+	abilityEvents: {
+		[AbilityEventType.ON_ATTACK_HIT]: [{
+			conditions: [{ type: 'always' }],
+			effects: [{ type: 'applyKnockbackToPrimaryTarget', tier: KNOCKBACK_TIER, sourceAbilityId: CARD_ID }],
+		}],
+	},
 
 	getTooltipText(): string[] {
 		return [
@@ -211,7 +214,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 		const eng = engine as GameEngineLike;
 		const tm = (eng.terrainManager as TerrainManagerLike | null) ?? null;
 
-		// â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+		// ── Init ──────────────────────────────────────────────────────────────────────
 		if (prevTime < 0.05 && currentTime >= 0.05) {
 			caster.setAbilityNote({
 				abilityId: CARD_ID,
@@ -226,7 +229,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 			});
 		}
 
-		// â”€â”€ Slingshot phase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+		// ── Slingshot phase ────────────────────────────────────────────────────────────
 		if (currentTime >= DASH_DURATION) {
 			if (!isAbilityNote(caster.abilityNote, CARD_ID)) {
 				return;
@@ -295,7 +298,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 			return;
 		}
 
-		// â”€â”€ Dash phase (currentTime < DASH_DURATION) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+		// ── Dash phase (currentTime < DASH_DURATION) ──────────────────────────────────
 		const pos = getPixelTargetPosition(targets, 0);
 		const dirResult = pos ? getDirectionFromTo(caster.x, caster.y, pos.x, pos.y) : null;
 		const distToTarget = dirResult?.dist ?? 0;
@@ -331,26 +334,21 @@ export const DiggingClawsAbility: AbilityStatic = {
 					}
 					maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
 				}
-
 			}
 		}
 
-		// Enemy hit detection (identical to Claw)
-		if (isAbilityNote(caster.abilityNote, CARD_ID) && dirResult && dirResult.dist > 0) {
+		// Touch damage: hit enemies overlapping the caster after movement
+		if (isAbilityNote(caster.abilityNote, CARD_ID)) {
 			const note = caster.abilityNote.abilityNote;
-			const touchRadius = caster.radius;
 			for (const unit of eng.units) {
-				if (!unit.active || !unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
-				if (unit.id === caster.id) continue;
+				if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
 				if (note.hitTargetIds.includes(unit.id)) continue;
 				if (unit.hasIFrames(eng.gameTime)) continue;
-
 				const dx = unit.x - caster.x;
 				const dy = unit.y - caster.y;
-				const dist = Math.sqrt(dx * dx + dy * dy);
-				if (dist > touchRadius + unit.radius) continue;
-
-				const blocked = !tryDamageOrBlock(unit, {
+				const touchDist = Math.sqrt(dx * dx + dy * dy);
+				if (touchDist > caster.radius + unit.radius) continue;
+				const hit = tryDamageOrBlock(unit, {
 					engine: eng,
 					gameTime: eng.gameTime,
 					eventBus: eng.eventBus,
@@ -361,16 +359,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 					damage: UNIT_DAMAGE,
 					attackType: 'melee',
 				});
-				if (blocked) continue;
-
-				note.hitTargetIds.push(unit.id);
-
-				tryApplyKnockbackByTier(
-					unit, KNOCKBACK_TIER,
-					{ unitId: caster.id, abilityId: CARD_ID },
-					caster.x, caster.y,
-					{ gameTime: eng.gameTime, roundNumber: eng.roundNumber, eventBus: eng.eventBus, interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities.bind(eng) },
-				);
+				if (hit) note.hitTargetIds.push(unit.id);
 			}
 		}
 	},

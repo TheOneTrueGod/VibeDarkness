@@ -38,6 +38,7 @@ import {
 import { laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenarios';
 import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
+import { pistolHitsDummyScenario } from './abilities/gunScenarios';
 import { absorptionShieldEnergyChargeScenario } from './abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
@@ -120,6 +121,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     laserSwordHitsTwoTargetsScenario,
     swingBatHitsThreeTargetsScenario,
     throwKnifePiercingBleedScenario,
+    pistolHitsDummyScenario,
     petAutoEngageScenario,
     petHeelScenario,
     petSicEmPounceScenario,
@@ -204,6 +206,7 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id === 'punch_research_sneaky') return '0118';
     if (id === 'punch_research_charging') return '0119';
     if (id === 'punch_new_baseline' || id.startsWith('bash_')) return '0120';
+    if (id.startsWith('pistol_') || id.startsWith('smg_') || id.startsWith('shotgun_')) return '0203';
     if (id.startsWith('throw_rock') || id.includes('throw_rock')) return 'throw_rock';
     if (id.startsWith('laser_sword')) return '0105';
     if (id.startsWith('swing_sword') || id.includes('buff_swing')) return '0112';

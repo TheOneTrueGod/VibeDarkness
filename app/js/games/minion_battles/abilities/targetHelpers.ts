@@ -4,6 +4,10 @@
  */
 
 import type { ResolvedTarget } from '../game/types';
+import type { Unit } from '../game/units/Unit';
+import type { EventBus } from '../game/EventBus';
+import { tryDamageOrBlock } from './blockingHelpers';
+import { areEnemies } from '../game/teams';
 
 /** Get pixel target position from resolved targets, or null if missing/invalid. */
 export function getPixelTargetPosition(
@@ -74,4 +78,50 @@ export function pointInCone(
     const ny = vy / dist;
     const dDot = dirX * nx + dirY * ny;
     return dDot >= Math.cos(halfAngleRad);
+}
+
+interface AoEEngine {
+    units: Unit[];
+    gameTime: number;
+    eventBus: EventBus;
+}
+
+/**
+ * Damage all enemy units within `radius` of `center` using `tryDamageOrBlock`.
+ * When `onHit` is provided it replaces the standard damage call, allowing custom
+ * damage types (e.g. un-blockable `unit.takeDamage`) or per-unit side effects.
+ */
+export function damageEnemiesInCircle(options: {
+    engine: AoEEngine;
+    caster: Unit;
+    center: { x: number; y: number };
+    radius: number;
+    damage: number;
+    abilityId: string;
+    attackType?: string;
+    onHit?: (unit: Unit) => void;
+}): void {
+    const { engine: eng, caster, center, radius, damage, abilityId, attackType = 'melee', onHit } = options;
+    const r2 = radius * radius;
+    for (const unit of eng.units) {
+        if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
+        const dx = unit.x - center.x;
+        const dy = unit.y - center.y;
+        if (dx * dx + dy * dy > r2) continue;
+        if (onHit) {
+            onHit(unit);
+        } else {
+            tryDamageOrBlock(unit, {
+                engine: eng,
+                gameTime: eng.gameTime,
+                eventBus: eng.eventBus,
+                attackerX: center.x,
+                attackerY: center.y,
+                attackerId: caster.id,
+                abilityId,
+                damage,
+                attackType: attackType as 'melee' | 'charging',
+            });
+        }
+    }
 }
