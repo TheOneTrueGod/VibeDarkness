@@ -8,7 +8,7 @@ describe('getModifiedAbilityDamage', () => {
 
     it('uses attacker damage modifier and calls getDamageModifier', () => {
         const getDamageModifier = vi.fn(() => ({ flatAmt: 2, multiplier: 1.5 }));
-        const attacker = { getDamageModifier } as unknown as import('../game/units/Unit').Unit;
+        const attacker = { getDamageModifier, stackSize: 1 } as unknown as import('../game/units/Unit').Unit;
 
         const damage = getModifiedAbilityDamage(attacker, 8);
 
