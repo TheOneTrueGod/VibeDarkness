@@ -169,13 +169,13 @@ describe('defineAbility — aiSettings defaulted from hitbox', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: onAttackBlocked defaults
+// Tests: onAttackBlocked is optional (no default no-op)
 // ---------------------------------------------------------------------------
 
-describe('defineAbility — onAttackBlocked default no-op', () => {
-    it('does not throw when called with no implementation', () => {
+describe('defineAbility — onAttackBlocked is optional', () => {
+    it('is undefined when not provided', () => {
         const ability = defineAbility(makeMinimalDef());
-        expect(() => ability.onAttackBlocked!({} as never, {} as never, {} as never)).not.toThrow();
+        expect(ability.onAttackBlocked).toBeUndefined();
     });
 
     it('honours a custom onAttackBlocked when provided', () => {

@@ -20,7 +20,6 @@ import { type CardDef } from '../types';
 import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { perpendicularSwingHitbox, ThickLineHitbox } from '../../hitboxes';
 import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 import {
@@ -101,26 +100,13 @@ const swingBatBehaviour = CastBehaviours.MeleeAttack()
             effectType: 'punch',
         }));
     })
-    .withDamage((ctx, hitUnits) => {
+    .withDamage((ctx, unit) => {
         const eng = ctx.engine as AbilityEngineContext;
         const baseDmg = getDamage(eng, ctx.caster);
-        for (const targetUnit of hitUnits) {
-            let dmg = baseDmg;
-            if (isSinglePlayerBattle(eng.units) && targetUnit.characterId === 'dark_wolf') {
-                dmg = Math.max(dmg, targetUnit.maxHp);
-            }
-            tryDamageOrBlock(targetUnit, {
-                engine: eng,
-                gameTime: eng.gameTime,
-                eventBus: eng.eventBus,
-                attackerX: ctx.caster.x,
-                attackerY: ctx.caster.y,
-                attackerId: ctx.caster.id,
-                abilityId: CARD_ID,
-                damage: dmg,
-                attackType: 'melee',
-            });
+        if (isSinglePlayerBattle(eng.units) && unit.characterId === 'dark_wolf') {
+            return Math.max(baseDmg, unit.maxHp);
         }
+        return baseDmg;
     })
     .withKnockback(3);
 
@@ -170,8 +156,6 @@ export const SwingBatAbility_0115: AbilityStatic = {
     beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {
         spawnRadiusScaledChargeUp(engine as { addEffect(effect: Effect): void }, caster, SWING_BAT_PROFILE);
     },
-
-    onAttackBlocked(): void {},
 
     renderTargetingPreview(
         gr: IAbilityPreviewGraphics,

@@ -6,7 +6,6 @@
  * engine executes it.
  *
  * Defaults applied:
- *  - `onAttackBlocked` — no-op (override for charging/projectile abilities).
  *  - `getRange`        — derived from the first timing interval that has a
  *                        `targetDef.hitbox` with a `maxRange` property. When
  *                        no such interval is found you *must* supply `getRange`
@@ -21,7 +20,6 @@ import {
     AbilityState,
     type AbilityStatic,
     type AbilityStateEntry,
-    type AttackBlockedInfo,
 } from './Ability';
 import type { AbilityTimingEntry, AbilityTimingInterval } from './abilityTimings';
 import { isAbilityTimingInterval } from './abilityTimings';
@@ -32,18 +30,13 @@ import type { Unit } from '../game/units/Unit';
 // Input type
 // ---------------------------------------------------------------------------
 
-export interface AbilityDefInput extends Omit<AbilityStatic, 'getRange' | 'onAttackBlocked' | 'getAbilityStates'> {
+export interface AbilityDefInput extends Omit<AbilityStatic, 'getRange' | 'getAbilityStates'> {
     /**
      * Optional. When omitted, `getRange` is derived from the first timing
      * interval that has a `targetDef.hitbox` with a `maxRange` property.
      * If no such interval is found, the factory will throw.
      */
     getRange?: AbilityStatic['getRange'];
-
-    /**
-     * Optional. When omitted, `onAttackBlocked` is a no-op.
-     */
-    onAttackBlocked?: AbilityStatic['onAttackBlocked'];
 
     /**
      * Optional. When provided, `getAbilityStates` returns
@@ -55,7 +48,7 @@ export interface AbilityDefInput extends Omit<AbilityStatic, 'getRange' | 'onAtt
     movementLock?: { until: number };
 
     /**
-     * Optional. Provide to override the default no-op `getAbilityStates`.
+     * Optional. When provided, overrides the default no-op `getAbilityStates`.
      */
     getAbilityStates?: AbilityStatic['getAbilityStates'];
 }
@@ -109,10 +102,6 @@ export function defineAbility(def: AbilityDefInput): AbilityStatic {
         );
     }
 
-    // --- onAttackBlocked ---
-    const onAttackBlocked: AbilityStatic['onAttackBlocked'] = def.onAttackBlocked
-        ?? ((_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void => { /* no-op */ });
-
     // --- getAbilityStates ---
     let getAbilityStates: AbilityStatic['getAbilityStates'];
     if (def.getAbilityStates) {
@@ -142,7 +131,6 @@ export function defineAbility(def: AbilityDefInput): AbilityStatic {
         ...def,
         aiSettings,
         getRange,
-        onAttackBlocked,
         getAbilityStates,
     };
 }

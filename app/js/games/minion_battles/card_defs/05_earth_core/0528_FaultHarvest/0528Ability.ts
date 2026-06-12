@@ -37,7 +37,6 @@ export const FaultHarvest: AbilityStatic = {
     getAbilityStates(): [] {
         return [];
     },
-    onAttackBlocked(): void {},
 };
 
 export const FaultHarvestCard: CardDef = {

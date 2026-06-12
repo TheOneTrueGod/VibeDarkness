@@ -203,5 +203,4 @@ export const PounceAbility: AbilityStatic = {
         return { minRange: 0, maxRange: MAX_DASH_DISTANCE };
     },
 
-    onAttackBlocked(): void {},
 };

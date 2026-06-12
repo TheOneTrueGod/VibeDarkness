@@ -11,6 +11,7 @@ import { tryDamageOrBlock, type TryDamageOrBlockParams } from '../blockingHelper
 export abstract class BaseAttackBehaviour {
     private _knockbackTier: number | null = null;
     private _damageAmount: number | null = null;
+    private _damageResolver: ((ctx: CastBehaviourTickContext, unit: Unit) => number) | null = null;
     private _damageAttackType: TryDamageOrBlockParams['attackType'] = 'melee';
     private _onDamageHook: ((ctx: CastBehaviourTickContext, unit: Unit, amountDealt: number) => void) | null = null;
     private _onBlockedHook: ((ctx: CastBehaviourTickContext, unit: Unit) => void) | null = null;
@@ -37,14 +38,25 @@ export abstract class BaseAttackBehaviour {
         this._damageAttackType = attackType;
     }
 
+    protected setDeclarativeDamageResolver(
+        fn: (ctx: CastBehaviourTickContext, unit: Unit) => number,
+        attackType: TryDamageOrBlockParams['attackType'],
+    ): void {
+        this._damageResolver = fn;
+        this._damageAttackType = attackType;
+    }
+
     protected get hasDeclarativeDamage(): boolean {
-        return this._damageAmount !== null;
+        return this._damageAmount !== null || this._damageResolver !== null;
     }
 
     /** Run tryDamageOrBlock for each hit unit, then fire onDamage/onBlocked hooks. */
     protected runDeclarativeDamage(hitUnits: Unit[], ctx: CastBehaviourTickContext): void {
-        if (this._damageAmount === null || hitUnits.length === 0) return;
+        if ((this._damageAmount === null && this._damageResolver === null) || hitUnits.length === 0) return;
         for (const unit of hitUnits) {
+            const damage = this._damageResolver !== null
+                ? this._damageResolver(ctx, unit)
+                : this._damageAmount!;
             const outcome = tryDamageOrBlock(unit, {
                 engine: ctx.engine,
                 gameTime: ctx.engine.gameTime,
@@ -53,7 +65,7 @@ export abstract class BaseAttackBehaviour {
                 attackerY: ctx.caster.y,
                 attackerId: ctx.caster.id,
                 abilityId: ctx.abilityId,
-                damage: this._damageAmount,
+                damage,
                 attackType: this._damageAttackType,
             });
             if (outcome.hit) {

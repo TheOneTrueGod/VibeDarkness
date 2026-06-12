@@ -3,7 +3,7 @@
  * If the dash ends inside a wall, the unit is steadily pushed out and launched (slingshot).
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
 import { AbilityState, AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { TargetDef } from '../../../abilities/targeting';
@@ -13,14 +13,12 @@ import type { Unit } from '../../../game/units/Unit';
 import { Effect } from '../../../game/effects/Effect';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { getPixelTargetPosition, getDirectionFromTo } from '../../../abilities/targetHelpers';
+import { getPixelTargetPosition, getDirectionFromTo, damageEnemiesTouchingCaster } from '../../../abilities/targetHelpers';
 import { getBodyColorForUnit, getCharacterSpriteKey } from '../../../game/units/unit_defs/unitDef';
 import { isAbilityNote } from '../../../game/AbilityNote';
 import { ContinuousEmitter, IntervalEmitter } from '../../../game/effects/EffectEmitter';
 import type { EngineContext } from '../../../game/EngineContext';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
-import { areEnemies } from '../../../game/teams';
 import {
 	applySlingshotLaunch,
 	computeSlingshotDirection,
@@ -340,32 +338,15 @@ export const DiggingClawsAbility: AbilityStatic = {
 		// Touch damage: hit enemies overlapping the caster after movement
 		if (isAbilityNote(caster.abilityNote, CARD_ID)) {
 			const note = caster.abilityNote.abilityNote;
-			for (const unit of eng.units) {
-				if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
-				if (note.hitTargetIds.includes(unit.id)) continue;
-				if (unit.hasIFrames(eng.gameTime)) continue;
-				const dx = unit.x - caster.x;
-				const dy = unit.y - caster.y;
-				const touchDist = Math.sqrt(dx * dx + dy * dy);
-				if (touchDist > caster.radius + unit.radius) continue;
-				const outcome = tryDamageOrBlock(unit, {
-					engine: eng,
-					gameTime: eng.gameTime,
-					eventBus: eng.eventBus,
-					attackerX: caster.x,
-					attackerY: caster.y,
-					attackerId: caster.id,
-					abilityId: CARD_ID,
-					damage: UNIT_DAMAGE,
-					attackType: 'melee',
-				});
-				if (outcome.hit) note.hitTargetIds.push(unit.id);
-			}
+			damageEnemiesTouchingCaster({
+				engine: eng,
+				caster,
+				abilityId: CARD_ID,
+				damage: UNIT_DAMAGE,
+				attackType: 'melee',
+				alreadyHitIds: note.hitTargetIds,
+			});
 		}
-	},
-
-	onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-		// Melee blocked: no additional behaviour.
 	},
 
 	renderTargetingPreview: createPixelTargetPreview(MAX_DISTANCE),

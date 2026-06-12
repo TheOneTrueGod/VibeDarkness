@@ -35,11 +35,12 @@ export interface SpriteEffectDef {
     /** When true, alpha fades from 1 to 0 over the lifetime. Default: false. */
     fadeOut?: boolean;
     /**
-     * Rotation in radians. 'random' picks a fixed random angle at visual-create time;
-     * 'aim' uses the aimAngle stored in effectData. A numeric value is a fixed angle.
-     * Default: 0.
+     * Rotation in radians. 'aim' uses the aimAngle stored in effectData (set via spawnSpriteEffect's
+     * aimX/aimY params). A numeric value is a fixed angle. Default: 0.
+     * Note: random rotation must be pre-computed by the caller (pass a numeric value) since
+     * Math.random() is forbidden in game/ for determinism.
      */
-    rotation?: number | 'random' | 'aim';
+    rotation?: number | 'aim';
     /** Colour tint applied to the sprite (0xRRGGBB). Default: 0xffffff (no tint). */
     tint?: number;
 }
@@ -62,6 +63,17 @@ export const SPRITE_EFFECT_DEFS: Record<string, SpriteEffectDef> = {
         scale: { from: 12, to: 6 },
         fadeOut: true,
         tint: 0x9933cc,
+    },
+    /**
+     * Bright claw-flash particle: white star-burst that expands and fades over 0.3 s.
+     * Used via spriteEffectId in emitterDef for dash-attack abilities (e.g. Claw 0111).
+     */
+    clawFlash: {
+        svg: `<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg"><path d="M16 2 L17.5 14 L28 8 L18.5 16 L28 24 L17.5 18 L16 30 L14.5 18 L4 24 L13.5 16 L4 8 L14.5 14 Z" fill="white"/></svg>`,
+        duration: 0.3,
+        scale: { from: 8, to: 20 },
+        fadeOut: true,
+        tint: 0xcceeff,
     },
 };
 
@@ -101,18 +113,14 @@ export const spriteEffectDef: IEffectDef = {
         const sprite = new Sprite(texture ?? Texture.EMPTY);
         sprite.anchor.set(0.5, 0.5);
 
-        // Resolve initial rotation.
-        // Note: Math.random() is forbidden in game/ for determinism. Callers that want
-        // random rotation must pre-compute the angle in card_defs/** and pass it as a
-        // numeric `rotation` override to spawnSpriteEffect. The 'random' sentinel is
-        // kept in the type for documentation but treated as 0 here.
+        // Resolve initial rotation. Callers that want random rotation must pre-compute the
+        // angle in card_defs/** and pass it as a numeric `rotation` override to spawnSpriteEffect.
         const rotation = data.rotationOverride ?? def?.rotation ?? 0;
         if (rotation === 'aim') {
             sprite.rotation = data.aimAngle ?? 0;
-        } else if (typeof rotation === 'number') {
-            sprite.rotation = rotation;
+        } else {
+            sprite.rotation = rotation as number;
         }
-        // 'random': treated as 0 — caller should have passed a numeric override.
 
         return sprite;
     },

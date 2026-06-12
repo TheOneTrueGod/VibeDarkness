@@ -91,9 +91,6 @@ export const LaserSwordAbility: AbilityStatic = {
         return [];
     },
 
-    onAttackBlocked(): void {
-        // Melee blocked: no additional behaviour.
-    },
 };
 
 export const LaserSwordCard: CardDef = {

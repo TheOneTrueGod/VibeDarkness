@@ -131,7 +131,6 @@ function assignHitSlots(candidates: Unit[], cap: number): Unit[] {
 export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBehaviour {
     private hitboxDef: HitboxDef | HitboxSpec | null = null;
     private impactEffectType: string = 'punch';
-    private damageCallback: ((ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void) | null = null;
     private impactVFXCallback: ((ctx: CastBehaviourTickContext, hitUnits: Unit[], aimX: number, aimY: number) => void) | null = null;
     private impactAt: number = 0.4;
     private slideConfig = { forwardDistance: 12, backwardDistance: 0 };
@@ -148,16 +147,15 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
     }
 
     withDamage(amount: number, opts?: { attackType?: TryDamageOrBlockParams['attackType'] }): this;
-    /** @deprecated Use withDamage(amount) and onDamage() for per-unit riders instead. */
-    withDamage(fn: (ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void): this;
+    withDamage(resolver: (ctx: CastBehaviourTickContext, unit: Unit) => number, opts?: { attackType?: TryDamageOrBlockParams['attackType'] }): this;
     withDamage(
-        amountOrFn: number | ((ctx: CastBehaviourTickContext, hitUnits: Unit[]) => void),
+        amountOrResolver: number | ((ctx: CastBehaviourTickContext, unit: Unit) => number),
         opts?: { attackType?: TryDamageOrBlockParams['attackType'] },
     ): this {
-        if (typeof amountOrFn === 'number') {
-            this.setDeclarativeDamage(amountOrFn, opts?.attackType ?? 'melee');
+        if (typeof amountOrResolver === 'number') {
+            this.setDeclarativeDamage(amountOrResolver, opts?.attackType ?? 'melee');
         } else {
-            this.damageCallback = amountOrFn;
+            this.setDeclarativeDamageResolver(amountOrResolver, opts?.attackType ?? 'melee');
         }
         return this;
     }
@@ -411,13 +409,9 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
             }));
         }
 
-        // Apply damage — declarative path takes priority over legacy callback.
+        // Apply damage via the declarative path.
         if (hitUnits.length > 0) {
-            if (this.hasDeclarativeDamage) {
-                this.runDeclarativeDamage(hitUnits, ctx);
-            } else if (this.damageCallback != null) {
-                this.damageCallback(ctx, hitUnits);
-            }
+            this.runDeclarativeDamage(hitUnits, ctx);
         }
 
         // Apply tier-based knockback (if configured via withKnockback).

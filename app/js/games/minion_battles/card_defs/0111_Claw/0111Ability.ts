@@ -53,6 +53,11 @@ export const ClawAbility: AbilityStatic = {
 					damage: DAMAGE,
 					attackType: 'melee',
 				}),
+			emitterDef: {
+				mode: 'instant',
+				spriteEffectId: 'clawFlash',
+				effectDuration: 0.3,
+			},
 		},
 		{ id: 'cooldown', start: CLAW_DURATION, end: CLAW_DURATION + 0.8, abilityPhase: AbilityPhase.Cooldown },
 	],

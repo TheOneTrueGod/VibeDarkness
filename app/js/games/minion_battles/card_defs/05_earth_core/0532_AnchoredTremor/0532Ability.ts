@@ -98,7 +98,6 @@ export const AnchoredTremor: AbilityStatic = {
     getAbilityStates(): [] {
         return [];
     },
-    onAttackBlocked(): void {},
 };
 
 export const AnchoredTremorCard: CardDef = {

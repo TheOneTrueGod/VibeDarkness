@@ -17,6 +17,23 @@ import {
 import type { AbilityTimingEmitterDef } from './abilityTimings';
 
 /**
+ * Resolve the effectType and effectData for an emitter def, applying spriteEffectId shorthand
+ * when present: spriteEffectId sets effectType='SpriteEffect' and injects defId into effectData.
+ */
+function resolveEmitterEffectFields(def: AbilityTimingEmitterDef): { effectType: string; effectData: Record<string, unknown> } {
+    if (def.spriteEffectId) {
+        return {
+            effectType: 'SpriteEffect',
+            effectData: { defId: def.spriteEffectId, ...def.effectData },
+        };
+    }
+    return {
+        effectType: (def as { effectType?: string }).effectType ?? '',
+        effectData: def.effectData ? { ...def.effectData } : {},
+    };
+}
+
+/**
  * Create an EffectEmitter from a declarative AbilityTimingEmitterDef.
  * The emitter's position is set to the caster's position at instantiation time.
  */
@@ -32,6 +49,7 @@ export function createEmitterFromDef(
 ): EffectEmitter {
     if (def.mode === 'instant') {
         const count = def.count ?? 1;
+        const { effectType, effectData } = resolveEmitterEffectFields(def);
         return new OneShotEmitter({
             x: config.x,
             y: config.y,
@@ -43,8 +61,8 @@ export function createEmitterFromDef(
                         x: emitter.x,
                         y: emitter.y,
                         duration: def.effectDuration ?? 1,
-                        effectType: def.effectType,
-                        effectData: def.effectData ? { ...def.effectData } : {},
+                        effectType,
+                        effectData: { ...effectData },
                     }));
                 }
                 return effects;
@@ -53,6 +71,7 @@ export function createEmitterFromDef(
     }
 
     if (def.mode === 'interval') {
+        const { effectType, effectData } = resolveEmitterEffectFields(def);
         return new IntervalEmitter({
             x: config.x,
             y: config.y,
@@ -65,15 +84,16 @@ export function createEmitterFromDef(
                     x: emitter.x,
                     y: emitter.y,
                     duration: def.effectDuration ?? 1,
-                    effectType: def.effectType,
+                    effectType,
                     effectRadius: def.effectRadius,
-                    effectData: def.effectData ? { ...def.effectData } : {},
+                    effectData: { ...effectData },
                 }),
             ],
         });
     }
 
     // mode === 'continuous'
+    const { effectType, effectData } = resolveEmitterEffectFields(def);
     return new ContinuousEmitter({
         x: config.x,
         y: config.y,
@@ -86,8 +106,8 @@ export function createEmitterFromDef(
                 x: emitter.x,
                 y: emitter.y,
                 duration: def.effectDuration ?? 1,
-                effectType: def.effectType,
-                effectData: def.effectData ? { ...def.effectData } : {},
+                effectType,
+                effectData: { ...effectData },
             }),
         ],
     });

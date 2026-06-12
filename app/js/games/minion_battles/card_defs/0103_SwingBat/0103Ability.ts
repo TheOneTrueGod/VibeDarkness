@@ -16,7 +16,6 @@ import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../.
 import { AbilityEventType, AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
-import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
@@ -76,27 +75,12 @@ const swingStickBehaviour = CastBehaviours.MeleeAttack()
             effectType: 'punch',
         }));
     })
-    .withDamage((ctx, hitUnits) => {
-        if (hitUnits.length === 0) return;
-        const targetUnit = hitUnits[0]!;
+    .withDamage((ctx, unit) => {
         const eng = ctx.engine as AbilityEngineContext;
-
-        let hitDamage = DAMAGE;
-        if (isSinglePlayerBattle(eng.units) && targetUnit.characterId === 'dark_wolf') {
-            hitDamage = Math.max(DAMAGE, targetUnit.maxHp);
+        if (isSinglePlayerBattle(eng.units) && unit.characterId === 'dark_wolf') {
+            return Math.max(DAMAGE, unit.maxHp);
         }
-
-        tryDamageOrBlock(targetUnit, {
-            engine: eng,
-            gameTime: eng.gameTime,
-            eventBus: eng.eventBus,
-            attackerX: ctx.caster.x,
-            attackerY: ctx.caster.y,
-            attackerId: ctx.caster.id,
-            abilityId: CARD_ID,
-            damage: hitDamage,
-            attackType: 'melee',
-        });
+        return DAMAGE;
     });
 
 // ---- Timings ----
@@ -167,9 +151,6 @@ export const SwingBatAbility_0103: AbilityStatic = {
         spawnRadiusScaledChargeUp(engine as { addEffect(effect: Effect): void }, caster, BASE_PROFILE);
     },
 
-    onAttackBlocked(): void {
-        // Melee blocked: no additional behaviour.
-    },
 };
 
 export const SwingBatCard: CardDef = {

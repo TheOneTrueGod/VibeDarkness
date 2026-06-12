@@ -291,13 +291,16 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
         case 'triggerAoEExplosion': {
             const projectile = context.projectile;
             if (!projectile) return;
-            const { effectType, effectRadius, damage, maxTargets, knockbackTier, effectDuration = 0.25 } = effect;
+            const { effectRadius, damage, maxTargets, knockbackTier, effectDuration = 0.25 } = effect;
+            const resolvedEffectType = effect.spriteEffectId ? 'SpriteEffect' : (effect.effectType ?? '');
+            const resolvedEffectData = effect.spriteEffectId ? { defId: effect.spriteEffectId } : undefined;
             context.engine.addEffect?.(new Effect({
                 x: projectile.x,
                 y: projectile.y,
                 duration: effectDuration,
-                effectType,
+                effectType: resolvedEffectType,
                 effectRadius,
+                effectData: resolvedEffectData,
             }));
             const allUnits = context.engine.units ?? [];
             const hits = allUnits

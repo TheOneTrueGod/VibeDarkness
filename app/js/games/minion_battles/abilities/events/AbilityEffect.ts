@@ -45,8 +45,17 @@ export type AbilityEffect =
     | { type: 'setAbilityNote'; abilityId: string; note: Record<string, unknown> }
     | {
         type: 'triggerAoEExplosion';
-        /** EffectType string passed to the spawned Effect (controls the visual). */
-        effectType: string;
+        /**
+         * EffectType string passed to the spawned Effect (controls the visual).
+         * Omit when `spriteEffectId` is set — the runtime will use `'SpriteEffect'` automatically.
+         */
+        effectType?: string;
+        /**
+         * Named SpriteEffectDef id (key in SPRITE_EFFECT_DEFS). When set, the explosion visual
+         * uses `effectType: 'SpriteEffect'` with `effectData: { defId }`. Provide this instead of
+         * spelling out effectType for sprite-based explosion visuals.
+         */
+        spriteEffectId?: string;
         /** Blast radius in pixels. Units within this distance of the projectile's death position are hit. */
         effectRadius: number;
         /** Base damage dealt to each unit in the radius. */

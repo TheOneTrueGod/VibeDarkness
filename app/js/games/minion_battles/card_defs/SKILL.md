@@ -154,9 +154,9 @@ abilityTagFilter: ['Entombed'],
 
 ### Blocking and `onAttackBlocked`
 
-- **`onAttackBlocked(engine, defender, attackInfo)`** — **Required** on every ability. Called when this ability's attack is blocked. Behaviour varies by ability type:
+- **`onAttackBlocked(engine, defender, attackInfo)`** — **Optional**. Called when this ability's attack is blocked. Omit it for melee abilities (no-op is the default). Behaviour varies by ability type:
   - **Projectile abilities**: Deactivate the projectile; no damage dealt.
-  - **Melee abilities**: No-op; no damage dealt.
+  - **Melee abilities**: Omit entirely — `onAttackBlocked` is optional and defaults to nothing.
   - **Charging abilities**: Apply knockback to the attacker and clear the ability note.
 - **Blocking abilities**: Implement `getBlockingArc(caster, activeAbility, currentTime)` to return the blocking arc in radians. Projectiles must be created with `sourceAbilityId` so the engine knows which ability's `onAttackBlocked` to call.
 

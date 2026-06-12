@@ -7,6 +7,7 @@ import type { ResolvedTarget } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
 import { tryDamageOrBlock } from './blockingHelpers';
+import type { TryDamageOrBlockParams } from './blockingHelpers';
 import { areEnemies } from '../game/teams';
 
 /** Get pixel target position from resolved targets, or null if missing/invalid. */
@@ -123,5 +124,44 @@ export function damageEnemiesInCircle(options: {
                 attackType: attackType as 'melee' | 'charging',
             });
         }
+    }
+}
+
+/**
+ * Damage all living enemies that overlap the caster (touch semantics: dist <= caster.radius + unit.radius),
+ * skipping units in `alreadyHitIds` and units with active iFrames.
+ * Appends newly-hit unit ids to `alreadyHitIds` (the caller owns the array so it round-trips through
+ * ability notes / checkpoints unchanged).
+ */
+export function damageEnemiesTouchingCaster(options: {
+    engine: AoEEngine;
+    caster: Unit;
+    abilityId: string;
+    damage: number;
+    attackType: TryDamageOrBlockParams['attackType'];
+    alreadyHitIds: string[];
+    respectIFrames?: boolean;
+}): void {
+    const { engine: eng, caster, abilityId, damage, attackType, alreadyHitIds, respectIFrames = true } = options;
+    for (const unit of eng.units) {
+        if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
+        if (alreadyHitIds.includes(unit.id)) continue;
+        if (respectIFrames && unit.hasIFrames(eng.gameTime)) continue;
+        const dx = unit.x - caster.x;
+        const dy = unit.y - caster.y;
+        const touchDist = Math.sqrt(dx * dx + dy * dy);
+        if (touchDist > caster.radius + unit.radius) continue;
+        const outcome = tryDamageOrBlock(unit, {
+            engine: eng,
+            gameTime: eng.gameTime,
+            eventBus: eng.eventBus,
+            attackerX: caster.x,
+            attackerY: caster.y,
+            attackerId: caster.id,
+            abilityId,
+            damage,
+            attackType,
+        });
+        if (outcome.hit) alreadyHitIds.push(unit.id);
     }
 }

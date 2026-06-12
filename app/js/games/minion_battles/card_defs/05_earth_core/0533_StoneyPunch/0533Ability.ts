@@ -55,7 +55,6 @@ export const StoneyPunch: AbilityStatic = {
     getAbilityStates(): [] {
         return [];
     },
-    onAttackBlocked(): void {},
 };
 
 export const StoneyPunchCard: CardDef = {

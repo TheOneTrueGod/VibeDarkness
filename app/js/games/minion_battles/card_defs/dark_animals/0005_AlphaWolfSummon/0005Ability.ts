@@ -199,9 +199,6 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
         }
     },
 
-    onAttackBlocked(): void {
-        // Summon has no direct attack.
-    },
 };
 
 export const AlphaWolfSummonCard: CardDef = {

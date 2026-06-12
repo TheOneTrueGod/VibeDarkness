@@ -54,13 +54,20 @@ type EmitterDefShared = {
      * Static effectData fields take precedence over auto-resolved values.
      */
     useCasterVisualData?: boolean;
+    /**
+     * Named SpriteEffectDef id (key in SPRITE_EFFECT_DEFS). When set, the emitter
+     * automatically uses `effectType: 'SpriteEffect'` with `effectData: { defId }`.
+     * Provide this instead of spelling out effectType + effectData for sprite-based visuals.
+     * Overrides `effectType` and merges with any explicit `effectData`.
+     */
+    spriteEffectId?: string;
 };
 
 export type AbilityTimingEmitterDef = EmitterDefShared & (
     | {
         mode: 'instant';
-        /** effectType string matching an effectDefRegistry key */
-        effectType: string;
+        /** effectType string matching an effectDefRegistry key. Omit when spriteEffectId is set. */
+        effectType?: string;
         effectData?: Record<string, unknown>;
         /** Emit N copies at once. Default 1. */
         count?: number;
@@ -68,7 +75,8 @@ export type AbilityTimingEmitterDef = EmitterDefShared & (
     | {
         mode: 'interval';
         intervalSeconds: number;
-        effectType: string;
+        /** effectType string matching an effectDefRegistry key. Omit when spriteEffectId is set. */
+        effectType?: string;
         effectData?: Record<string, unknown>;
         /** Optional radius passed to Effect.effectRadius (for size-dependent visuals). */
         effectRadius?: number;
@@ -77,7 +85,8 @@ export type AbilityTimingEmitterDef = EmitterDefShared & (
       }
     | {
         mode: 'continuous';
-        effectType: string;
+        /** effectType string matching an effectDefRegistry key. Omit when spriteEffectId is set. */
+        effectType?: string;
         effectData?: Record<string, unknown>;
         emitWhilePaused?: boolean;
         /** Emit every N render frames. Default 1. */

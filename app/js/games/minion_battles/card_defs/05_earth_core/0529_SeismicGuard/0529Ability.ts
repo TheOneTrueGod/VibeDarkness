@@ -63,7 +63,6 @@ export const SeismicGuard: AbilityStatic = {
     getAbilityStates(): [] {
         return [];
     },
-    onAttackBlocked(): void {},
 };
 
 export const SeismicGuardCard: CardDef = {

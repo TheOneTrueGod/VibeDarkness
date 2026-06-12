@@ -63,9 +63,6 @@ export class DashBehaviour implements CastBehaviour {
     /** Stop dash movement after this many successful hits; null = never stop on hit. */
     private _stopAfterHits: number | null = null;
     private _onHitCallback: ((hitUnit: Unit, ctx: CastBehaviourTickContext) => void) | null = null;
-    /** When false, movement is skipped and only hitbox detection runs each tick. */
-    private _movementEnabled: boolean = true;
-
     withMaxDistance(px: number): this {
         this._maxDistance = px;
         return this;
@@ -102,16 +99,6 @@ export class DashBehaviour implements CastBehaviour {
     /** Shorthand for {@link withStopAfterHits}(1). */
     withStopOnHit(enabled = true): this {
         this._stopAfterHits = enabled ? 1 : null;
-        return this;
-    }
-
-    /**
-     * Disable movement so only the hitbox detection runs each tick.
-     * Use when doCardEffect (or another system) handles movement but you still
-     * want the declarative addHitbox() hit-detection and dedup.
-     */
-    withMovement(enabled: boolean): this {
-        this._movementEnabled = enabled;
         return this;
     }
 
@@ -175,7 +162,7 @@ export class DashBehaviour implements CastBehaviour {
         const { targetX, targetY, maxDistance } = payload;
         const distToTarget = Math.hypot(targetX - ctx.caster.x, targetY - ctx.caster.y);
 
-        if (this._movementEnabled && !payload.stopped && distToTarget > 0) {
+        if (!payload.stopped && distToTarget > 0) {
             const progressDelta = ctx.windowProgress - ctx.prevWindowProgress;
             const moveThisTick = Math.min(progressDelta * maxDistance, distToTarget);
             if (moveThisTick > 0) {
