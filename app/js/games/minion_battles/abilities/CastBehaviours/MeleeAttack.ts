@@ -13,6 +13,7 @@ import type {
     CastBehaviourRenderContext,
 } from '../castBehaviourTypes';
 import { BaseAttackBehaviour } from './BaseAttackBehaviour';
+import { getLockOnRange as getLockOnRangeFromMax } from '../targetLockTracking';
 
 // ---- Easing (mirrored from meleeAnimationProfile.ts) ----
 
@@ -41,9 +42,6 @@ function dirFromTo(
     return { dirX: dx / len, dirY: dy / len };
 }
 
-// How many px beyond the hitbox range a locked unit can roam before losing guaranteed-hit status.
-const LOCK_ON_TETHER_EXTRA = 100;
-
 /**
  * Returns the effective max range for pixel-target clamping.
  * Returns null when the hitbox has no meaningful range (custom shape or absent).
@@ -59,12 +57,11 @@ function getHitboxMaxRange(def: HitboxDef | HitboxSpec | null): number | null {
 }
 
 function getLockOnRange(def: HitboxDef | HitboxSpec | null): number {
-    if (def === null) return LOCK_ON_TETHER_EXTRA;
-    // HitboxSpec exposes .maxRange directly; HitboxDef.shape === 'custom' has no meaningful range.
-    if ('maxRange' in def) return def.maxRange + LOCK_ON_TETHER_EXTRA;
-    if (def.shape === 'custom') return LOCK_ON_TETHER_EXTRA;
-    if (def.range === 'caster') return LOCK_ON_TETHER_EXTRA;
-    return def.range + LOCK_ON_TETHER_EXTRA;
+    if (def === null) return getLockOnRangeFromMax(null);
+    if ('maxRange' in def) return getLockOnRangeFromMax(def.maxRange);
+    if (def.shape === 'custom') return getLockOnRangeFromMax(null);
+    if (def.range === 'caster') return getLockOnRangeFromMax(null);
+    return getLockOnRangeFromMax(def.range);
 }
 
 // ---- Payload ----

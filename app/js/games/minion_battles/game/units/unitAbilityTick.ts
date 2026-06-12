@@ -27,6 +27,10 @@ import {
 } from '../../abilities/castBehaviourTypes';
 import { isSelectTargetDef, isHitTargetDef } from '../../abilities/timingTargetDef';
 import { triggerAbilityEvent } from '../../abilities/events';
+import {
+    lockTelegraphOnTargetEvade,
+    updateTelegraphTracking,
+} from '../../abilities/telegraphTracking';
 
 /**
  * Resolve the `target` for a castBehaviour entry, preferring `targetsByLabel`
@@ -244,6 +248,8 @@ export function tickUnitActiveAbilities(
             continue;
         }
 
+        updateTelegraphTracking(unit, active, ability, currentTime, engine);
+
         // castBehaviours: evade-break on interval enter (declarative and legacy paths)
         for (const interval of intervals) {
             if (!entered.has(interval.id)) continue;
@@ -287,6 +293,19 @@ export function tickUnitActiveAbilities(
                         },
                     };
                     rec.entry.behaviour.onTargetEvade?.(unit.id, snapshot, baseCtx);
+                }
+                for (const otherActive of otherUnit.activeAbilities) {
+                    const otherAbility = getAbility(otherActive.abilityId);
+                    if (!otherAbility) continue;
+                    lockTelegraphOnTargetEvade(
+                        otherUnit,
+                        otherActive,
+                        otherAbility,
+                        unit.id,
+                        snapshot,
+                        engine.gameTime - otherActive.startTime,
+                        engine,
+                    );
                 }
             }
         }

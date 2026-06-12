@@ -12,6 +12,7 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import type { AssetRegistry } from '../AssetRegistry';
 import type { OverlayRenderer } from './OverlayRenderer';
 import type { AbilityStatic, AbilityTelegraph, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import { asTelegraphPayload } from '../../../abilities/telegraphTracking';
 import type { ResolvedTarget, GhostPlanData, ActiveAbility } from '../../types';
 
 const MOVE_TARGET_COLOR = 0x333333;
@@ -311,11 +312,10 @@ export class PreviewRenderer {
         active: ActiveAbility,
         gameTime: number,
     ): void {
-        const payload = active.castPayload as { telegraphTargetX?: number; telegraphTargetY?: number } | undefined;
+        const payload = asTelegraphPayload(active.castPayload);
         if (payload == null) return;
         const targetX = payload.telegraphTargetX;
         const targetY = payload.telegraphTargetY;
-        if (targetX === undefined || targetY === undefined) return;
 
         const elapsed = gameTime - active.startTime;
         const progress = prefireTime > 0 ? Math.min(1, elapsed / prefireTime) : 1;

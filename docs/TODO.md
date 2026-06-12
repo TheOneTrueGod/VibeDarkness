@@ -14,6 +14,7 @@
 
 | Todo | Notes |
 |------|-------|
+| Remove dead `meleeTrackingHelpers` module | After telegraph windup tracking ships, confirm `meleeTrackingHelpers.ts` is unused at runtime (only `renderMeleeTrackingHighlights` / `buildHitboxContext` may remain in Swing Bat). Delete the orphaned entry/update/aim helpers and `meleeTrackingHelpers.test.ts`, or fold any still-needed pieces into `telegraphTracking.ts`. |
 
 ## Medium
 

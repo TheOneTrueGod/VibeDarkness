@@ -115,6 +115,11 @@ export interface AbilityTelegraph {
     startRadius: number;
     /** Pixi tint color (e.g. 0xff0000 for red). */
     color: number;
+    /**
+     * When true, the windup circle follows the primary unit target until lock breaks
+     * (dodge or tether). Pixel targets remain static. Default false unless set by a factory.
+     */
+    trackTarget?: boolean;
 }
 
 /**

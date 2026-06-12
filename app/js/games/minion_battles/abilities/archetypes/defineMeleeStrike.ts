@@ -190,7 +190,9 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         targets: config.targets ?? [{ type: 'unit', label: 'Target' }],
         abilityTimings: ABILITY_TIMINGS,
         aiSettings,
-        telegraph: config.telegraph,
+        telegraph: config.telegraph
+            ? { ...config.telegraph, trackTarget: config.telegraph.trackTarget ?? true }
+            : undefined,
         abilityEvents: config.abilityEvents,
         movementLock: { until: movementLockUntil },
         getTooltipText: config.getTooltipText,
