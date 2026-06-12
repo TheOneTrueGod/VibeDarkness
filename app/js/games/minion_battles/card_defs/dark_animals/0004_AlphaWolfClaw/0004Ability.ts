@@ -1,176 +1,48 @@
-﻿/**
+/**
  * AlphaWolfClaw - Alpha Wolf boss melee ability.
  * Hits in a square in front of the caster. 0.8s windup, punch effect, moderate knockback.
  * Damage similar to wolf bite. Max 2 uses per round.
  */
 
-import { AbilityState } from '../../../abilities/Ability';
-import type {
-    AbilityStatic,
-    AbilityStateEntry,
-    AttackBlockedInfo,
-    IAbilityPreviewGraphics,
-} from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
+import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import type { Unit } from '../../../game/units/Unit';
-import type { TargetDef } from '../../../abilities/targeting';
-import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
+import type { ActiveAbility } from '../../../game/types';
 import { type CardDef } from '../../types';
 import { Effect } from '../../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { getPixelTargetPosition } from '../../../abilities/targetHelpers';
-import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import { drawEnemyConvexQuadHitboxTelegraph } from '../../../abilities/previewHelpers';
-import { areEnemies } from '../../../game/teams';
-import type { EventBus } from '../../../game/EventBus';
+import { convexQuadHitbox } from '../../../hitboxes/ConvexQuadHitbox';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { defineAbility } from '../../../abilities/defineAbility';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}04`;
 const PREFIRE_TIME = 0.8;
-const BASE_MIN_RANGE = 0;
-const BASE_MAX_RANGE = 40;
+const ACTIVE_DURATION = 0.1;
+const COOLDOWN_DURATION = 1.5;
+const ACTIVE_END = PREFIRE_TIME + ACTIVE_DURATION;
+const TOTAL_DURATION = ACTIVE_END + COOLDOWN_DURATION;
 const DAMAGE = 15;
 const CLAW_EFFECT_DURATION = 0.4;
 const KNOCKBACK_TIER = 2;
 /** Square side length (px) for hitbox and preview. */
 const BOX_SIZE = 44;
+const REACH = 40;
 /** Match brief active phase after prefire so the outline stays fully red through impact. */
 const CLAW_PREVIEW_HOLD_RED = 0.12;
 
-function getMinRange(_caster: Unit): number {
-    return BASE_MIN_RANGE;
-}
+const HITBOX = convexQuadHitbox(REACH, BOX_SIZE);
 
-function getMaxRange(caster: Unit): number {
-    return BASE_MAX_RANGE + caster.radius;
-}
-
-/** Get the axis-aligned square corners in front of caster, oriented by aim. */
-function getSquareInFront(
-    caster: { x: number; y: number; radius: number },
-    target: { x: number; y: number },
-    minRange: number,
-    maxRange: number,
-): { corners: { x: number; y: number }[]; centerX: number; centerY: number; aimDirX: number; aimDirY: number } {
-    const dx = target.x - caster.x;
-    const dy = target.y - caster.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const aimDirX = dist > 0 ? dx / dist : 1;
-    const aimDirY = dist > 0 ? dy / dist : 0;
-    const clampedDist = Math.max(minRange, Math.min(maxRange, dist || maxRange));
-    const centerX = caster.x + aimDirX * (caster.radius + clampedDist);
-    const centerY = caster.y + aimDirY * (caster.radius + clampedDist);
-    const half = BOX_SIZE / 2;
-    const perpX = -aimDirY * half;
-    const perpY = aimDirX * half;
-    const corners = [
-        { x: centerX - aimDirX * half - perpX, y: centerY - aimDirY * half - perpY },
-        { x: centerX - aimDirX * half + perpX, y: centerY - aimDirY * half + perpY },
-        { x: centerX + aimDirX * half + perpX, y: centerY + aimDirY * half + perpY },
-        { x: centerX + aimDirX * half - perpX, y: centerY + aimDirY * half - perpY },
-    ];
-    return { corners, centerX, centerY, aimDirX, aimDirY };
-}
-
-/** Point-in-polygon (convex quad) test. */
-function pointInQuad(
-    px: number,
-    py: number,
-    q0: { x: number; y: number },
-    q1: { x: number; y: number },
-    q2: { x: number; y: number },
-    q3: { x: number; y: number },
-): boolean {
-    const sign = (a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) =>
-        (a.x - c.x) * (b.y - c.y) - (b.x - c.x) * (a.y - c.y);
-    const d0 = sign({ x: px, y: py }, q0, q1);
-    const d1 = sign({ x: px, y: py }, q1, q2);
-    const d2 = sign({ x: px, y: py }, q2, q3);
-    const d3 = sign({ x: px, y: py }, q3, q0);
-    return (d0 >= 0 && d1 >= 0 && d2 >= 0 && d3 >= 0) || (d0 <= 0 && d1 <= 0 && d2 <= 0 && d3 <= 0);
-}
-
-interface GameEngineLike {
-    units: Unit[];
-    getUnit(id: string): Unit | undefined;
-    addEffect(effect: Effect): void;
-    gameTime: number;
-    roundNumber?: number;
-    eventBus: EventBus;
-    interruptUnitAndRefundAbilities(unit: Unit): void;
-}
-
-const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-  <path d="M20 40 L28 28 L36 36 L44 24 M24 44 L32 32 L40 40" stroke="#5d4e37" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <circle cx="32" cy="32" r="12" fill="#2d2d2d" stroke="#1a1a1a"/>
-</svg>`;
-
-export const AlphaWolfClawAbility: AbilityStatic = {
-    id: CARD_ID,
-    name: 'Alpha Wolf Claw',
-    image: CLAW_IMAGE,
-    resourceCost: null,
-    rechargeTurns: 0,
-    prefireTime: PREFIRE_TIME,
-    abilityTimings: [
-        { id: 'windup', start: 0, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
-        {
-            id: 'active',
-            start: PREFIRE_TIME,
-            end: PREFIRE_TIME + 0.1,
-            abilityPhase: AbilityPhase.Active,
-        },
-        {
-            id: 'cooldown',
-            start: PREFIRE_TIME + 0.1,
-            end: PREFIRE_TIME + 1.6,
-            abilityPhase: AbilityPhase.Cooldown,
-        },
-    ],
-    targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
-    aiSettings: {
-        minRange: getMinRange({} as Unit),
-        maxRange: getMaxRange({ radius: 26 } as Unit),
-        maxUsesPerRound: 2,
-        priority: 10,
-    },
-
-    getTooltipText(_gameState?: unknown): string[] {
-        return [`Slash in a square in front, dealing {${DAMAGE}} damage and knocking back enemies.`];
-    },
-
-    getRange(caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: getMinRange(caster), maxRange: getMaxRange(caster) };
-    },
-
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < PREFIRE_TIME) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
-        }
-        return [];
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
-
-        const pos = getPixelTargetPosition(targets, 0);
-        if (!pos) return;
-
-        const eng = engine as GameEngineLike;
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        const { corners, centerX, centerY } = getSquareInFront(caster, pos, minR, maxR);
-
-        const hitUnits: Unit[] = [];
-        for (const unit of eng.units) {
-            if (!unit.active || !unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
-            if (unit.id === caster.id) continue;
-            if (pointInQuad(unit.x, unit.y, corners[0]!, corners[1]!, corners[2]!, corners[3]!)) {
-                hitUnits.push(unit);
-            }
-        }
-
-        eng.addEffect(
+const SWING_BEHAVIOUR = CastBehaviours.MeleeAttack()
+    .withHitbox(HITBOX)
+    .withDamage(DAMAGE, { attackType: 'melee' })
+    .withKnockback(KNOCKBACK_TIER)
+    .withImpactAt(0.0)
+    .withSlide({ forwardDistance: 12, backwardDistance: 0 })
+    .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
+        const { corners, centerX, centerY } = HITBOX.getQuadGeometry(ctx.caster, { x: aimX, y: aimY });
+        ctx.engine.addEffect(
             new Effect({
                 x: centerX + (corners[2]!.x - centerX) * 0.5,
                 y: centerY + (corners[2]!.y - centerY) * 0.5,
@@ -180,34 +52,47 @@ export const AlphaWolfClawAbility: AbilityStatic = {
                 startY: corners[0]!.y,
             }),
         );
+    });
 
-        for (const targetUnit of hitUnits) {
-            if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) continue;
+const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <path d="M20 40 L28 28 L36 36 L44 24 M24 44 L32 32 L40 40" stroke="#5d4e37" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="12" fill="#2d2d2d" stroke="#1a1a1a"/>
+</svg>`;
 
-            const outcome = tryDamageOrBlock(targetUnit, {
-                engine: eng,
-                gameTime: eng.gameTime,
-                eventBus: eng.eventBus,
-                attackerX: caster.x,
-                attackerY: caster.y,
-                attackerId: caster.id,
-                abilityId: CARD_ID,
-                damage: DAMAGE,
-                attackType: 'melee',
-            });
-            if (!outcome.hit) continue;
-
-            tryApplyKnockbackByTier(
-                targetUnit, KNOCKBACK_TIER,
-                { unitId: caster.id, abilityId: CARD_ID },
-                caster.x, caster.y,
-                { gameTime: eng.gameTime, roundNumber: eng.roundNumber ?? 1, eventBus: eng.eventBus, interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities.bind(eng) },
-            );
-        }
+export const AlphaWolfClawAbility = defineAbility({
+    id: CARD_ID,
+    name: 'Alpha Wolf Claw',
+    image: CLAW_IMAGE,
+    resourceCost: null,
+    rechargeTurns: 0,
+    prefireTime: PREFIRE_TIME,
+    targets: [{ type: 'pixel', label: 'Target point' }],
+    abilityTimings: [
+        { id: 'windup',   start: 0,           end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
+        {
+            id: 'active',
+            start: PREFIRE_TIME,
+            end: ACTIVE_END,
+            abilityPhase: AbilityPhase.Active,
+            targetDef: { kind: 'select', label: 'Target', hitbox: HITBOX, filter: 'enemy', allowMiss: true },
+            behaviour: SWING_BEHAVIOUR,
+        },
+        {
+            id: 'cooldown',
+            start: ACTIVE_END,
+            end: TOTAL_DURATION,
+            abilityPhase: AbilityPhase.Cooldown,
+        },
+    ],
+    aiSettings: {
+        minRange: 0,
+        maxRange: HITBOX.maxRange,
+        maxUsesPerRound: 2,
+        priority: 10,
     },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        // Melee blocked: no additional behaviour.
+    movementLock: { until: ACTIVE_END },
+    getTooltipText(_gameState?: unknown): string[] {
+        return [`Slash in a square in front, dealing {${DAMAGE}} damage and knocking back enemies.`];
     },
 
     renderActivePreview(
@@ -219,35 +104,12 @@ export const AlphaWolfClawAbility: AbilityStatic = {
         const elapsed = gameTime - activeAbility.startTime;
         const pos = getPixelTargetPosition(activeAbility.targets, 0);
         if (!pos) return;
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        const { corners, centerX, centerY } = getSquareInFront(caster, pos, minR, maxR);
+        const { corners, centerX, centerY } = HITBOX.getQuadGeometry(caster, pos);
         drawEnemyConvexQuadHitboxTelegraph(gr, corners, centerX, centerY, elapsed, PREFIRE_TIME, {
             holdFullRedUntilOffset: CLAW_PREVIEW_HOLD_RED,
         });
     },
-
-    renderTargetingPreview(
-        gr: IAbilityPreviewGraphics,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-        _units: Unit[],
-    ): void {
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        const { corners } = getSquareInFront(caster, mouseWorld, minR, maxR);
-
-        gr.clear();
-        gr.moveTo(corners[0]!.x, corners[0]!.y);
-        gr.lineTo(corners[1]!.x, corners[1]!.y);
-        gr.lineTo(corners[2]!.x, corners[2]!.y);
-        gr.lineTo(corners[3]!.x, corners[3]!.y);
-        gr.lineTo(corners[0]!.x, corners[0]!.y);
-        gr.fill({ color: 0xff0000, alpha: 0.25 });
-        gr.stroke({ color: 0xff0000, width: 2, alpha: 0.7 });
-    },
-};
+});
 
 export const AlphaWolfClawCard: CardDef = {
     abilityId: CARD_ID,

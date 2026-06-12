@@ -487,3 +487,83 @@ export const alphaWolfScratchScenario: ScenarioDefinition = {
         return `player hp=${player?.hp}/${player?.maxHp} wolf pos=(${wolf?.x.toFixed(0)},${wolf?.y.toFixed(0)}) dist=${dist} wolf active=[${wolfActive}]`;
     },
 };
+
+// ─── Enemy Archer Shot ──────────────────────────────────────────────────────
+
+// Archer at (300, 160); player 120 px to its left at (180, 160).
+// 120 px is well within MAX_DISTANCE (280) and outside melee range.
+const ARCHER_POS  = { x: 7 * CELL + CELL / 2, y: 4 * CELL + CELL / 2 };  // (300, 180)
+const ARCHER_PLAYER_POS = { x: ARCHER_POS.x - 120, y: ARCHER_POS.y };     // (180, 180)
+
+/**
+ * Enemy Archer Shot: an enemy_ranged unit with ability 0001 queues a shot toward the
+ * player dummy. The projectile should travel across the gap and damage the player.
+ */
+export const enemyArcherShotScenario: ScenarioDefinition = {
+    id: 'enemy_archer_shot',
+    title: 'Enemy Archer Shot: projectile travels and damages the player',
+    category: 'general',
+    generalSection: 'Enemies',
+    maxDurationMs: 5000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 10, gridH: 8, localPlayerId: P, grass: true });
+
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: ARCHER_PLAYER_POS.x,
+            y: ARCHER_PLAYER_POS.y,
+            abilities: [],
+        });
+
+        const archer = createUnitFromSpawnConfig(
+            {
+                id: 'enemy_archer_test',
+                characterId: 'enemy_ranged',
+                name: 'Archer',
+                x: ARCHER_POS.x,
+                y: ARCHER_POS.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: ['0001'],
+                aiSettings: { minRange: 0, maxRange: 280 },
+            },
+            engine.eventBus,
+        );
+        initializeAbilityRuntimeForUnit(archer);
+        engine.addUnit(archer, 'initialGameSpawn');
+
+        // Queue the archer shot on tick 1 toward the player position.
+        engine.state.orderMgr.queueOrder(1, {
+            unitId: archer.id,
+            abilityId: '0001',
+            targets: [{ type: 'pixel', position: ARCHER_PLAYER_POS }],
+        });
+
+        // Keep player non-idle while the projectile travels.
+        engine.state.orderMgr.queueOrder(90, {
+            unitId: player.id,
+            abilityId: 'wait',
+            targets: [],
+        });
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        return [{ unitId: player.id, abilityId: 'wait', targets: [] }];
+    },
+
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        return Boolean(player && player.hp < player.maxHp);
+    },
+
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const archer = engine.getUnit('enemy_archer_test');
+        const archerActive = archer?.activeAbilities.map(a => a.abilityId).join(',') ?? '—';
+        return `player hp=${player?.hp}/${player?.maxHp} archer active=[${archerActive}]`;
+    },
+};

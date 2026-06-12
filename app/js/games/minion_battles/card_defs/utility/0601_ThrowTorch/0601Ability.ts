@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Throw Torch - Utility ability that places a burning torch on the ground.
  *
  * Targets a pixel within range 200. A torch projectile flies to the target;
@@ -8,17 +8,19 @@
  * is added to their ability list.
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStateEntry } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { TargetDef } from '../../../abilities/targeting';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
-import type { ResolvedTarget } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { Effect } from '../../../game/effects/Effect';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
-import { getPixelTargetPosition, getAimPointClampedToMaxRange, getDirectionFromTo } from '../../../abilities/targetHelpers';
+import { getAimPointClampedToMaxRange, getDirectionFromTo, getPixelTargetPosition } from '../../../abilities/targetHelpers';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { defineAbility } from '../../../abilities/defineAbility';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}01`;
 const MAX_USES = 1;
@@ -31,11 +33,6 @@ const TORCH_LIGHT_AMOUNT = 4;
 const TORCH_RADIUS = 2;
 const TORCH_ROUNDS = 3;
 const TORCH_PROJECTILE_SPEED = 400;
-
-interface GameEngineLike {
-    addEffect(effect: Effect): void;
-    roundNumber: number;
-}
 
 function getMaxRange(caster: Unit): number {
     return MAX_RANGE + caster.radius + DEFAULT_UNIT_RADIUS;
@@ -54,7 +51,7 @@ const THROW_TORCH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
   <ellipse cx="32" cy="16" rx="5" ry="6" fill="#fff8dc"/>
 </svg>`;
 
-export const ThrowTorchAbility: AbilityStatic = {
+export const ThrowTorchAbility = defineAbility({
     id: CARD_ID,
     name: 'Throw Torch',
     image: THROW_TORCH_IMAGE,
@@ -71,8 +68,40 @@ export const ThrowTorchAbility: AbilityStatic = {
             abilityPhase: AbilityPhase.Windup,
         },
         {
-            id: 'cooldown',
+            id: 'active',
             start: PREFIRE_TIME,
+            end: PREFIRE_TIME + 0.05,
+            abilityPhase: AbilityPhase.Active,
+            behaviour: CastBehaviours.Instant((ctx) => {
+                const eng = ctx.engine as AbilityEngineContext;
+                const caster = ctx.caster;
+                const pos = getPixelTargetPosition(ctx.allTargets, 0);
+                if (!pos) return;
+
+                const maxR = getMaxRange(caster);
+                const { x: placeX, y: placeY } = getAimPointClampedToMaxRange(caster, pos, maxR);
+                const { dist: travelDist } = getDirectionFromTo(caster.x, caster.y, placeX, placeY);
+                const travelTime = Math.max(0.15, travelDist / TORCH_PROJECTILE_SPEED);
+
+                eng.addEffect(new Effect({
+                    x: placeX,
+                    y: placeY,
+                    duration: travelTime,
+                    effectType: 'TorchProjectile',
+                    startX: caster.x,
+                    startY: caster.y,
+                    effectData: {
+                        roundCreated: eng.roundNumber ?? 1,
+                        initialLightAmount: TORCH_LIGHT_AMOUNT,
+                        initialRadius: TORCH_RADIUS,
+                        roundsTotal: TORCH_ROUNDS,
+                    },
+                }));
+            }),
+        },
+        {
+            id: 'cooldown',
+            start: PREFIRE_TIME + 0.05,
             end: PREFIRE_TIME + 1.5,
             abilityPhase: AbilityPhase.Cooldown,
         },
@@ -92,42 +121,8 @@ export const ThrowTorchAbility: AbilityStatic = {
         return [];
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
-
-        const pos = getPixelTargetPosition(targets, 0);
-        if (!pos) return;
-
-        const eng = engine as GameEngineLike;
-        const maxR = getMaxRange(caster);
-        const { x: placeX, y: placeY } = getAimPointClampedToMaxRange(caster, pos, maxR);
-        const { dist: travelDist } = getDirectionFromTo(caster.x, caster.y, placeX, placeY);
-        const travelTime = Math.max(0.15, travelDist / TORCH_PROJECTILE_SPEED);
-
-        const torchProjectile = new Effect({
-            x: placeX,
-            y: placeY,
-            duration: travelTime,
-            effectType: 'TorchProjectile',
-            startX: caster.x,
-            startY: caster.y,
-            effectData: {
-                roundCreated: eng.roundNumber,
-                initialLightAmount: TORCH_LIGHT_AMOUNT,
-                initialRadius: TORCH_RADIUS,
-                roundsTotal: TORCH_ROUNDS,
-            },
-        });
-        eng.addEffect(torchProjectile);
-
-    },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        // Not an attack; no block behaviour.
-    },
-
     renderTargetingPreview: createPixelTargetPreview(MAX_RANGE),
-};
+});
 
 export const ThrowTorchCard: CardDef = {
     abilityId: CARD_ID,

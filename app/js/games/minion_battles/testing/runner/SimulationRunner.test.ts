@@ -14,6 +14,7 @@ import {
 } from '../scenarios/abilities/punchResearch';
 import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordResearch';
 import { swingBatHitsThreeTargetsScenario } from '../scenarios/abilities/swingBatScenarios';
+import { beastClawFrontHitBackMissScenario } from '../scenarios/abilities/beastClawScenarios';
 import { throwKnifePiercingBleedScenario } from '../scenarios/abilities/throwKnifeScenarios';
 import { absorptionShieldEnergyChargeScenario } from '../scenarios/abilities/absorptionShieldScenario';
 import {
@@ -103,6 +104,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes swing bat hits 3 of 4 targets with knockback scenario', () => {
         const r = runScenarioHeadless(swingBatHitsThreeTargetsScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes beast claw: front dummy hit, back dummy missed scenario', () => {
+        const r = runScenarioHeadless(beastClawFrontHitBackMissScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

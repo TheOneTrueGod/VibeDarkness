@@ -15,6 +15,7 @@
 | Todo | Notes |
 |------|-------|
 | Remove dead `meleeTrackingHelpers` module | After telegraph windup tracking ships, confirm `meleeTrackingHelpers.ts` is unused at runtime (only `renderMeleeTrackingHighlights` / `buildHitboxContext` may remain in Swing Bat). Delete the orphaned entry/update/aim helpers and `meleeTrackingHelpers.test.ts`, or fold any still-needed pieces into `telegraphTracking.ts`. |
+| Deduplicate `ROUND_DURATION` in unitAI | `unitAI/utils.ts`, `aggroWander_wander.ts`, and `aggroWander_attack.ts` each declare `const ROUND_DURATION = 10` locally — export the authoritative value from `game/GameEngine.ts`, import it in `utils.ts`, and delete the local copies. `lnet_scout_travel.ts` and `lnet_scout_construct.ts` each declare `const ROUND_DURATION_SEC = 8` — verify whether the value differs intentionally or is stale, and consolidate accordingly. |
 
 ## Medium
 
@@ -24,22 +25,18 @@
 | Move `playerResearchTreesByPlayer` off `CardManager` | Research trees are stored on `CardManager` for no conceptual reason and serialized alongside card data in checkpoints. Relocate to `GameState` directly (or a `ResearchManager`) and update serialization accordingly. |
 | Make `darkness` a modifier on spawn behaviours, not its own behaviour | Instead of `spawnBehaviour: 'darkness'`, add an `inDarkness: boolean` flag to `SpawnWaveEntry` that can be combined with any `spawnBehaviour` (e.g. `edgeOfMap` + `inDarkness`). Requires updating the types, `LevelEventManager`, and migrating existing `'darkness'` usages. |
 | Migrate LanterniteStrike (0010) to castBehaviours | `doCardEffect` sets an ability note at LOCK_TIME then fires a projectile at prefire — two threshold effects. Map them to castBehaviours on the windup and active timing intervals; ability-note init can move to `ON_CAST_START`. |
-| Migrate EnemyMeleeAttack (0002) to castBehaviours | Enemy basic melee that deals damage at a threshold; likely compatible with the existing `MeleeAttackBehaviour`. Replace `doCardEffect` with that CastBehaviour on the active interval. |
 | Migrate Pistol (0203) to castBehaviours | `doCardEffect` fires three shots at staggered time thresholds, each targeting a different target slot. Needs either a multi-shot CastBehaviour or three separate timing intervals each with a projectile CastBehaviour. |
 | Migrate SMG (0204) to castBehaviours | `doCardEffect` fires a rapid burst of shots at staggered intervals; same pattern as Pistol. Coordinate with the Pistol migration — a shared gun CastBehaviour that handles burst-fire would cover both. |
 | Migrate Shotgun (0205) to castBehaviours | `doCardEffect` fires a spread of simultaneous projectiles from a single origin point. Needs a spread-shot CastBehaviour; design can be shared with the Pistol/SMG gun CastBehaviour system. |
-| Migrate AlphaWolfClaw (0004) to castBehaviours | `doCardEffect` spawns a projectile at the prefire threshold. Straightforward mapping to a projectile CastBehaviour on the active timing interval; no research variants. |
 | Migrate AlphaWolfSummon (0005) to castBehaviours | `doCardEffect` spawns enemy units at the prefire threshold — unique unit-spawn behavior. Needs a spawn CastBehaviour or an `ON_CAST_TICK` abilityEvents rule with a custom effect to handle the summon. |
 | Migrate EarthernPunch (0524) to castBehaviours | `doCardEffect` applies a melee hit at a threshold. Use `MeleeAttackBehaviour` on the active timing interval; earth-core flavour (stone buff) can go through an abilityEvents `ON_ATTACK_HIT` rule. |
 | Migrate ShakingGround (0525) to castBehaviours | `doCardEffect` applies an AoE ground-shake effect at a threshold. Convert to a CastBehaviour on the active timing interval for the shockwave; visual can move to `emitterDef`. |
 | Migrate Shatter (0526) to castBehaviours | `doCardEffect` fires a projectile at a threshold. Attach a projectile CastBehaviour to the active timing interval; no complex research variants. |
-| Migrate StoneTomb (0530) to castBehaviours | `doCardEffect` creates a projectile that generates stone terrain on impact. Convert to a projectile CastBehaviour on the active interval; ensure the stone-creation on-expire side effect is preserved. |
-| Migrate Knock (0531) to castBehaviours | `doCardEffect` fires a stone projectile at a threshold. Straightforward projectile CastBehaviour on the active timing interval; stone-terrain side effects handled via `onProjectileExpired`. |
+| Migrate StoneTomb (0530) to castBehaviours | `ProjectileLaunch` pattern established (mirror `0108_ThrowChargedRock`). Convert `doCardEffect` to `ProjectileLaunch` on the active interval; preserve stone-terrain creation on expiry via `ON_PROJECTILE_EXPIRED` abilityEvents rule. |
+| Migrate Knock (0531) to castBehaviours | `ProjectileLaunch` pattern established. Convert `doCardEffect` to `ProjectileLaunch` on the active interval; preserve stone-terrain on-expire side effect via `ON_PROJECTILE_EXPIRED`; carry over the `stonephase` projectile modifier. |
 | Migrate AnchoredTremor (0532) to castBehaviours | `doCardEffect` applies repeating pulse damage on each game tick during the active window. Needs a multi-pulse CastBehaviour (or per-interval repeating hits via `enteredTimingIds` logic); more complex than single-threshold abilities. |
 | Migrate StoneyPunch (0533) to castBehaviours | `doCardEffect` applies a melee hit that consumes all armour for bonus damage per armour point. Use `MeleeAttackBehaviour` with an armour-consumption side effect; armour drain can go in `ON_ATTACK_HIT` abilityEvents. |
-| Migrate BeastClaw (0611) to castBehaviours | `doCardEffect` handles dash movement plus a hit on impact, similar to Claw (0111). Needs a movement CastBehaviour paired with a hit CastBehaviour; coordinate with the Claw migration. |
-| Migrate ThrowTorch (0601) to castBehaviours | `doCardEffect` fires a torch projectile and grants a copy of the torch card to a random ally — a unique side effect. Needs a projectile CastBehaviour plus an `ON_CAST_TICK` or `ON_ATTACK_HIT` abilityEvents rule for the card-grant. |
-| Migrate EnemyArcherShot (0001) to castBehaviours | `doCardEffect` sets an ability note at LOCK_TIME (position snapshot) then fires a projectile at prefire — two-phase. Map to castBehaviours on the windup and active intervals; ability-note init can move to `ON_CAST_START`. |
+| Migrate ThrowTorch (0601) to castBehaviours | `ProjectileLaunch` pattern established. `TorchProjectile` → `LightSource` conversion is engine-side in `EffectManager.gameUpdate` — confirm launch wires into it before editing. Card-grant to random ally may need an `ON_PROJECTILE_EXPIRED` abilityEvents rule. |
 
 ## Hard
 

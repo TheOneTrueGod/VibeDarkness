@@ -7,6 +7,7 @@ import type { ResolvedTarget } from '../../game/types';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { clampToMaxRange } from '../previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../targetHelpers';
+import type { ProjectileModifierId } from '../../game/projectiles/ProjectileTravelModifiers';
 
 type DamageResolver = (ctx: CastBehaviourSetupContext) => number;
 
@@ -30,6 +31,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private resolveDamage: DamageResolver | null = null;
     private pierce: number = 0;
     private passThroughEnemies: boolean = false;
+    private modifiers: ProjectileModifierId[] = [];
 
     withSpeed(speed: number): this {
         this.speed = speed;
@@ -73,9 +75,15 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         return this;
     }
 
+    withModifiers(modifiers: ProjectileModifierId[]): this {
+        this.modifiers = modifiers;
+        return this;
+    }
+
     onSetup(ctx: CastBehaviourSetupContext): void {
+        console.log('[ProjectileLaunchBehaviour.onSetup] abilityId=', ctx.abilityId, 'target=', JSON.stringify(ctx.target));
         const targetPos = resolveLaunchTarget(ctx);
-        if (!targetPos) return;
+        if (!targetPos) { console.log('[ProjectileLaunchBehaviour.onSetup] NO targetPos'); return; }
 
         const engine = ctx.engine as AbilityEngineContext;
         const clamped = clampToMaxRange(ctx.caster, targetPos, this.maxRange);
@@ -98,6 +106,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             projectileType: this.projectileType,
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,
+            modifiers: this.modifiers.length > 0 ? this.modifiers : undefined,
         });
         projectile.radius = this.radius;
         engine.addProjectile(projectile);

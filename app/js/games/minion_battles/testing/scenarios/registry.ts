@@ -12,6 +12,7 @@ import {
     alphaWolfSummonScenario,
     alphaWolfScratchScenario,
     exposedDurationExtensionScenario,
+    enemyArcherShotScenario,
 } from './general/enemies';
 import {
     punchChargingScenario,
@@ -36,6 +37,7 @@ import {
     swingSwordHitsTwoTargetsScenario,
 } from './abilities/swingSwordResearch';
 import { laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenarios';
+import { beastClawFrontHitBackMissScenario } from './abilities/beastClawScenarios';
 import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
 import { pistolHitsDummyScenario } from './abilities/gunScenarios';
@@ -93,6 +95,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     alphaWolfSummonScenario,
     alphaWolfScratchScenario,
     exposedDurationExtensionScenario,
+    enemyArcherShotScenario,
     swarmlingHuntAndBiteScenario,
     absorptionShieldEnergyChargeScenario,
     raiseShieldBlocksScenario,
@@ -119,6 +122,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
     laserSwordHitsTwoTargetsScenario,
+    beastClawFrontHitBackMissScenario,
     swingBatHitsThreeTargetsScenario,
     throwKnifePiercingBleedScenario,
     pistolHitsDummyScenario,
@@ -209,6 +213,7 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('pistol_') || id.startsWith('smg_') || id.startsWith('shotgun_')) return '0203';
     if (id.startsWith('throw_rock') || id.includes('throw_rock')) return 'throw_rock';
     if (id.startsWith('laser_sword')) return '0105';
+    if (id.startsWith('beast_claw')) return '0611';
     if (id.startsWith('swing_sword') || id.includes('buff_swing')) return '0112';
     if (id.startsWith('swing_bat')) return '0115';
     if (id.startsWith('absorption_shield')) return '0113';

@@ -1,12 +1,13 @@
-﻿import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
-import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
-import { getDirectionFromTo, getPixelTargetPosition } from '../../../abilities/targetHelpers';
+import { AbilityPhase } from '../../../abilities/abilityTimings';
+import type { AttackBlockedInfo } from '../../../abilities/Ability';
+import { defineAbility } from '../../../abilities/defineAbility';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { deactivateProjectileOnBlock } from '../../../abilities/effectHelpers';
 import { areEnemies } from '../../../game/teams';
-import type { EventBus } from '../../../game/EventBus';
 import type { Unit } from '../../../game/units/Unit';
-import { Projectile } from '../../../game/projectiles/Projectile';
 import { Effect } from '../../../game/effects/Effect';
-import type { ResolvedTarget } from '../../../game/types';
+import type { Projectile } from '../../../game/projectiles/Projectile';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { type CardDef } from '../../types';
 import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 
@@ -15,34 +16,13 @@ const RANGE = 220;
 const DAMAGE = 5;
 const IMPACT_RADIUS = 55;
 const KNOCKBACK_TIER = 1;
-const TIMINGS: AbilityTimingInterval[] = [
-    { id: 'windup', start: 0, end: 0.3, abilityPhase: AbilityPhase.Windup },
-    { id: 'active', start: 0.3, end: 0.4, abilityPhase: AbilityPhase.Active },
-    { id: 'cooldown', start: 0.4, end: 1.5, abilityPhase: AbilityPhase.Cooldown },
-];
 
 const STONE_TOMB_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <rect x="6" y="8" width="28" height="24" rx="4" fill="#6b6b6b"/>
   <path d="M10 14 L30 14 M10 20 L30 20 M10 26 L30 26" stroke="#bdbdbd" stroke-width="2"/>
 </svg>`;
 
-interface GameEngineLike {
-    addProjectile(projectile: Projectile): void;
-    addEffect(effect: Effect): void;
-    getUnit(id: string): Unit | undefined;
-    getUnits(): Unit[];
-    gameTime?: number;
-    roundNumber?: number;
-    eventBus: EventBus;
-    terrainManager?: {
-        grid: {
-            worldToGrid(x: number, y: number): { col: number; row: number };
-        };
-        createOrMarkRock(col: number, row: number): unknown;
-    };
-}
-
-export const StoneTomb: AbilityStatic = {
+export const StoneTomb = defineAbility({
     id: ABILITY_ID,
     name: 'Stone Tomb',
     image: STONE_TOMB_IMAGE,
@@ -50,43 +30,32 @@ export const StoneTomb: AbilityStatic = {
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: 1,
     prefireTime: 0.3,
-    abilityTimings: TIMINGS,
+    abilityTimings: [
+        { id: 'windup',   start: 0,   end: 0.3, abilityPhase: AbilityPhase.Windup },
+        {
+            id: 'active',
+            start: 0.3,
+            end: 0.4,
+            abilityPhase: AbilityPhase.Active,
+            behaviour: CastBehaviours.ProjectileLaunch()
+                .withSpeed(900)
+                .withMaxRange(RANGE)
+                .withProjectileType('charged_rock')
+                .withBaseDamage(DAMAGE),
+        },
+        { id: 'cooldown', start: 0.4, end: 1.5, abilityPhase: AbilityPhase.Cooldown },
+    ],
     targets: [{ type: 'pixel', label: 'Impact location' }],
     aiSettings: { minRange: 0, maxRange: RANGE },
+    getRange: () => ({ minRange: 0, maxRange: RANGE }),
     getTooltipText(): string[] {
         return ['Throw a rock that creates stone, dealing {5} damage and knocking back nearby enemies.'];
     },
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= 0.3 || currentTime < 0.3) return;
-        const target = getPixelTargetPosition(targets, 0);
-        if (!target) return;
-        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, target.x, target.y);
-        if (dist <= 0) return;
-        (engine as GameEngineLike).addProjectile(
-            new Projectile({
-                x: caster.x,
-                y: caster.y,
-                velocityX: dirX * 900,
-                velocityY: dirY * 900,
-                damage: DAMAGE,
-                sourceTeamId: caster.teamId,
-                sourceUnitId: caster.id,
-                sourceAbilityId: ABILITY_ID,
-                maxDistance: Math.min(RANGE, dist),
-                projectileType: 'charged_rock',
-            }),
-        );
-    },
-    getAbilityStates(): [] {
-        return [];
-    },
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
-        if (attackInfo.type === 'projectile' && attackInfo.projectile) {
-            (attackInfo.projectile as Projectile).active = false;
-        }
+        deactivateProjectileOnBlock(attackInfo);
     },
     onProjectileExpired(engine: unknown, caster: Unit, projectile: Projectile): void {
-        const eng = engine as GameEngineLike;
+        const eng = engine as AbilityEngineContext;
         const source = eng.getUnit(caster.id);
         if (!source) return;
 
@@ -103,7 +72,7 @@ export const StoneTomb: AbilityStatic = {
             effectRadius: IMPACT_RADIUS,
         }));
 
-        for (const unit of eng.getUnits()) {
+        for (const unit of eng.units) {
             if (!unit.isAlive() || !areEnemies(source.teamId, unit.teamId)) continue;
             const dist = Math.hypot(unit.x - projectile.x, unit.y - projectile.y);
             if (dist > IMPACT_RADIUS + unit.radius) continue;
@@ -112,11 +81,11 @@ export const StoneTomb: AbilityStatic = {
                 unit, KNOCKBACK_TIER,
                 { unitId: source.id, abilityId: ABILITY_ID },
                 projectile.x, projectile.y,
-                { gameTime: eng.gameTime ?? 0, roundNumber: eng.roundNumber ?? 1, eventBus: eng.eventBus },
+                { gameTime: eng.gameTime, roundNumber: eng.roundNumber ?? 1, eventBus: eng.eventBus },
             );
         }
     },
-};
+});
 
 export const StoneTombCard: CardDef = {
     abilityId: ABILITY_ID,

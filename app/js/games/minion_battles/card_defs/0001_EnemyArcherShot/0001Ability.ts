@@ -1,18 +1,20 @@
-﻿/**
+/**
  * EnemyArcherShot - Enemy ranged ability. Aims for 0.5s, locks target, shoots at 1.0s.
+ * Migrated to CastBehaviours.ProjectileLaunch() on the Active interval.
  */
 
-import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../abilities/Ability';
+import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
-import { Projectile } from '../../game/projectiles/Projectile';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { defineAbility } from '../../abilities/defineAbility';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}01`;
 const LOCK_TIME = 0.5;
@@ -21,10 +23,6 @@ const PROJECTILE_SPEED = 800;
 const MAX_DISTANCE = 280;
 const DAMAGE = 4;
 const RED = 0xff0000;
-
-interface GameEngineLike {
-    addProjectile(projectile: Projectile): void;
-}
 
 const ENEMY_ARCHER_SHOT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <path d="M32 8 L32 56 M28 12 L36 12 M28 52 L36 52" stroke="#5d4e37" stroke-width="2" fill="none"/>
@@ -40,7 +38,7 @@ function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }):
     return getPixelTargetPosition(active.targets, 0);
 }
 
-export const EnemyArcherShotAbility: AbilityStatic = {
+const _base: AbilityStatic = defineAbility({
     id: CARD_ID,
     name: 'Enemy Archer Shot',
     image: ENEMY_ARCHER_SHOT_IMAGE,
@@ -54,6 +52,10 @@ export const EnemyArcherShotAbility: AbilityStatic = {
             start: LOCK_TIME,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Active,
+            behaviour: CastBehaviours.ProjectileLaunch()
+                .withSpeed(PROJECTILE_SPEED)
+                .withMaxRange(MAX_DISTANCE)
+                .withBaseDamage(DAMAGE),
         },
         {
             id: 'cooldown',
@@ -64,53 +66,19 @@ export const EnemyArcherShotAbility: AbilityStatic = {
     ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
+    getRange: (_caster: Unit) => ({ minRange: 0, maxRange: MAX_DISTANCE }),
 
     getTooltipText(_gameState?: unknown): string[] {
         return [`Shoots an arrow dealing {${DAMAGE}} damage to an enemy`];
     },
 
-    getAbilityStates(_currentTime: number): AbilityStateEntry[] {
-        return [];
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime < LOCK_TIME && currentTime >= LOCK_TIME) {
-            const pos = getPixelTargetPosition(targets, 0);
-            if (pos) {
-                caster.setAbilityNote({ abilityId: '0001', abilityNote: { position: { ...pos } } });
-            }
-        }
-
-        if (prevTime < PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
-        const eng = engine as GameEngineLike;
-        if (!isAbilityNote(caster.abilityNote, '0001')) return;
-        const pos = caster.abilityNote.abilityNote.position;
-        caster.clearAbilityNote();
-
-        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
-        if (dist === 0) return;
-
-        const velocityX = dirX * PROJECTILE_SPEED;
-        const velocityY = dirY * PROJECTILE_SPEED;
-
-        const projectile = new Projectile({
-                x: caster.x,
-                y: caster.y,
-                velocityX,
-                velocityY,
-                damage: DAMAGE,
-                sourceTeamId: caster.teamId,
-                sourceUnitId: caster.id,
-                sourceAbilityId: CARD_ID,
-                maxDistance: MAX_DISTANCE,
-            });
-
-        eng.addProjectile(projectile);
-    },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: import('../../abilities/Ability').AttackBlockedInfo): void {
+    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
         deactivateProjectileOnBlock(attackInfo);
     },
+});
+
+export const EnemyArcherShotAbility: AbilityStatic = {
+    ..._base,
 
     renderActivePreview(
         gr: IAbilityPreviewGraphics,

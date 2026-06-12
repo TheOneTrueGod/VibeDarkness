@@ -1,40 +1,47 @@
-﻿import { describe, expect, it } from 'vitest';
-import { Unit } from '../../../game/units/Unit';
-import type { ResolvedTarget } from '../../../game/types';
-import { EventBus } from '../../../game/EventBus';
-import { Projectile } from '../../../game/projectiles/Projectile';
+import { describe, expect, it } from 'vitest';
+import { runScenarioHeadless } from '../../../testing/runner/SimulationRunner';
+import { earthCoreKnockScenario } from '../../../testing/scenarios/abilities/earthCoreScenarios';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-
-function makeUnit(): Unit {
-    return new Unit({
-        x: 0,
-        y: 0,
-        hp: 100,
-        speed: 100,
-        teamId: 'player',
-        ownerId: 'p1',
-        characterId: 'player',
-        name: 'player',
-    });
-}
+import {
+    AbilityPhase,
+    normalizeAbilityTimingsToIntervals,
+    resolveAbilityTimingEntries,
+    getEffectiveCastBehaviours,
+} from '../../../abilities/abilityTimings';
+import { ProjectileLaunchBehaviour } from '../../../abilities/CastBehaviours/ProjectileLaunchBehaviour';
 
 describe('Knock', () => {
-    it('spawns projectile with Stonephase modifier', () => {
+    it('ability is registered and has an active interval with ProjectileLaunch', () => {
         const ability = getAbility('0531');
         expect(ability).toBeDefined();
-        const caster = makeUnit();
-        const projectiles: Projectile[] = [];
-        const engine = {
-            addProjectile: (projectile: Projectile) => {
-                projectiles.push(projectile);
-            },
-            eventBus: new EventBus(),
-        };
-        const targets: ResolvedTarget[] = [{ type: 'pixel', position: { x: 140, y: 0 } }];
+        const activeInterval = ability!.abilityTimings.find(
+            (t) => 'abilityPhase' in t && t.abilityPhase === AbilityPhase.Active,
+        );
+        expect(activeInterval).toBeDefined();
+        expect('behaviour' in activeInterval! && activeInterval.behaviour).toBeInstanceOf(ProjectileLaunchBehaviour);
+    });
 
-        ability!.doCardEffect!(engine, caster, targets, 0.1, 0.26);
+    it('projectile hits enemy (scenario)', () => {
+        const r = runScenarioHeadless(earthCoreKnockScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
 
-        expect(projectiles).toHaveLength(1);
-        expect(projectiles[0]?.modifiers).toContain('stonephase');
+    it('debug: normalized intervals have behaviour field', () => {
+        const knockAbility = getAbility('0531')!;
+        const knockIntervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(knockAbility));
+        console.log('Knock intervals:', JSON.stringify(knockIntervals.map(it => ({
+            id: it.id,
+            start: it.start,
+            end: it.end,
+            abilityPhase: it.abilityPhase,
+            hasBehaviour: 'behaviour' in it,
+            effectiveBehaviours: getEffectiveCastBehaviours(it)?.length ?? 0,
+        }))));
+
+        const activeInterval = knockIntervals.find(it => it.abilityPhase === AbilityPhase.Active);
+        expect(activeInterval, 'active interval exists after normalization').toBeDefined();
+        const behaviours = getEffectiveCastBehaviours(activeInterval!);
+        expect(behaviours, 'active interval has effective behaviours').toBeDefined();
+        expect(behaviours![0]?.behaviour, 'active interval behaviour is ProjectileLaunchBehaviour').toBeInstanceOf(ProjectileLaunchBehaviour);
     });
 });

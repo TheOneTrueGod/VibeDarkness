@@ -1,102 +1,84 @@
-﻿/**
+/**
  * BeastClaw - Player melee ability from BeastCore.
  * Box in front of caster, slashing effect. Swings twice in opposite directions.
  * Knocks back away from caster on both swings.
  * Smaller knockback than Swing Bat, interrupt on hit.
  */
 
-import { AbilityState } from '../../../abilities/Ability';
-import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
-import type { Unit } from '../../../game/units/Unit';
-import type { TargetDef } from '../../../abilities/targeting';
-import type { ResolvedTarget } from '../../../game/types';
-import { type CardDef } from '../../types';
-import { createSlashTrailEffect } from '../../../abilities/effectHelpers';
-import type { Effect } from '../../../game/effects/Effect';
-import type { EventBus } from '../../../game/EventBus';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
-import { getPixelTargetPosition } from '../../../abilities/targetHelpers';
-import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
-import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
+import { createSlashTrailEffect } from '../../../abilities/effectHelpers';
+import { convexQuadHitbox } from '../../../hitboxes/ConvexQuadHitbox';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { defineAbility } from '../../../abilities/defineAbility';
 import {
     ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES,
     DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
 } from '../../../abilities/damageModifiers';
+import type { CardDef } from '../../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}11`;
 const PREFIRE_TIME = 0.25;
-const SWING1_TIME = 0.25;
-const SWING2_TIME = 0.65;
-const BASE_MIN_RANGE = 0;
-const BASE_MAX_RANGE = 10;
+const SWING1_START = 0.2;
+const SWING1_END   = 0.3;
+const SWING2_START = 0.6;
+const SWING2_END   = 0.7;
+const TOTAL_DURATION = PREFIRE_TIME + 2.3;
 const DAMAGE = 8;
 const CLAW_EFFECT_DURATION = 0.3;
 const CLAW_SLASH_DELAY = 0.03;
 const KNOCKBACK_TIER = 2;
+const REACH = 10;
 const BOX_SIZE = 28;
 
-function getMinRange(_caster: Unit): number {
-    return BASE_MIN_RANGE;
-}
+const HITBOX = convexQuadHitbox(REACH, BOX_SIZE);
 
-function getMaxRange(caster: Unit): number {
-    return BASE_MAX_RANGE + caster.radius;
-}
-
-function getSquareInFront(
-    caster: { x: number; y: number; radius: number },
-    target: { x: number; y: number },
-    minRange: number,
-    maxRange: number,
-): { corners: { x: number; y: number }[]; centerX: number; centerY: number; aimDirX: number; aimDirY: number } {
-    const dx = target.x - caster.x;
-    const dy = target.y - caster.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const aimDirX = dist > 0 ? dx / dist : 1;
-    const aimDirY = dist > 0 ? dy / dist : 0;
-    const clampedDist = Math.max(minRange, Math.min(maxRange, dist || maxRange));
-    const centerX = caster.x + aimDirX * (caster.radius + clampedDist);
-    const centerY = caster.y + aimDirY * (caster.radius + clampedDist);
-    const half = BOX_SIZE / 2;
-    const perpX = -aimDirY * half;
-    const perpY = aimDirX * half;
-    const corners = [
-        { x: centerX - aimDirX * half - perpX, y: centerY - aimDirY * half - perpY },
-        { x: centerX - aimDirX * half + perpX, y: centerY - aimDirY * half + perpY },
-        { x: centerX + aimDirX * half + perpX, y: centerY + aimDirY * half + perpY },
-        { x: centerX + aimDirX * half - perpX, y: centerY + aimDirY * half - perpY },
+/**
+ * Spawn the triple slash-trail VFX for one swing.
+ * `isSecondSwing` reverses the order so the two swings go in opposite directions.
+ */
+function spawnSlashVFX(
+    corners: readonly { x: number; y: number }[],
+    addEffect: (effect: import('../../../game/effects/Effect').Effect) => void,
+    isSecondSwing: boolean,
+): void {
+    // corners layout: [0=near-left, 1=near-right, 2=far-right, 3=far-left]
+    const slashes = [
+        { startX: corners[0]!.x, startY: corners[0]!.y, endX: corners[3]!.x, endY: corners[3]!.y },
+        {
+            startX: (corners[0]!.x + corners[1]!.x) / 2,
+            startY: (corners[0]!.y + corners[1]!.y) / 2,
+            endX: (corners[3]!.x + corners[2]!.x) / 2,
+            endY: (corners[3]!.y + corners[2]!.y) / 2,
+        },
+        { startX: corners[1]!.x, startY: corners[1]!.y, endX: corners[2]!.x, endY: corners[2]!.y },
     ];
-    return { corners, centerX, centerY, aimDirX, aimDirY };
+    const order = isSecondSwing ? [2, 1, 0] : [0, 1, 2];
+    for (let i = 0; i < order.length; i++) {
+        const s = slashes[order[i]!]!;
+        addEffect(createSlashTrailEffect(
+            s.startX, s.startY, s.endX, s.endY,
+            CLAW_EFFECT_DURATION, 16, 0xc9a055,
+            i * CLAW_SLASH_DELAY,
+        ));
+    }
 }
 
-function pointInQuad(
-    px: number,
-    py: number,
-    q0: { x: number; y: number },
-    q1: { x: number; y: number },
-    q2: { x: number; y: number },
-    q3: { x: number; y: number },
-): boolean {
-    const sign = (a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) =>
-        (a.x - c.x) * (b.y - c.y) - (b.x - c.x) * (a.y - c.y);
-    const d0 = sign({ x: px, y: py }, q0, q1);
-    const d1 = sign({ x: px, y: py }, q1, q2);
-    const d2 = sign({ x: px, y: py }, q2, q3);
-    const d3 = sign({ x: px, y: py }, q3, q0);
-    return (d0 >= 0 && d1 >= 0 && d2 >= 0 && d3 >= 0) || (d0 <= 0 && d1 <= 0 && d2 <= 0 && d3 <= 0);
+function makeSwingBehaviour(isSecondSwing: boolean) {
+    return CastBehaviours.MeleeAttack()
+        .withHitbox(HITBOX)
+        .withDamage(DAMAGE, { attackType: 'melee' })
+        .withKnockback(KNOCKBACK_TIER)
+        .withImpactAt(0.4)
+        .withSlide({ forwardDistance: 8, backwardDistance: 0 })
+        .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
+            const { corners } = HITBOX.getQuadGeometry(ctx.caster, { x: aimX, y: aimY });
+            spawnSlashVFX(corners, ctx.engine.addEffect.bind(ctx.engine), isSecondSwing);
+        });
 }
 
-interface GameEngineLike {
-    units: Unit[];
-    getUnit(id: string): Unit | undefined;
-    addEffect(effect: Effect): void;
-    gameTime: number;
-    roundNumber?: number;
-    eventBus: EventBus;
-    interruptUnitAndRefundAbilities(unit: Unit): void;
-}
+const SWING1_BEHAVIOUR = makeSwingBehaviour(false);
+const SWING2_BEHAVIOUR = makeSwingBehaviour(true);
 
 const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -111,7 +93,7 @@ const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/sv
   <circle cx="32" cy="32" r="14" fill="#2d2d2d" stroke="#1a1a1a"/>
 </svg>`;
 
-export const BeastClawAbility: AbilityStatic = {
+export const BeastClawAbility = defineAbility({
     id: CARD_ID,
     name: 'Beast Claw',
     image: CLAW_IMAGE,
@@ -119,153 +101,51 @@ export const BeastClawAbility: AbilityStatic = {
     rechargeTurns: 1,
     damageModifierMultiplier: ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES[CARD_ID] ?? DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
     prefireTime: PREFIRE_TIME,
+    targets: [{ type: 'pixel', label: 'Target point' }],
     abilityTimings: [
-        { id: 'windup', start: 0, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'slash1', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
+        { id: 'windup',   start: 0,           end: PREFIRE_TIME,  abilityPhase: AbilityPhase.Windup },
+        {
+            id: 'slash1',
+            start: SWING1_START,
+            end: SWING1_END,
+            abilityPhase: AbilityPhase.Active,
+            targetDef: { kind: 'select', label: 'Target', hitbox: HITBOX, filter: 'enemy', allowMiss: true },
+            behaviour: SWING1_BEHAVIOUR,
+        },
         {
             id: 'gap',
-            start: 0.3,
-            end: 0.6,
+            start: SWING1_END,
+            end: SWING2_START,
             abilityPhase: AbilityPhase.Waiting,
             timelineLabel: 'Between slashes',
             timelineDescription: 'Brief pause before the second slash.',
         },
         {
             id: 'slash2',
-            start: 0.6,
-            end: 0.7,
+            start: SWING2_START,
+            end: SWING2_END,
             abilityPhase: AbilityPhase.Active,
+            targetDef: { kind: 'select', label: 'Target', hitbox: HITBOX, filter: 'enemy', allowMiss: true },
+            behaviour: SWING2_BEHAVIOUR,
         },
         {
             id: 'cooldown',
-            start: 0.7,
-            end: PREFIRE_TIME + 2.3,
+            start: SWING2_END,
+            end: TOTAL_DURATION,
             abilityPhase: AbilityPhase.Cooldown,
         },
     ],
-    targets: [{ type: 'pixel', label: 'Target point' }] as TargetDef[],
-    aiSettings: { minRange: getMinRange({} as Unit), maxRange: getMaxRange({ radius: DEFAULT_UNIT_RADIUS } as Unit) },
-
+    aiSettings: {
+        minRange: 0,
+        maxRange: HITBOX.maxRange,
+    },
+    movementLock: { until: SWING2_END },
     getTooltipText(_gameState?: unknown): string[] {
         return [
             `Double slash in front dealing {${DAMAGE}} damage each hit. Interrupts and knocks back enemies.`,
         ];
     },
-
-    getRange(caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: getMinRange(caster), maxRange: getMaxRange(caster) };
-    },
-
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < PREFIRE_TIME) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
-        }
-        return [];
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        const pos = getPixelTargetPosition(targets, 0);
-        if (!pos) return;
-
-        const eng = engine as GameEngineLike;
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        const { corners } = getSquareInFront(caster, pos, minR, maxR);
-
-        const hitUnits: Unit[] = [];
-        for (const unit of eng.units) {
-            if (!unit.active || !unit.isAlive() || unit.teamId === caster.teamId) continue;
-            if (unit.id === caster.id) continue;
-            if (pointInQuad(unit.x, unit.y, corners[0]!, corners[1]!, corners[2]!, corners[3]!)) {
-                hitUnits.push(unit);
-            }
-        }
-
-        const doSwing = (isSecondSwing: boolean) => {
-            const hitTime = isSecondSwing ? SWING2_TIME : SWING1_TIME;
-            if (prevTime >= hitTime || currentTime < hitTime) return;
-
-            // Series of slashes perpendicular to aim (left-to-right or right-to-left).
-            // corners: 0=near left, 1=near right, 2=far right, 3=far left
-            const slashes: { startX: number; startY: number; endX: number; endY: number }[] = [
-                { startX: corners[0]!.x, startY: corners[0]!.y, endX: corners[3]!.x, endY: corners[3]!.y },
-                {
-                    startX: (corners[0]!.x + corners[1]!.x) / 2,
-                    startY: (corners[0]!.y + corners[1]!.y) / 2,
-                    endX: (corners[3]!.x + corners[2]!.x) / 2,
-                    endY: (corners[3]!.y + corners[2]!.y) / 2,
-                },
-                { startX: corners[1]!.x, startY: corners[1]!.y, endX: corners[2]!.x, endY: corners[2]!.y },
-            ];
-            const order = isSecondSwing ? [2, 1, 0] : [0, 1, 2];
-            for (let i = 0; i < order.length; i++) {
-                const s = slashes[order[i]!]!;
-                eng.addEffect(createSlashTrailEffect(
-                    s.startX,
-                    s.startY,
-                    s.endX,
-                    s.endY,
-                    CLAW_EFFECT_DURATION,
-                    16,
-                    0xc9a055,
-                    i * CLAW_SLASH_DELAY,
-                ));
-            }
-
-            for (const targetUnit of hitUnits) {
-                if (!targetUnit.isAlive() || targetUnit.hasIFrames(eng.gameTime)) continue;
-
-                const outcome = tryDamageOrBlock(targetUnit, {
-                    engine: eng,
-                    gameTime: eng.gameTime,
-                    eventBus: eng.eventBus,
-                    attackerX: caster.x,
-                    attackerY: caster.y,
-                    attackerId: caster.id,
-                    abilityId: CARD_ID,
-                    damage: DAMAGE,
-                    attackType: 'melee',
-                });
-                if (!outcome.hit) continue;
-
-                tryApplyKnockbackByTier(
-                    targetUnit, KNOCKBACK_TIER,
-                    { unitId: caster.id, abilityId: CARD_ID },
-                    caster.x, caster.y,
-                    { gameTime: eng.gameTime, roundNumber: eng.roundNumber ?? 1, eventBus: eng.eventBus, interruptUnitAndRefundAbilities: eng.interruptUnitAndRefundAbilities.bind(eng) },
-                );
-            }
-        };
-
-        doSwing(false);
-        doSwing(true);
-    },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {
-        // Melee blocked: no additional behaviour.
-    },
-
-    renderTargetingPreview(
-        gr: IAbilityPreviewGraphics,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-        _units: Unit[],
-    ): void {
-        const minR = getMinRange(caster);
-        const maxR = getMaxRange(caster);
-        const { corners } = getSquareInFront(caster, mouseWorld, minR, maxR);
-
-        gr.clear();
-        gr.moveTo(corners[0]!.x, corners[0]!.y);
-        gr.lineTo(corners[1]!.x, corners[1]!.y);
-        gr.lineTo(corners[2]!.x, corners[2]!.y);
-        gr.lineTo(corners[3]!.x, corners[3]!.y);
-        gr.lineTo(corners[0]!.x, corners[0]!.y);
-        gr.fill({ color: 0x8b7355, alpha: 0.25 });
-        gr.stroke({ color: 0x5d4e37, width: 2, alpha: 0.7 });
-    },
-};
+});
 
 export const BeastClawCard: CardDef = {
     abilityId: CARD_ID,
