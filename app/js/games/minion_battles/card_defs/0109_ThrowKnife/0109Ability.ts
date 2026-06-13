@@ -109,7 +109,7 @@ export const ThrowKnife: AbilityStatic = {
     },
 
     beginActiveCast(engine, caster, _targets, active) {
-        const research = getCrystalRocksResearch(engine, caster);
+        const research = getCrystalRocksResearch(engine as AbilityEngineContext | undefined, caster);
         active.castPayload = beginThrowCastPayload(hasKnifeMultiThrow(research));
     },
 

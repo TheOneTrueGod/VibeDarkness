@@ -201,7 +201,8 @@ describe('commandHeel', () => {
 
     it('revives a dead pet at heal fraction HP and sets heel state', () => {
         const owner = makeUnit({ id: 'owner', x: 100, y: 100 });
-        const pet = makeUnit({ hp: 0, maxHp: 40, active: false, x: 200, y: 200 });
+        const pet = makeUnit({ hp: 0, maxHp: 40, x: 200, y: 200 });
+        pet.active = false;
         pet.aiContext = { aiTree: 'pet' } as PetAITreeContext;
         const engine = makeEngineLike([owner, pet]);
 

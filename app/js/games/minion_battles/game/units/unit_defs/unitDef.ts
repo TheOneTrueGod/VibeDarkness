@@ -321,6 +321,11 @@ export function getUnitCombatCcDef(characterId: string): UnitCombatCcDef | undef
     return UNIT_DEFS[characterId as UnitDefId]?.combatCc;
 }
 
+/** Read-only access to a unit's static data (hp, speed, description, etc.). */
+export function getUnitDefEntry(characterId: UnitDefId): UnitDefEntry | undefined {
+    return UNIT_DEFS[characterId];
+}
+
 /** Enrage trigger def for a character id (undefined when the character does not enrage). */
 export function getUnitEnrageDef(characterId: string): EnrageDef | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.enrageDef;

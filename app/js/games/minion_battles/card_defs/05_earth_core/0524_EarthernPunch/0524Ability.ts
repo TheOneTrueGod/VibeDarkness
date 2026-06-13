@@ -9,7 +9,7 @@ import { getPixelTargetPosition, getAimPointClampedToMaxRange } from '../../../a
 import { ThickLineHitbox } from '../../../hitboxes';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { isOnStone } from '../../../abilities/earthCoreHelpers';
-import { getEffectiveTerrain } from '../../../terrain/FloorTile';
+import { getEffectiveTerrain, type FloorTile } from '../../../terrain/FloorTile';
 import type { EventBus } from '../../../game/EventBus';
 
 const MAX_RANGE = 75;
@@ -33,7 +33,7 @@ interface EngineLike {
             worldToGrid(x: number, y: number): { col: number; row: number };
             get(col: number, row: number): number;
         };
-        getFloorTile(col: number, row: number): { terrainType: number; destructible?: { health: number } } | null;
+        getFloorTile(col: number, row: number): FloorTile | null;
     } | null;
 }
 

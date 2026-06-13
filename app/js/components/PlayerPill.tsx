@@ -66,7 +66,6 @@ export default function PlayerPill({
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         className="w-3 h-3 text-red-400 shrink-0"
-                        title="Disconnected"
                         aria-label="Disconnected"
                     >
                         {/* wifi-off: arcs with a slash */}

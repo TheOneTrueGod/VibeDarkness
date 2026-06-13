@@ -340,7 +340,7 @@ export const petSicEmPounceScenario: ScenarioDefinition = {
         return (
             `enemy hp=${enemy?.hp}/${enemy?.maxHp} ` +
             `enemy y=${enemy?.y.toFixed(0)} (orig=${ENEMY_ORIGINAL_Y}) ` +
-            `stun=${stun?.remaining?.toFixed(2) ?? 'none'} ` +
+            `stun=${stun ? stun.duration.value.toFixed(2) : 'none'} ` +
             `dog y=${dog?.y.toFixed(0)} (stop≤${ENEMY_ORIGINAL_Y + 30})`
         );
     },

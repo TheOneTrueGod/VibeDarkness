@@ -12,7 +12,7 @@ import { createCrystalLightEffect, deactivateProjectileOnBlock } from '../../abi
 import { areEnemies } from '../../game/teams';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
-import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
+import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { type CardDef } from '../types';
 import {
     beginThrowCastPayload,
@@ -157,7 +157,7 @@ export const ThrowChargedRock: AbilityStatic = {
     },
 
     beginActiveCast(engine, caster, _targets, active) {
-        const research = getCrystalRocksResearch(engine, caster);
+        const research = getCrystalRocksResearch(engine as AbilityEngineContext, caster);
         active.castPayload = beginThrowCastPayload(hasMoreRockResearch(research));
     },
 
@@ -175,6 +175,7 @@ export const ThrowChargedRock: AbilityStatic = {
 
     onProjectileExpired(engine, caster, projectile, _hitUnitId?: string): void {
         const eng = engine as AbilityEngineContext;
+        const proj = projectile as { x: number; y: number };
         const sourceUnit = eng.getUnit(caster.id);
         if (!sourceUnit) return;
 
@@ -194,8 +195,8 @@ export const ThrowChargedRock: AbilityStatic = {
 
         eng.addEffect(
             new Effect({
-                x: projectile.x,
-                y: projectile.y,
+                x: proj.x,
+                y: proj.y,
                 duration: 0.25,
                 effectType: 'ChargedRockExplosion',
                 effectRadius: explosionRadius,
@@ -203,7 +204,7 @@ export const ThrowChargedRock: AbilityStatic = {
         );
 
         (eng as AbilityEngineContext & { addLightSource(ls: LightSource): void }).addLightSource(
-            createCrystalLightEffect(projectile.x, projectile.y, {
+            createCrystalLightEffect(proj.x, proj.y, {
                 color: PREVIEW_TEAL,
                 radius: 2,
                 decayInterval: 0.08,
@@ -212,7 +213,7 @@ export const ThrowChargedRock: AbilityStatic = {
 
         const units = (eng.units ?? [])
             .filter((u) => u.isAlive() && areEnemies(sourceUnit.teamId, u.teamId))
-            .map((u) => ({ unit: u, dist: Math.hypot(u.x - projectile.x, u.y - projectile.y) }))
+            .map((u) => ({ unit: u, dist: Math.hypot(u.x - proj.x, u.y - proj.y) }))
             .filter((entry) => entry.dist <= explosionRadius + entry.unit.radius)
             .sort((a, b) => a.dist - b.dist)
             .slice(0, maxTargets)
@@ -225,9 +226,9 @@ export const ThrowChargedRock: AbilityStatic = {
                 unit,
                 KNOCKBACK_TIER,
                 { unitId: sourceUnit.id, abilityId: CARD_ID },
-                projectile.x,
-                projectile.y,
-                eng,
+                proj.x,
+                proj.y,
+                knockbackCtxFromEngine(eng),
             );
         }
     },

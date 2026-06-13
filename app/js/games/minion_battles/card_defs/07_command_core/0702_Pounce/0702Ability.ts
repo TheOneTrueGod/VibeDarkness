@@ -98,7 +98,6 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         start: WINDUP_TIME,
         end: WINDUP_TIME + DASH_DURATION,
         abilityPhase: AbilityPhase.Active,
-        targetDef: { kind: 'pixel', label: 'Pounce target' },
         behaviour: pounceDash,
     },
     {

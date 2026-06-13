@@ -9,6 +9,7 @@ export const TERRAIN_COLORS: Record<TerrainType, string> = {
     [TerrainType.Grass]: TERRAIN_PROPERTIES[TerrainType.Grass].color,
     [TerrainType.ThickGrass]: TERRAIN_PROPERTIES[TerrainType.ThickGrass].color,
     [TerrainType.Rock]: TERRAIN_PROPERTIES[TerrainType.Rock].color,
+    [TerrainType.Rubble]: TERRAIN_PROPERTIES[TerrainType.Rubble].color,
 };
 
 export interface POIStyle {

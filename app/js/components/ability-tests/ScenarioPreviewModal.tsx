@@ -15,9 +15,10 @@ interface RunState {
 
 function makeRunState(scenario: ScenarioDefinition, renderer: GameRenderer): RunState {
     const run = createLiveScenarioRun(scenario);
-    const grid = run.engine.terrainManager?.grid;
-    if (grid) {
-        renderer.setTerrain(grid);
+    const { terrainManager } = run.engine;
+    const grid = terrainManager?.grid;
+    if (terrainManager && grid) {
+        renderer.setTerrain(terrainManager);
         if (!scenario.renderLighting) {
             // Disable the darkness overlay for scenarios that don't use the lighting system
             renderer.setMissionLightConfig(false, 0);

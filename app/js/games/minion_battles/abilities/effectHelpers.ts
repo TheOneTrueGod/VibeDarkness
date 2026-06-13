@@ -181,7 +181,7 @@ export function spawnSpriteEffect(
 ): void {
     const def = SPRITE_EFFECT_DEFS[defId];
     if (!def) {
-        if (process.env.NODE_ENV !== 'production') {
+        if (import.meta.env.MODE !== 'production') {
             console.warn('[spawnSpriteEffect] Unknown defId:', defId);
         }
         return;

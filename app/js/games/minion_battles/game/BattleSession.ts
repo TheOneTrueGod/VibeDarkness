@@ -46,7 +46,7 @@ export type BattleSessionEvent =
           type: 'waiting_for_orders';
           engine: GameEngine;
           info: WaitingForOrders;
-          source: 'engine_callback';
+          source: 'engine_callback' | 'post_full_state_sync';
       }
     | { type: 'round_number'; roundNumber: number }
     | { type: 'round_progress'; progress: number }

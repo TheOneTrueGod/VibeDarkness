@@ -131,7 +131,7 @@ export const ThrowRock: AbilityStatic & { range: number } = {
     },
 
     beginActiveCast(engine, caster, _targets, active) {
-        const research = getCrystalRocksResearch(engine, caster);
+        const research = getCrystalRocksResearch(engine as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
         active.castPayload = beginThrowCastPayload(hasMoreRockResearch(research));
     },
 

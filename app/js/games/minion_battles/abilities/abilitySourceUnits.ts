@@ -19,7 +19,7 @@ import { getLivingPetsOfUnit } from '../game/units/petHelpers';
  * is determined by distance from the caster.
  */
 export function resolveAbilitySourceUnits(
-    ability: AbilityStatic & { abilitySource?: { type: 'pet'; selector: 'nearest' | 'all' } },
+    ability: Pick<AbilityStatic, 'abilitySource'> & { abilitySource?: { type: 'pet'; selector: 'nearest' | 'all' } },
     caster: Unit,
     units: readonly Unit[],
     aimPoint?: { x: number; y: number },

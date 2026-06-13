@@ -20,6 +20,7 @@ import { ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_de
 import AbilityTestPage from './AbilityTestPage';
 import TerrainEditorTab from './TerrainEditor/TerrainEditorTab';
 import LobbyArchiveTab from './LobbyArchive/LobbyArchiveTab';
+import BestiaryPanel from './BestiaryPanel';
 import {
     type TabId,
     CAMPAIGN_TAB_IDS,
@@ -39,6 +40,7 @@ const TAB_SETTINGS: Record<
     ability_test: { label: 'Ability Test', isVisible: (isAdmin) => isAdmin, adminTab: true },
     terrain_editor: { label: 'Terrain Editor', isVisible: (isAdmin) => isAdmin, adminTab: true },
     lobby_archive: { label: 'Lobby Archive', isVisible: (isAdmin) => isAdmin, adminTab: true },
+    bestiary: { label: 'Bestiary', isVisible: (isAdmin) => isAdmin, adminTab: true },
 };
 
 /** Default tab when no tab is selected; non-admins see Join Mission first. */
@@ -556,6 +558,8 @@ export default function CampaignHomeScreen({
                         {activeTab === 'lobby_archive' && isAdmin && (
                             <LobbyArchiveTab lobbyClient={lobbyClient} onJoinLobby={onJoinLobby} />
                         )}
+
+                        {activeTab === 'bestiary' && isAdmin && <BestiaryPanel />}
                     </>
                 )}
             </div>

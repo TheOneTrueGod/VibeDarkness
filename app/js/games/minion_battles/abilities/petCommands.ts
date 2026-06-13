@@ -31,7 +31,6 @@ import type { PetAITreeContext } from '../game/units/unitAI/pet/context';
 import { Effect } from '../game/effects/Effect';
 import { grantRecoveryChargeToAbility } from './abilityUses';
 import type { AbilityEngineContext } from './AbilityEngineContext';
-
 export { resolveAbilitySourceUnits } from './abilitySourceUnits';
 
 // ---- resolveAbilitySourceUnits ----
@@ -48,6 +47,11 @@ export interface HeelOptions {
     durationSeconds: number;
 }
 
+interface HeelEngineCtx {
+    gameTime: number;
+    addEffect(e: unknown): void;
+}
+
 /**
  * Heal each pet, put them into heel state, and interrupt any active attack.
  * Also adds a green Pulse VFX on each pet so the effect is visible.
@@ -55,7 +59,7 @@ export interface HeelOptions {
 export function commandHeel(
     owner: Unit,
     pets: Unit[],
-    engine: AbilityEngineContext,
+    engine: HeelEngineCtx,
     opts: HeelOptions,
 ): void {
     for (const pet of pets) {
