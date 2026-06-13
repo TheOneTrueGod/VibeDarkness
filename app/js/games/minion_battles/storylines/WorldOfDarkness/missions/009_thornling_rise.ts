@@ -76,6 +76,7 @@ export class ThornlingRiseMission extends BaseMissionDef {
 
     missionId = ThornlingRiseMission.missionId;
     mapPosition = { x: 100, y: 350 };
+    description = 'A thornling nest surges with new growth. Destroy it before the swarm overwhelms the region.';
     name = ThornlingRiseMission.nameStr;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;

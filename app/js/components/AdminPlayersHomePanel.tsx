@@ -91,6 +91,7 @@ function CharacterListCard({
 }) {
     const portrait = getPortrait(character.portraitId);
     const displayName = character.name || portrait?.name || 'Character';
+    const picture = portrait?.picture;
     return (
         <button
             type="button"
@@ -100,7 +101,13 @@ function CharacterListCard({
             }`}
         >
             <div className="h-24 bg-background flex items-center justify-center overflow-hidden">
-                <div dangerouslySetInnerHTML={{ __html: portrait?.picture ?? '' }} className="w-full h-full" />
+                {picture ? (
+                    picture.trimStart().startsWith('<') ? (
+                        <div dangerouslySetInnerHTML={{ __html: picture }} className="w-full h-full" />
+                    ) : (
+                        <img src={picture} alt="" className="w-full h-full object-cover" />
+                    )
+                ) : null}
             </div>
             <div className="px-3 py-2">
                 <p className="text-sm font-semibold text-white truncate">{displayName}</p>
@@ -441,92 +448,6 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 overflow-x-auto rounded-lg border border-border-custom bg-surface px-4 py-3 shrink-0">
-                    <span className="text-sm font-semibold text-muted shrink-0">Items</span>
-                    <div className="flex flex-wrap gap-2">
-                        {Object.entries(inventoryCounts).length > 0 ? (
-                            Object.entries(inventoryCounts).map(([itemId, count]) => (
-                                <ItemCard
-                                    key={itemId}
-                                    itemId={itemId}
-                                    count={count}
-                                    onDragStart={handleInventoryDragStart}
-                                    onRemove={(id) => void handleRemoveItem(id)}
-                                />
-                            ))
-                        ) : (
-                            <p className="text-sm text-muted">No items yet</p>
-                        )}
-                    </div>
-                    <div className="ml-auto flex items-center gap-2 shrink-0">
-                        <label className="text-xs text-muted">Give item</label>
-                        <select
-                            value={grantItemId}
-                            onChange={(e) => setGrantItemId(e.target.value)}
-                            className="rounded-md border border-border-custom bg-white px-3 py-2 text-sm text-black"
-                        >
-                            {ALL_PLAYER_ITEMS.map((itemId) => (
-                                <option key={itemId} value={itemId} className="bg-white text-black">
-                                    {getItemName(itemId)}
-                                </option>
-                            ))}
-                        </select>
-                        <button
-                            type="button"
-                            onClick={() => void handleGrantItem()}
-                            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
-                            disabled={detailsLoading}
-                        >
-                            Give
-                        </button>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3 overflow-x-auto rounded-lg border border-border-custom bg-surface px-4 py-3 shrink-0">
-                    <span className="text-sm font-semibold text-muted shrink-0">Knowledge</span>
-                    <div className="flex flex-wrap gap-2">
-                        {Object.keys(details?.account.knowledge ?? {}).length > 0 ? (
-                            Object.keys(details?.account.knowledge ?? {}).sort().map((key) => (
-                                <span
-                                    key={key}
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
-                                    title={key}
-                                >
-                                    {key}
-                                </span>
-                            ))
-                        ) : (
-                            <p className="text-sm text-muted">No knowledge yet</p>
-                        )}
-                    </div>
-                    <div className="ml-auto flex items-center gap-2 shrink-0">
-                        <label className="text-xs text-muted">Grant</label>
-                        <select
-                            value={grantKnowledgeKey}
-                            onChange={(e) => setGrantKnowledgeKey(e.target.value as typeof grantKnowledgeKey)}
-                            className="rounded-md border border-border-custom bg-white px-3 py-2 text-sm text-black"
-                        >
-                            <option value="Crystals" className="bg-white text-black">
-                                Crystals
-                            </option>
-                            <option value="Forging" className="bg-white text-black">
-                                Forging
-                            </option>
-                            <option value="Research" className="bg-white text-black">
-                                Research
-                            </option>
-                        </select>
-                        <button
-                            type="button"
-                            onClick={() => void handleGrantKnowledge()}
-                            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
-                            disabled={detailsLoading}
-                        >
-                            Grant
-                        </button>
-                    </div>
-                </div>
-
                 <div className="flex flex-1 min-h-0 gap-4 overflow-hidden">
                     <div className="w-[200px] shrink-0 overflow-auto rounded-lg border border-border-custom bg-surface p-3">
                         <p className="mb-3 text-sm font-semibold text-white">Characters</p>
@@ -565,6 +486,88 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                                         ? (missionId) =>
                                               onStartMissionForCharacter(missionId, selectedCharacter, details.account)
                                         : undefined
+                                }
+                                adminEquipmentPanel={
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <span className="text-sm font-semibold text-muted shrink-0">Items</span>
+                                        <div className="flex flex-wrap gap-2 flex-1 min-w-0">
+                                            {Object.entries(inventoryCounts).length > 0 ? (
+                                                Object.entries(inventoryCounts).map(([itemId, count]) => (
+                                                    <ItemCard
+                                                        key={itemId}
+                                                        itemId={itemId}
+                                                        count={count}
+                                                        onDragStart={handleInventoryDragStart}
+                                                        onRemove={(id) => void handleRemoveItem(id)}
+                                                    />
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted">No items yet</p>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                            <label className="text-xs text-muted">Give item</label>
+                                            <select
+                                                value={grantItemId}
+                                                onChange={(e) => setGrantItemId(e.target.value)}
+                                                className="rounded-md border border-border-custom bg-white px-3 py-2 text-sm text-black"
+                                            >
+                                                {ALL_PLAYER_ITEMS.map((itemId) => (
+                                                    <option key={itemId} value={itemId} className="bg-white text-black">
+                                                        {getItemName(itemId)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleGrantItem()}
+                                                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
+                                                disabled={detailsLoading}
+                                            >
+                                                Give
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                                adminKnowledgePanel={
+                                    <div className="flex flex-col gap-2 h-full">
+                                        <p className="text-xs text-muted">Knowledge</p>
+                                        <div className="flex flex-wrap gap-2 flex-1">
+                                            {Object.keys(details?.account.knowledge ?? {}).length > 0 ? (
+                                                Object.keys(details?.account.knowledge ?? {}).sort().map((key) => (
+                                                    <span
+                                                        key={key}
+                                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
+                                                        title={key}
+                                                    >
+                                                        {key}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted">No knowledge yet</p>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-auto">
+                                            <label className="text-xs text-muted">Grant</label>
+                                            <select
+                                                value={grantKnowledgeKey}
+                                                onChange={(e) => setGrantKnowledgeKey(e.target.value as typeof grantKnowledgeKey)}
+                                                className="rounded-md border border-border-custom bg-white px-2 py-1 text-sm text-black"
+                                            >
+                                                <option value="Crystals" className="bg-white text-black">Crystals</option>
+                                                <option value="Forging" className="bg-white text-black">Forging</option>
+                                                <option value="Research" className="bg-white text-black">Research</option>
+                                            </select>
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleGrantKnowledge()}
+                                                className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
+                                                disabled={detailsLoading}
+                                            >
+                                                Grant
+                                            </button>
+                                        </div>
+                                    </div>
                                 }
                             />
                         ) : (

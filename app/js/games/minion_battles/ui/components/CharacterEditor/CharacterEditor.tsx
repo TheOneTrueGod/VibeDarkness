@@ -64,6 +64,10 @@ interface CharacterEditorProps {
     localPlayerId?: number;
     /** Called when the player clicks a mission on the Mission Map. */
     onStartMission?: (missionId: string) => void;
+    /** Admin-only content rendered pinned to the bottom of the Equipment tab (e.g. item grant UI). */
+    adminEquipmentPanel?: React.ReactNode;
+    /** Admin-only content rendered next to the grant-campaign-resources block in the Upgrades tab. */
+    adminKnowledgePanel?: React.ReactNode;
 }
 
 type EditorTab = 'missionMap' | 'equipment' | 'research';
@@ -103,6 +107,8 @@ export default function CharacterEditor({
     equippedItemsDisplay = 'paperDoll',
     localPlayerId,
     onStartMission,
+    adminEquipmentPanel,
+    adminKnowledgePanel,
 }: CharacterEditorProps) {
     const canEditName = editMode || allowNameEdit;
 
@@ -708,9 +714,9 @@ export default function CharacterEditor({
                 </div>
 
                 {/* Right column: panel main container */}
-                <div className="flex-1 min-w-0 overflow-auto p-4">
+                <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
                     {activeTab === 'missionMap' && (
-                        <div className="flex flex-col h-full">
+                        <div className="flex-1 min-h-0 overflow-auto p-4 flex flex-col">
                             {isAdmin && (
                                 <div className="shrink-0 flex items-center gap-2 pb-2 border-b border-border-custom mb-2">
                                     <label className="text-xs text-muted shrink-0">Campaign:</label>
@@ -735,96 +741,117 @@ export default function CharacterEditor({
                         </div>
                     )}
 
-                    {activeTab === 'equipment' && showInventoryPanel && (
-                        <InventoryPanel
-                            visibleInventoryItems={visibleInventoryItems}
-                            editMode={editMode}
-                            saving={saving}
-                            onDragStartItem={handleDragStartItem}
-                            onDragEnd={handleDragEnd}
-                        />
+                    {activeTab === 'equipment' && (
+                        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                            {showInventoryPanel && (
+                                <div className="flex-1 min-h-0 overflow-auto p-4">
+                                    <InventoryPanel
+                                        visibleInventoryItems={visibleInventoryItems}
+                                        editMode={editMode}
+                                        saving={saving}
+                                        onDragStartItem={handleDragStartItem}
+                                        onDragEnd={handleDragEnd}
+                                    />
+                                </div>
+                            )}
+                            {adminEquipmentPanel && (
+                                <div className="shrink-0 border-t border-border-custom p-3">
+                                    {adminEquipmentPanel}
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {activeTab === 'research' && (
-                        <>
+                        <div className="flex-1 min-h-0 overflow-auto p-4">
                             {!isAdmin ? (
                                 <ResearchedNodesGrid
                                     availableTrees={displayResearchTrees}
                                     researchTrees={researchTrees}
                                     filterTreeId={selectedTreeId}
                                 />
-                            ) : resolvedCampaign?.resources ? (
+                            ) : (
                                 <>
-                                    {permissionAccount?.role === 'admin' && (
-                                        <div className="mb-4 rounded-lg border border-border-custom bg-surface-light p-3">
-                                            <p className="text-xs text-muted mb-2">Admin: grant campaign resource</p>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <select
-                                                    className="rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
-                                                    value={grantResourceKey}
-                                                    onChange={(e) => setGrantResourceKey(e.target.value as typeof grantResourceKey)}
-                                                >
-                                                    <option value="food">food</option>
-                                                    <option value="metal">metal</option>
-                                                    <option value="population">population</option>
-                                                    <option value="crystals">crystals</option>
-                                                </select>
-                                                <input
-                                                    className="w-24 rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
-                                                    value={grantResourceAmount}
-                                                    onChange={(e) => setGrantResourceAmount(e.target.value)}
-                                                    inputMode="numeric"
-                                                    placeholder="amount"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void handleGrantResource()}
-                                                    className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover"
-                                                >
-                                                    Give
-                                                </button>
-                                                <span className="text-xs text-muted flex flex-wrap items-center gap-2">
-                                                    <span>Current:</span>
-                                                    <ResourcePill resource="food" count={resolvedCampaign.resources.food} className="text-xs" />
-                                                    <ResourcePill resource="metal" count={resolvedCampaign.resources.metal} className="text-xs" />
-                                                    <ResourcePill resource="population" count={resolvedCampaign.resources.population} className="text-xs" />
-                                                    <ResourcePill resource="crystals" count={resolvedCampaign.resources.crystals} className="text-xs" />
-                                                </span>
-                                            </div>
+                                    {(resolvedCampaign?.resources || adminKnowledgePanel) && (
+                                        <div className="mb-4 flex gap-3">
+                                            {resolvedCampaign?.resources && permissionAccount?.role === 'admin' && (
+                                                <div className="flex-1 rounded-lg border border-border-custom bg-surface-light p-3">
+                                                    <p className="text-xs text-muted mb-2">Admin: grant campaign resource</p>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <select
+                                                            className="rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
+                                                            value={grantResourceKey}
+                                                            onChange={(e) => setGrantResourceKey(e.target.value as typeof grantResourceKey)}
+                                                        >
+                                                            <option value="food">food</option>
+                                                            <option value="metal">metal</option>
+                                                            <option value="population">population</option>
+                                                            <option value="crystals">crystals</option>
+                                                        </select>
+                                                        <input
+                                                            className="w-24 rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
+                                                            value={grantResourceAmount}
+                                                            onChange={(e) => setGrantResourceAmount(e.target.value)}
+                                                            inputMode="numeric"
+                                                            placeholder="amount"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void handleGrantResource()}
+                                                            className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover"
+                                                        >
+                                                            Give
+                                                        </button>
+                                                        <span className="text-xs text-muted flex flex-wrap items-center gap-2">
+                                                            <span>Current:</span>
+                                                            <ResourcePill resource="food" count={resolvedCampaign.resources.food} className="text-xs" />
+                                                            <ResourcePill resource="metal" count={resolvedCampaign.resources.metal} className="text-xs" />
+                                                            <ResourcePill resource="population" count={resolvedCampaign.resources.population} className="text-xs" />
+                                                            <ResourcePill resource="crystals" count={resolvedCampaign.resources.crystals} className="text-xs" />
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {adminKnowledgePanel && (
+                                                <div className="flex-1 rounded-lg border border-border-custom bg-surface-light p-3">
+                                                    {adminKnowledgePanel}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
-
-                                    {displayResearchTrees.length === 0 ? (
-                                        <p className="text-sm text-muted">No research trees available.</p>
-                                    ) : !useGridView ? (
-                                        selectedTree ? (
-                                            <ResearchTreeContent
-                                                tree={selectedTree}
-                                                dimmed={selectedTreeDimmed}
-                                                account={account ?? null}
-                                                character={character}
-                                                equipment={equipment}
+                                    {resolvedCampaign?.resources ? (
+                                        displayResearchTrees.length === 0 ? (
+                                            <p className="text-sm text-muted">No research trees available.</p>
+                                        ) : !useGridView ? (
+                                            selectedTree ? (
+                                                <ResearchTreeContent
+                                                    tree={selectedTree}
+                                                    dimmed={selectedTreeDimmed}
+                                                    account={account ?? null}
+                                                    character={character}
+                                                    equipment={equipment}
+                                                    researchTrees={researchTrees}
+                                                    campaignResources={resolvedCampaign.resources}
+                                                    saving={saving}
+                                                    canResetResearch
+                                                    isAdmin={isAdmin}
+                                                    onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
+                                                    onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
+                                                />
+                                            ) : null
+                                        ) : (
+                                            <ResearchedNodesGrid
+                                                availableTrees={displayResearchTrees}
                                                 researchTrees={researchTrees}
-                                                campaignResources={resolvedCampaign.resources}
-                                                saving={saving}
-                                                canResetResearch
-                                                isAdmin={isAdmin}
-                                                onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
-                                                onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
+                                                filterTreeId={selectedTreeId}
                                             />
-                                        ) : null
+                                        )
                                     ) : (
-                                        <ResearchedNodesGrid
-                                            availableTrees={displayResearchTrees}
-                                            researchTrees={researchTrees}
-                                            filterTreeId={selectedTreeId}
-                                        />
+                                        <p className="text-sm text-muted">Campaign resources not loaded.</p>
                                     )}
                                 </>
-                            ) : (
-                                <p className="text-sm text-muted">Campaign resources not loaded.</p>
                             )}
-                        </>
+                        </div>
                     )}
                 </div>
             </div>

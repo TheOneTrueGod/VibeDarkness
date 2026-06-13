@@ -26,6 +26,8 @@ class Character
     private array $researchTrees;
     /** Unix timestamp when this character last started a mission (playable unit). 0 = never. */
     private int $lastUsed;
+    /** Per-campaign mission results. Key = campaignId, value = list of MissionResult objects. */
+    private array $missionResults;
 
     public function __construct(
         string $id,
@@ -39,7 +41,8 @@ class Character
         string $campaignId = '',
         string $missionId = '',
         array $researchTrees = [],
-        int $lastUsed = 0
+        int $lastUsed = 0,
+        array $missionResults = []
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -53,6 +56,7 @@ class Character
         $this->missionId = $missionId;
         $this->researchTrees = self::normalizeResearchTrees($researchTrees);
         $this->lastUsed = max(0, $lastUsed);
+        $this->missionResults = is_array($missionResults) ? $missionResults : [];
     }
 
     public function getId(): string
@@ -120,6 +124,12 @@ class Character
         return $this->lastUsed;
     }
 
+    /** @return array<string, list<array<string, mixed>>> */
+    public function getMissionResults(): array
+    {
+        return $this->missionResults;
+    }
+
     /** @param array<string, string[]> $researchTrees */
     public function setResearchTrees(array $researchTrees): void
     {
@@ -142,6 +152,7 @@ class Character
             'missionId' => $this->missionId,
             'researchTrees' => $this->researchTrees,
             'lastUsed' => $this->lastUsed,
+            'missionResults' => $this->missionResults,
         ];
     }
 
@@ -152,6 +163,7 @@ class Character
         $traits = $data['traits'] ?? [];
         $battleChipDetails = $data['battleChipDetails'] ?? [];
         $researchTrees = $data['researchTrees'] ?? [];
+        $missionResults = $data['missionResults'] ?? [];
         return new self(
             $data['id'] ?? '',
             (int) ($data['ownerAccountId'] ?? 0),
@@ -164,7 +176,8 @@ class Character
             (string) ($data['campaignId'] ?? ''),
             (string) ($data['missionId'] ?? ''),
             is_array($researchTrees) ? $researchTrees : [],
-            (int) ($data['lastUsed'] ?? 0)
+            (int) ($data['lastUsed'] ?? 0),
+            is_array($missionResults) ? $missionResults : []
         );
     }
 

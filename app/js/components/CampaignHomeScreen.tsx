@@ -565,6 +565,7 @@ export default function CampaignHomeScreen({
                 <nav className="flex border-t border-border-custom bg-surface" aria-label="Tabs">
                     {visibleTabs.map((id) => {
                         const { label, adminTab } = TAB_SETTINGS[id];
+                        const displayLabel = id === 'players' && !isAdmin ? 'Characters' : label;
                         const isActive = activeTab === id;
                         return (
                             <button
@@ -577,7 +578,7 @@ export default function CampaignHomeScreen({
                                 } ${adminTab ? 'bg-red-950/50 hover:bg-red-950/70' : ''}`}
                                 onClick={() => navigate(campaignPathForTab(id))}
                             >
-                                {label}
+                                {displayLabel}
                             </button>
                         );
                     })}

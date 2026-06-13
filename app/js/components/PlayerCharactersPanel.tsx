@@ -34,11 +34,14 @@ function CharacterCard({
             }`}
         >
             <div className="flex items-center gap-3">
-                {portrait && (
-                    <div
-                        className="h-10 w-10 shrink-0 rounded-full border border-border-custom overflow-hidden bg-dark-700"
-                        dangerouslySetInnerHTML={{ __html: portrait.picture ?? '' }}
-                    />
+                {portrait?.picture && (
+                    <div className="h-10 w-10 shrink-0 rounded-full border border-border-custom overflow-hidden bg-dark-700">
+                        {portrait.picture.trimStart().startsWith('<') ? (
+                            <div dangerouslySetInnerHTML={{ __html: portrait.picture }} className="w-full h-full" />
+                        ) : (
+                            <img src={portrait.picture} alt="" className="w-full h-full object-cover" />
+                        )}
+                    </div>
                 )}
                 <div className="min-w-0">
                     <p className="font-semibold text-white truncate">{character.name}</p>

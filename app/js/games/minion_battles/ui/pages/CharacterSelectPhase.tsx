@@ -552,6 +552,26 @@ export default function CharacterSelectPhase({
                             <div className="w-[200px] h-[200px] flex items-center justify-center text-gray-400">
                                 Loading…
                             </div>
+                        ) : myLockedCharacterId ? (
+                            // Locked: only show the required character, no switching allowed
+                            (() => {
+                                const lockedChar = sortedCharacters.find((c) => c.id === myLockedCharacterId);
+                                return lockedChar ? (
+                                    <CampaignCharacterCard
+                                        key={lockedChar.id}
+                                        character={lockedChar}
+                                        campaignId={campaignId}
+                                        missionId={missionId}
+                                        missionTraitFilter={missionTraitFilter}
+                                        isMySelection={mySelection === lockedChar.id}
+                                        isLocked
+                                        playerSelections={characterSelections}
+                                        players={players}
+                                        onSelect={handleSelectCharacter}
+                                        onDelete={handleDeleteCharacter}
+                                    />
+                                ) : null;
+                            })()
                         ) : (
                             sortedCharacters.map((char) => (
                                 <CampaignCharacterCard
@@ -574,20 +594,22 @@ export default function CharacterSelectPhase({
                             .map((r) => (
                                 <RequiredPlayerSlot key={r.playerName} playerName={r.playerName} />
                             ))}
-                        {/* Create Character card */}
-                        <CreateCharacterCard ref={setCreateCardRef} onClick={() => setCreatorOpen(true)} />
-                        {/* Spectator card */}
-                        <SpectatorCard
-                            isMySelection={mySelection === SPECTATOR_ID}
-                            onSelect={() => handleSelectCharacter(SPECTATOR_ID, '')}
-                        />
-                        {/* Control Enemy card - mission 004 (Monster) only, admins only */}
-                        {missionId === 'monster' && isAdmin && (
-                            <ControlEnemyCard
-                                isMySelection={mySelection === CONTROL_ENEMY_ALPHA_WOLF}
-                                isDisabled={controlEnemySelectedBy != null && controlEnemySelectedBy !== playerId}
-                                onSelect={() => handleSelectCharacter(CONTROL_ENEMY_ALPHA_WOLF, '')}
-                            />
+                        {/* Create Character / Spectator / Control Enemy — hidden when player is locked */}
+                        {!myLockedCharacterId && (
+                            <>
+                                <CreateCharacterCard ref={setCreateCardRef} onClick={() => setCreatorOpen(true)} />
+                                <SpectatorCard
+                                    isMySelection={mySelection === SPECTATOR_ID}
+                                    onSelect={() => handleSelectCharacter(SPECTATOR_ID, '')}
+                                />
+                                {missionId === 'monster' && isAdmin && (
+                                    <ControlEnemyCard
+                                        isMySelection={mySelection === CONTROL_ENEMY_ALPHA_WOLF}
+                                        isDisabled={controlEnemySelectedBy != null && controlEnemySelectedBy !== playerId}
+                                        onSelect={() => handleSelectCharacter(CONTROL_ENEMY_ALPHA_WOLF, '')}
+                                    />
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
@@ -823,6 +845,8 @@ interface CampaignCharacterCardProps {
     missionId: string;
     missionTraitFilter: { allowedTraits?: string[]; disallowedTraits?: string[] } | undefined;
     isMySelection: boolean;
+    /** When true, this character is required for this session and cannot be changed or deleted. */
+    isLocked?: boolean;
     playerSelections: Record<string, string>;
     players: Record<string, PlayerState>;
     onSelect: (characterId: string, portraitId: string, characterDisplayName?: string) => void;
@@ -835,6 +859,7 @@ function CampaignCharacterCard({
     missionId,
     missionTraitFilter,
     isMySelection,
+    isLocked = false,
     playerSelections,
     players,
     onSelect,
@@ -842,8 +867,8 @@ function CampaignCharacterCard({
 }: CampaignCharacterCardProps) {
     const portrait = getPortrait(character.portraitId);
     const displayName = character.name || (portrait?.name ?? 'Character');
-    const canUse = character.canBeUsedOnMission(campaignId, missionId, missionTraitFilter);
-    const disallowReason = character.getDisallowReason(campaignId, missionId, missionTraitFilter);
+    const canUse = isLocked || character.canBeUsedOnMission(campaignId, missionId, missionTraitFilter);
+    const disallowReason = isLocked ? null : character.getDisallowReason(campaignId, missionId, missionTraitFilter);
 
     const selectingPlayers = useMemo(() => {
         return Object.entries(playerSelections)
@@ -856,32 +881,36 @@ function CampaignCharacterCard({
         <div
             className={`
                 w-[200px] h-[200px] rounded-lg overflow-hidden relative flex flex-col
-                transition-all cursor-pointer
-                ${isMySelection
-                    ? 'border-[3px] border-green-500 shadow-[0_0_12px_rgba(34,197,94,0.4)]'
-                    : 'border-2 border-border-custom'
+                transition-all
+                ${isLocked
+                    ? 'border-[3px] border-green-500 shadow-[0_0_12px_rgba(34,197,94,0.4)] cursor-default'
+                    : isMySelection
+                        ? 'border-[3px] border-green-500 shadow-[0_0_12px_rgba(34,197,94,0.4)] cursor-pointer'
+                        : 'border-2 border-border-custom cursor-pointer'
                 }
-                ${canUse
+                ${!isLocked && canUse
                     ? 'hover:-translate-y-1 hover:shadow-[0_8px_16px_rgba(0,0,0,0.4)] hover:border-primary'
-                    : 'opacity-70 cursor-not-allowed'
+                    : !isLocked ? 'opacity-70 cursor-not-allowed' : ''
                 }
                 bg-surface
             `}
-            onClick={() => canUse && onSelect(character.id, character.portraitId, displayName)}
-            title={canUse ? displayName : `${displayName} — ${disallowReason ?? 'Not available'}`}
+            onClick={() => !isLocked && canUse && onSelect(character.id, character.portraitId, displayName)}
+            title={isLocked ? `${displayName} — locked for this mission` : canUse ? displayName : `${displayName} — ${disallowReason ?? 'Not available'}`}
         >
-            <button
-                type="button"
-                className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-red-600/90 hover:bg-red-500 text-white text-sm font-bold flex items-center justify-center shadow-lg cursor-pointer"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(character.id);
-                }}
-                title="Delete character"
-                aria-label="Delete character"
-            >
-                ×
-            </button>
+            {!isLocked && (
+                <button
+                    type="button"
+                    className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-red-600/90 hover:bg-red-500 text-white text-sm font-bold flex items-center justify-center shadow-lg cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(character.id);
+                    }}
+                    title="Delete character"
+                    aria-label="Delete character"
+                >
+                    ×
+                </button>
+            )}
             <div className="w-full flex-1 overflow-hidden flex items-center justify-center bg-background relative">
                 {portrait?.picture && <img src={portrait.picture} alt="" className="w-full h-full object-cover" />}
             </div>

@@ -72,6 +72,12 @@ export function getResolvedResearchRewardsFromEntries(
     return out;
 }
 
+export function getResearchTreesForKnowledgeKey(key: string): ResearchTreeDef[] {
+    return RESEARCH_TREES.filter((tree) =>
+        tree.accessRequirements.some((r) => r.type === 'accountKnowledge' && r.key === key),
+    );
+}
+
 export function getResolvedMissionResearchRewards(payload: {
     researchRewardIds?: string[];
     researchRewards?: MissionResearchRewardEntry[];

@@ -259,6 +259,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 
 	missionId = EmberThresholdMission.missionId;
 	mapPosition = { x: 440, y: 350 };
+	description = 'Hold the threshold against relentless waves of shadow creatures. The line must not break.';
 	name = EmberThresholdMission.nameStr;
 	worldWidth = WORLD_WIDTH;
 	worldHeight = WORLD_HEIGHT;

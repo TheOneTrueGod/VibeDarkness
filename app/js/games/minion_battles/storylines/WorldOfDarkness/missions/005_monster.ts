@@ -140,6 +140,7 @@ export class MonsterMission extends BaseMissionDef {
 
     missionId = 'monster';
     mapPosition = { x: 780, y: 350 };
+    description = 'The Alpha Wolf hunts these tunnels. Confront the beast directly — or be hunted forever.';
     campaignId = 'world_of_darkness';
     name = 'Monster';
     worldWidth = WORLD_WIDTH;
