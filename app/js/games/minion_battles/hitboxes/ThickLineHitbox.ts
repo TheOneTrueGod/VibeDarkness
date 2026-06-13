@@ -61,8 +61,8 @@ export abstract class ThickLineHitbox extends Hitbox {
         gr.lineTo(endX - perpX, endY - perpY);
         gr.lineTo(endX + perpX, endY + perpY);
         gr.lineTo(x0 + perpX, y0 + perpY);
-        gr.fill({ color: 0xa0a0a0, alpha: 0.5 });
-        gr.stroke({ color: 0x505050, width: 2, alpha: 0.9 });
+        gr.fill({ color: 0xa0a0a0, alpha: 0.4 });
+        gr.stroke({ color: 0x505050, width: 2, alpha: 0.4 });
     }
 
     /**

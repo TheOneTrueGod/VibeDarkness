@@ -63,7 +63,7 @@ export function getMeleeTrackingAimPoint(
 export function renderMeleeTrackingHighlights(gr: IAbilityPreviewGraphics, hitUnits: Unit[]): void {
     for (const unit of hitUnits) {
         gr.circle(unit.x, unit.y, unit.radius + 4);
-        gr.stroke({ color: 0xff2222, width: 2.5, alpha: 0.85 });
+        gr.stroke({ color: 0xff2222, width: 2.5, alpha: 0.4 });
     }
 }
 

@@ -194,13 +194,13 @@ export default function BestiaryPanel() {
     const selectedEntry = selectedId ? BESTIARY_ENTRIES.find((e) => e.id === selectedId) : null;
 
     return (
-        <div className="flex rounded-lg border border-border-custom bg-surface overflow-hidden min-h-[600px] min-w-[60rem]">
-            {/* Left panel — unit list */}
+        <div className="flex rounded-lg border border-border-custom bg-surface overflow-hidden min-w-[60rem] h-[calc(100vh-200px)]">
+            {/* Left panel — unit list, scrolls independently */}
             <div className="w-96 flex-shrink-0 border-r border-border-custom overflow-y-auto">
                 <BestiaryList selectedId={selectedId} onSelect={setSelectedId} />
             </div>
 
-            {/* Right panel — unit details */}
+            {/* Right panel — unit details, scrolls independently */}
             <div className="flex-1 min-w-[36rem] overflow-y-auto">
                 {selectedEntry ? <BestiaryDetail entry={selectedEntry} /> : <EmptyDetail />}
             </div>

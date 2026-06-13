@@ -365,6 +365,8 @@ export default function CampaignHomeScreen({
                           ? 'max-w-[min(1800px,100%)]'
                         : activeTab === 'lobby_archive'
                           ? 'max-w-[min(1800px,100%)]'
+                        : activeTab === 'bestiary'
+                          ? 'max-w-[min(1000px,100%)]'
                           : 'max-w-[800px]'
                 }`}
             >
