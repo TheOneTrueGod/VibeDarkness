@@ -6,7 +6,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AccountState } from '../types';
 import { LobbyClient } from '../LobbyClient';
 import CharacterEditor from '../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
+import CharacterCreator from '../games/minion_battles/ui/components/CharacterEditor/CharacterCreator';
 import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
+import { STORYLINES } from '../games/minion_battles/storylines/index';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../games/minion_battles/character_defs/campaignCharacterTypes';
 import { getPortrait } from '../games/minion_battles/character_defs/portraits';
@@ -84,36 +86,64 @@ function CharacterListCard({
     character,
     selected,
     onSelect,
+    onDelete,
 }: {
     character: CampaignCharacter;
     selected: boolean;
     onSelect: () => void;
+    onDelete: () => void;
 }) {
     const portrait = getPortrait(character.portraitId);
     const displayName = character.name || portrait?.name || 'Character';
     const picture = portrait?.picture;
+    const [confirming, setConfirming] = useState(false);
     return (
-        <button
-            type="button"
-            onClick={onSelect}
-            className={`w-full rounded-lg border-2 overflow-hidden text-left transition-colors ${
-                selected ? 'border-primary bg-surface-light' : 'border-border-custom bg-surface hover:border-primary'
-            }`}
-        >
-            <div className="h-24 bg-background flex items-center justify-center overflow-hidden">
-                {picture ? (
-                    picture.trimStart().startsWith('<') ? (
-                        <div dangerouslySetInnerHTML={{ __html: picture }} className="w-full h-full" />
-                    ) : (
-                        <img src={picture} alt="" className="w-full h-full object-cover" />
-                    )
-                ) : null}
-            </div>
-            <div className="px-3 py-2">
-                <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-                <p className="text-[11px] text-muted truncate">{character.id}</p>
-            </div>
-        </button>
+        <div className={`w-full rounded-lg border-2 overflow-hidden transition-colors ${
+            selected ? 'border-primary bg-surface-light' : 'border-border-custom bg-surface'
+        }`}>
+            <button
+                type="button"
+                onClick={onSelect}
+                className="w-full text-left hover:bg-white/5 transition-colors"
+            >
+                <div className="h-24 bg-background flex items-center justify-center overflow-hidden">
+                    {picture ? (
+                        picture.trimStart().startsWith('<') ? (
+                            <div dangerouslySetInnerHTML={{ __html: picture }} className="w-full h-full" />
+                        ) : (
+                            <img src={picture} alt="" className="w-full h-full object-cover" />
+                        )
+                    ) : null}
+                </div>
+                <div className="px-3 py-2">
+                    <p className="text-sm font-semibold text-white truncate">{displayName}</p>
+                    <p className="text-[11px] text-muted truncate">{character.id}</p>
+                </div>
+            </button>
+            {confirming ? (
+                <div className="flex items-center justify-between gap-1 px-3 py-2 border-t border-border-custom bg-red-950/40">
+                    <span className="text-xs text-red-300">Delete?</span>
+                    <div className="flex gap-1">
+                        <button type="button" onClick={() => setConfirming(false)} className="px-2 py-0.5 rounded text-xs border border-border-custom text-muted hover:text-white transition-colors cursor-pointer">Cancel</button>
+                        <button type="button" onClick={() => { setConfirming(false); onDelete(); }} className="px-2 py-0.5 rounded text-xs bg-red-700 hover:bg-red-600 text-white transition-colors cursor-pointer">Delete</button>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex justify-end px-2 py-1.5 border-t border-border-custom">
+                    <button
+                        type="button"
+                        onClick={() => setConfirming(true)}
+                        className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
+                        title="Delete character"
+                        aria-label="Delete character"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -184,6 +214,8 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [grantItemId, setGrantItemId] = useState(ALL_PLAYER_ITEMS[0] ?? '');
     const [grantKnowledgeKey, setGrantKnowledgeKey] = useState<'Crystals' | 'Forging' | 'Research'>('Crystals');
+    const [creatorOpen, setCreatorOpen] = useState(false);
+    const createCharacterBtnRef = useRef<HTMLButtonElement>(null);
 
     const sortedAccounts = useMemo(() => {
         return [...accounts].sort((a, b) => a.name.localeCompare(b.name));
@@ -269,6 +301,12 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
         if (selectedAccountId == null) return;
         await loadDetails(selectedAccountId);
     }, [loadDetails, selectedAccountId]);
+
+    const handleDeleteCharacter = useCallback(async (characterId: string) => {
+        await api.deleteCharacter(characterId);
+        if (selectedCharacterId === characterId) setSelectedCharacterId(null);
+        await refreshSelectedAccount();
+    }, [api, selectedCharacterId, refreshSelectedAccount]);
 
     const handleGrantItem = useCallback(async () => {
         if (selectedAccountId == null || !grantItemId) return;
@@ -462,8 +500,19 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                                     character={character}
                                     selected={selectedCharacterId === character.id}
                                     onSelect={() => setSelectedCharacterId(character.id)}
+                                    onDelete={() => void handleDeleteCharacter(character.id)}
                                 />
                             ))}
+                            {details && (
+                                <button
+                                    ref={createCharacterBtnRef}
+                                    type="button"
+                                    onClick={() => setCreatorOpen(true)}
+                                    className="w-full rounded-lg border-2 border-dashed border-border-custom px-3 py-2 text-sm text-muted hover:border-primary hover:text-white transition-colors cursor-pointer text-left"
+                                >
+                                    + Create new character
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -578,6 +627,29 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                     </div>
                 </div>
             </div>
+
+            {creatorOpen && details && (() => {
+                const campaignId = details.characters[0]?.campaignId ?? STORYLINES[0]?.id ?? 'world_of_darkness';
+                const missionId = STORYLINES.find((s) => s.id === campaignId)?.startMissionId ?? STORYLINES[0]?.startMissionId ?? 'dark_awakening';
+                return (
+                    <CharacterCreator
+                        campaignId={campaignId}
+                        missionId={missionId}
+                        onCreate={async (characterId) => {
+                            setCreatorOpen(false);
+                            if (selectedAccountId != null) await loadDetails(selectedAccountId);
+                            setSelectedCharacterId(characterId);
+                        }}
+                        onClose={() => setCreatorOpen(false)}
+                        createCharacter={async (payload) => {
+                            const { character } = await api.createCharacter(payload);
+                            return { id: character.id, portraitId: character.portraitId, name: character.name };
+                        }}
+                        anchorRef={createCharacterBtnRef}
+                        localPlayerId={user?.id}
+                    />
+                );
+            })()}
         </div>
     );
 }
