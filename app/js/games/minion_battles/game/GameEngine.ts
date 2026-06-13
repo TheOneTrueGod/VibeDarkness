@@ -75,8 +75,7 @@ import { AlphaWolfStoryEmitter } from './effects/AlphaWolfStoryEmitter';
 export type { CardInstance } from './managers/CardManager';
 export { MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/CardManager';
 
-/** Seconds of game time per round. */
-const ROUND_DURATION = 10;
+import { ROUND_DURATION } from './gameConstants';
 /** Matches default player stamina in unit defs; each ability receives this many stamina charges per surge unless overridden by unit stamina. */
 export const DEFAULT_PLAYER_ROUND_STAMINA_SURGE = 2;
 const CHARGED_ROCKS_NODE_ID = 'charged_rocks';

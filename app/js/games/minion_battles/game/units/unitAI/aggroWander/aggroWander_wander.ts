@@ -10,10 +10,8 @@ import type { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import type { AINode } from '../types';
 import type { AggroWanderAITreeContext, AggroWanderNodeId } from './context';
-import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn } from '../utils';
+import { findEnemies, getEnemiesInPerceptionAndLOS, queueWaitAndEndTurn, ROUND_DURATION } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
-
-const ROUND_DURATION = 10;
 
 /** How often (in rounds) the unit picks a new wander destination. */
 export const WANDER_INTERVAL_ROUNDS = 0.5;

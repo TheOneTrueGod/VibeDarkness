@@ -353,7 +353,14 @@ export function enteredTimingIds(
     nextElapsed: number,
     intervals: AbilityTimingInterval[],
 ): Set<string> {
-    const prev = activeTimingIds(prevElapsed, intervals);
+    // Use strict lower bound for prevElapsed: an interval whose start equals prevElapsed
+    // exactly is treated as "just entering now", not "already active". This prevents a
+    // floating-point edge case where `currentTime - dt` lands exactly on an interval
+    // boundary that the accumulated gameTime never reached, causing the entry to be missed.
+    const prev = new Set<string>();
+    for (const it of intervals) {
+        if (it.start < prevElapsed && prevElapsed < it.end) prev.add(it.id);
+    }
     const next = activeTimingIds(nextElapsed, intervals);
     const out = new Set<string>();
     for (const id of next) {

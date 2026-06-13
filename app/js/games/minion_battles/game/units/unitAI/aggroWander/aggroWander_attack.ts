@@ -15,10 +15,9 @@ import {
     getEnemiesInPerceptionAndLOS,
     applyAIMovementToUnit,
     tryQueueAbilityOrder,
+    ROUND_DURATION,
 } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
-
-const ROUND_DURATION = 10;
 
 /** How often (in rounds) the unit rescans for the nearest enemy while attacking. */
 const RESCAN_INTERVAL_ROUNDS = 0.25;

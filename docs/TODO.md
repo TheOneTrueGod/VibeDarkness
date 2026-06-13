@@ -15,7 +15,6 @@
 | Todo | Notes |
 |------|-------|
 | Remove dead `meleeTrackingHelpers` module | After telegraph windup tracking ships, confirm `meleeTrackingHelpers.ts` is unused at runtime (only `renderMeleeTrackingHighlights` / `buildHitboxContext` may remain in Swing Bat). Delete the orphaned entry/update/aim helpers and `meleeTrackingHelpers.test.ts`, or fold any still-needed pieces into `telegraphTracking.ts`. |
-| Deduplicate `ROUND_DURATION` in unitAI | `unitAI/utils.ts`, `aggroWander_wander.ts`, and `aggroWander_attack.ts` each declare `const ROUND_DURATION = 10` locally — export the authoritative value from `game/GameEngine.ts`, import it in `utils.ts`, and delete the local copies. `lnet_scout_travel.ts` and `lnet_scout_construct.ts` each declare `const ROUND_DURATION_SEC = 8` — verify whether the value differs intentionally or is stale, and consolidate accordingly. |
 
 ## Medium
 

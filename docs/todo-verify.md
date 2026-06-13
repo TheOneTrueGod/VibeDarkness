@@ -44,3 +44,4 @@
 
 | Todo | Notes | Date |
 |------|-------|------|
+| Deduplicate `ROUND_DURATION` in unitAI | Extracted to `game/gameConstants.ts`; `GameEngine.ts` now imports from there; `unitAI/utils.ts` re-exports it; `aggroWander_wander/attack.ts` import from `../utils` instead of declaring locally. `lnet_scout_travel/construct.ts` renamed `ROUND_DURATION_SEC` → `ATTACK_COOLDOWN_SEC` (value 8 is an attack cooldown, not a round duration). | 2026-06-12 |

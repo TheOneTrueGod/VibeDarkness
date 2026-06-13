@@ -16,7 +16,7 @@ import { getPerceptionRange } from '../../unit_defs/unitDef';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
 
 const ARRIVAL_PX = 36;
-const ROUND_DURATION_SEC = 8;
+const ATTACK_COOLDOWN_SEC = 8;
 const DEFAULT_CONSTRUCTION_SEC = 10;
 
 /**
@@ -77,7 +77,7 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
                     context.hasLineOfSight,
                 );
                 if (tryQueueAbilityOrder(unit, context, inSight)) {
-                    unit.lanterniteAttackReadyAtGameTime = context.gameTime + ROUND_DURATION_SEC;
+                    unit.lanterniteAttackReadyAtGameTime = context.gameTime + ATTACK_COOLDOWN_SEC;
                     return;
                 }
             }

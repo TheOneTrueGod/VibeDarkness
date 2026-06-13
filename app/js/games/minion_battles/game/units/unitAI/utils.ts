@@ -15,8 +15,7 @@ import { getAbilityTargets } from '../../../abilities/Ability';
 import { UnitTag } from '../unitTag';
 import { meetsTagRequirements } from '../../../abilities/abilityUses';
 
-/** Game-time units per round (used for interval calculations across AI trees). */
-export const ROUND_DURATION = 10;
+export { ROUND_DURATION } from '../../gameConstants';
 
 /** Euclidean distance between two points. */
 export function distance(x1: number, y1: number, x2: number, y2: number): number {
