@@ -4,6 +4,7 @@
  */
 
 import type { CampaignCharacterData, CharacterDisallowReason } from './campaignCharacterTypes';
+import type { MissionResult } from '../../../types';
 
 export interface MissionTraitFilter {
     allowedTraits?: string[];
@@ -31,6 +32,8 @@ export class CampaignCharacter {
     readonly researchTrees: Record<string, string[]>;
     /** Unix seconds; 0 if never used in a mission (per server). */
     readonly lastUsed: number;
+    /** Per-campaign mission results. Key = campaignId. */
+    readonly missionResults: Record<string, MissionResult[]>;
 
     constructor(data: CampaignCharacterData) {
         this.id = data.id;
@@ -53,6 +56,8 @@ export class CampaignCharacter {
             typeof data.lastUsed === 'number' && Number.isFinite(data.lastUsed) && data.lastUsed > 0
                 ? Math.floor(data.lastUsed)
                 : 0;
+        this.missionResults =
+            data.missionResults && typeof data.missionResults === 'object' ? data.missionResults : {};
     }
 
     /**
@@ -120,6 +125,7 @@ export class CampaignCharacter {
             missionId: this.missionId,
             researchTrees: this.researchTrees,
             lastUsed: this.lastUsed,
+            missionResults: this.missionResults,
         };
     }
 }

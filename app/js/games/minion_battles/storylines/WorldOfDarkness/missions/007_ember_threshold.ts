@@ -258,6 +258,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 	];
 
 	missionId = EmberThresholdMission.missionId;
+	mapPosition = { x: 440, y: 350 };
 	name = EmberThresholdMission.nameStr;
 	worldWidth = WORLD_WIDTH;
 	worldHeight = WORLD_HEIGHT;

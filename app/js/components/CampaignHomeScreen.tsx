@@ -13,6 +13,7 @@ import { getUnlockedMissionIds, getAllMissionIdsInOrder, hasVictoryResult } from
 import { getResolvedMissionResearchRewards, type ResolvedResearchReward } from '../researchTrees/list';
 import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
 import AdminPlayersHomePanel from './AdminPlayersHomePanel';
+import PlayerCharactersPanel from './PlayerCharactersPanel';
 import ResourcePill, { campaignResourceGains } from './ResourcePill';
 import ResearchRewardTinyChip, { MISSION_REWARD_CHIP_CLASSNAME } from './ResearchRewardTinyChip';
 import { ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
@@ -34,7 +35,7 @@ const TAB_SETTINGS: Record<
     welcome: { label: 'Welcome', isVisible: () => true },
     mission_select: { label: 'Mission Select', isVisible: (isAdmin) => isAdmin, adminTab: true },
     join_mission: { label: 'Join Mission', isVisible: () => true },
-    players: { label: 'Players', isVisible: (isAdmin) => isAdmin, adminTab: true },
+    players: { label: 'Players', isVisible: () => true },
     ability_test: { label: 'Ability Test', isVisible: (isAdmin) => isAdmin, adminTab: true },
     terrain_editor: { label: 'Terrain Editor', isVisible: (isAdmin) => isAdmin, adminTab: true },
     lobby_archive: { label: 'Lobby Archive', isVisible: (isAdmin) => isAdmin, adminTab: true },
@@ -50,6 +51,11 @@ interface CampaignHomeScreenProps {
     onSelectMission: (missionId: string, campaignId: string | null) => Promise<void>;
     onJoinLobby: (lobbyId: string) => Promise<void>;
     refetchUser: () => Promise<void>;
+    onStartMissionForCharacter?: (
+        missionId: string,
+        character: import('../games/minion_battles/character_defs/CampaignCharacter').CampaignCharacter,
+        ownerAccount: import('../types').AccountState,
+    ) => void;
 }
 
 type MissionResultWithItems = MissionResult & {
@@ -155,6 +161,7 @@ export default function CampaignHomeScreen({
     onSelectMission,
     onJoinLobby,
     refetchUser,
+    onStartMissionForCharacter,
 }: CampaignHomeScreenProps) {
     const navigate = useNavigate();
     const { tabSlug } = useParams<{ tabSlug: string }>();
@@ -526,7 +533,19 @@ export default function CampaignHomeScreen({
 
                         {activeTab === 'players' && isAdmin && (
                             <div className="rounded-lg border border-border-custom bg-surface overflow-hidden min-h-[600px]">
-                                <AdminPlayersHomePanel lobbyClient={lobbyClient} />
+                                <AdminPlayersHomePanel
+                                    lobbyClient={lobbyClient}
+                                    onStartMissionForCharacter={onStartMissionForCharacter}
+                                />
+                            </div>
+                        )}
+
+                        {activeTab === 'players' && !isAdmin && (
+                            <div className="rounded-lg border border-border-custom bg-surface overflow-hidden min-h-[600px]">
+                                <PlayerCharactersPanel
+                                    lobbyClient={lobbyClient}
+                                    onStartMissionForCharacter={onStartMissionForCharacter}
+                                />
                             </div>
                         )}
 

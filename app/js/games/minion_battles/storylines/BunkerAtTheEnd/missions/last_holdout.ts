@@ -154,6 +154,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
 
 export class LastHoldoutMission extends BaseMissionDef {
     missionId = 'last_holdout';
+    mapPosition = { x: 450, y: 250 };
     campaignId = 'bunker_at_the_end';
     name = 'The Last Holdout';
     worldWidth = WORLD_WIDTH;

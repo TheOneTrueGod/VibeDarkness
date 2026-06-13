@@ -38,6 +38,8 @@ interface CharacterSelectPhaseProps {
     missionDef?: IBaseMissionDef | null;
     /** Pre-mission story for current mission; when set and all selected, show Continue instead of Start Game. */
     preMissionStory?: PreMissionStoryDef | null;
+    /** Required players whose presence is needed before the battle can start (from Mission Map flow). */
+    requiredPlayers?: Array<{ playerName: string; characterId: string }>;
     setLocalOverride?: (path: string, value: unknown) => void;
     removeLocalOverride?: (path: string) => void;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
@@ -55,6 +57,7 @@ export default function CharacterSelectPhase({
     campaignId: campaignIdProp = '',
     missionDef,
     preMissionStory,
+    requiredPlayers = [],
     setLocalOverride,
     removeLocalOverride,
     onPhaseChange,
@@ -148,6 +151,21 @@ export default function CharacterSelectPhase({
         () => new Set(characterSelectReadyPlayerIds),
         [characterSelectReadyPlayerIds],
     );
+
+    /** Match each required player to the connected player with the same name (if present). */
+    const resolvedRequiredPlayers = useMemo(
+        () =>
+            requiredPlayers.map((req) => {
+                const connectedPlayer = Object.values(players).find((p) => p.name === req.playerName) ?? null;
+                return { ...req, connectedPlayer };
+            }),
+        [requiredPlayers, players],
+    );
+
+    /** All required players must be present before the host can start. */
+    const allRequiredPlayersPresent =
+        resolvedRequiredPlayers.every((r) => r.connectedPlayer !== null);
+
     /** All players (including spectators) must have clicked Ready. */
     const allReady =
         allPlayerIds.length > 0 && allPlayerIds.every((pid) => readySet.has(pid));
@@ -209,6 +227,13 @@ export default function CharacterSelectPhase({
         [api, playerId, setLocalOverride, removeLocalOverride],
     );
 
+    // Check if this player is a required player and get their locked character ID.
+    const myRequiredEntry = useMemo(
+        () => resolvedRequiredPlayers.find((r) => r.connectedPlayer?.id === playerId) ?? null,
+        [resolvedRequiredPlayers, playerId],
+    );
+    const myLockedCharacterId = myRequiredEntry?.characterId ?? null;
+
     useEffect(() => {
         if (charactersLoading) return;
         if (autoSelectAttemptedForMissionRef.current) return;
@@ -216,10 +241,17 @@ export default function CharacterSelectPhase({
         if (mySelection != null) return;
         if (activeTab === 'players' || editorOpen || creatorOpen) return;
 
+        // If I'm a required player, prefer my locked character.
+        const requiredChar = myLockedCharacterId
+            ? myCharacters.find((c) => c.id === myLockedCharacterId) ?? null
+            : null;
+
         const chosen =
+            requiredChar ??
             sortedCharacters.find((c) =>
                 c.canBeUsedOnMission(campaignId, missionId, missionTraitFilter),
-            ) ?? sortedCharacters[0];
+            ) ??
+            sortedCharacters[0];
         if (chosen == null) return;
 
         autoSelectAttemptedForMissionRef.current = true;
@@ -240,6 +272,7 @@ export default function CharacterSelectPhase({
         missionId,
         missionTraitFilter,
         handleSelectCharacter,
+        myLockedCharacterId,
     ]);
 
     const handleCreateCharacter = useCallback(
@@ -342,8 +375,9 @@ export default function CharacterSelectPhase({
     }, [allReady]);
     // When all players are ready and at least one has a character, host advances to next phase.
     // Story-only missions can skip battle and jump straight into post-mission story.
+    // Required players must also be present.
     useEffect(() => {
-        if (!isHost || !allSelected || !allReady || !atLeastOneCharacter || hasTriggeredAdvanceRef.current) return;
+        if (!isHost || !allSelected || !allReady || !atLeastOneCharacter || !allRequiredPlayersPresent || hasTriggeredAdvanceRef.current) return;
         hasTriggeredAdvanceRef.current = true;
         if (preMissionStory) {
             handleContinueToStory();
@@ -357,6 +391,7 @@ export default function CharacterSelectPhase({
         allSelected,
         allReady,
         atLeastOneCharacter,
+        allRequiredPlayersPresent,
         preMissionStory,
         missionDef,
         handleContinueToStory,
@@ -533,6 +568,12 @@ export default function CharacterSelectPhase({
                                 />
                             ))
                         )}
+                        {/* Absent required player slots */}
+                        {resolvedRequiredPlayers
+                            .filter((r) => r.connectedPlayer === null)
+                            .map((r) => (
+                                <RequiredPlayerSlot key={r.playerName} playerName={r.playerName} />
+                            ))}
                         {/* Create Character card */}
                         <CreateCharacterCard ref={setCreateCardRef} onClick={() => setCreatorOpen(true)} />
                         {/* Spectator card */}
@@ -615,16 +656,53 @@ export default function CharacterSelectPhase({
                                     Ready
                                 </button>
                             )}
-                            {allSelected && allReady && !atLeastOneCharacter && (
+                            {!allRequiredPlayersPresent && (
+                                <p className="text-yellow-400/80 py-2 text-sm">
+                                    Waiting for{' '}
+                                    {resolvedRequiredPlayers
+                                        .filter((r) => r.connectedPlayer === null)
+                                        .map((r) => r.playerName)
+                                        .join(', ')}{' '}
+                                    to join…
+                                </p>
+                            )}
+                            {allRequiredPlayersPresent && allSelected && allReady && !atLeastOneCharacter && (
                                 <p className="text-muted py-2">At least one player must choose a character to start.</p>
                             )}
-                            {allSelected && allReady && atLeastOneCharacter && (
+                            {allRequiredPlayersPresent && allSelected && allReady && atLeastOneCharacter && (
                                 <p className="text-muted py-2">All ready! Proceeding...</p>
                             )}
                         </>
                     )}
                 </div>
             )}
+        </div>
+    );
+}
+
+/** Placeholder card for a required player who hasn't joined yet */
+function RequiredPlayerSlot({ playerName }: { playerName: string }) {
+    return (
+        <div
+            className="w-[200px] h-[200px] rounded-lg border-2 border-dashed border-yellow-600/50 bg-surface flex flex-col items-center justify-center gap-3 opacity-60"
+            title={`Waiting for ${playerName} to join`}
+        >
+            <svg
+                className="w-14 h-14 text-yellow-500/70"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M12 11c2.21 0 4-1.79 4-4S14.21 3 12 3 8 4.79 8 7s1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                />
+            </svg>
+            <span className="text-sm font-semibold text-yellow-300/80">{playerName}</span>
+            <span className="text-xs text-yellow-500/60 text-center px-2">Waiting to join…</span>
         </div>
     );
 }

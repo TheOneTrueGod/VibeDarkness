@@ -139,6 +139,7 @@ export class MonsterMission extends BaseMissionDef {
     segmentIds = ['49_50_path_to_cave', '50_50_crystal_cave'];
 
     missionId = 'monster';
+    mapPosition = { x: 780, y: 350 };
     campaignId = 'world_of_darkness';
     name = 'Monster';
     worldWidth = WORLD_WIDTH;

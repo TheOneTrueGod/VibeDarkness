@@ -84,6 +84,10 @@ export interface InitializeGameStateParams {
 export interface IBaseMissionDef extends MissionBattleConfig {
     /** Terrain segment IDs this mission needs fetched from the API during Battle Initialization. */
     segmentIds: string[];
+    /** Position on the Mission Map canvas (pixels). */
+    mapPosition?: { x: number; y: number };
+    /** Optional image URL or asset path shown inside the mission circle on the Mission Map. */
+    image?: string;
     /** Set up initial game state: player units, enemies, projectiles, effects, cards. */
     initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void;
 }
@@ -114,6 +118,10 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     aiController?: AIControllerId;
     /** Terrain segment IDs this mission needs fetched from the API during Battle Initialization. */
     segmentIds: string[] = [];
+    /** Position on the Mission Map canvas (pixels). If absent, a fallback grid layout is used. */
+    mapPosition?: { x: number; y: number };
+    /** Optional image URL or asset path shown inside the mission circle on the Mission Map. */
+    image?: string;
 
     /**
      * Set up the initial game state with player units, enemies, projectiles, and effects.

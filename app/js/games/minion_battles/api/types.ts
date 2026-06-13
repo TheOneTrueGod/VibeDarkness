@@ -2,7 +2,7 @@
  * DTO and wire-format types for Minion Battles ↔ server (lobby game JSON, characters, admin).
  */
 import type { CampaignCharacterPayload, CreateCharacterPayload } from '../../../LobbyClient';
-import type { AccountState, CampaignResourceKey, CampaignState } from '../../../types';
+import type { AccountState, CampaignResourceKey, CampaignState, MissionResult } from '../../../types';
 import type { GamePhase } from '../state';
 
 export type { CampaignCharacterPayload, CreateCharacterPayload };
@@ -21,6 +21,10 @@ export interface CharacterUpdates {
     name?: string;
     portraitId?: string;
     researchTrees?: Record<string, string[]>;
+    /** Per-campaign mission results; key = campaignId. */
+    missionResults?: Record<string, MissionResult[]>;
+    /** Active campaign for this character. */
+    campaignId?: string;
 }
 
 export interface SendMessageResult {
@@ -53,6 +57,12 @@ export interface MinionBattlesGameStatePayload {
     game_tick?: number;
     synchash?: string;
     waitingForOrders?: unknown;
+    /**
+     * Players whose presence is required before the battle can start.
+     * Matched by playerName (the account display name). Host cannot start until all are present.
+     * Each entry locks the characterId to that player (pre-selected, cannot change).
+     */
+    requiredPlayers?: Array<{ playerName: string; characterId: string }>;
     /**
      * Server-generated 32-bit unsigned battle seed.
      * Minted once when the lobby first leaves `character_select` (entering

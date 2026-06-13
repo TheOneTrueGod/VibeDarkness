@@ -10,6 +10,7 @@ import { DebugSettingsProvider } from './contexts/DebugSettingsContext';
 import CampaignHomeScreen from './components/CampaignHomeScreen';
 import LoginScreen from './components/LoginScreen';
 import { MISSION_MAP } from './games/minion_battles/storylines';
+import type { CampaignCharacter } from './games/minion_battles/character_defs/CampaignCharacter';
 import GameScreen from './components/GameScreen';
 import type { MessageEntry } from './components/Chat';
 import type { ClickData } from './components/GameCanvas';
@@ -553,6 +554,62 @@ function AppInner() {
         [lobbyClient, user, showToast, startInLobby, loadGameState, navigate]
     );
 
+    /**
+     * Start a mission from the Mission Map — required player (character owner) must be present.
+     * The clicker becomes host; the character owner's slot is pre-locked.
+     */
+    const handleStartMissionForCharacter = useCallback(
+        async (missionId: string, character: CampaignCharacter, ownerAccount: AccountState) => {
+            if (!user?.id) return;
+            setCurrentCampaignId(character.campaignId);
+            const missionDef = MISSION_MAP[missionId];
+            const missionName = missionDef?.name ?? missionId;
+            try {
+                const result = await lobbyClient.createLobby(`Mission: ${missionName}`, user.id);
+                const lobby = result.lobby as LobbyState;
+                const player = result.player as PlayerState;
+                const account = result.account as AccountState;
+
+                await lobbyClient.setLobbyState(lobby.id, player.id, 'in_game', 'minion_battles');
+                const { gameState } = await lobbyClient.getLobbyState(lobby.id, player.id);
+                const payload = gameState as unknown as GameStatePayload;
+                const gameId = payload.gameId ?? null;
+                if (gameId) {
+                    await lobbyClient.updateGameState(lobby.id, gameId, player.id, {
+                        gamePhase: 'character_select',
+                        selectedMissionId: missionId,
+                        requiredPlayers: [
+                            { playerName: ownerAccount.name, characterId: character.id },
+                        ],
+                    });
+                }
+
+                const { gameState: finalState } = await lobbyClient.getLobbyState(lobby.id, player.id);
+                const finalPayload = finalState as unknown as GameStatePayload;
+                loadGameState(finalPayload);
+
+                setCurrentAccount(account);
+                setCurrentLobby(lobby);
+                setCurrentPlayer(player);
+                setConnectionStatus('connecting');
+                setChatEnabled(false);
+                setPlayers({ [player.id]: { ...player, isConnected: false } });
+                setScreen('game');
+                navigate(`${LOBBY_PATH_PREFIX}${lobby.id}`, { replace: true });
+
+                setPollMessagesReady(false);
+                setLastPollMessageId(null);
+                await startInLobby(lobby, player);
+            } catch (error) {
+                showToast(
+                    'Failed to start mission: ' + (error instanceof Error ? error.message : 'Unknown error'),
+                    'error',
+                );
+            }
+        },
+        [lobbyClient, user, showToast, startInLobby, loadGameState, navigate],
+    );
+
     const handleJoinLobby = useCallback(
         async (lobbyId: string) => {
             try {
@@ -773,6 +830,7 @@ function AppInner() {
                                 onSelectMission={handleCreateLobbyForMission}
                                 onJoinLobby={handleJoinLobby}
                                 refetchUser={refetchUser}
+                                onStartMissionForCharacter={handleStartMissionForCharacter}
                             />
                         }
                     />

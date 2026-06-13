@@ -155,7 +155,12 @@ function ItemCard({
     );
 }
 
-export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: LobbyClient }) {
+interface AdminPlayersPanelProps {
+    lobbyClient: LobbyClient;
+    onStartMissionForCharacter?: (missionId: string, character: CampaignCharacter, ownerAccount: AccountState) => void;
+}
+
+export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCharacter }: AdminPlayersPanelProps) {
     const { user } = useUser();
     const api = useMemo(() => new MinionBattlesApi(lobbyClient, '', '', ''), [lobbyClient]);
     const [accounts, setAccounts] = useState<AccountState[]>([]);
@@ -555,6 +560,12 @@ export default function AdminPlayersHomePanel({ lobbyClient }: { lobbyClient: Lo
                                 account={details?.account ?? null}
                                 viewerAccount={user ?? null}
                                 campaign={null}
+                                onStartMission={
+                                    onStartMissionForCharacter && details?.account
+                                        ? (missionId) =>
+                                              onStartMissionForCharacter(missionId, selectedCharacter, details.account)
+                                        : undefined
+                                }
                             />
                         ) : (
                             <div className="flex h-full items-center justify-center p-6 text-muted">

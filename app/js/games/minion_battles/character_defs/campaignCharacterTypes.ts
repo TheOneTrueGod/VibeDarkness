@@ -42,6 +42,11 @@ export interface CampaignCharacterData {
     researchTrees?: Record<string, string[]>;
     /** Unix seconds; server sets when this character starts a mission as a playable unit. */
     lastUsed?: number;
+    /**
+     * Per-campaign mission results. Key = campaignId.
+     * Each array holds at most one entry per missionId (the best/latest result).
+     */
+    missionResults?: Record<string, import('../../../types').MissionResult[]>;
 }
 
 /** One-word reason a character cannot be used on a mission. */

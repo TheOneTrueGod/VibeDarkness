@@ -76,6 +76,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 
 export class CoreAwakeningMission extends BaseMissionDef {
     missionId = 'core_awakening';
+    mapPosition = { x: 610, y: 350 };
     campaignId = 'world_of_darkness';
     name = 'Core Awakening';
     worldWidth = CELL_SIZE;

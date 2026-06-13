@@ -221,6 +221,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     segmentIds = ['48_50_wakeup', '49_50_path_to_cave', '50_50_crystal_cave'];
 
     missionId = 'towards_the_light';
+    mapPosition = { x: 270, y: 150 };
     campaignId = 'world_of_darkness';
     name = 'Towards the Light';
     completionRewards = { knowledgeKeys: ['Research'] };

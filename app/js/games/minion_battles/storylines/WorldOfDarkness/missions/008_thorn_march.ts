@@ -365,6 +365,7 @@ export class ThornMarchMission extends BaseMissionDef {
     ];
 
     missionId = ThornMarchMission.missionId;
+    mapPosition = { x: 270, y: 350 };
     name = ThornMarchMission.nameStr;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;

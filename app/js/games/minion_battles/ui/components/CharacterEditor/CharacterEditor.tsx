@@ -32,6 +32,8 @@ import {
 } from '../../../../../researchTrees/evaluator';
 import ResourcePill from '../../../../../components/ResourcePill';
 import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
+import MissionMapTab from './MissionMapTab';
+import { STORYLINES } from '../../../storylines/index';
 
 interface CharacterEditorProps {
     character: CampaignCharacter;
@@ -60,9 +62,11 @@ interface CharacterEditorProps {
     equippedItemsDisplay?: 'paperDoll' | 'list';
     /** Account ID of the local player; used to restrict which portraits they can cycle to. */
     localPlayerId?: number;
+    /** Called when the player clicks a mission on the Mission Map. */
+    onStartMission?: (missionId: string) => void;
 }
 
-type EditorTab = 'equipment' | 'research';
+type EditorTab = 'missionMap' | 'equipment' | 'research';
 const MAX_CHARACTER_NAME_LENGTH = 15;
 
 /** Slot descriptor for the doll: type and optional index for weapon/utility. */
@@ -98,6 +102,7 @@ export default function CharacterEditor({
     campaign,
     equippedItemsDisplay = 'paperDoll',
     localPlayerId,
+    onStartMission,
 }: CharacterEditorProps) {
     const canEditName = editMode || allowNameEdit;
 
@@ -116,7 +121,7 @@ export default function CharacterEditor({
     const [nameDraft, setNameDraft] = useState(character.name);
     const [isEditingName, setIsEditingName] = useState(false);
     const [equipment, setEquipment] = useState<string[]>(() => [...character.equipment]);
-    const [activeTab, setActiveTab] = useState<EditorTab>('equipment');
+    const [activeTab, setActiveTab] = useState<EditorTab>('missionMap');
     const [saving, setSaving] = useState(false);
     const [dragItemId, setDragItemId] = useState<string | null>(null);
     const [dragSlot, setDragSlot] = useState<EquipmentSlotType | null>(null);
@@ -304,11 +309,6 @@ export default function CharacterEditor({
         return base.filter((id) => !equipment.includes(id));
     }, [permissionAccount?.role, equipment, inventoryItems]);
 
-    const researchEnabled = useMemo(() => {
-        const isAdmin = permissionAccount?.role === 'admin';
-        const hasResearchKnowledge = !!account?.knowledge?.Research;
-        return isAdmin || hasResearchKnowledge;
-    }, [account?.knowledge?.Research, permissionAccount?.role]);
 
     const handleGrantResource = useCallback(async () => {
         if (permissionAccount?.role !== 'admin') return;
@@ -489,6 +489,16 @@ export default function CharacterEditor({
     const isAdmin = permissionAccount?.role === 'admin';
     const useGridView = !isAdmin || adminUseGridView;
 
+    const handleCampaignChange = useCallback(async (newCampaignId: string) => {
+        if (!isAdmin || newCampaignId === character.campaignId) return;
+        try {
+            await api.updateCharacter(character.id, { campaignId: newCampaignId });
+            onSaved?.({ equipment: character.equipment, name: character.name, portraitId: character.portraitId });
+        } catch (e) {
+            console.warn('Failed to update campaign:', e);
+        }
+    }, [isAdmin, character.id, character.campaignId, character.equipment, character.name, character.portraitId, api, onSaved]);
+
     const firstTreeId = displayResearchTrees[0]?.id ?? null;
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
     const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
@@ -500,27 +510,38 @@ export default function CharacterEditor({
                 <button
                     type="button"
                     className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
-                        activeTab === 'equipment'
+                        activeTab === 'missionMap'
                             ? 'border-primary text-primary'
                             : 'border-transparent text-muted hover:text-white'
                     }`}
-                    onClick={() => setActiveTab('equipment')}
+                    onClick={() => setActiveTab('missionMap')}
                 >
-                    Equipment
+                    Mission Map
                 </button>
-                {researchEnabled && (
+                {isAdmin && (
                     <button
                         type="button"
                         className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
-                            activeTab === 'research'
+                            activeTab === 'equipment'
                                 ? 'border-primary text-primary'
                                 : 'border-transparent text-muted hover:text-white'
                         }`}
-                        onClick={() => setActiveTab('research')}
+                        onClick={() => setActiveTab('equipment')}
                     >
-                        Upgrades
+                        Equipment
                     </button>
                 )}
+                <button
+                    type="button"
+                    className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
+                        activeTab === 'research'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-muted hover:text-white'
+                    }`}
+                    onClick={() => setActiveTab('research')}
+                >
+                    Upgrades
+                </button>
             </div>
 
             {/* Content: left (portrait + sidebar) | right (main) */}
@@ -629,7 +650,7 @@ export default function CharacterEditor({
                     </div>
 
                     {/* Panel-specific sidebar */}
-                    {activeTab === 'equipment' ? (
+                    {activeTab === 'missionMap' ? null : activeTab === 'equipment' ? (
                         <div className="flex-1 min-h-0 overflow-auto p-3">
                             {equippedItemsDisplay === 'list' ? (
                                 <EquippedItemsList
@@ -655,7 +676,7 @@ export default function CharacterEditor({
                                 />
                             )}
                         </div>
-                    ) : activeTab === 'research' && researchEnabled ? (
+                    ) : activeTab === 'research' ? (
                         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                             {isAdmin && (
                                 <div className="shrink-0 px-3 pt-3 pb-1">
@@ -688,6 +709,32 @@ export default function CharacterEditor({
 
                 {/* Right column: panel main container */}
                 <div className="flex-1 min-w-0 overflow-auto p-4">
+                    {activeTab === 'missionMap' && (
+                        <div className="flex flex-col h-full">
+                            {isAdmin && (
+                                <div className="shrink-0 flex items-center gap-2 pb-2 border-b border-border-custom mb-2">
+                                    <label className="text-xs text-muted shrink-0">Campaign:</label>
+                                    <select
+                                        value={character.campaignId}
+                                        onChange={(e) => void handleCampaignChange(e.target.value)}
+                                        className="text-xs bg-surface border border-border-custom rounded px-2 py-1 text-white flex-1"
+                                    >
+                                        {STORYLINES.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            <div className="flex-1 min-h-0">
+                                <MissionMapTab
+                                    character={character}
+                                    isAdmin={isAdmin}
+                                    onStartMission={onStartMission ?? (() => {})}
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'equipment' && showInventoryPanel && (
                         <InventoryPanel
                             visibleInventoryItems={visibleInventoryItems}
@@ -698,9 +745,15 @@ export default function CharacterEditor({
                         />
                     )}
 
-                    {activeTab === 'research' && researchEnabled && (
+                    {activeTab === 'research' && (
                         <>
-                            {resolvedCampaign?.resources ? (
+                            {!isAdmin ? (
+                                <ResearchedNodesGrid
+                                    availableTrees={displayResearchTrees}
+                                    researchTrees={researchTrees}
+                                    filterTreeId={selectedTreeId}
+                                />
+                            ) : resolvedCampaign?.resources ? (
                                 <>
                                     {permissionAccount?.role === 'admin' && (
                                         <div className="mb-4 rounded-lg border border-border-custom bg-surface-light p-3">

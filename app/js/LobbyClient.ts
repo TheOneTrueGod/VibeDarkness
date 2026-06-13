@@ -3,7 +3,7 @@
  * Handles HTTP API calls for lobby management
  */
 
-import type { CampaignResourceKey, BattleOrderRecord, HeartbeatResponse } from './types';
+import type { CampaignResourceKey, BattleOrderRecord, HeartbeatResponse, MissionResult } from './types';
 import type { BattleOrder, SerializedGameState } from './games/minion_battles/game/types';
 import { isBattleHeartbeatTraceEnvOn, traceBattleHeartbeatLine } from './battleHeartbeatTrace';
 
@@ -20,6 +20,8 @@ export interface CampaignCharacterPayload {
     campaignId: string;
     missionId: string;
     researchTrees?: Record<string, string[]>;
+    /** Per-campaign mission results; key = campaignId. */
+    missionResults?: Record<string, MissionResult[]>;
     lastUsed?: number;
 }
 

@@ -227,6 +227,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
 
 export class DarkAwakeningMission extends BaseMissionDef {
     missionId = 'dark_awakening';
+    mapPosition = { x: 100, y: 150 };
     campaignId = 'world_of_darkness';
     name = 'A Dark Awakening';
     worldWidth = WORLD_WIDTH;

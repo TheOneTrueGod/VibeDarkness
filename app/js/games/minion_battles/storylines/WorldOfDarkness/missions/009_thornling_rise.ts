@@ -75,6 +75,7 @@ export class ThornlingRiseMission extends BaseMissionDef {
     segmentIds = ['48_52_thorn_path_2', '49_52_thorn_path'];
 
     missionId = ThornlingRiseMission.missionId;
+    mapPosition = { x: 100, y: 350 };
     name = ThornlingRiseMission.nameStr;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;

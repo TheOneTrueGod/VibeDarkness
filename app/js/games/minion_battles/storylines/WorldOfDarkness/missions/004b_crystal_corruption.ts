@@ -186,6 +186,7 @@ export class CrystalCorruptionMission extends BaseMissionDef {
     segmentIds = ['49_50_path_to_cave', '50_50_crystal_cave'];
 
     missionId = 'crystal_corruption';
+    mapPosition = { x: 780, y: 150 };
     campaignId = 'world_of_darkness';
     name = 'Crystal Corruption';
     worldWidth = WORLD_WIDTH;

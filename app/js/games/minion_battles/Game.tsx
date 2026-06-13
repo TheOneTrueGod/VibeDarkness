@@ -7,7 +7,7 @@
  * for the server round-trip.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { MissionResearchRewardEntry, PlayerState, GameSidebarInfo } from '../../types';
+import type { MissionResearchRewardEntry, MissionResult, PlayerState, GameSidebarInfo } from '../../types';
 import type { LobbyClient } from '../../LobbyClient';
 import type { GameComponentProps } from '../../components/GameScreen';
 import { useLocalOverrides } from '../../hooks/useLocalOverrides';
@@ -17,7 +17,7 @@ import PreMissionStoryPhase from './ui/pages/PreMissionStoryPhase';
 import PostMissionStoryPhase from './ui/pages/PostMissionStoryPhase';
 import BattlePhase from './ui/pages/BattlePhase';
 import { MISSION_MAP } from './storylines';
-import { SPECTATOR_ID } from './state';
+import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
 import VictoryModal from './ui/components/VictoryModal';
@@ -114,6 +114,10 @@ export default function MinionBattlesGame({
             (raw.character_select_ready_player_ids as string[] | undefined) ??
             []
     );
+    /** Required players locked into this lobby (from mission map start flow). */
+    const [requiredPlayers, setRequiredPlayers] = useState<Array<{ playerName: string; characterId: string }>>(
+        () => (raw.requiredPlayers as Array<{ playerName: string; characterId: string }> | undefined) ?? [],
+    );
     /** Game state returned when transitioning to battle; used as initialGameState (includes playerEquipmentByPlayer). */
     const [phaseChangeGameState, setPhaseChangeGameState] = useState<Record<string, unknown> | null>(null);
     /** Last game state from server (phase transition or poll); used so pre-mission story has current equipment. */
@@ -195,6 +199,38 @@ export default function MinionBattlesGame({
         [lastGameStateFromServer, raw]
     );
 
+    /**
+     * Persists the player's mission result to their character record.
+     * Win always replaces; loss only persists if no existing victory for this mission.
+     * Skips spectators and control-enemy selections.
+     */
+    const persistCharacterMissionResult = useCallback(
+        async (missionId: string, result: 'victory' | 'defeat') => {
+            const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
+            if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return;
+            const campaignId = MISSION_MAP[missionId]?.campaignId;
+            if (!campaignId) return;
+            try {
+                const rawChar = await api.getCharacter(sel);
+                const existingMap: Record<string, MissionResult[]> = rawChar.missionResults ?? {};
+                const existingList = existingMap[campaignId] ?? [];
+                const existingEntry = existingList.find((r) => r.missionId === missionId);
+                if (existingEntry?.result === 'victory' && result !== 'victory') return;
+                const newEntry: MissionResult = { missionId, result, timestamp: Date.now() };
+                const updatedList = [
+                    ...existingList.filter((r) => r.missionId !== missionId),
+                    newEntry,
+                ];
+                await api.updateCharacter(sel, {
+                    missionResults: { ...existingMap, [campaignId]: updatedList },
+                });
+            } catch (e) {
+                console.warn('Failed to persist character mission result:', e);
+            }
+        },
+        [api, effective.characterSelections, playerId],
+    );
+
     /** For battle phase: use phaseChangeGameState when available (host's updateGameState response).
      * This avoids a flash when GameSyncContext later receives checkpoint data — we keep a stable
      * initial state instead of remounting BattlePhase when raw gets units/gameTick. */
@@ -243,6 +279,9 @@ export default function MinionBattlesGame({
         if (newCharSel) setCharacterSelections(newCharSel);
         setStoryReadyPlayerIds(newStoryReady);
         setCharacterSelectReadyPlayerIds(newReady);
+        if (gd.requiredPlayers) {
+            setRequiredPlayers(gd.requiredPlayers as Array<{ playerName: string; characterId: string }>);
+        }
 
         reconcileLocalOverrides({
             characterSelections: newCharSel ?? {},
@@ -302,6 +341,7 @@ export default function MinionBattlesGame({
                     campaignId={missionDef?.campaignId}
                     missionDef={missionDef ?? null}
                     preMissionStory={preMissionStory}
+                    requiredPlayers={requiredPlayers}
                     setLocalOverride={setLocalOverride}
                     removeLocalOverride={removeLocalOverride}
                     onPhaseChange={handlePhaseChange}
@@ -350,6 +390,7 @@ export default function MinionBattlesGame({
                             amSpectator ? undefined : rewards.researchRewardIds,
                             amSpectator ? undefined : rewards.researchRewards
                         );
+                        void persistCharacterMissionResult(missionId, 'victory');
                         setMissionRewards({
                             ...rewards,
                             itemFromFirstChoice: rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
@@ -430,6 +471,7 @@ export default function MinionBattlesGame({
                                 amSpectator ? undefined : startingItemIds,
                                 undefined
                             );
+                            void persistCharacterMissionResult(missionId, 'victory');
                             setMissionRewards(
                                 amSpectator
                                     ? null
@@ -441,6 +483,9 @@ export default function MinionBattlesGame({
                         }
                     }}
                     onDefeat={() => {
+                        if (selectedMissionId) {
+                            void persistCharacterMissionResult(selectedMissionId, 'defeat');
+                        }
                         setDefeatModalOpen(true);
                     }}
                 />

@@ -231,6 +231,7 @@ export class CaveRespiteMission extends BaseMissionDef {
     }
 
     missionId = 'cave_respite';
+    mapPosition = { x: 610, y: 150 };
     campaignId = 'world_of_darkness';
     name = 'Cave respite';
     worldWidth = CELL_SIZE;
