@@ -170,6 +170,9 @@ function BestiaryDetail({ entry }: { entry: BestiaryEntry }) {
                                             {firstLine}
                                         </span>
                                     )}
+                                    <span className="text-[10px] text-gray-600 text-center leading-tight">
+                                        {ability.id}
+                                    </span>
                                 </div>
                             );
                         })}

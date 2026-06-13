@@ -9,7 +9,7 @@ import { BasicAttackBuilder } from '../../../abilities/archetypes/BasicAttackBui
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}01`;
-const DAMAGE = 2;
+const DAMAGE = 5;
 
 const BITE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="22" fill="#1a1205" stroke="#3d2a0a" stroke-width="2"/>
