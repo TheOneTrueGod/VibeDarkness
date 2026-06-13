@@ -25,6 +25,7 @@ interface Props {
     character: CampaignCharacter;
     isAdmin: boolean;
     onStartMission: (missionId: string) => void;
+    onMarkVictory?: (missionId: string) => Promise<void>;
 }
 
 function getMissionColor(missionId: string, missionResults: MissionResult[]): string {
@@ -55,6 +56,7 @@ function MissionTooltip({
     isAdmin,
     isLocked,
     onStartMission,
+    onMarkVictory,
     onDismiss,
 }: {
     data: TooltipData;
@@ -62,6 +64,7 @@ function MissionTooltip({
     isAdmin: boolean;
     isLocked: boolean;
     onStartMission: (id: string) => void;
+    onMarkVictory?: (id: string) => Promise<void>;
     onDismiss: () => void;
 }) {
     const def = MISSION_MAP[data.id];
@@ -174,13 +177,24 @@ function MissionTooltip({
                         >
                             Dismiss
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => { onStartMission(data.id); onDismiss(); }}
-                            className="px-4 py-1.5 rounded-lg bg-primary text-secondary text-sm font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-                        >
-                            Host Mission
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {isAdmin && onMarkVictory && !hasVictoryResult(data.id, missionResults) && (
+                                <button
+                                    type="button"
+                                    onClick={() => { void onMarkVictory(data.id); onDismiss(); }}
+                                    className="px-3 py-1.5 rounded-lg border border-green-700/60 bg-green-950/50 text-green-400 text-xs font-semibold hover:bg-green-900/50 active:scale-95 transition-all cursor-pointer"
+                                >
+                                    Mark Victory
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => { onStartMission(data.id); onDismiss(); }}
+                                className="px-4 py-1.5 rounded-lg bg-primary text-secondary text-sm font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                            >
+                                Host Mission
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -200,7 +214,7 @@ function MissionTooltip({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function MissionMapTab({ character, isAdmin, onStartMission }: Props) {
+export default function MissionMapTab({ character, isAdmin, onStartMission, onMarkVictory }: Props) {
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [pressedId, setPressedId] = useState<string | null>(null);
     const [tooltip, setTooltip] = useState<TooltipData | null>(null);
@@ -484,6 +498,7 @@ export default function MissionMapTab({ character, isAdmin, onStartMission }: Pr
                     isAdmin={isAdmin}
                     isLocked={!unlockedIds.has(tooltip.id)}
                     onStartMission={onStartMission}
+                    onMarkVictory={onMarkVictory}
                     onDismiss={dismissTooltip}
                 />
             )}

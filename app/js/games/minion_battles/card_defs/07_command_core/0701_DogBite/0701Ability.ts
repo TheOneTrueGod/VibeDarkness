@@ -5,19 +5,11 @@
  * modest damage; its value comes from the AI chaining it on every engage tick.
  */
 
-import { defineMeleeStrike } from '../../../abilities/archetypes/defineMeleeStrike';
+import { BasicAttackBuilder } from '../../../abilities/archetypes/BasicAttackBuilder';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { meleeLineHitbox } from '../../../hitboxes';
-import { type CardDef } from '../../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}01`;
-const PREFIRE_TIME = 0.6;
-const MAX_RANGE = 30;
-const LINE_THICKNESS = 20;
 const DAMAGE = 2;
-const CIRCLE_START_RADIUS = 18;
-
-const BITE_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
 
 const BITE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="22" fill="#1a1205" stroke="#3d2a0a" stroke-width="2"/>
@@ -26,29 +18,15 @@ const BITE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http:
   <circle cx="32" cy="32" r="4" fill="none" stroke="#c8822a" stroke-width="1.5" stroke-dasharray="2,2"/>
 </svg>`;
 
-export const DogBiteAbility = defineMeleeStrike({
+const { ability: DogBiteAbility, card: DogBiteCard } = BasicAttackBuilder({
     id: CARD_ID,
     name: 'Dog Bite',
-    image: BITE_IMAGE,
-    resourceCost: null,
-    rechargeTurns: 0,
-    maxUses: 4,
+    description: `Snap at the target for {${DAMAGE}} damage.`,
     damage: DAMAGE,
-    hitbox: BITE_HITBOX,
-    impactType: 'punch',
-    forwardDistance: 8,
-    backwardDistance: 0,
-    windupDuration: PREFIRE_TIME,
-    activeDuration: 0.1,
+    image: BITE_IMAGE,
+    windupDuration: 0.6,
     cooldownDuration: 0.9,
-    aiPriority: 0,
-    telegraph: { kind: 'shrinkingCircle', startRadius: CIRCLE_START_RADIUS, color: 0xff8800 },
+    telegraphColor: 0xff8800,
+}).build();
 
-    getTooltipText(): string[] {
-        return [`Snap at the target for {${DAMAGE}} damage.`];
-    },
-});
-
-export const DogBiteCard: CardDef = {
-    abilityId: CARD_ID,
-};
+export { DogBiteAbility, DogBiteCard };

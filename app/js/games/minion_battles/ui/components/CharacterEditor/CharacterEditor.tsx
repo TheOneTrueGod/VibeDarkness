@@ -495,6 +495,22 @@ export default function CharacterEditor({
     const isAdmin = permissionAccount?.role === 'admin';
     const useGridView = !isAdmin || adminUseGridView;
 
+    const handleMarkVictory = useCallback(async (missionId: string) => {
+        if (!isAdmin) return;
+        const campaignId = character.campaignId;
+        const existingMap: Record<string, import('../../../../../types').MissionResult[]> = character.missionResults ?? {};
+        const existingList = existingMap[campaignId] ?? [];
+        if (existingList.find((r) => r.missionId === missionId && r.result !== 'defeat')) return;
+        const newEntry = { missionId, result: 'victory' as const, timestamp: Date.now(), adminGranted: true };
+        const updatedList = [...existingList.filter((r) => r.missionId !== missionId), newEntry];
+        try {
+            await api.updateCharacter(character.id, { missionResults: { ...existingMap, [campaignId]: updatedList } });
+            onSaved?.({ equipment: character.equipment, name: character.name, portraitId: character.portraitId });
+        } catch (e) {
+            console.warn('Failed to mark victory:', e);
+        }
+    }, [isAdmin, character, api, onSaved]);
+
     const handleCampaignChange = useCallback(async (newCampaignId: string) => {
         if (!isAdmin || newCampaignId === character.campaignId) return;
         try {
@@ -736,6 +752,7 @@ export default function CharacterEditor({
                                     character={character}
                                     isAdmin={isAdmin}
                                     onStartMission={onStartMission ?? (() => {})}
+                                    onMarkVictory={isAdmin ? handleMarkVictory : undefined}
                                 />
                             </div>
                         </div>

@@ -57,6 +57,7 @@ import { ThornbinderBrambleAbility } from '../card_defs/0008_ThornbinderBramble/
 import { HuskSeedBarrageAbility } from '../card_defs/0009_HuskSeedBarrage/0009Ability';
 import { LanterniteStrikeAbility } from '../card_defs/0010_LanterniteStrike/0010Ability';
 import { LanterniteNestAuraAbility } from '../card_defs/dark_animals/0014_LanterniteNestAura/0014Ability';
+import { ThornlingBiteAbility } from '../card_defs/dark_animals/0015_ThornlingBite/0015Ability';
 import { DogBiteAbility } from '../card_defs/07_command_core/0701_DogBite/0701Ability';
 import { PounceAbility } from '../card_defs/07_command_core/0702_Pounce/0702Ability';
 import { HeelAbility } from '../card_defs/07_command_core/0703_Heel/0703Ability';
@@ -128,6 +129,7 @@ register(ThornbinderBrambleAbility);
 register(HuskSeedBarrageAbility);
 register(LanterniteStrikeAbility);
 register(LanterniteNestAuraAbility);
+register(ThornlingBiteAbility);
 register(DogBiteAbility);
 register(PounceAbility);
 register(HeelAbility);

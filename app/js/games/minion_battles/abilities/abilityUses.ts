@@ -129,6 +129,7 @@ export function meetsTagRequirements(unit: Unit, ability: AbilityStatic): boolea
 }
 
 export function consumeAbilityUse(unit: Unit, abilityId: string): boolean {
+    if (abilityHasTag(abilityId, 'free')) return true;
     ensureAbilityRuntimeState(unit, abilityId);
     const runtime = unit.abilityRuntime[abilityId];
     if (!runtime || runtime.currentUses <= 0) return false;

@@ -51,7 +51,6 @@ function CharacterCard({
                     )}
                     <div className="min-w-0 flex-1">
                         <p className="font-semibold text-white truncate">{character.name}</p>
-                        <p className="text-xs text-muted truncate">{character.campaignId}</p>
                     </div>
                     {!confirming && (
                         <button

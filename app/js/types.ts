@@ -62,6 +62,8 @@ export interface MissionResult {
      * Duplicate `{ treeId, nodeId }` entries are allowed.
      */
     researchRewards?: MissionResearchRewardEntry[];
+    /** Set to true when an admin manually granted this result rather than it being earned in-game. */
+    adminGranted?: boolean;
 }
 
 export interface CampaignResources {
