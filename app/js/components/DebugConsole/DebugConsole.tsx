@@ -15,7 +15,9 @@ import DebugCharactersTab from './tabs/DebugCharactersTab';
 import DebugTogglesTab from './tabs/DebugTogglesTab';
 import DebugTabButton from './DebugTabButton';
 import { useDebugSettings } from '../../contexts/DebugSettingsContext';
-import { Pause, Play, Repeat, SkipForward } from 'lucide-react';
+import { useDebugConsole } from '../../contexts/DebugConsoleContext';
+import { getDebugState } from '../../games/minion_battles/debugState';
+import { Pause, Play, Repeat, SkipForward, Target } from 'lucide-react';
 
 export type TabId =
     | 'battle-actions'
@@ -83,11 +85,13 @@ export default function DebugConsole({
     battleOrdersDebug = null,
 }: DebugConsoleProps) {
     const { debugPauseMode, setDebugPauseMode, advanceOneDebugTick } = useDebugSettings();
+    const { setSelectedDebugUnitId } = useDebugConsole();
     const [debugMode, setDebugMode] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [, setTildeCount] = useState(0);
     const [activeTab, setActiveTab] = useState<TabId>(() => (inBattle && isAdmin ? 'battle-actions' : 'game-state'));
     const [dockSide, setDockSide] = useState<DebugDockSide>('bottom');
+    const [activeDebugTool, setActiveDebugTool] = useState<'unit-selector' | null>(null);
 
     const [mouseDebug, setMouseDebug] = useState<MouseDebugInfo | null>(null);
 
@@ -150,6 +154,28 @@ export default function DebugConsole({
             setActiveTab('game-state');
         }
     }, [inBattle, activeTab]);
+
+    useEffect(() => {
+        const debug = getDebugState();
+        if (activeDebugTool === 'unit-selector') {
+            debug.unitSelectorMode = true;
+            debug.unitSelectorCallback = (unitId: string) => {
+                setActiveTab('units');
+                setSelectedDebugUnitId(unitId);
+                setActiveDebugTool(null);
+            };
+        } else {
+            debug.unitSelectorMode = false;
+            debug.unitSelectorCallback = undefined;
+            window.__minionBattlesDebugSetUnitHover?.(null);
+        }
+        return () => {
+            const d = getDebugState();
+            d.unitSelectorMode = false;
+            d.unitSelectorCallback = undefined;
+            window.__minionBattlesDebugSetUnitHover?.(null);
+        };
+    }, [activeDebugTool, setSelectedDebugUnitId]);
 
     const tabLabel = playerName ? `${playerName} Data` : 'Player Data';
     const charactersTabGrayed = charactersListMeta.isNull && !charactersListMeta.isLoading;
@@ -229,6 +255,24 @@ export default function DebugConsole({
                         </div>
                         {inBattle && (
                             <div className="ml-auto flex items-center gap-2">
+                                {/* Tools section */}
+                                <button
+                                    type="button"
+                                    title="Unit Selector"
+                                    aria-label="Unit Selector"
+                                    className={`px-3 py-1.5 text-xs rounded border ${
+                                        activeDebugTool === 'unit-selector'
+                                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
+                                            : 'border-border-custom bg-surface-light text-white hover:bg-border-custom'
+                                    }`}
+                                    onClick={() => setActiveDebugTool((prev) => (prev === 'unit-selector' ? null : 'unit-selector'))}
+                                >
+                                    <Target size={14} />
+                                </button>
+
+                                <div className="w-px h-5 bg-border-custom shrink-0" />
+
+                                {/* Play/pause controls */}
                                 <button
                                     type="button"
                                     title={debugPauseMode ? 'Play' : 'Pause'}

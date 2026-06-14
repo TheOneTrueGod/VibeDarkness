@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameStatePayload } from '../../../types';
 import { DebugButton } from '../DebugButton';
+import { useDebugConsole } from '../../../contexts/DebugConsoleContext';
 
 interface MouseDebugBridge {
     __minionBattlesDebugSetUnitHover?: (unitId: string | null) => void;
@@ -44,7 +45,7 @@ type DebugUnit = Record<string, unknown> & {
 };
 
 export default function DebugUnitsTab({ isActive, inBattle, gameState, isAdmin = false }: DebugUnitsTabProps) {
-    const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+    const { selectedDebugUnitId: selectedUnitId, setSelectedDebugUnitId: setSelectedUnitId } = useDebugConsole();
     const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null);
     const [unitStateOpen, setUnitStateOpen] = useState(false);
     const [aiStateOpen, setAiStateOpen] = useState(false);

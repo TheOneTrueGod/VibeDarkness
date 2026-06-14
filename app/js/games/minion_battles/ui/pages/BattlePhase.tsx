@@ -52,6 +52,7 @@ import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEf
 import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 import { AUTO_END_TURN } from '../../game/gameConstants';
+import { getDebugState } from '../../debugState';
 
 declare global {
     interface Window {
@@ -904,6 +905,22 @@ export default function BattlePhase({
     }, [waitingForOrders, activeLocalWaiter, canUseOrderUi]);
 
     const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
+        const debug = getDebugState();
+        if (debug.unitSelectorMode) {
+            const selEngine = sessionRef.current?.getEngine();
+            const selCamera = sessionRef.current?.getCamera();
+            if (selEngine && selCamera) {
+                const result = resolveClick(screenX, screenY, selCamera, selEngine.units);
+                if (result.unit) {
+                    selCamera.snapTo(result.unit.x, result.unit.y, result.unit.radius);
+                    window.__minionBattlesDebugAutoFollowPausedUntil = Date.now() + 2500;
+                    sessionRef.current?.getRenderer()?.setDebugUnitOutline(null);
+                    debug.unitSelectorCallback?.(result.unit.id);
+                }
+            }
+            return;
+        }
+
         const adminMovePendingUnitId = window.__minionBattlesAdminMovePendingUnitId;
         if (adminMovePendingUnitId) {
             window.__minionBattlesAdminMovePendingUnitId = undefined;
@@ -1016,6 +1033,11 @@ export default function BattlePhase({
         if (camera) {
             const worldPos = camera.screenToWorld(screenX, screenY);
             mouseWorldRef.current = worldPos;
+
+            if (getDebugState().unitSelectorMode && engine) {
+                const hoverResult = resolveClick(screenX, screenY, camera, engine.units);
+                sessionRef.current?.getRenderer()?.setDebugUnitOutline(hoverResult.unit?.id ?? null);
+            }
 
             // Lock-on hover caching: recompute when mouse moves > 2px from cached position
             if (selectedAbility && engine) {

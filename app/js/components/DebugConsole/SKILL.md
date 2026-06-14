@@ -89,3 +89,18 @@ Portrait rendering is also lazy:
 - Main controller: `DebugConsole/DebugConsole.tsx`
 - Shared debug UI pieces: `DebugConsole/*`
 - Tabs: see `DebugConsole/tabs/` for all tab components
+
+## State sharing pattern
+
+**Go-forward:** shared state between `DebugConsole` and its tabs (e.g. selected unit) lives in
+`DebugConsoleContext` (`app/js/contexts/DebugConsoleContext.tsx`). Tabs consume it via
+`useDebugConsole()`. This is the IoC pattern — the context owns the state, tabs read/write it.
+
+**Legacy (to be migrated):** some cross-component signals use `window.__minionBattles*` globals
+(hover bridge, admin commands, game-state polling). These predate the context and should be
+migrated over time. See TODOs in `docs/TODO.md`.
+
+**BattlePhase ↔ DebugConsole boundary:** signals that cross the React tree boundary (e.g. unit
+selector mode) use `window.debugState.*` via `getDebugState()` from
+`app/js/games/minion_battles/debugState.ts`. This is the one sanctioned window-global pattern
+going forward for cross-tree signaling.

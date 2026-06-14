@@ -7,6 +7,7 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { UserProvider, useUser } from './contexts/UserContext';
 import { DebugSettingsProvider } from './contexts/DebugSettingsContext';
+import { DebugConsoleProvider } from './contexts/DebugConsoleContext';
 import CampaignHomeScreen from './components/CampaignHomeScreen';
 import LoginScreen from './components/LoginScreen';
 import { MISSION_MAP } from './games/minion_battles/storylines';
@@ -987,9 +988,11 @@ export default function App() {
         <ToastProvider>
             <UserProvider lobbyClient={lobbyClient}>
                 <DebugSettingsProvider>
-                    <AuthGate>
-                        <AppInner />
-                    </AuthGate>
+                    <DebugConsoleProvider>
+                        <AuthGate>
+                            <AppInner />
+                        </AuthGate>
+                    </DebugConsoleProvider>
                 </DebugSettingsProvider>
             </UserProvider>
         </ToastProvider>
