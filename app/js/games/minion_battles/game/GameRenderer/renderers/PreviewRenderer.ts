@@ -113,7 +113,9 @@ export class PreviewRenderer {
                 }
             }
 
-            this.drawPlayerMoveTargetPathWithCap(visual, unit.x, unit.y, unit.movement.path, pursuitTarget);
+            const pixelTarget = unit.movement.targetPixel;
+
+            this.drawPlayerMoveTargetPathWithCap(visual, unit.x, unit.y, unit.movement.path, pursuitTarget, pixelTarget);
         }
 
         for (const [key, visual] of this.moveTargetVisuals) {
@@ -129,13 +131,19 @@ export class PreviewRenderer {
         originY: number,
         path: { col: number; row: number }[],
         pursuitTarget?: { x: number; y: number; circleRadius: number },
+        pixelTarget?: { x: number; y: number },
     ): void {
-        // In pursuit mode the line ends at the target's actual position; skip the last
-        // grid-cell centre so we don't add a redundant waypoint very close to the target.
-        const innerPath = pursuitTarget ? path.slice(0, -1) : path;
+        // For pursuit/pixel-target modes the line ends at the target's actual position; skip the
+        // last grid-cell centre so we don't add a redundant waypoint very close to the target.
+        const hasOverrideTarget = pursuitTarget != null || pixelTarget != null;
+        const innerPath = hasOverrideTarget ? path.slice(0, -1) : path;
         const lastCell = path[path.length - 1]!;
-        const destX = pursuitTarget ? pursuitTarget.x : lastCell.col * CELL_SIZE + CELL_SIZE / 2;
-        const destY = pursuitTarget ? pursuitTarget.y : lastCell.row * CELL_SIZE + CELL_SIZE / 2;
+        const destX = pursuitTarget ? pursuitTarget.x
+            : pixelTarget ? pixelTarget.x
+            : lastCell.col * CELL_SIZE + CELL_SIZE / 2;
+        const destY = pursuitTarget ? pursuitTarget.y
+            : pixelTarget ? pixelTarget.y
+            : lastCell.row * CELL_SIZE + CELL_SIZE / 2;
 
         // For pursuit: end the line at the circle edge, not the target's centre.
         let lineEndX = destX;
@@ -177,6 +185,7 @@ export class PreviewRenderer {
             g.circle(destX, destY, pursuitTarget.circleRadius);
             g.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
         } else {
+            // Normal tile target and CTRL pixel target both use the dot cap.
             g.circle(destX, destY, 8);
             g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
             g.circle(destX, destY, 8);

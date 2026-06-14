@@ -99,6 +99,8 @@ export interface UnitMovement {
     path: { col: number; row: number }[];
     /** ID of the unit being pursued (undefined for ground-move orders). */
     targetUnitId: string | undefined;
+    /** Exact world-pixel destination for the final step (overrides jittered tile centre). */
+    targetPixel?: { x: number; y: number };
     /** The gameTick when pathfinding was last computed. */
     pathfindingTick: number;
 }
@@ -552,7 +554,12 @@ export class Unit extends GameObject {
     }
 
     /** Set movement state with a grid-cell path. Clears movement if path is empty. Clears pathInvalidated. */
-    setMovement(path: { col: number; row: number }[], targetUnitId: string | undefined, pathfindingTick: number): void {
+    setMovement(
+        path: { col: number; row: number }[],
+        targetUnitId: string | undefined,
+        pathfindingTick: number,
+        targetPixel?: { x: number; y: number },
+    ): void {
         if (path.length === 0) {
             this.movement = null;
             return;
@@ -561,6 +568,7 @@ export class Unit extends GameObject {
         this.movement = {
             path: path.map((p) => ({ ...p })),
             targetUnitId,
+            targetPixel: targetPixel ? { ...targetPixel } : undefined,
             pathfindingTick,
         };
     }
@@ -757,8 +765,10 @@ export class Unit extends GameObject {
         const jitterX = Math.cos(jitterAngle) * jitterRadius;
         const jitterY = Math.sin(jitterAngle) * jitterRadius;
 
-        const targetX = centerX + jitterX;
-        const targetY = centerY + jitterY;
+        // On the last path cell, an exact pixel target overrides the jittered tile centre.
+        const isLastCell = this.movement.path.length === 1;
+        const targetX = isLastCell && this.movement.targetPixel ? this.movement.targetPixel.x : centerX + jitterX;
+        const targetY = isLastCell && this.movement.targetPixel ? this.movement.targetPixel.y : centerY + jitterY;
 
         // Compute effective speed: base × ability penalties × terrain modifier × ground effects
         let effectiveSpeed = this.getEffectiveSpeed(gameTime);
@@ -1271,6 +1281,7 @@ export class Unit extends GameObject {
             movement: this.movement ? {
                 path: this.movement.path.map((p) => ({ ...p })),
                 targetUnitId: this.movement.targetUnitId,
+                ...(this.movement.targetPixel ? { targetPixel: { ...this.movement.targetPixel } } : {}),
                 pathfindingTick: this.movement.pathfindingTick,
             } : null,
             abilities: this.abilities,
@@ -1529,12 +1540,14 @@ export class Unit extends GameObject {
         const movementData = data.movement as {
             path: { col: number; row: number }[];
             targetUnitId: string | undefined;
+            targetPixel?: { x: number; y: number };
             pathfindingTick: number;
         } | null;
         if (movementData && movementData.path && movementData.path.length > 0) {
             unit.movement = {
                 path: movementData.path.map((p) => ({ ...p })),
                 targetUnitId: movementData.targetUnitId,
+                targetPixel: movementData.targetPixel ? { ...movementData.targetPixel } : undefined,
                 pathfindingTick: movementData.pathfindingTick,
             };
         }

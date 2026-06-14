@@ -202,6 +202,8 @@ export default function BattlePhase({
         nonconfirmedOrder,
     };
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
+    const pendingMoveTargetUnitIdRef = useRef<string | null>(null);
+    const pendingMoveTargetPixelRef = useRef<{ x: number; y: number } | null>(null);
     /** Up to {@link PLAYER_MOVE_WAYPOINT_MAX} queued destinations (shift-right-click chain). */
     const pendingMoveWaypointsRef = useRef<{ col: number; row: number }[]>([]);
     const [, forceRender] = useState(0);
@@ -485,6 +487,12 @@ export default function BattlePhase({
             const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
             pendingMovePathRef.current = existingPath && existingPath.length > 0
                 ? existingPath.map((p) => ({ ...p }))
+                : null;
+            pendingMoveTargetUnitIdRef.current = existingPath
+                ? (unit?.movement?.targetUnitId ?? null)
+                : null;
+            pendingMoveTargetPixelRef.current = existingPath
+                ? (unit?.movement?.targetPixel ? { ...unit.movement.targetPixel } : null)
                 : null;
             pendingMoveWaypointsRef.current =
                 pendingMovePathRef.current && pendingMovePathRef.current.length > 0
@@ -865,6 +873,8 @@ export default function BattlePhase({
             abilityId,
             targets,
             movePath: movePath ?? undefined,
+            moveTargetUnitId: pendingMoveTargetUnitIdRef.current ?? undefined,
+            moveTargetPixel: pendingMoveTargetPixelRef.current ?? undefined,
             ...(targetsByLabel && Object.keys(targetsByLabel).length > 0 ? { targetsByLabel } : {}),
         };
 
@@ -873,6 +883,8 @@ export default function BattlePhase({
         targetingStateRef.current.currentTargets = [];
         targetsByLabelRef.current = {};
         pendingMovePathRef.current = null;
+        pendingMoveTargetUnitIdRef.current = null;
+        pendingMoveTargetPixelRef.current = null;
         pendingMoveWaypointsRef.current = [];
 
         if (abilityId === 'wait' || AUTO_END_TURN) {
@@ -1190,7 +1202,7 @@ export default function BattlePhase({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleWait, handleEndTurn, handleSelectCard, myAbilityIds, canUseOrderUi, selectedAbility]);
 
-    const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean) => {
+    const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean) => {
         const engine = sessionRef.current?.getEngine();
         const camera = sessionRef.current?.getCamera();
         if (!engine || !camera || !canUseOrderUi || !activeLocalWaiter || !waitingForOrders) return;
@@ -1208,6 +1220,32 @@ export default function BattlePhase({
         if (!unit) return;
 
         const unitGrid = grid.worldToGrid(unit.x, unit.y);
+
+        // CTRL: move to the exact cursor pixel (bypasses unit-pursuit and tile-centre snapping).
+        if (ctrlKey) {
+            const destGrid = grid.worldToGrid(clampedX, clampedY);
+            const waypoints = [{ ...destGrid }];
+            const fullPath = buildPlayerMovePathThroughWaypoints(
+                engine.terrainManager,
+                unitGrid.col,
+                unitGrid.row,
+                waypoints,
+            );
+            if (fullPath === null) return;
+            const targetPixel = { x: clampedX, y: clampedY };
+            pendingMoveWaypointsRef.current = waypoints;
+            pendingMovePathRef.current = fullPath;
+            pendingMoveTargetUnitIdRef.current = null;
+            pendingMoveTargetPixelRef.current = targetPixel;
+            unit.setMovement(fullPath, undefined, engine.gameTick, targetPixel);
+            if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
+                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined, moveTargetPixel: targetPixel };
+                nonconfirmedOrderRef.current = updated;
+                setNonconfirmedOrder(updated);
+                void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
+            }
+            return;
+        }
 
         // If the click lands on another unit, enter pursue mode instead of moving to a tile.
         const UNIT_HIT_RADIUS = 20;
@@ -1229,9 +1267,11 @@ export default function BattlePhase({
             if (fullPath === null) return;
             pendingMoveWaypointsRef.current = [];
             pendingMovePathRef.current = fullPath;
+            pendingMoveTargetUnitIdRef.current = clickedUnit.id;
+            pendingMoveTargetPixelRef.current = null;
             unit.setMovement(fullPath, clickedUnit.id, engine.gameTick);
             if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: clickedUnit.id };
+                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: clickedUnit.id, moveTargetPixel: undefined };
                 nonconfirmedOrderRef.current = updated;
                 setNonconfirmedOrder(updated);
                 void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
@@ -1253,9 +1293,11 @@ export default function BattlePhase({
             if (fullPath === null) return;
             pendingMoveWaypointsRef.current = nextWaypoints;
             pendingMovePathRef.current = fullPath;
+            pendingMoveTargetUnitIdRef.current = null;
+            pendingMoveTargetPixelRef.current = null;
             unit.setMovement(fullPath, undefined, engine.gameTick);
             if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined };
+                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined, moveTargetPixel: undefined };
                 nonconfirmedOrderRef.current = updated;
                 setNonconfirmedOrder(updated);
                 void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
@@ -1274,9 +1316,11 @@ export default function BattlePhase({
 
         pendingMoveWaypointsRef.current = waypoints;
         pendingMovePathRef.current = fullPath;
+        pendingMoveTargetUnitIdRef.current = null;
+        pendingMoveTargetPixelRef.current = null;
         unit.setMovement(fullPath, undefined, engine.gameTick);
         if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-            const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined };
+            const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined, moveTargetPixel: undefined };
             nonconfirmedOrderRef.current = updated;
             setNonconfirmedOrder(updated);
             void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });

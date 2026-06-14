@@ -169,6 +169,8 @@ export interface BattleOrder {
     movePath?: { col: number; row: number }[] | null;
     /** Unit ID to pursue; the unit will re-pathfind toward this target as it moves. */
     moveTargetUnitId?: string;
+    /** Exact world-pixel destination (CTRL+right-click); unit stops here instead of the tile centre. */
+    moveTargetPixel?: { x: number; y: number };
     /**
      * Named targets from per-timing `SelectTargetDef` entries (new-style abilities).
      * Keyed by `SelectTargetDef.label`. NOT serialized into checkpoints — runtime only.

@@ -22,7 +22,7 @@ interface BattleCanvasProps {
     /** Called when the user left-clicks on the canvas (screen-space coords). */
     onCanvasClick?: (screenX: number, screenY: number) => void;
     /** Called when the user right-clicks on the canvas (screen-space coords). */
-    onCanvasRightClick?: (screenX: number, screenY: number, shiftKey: boolean) => void;
+    onCanvasRightClick?: (screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean) => void;
     /** Called when the mouse moves on the canvas (screen-space coords). */
     onCanvasMouseMove?: (screenX: number, screenY: number) => void;
 }
@@ -266,7 +266,7 @@ export default function BattleCanvas({
             const rect = e.currentTarget.getBoundingClientRect();
             const screenX = e.clientX - rect.left;
             const screenY = e.clientY - rect.top;
-            onCanvasRightClick?.(screenX, screenY, e.shiftKey);
+            onCanvasRightClick?.(screenX, screenY, e.shiftKey, e.ctrlKey);
         },
         [onCanvasRightClick],
     );

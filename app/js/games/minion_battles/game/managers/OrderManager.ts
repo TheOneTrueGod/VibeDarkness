@@ -122,7 +122,7 @@ export class OrderManager {
                     const entry = this.pendingOrders.find(
                         (o) => o.gameTick >= batch.atTick && o.order.unitId === order.unitId,
                     );
-                    if (entry) entry.order = { ...entry.order, movePath: order.movePath };
+                    if (entry) entry.order = { ...entry.order, movePath: order.movePath, moveTargetPixel: order.moveTargetPixel };
                     return;
                 }
 
@@ -230,7 +230,7 @@ export class OrderManager {
         unit.movementPaused = false;
 
         if (order.movePath !== undefined && order.movePath !== null && order.movePath.length > 0) {
-            unit.setMovement(order.movePath, order.moveTargetUnitId, this.ctx.gameTick);
+            unit.setMovement(order.movePath, order.moveTargetUnitId, this.ctx.gameTick, order.moveTargetPixel);
         } else if (order.movePath === null) {
             unit.clearMovement();
         }
