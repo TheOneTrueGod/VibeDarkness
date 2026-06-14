@@ -16,6 +16,7 @@ import { GameEngine } from './GameEngine';
 import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
 import { Camera } from './Camera';
+import { PlayerInteractionManager } from './interaction/PlayerInteractionManager';
 import { fingerprintToHex } from './Fingerprint';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
@@ -69,6 +70,7 @@ export class BattleSession implements BattleSessionHandle {
     private engine: GameEngine | null = null;
     private camera: Camera | null = null;
     private renderer: GameRenderer | null = null;
+    private interactionManager: PlayerInteractionManager | null = null;
     private players: Record<string, PlayerState> = {};
     private characterSelections: Record<string, string> = {};
     private netAdapter: BattleNet | null = null;
@@ -113,6 +115,10 @@ export class BattleSession implements BattleSessionHandle {
 
     getRenderer(): GameRenderer | null {
         return this.renderer;
+    }
+
+    getInteractionManager(): PlayerInteractionManager | null {
+        return this.interactionManager;
     }
 
     private applyPlayerPortraitOverrides(engine: GameEngine, portraitIds: Record<string, string> | undefined): void {
@@ -220,6 +226,17 @@ export class BattleSession implements BattleSessionHandle {
         const eng = this.engine;
         if (!eng) {
             return;
+        }
+        if (this.camera && this.renderer) {
+            this.interactionManager?.destroy();
+            this.interactionManager = new PlayerInteractionManager();
+            this.interactionManager.setContext({
+                engine: eng,
+                camera: this.camera,
+                renderer: this.renderer,
+                session: this,
+                playerId: this.config.playerId,
+            });
         }
         eng.start();
     }
@@ -672,6 +689,8 @@ export class BattleSession implements BattleSessionHandle {
         if (net != null && typeof (net as { stop?: () => void }).stop === 'function') {
             (net as { stop: () => void }).stop();
         }
+        this.interactionManager?.destroy();
+        this.interactionManager = null;
         this.teardownEngineAndRendererOnly();
         this.renderer?.destroy();
         this.renderer = null;

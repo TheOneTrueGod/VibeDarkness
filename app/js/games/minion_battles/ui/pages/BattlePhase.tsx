@@ -11,7 +11,7 @@ import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
-import type { OrderWaiter, WaitingForOrders, BattleOrder, ResolvedTarget, GhostPlanData } from '../../game/types';
+import type { OrderWaiter, WaitingForOrders, BattleOrder, GhostPlanData } from '../../game/types';
 import { GhostPlanContext } from '../../../../contexts/GhostPlanContext';
 import { BattleSession } from '../../game/BattleSession';
 import {
@@ -20,17 +20,9 @@ import {
     type BattleNetSyncTerminalStatus,
     BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
 } from '../../game/battlenet';
-import { resolveClick, validateAndResolveTarget, getSelectTargetDefsFromTimings, filterSelectTargetCandidates } from '../../abilities/targeting';
-import { resolveHitbox } from '../../abilities/hitboxDef';
 import type { AbilityStatic } from '../../abilities/Ability';
-import { getAbilityTargets } from '../../abilities/Ability';
-import { getAbility } from '../../abilities/AbilityRegistry';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { getLightGrid } from '../../game/LightGrid';
-import {
-    PLAYER_MOVE_WAYPOINT_MAX,
-    buildPlayerMovePathThroughWaypoints,
-} from '../../terrain/playerMovePath';
 import BattleCanvas from '../components/BattleCanvas';
 import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
 import AbilityBar from '../components/AbilityBar';
@@ -52,7 +44,6 @@ import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEf
 import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 import { AUTO_END_TURN } from '../../game/gameConstants';
-import { getDebugState } from '../../debugState';
 
 declare global {
     interface Window {
@@ -149,33 +140,17 @@ export default function BattlePhase({
     const [waitingForOrders, setWaitingForOrders] = useState<WaitingForOrders | null>(null);
     /** Local player's current unit in a parallel batch (next unit still needing an order). */
     const [activeLocalWaiter, setActiveLocalWaiter] = useState<OrderWaiter | null>(null);
+    const [_isWaitHovered, setIsWaitHovered] = useState(false);
+    const [myAbilityIds, setMyAbilityIds] = useState<string[]>([]);
+    /** Mirror of manager UI state for AbilityBar rendering. */
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
-    const [_isWaitHovered, setIsWaitHovered] = useState(false);
-    /** Ability order submitted to engine but not yet confirmed (endTurn: true not sent). */
     const [nonconfirmedOrder, setNonconfirmedOrder] = useState<BattleOrder | null>(null);
-    const nonconfirmedOrderRef = useRef<BattleOrder | null>(null);
-    const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
-    /**
-     * Named targets keyed by `SelectTargetDef.label` for new-style abilities.
-     * Populated in parallel with `currentTargets` during the target-collection loop.
-     * Passed to BattleOrder.targetsByLabel on submit for engine-side resolution.
-     */
-    const targetsByLabelRef = useRef<Record<string, ResolvedTarget>>({});
-    const [myAbilityIds, setMyAbilityIds] = useState<string[]>([]);
-    const mouseWorldRef = useRef({ x: 0, y: 0 });
-    const lockOnCacheRef = useRef<{
-        targetIdx: number;
-        mouseWorldPos: { x: number; y: number };
-        candidate: { unitId: string } | null;
-        /** All highlighted candidates sorted by proximity to mouse, up to hitbox numTargets. */
-        allCandidates: Array<{ unitId: string }>;
-    } | null>(null);
     const { ghostPlans, sendGhostPlan } = useContext(GhostPlanContext);
 
     const targetingStateRef = useRef<{
         selectedAbility: AbilityStatic | null;
-        currentTargets: ResolvedTarget[];
+        currentTargets: readonly { type: string; unitId?: string; position?: { x: number; y: number } }[];
         mouseWorld: { x: number; y: number };
         waitingForOrders: WaitingForOrders | null;
         /** Caster unit for targeting preview (parallel batch active local unit). */
@@ -191,22 +166,23 @@ export default function BattlePhase({
         previewOrderUnitId: null,
         nonconfirmedOrder: null,
     });
-    targetingStateRef.current = {
-        selectedAbility,
-        currentTargets,
-        mouseWorld: mouseWorldRef.current,
-        waitingForOrders,
-        previewOrderUnitId: activeLocalWaiter?.unitId ?? null,
-        ghostPlans: Object.fromEntries(
-            Object.entries(ghostPlans).filter(([, v]) => v !== null)
-        ) as Record<string, GhostPlanData>,
-        nonconfirmedOrder,
-    };
-    const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
-    const pendingMoveTargetUnitIdRef = useRef<string | null>(null);
-    const pendingMoveTargetPixelRef = useRef<{ x: number; y: number } | null>(null);
-    /** Up to {@link PLAYER_MOVE_WAYPOINT_MAX} queued destinations (shift-right-click chain). */
-    const pendingMoveWaypointsRef = useRef<{ col: number; row: number }[]>([]);
+    // Assign targetingStateRef in the component body so it's always current before each render.
+    // BattleCanvas reads targetingStateRef.current.selectedAbility to suppress drag-to-pan.
+    {
+        const manager = sessionRef.current?.getInteractionManager();
+        const uiState = manager?.getUIState();
+        targetingStateRef.current = {
+            selectedAbility: uiState?.selectedAbility ?? null,
+            currentTargets: uiState?.currentTargets ?? [],
+            mouseWorld: uiState?.mouseWorld ?? { x: 0, y: 0 },
+            waitingForOrders,
+            previewOrderUnitId: uiState?.previewOrderUnitId ?? activeLocalWaiter?.unitId ?? null,
+            ghostPlans: Object.fromEntries(
+                Object.entries(ghostPlans).filter(([, v]) => v !== null)
+            ) as Record<string, GhostPlanData>,
+            nonconfirmedOrder: uiState?.nonconfirmedOrder ?? null,
+        };
+    }
     const [, forceRender] = useState(0);
     const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [storyPauseActive, setStoryPauseActive] = useState(false);
@@ -237,21 +213,22 @@ export default function BattlePhase({
     const lastSentGhostPlanRef = useRef<GhostPlanData | null>(null);
     useEffect(() => {
         const interval = setInterval(() => {
-            const ts = targetingStateRef.current;
+            const manager = sessionRef.current?.getInteractionManager();
+            const uiState = manager?.getUIState();
             const newPlan: GhostPlanData | null =
-                ts.selectedAbility && ts.previewOrderUnitId
+                uiState?.selectedAbility && uiState?.previewOrderUnitId
                     ? {
-                          unitId: ts.previewOrderUnitId,
-                          abilityId: ts.selectedAbility.id,
-                          currentTargets: ts.currentTargets,
-                          mouseWorld: { ...ts.mouseWorld },
+                          unitId: uiState.previewOrderUnitId,
+                          abilityId: uiState.selectedAbility.id,
+                          currentTargets: [...uiState.currentTargets],
+                          mouseWorld: { ...uiState.mouseWorld },
                       }
-                    : ts.nonconfirmedOrder
+                    : uiState?.nonconfirmedOrder
                     ? {
-                          unitId: ts.nonconfirmedOrder.unitId,
-                          abilityId: ts.nonconfirmedOrder.abilityId,
-                          currentTargets: ts.nonconfirmedOrder.targets,
-                          mouseWorld: ts.nonconfirmedOrder.targets[0]?.position ?? { x: 0, y: 0 },
+                          unitId: uiState.nonconfirmedOrder.unitId,
+                          abilityId: uiState.nonconfirmedOrder.abilityId,
+                          currentTargets: uiState.nonconfirmedOrder.targets,
+                          mouseWorld: uiState.nonconfirmedOrder.targets[0]?.position ?? { x: 0, y: 0 },
                       }
                     : null;
             const prev = lastSentGhostPlanRef.current;
@@ -484,21 +461,6 @@ export default function BattlePhase({
 
             const active = engine.state.orderMgr.getActiveOrderWaiterForPlayer(playerId);
             setActiveLocalWaiter(active);
-            const unit = active ? engine.getUnit(active.unitId) : undefined;
-            const existingPath = unit?.pathInvalidated ? undefined : unit?.movement?.path;
-            pendingMovePathRef.current = existingPath && existingPath.length > 0
-                ? existingPath.map((p) => ({ ...p }))
-                : null;
-            pendingMoveTargetUnitIdRef.current = existingPath
-                ? (unit?.movement?.targetUnitId ?? null)
-                : null;
-            pendingMoveTargetPixelRef.current = existingPath
-                ? (unit?.movement?.targetPixel ? { ...unit.movement.targetPixel } : null)
-                : null;
-            pendingMoveWaypointsRef.current =
-                pendingMovePathRef.current && pendingMovePathRef.current.length > 0
-                    ? [{ ...pendingMovePathRef.current[pendingMovePathRef.current.length - 1]! }]
-                    : [];
 
             updateCardStateRef.current?.(engine);
         },
@@ -842,512 +804,97 @@ export default function BattlePhase({
         return () => window.clearInterval(id);
     }, []);
 
-    const handleSelectCard = useCallback((handIndex: number, ability: AbilityStatic) => {
-        if (!canUseOrderUi) {
-            return;
-        }
-        if (selectedCardIndex === handIndex) {
-            setSelectedCardIndex(null);
-            setSelectedAbility(null);
-            setCurrentTargets([]);
-            targetsByLabelRef.current = {};
-            return;
-        }
-
-        setSelectedCardIndex(handIndex);
-        setSelectedAbility(ability);
-        setCurrentTargets([]);
-        targetsByLabelRef.current = {};
-    }, [selectedCardIndex, canUseOrderUi]);
-
-    const submitOrder = useCallback((
-        abilityId: string,
-        targets: ResolvedTarget[],
-        targetsByLabel?: Record<string, ResolvedTarget>,
-    ) => {
-        if (!waitingForOrders || !activeLocalWaiter || !canUseOrderUi) return;
-
-        const movePath = pendingMovePathRef.current;
-
-        const order: BattleOrder = {
-            unitId: activeLocalWaiter.unitId,
-            abilityId,
-            targets,
-            movePath: movePath ?? undefined,
-            moveTargetUnitId: pendingMoveTargetUnitIdRef.current ?? undefined,
-            moveTargetPixel: pendingMoveTargetPixelRef.current ?? undefined,
-            ...(targetsByLabel && Object.keys(targetsByLabel).length > 0 ? { targetsByLabel } : {}),
-        };
-
-        // Always clear targeting UI state.
-        targetingStateRef.current.selectedAbility = null;
-        targetingStateRef.current.currentTargets = [];
-        targetsByLabelRef.current = {};
-        pendingMovePathRef.current = null;
-        pendingMoveTargetUnitIdRef.current = null;
-        pendingMoveTargetPixelRef.current = null;
-        pendingMoveWaypointsRef.current = [];
-
-        if (abilityId === 'wait' || AUTO_END_TURN) {
-            // Wait always ends the turn immediately; AUTO_END_TURN skips the confirmation step.
-            order.endTurn = true;
-            targetingStateRef.current.waitingForOrders = null;
-            nonconfirmedOrderRef.current = null;
-            setNonconfirmedOrder(null);
-            void sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders: canUseOrderUi });
-        } else {
-            // Submit to engine without endTurn — the order is now "nonconfirmed".
-            // The game stays paused until the player presses End Turn.
-            nonconfirmedOrderRef.current = order;
-            setNonconfirmedOrder(order);
-            void sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders: canUseOrderUi });
-        }
-    }, [waitingForOrders, activeLocalWaiter, canUseOrderUi]);
-
-    const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
-        const debug = getDebugState();
-        if (debug.unitSelectorMode) {
-            const selEngine = sessionRef.current?.getEngine();
-            const selCamera = sessionRef.current?.getCamera();
-            if (selEngine && selCamera) {
-                const result = resolveClick(screenX, screenY, selCamera, selEngine.units);
-                if (result.unit) {
-                    selCamera.snapTo(result.unit.x, result.unit.y, result.unit.radius);
-                    window.__minionBattlesDebugAutoFollowPausedUntil = Date.now() + 2500;
-                    sessionRef.current?.getRenderer()?.setDebugUnitOutline(null);
-                    debug.unitSelectorCallback?.(result.unit.id);
-                }
-            }
-            return;
-        }
-
-        const adminMovePendingUnitId = window.__minionBattlesAdminMovePendingUnitId;
-        if (adminMovePendingUnitId) {
-            window.__minionBattlesAdminMovePendingUnitId = undefined;
-            const adminEngine = sessionRef.current?.getEngine();
-            const adminCamera = sessionRef.current?.getCamera();
-            if (adminEngine && adminCamera) {
-                const worldPos = adminCamera.screenToWorld(screenX, screenY);
-                window.__minionBattlesAdminMoveUnit?.(adminMovePendingUnitId, worldPos.x, worldPos.y);
-            }
-            return;
-        }
-
-        const engine = sessionRef.current?.getEngine();
-        const camera = sessionRef.current?.getCamera();
-        if (!engine || !camera || !selectedAbility || !canUseOrderUi || !activeLocalWaiter) return;
-
-        const clickResult = resolveClick(screenX, screenY, camera, engine.units);
-        const targetIndex = currentTargets.length;
-        const caster = engine.getUnit(activeLocalWaiter.unitId);
-
-        // --- New-style: per-timing SelectTargetDef ---
-        const selectTargetDefs = getSelectTargetDefsFromTimings(selectedAbility);
-        if (selectTargetDefs.length > 0) {
-            const selectDef = selectTargetDefs[targetIndex];
-            if (!selectDef) return;
-
-            const cache = lockOnCacheRef.current;
-            const allCandidates = cache?.targetIdx === targetIndex ? (cache.allCandidates ?? []) : [];
-            const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
-
-            let resolved: ResolvedTarget;
-            if (allCandidates.length > 0) {
-                resolved = { type: 'unit', unitId: allCandidates[0].unitId };
-            } else if (selectDef.allowMiss !== false) {
-                resolved = { type: 'pixel', position: clickResult.worldPosition };
-            } else {
-                return;
-            }
-
-            // `newTargets` tracks one entry per click step so the next targetIndex is correct.
-            const newTargets = [...currentTargets, resolved];
-            const newTargetsByLabel = { ...targetsByLabelRef.current, [selectDef.label]: resolved };
-            targetsByLabelRef.current = newTargetsByLabel;
-            setCurrentTargets(newTargets);
-
-            if (newTargets.length >= selectTargetDefs.length) {
-                // Build the order's targets array.  For multi-target hitboxes we append:
-                //   1. Additional lock-on units (candidates 1..numTargets-1) so MeleeAttack
-                //      can guarantee all highlighted units, not just the primary.
-                //   2. The raw click world position as a pixel entry so MeleeAttack can
-                //      preserve the player's original swing direction at impact time.
-                let orderTargets = newTargets;
-                if (numTargets > 1) {
-                    const additionalLockOns: ResolvedTarget[] = allCandidates
-                        .slice(1, numTargets)
-                        .map(c => ({ type: 'unit' as const, unitId: c.unitId }));
-                    const aimPixelEntry: ResolvedTarget = {
-                        type: 'pixel',
-                        position: clickResult.worldPosition,
-                    };
-                    orderTargets = [...newTargets, ...additionalLockOns, aimPixelEntry];
-                }
-                submitOrder(selectedAbility.id, orderTargets, newTargetsByLabel);
-                setSelectedCardIndex(null);
-                setSelectedAbility(null);
-                setCurrentTargets([]);
-                targetsByLabelRef.current = {};
-            }
-            return;
-        }
-
-        // --- Legacy: ability-level targets[] ---
-        const resolvedTargets = getAbilityTargets(selectedAbility, caster, engine);
-        const targetDef = resolvedTargets[targetIndex];
-        if (!targetDef) return;
-
-        let resolved: ResolvedTarget | null;
-
-        if (targetDef.lockOn) {
-            const cache = lockOnCacheRef.current;
-            const candidate = cache?.targetIdx === targetIndex ? cache.candidate : null;
-            if (candidate) {
-                resolved = { type: 'unit', unitId: candidate.unitId };
-            } else if (targetDef.lockOn.allowMiss !== false) {
-                // allowMiss defaults to true — fall back to pixel
-                resolved = { type: 'pixel', position: clickResult.worldPosition };
-            } else {
-                // allowMiss: false with no candidate — block the click
-                return;
-            }
-        } else {
-            resolved = validateAndResolveTarget(targetDef, clickResult);
-            if (!resolved) return;
-        }
-
-        const newTargets = [...currentTargets, resolved];
-        setCurrentTargets(newTargets);
-
-        if (newTargets.length >= resolvedTargets.length) {
-            submitOrder(selectedAbility.id, newTargets);
-            setSelectedCardIndex(null);
-            setSelectedAbility(null);
-            setCurrentTargets([]);
-        }
-    }, [selectedAbility, currentTargets, canUseOrderUi, activeLocalWaiter, submitOrder]);
-
-    const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
-        const engine = sessionRef.current?.getEngine();
-        const camera = sessionRef.current?.getCamera();
-        if (camera) {
-            const worldPos = camera.screenToWorld(screenX, screenY);
-            mouseWorldRef.current = worldPos;
-
-            if (getDebugState().unitSelectorMode && engine) {
-                const hoverResult = resolveClick(screenX, screenY, camera, engine.units);
-                sessionRef.current?.getRenderer()?.setDebugUnitOutline(hoverResult.unit?.id ?? null);
-            }
-
-            // Lock-on hover caching: recompute when mouse moves > 2px from cached position
-            if (selectedAbility && engine) {
-                const state = targetingStateRef.current;
-                const targetIndex = state.currentTargets.length;
-
-                // New-style: check per-timing SelectTargetDef first
-                const selectTargetDefs = getSelectTargetDefsFromTimings(selectedAbility);
-                if (selectTargetDefs.length > 0) {
-                    const selectDef = selectTargetDefs[targetIndex];
-                    if (selectDef) {
-                        const cache = lockOnCacheRef.current;
-                        const cacheStale =
-                            !cache ||
-                            cache.targetIdx !== targetIndex ||
-                            Math.sqrt((worldPos.x - cache.mouseWorldPos.x) ** 2 + (worldPos.y - cache.mouseWorldPos.y) ** 2) > 2;
-                        if (cacheStale) {
-                            const caster = state.previewOrderUnitId ? engine.getUnit(state.previewOrderUnitId) : null;
-                            if (caster) {
-                                const rawHitUnits = selectDef.hitbox.resolveTargets(caster, worldPos, engine.units);
-                                const hitUnits = filterSelectTargetCandidates(rawHitUnits, caster, selectDef.filter);
-                                hitUnits.sort((a, b) => {
-                                    const da = (a.x - worldPos.x) ** 2 + (a.y - worldPos.y) ** 2;
-                                    const db = (b.x - worldPos.x) ** 2 + (b.y - worldPos.y) ** 2;
-                                    return da - db;
-                                });
-                                const maxCandidates = selectDef.numTargets ?? selectDef.hitbox.numTargets;
-                                lockOnCacheRef.current = {
-                                    targetIdx: targetIndex,
-                                    mouseWorldPos: { x: worldPos.x, y: worldPos.y },
-                                    candidate: hitUnits[0] ? { unitId: hitUnits[0].id } : null,
-                                    allCandidates: hitUnits.slice(0, maxCandidates).map(u => ({ unitId: u.id })),
-                                };
-                            } else {
-                                lockOnCacheRef.current = null;
-                            }
-                        }
-                    } else {
-                        lockOnCacheRef.current = null;
-                    }
-                } else {
-                    // Legacy: ability-level targets[] with lockOn
-                    const resolvedTargets = getAbilityTargets(selectedAbility, engine.getUnit(state.previewOrderUnitId ?? '') ?? undefined, engine);
-                    const targetDef = resolvedTargets[targetIndex];
-                    if (targetDef?.lockOn) {
-                        const cache = lockOnCacheRef.current;
-                        const cacheStale =
-                            !cache ||
-                            cache.targetIdx !== targetIndex ||
-                            Math.sqrt((worldPos.x - cache.mouseWorldPos.x) ** 2 + (worldPos.y - cache.mouseWorldPos.y) ** 2) > 2;
-                        if (cacheStale) {
-                            const caster = state.previewOrderUnitId ? engine.getUnit(state.previewOrderUnitId) : null;
-                            if (caster) {
-                                const hitUnits = resolveHitbox(targetDef.lockOn.hitbox, {
-                                    engine: engine as unknown as import('../../hitboxes/Hitbox').HitboxEngineContext,
-                                    caster,
-                                    originX: caster.x,
-                                    originY: caster.y,
-                                    aimX: worldPos.x,
-                                    aimY: worldPos.y,
-                                });
-                                hitUnits.sort((a, b) => {
-                                    const da = (a.x - worldPos.x) ** 2 + (a.y - worldPos.y) ** 2;
-                                    const db = (b.x - worldPos.x) ** 2 + (b.y - worldPos.y) ** 2;
-                                    return da - db;
-                                });
-                                lockOnCacheRef.current = {
-                                    targetIdx: targetIndex,
-                                    mouseWorldPos: { x: worldPos.x, y: worldPos.y },
-                                    candidate: hitUnits[0] ? { unitId: hitUnits[0].id } : null,
-                                    allCandidates: [],
-                                };
-                            } else {
-                                lockOnCacheRef.current = null;
-                            }
-                        }
-                    } else {
-                        lockOnCacheRef.current = null;
-                    }
-                }
-            }
-
-            if (engine?.terrainManager) {
-                const grid = engine.terrainManager.grid;
-                const worldWidth = engine.getWorldWidth();
-                const worldHeight = engine.getWorldHeight();
-                const clampedX = Math.max(0, Math.min(worldPos.x, worldWidth));
-                const clampedY = Math.max(0, Math.min(worldPos.y, worldHeight));
-                const { col, row } = grid.worldToGrid(clampedX, clampedY);
-                const terrain = engine.terrainManager.getTerrainAt(clampedX, clampedY);
-                const terrainName = TERRAIN_PROPERTIES[terrain]?.name ?? String(terrain);
-
-                let lightLevel: number | null = null;
-                if (engine.lightLevelEnabled) {
-                    const lightGrid = getLightGrid(
-                        engine.globalLightLevel,
-                        grid.width,
-                        grid.height,
-                        engine.getAllLightSources(),
-                    );
-                    lightLevel = lightGrid[row]?.[col] ?? null;
-                }
-
-                window.__minionBattlesDebugMouse = {
-                    worldX: clampedX,
-                    worldY: clampedY,
-                    row,
-                    col,
-                    terrainName,
-                    lightLevel,
-                };
-            }
-        }
-        forceRender((n) => n + 1);
-    }, [selectedAbility]);
-
-    const handleWait = useCallback(() => {
-        const engine = sessionRef.current?.getEngine();
-        if (!engine || !canUseOrderUi || !activeLocalWaiter || !waitingForOrders) return;
-
-        submitOrder('wait', []);
-        setSelectedCardIndex(null);
-        setSelectedAbility(null);
-        setCurrentTargets([]);
-    }, [canUseOrderUi, activeLocalWaiter, waitingForOrders, submitOrder]);
-
-    const handleEndTurn = useCallback(() => {
-        const order = nonconfirmedOrderRef.current;
-        if (!order || !waitingForOrders || !canUseOrderUi) return;
-
-        const confirmed: BattleOrder = { ...order, endTurn: true };
-        nonconfirmedOrderRef.current = null;
-        setNonconfirmedOrder(null);
-        targetingStateRef.current.waitingForOrders = null;
-        void sessionRef.current?.submitPlayerOrder(confirmed, { canSubmitOrders: canUseOrderUi });
-    }, [waitingForOrders, canUseOrderUi]);
-
+    // ========================================================================
+    // Manager subscription: mirror selectedAbility, selectedCardIndex, nonconfirmedOrder
+    // into local React state for AbilityBar rendering.
+    // ========================================================================
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.code === 'Space' && !e.repeat) {
-                e.preventDefault();
-                if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-                    handleEndTurn();
-                } else {
-                    handleWait();
-                }
-                return;
-            }
-            if (e.code === 'Escape') {
-                if (selectedAbility) {
-                    // Cancel in-progress targeting (selecting a replacement ability).
-                    setSelectedCardIndex(null);
-                    setSelectedAbility(null);
-                    setCurrentTargets([]);
-                    targetsByLabelRef.current = {};
-                } else if (nonconfirmedOrderRef.current) {
-                    // Cancel the nonconfirmed order — send a wait+endTurn:false sentinel to the engine.
-                    const order = nonconfirmedOrderRef.current;
-                    nonconfirmedOrderRef.current = null;
-                    setNonconfirmedOrder(null);
-                    if (canUseOrderUi) {
-                        void sessionRef.current?.submitPlayerOrder(
-                            { unitId: order.unitId, abilityId: 'wait', targets: [], endTurn: false },
-                            { canSubmitOrders: canUseOrderUi },
-                        );
-                    }
-                }
-                return;
-            }
-            const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key, 10) : 0;
-            if (digit > 0 && canUseOrderUi) {
-                const index = digit - 1;
-                if (index < myAbilityIds.length) {
-                    const abilityId = myAbilityIds[index];
-                    const ability = abilityId ? getAbility(abilityId) : null;
-                    if (ability) {
-                        e.preventDefault();
-                        handleSelectCard(index, ability);
-                    }
-                }
-            }
+        const manager = sessionRef.current?.getInteractionManager();
+        if (!manager) return;
+        const sync = () => {
+            const s = manager.getUIState();
+            setSelectedAbility(s.selectedAbility);
+            setSelectedCardIndex(s.selectedCardIndex);
+            setNonconfirmedOrder(s.nonconfirmedOrder);
         };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleWait, handleEndTurn, handleSelectCard, myAbilityIds, canUseOrderUi, selectedAbility]);
+        sync();
+        return manager.subscribe(sync);
+    // Re-subscribe whenever battleInitPhase goes to 'ready' (manager is created in startEngine).
+    }, [battleInitPhase]);
+
+    // ========================================================================
+    // Push canUseOrderUi, waitingForOrders, and myAbilityIds into the manager.
+    // ========================================================================
+    useEffect(() => {
+        const mgr = sessionRef.current?.getInteractionManager();
+        if (!mgr) return;
+        mgr.setCanUseOrderUi(canUseOrderUi);
+        mgr.setWaitingForOrders(waitingForOrders);
+        mgr.setMyAbilityIds(myAbilityIds);
+    }, [canUseOrderUi, waitingForOrders, myAbilityIds, battleInitPhase]);
+
+    // ========================================================================
+    // Keydown: delegate to manager.onKeyDown.
+    // ========================================================================
+    useEffect(() => {
+        if (battleInitPhase !== 'ready') return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            sessionRef.current?.getInteractionManager()?.onKeyDown(e);
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [battleInitPhase]);
+
+    // ========================================================================
+    // Canvas event callbacks — delegate to manager.
+    // ========================================================================
+    const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
+        sessionRef.current?.getInteractionManager()?.onCanvasClick(screenX, screenY);
+    }, []);
 
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean) => {
+        sessionRef.current?.getInteractionManager()?.onCanvasRightClick(screenX, screenY, shiftKey, ctrlKey);
+    }, []);
+
+    const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
+        sessionRef.current?.getInteractionManager()?.onCanvasMouseMove(screenX, screenY);
+
+        // Update debug mouse overlay (terrain info) — stays in BattlePhase.
         const engine = sessionRef.current?.getEngine();
         const camera = sessionRef.current?.getCamera();
-        if (!engine || !camera || !canUseOrderUi || !activeLocalWaiter || !waitingForOrders) return;
-        if (engine.getUnit(activeLocalWaiter.unitId)?.activeAbilities.some((a) => a.conditionalCancelPaused)) return;
-        if (!engine.terrainManager) return;
+        if (camera && engine?.terrainManager) {
+            const worldPos = camera.screenToWorld(screenX, screenY);
+            const grid = engine.terrainManager.grid;
+            const worldWidth = engine.getWorldWidth();
+            const worldHeight = engine.getWorldHeight();
+            const clampedX = Math.max(0, Math.min(worldPos.x, worldWidth));
+            const clampedY = Math.max(0, Math.min(worldPos.y, worldHeight));
+            const { col, row } = grid.worldToGrid(clampedX, clampedY);
+            const terrain = engine.terrainManager.getTerrainAt(clampedX, clampedY);
+            const terrainName = TERRAIN_PROPERTIES[terrain]?.name ?? String(terrain);
 
-        const grid = engine.terrainManager.grid;
-        const worldPos = camera.screenToWorld(screenX, screenY);
-        const worldWidth = engine.getWorldWidth();
-        const worldHeight = engine.getWorldHeight();
-        const clampedX = Math.max(0, Math.min(worldPos.x, worldWidth));
-        const clampedY = Math.max(0, Math.min(worldPos.y, worldHeight));
-
-        const unit = engine.getUnit(activeLocalWaiter.unitId);
-        if (!unit) return;
-
-        const unitGrid = grid.worldToGrid(unit.x, unit.y);
-
-        // CTRL: move to the exact cursor pixel (bypasses unit-pursuit and tile-centre snapping).
-        if (ctrlKey) {
-            const destGrid = grid.worldToGrid(clampedX, clampedY);
-            const waypoints = [{ ...destGrid }];
-            const fullPath = buildPlayerMovePathThroughWaypoints(
-                engine.terrainManager,
-                unitGrid.col,
-                unitGrid.row,
-                waypoints,
-            );
-            if (fullPath === null) return;
-            const targetPixel = { x: clampedX, y: clampedY };
-            pendingMoveWaypointsRef.current = waypoints;
-            pendingMovePathRef.current = fullPath;
-            pendingMoveTargetUnitIdRef.current = null;
-            pendingMoveTargetPixelRef.current = targetPixel;
-            unit.setMovement(fullPath, undefined, engine.gameTick, targetPixel);
-            if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined, moveTargetPixel: targetPixel };
-                nonconfirmedOrderRef.current = updated;
-                setNonconfirmedOrder(updated);
-                void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
+            let lightLevel: number | null = null;
+            if (engine.lightLevelEnabled) {
+                const lightGrid = getLightGrid(
+                    engine.globalLightLevel,
+                    grid.width,
+                    grid.height,
+                    engine.getAllLightSources(),
+                );
+                lightLevel = lightGrid[row]?.[col] ?? null;
             }
-            return;
+
+            window.__minionBattlesDebugMouse = {
+                worldX: clampedX,
+                worldY: clampedY,
+                row,
+                col,
+                terrainName,
+                lightLevel,
+            };
         }
-
-        // If the click lands on another unit, enter pursue mode instead of moving to a tile.
-        const UNIT_HIT_RADIUS = 20;
-        const clickedUnit = engine.getUnits().find((u) => {
-            if (u.id === unit.id || !u.isAlive()) return false;
-            const dx = u.x - clampedX;
-            const dy = u.y - clampedY;
-            return dx * dx + dy * dy <= UNIT_HIT_RADIUS * UNIT_HIT_RADIUS;
-        });
-
-        if (clickedUnit) {
-            const targetGrid = grid.worldToGrid(clickedUnit.x, clickedUnit.y);
-            const fullPath = buildPlayerMovePathThroughWaypoints(
-                engine.terrainManager,
-                unitGrid.col,
-                unitGrid.row,
-                [targetGrid],
-            );
-            if (fullPath === null) return;
-            pendingMoveWaypointsRef.current = [];
-            pendingMovePathRef.current = fullPath;
-            pendingMoveTargetUnitIdRef.current = clickedUnit.id;
-            pendingMoveTargetPixelRef.current = null;
-            unit.setMovement(fullPath, clickedUnit.id, engine.gameTick);
-            if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: clickedUnit.id, moveTargetPixel: undefined };
-                nonconfirmedOrderRef.current = updated;
-                setNonconfirmedOrder(updated);
-                void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
-            }
-            return;
-        }
-
-        const destGrid = grid.worldToGrid(clampedX, clampedY);
-
-        if (shiftKey) {
-            if (pendingMoveWaypointsRef.current.length >= PLAYER_MOVE_WAYPOINT_MAX) return;
-            const nextWaypoints = [...pendingMoveWaypointsRef.current, { ...destGrid }];
-            const fullPath = buildPlayerMovePathThroughWaypoints(
-                engine.terrainManager,
-                unitGrid.col,
-                unitGrid.row,
-                nextWaypoints,
-            );
-            if (fullPath === null) return;
-            pendingMoveWaypointsRef.current = nextWaypoints;
-            pendingMovePathRef.current = fullPath;
-            pendingMoveTargetUnitIdRef.current = null;
-            pendingMoveTargetPixelRef.current = null;
-            unit.setMovement(fullPath, undefined, engine.gameTick);
-            if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined, moveTargetPixel: undefined };
-                nonconfirmedOrderRef.current = updated;
-                setNonconfirmedOrder(updated);
-                void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
-            }
-            return;
-        }
-
-        const waypoints = [{ ...destGrid }];
-        const fullPath = buildPlayerMovePathThroughWaypoints(
-            engine.terrainManager,
-            unitGrid.col,
-            unitGrid.row,
-            waypoints,
-        );
-        if (fullPath === null) return;
-
-        pendingMoveWaypointsRef.current = waypoints;
-        pendingMovePathRef.current = fullPath;
-        pendingMoveTargetUnitIdRef.current = null;
-        pendingMoveTargetPixelRef.current = null;
-        unit.setMovement(fullPath, undefined, engine.gameTick);
-        if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-            const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined, moveTargetPixel: undefined };
-            nonconfirmedOrderRef.current = updated;
-            setNonconfirmedOrder(updated);
-            void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
-        }
-    }, [canUseOrderUi, activeLocalWaiter, waitingForOrders]);
+        forceRender((n) => n + 1);
+    }, []);
 
     const handleForceResync = useCallback(() => {
         netRef.current?.requestResync('manual-force-resync');
@@ -1409,8 +956,11 @@ export default function BattlePhase({
             roundProgress={roundProgress}
             isPaused={isPaused}
             selectedCardIndex={selectedCardIndex}
-            onSelectCard={handleSelectCard}
-            onWait={nonconfirmedOrder && !AUTO_END_TURN ? handleEndTurn : handleWait}
+            onSelectCard={(cardIndex, ability) => sessionRef.current?.getInteractionManager()?.activateAbilityTargeting(cardIndex, ability)}
+            onWait={nonconfirmedOrder && !AUTO_END_TURN
+                ? () => sessionRef.current?.getInteractionManager()?.handleEndTurn()
+                : () => sessionRef.current?.getInteractionManager()?.handleWait()
+            }
             hasNonconfirmedOrder={!AUTO_END_TURN && !!nonconfirmedOrder}
             onWaitHoverChange={setIsWaitHovered}
             gameState={engine}
