@@ -1,5 +1,5 @@
 /**
- * EnemyArcherShot - Enemy ranged ability. Aims for 0.5s, locks target, shoots at 1.0s.
+ * SlimeShot - Slime ranged ability. Aims for 0.5s, locks target, lobs a slow glob at 1.0s.
  * Migrated to CastBehaviours.ProjectileLaunch() on the Active interval.
  */
 
@@ -19,16 +19,26 @@ import { defineAbility } from '../../abilities/defineAbility';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}01`;
 const LOCK_TIME = 0.5;
 const PREFIRE_TIME = 1.0;
-const PROJECTILE_SPEED = 800;
-const MAX_DISTANCE = 280;
+const PROJECTILE_SPEED = 150;
+const MAX_DISTANCE = 600;
 const DAMAGE = 4;
 const RED = 0xff0000;
 
-const ENEMY_ARCHER_SHOT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-  <path d="M32 8 L32 56 M28 12 L36 12 M28 52 L36 52" stroke="#5d4e37" stroke-width="2" fill="none"/>
-  <line x1="32" y1="32" x2="32" y2="8" stroke="#8B4513" stroke-width="2"/>
-  <polygon points="32,4 28,14 36,14" fill="#654321"/>
-  <circle cx="32" cy="32" r="4" fill="#2d2d2d"/>
+const SLIME_SPIT_F1_URL = new URL('../../assets/projectiles/slime_spit_f1.svg', import.meta.url).href;
+const SLIME_SPIT_F2_URL = new URL('../../assets/projectiles/slime_spit_f2.svg', import.meta.url).href;
+const SLIME_SPIT_F3_URL = new URL('../../assets/projectiles/slime_spit_f3.svg', import.meta.url).href;
+
+const SLIME_SHOT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="g" cx="40%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#f0c0ff"/>
+      <stop offset="45%" stop-color="#9933cc"/>
+      <stop offset="100%" stop-color="#330055"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="28" fill="#9933cc" opacity="0.2"/>
+  <circle cx="32" cy="32" r="20" fill="url(#g)"/>
+  <circle cx="24" cy="24" r="6" fill="white" opacity="0.35"/>
 </svg>`;
 
 function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }): { x: number; y: number } | null {
@@ -40,8 +50,8 @@ function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }):
 
 const _base: AbilityStatic = defineAbility({
     id: CARD_ID,
-    name: 'Enemy Archer Shot',
-    image: ENEMY_ARCHER_SHOT_IMAGE,
+    name: 'Slime Shot',
+    image: SLIME_SHOT_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: PREFIRE_TIME,
@@ -55,7 +65,12 @@ const _base: AbilityStatic = defineAbility({
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(PROJECTILE_SPEED)
                 .withMaxRange(MAX_DISTANCE)
-                .withBaseDamage(DAMAGE),
+                .withBaseDamage(DAMAGE)
+                .withGraphicDef({
+                    type: 'sprite',
+                    fps: 8,
+                    frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL],
+                }),
         },
         {
             id: 'cooldown',
@@ -69,7 +84,7 @@ const _base: AbilityStatic = defineAbility({
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: MAX_DISTANCE }),
 
     getTooltipText(_gameState?: unknown): string[] {
-        return [`Shoots an arrow dealing {${DAMAGE}} damage to an enemy`];
+        return [`Lobs a slow glob dealing {${DAMAGE}} damage to an enemy`];
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
@@ -77,7 +92,7 @@ const _base: AbilityStatic = defineAbility({
     },
 });
 
-export const EnemyArcherShotAbility: AbilityStatic = {
+export const SlimeShotAbility: AbilityStatic = {
     ..._base,
 
     renderActivePreview(
@@ -136,6 +151,6 @@ export const EnemyArcherShotAbility: AbilityStatic = {
     },
 };
 
-export const EnemyArcherShotCard: CardDef = {
+export const SlimeShotCard: CardDef = {
     abilityId: CARD_ID,
 };

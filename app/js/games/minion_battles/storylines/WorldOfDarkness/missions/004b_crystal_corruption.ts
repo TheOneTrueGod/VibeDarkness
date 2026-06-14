@@ -8,7 +8,7 @@
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
-import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, ENEMY_RANGED } from '../../../constants/enemyConstants';
+import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, SLIME } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -54,7 +54,7 @@ const INITIAL_ENEMIES = [
     { ...ENEMY_DARK_WOLF, position: pathCell(21, 9), unitAITreeId: 'hunt' },
     { ...ENEMY_SWARMLING, position: pathCell(18, 10), unitAITreeId: 'hunt' },
     { ...ENEMY_SWARMLING, position: pathCell(20, 11), unitAITreeId: 'hunt' },
-    { ...ENEMY_RANGED, position: pathCell(19, 12), unitAITreeId: 'hunt' },
+    { ...SLIME, position: pathCell(19, 12), unitAITreeId: 'hunt' },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
@@ -71,7 +71,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'continuousSpawn',
         trigger: { intervalRounds: 1, startRound: 1, endRound: 5 },
-        spawns: [{ characterId: 'enemy_ranged', spawnBehaviour: 'edgeOfMap', spawnCount: 1, unitAITreeId: 'hunt' }],
+        spawns: [{ characterId: 'slime', spawnBehaviour: 'edgeOfMap', spawnCount: 1, unitAITreeId: 'hunt' }],
     },
     // --- Crystal conversions: one per round ---
     {

@@ -8,7 +8,7 @@
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
-import { ENEMY_DARK_WOLF, ENEMY_BOAR, ENEMY_RANGED } from '../../../constants/enemyConstants';
+import { ENEMY_DARK_WOLF, ENEMY_BOAR, SLIME } from '../../../constants/enemyConstants';
 import { UnitTag } from '../../../game/units/unitTag';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
@@ -74,7 +74,7 @@ const ENEMIES = [
 	{ ...ENEMY_DARK_WOLF, position: wolvesNorthPath[0]!, unitAITreeId: 'hunt' },
 	{ ...ENEMY_DARK_WOLF, position: wolvesNorthPath[1]!, unitAITreeId: 'hunt' },
 	{
-		...ENEMY_RANGED,
+		...SLIME,
 		name: 'Slime',
 		position: gridToWorld(
 			cliffPathPOI.north_path.col + 1,
@@ -104,7 +104,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
 		type: 'continuousSpawn',
 		trigger: { intervalRounds: 1.5, startRound: 1.5 },
 		maxUnits: 10,
-		spawns: [{ characterId: 'enemy_ranged', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
+		spawns: [{ characterId: 'slime', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
 	},
 	{
 		type: 'victoryCheck',

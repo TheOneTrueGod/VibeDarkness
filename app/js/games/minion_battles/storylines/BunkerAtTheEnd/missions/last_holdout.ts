@@ -10,7 +10,7 @@
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
-import { ENEMY_ALPHA_WOLF, ENEMY_DARK_WOLF, ENEMY_RANGED } from '../../../constants/enemyConstants';
+import { ENEMY_ALPHA_WOLF, ENEMY_DARK_WOLF, SLIME } from '../../../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
@@ -109,7 +109,7 @@ const ENEMIES = [
     { ...ENEMY_DARK_WOLF, position: { x: 960, y: 280 } },
     { ...ENEMY_DARK_WOLF, position: { x: 1040, y: 400 } },
     { ...ENEMY_DARK_WOLF, position: { x: 1000, y: 480 } },
-    { ...ENEMY_RANGED, position: { x: 1080, y: 320 } },
+    { ...SLIME, position: { x: 1080, y: 320 } },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
@@ -118,7 +118,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
         trigger: { intervalRounds: 0.5, startRound: 1, endRound: 4 },
         spawns: [
             { characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 3 },
-            { characterId: 'enemy_ranged', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 2 },
+            { characterId: 'slime', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 2 },
         ],
     },
     {
@@ -126,7 +126,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
         trigger: { atRound: 4 },
         spawns: [
             { characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 4 },
-            { characterId: 'enemy_ranged', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 1 },
+            { characterId: 'slime', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 1 },
         ],
     },
     {

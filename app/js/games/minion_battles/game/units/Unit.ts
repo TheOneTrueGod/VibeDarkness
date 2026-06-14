@@ -53,6 +53,7 @@ import { computeForcedDisplacement, findNearestPassableCell } from '../forceMove
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
+import { MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
@@ -728,6 +729,22 @@ export class Unit extends GameObject {
 
         // Move along grid path
         if (!this.isAlive() || !this.movement || this.movement.path.length === 0 || this.movementPaused) return;
+
+        // Pursuit mode: stop when within (myRadius + targetRadius + gap) of the target's actual position.
+        if (this.movement.targetUnitId) {
+            const pursuitTarget = (engine as EngineContext).getUnit(this.movement.targetUnitId);
+            if (pursuitTarget?.isAlive()) {
+                const pdx = pursuitTarget.x - this.x;
+                const pdy = pursuitTarget.y - this.y;
+                const stopDist = this.radius + pursuitTarget.radius + MIN_FOLLOW_RADIUS;
+                if (pdx * pdx + pdy * pdy <= stopDist * stopDist) {
+                    this.movement = null;
+                    return;
+                }
+            } else {
+                this.movement.targetUnitId = undefined;
+            }
+        }
 
         // Target: jittered position around the center of the next grid cell in the path
         const nextCell = this.movement.path[0];

@@ -496,7 +496,7 @@ const ARCHER_POS  = { x: 7 * CELL + CELL / 2, y: 4 * CELL + CELL / 2 };  // (300
 const ARCHER_PLAYER_POS = { x: ARCHER_POS.x - 120, y: ARCHER_POS.y };     // (180, 180)
 
 /**
- * Enemy Archer Shot: an enemy_ranged unit with ability 0001 queues a shot toward the
+ * Enemy Archer Shot: a slime unit with ability 0001 queues a shot toward the
  * player dummy. The projectile should travel across the gap and damage the player.
  */
 export const enemyArcherShotScenario: ScenarioDefinition = {
@@ -519,7 +519,7 @@ export const enemyArcherShotScenario: ScenarioDefinition = {
         const archer = createUnitFromSpawnConfig(
             {
                 id: 'enemy_archer_test',
-                characterId: 'enemy_ranged',
+                characterId: 'slime',
                 name: 'Archer',
                 x: ARCHER_POS.x,
                 y: ARCHER_POS.y,

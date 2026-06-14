@@ -56,7 +56,7 @@ export const CHARACTER_SPRITE_SCALE = 0.85;
 export interface IUnitRenderContext {
     /** Team ID used to determine friend/foe glow colors. */
     localTeamId: TeamId;
-    /** Get a cached character texture by character ID (e.g. 'enemy_ranged' for bowman). */
+    /** Get a cached character texture by character ID (e.g. 'slime' for the slime unit). */
     getCharacterTexture(characterId: string): Texture | null;
     /** Preloaded portrait texture for player units (portrait ID from campaign). */
     getPlayerPortraitTexture(portraitId: string): Texture | null;
@@ -76,7 +76,7 @@ export type PlayerUnitDefId = 'player';
 /** Enemy unit character IDs. */
 export type EnemyUnitId =
     | 'enemy_melee'
-    | 'enemy_ranged'
+    | 'slime'
     | 'dark_wolf'
     | 'alpha_wolf'
     | 'boar'
@@ -148,9 +148,9 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         perceptionRange: 250,
         uiDescription: 'Basic melee grunt that rushes into combat.',
     },
-    enemy_ranged: {
+    slime: {
         bodyColor: 0x555555,
-        characterSpriteKey: 'enemy_ranged',
+        characterSpriteKey: 'slime',
         hp: 20,
         speed: 50,
         size: 'Medium',
@@ -223,7 +223,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     husk_artillery: {
         bodyColor: 0x5c4d3f,
-        characterSpriteKey: 'enemy_ranged',
+        characterSpriteKey: 'slime',
         hp: 48,
         speed: 35,
         size: 'Large',
@@ -470,7 +470,7 @@ class DefaultUnitDef implements IUnitDef {
             container.addChild(inner);
         }
 
-        // Character sprite (e.g. bowman for enemy_ranged, or model image for player portraits)
+        // Character sprite (e.g. slime SVG for the slime unit, or model image for player portraits)
         if (showCharacterSprite && characterTexture) {
             ensureUnitCharacterSprite(container, unit, characterTexture, true);
         }

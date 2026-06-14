@@ -34,7 +34,7 @@ export class AssetRegistry {
     pendingUnitSync: boolean = false;
 
     getCharacterTexture(characterId: string): Texture | null {
-        if (characterId === 'enemy_ranged') return this.slimeTexture;
+        if (characterId === 'slime') return this.slimeTexture;
         if (characterId === 'enemy_melee') return this.swordwomanTexture;
         if (characterId === 'dark_wolf') return this.wolfHeadTexture;
         if (characterId === 'alpha_wolf') return this.wolfHowlTexture;

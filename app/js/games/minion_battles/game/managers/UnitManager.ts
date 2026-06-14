@@ -13,9 +13,35 @@ import { tickSpawnAnimation } from '../units/spawnAnimation';
 import { processUnitPassives } from '../../abilities/passiveRunner';
 import type { AIContext } from '../units/unitAI';
 import type { Resource } from '../../resources/Resource';
+import { MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { Rage } from '../../resources/Rage';
 import { Mana } from '../../resources/Mana';
 import { Resonance } from '../../resources/Resonance';
+
+function refreshPlayerPursuitPath(unit: Unit, aiContext: AIContext): void {
+    const targetId = unit.movement?.targetUnitId;
+    if (!targetId) return;
+    const target = aiContext.getUnit(targetId);
+    if (!target?.isAlive()) {
+        if (unit.movement) unit.movement.targetUnitId = undefined;
+        return;
+    }
+    const stopDist = unit.radius + target.radius + MIN_FOLLOW_RADIUS;
+    const dx = target.x - unit.x;
+    const dy = target.y - unit.y;
+    if (dx * dx + dy * dy <= stopDist * stopDist) {
+        unit.clearMovement();
+        return;
+    }
+    const tm = aiContext.terrainManager;
+    if (!tm) return;
+    const unitGrid = tm.grid.worldToGrid(unit.x, unit.y);
+    const targetGrid = tm.grid.worldToGrid(target.x, target.y);
+    const path = aiContext.findGridPathForUnit(unit, unitGrid.col, unitGrid.row, targetGrid.col, targetGrid.row);
+    if (path && path.length > 0) {
+        unit.setMovement(path, targetId, aiContext.gameTick);
+    }
+}
 
 function createResourceFromId(id: string): Resource | null {
     switch (id) {
@@ -137,6 +163,9 @@ export class UnitManager {
                 unit.growAnimTimer = Math.max(0, unit.growAnimTimer - dt);
             }
             if (unit.pathfindingRetriggerOffset > 0 && engine.gameTick % unit.pathfindingRetriggerOffset === 0) {
+                if (unit.isPlayerControlled() && unit.movement?.targetUnitId) {
+                    refreshPlayerPursuitPath(unit, aiContext);
+                }
                 const tree = getUnitAITree(unit.unitAITreeId);
                 if (tree) runPathfindingRetrigger(unit, tree, aiContext);
             }

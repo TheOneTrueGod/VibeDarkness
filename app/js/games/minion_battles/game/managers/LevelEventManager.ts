@@ -22,7 +22,7 @@ import { createUnitFromSpawnConfig } from '../units/index';
 import { resolveEnemySpawnStats } from '../units/unit_defs/unitDef';
 import {
     ENEMY_MELEE,
-    ENEMY_RANGED,
+    SLIME,
     ENEMY_DARK_WOLF,
     ENEMY_ALPHA_WOLF,
     ENEMY_BOAR,
@@ -38,7 +38,7 @@ import {
 
 const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
     enemy_melee: ENEMY_MELEE,
-    enemy_ranged: ENEMY_RANGED,
+    slime: SLIME,
     dark_wolf: ENEMY_DARK_WOLF,
     alpha_wolf: ENEMY_ALPHA_WOLF,
     boar: ENEMY_BOAR,

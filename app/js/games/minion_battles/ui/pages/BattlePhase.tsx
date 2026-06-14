@@ -1208,6 +1208,37 @@ export default function BattlePhase({
         if (!unit) return;
 
         const unitGrid = grid.worldToGrid(unit.x, unit.y);
+
+        // If the click lands on another unit, enter pursue mode instead of moving to a tile.
+        const UNIT_HIT_RADIUS = 20;
+        const clickedUnit = engine.getUnits().find((u) => {
+            if (u.id === unit.id || !u.isAlive()) return false;
+            const dx = u.x - clampedX;
+            const dy = u.y - clampedY;
+            return dx * dx + dy * dy <= UNIT_HIT_RADIUS * UNIT_HIT_RADIUS;
+        });
+
+        if (clickedUnit) {
+            const targetGrid = grid.worldToGrid(clickedUnit.x, clickedUnit.y);
+            const fullPath = buildPlayerMovePathThroughWaypoints(
+                engine.terrainManager,
+                unitGrid.col,
+                unitGrid.row,
+                [targetGrid],
+            );
+            if (fullPath === null) return;
+            pendingMoveWaypointsRef.current = [];
+            pendingMovePathRef.current = fullPath;
+            unit.setMovement(fullPath, clickedUnit.id, engine.gameTick);
+            if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
+                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: clickedUnit.id };
+                nonconfirmedOrderRef.current = updated;
+                setNonconfirmedOrder(updated);
+                void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
+            }
+            return;
+        }
+
         const destGrid = grid.worldToGrid(clampedX, clampedY);
 
         if (shiftKey) {
@@ -1224,7 +1255,7 @@ export default function BattlePhase({
             pendingMovePathRef.current = fullPath;
             unit.setMovement(fullPath, undefined, engine.gameTick);
             if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath };
+                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined };
                 nonconfirmedOrderRef.current = updated;
                 setNonconfirmedOrder(updated);
                 void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
@@ -1245,7 +1276,7 @@ export default function BattlePhase({
         pendingMovePathRef.current = fullPath;
         unit.setMovement(fullPath, undefined, engine.gameTick);
         if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
-            const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath };
+            const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath, moveTargetUnitId: undefined };
             nonconfirmedOrderRef.current = updated;
             setNonconfirmedOrder(updated);
             void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });

@@ -332,7 +332,7 @@ export class ThornMarchMission extends BaseMissionDef {
             trigger: { intervalRounds: 2 },
             spawns: [
                 {
-                    characterId: 'enemy_ranged',
+                    characterId: 'slime',
                     name: 'Slime',
                     spawnBehaviour: 'closestEnemySpawnPoint',
                     enemySpawnPointConfig: { inDarkness: true },

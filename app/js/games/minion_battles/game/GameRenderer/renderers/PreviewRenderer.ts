@@ -101,7 +101,19 @@ export class PreviewRenderer {
             visual.x = 0;
             visual.y = 0;
 
-            this.drawPlayerMoveTargetPathWithCap(visual, unit.x, unit.y, unit.movement.path);
+            let pursuitTarget: { x: number; y: number; circleRadius: number } | undefined;
+            if (unit.movement.targetUnitId) {
+                const target = units.find((u) => u.id === unit.movement!.targetUnitId);
+                if (target?.isAlive()) {
+                    pursuitTarget = {
+                        x: target.x,
+                        y: target.y,
+                        circleRadius: target.radius + 6,
+                    };
+                }
+            }
+
+            this.drawPlayerMoveTargetPathWithCap(visual, unit.x, unit.y, unit.movement.path, pursuitTarget);
         }
 
         for (const [key, visual] of this.moveTargetVisuals) {
@@ -116,31 +128,64 @@ export class PreviewRenderer {
         originX: number,
         originY: number,
         path: { col: number; row: number }[],
+        pursuitTarget?: { x: number; y: number; circleRadius: number },
     ): void {
-        g.moveTo(originX, originY);
-        for (const cell of path) {
-            g.lineTo(cell.col * CELL_SIZE + CELL_SIZE / 2, cell.row * CELL_SIZE + CELL_SIZE / 2);
-        }
-        g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
-
-        g.moveTo(originX, originY);
-        for (const cell of path) {
-            g.lineTo(cell.col * CELL_SIZE + CELL_SIZE / 2, cell.row * CELL_SIZE + CELL_SIZE / 2);
-        }
-        g.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
-
+        // In pursuit mode the line ends at the target's actual position; skip the last
+        // grid-cell centre so we don't add a redundant waypoint very close to the target.
+        const innerPath = pursuitTarget ? path.slice(0, -1) : path;
         const lastCell = path[path.length - 1]!;
-        const destX = lastCell.col * CELL_SIZE + CELL_SIZE / 2;
-        const destY = lastCell.row * CELL_SIZE + CELL_SIZE / 2;
+        const destX = pursuitTarget ? pursuitTarget.x : lastCell.col * CELL_SIZE + CELL_SIZE / 2;
+        const destY = pursuitTarget ? pursuitTarget.y : lastCell.row * CELL_SIZE + CELL_SIZE / 2;
 
-        g.circle(destX, destY, 8);
-        g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
-        g.circle(destX, destY, 8);
-        g.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 1 });
-        g.circle(destX, destY, 2);
-        g.fill({ color: MOVE_TARGET_PATH_BG_COLOR, alpha: 0.7 });
-        g.circle(destX, destY, 2);
-        g.fill({ color: MOVE_TARGET_COLOR, alpha: 1 });
+        // For pursuit: end the line at the circle edge, not the target's centre.
+        let lineEndX = destX;
+        let lineEndY = destY;
+        if (pursuitTarget) {
+            const prevX = innerPath.length > 0
+                ? innerPath[innerPath.length - 1]!.col * CELL_SIZE + CELL_SIZE / 2
+                : originX;
+            const prevY = innerPath.length > 0
+                ? innerPath[innerPath.length - 1]!.row * CELL_SIZE + CELL_SIZE / 2
+                : originY;
+            const ldx = destX - prevX;
+            const ldy = destY - prevY;
+            const ldist = Math.sqrt(ldx * ldx + ldy * ldy);
+            if (ldist > pursuitTarget.circleRadius) {
+                lineEndX = destX - (ldx / ldist) * pursuitTarget.circleRadius;
+                lineEndY = destY - (ldy / ldist) * pursuitTarget.circleRadius;
+            } else {
+                lineEndX = originX;
+                lineEndY = originY;
+            }
+        }
+
+        for (const [color, width, alpha] of [
+            [MOVE_TARGET_PATH_BG_COLOR, 3, 0.7],
+            [MOVE_TARGET_COLOR, 2, 1],
+        ] as [number, number, number][]) {
+            g.moveTo(originX, originY);
+            for (const cell of innerPath) {
+                g.lineTo(cell.col * CELL_SIZE + CELL_SIZE / 2, cell.row * CELL_SIZE + CELL_SIZE / 2);
+            }
+            g.lineTo(lineEndX, lineEndY);
+            g.stroke({ color, width, alpha });
+        }
+
+        if (pursuitTarget) {
+            g.circle(destX, destY, pursuitTarget.circleRadius);
+            g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
+            g.circle(destX, destY, pursuitTarget.circleRadius);
+            g.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
+        } else {
+            g.circle(destX, destY, 8);
+            g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
+            g.circle(destX, destY, 8);
+            g.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha: 1 });
+            g.circle(destX, destY, 2);
+            g.fill({ color: MOVE_TARGET_PATH_BG_COLOR, alpha: 0.7 });
+            g.circle(destX, destY, 2);
+            g.fill({ color: MOVE_TARGET_COLOR, alpha: 1 });
+        }
     }
 
     private renderGhostPreviews(engine: GameEngine, localTeamId: TeamId): void {

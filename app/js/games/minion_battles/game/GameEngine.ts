@@ -833,7 +833,10 @@ export class GameEngine implements EngineContext {
         const emitterVisualEffects = this.state.effectEmitterManager.renderUpdate(
             realDt, posSnapshot, this.isPaused,
         );
-        for (const fx of emitterVisualEffects) this.state.effectManager.addEffect(fx);
+        for (const fx of emitterVisualEffects) {
+            fx.id = this.allocateObjectId('fx');
+            this.state.effectManager.addEffect(fx);
+        }
     }
 
     /** Advance simulation by a wall-clock duration using fixed-step integration at 60 Hz. */
@@ -1183,7 +1186,10 @@ export class GameEngine implements EngineContext {
             this.state.projectileManager.update(dt);
         }
         const emitterEffects = this.state.effectEmitterManager.update(dt, this);
-        for (const fx of emitterEffects) this.state.effectManager.addEffect(fx);
+        for (const fx of emitterEffects) {
+            fx.id = this.allocateObjectId('fx');
+            this.state.effectManager.addEffect(fx);
+        }
         this.state.effectManager.gameUpdate(dt);
         this.state.lightSourceManager.update(dt);
         if (this.gameTick % LIGHT_TICK_INTERVAL === 0) this.runLightGameTick();

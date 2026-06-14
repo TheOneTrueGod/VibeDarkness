@@ -30,7 +30,7 @@ export const ENEMY_MELEE: EnemySpawnDef = {
     aiSettings: { minRange: 30, maxRange: 80 },
 };
 
-export { ENEMY_RANGED } from '../game/units/dark_animals/slimeRanged';
+export { SLIME } from '../game/units/dark_animals/slimeRanged';
 
 /** Wolf: small fast enemy with DarkWolfBite (0003). Baseline hp/speed in unit defs. */
 export const ENEMY_DARK_WOLF: EnemySpawnDef = {

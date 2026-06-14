@@ -167,6 +167,8 @@ export interface BattleOrder {
     targets: ResolvedTarget[];
     /** Grid-cell path for movement (from pathfinding). Null clears movement. */
     movePath?: { col: number; row: number }[] | null;
+    /** Unit ID to pursue; the unit will re-pathfind toward this target as it moves. */
+    moveTargetUnitId?: string;
     /**
      * Named targets from per-timing `SelectTargetDef` entries (new-style abilities).
      * Keyed by `SelectTargetDef.label`. NOT serialized into checkpoints — runtime only.

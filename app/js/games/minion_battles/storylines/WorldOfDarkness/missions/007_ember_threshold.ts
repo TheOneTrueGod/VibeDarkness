@@ -225,7 +225,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 			trigger: { intervalRounds: 2 },
 			spawns: [
 				{
-					characterId: 'enemy_ranged',
+					characterId: 'slime',
 					name: 'Slime',
 					spawnBehaviour: 'darkness',
 					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },

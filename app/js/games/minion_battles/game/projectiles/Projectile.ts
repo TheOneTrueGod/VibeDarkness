@@ -22,6 +22,7 @@ import { TerrainType } from '../../terrain/TerrainType';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { ProjectileModifierId } from './ProjectileTravelModifiers';
 import { shouldCountTraversalDistance } from './ProjectileTravelModifiers';
+import type { SpriteProjectileGraphicDef } from './ProjectileGraphicDef';
 
 const THROW_KNIFE_ABILITY_ID = 'throw_knife';
 
@@ -40,6 +41,8 @@ export class Projectile extends GameObject {
     trailType?: 'bullet';
     /** Projectile look variant for custom rendering. */
     projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike';
+    /** Sprite-based graphic definition. When set, the renderer uses an AnimatedSprite instead of procedural Graphics. */
+    graphicDef?: SpriteProjectileGraphicDef;
     /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
     modifiers: ProjectileModifierId[];
 
@@ -79,6 +82,7 @@ export class Projectile extends GameObject {
         maxDistance: number;
         trailType?: 'bullet';
         projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike';
+        graphicDef?: SpriteProjectileGraphicDef;
         modifiers?: ProjectileModifierId[];
         passThroughEnemies?: boolean;
         pierce?: number;
@@ -94,6 +98,7 @@ export class Projectile extends GameObject {
         this.maxDistance = config.maxDistance;
         this.trailType = config.trailType;
         this.projectileType = config.projectileType ?? 'default';
+        this.graphicDef = config.graphicDef;
         this.modifiers = config.modifiers ?? [];
         this.passThroughEnemies = config.passThroughEnemies ?? false;
         this.pierce = config.pierce ?? 0;
@@ -321,6 +326,7 @@ export class Projectile extends GameObject {
             radius: this.radius,
             trailType: this.trailType,
             projectileType: this.projectileType,
+            graphicDef: this.graphicDef,
             modifiers: this.modifiers,
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,
@@ -349,6 +355,7 @@ export class Projectile extends GameObject {
         proj.projectileType =
             (data.projectileType as 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike' | undefined) ??
             'default';
+        proj.graphicDef = data.graphicDef as SpriteProjectileGraphicDef | undefined;
         proj.passThroughEnemies = (data.passThroughEnemies as boolean | undefined) ?? false;
         proj.pierce = (data.pierce as number | undefined) ?? 0;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;

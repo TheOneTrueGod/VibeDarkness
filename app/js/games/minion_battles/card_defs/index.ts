@@ -4,7 +4,7 @@ import { ThrowRockCard } from './0107_ThrowRock/0107Ability';
 import { ThrowChargedRockCard } from './0108_ThrowChargedRock/0108Ability';
 import { ThrowKnifeCard } from './0109_ThrowKnife/0109Ability';
 import { DodgeCard } from './0101_Dodge/0101Ability';
-import { EnemyArcherShotCard } from './0001_EnemyArcherShot/0001Ability';
+import { SlimeShotCard } from './0001_SlimeShot/0001Ability';
 import { EnemyMeleeAttackCard } from './0002_EnemyMeleeAttack/0002Ability';
 import { DoublePunchCard } from './0116_DoublePunch/0116Card';
 import { StrongPunchCard } from './0117_StrongPunch/0117Ability';
@@ -57,7 +57,7 @@ const cardDefs: CardDef[] = [
     ThrowRockCard,
     ThrowChargedRockCard,
     DodgeCard,
-    EnemyArcherShotCard,
+    SlimeShotCard,
     EnemyMeleeAttackCard,
     DoublePunchCard,
     StrongPunchCard,

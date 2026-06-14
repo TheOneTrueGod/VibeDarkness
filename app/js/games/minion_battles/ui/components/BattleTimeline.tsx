@@ -32,7 +32,7 @@ import { EXPOSED_BUFF_TYPE } from '../../buffs/ExposedBuff';
 /** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
 const ENEMY_CHARACTER_ICONS: Record<string, string> = {
     enemy_melee: swordwomanIcon,
-    enemy_ranged: slimeIcon,
+    slime: slimeIcon,
     dark_wolf: wolfHeadIcon,
     alpha_wolf: wolfHowlIcon,
     boar: boarIcon,

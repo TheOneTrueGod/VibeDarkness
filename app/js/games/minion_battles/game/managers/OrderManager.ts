@@ -230,7 +230,7 @@ export class OrderManager {
         unit.movementPaused = false;
 
         if (order.movePath !== undefined && order.movePath !== null && order.movePath.length > 0) {
-            unit.setMovement(order.movePath, undefined, this.ctx.gameTick);
+            unit.setMovement(order.movePath, order.moveTargetUnitId, this.ctx.gameTick);
         } else if (order.movePath === null) {
             unit.clearMovement();
         }

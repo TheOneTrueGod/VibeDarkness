@@ -8,6 +8,7 @@ import { Projectile } from '../../game/projectiles/Projectile';
 import { clampToMaxRange } from '../previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../targetHelpers';
 import type { ProjectileModifierId } from '../../game/projectiles/ProjectileTravelModifiers';
+import type { SpriteProjectileGraphicDef } from '../../game/projectiles/ProjectileGraphicDef';
 
 type DamageResolver = (ctx: CastBehaviourSetupContext) => number;
 
@@ -26,6 +27,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private speed: number = 400;
     private radius: number = 5;
     private projectileType: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' = 'default';
+    private graphicDef?: SpriteProjectileGraphicDef;
     private maxRange: number = 200;
     private baseDamage: number = 0;
     private resolveDamage: DamageResolver | null = null;
@@ -45,6 +47,11 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
 
     withProjectileType(type: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife'): this {
         this.projectileType = type;
+        return this;
+    }
+
+    withGraphicDef(def: SpriteProjectileGraphicDef): this {
+        this.graphicDef = def;
         return this;
     }
 
@@ -104,6 +111,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             sourceAbilityId: ctx.abilityId,
             maxDistance: travelDistance,
             projectileType: this.projectileType,
+            graphicDef: this.graphicDef,
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,
             modifiers: this.modifiers.length > 0 ? this.modifiers : undefined,
