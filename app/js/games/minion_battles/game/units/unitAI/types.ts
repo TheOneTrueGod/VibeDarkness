@@ -6,6 +6,7 @@
 import type { Unit } from '../Unit';
 import type { SpecialTile } from '../../specialTiles/SpecialTile';
 import type { BattleOrder } from '../../types';
+import type { MapSegmentPOI } from '../../../terrain/segmentSchema';
 
 /** Light source for AI (e.g. Torch effect, crystal tile). */
 export interface AILightSource {
@@ -52,6 +53,8 @@ export interface AIContext {
     hasLineOfSight(fromX: number, fromY: number, toX: number, toY: number): boolean;
     cancelActiveAbility(unitId: string, abilityId: string): void;
     getAbilityUsesThisRound?(unitId: string, abilityId: string): number;
+    /** Map POIs available for AI targeting (e.g. nest sites for swarmlings). Optional — not all engines provide this. */
+    mapPOIs?: readonly MapSegmentPOI[];
 }
 
 /** Node ID within a tree. Format: <tree_name>_<node_name> */

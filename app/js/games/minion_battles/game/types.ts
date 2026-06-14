@@ -173,6 +173,8 @@ export interface BattleOrder {
      * Coexists with `targets[]` for backward compatibility.
      */
     targetsByLabel?: Record<string, ResolvedTarget>;
+    /** When true, this order ends the unit's turn and allows the parallel batch to resume. */
+    endTurn?: boolean;
 }
 
 /** An order scheduled to be applied at a specific game tick. */

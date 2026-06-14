@@ -268,6 +268,18 @@ export interface ThornlingNestMissionConfig {
     spawnAITreeId?: string;
 }
 
+/** Config for a `swarm_nest` unit — spawns swarmlings that seek nest POIs and build new nests. */
+export interface SwarmNestMissionConfig {
+    /** Hard cap on living children. */
+    maxSwarmlings: number;
+    /** Seconds between spawn bursts. */
+    spawnIntervalSec: number;
+    /** How many swarmlings to spawn per interval (default 1). Capped by maxSwarmlings. */
+    spawnCount?: number;
+    /** Seconds for a swarmling to build a new nest after arriving at a POI (default 10). */
+    scoutConstructionSec?: number;
+}
+
 /** Patrol endpoint for Lanternites spawned from a {@link lanterniteNest} nest. */
 export type LanternitePatrolDestination =
     | { kind: 'nestUnit'; unitId: string }

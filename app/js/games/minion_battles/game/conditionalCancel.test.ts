@@ -159,7 +159,7 @@ describe('conditional cancel', () => {
         for (let i = 0; i < 120; i++) {
             if (player.activeAbilities.some((a) => a.conditionalCancelPaused)) {
                 pausedWithContext = true;
-                engine.state.orderMgr.applyOrder({ unitId: player.id, abilityId: 'wait', targets: [] });
+                engine.state.orderMgr.applyOrder({ unitId: player.id, abilityId: 'wait', targets: [], endTurn: true });
                 break;
             }
             engine.stepSimulationFixedTicks(1);
@@ -273,6 +273,7 @@ describe('conditional cancel', () => {
                     unitId: player.id,
                     abilityId: '0534',
                     targets: [{ type: 'pixel', position: retargetPos }],
+                    endTurn: true,
                 });
                 break;
             }
@@ -355,6 +356,7 @@ describe('conditional cancel', () => {
                         unitId: player.id,
                         abilityId: 'throw_rock',
                         targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+                        endTurn: true,
                     });
                     throwRockSubmitted = true;
                 } else if (paused.abilityId === 'throw_rock' && throwRockSubmitted && !throwRockWaitSubmitted) {
@@ -362,6 +364,7 @@ describe('conditional cancel', () => {
                         unitId: player.id,
                         abilityId: 'wait',
                         targets: [],
+                        endTurn: true,
                     });
                     throwRockWaitSubmitted = true;
                 }
@@ -489,6 +492,7 @@ describe('conditional cancel', () => {
             unitId: player.id,
             abilityId: 'wait',
             targets: [],
+            endTurn: true,
         });
 
         // Step until cast finishes and the engine pauses normally for player orders.
@@ -563,6 +567,7 @@ describe('conditional cancel', () => {
                         unitId: player.id,
                         abilityId: 'throw_rock',
                         targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+                        endTurn: true,
                     });
                     throwRockSubmitted = true;
                 } else if (paused.abilityId === 'throw_rock' && !throwRockWaitSubmitted) {
@@ -570,6 +575,7 @@ describe('conditional cancel', () => {
                         unitId: player.id,
                         abilityId: 'wait',
                         targets: [],
+                        endTurn: true,
                     });
                     throwRockWaitSubmitted = true;
                 }
@@ -649,6 +655,7 @@ describe('conditional cancel', () => {
             unitId: player.id,
             abilityId: 'throw_rock',
             targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+            endTurn: true,
         });
         engine.tryResumeParallel();
 
@@ -664,6 +671,7 @@ describe('conditional cancel', () => {
                     unitId: player.id,
                     abilityId: 'wait',
                     targets: [],
+                    endTurn: true,
                 });
                 throwRockWaitSubmitted = true;
             }

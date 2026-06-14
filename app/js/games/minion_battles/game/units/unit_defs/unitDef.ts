@@ -88,6 +88,7 @@ export type EnemyUnitId =
     | 'lanternite_nest'
     | 'thornling'
     | 'thornling_nest'
+    | 'swarm_nest'
     | 'dog';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
 
@@ -302,6 +303,18 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         perceptionRange: 0,
         creatureType: 'beast',
         uiDescription: 'Thornling brood nest — destroyable; roots the spawn cycle while it lives.',
+    },
+    swarm_nest: {
+        bodyColor: 0x3d0000,
+        characterSpriteKey: 'lanternite_nest',
+        hp: 100,
+        speed: 0,
+        size: 'Large',
+        stamina: 1,
+        perceptionRange: 0,
+        creatureType: 'dark_creature',
+        deathEffect: darkCreatureDissolutionDeathEffect(5),
+        uiDescription: 'Swarm Nest — spawns skittering swarmlings that seek out other nest sites.',
     },
     dog: {
         bodyColor: 0x8a5a2b,

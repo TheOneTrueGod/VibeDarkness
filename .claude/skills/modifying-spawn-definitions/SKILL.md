@@ -66,6 +66,20 @@ When you introduce a **new** `characterId`, add its baseline row in `game/units/
 - **Deterministic RNG**: All random choices use the engine's deterministic RNG (`generateRandomInteger`). Do **not** introduce `Math.random()` in spawn logic.
 - **Impossible conditions**: If no tiles satisfy the constraints, the entry is skipped with a `console.error`. If the entire wave cannot run, it is skipped rather than partially spawning.
 
+## Dark-creature faction spawn convention
+
+Units with `creatureType: 'dark_creature'` (wolves, swarmlings, thornbinders, etc.) should **always** use `enemySpawnPointConfig: { inDarkness: true }` when `spawnBehaviour` is `'closestEnemySpawnPoint'`, and `inDarkness: true` on `closestConfig` when `spawnBehaviour` is `'closest'`. Dark creatures emerging from lit areas breaks the lore and visual grammar of the darkness threat. Only omit this if a specific design note explicitly calls for it.
+
+## `closestEnemySpawnPoint` details
+
+- Finds all `type: 'enemySpawn'` POIs registered for the mission's segments.
+- Picks the POI closest to any living player unit (world-space distance).
+- Optional `enemySpawnPointConfig`:
+  - `matchesTags?: string[]` — restrict to POIs whose `tags` contain all listed values.
+  - `radius?: number` — treat the POI as a circle of that tile radius instead of a single cell.
+  - `inDarkness?: boolean` — when `true`, the chosen POI cell (or tiles within `radius`) must be in full darkness; if not, the spawn is skipped with a warning.
+- If no eligible POIs exist, or the chosen POI is not passable/occupied (radius 0) or has no valid dark tiles (inDarkness + radius), the entry is **skipped** with a `console.warn` — not a crash.
+
 ## Examples
 
 See existing mission files under `app/js/games/minion_battles/storylines/**/missions/` for spawn entry examples using different behaviours and targets.

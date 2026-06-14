@@ -314,6 +314,27 @@ export class Unit extends GameObject {
     /** Spawn pacing + bookkeeping for thornlings created by this nest. */
     thornlingNestSpawnState: { spawnedIds: string[]; nextSpawnAtGameTime: number } | null = null;
 
+    /** Runtime config for `swarm_nest`. */
+    swarmNestConfig: import('../../storylines/types').SwarmNestMissionConfig | null = null;
+
+    /** Spawn pacing + bookkeeping for swarmlings created by this swarm nest. */
+    swarmNestSpawnState: { spawnedIds: string[]; nextSpawnAtGameTime: number } | null = null;
+
+    /** Swarm nest: ID of the `nest` POI this swarm nest occupies. */
+    swarmNestHomePoiId: string | null = null;
+
+    /** Swarmling: golden-angle orbit slot (radians). Used for ring positioning around both nest POIs and hunt targets. */
+    swarmlingOrbitAngle: number | null = null;
+
+    /** Swarmling: ID of the target `nest` POI this swarmling is pathfinding toward to build a nest. */
+    swarmlingTargetNestPoiId: string | null = null;
+
+    /** Swarmling: unit ID of the swarm nest that spawned this swarmling. */
+    swarmlingNestOwnerUnitId: string | null = null;
+
+    /** Swarmling: game time when construction completes and a new swarm nest should spawn. */
+    swarmlingConstructionCompleteAtGameTime: number | null = null;
+
     /** Role assigned by the nest at spawn for networked behavior. */
     lanterniteRole: 'scout' | 'defender' | null = null;
 
@@ -1334,6 +1355,22 @@ export class Unit extends GameObject {
                       },
                   }
                 : {}),
+            ...(this.swarmNestConfig != null
+                ? { swarmNestConfig: JSON.parse(JSON.stringify(this.swarmNestConfig)) as import('../../storylines/types').SwarmNestMissionConfig }
+                : {}),
+            ...(this.swarmNestSpawnState != null
+                ? {
+                      swarmNestSpawnState: {
+                          spawnedIds: [...this.swarmNestSpawnState.spawnedIds],
+                          nextSpawnAtGameTime: this.swarmNestSpawnState.nextSpawnAtGameTime,
+                      },
+                  }
+                : {}),
+            ...(this.swarmNestHomePoiId != null ? { swarmNestHomePoiId: this.swarmNestHomePoiId } : {}),
+            ...(this.swarmlingOrbitAngle != null ? { swarmlingOrbitAngle: this.swarmlingOrbitAngle } : {}),
+            ...(this.swarmlingTargetNestPoiId != null ? { swarmlingTargetNestPoiId: this.swarmlingTargetNestPoiId } : {}),
+            ...(this.swarmlingNestOwnerUnitId != null ? { swarmlingNestOwnerUnitId: this.swarmlingNestOwnerUnitId } : {}),
+            ...(this.swarmlingConstructionCompleteAtGameTime != null ? { swarmlingConstructionCompleteAtGameTime: this.swarmlingConstructionCompleteAtGameTime } : {}),
             ...(this.lanterniteRole != null ? { lanterniteRole: this.lanterniteRole } : {}),
             ...(this.lanterniteTargetNestPoiId != null ? { lanterniteTargetNestPoiId: this.lanterniteTargetNestPoiId } : {}),
             ...(this.lanterniteHomeNestPoiId != null ? { lanterniteHomeNestPoiId: this.lanterniteHomeNestPoiId } : {}),
@@ -1412,6 +1449,33 @@ export class Unit extends GameObject {
             if (typeof s.nextSpawnAtGameTime === 'number') {
                 unit.thornlingNestSpawnState = { spawnedIds: ids, nextSpawnAtGameTime: s.nextSpawnAtGameTime };
             }
+        }
+        if (data.swarmNestConfig != null) {
+            unit.swarmNestConfig = data.swarmNestConfig as import('../../storylines/types').SwarmNestMissionConfig;
+        }
+        if (data.swarmNestSpawnState != null) {
+            const s = data.swarmNestSpawnState as { spawnedIds?: unknown; nextSpawnAtGameTime?: number };
+            const ids = Array.isArray(s.spawnedIds)
+                ? (s.spawnedIds as unknown[]).filter((x): x is string => typeof x === 'string')
+                : [];
+            if (typeof s.nextSpawnAtGameTime === 'number') {
+                unit.swarmNestSpawnState = { spawnedIds: ids, nextSpawnAtGameTime: s.nextSpawnAtGameTime };
+            }
+        }
+        if (typeof data.swarmNestHomePoiId === 'string') {
+            unit.swarmNestHomePoiId = data.swarmNestHomePoiId;
+        }
+        if (typeof data.swarmlingOrbitAngle === 'number') {
+            unit.swarmlingOrbitAngle = data.swarmlingOrbitAngle;
+        }
+        if (typeof data.swarmlingTargetNestPoiId === 'string') {
+            unit.swarmlingTargetNestPoiId = data.swarmlingTargetNestPoiId;
+        }
+        if (typeof data.swarmlingNestOwnerUnitId === 'string') {
+            unit.swarmlingNestOwnerUnitId = data.swarmlingNestOwnerUnitId;
+        }
+        if (typeof data.swarmlingConstructionCompleteAtGameTime === 'number') {
+            unit.swarmlingConstructionCompleteAtGameTime = data.swarmlingConstructionCompleteAtGameTime;
         }
         if (data.lanterniteRole === 'scout' || data.lanterniteRole === 'defender') {
             unit.lanterniteRole = data.lanterniteRole;

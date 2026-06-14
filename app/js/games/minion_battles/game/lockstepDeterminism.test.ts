@@ -70,6 +70,7 @@ describe('lockstep determinism', () => {
                             abilityId: 'wait',
                             targets: [],
                             movePath: [{ col: baseCol + moveDelta, row: baseRow }],
+                            endTurn: true,
                         });
                     }
                     engine.tryResumeParallel();

@@ -248,6 +248,7 @@ While knockback is active, the unit cannot move or act. If it hits a wall, it bo
 - [ ] Non-empty `abilityTimings` (interval form); `doCardEffect` implements per-tick behavior; `renderTargetingPreview` draws targeting hint.
 - [ ] Ability registered in `AbilityRegistry.ts`; card def registered in `card_defs/index.ts`.
 - [ ] Character's card list includes the new card id if the character should have the card.
+- [ ] If a **new enemy character** was introduced: add it to `BESTIARY_ENTRIES` in `app/js/components/BestiaryPanel.tsx` and ensure its sprite key appears in `SPRITE_ICONS`.
 - [ ] If the ability inflicts knockback: use `targetUnit.applyKnockback` with serializable params.
 
 ### Juice / feel

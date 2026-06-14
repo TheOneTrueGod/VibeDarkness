@@ -65,6 +65,7 @@ import {
 } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 import { processThornlingNests } from './lanternite/thornlingNestTick';
+import { processSwarmNests } from './lanternite/swarmNestTick';
 import { TerrainLayerManager } from './TerrainLayerManager';
 import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCoreHelpers';
 import { resetGameObjectIdCounter } from './GameObject';
@@ -1208,6 +1209,16 @@ export class GameEngine implements EngineContext {
             idSource: this,
             generateRandomNumber: () => this.generateRandomNumber(),
         });
+        processSwarmNests({
+            gameTime: this.gameTime,
+            units: this.units,
+            mapPOIs: this.mapPOIs,
+            terrainGrid: this.terrainManager?.grid ?? null,
+            eventBus: this.eventBus,
+            addUnit: (u) => this.addUnit(u, 'nestSpawn'),
+            idSource: this,
+            generateRandomNumber: () => this.generateRandomNumber(),
+        });
         this.state.lanterniteRespawnManager.gameTick(this.gameTime, this, this.eventBus);
         this.state.unitManager.cleanupInactive();
         this.state.projectileManager.cleanupInactive();
@@ -1260,7 +1271,7 @@ export class GameEngine implements EngineContext {
     tryResumeParallel(): void {
         const batch = this.state.orderMgr.waitingForOrders;
         if (!batch) return;
-        const allReady = batch.waiters.every((w) => this.state.orderMgr.hasPendingOrderForUnit(w.unitId, batch.atTick));
+        const allReady = batch.waiters.every((w) => this.state.orderMgr.hasPendingEndTurnOrderForUnit(w.unitId, batch.atTick));
         if (!allReady) return;
 
         const unitIds = batch.waiters.map((w) => w.unitId).sort();
@@ -1387,6 +1398,7 @@ export class GameEngine implements EngineContext {
             hasLineOfSight: (fromX, fromY, toX, toY) =>
                 this.terrainManager?.grid.hasLineOfSight(fromX, fromY, toX, toY) ?? false,
             cancelActiveAbility: (unitId, abilityId) => this.cancelActiveAbility(unitId, abilityId),
+            mapPOIs: this.mapPOIs,
         };
     }
 

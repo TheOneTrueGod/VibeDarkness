@@ -11,6 +11,7 @@ import { LANTERNITE_NEST_IDLE_TREE } from './lanterniteNestIdle/index';
 import { LANTERNITE_NETWORK_AI_TREE } from './lanterniteNetwork/index';
 import { HUNT_AI_TREE } from './hunt/index';
 import { PET_AI_TREE } from './pet/index';
+import { SWARMLING_NETWORK_AI_TREE } from './swarmlingNetwork/index';
 
 export type { AIContext, AILightSource, UnitAITree, AINode, AIEdgeCondition, AINodeId } from './types';
 export { isNodeInTree } from './types';
@@ -53,6 +54,8 @@ export { LANTERNITE_NETWORK_AI_TREE } from './lanterniteNetwork/index';
 export type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './lanterniteNetwork/context';
 export { HUNT_AI_TREE } from './hunt/index';
 export type { HuntNodeId, HuntAITreeContext } from './hunt/index';
+export { SWARMLING_NETWORK_AI_TREE } from './swarmlingNetwork/index';
+export type { SwarmlingNetworkAITreeContext, SwarmlingNetworkNodeId } from './swarmlingNetwork/index';
 
 /** Registry: tree ID -> tree. */
 const TREE_REGISTRY: Record<string, UnitAITree> = {
@@ -64,6 +67,7 @@ const TREE_REGISTRY: Record<string, UnitAITree> = {
     lanterniteNetwork: LANTERNITE_NETWORK_AI_TREE,
     hunt: HUNT_AI_TREE,
     pet: PET_AI_TREE,
+    swarmlingNetwork: SWARMLING_NETWORK_AI_TREE,
 };
 
 export function getUnitAITree(treeId: string): UnitAITree | null {

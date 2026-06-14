@@ -21,6 +21,7 @@ When working on Minion Battles (the game):
 7. **`abilityEvents` policy**: Prefer reusable presets over defining a new inline event rule, and prefer an inline event rule over a custom handler. If no inline primitive exists, prompt the user whether the behavior is one-off or should be generalized into a reusable condition/effect/preset. Custom handlers require a short explanatory comment. Within one event rule, conditions use AND semantics; across multiple event rules, matching uses OR semantics.
 8. **Hitboxes**: When an ability needs collision detection against enemies (melee, lunge, AoE), use the hitbox classes in `hitboxes/`. See the **working-with-hitboxes** skill for available types, usage patterns, and how to add new shapes.
 9. **Enemy creature type**: When adding a new enemy `characterId` in `game/units/unit_defs/unitDef.ts`, set optional **`creatureType`** when clear (`writing-style-enemies`); purple dissolution death uses **`darkCreatureDissolutionDeathEffect`** in `game/deathEffects/darkCreatureDissolutionDef.ts`. If unclear, ask the user.
+10. **Bestiary**: After adding a new enemy `characterId` (new entry in `EnemyUnitId` + `UNIT_DEFS`), add a matching entry to `BESTIARY_ENTRIES` in `app/js/components/BestiaryPanel.tsx`. Set `faction` to match the unit's `creatureType` (`'dark_creature'` / `'beast'` / `'other'`), list any ability IDs the unit uses, and ensure the unit's `characterSpriteKey` appears in the `SPRITE_ICONS` map (import the icon if needed).
 
 ## Teams
 

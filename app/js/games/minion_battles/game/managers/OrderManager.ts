@@ -37,6 +37,20 @@ export class OrderManager {
         return this.pendingOrders.some((o) => o.gameTick >= earliestTickInclusive && o.order.unitId === unitId);
     }
 
+    /** Returns the pending order for `unitId` at or after `atTick`, or null if none. */
+    getPendingOrderForUnit(unitId: string, atTick: number): BattleOrder | null {
+        return this.pendingOrders.find((o) => o.gameTick >= atTick && o.order.unitId === unitId)?.order ?? null;
+    }
+
+    /**
+     * Returns true if `unitId` has a confirmed (endTurn: true) pending order at or after `atTick`.
+     * Used by tryResumeParallel to decide when all waiters are ready.
+     */
+    hasPendingEndTurnOrderForUnit(unitId: string, atTick: number): boolean {
+        const order = this.getPendingOrderForUnit(unitId, atTick);
+        return order !== null && order.endTurn === true;
+    }
+
     /**
      * Whether this engine should pause for orders for the given unit.
      * Returns false when an order is already pending (engine will apply it naturally).
@@ -62,13 +76,13 @@ export class OrderManager {
         return out;
     }
 
-    /** Next local player's unit in this batch that still needs an order at the batch tick (UI / previews). */
+    /** Next local player's unit in this batch that still needs a confirmed (endTurn: true) order (UI / previews). */
     getActiveOrderWaiterForPlayer(playerId: string): OrderWaiter | null {
         const w = this.waitingForOrders;
         if (!w) return null;
         for (const waiter of w.waiters) {
             if (waiter.ownerId !== playerId) continue;
-            if (!this.hasPendingOrderForUnit(waiter.unitId, w.atTick)) {
+            if (!this.hasPendingEndTurnOrderForUnit(waiter.unitId, w.atTick)) {
                 return waiter;
             }
         }
@@ -84,10 +98,47 @@ export class OrderManager {
                 // TODO [rollback]: Support transactional batch apply—snapshot pre-batch, validate all orders, rollback state if any reject; or buffer commits until atomic apply.
                 return;
             }
-            if (this.hasPendingOrderForUnit(order.unitId, batch.atTick)) {
-                // TODO [rollback]: Support transactional batch apply—snapshot pre-batch, validate all orders, rollback state if any reject; or buffer commits until atomic apply.
-                return;
+
+            const existing = this.getPendingOrderForUnit(order.unitId, batch.atTick);
+            if (existing) {
+                if (existing.endTurn === true) {
+                    // Already confirmed — cannot replace.
+                    // TODO [rollback]: Support transactional batch apply—snapshot pre-batch, validate all orders, rollback state if any reject; or buffer commits until atomic apply.
+                    return;
+                }
+
+                if (existing.abilityId === order.abilityId && order.endTurn === true) {
+                    // Same ability, just confirming turn end — mutate the flag in place, skip cancel/re-exec.
+                    const entry = this.pendingOrders.find(
+                        (o) => o.gameTick >= batch.atTick && o.order.unitId === order.unitId,
+                    );
+                    if (entry) entry.order = { ...entry.order, endTurn: true };
+                    this.onAfterOrderQueued();
+                    return;
+                }
+
+                if (existing.abilityId === order.abilityId && !order.endTurn) {
+                    // Same ability, still nonconfirmed — update movePath in place without re-executing the ability.
+                    const entry = this.pendingOrders.find(
+                        (o) => o.gameTick >= batch.atTick && o.order.unitId === order.unitId,
+                    );
+                    if (entry) entry.order = { ...entry.order, movePath: order.movePath };
+                    return;
+                }
+
+                // Replacing a nonconfirmed order with a new one — cancel the previously-set ability first.
+                const unit = this.ctx.getUnit(order.unitId);
+                if (unit) {
+                    if (existing.abilityId !== 'wait') {
+                        this.ctx.cancelActiveAbility(unit.id, existing.abilityId);
+                    } else {
+                        unit.waitMinEndTime = null;
+                        unit.waitMaxEndTime = null;
+                    }
+                }
+                // Fall through — queueOrder will deduplicate by removing the old entry.
             }
+
             atTick = batch.atTick;
         }
         const orderingUnit = this.ctx.getUnit(order.unitId);
@@ -104,7 +155,7 @@ export class OrderManager {
 
     /**
      * Resolves a mid-ability conditional cancel choice while the parallel pause batch is still active.
-     * Returns false when the order should be rejected (invalid ability tag).
+     * Returns false when the order is rejected (invalid ability tag).
      */
     private applyConditionalCancelDecision(
         order: BattleOrder,
@@ -185,6 +236,11 @@ export class OrderManager {
         }
 
         if (order.abilityId === 'wait') {
+            if (order.endTurn === false) {
+                // Cancel-sentinel: the player cancelled their nonconfirmed order. The previously-set
+                // ability was already cancelled in applyOrder before this point. No wait timers needed.
+                return;
+            }
             // Mid-cast resume (conditional cancel): keep the active cast, skip turn wait lockout.
             if (unit.activeAbilities.length > 0) {
                 return;

@@ -15,6 +15,7 @@ import type { LanternitePatrolAITreeContext } from './lanternitePatrol/context';
 import type { LanterniteNetworkAITreeContext } from './lanterniteNetwork/context';
 import type { HuntAITreeContext } from './hunt/context';
 import type { PetAITreeContext } from './pet/context';
+import type { SwarmlingNetworkAITreeContext } from './swarmlingNetwork/context';
 
 /** Maps tree IDs to their typed context shape. Extend when adding a new tree. */
 export interface AITreeContextMap {
@@ -26,6 +27,7 @@ export interface AITreeContextMap {
     lanterniteNetwork: LanterniteNetworkAITreeContext;
     hunt: HuntAITreeContext;
     pet: PetAITreeContext;
+    swarmlingNetwork: SwarmlingNetworkAITreeContext;
 }
 
 export type AITreeId = keyof AITreeContextMap;

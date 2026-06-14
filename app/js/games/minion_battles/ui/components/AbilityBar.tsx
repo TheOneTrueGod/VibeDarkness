@@ -55,8 +55,10 @@ interface AbilityBarProps {
     selectedCardIndex: number | null;
     /** Called when a card is selected. */
     onSelectCard: (handIndex: number, ability: AbilityStatic) => void;
-    /** Called when the player clicks the Wait button. */
+    /** Called when the player clicks the Wait / End Turn button. */
     onWait?: () => void;
+    /** When true, the wait button renders as "End Turn" to confirm a nonconfirmed order. */
+    hasNonconfirmedOrder?: boolean;
     /** Called when the wait button is hovered or unhovered. */
     onWaitHoverChange?: (hovered: boolean) => void;
     /** Current game state for dynamic descriptions. */
@@ -86,6 +88,7 @@ export default function AbilityBar({
     selectedCardIndex,
     onSelectCard,
     onWait,
+    hasNonconfirmedOrder,
     onWaitHoverChange,
     gameState,
     allUnits = [],
@@ -390,13 +393,13 @@ export default function AbilityBar({
                                     ? 'cursor-pointer border-dark-500 bg-dark-700 text-gray-200 hover:-translate-y-1 hover:border-gray-400 hover:bg-dark-600'
                                     : 'cursor-not-allowed border-dark-700 bg-dark-800 text-gray-600'
                             }`}
-                            title={conditionalCancelContext ? 'Continue current ability (Space)' : 'Wait (Space)'}
+                            title={conditionalCancelContext ? 'Continue current ability (Space)' : hasNonconfirmedOrder ? 'End Turn (Space)' : 'Wait (Space)'}
                             aria-keyshortcuts="Space"
                             onPointerEnter={() => onWaitHoverChange?.(true)}
                             onPointerLeave={() => onWaitHoverChange?.(false)}
                         >
                             <span className="text-sm font-medium">
-                                {conditionalCancelContext ? 'Continue' : 'Wait'}
+                                {conditionalCancelContext ? 'Continue' : hasNonconfirmedOrder ? 'End Turn' : 'Wait'}
                             </span>
                             <kbd
                                 className={`mt-2 flex h-10 min-w-[3.5rem] items-center justify-center rounded border-2 px-2 font-mono text-[11px] font-semibold tracking-wide shadow-inner ${

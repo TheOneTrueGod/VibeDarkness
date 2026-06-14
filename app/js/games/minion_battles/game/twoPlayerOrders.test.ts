@@ -88,6 +88,7 @@ function makeWaitOrder(unitId: string, moveCol: number, moveRow: number): Battle
         abilityId: 'wait',
         targets: [],
         movePath: [{ col: moveCol, row: moveRow }],
+        endTurn: true,
     };
 }
 

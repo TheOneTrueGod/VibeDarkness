@@ -51,6 +51,7 @@ import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowCont
 import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEffectCanvas';
 import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
+import { AUTO_END_TURN } from '../../game/gameConstants';
 
 declare global {
     interface Window {
@@ -150,6 +151,9 @@ export default function BattlePhase({
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
     const [_isWaitHovered, setIsWaitHovered] = useState(false);
+    /** Ability order submitted to engine but not yet confirmed (endTurn: true not sent). */
+    const [nonconfirmedOrder, setNonconfirmedOrder] = useState<BattleOrder | null>(null);
+    const nonconfirmedOrderRef = useRef<BattleOrder | null>(null);
     const [currentTargets, setCurrentTargets] = useState<ResolvedTarget[]>([]);
     /**
      * Named targets keyed by `SelectTargetDef.label` for new-style abilities.
@@ -176,12 +180,15 @@ export default function BattlePhase({
         /** Caster unit for targeting preview (parallel batch active local unit). */
         previewOrderUnitId: string | null;
         ghostPlans?: Record<string, GhostPlanData>;
+        /** Nonconfirmed order (submitted to engine without endTurn: true). Used for stable ghost plan broadcast. */
+        nonconfirmedOrder: BattleOrder | null;
     }>({
         selectedAbility: null,
         currentTargets: [],
         mouseWorld: { x: 0, y: 0 },
         waitingForOrders: null,
         previewOrderUnitId: null,
+        nonconfirmedOrder: null,
     });
     targetingStateRef.current = {
         selectedAbility,
@@ -192,6 +199,7 @@ export default function BattlePhase({
         ghostPlans: Object.fromEntries(
             Object.entries(ghostPlans).filter(([, v]) => v !== null)
         ) as Record<string, GhostPlanData>,
+        nonconfirmedOrder,
     };
     const pendingMovePathRef = useRef<{ col: number; row: number }[] | null>(null);
     /** Up to {@link PLAYER_MOVE_WAYPOINT_MAX} queued destinations (shift-right-click chain). */
@@ -234,6 +242,13 @@ export default function BattlePhase({
                           abilityId: ts.selectedAbility.id,
                           currentTargets: ts.currentTargets,
                           mouseWorld: { ...ts.mouseWorld },
+                      }
+                    : ts.nonconfirmedOrder
+                    ? {
+                          unitId: ts.nonconfirmedOrder.unitId,
+                          abilityId: ts.nonconfirmedOrder.abilityId,
+                          currentTargets: ts.nonconfirmedOrder.targets,
+                          mouseWorld: ts.nonconfirmedOrder.targets[0]?.position ?? { x: 0, y: 0 },
                       }
                     : null;
             const prev = lastSentGhostPlanRef.current;
@@ -853,14 +868,27 @@ export default function BattlePhase({
             ...(targetsByLabel && Object.keys(targetsByLabel).length > 0 ? { targetsByLabel } : {}),
         };
 
+        // Always clear targeting UI state.
         targetingStateRef.current.selectedAbility = null;
         targetingStateRef.current.currentTargets = [];
-        targetingStateRef.current.waitingForOrders = null;
         targetsByLabelRef.current = {};
         pendingMovePathRef.current = null;
         pendingMoveWaypointsRef.current = [];
 
-        void sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders: canUseOrderUi });
+        if (abilityId === 'wait' || AUTO_END_TURN) {
+            // Wait always ends the turn immediately; AUTO_END_TURN skips the confirmation step.
+            order.endTurn = true;
+            targetingStateRef.current.waitingForOrders = null;
+            nonconfirmedOrderRef.current = null;
+            setNonconfirmedOrder(null);
+            void sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders: canUseOrderUi });
+        } else {
+            // Submit to engine without endTurn — the order is now "nonconfirmed".
+            // The game stays paused until the player presses End Turn.
+            nonconfirmedOrderRef.current = order;
+            setNonconfirmedOrder(order);
+            void sessionRef.current?.submitPlayerOrder(order, { canSubmitOrders: canUseOrderUi });
+        }
     }, [waitingForOrders, activeLocalWaiter, canUseOrderUi]);
 
     const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
@@ -1102,18 +1130,47 @@ export default function BattlePhase({
         setCurrentTargets([]);
     }, [canUseOrderUi, activeLocalWaiter, waitingForOrders, submitOrder]);
 
+    const handleEndTurn = useCallback(() => {
+        const order = nonconfirmedOrderRef.current;
+        if (!order || !waitingForOrders || !canUseOrderUi) return;
+
+        const confirmed: BattleOrder = { ...order, endTurn: true };
+        nonconfirmedOrderRef.current = null;
+        setNonconfirmedOrder(null);
+        targetingStateRef.current.waitingForOrders = null;
+        void sessionRef.current?.submitPlayerOrder(confirmed, { canSubmitOrders: canUseOrderUi });
+    }, [waitingForOrders, canUseOrderUi]);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.code === 'Space' && !e.repeat) {
                 e.preventDefault();
-                handleWait();
+                if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
+                    handleEndTurn();
+                } else {
+                    handleWait();
+                }
                 return;
             }
             if (e.code === 'Escape') {
-                setSelectedCardIndex(null);
-                setSelectedAbility(null);
-                setCurrentTargets([]);
-                targetsByLabelRef.current = {};
+                if (selectedAbility) {
+                    // Cancel in-progress targeting (selecting a replacement ability).
+                    setSelectedCardIndex(null);
+                    setSelectedAbility(null);
+                    setCurrentTargets([]);
+                    targetsByLabelRef.current = {};
+                } else if (nonconfirmedOrderRef.current) {
+                    // Cancel the nonconfirmed order — send a wait+endTurn:false sentinel to the engine.
+                    const order = nonconfirmedOrderRef.current;
+                    nonconfirmedOrderRef.current = null;
+                    setNonconfirmedOrder(null);
+                    if (canUseOrderUi) {
+                        void sessionRef.current?.submitPlayerOrder(
+                            { unitId: order.unitId, abilityId: 'wait', targets: [], endTurn: false },
+                            { canSubmitOrders: canUseOrderUi },
+                        );
+                    }
+                }
                 return;
             }
             const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key, 10) : 0;
@@ -1131,7 +1188,7 @@ export default function BattlePhase({
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleWait, handleSelectCard, myAbilityIds, canUseOrderUi]);
+    }, [handleWait, handleEndTurn, handleSelectCard, myAbilityIds, canUseOrderUi, selectedAbility]);
 
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean) => {
         const engine = sessionRef.current?.getEngine();
@@ -1166,6 +1223,12 @@ export default function BattlePhase({
             pendingMoveWaypointsRef.current = nextWaypoints;
             pendingMovePathRef.current = fullPath;
             unit.setMovement(fullPath, undefined, engine.gameTick);
+            if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
+                const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath };
+                nonconfirmedOrderRef.current = updated;
+                setNonconfirmedOrder(updated);
+                void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
+            }
             return;
         }
 
@@ -1181,6 +1244,12 @@ export default function BattlePhase({
         pendingMoveWaypointsRef.current = waypoints;
         pendingMovePathRef.current = fullPath;
         unit.setMovement(fullPath, undefined, engine.gameTick);
+        if (nonconfirmedOrderRef.current && !AUTO_END_TURN) {
+            const updated = { ...nonconfirmedOrderRef.current, movePath: fullPath };
+            nonconfirmedOrderRef.current = updated;
+            setNonconfirmedOrder(updated);
+            void sessionRef.current?.submitPlayerOrder(updated, { canSubmitOrders: canUseOrderUi });
+        }
     }, [canUseOrderUi, activeLocalWaiter, waitingForOrders]);
 
     const handleForceResync = useCallback(() => {
@@ -1244,7 +1313,8 @@ export default function BattlePhase({
             isPaused={isPaused}
             selectedCardIndex={selectedCardIndex}
             onSelectCard={handleSelectCard}
-            onWait={handleWait}
+            onWait={nonconfirmedOrder && !AUTO_END_TURN ? handleEndTurn : handleWait}
+            hasNonconfirmedOrder={!AUTO_END_TURN && !!nonconfirmedOrder}
             onWaitHoverChange={setIsWaitHovered}
             gameState={engine}
             allUnits={engine.units}

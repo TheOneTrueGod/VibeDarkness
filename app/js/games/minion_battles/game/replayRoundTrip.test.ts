@@ -62,6 +62,7 @@ function makeScriptedWaitOrder(engine: GameEngine, atTick: number, unitId: strin
         abilityId: 'wait',
         targets: [],
         movePath: [{ col: col + moveDelta, row }],
+        endTurn: true,
     };
 }
 

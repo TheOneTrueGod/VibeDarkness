@@ -8,6 +8,7 @@ import wolfHeadIcon from '../games/minion_battles/assets/characters/dark_animals
 import wolfHowlIcon from '../games/minion_battles/assets/characters/dark_animals/wolf-howl.svg';
 import boarIcon from '../games/minion_battles/assets/characters/dark_animals/boar.svg';
 import swarmlingIcon from '../games/minion_battles/assets/characters/dark_animals/swarmling.svg';
+import swarmNestIcon from '../games/minion_battles/assets/characters/dark_animals/swarm_nest.svg';
 import thornbinderIcon from '../games/minion_battles/assets/characters/thornbinder.svg';
 import lanterniteIcon from '../games/minion_battles/assets/characters/lanternite.svg';
 import lanterniteNestIcon from '../games/minion_battles/assets/characters/lanternite_nest.svg';
@@ -20,6 +21,7 @@ const SPRITE_ICONS: Record<string, string> = {
     alpha_wolf: wolfHowlIcon,
     boar: boarIcon,
     swarmling: swarmlingIcon,
+    swarm_nest: swarmNestIcon,
     thornbinder: thornbinderIcon,
     lanternite: lanterniteIcon,
     lanternite_nest: lanterniteNestIcon,
@@ -43,6 +45,7 @@ const BESTIARY_ENTRIES: BestiaryEntry[] = [
     { id: 'husk_artillery',  name: 'Husk Artillery',  abilityIds: ['0009'],                         faction: 'dark_creature' },
     { id: 'huskling',        name: 'Huskling',        abilityIds: ['0002'],                         faction: 'dark_creature' },
     { id: 'swarmling',       name: 'Swarmling',       abilityIds: ['0013'],                         faction: 'dark_creature' },
+    { id: 'swarm_nest',      name: 'Swarm Nest',      abilityIds: [],                               faction: 'dark_creature' },
     { id: 'lanternite',      name: 'Lanternite',      abilityIds: ['0010'],                         faction: 'beast' },
     { id: 'lanternite_nest', name: 'Lanternite Nest', abilityIds: ['0014'],                         faction: 'beast' },
     { id: 'thornling',       name: 'Thornling',       abilityIds: ['0015'],                         faction: 'beast' },
@@ -61,6 +64,8 @@ const FACTION_SECTIONS: { faction: Faction; label: string }[] = [
 const ICON_SIZE = 58;
 
 function getSpriteUrl(id: EnemyUnitId): string | undefined {
+    // Character ID override takes precedence (allows units that share a spriteKey to have distinct icons).
+    if (SPRITE_ICONS[id]) return SPRITE_ICONS[id];
     const spriteKey = getUnitDefEntry(id)?.characterSpriteKey;
     return spriteKey ? SPRITE_ICONS[spriteKey] : undefined;
 }
