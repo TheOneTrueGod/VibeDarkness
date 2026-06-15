@@ -1,19 +1,17 @@
 /**
  * hunt_pursue - Move toward and attack the current target.
  *
- * Periodically rescans for the nearest living enemy and switches targets so the
- * unit naturally pivots to a closer threat. Does not require line-of-sight to
- * keep a target — the unit pathfinds relentlessly. Returns to hunt_seek only
- * when the target is dead or has been removed.
+ * Trusts the unit's tactical plan for target identity. The plan is set by
+ * hunt_seek and held until it expires or an interrupt fires (e.g. target_died).
+ * Does not rescan for a closer target mid-pursuit — if the plan expires,
+ * the unit returns to hunt_seek which will acquire a fresh target.
+ * Does not require line-of-sight to keep a target — pathfinds relentlessly.
  */
 
 import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import type { HuntAITreeContext, HuntNodeId } from './context';
-import { findEnemies, applyAIMovementToUnit, tryQueueAbilityOrder, ROUND_DURATION } from '../utils';
-
-/** How often (in rounds) the unit rescans for the nearest enemy. */
-const RESCAN_INTERVAL_ROUNDS = 0.5;
+import { findEnemies, applyAIMovementToUnit, tryQueueAbilityOrder } from '../utils';
 
 export const hunt_pursue: AINode<'hunt', HuntNodeId> = {
     nodeId: 'hunt_pursue',
@@ -21,23 +19,21 @@ export const hunt_pursue: AINode<'hunt', HuntNodeId> = {
         execute(unit: Unit, context: AIContext): void {
             const ctx = unit.aiContext as HuntAITreeContext;
 
-            const lastScan = ctx.lastScanTime ?? -Infinity;
-            if (context.gameTime - lastScan >= RESCAN_INTERVAL_ROUNDS * ROUND_DURATION) {
-                ctx.lastScanTime = context.gameTime;
-                const enemies = findEnemies(unit, context.getUnits());
-                if (enemies.length > 0) {
-                    ctx.targetUnitId = enemies[0]!.id;
-                } else {
-                    ctx.targetUnitId = undefined;
-                }
-            }
+            // Resolve the current target from the tactical plan (primary) or ctx fallback.
+            const planTargetId = unit.tacticalPlan?.data.targetUnitId ?? null;
+            const targetId = planTargetId ?? ctx.targetUnitId ?? null;
+            const target = targetId ? context.getUnit(targetId) : null;
 
-            const target = ctx.targetUnitId ? context.getUnit(ctx.targetUnitId) : null;
             if (!target?.isAlive()) {
+                // Target gone — clear plan and return to seek for a fresh scan.
+                unit.tacticalPlan = null;
                 ctx.aiState = 'hunt_seek';
                 ctx.targetUnitId = undefined;
                 return;
             }
+
+            // Keep ctx in sync with the plan so other callers see the right id.
+            ctx.targetUnitId = target.id;
 
             if (unit.aiSettings && context.terrainManager) {
                 applyAIMovementToUnit(unit, target, {

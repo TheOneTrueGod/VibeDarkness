@@ -51,6 +51,10 @@ import {
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from './general/lanternites';
 import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from './general/pets';
 import { swarmlingHuntAndBiteScenario } from './general/swarmlings';
+import { aiPlanHoldStabilityScenario } from './ai/ai_plan_hold_stability';
+import { aiTerrainInterruptScenario } from './ai/ai_terrain_interrupt';
+import { aiReplanStaggerScenario } from './ai/ai_replan_stagger';
+import { aiSerializationRoundtripScenario } from './ai/ai_serialization_roundtrip';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from './general/lightingSystem';
 import {
     earthCoreEarthernPunchScenario,
@@ -129,6 +133,10 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     petAutoEngageScenario,
     petHeelScenario,
     petSicEmPounceScenario,
+    aiPlanHoldStabilityScenario,
+    aiTerrainInterruptScenario,
+    aiReplanStaggerScenario,
+    aiSerializationRoundtripScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -175,6 +183,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'lanternites', section: 'Lanternites' },
     { slug: 'lighting', section: 'Lighting' },
     { slug: 'pets', section: 'Pets' },
+    { slug: 'ai', section: 'AI' },
 ];
 
 export interface GeneralTestSidebarGroup {

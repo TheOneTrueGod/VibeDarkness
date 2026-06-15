@@ -141,6 +141,8 @@ export interface SerializedGameState {
     effectEmitters?: Record<string, unknown>[];
     /** Value of the global generateGameObjectId counter at snapshot time. Restored on load so replayed effects/projectiles get identical IDs. */
     nextObjectId?: number;
+    /** Serialized AI group blackboards (strategic plans, unit membership, brain scheduling). */
+    groups?: import('./units/unitAI/groups/types').SerializedGroup[];
 }
 
 /** Optional args when hydrating {@link GameEngine} from JSON (e.g. server checkpoint `synchash`). */

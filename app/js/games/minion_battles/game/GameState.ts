@@ -19,6 +19,8 @@ import type { MapSegmentPOI } from '../terrain/segmentSchema';
 import { LanterniteRespawnManager } from './lanternite/LanterniteRespawnManager';
 import { OrderManager } from './managers/OrderManager';
 import type { LightTileGrid } from './lightTileGrid/LightTileGrid';
+import { GroupManager } from './units/unitAI/groups/GroupManager';
+import { InterruptSystem } from './units/unitAI/plans/InterruptSystem';
 
 export class GameState {
 
@@ -54,6 +56,8 @@ export class GameState {
     readonly lightSourceManager: LightSourceManager;
     readonly lanterniteRespawnManager: LanterniteRespawnManager;
     readonly orderMgr: OrderManager;
+    readonly groupManager: GroupManager;
+    readonly interruptSystem: InterruptSystem;
 
     terrainManager: TerrainManager | null = null;
 
@@ -88,5 +92,7 @@ export class GameState {
         this.lightSourceManager = new LightSourceManager(ctx);
         this.lanterniteRespawnManager = new LanterniteRespawnManager();
         this.orderMgr = new OrderManager(ctx, () => ctx.tryResumeParallel());
+        this.groupManager = new GroupManager();
+        this.interruptSystem = new InterruptSystem(() => this.unitManager.units);
     }
 }

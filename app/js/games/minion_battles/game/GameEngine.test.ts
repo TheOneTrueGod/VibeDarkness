@@ -380,4 +380,49 @@ describe('GameEngine', () => {
         expect(typeof calls[0]?.paused).toBe('boolean');
         engine.destroy();
     });
+
+    it('serializes and restores GroupManager state (round-trip)', () => {
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
+        engine.gameTick = 50;
+
+        // Create a group with a hunt strategic plan, hold for 100 ticks
+        const holdUntilTick = 150;
+        engine.state.groupManager.createGroup('group_1', ['unit_a', 'unit_b'], {
+            data: {
+                type: 'hunt',
+                engagePolicy: 'opportunistic',
+                priority: 1,
+            },
+            holdUntilTick,
+            invalidateOn: new Set(),
+        });
+
+        // Set a custom nextBrainTick to verify it round-trips correctly
+        const bb = engine.state.groupManager.getGroup('group_1');
+        expect(bb).toBeDefined();
+        if (bb) {
+            bb.nextBrainTick = 70;
+        }
+
+        const json = engine.toJSON();
+        expect(json.groups).toBeDefined();
+        expect(json.groups!.length).toBe(1);
+        expect(json.groups![0].strategicPlan.type).toBe('hunt');
+        expect(json.groups![0].strategicPlan.ticksRemaining).toBe(100); // 150 - 50
+
+        const restored = GameEngine.fromJSON(json, 'p1', null);
+        expect(restored.gameTick).toBe(50); // fromJSON restores gameTick from json
+
+        const restoredBb = restored.state.groupManager.getGroup('group_1');
+        expect(restoredBb).toBeDefined();
+        expect(restoredBb!.strategicPlan.data.type).toBe('hunt');
+        expect(restoredBb!.strategicPlan.holdUntilTick).toBe(holdUntilTick);
+        // nextBrainTick round-trips exactly (stored as relative ticks, restored as absolute)
+        expect(restoredBb!.nextBrainTick).toBe(70);
+        expect(restoredBb!.unitIds).toEqual(['unit_a', 'unit_b']);
+
+        engine.destroy();
+        restored.destroy();
+    });
 });

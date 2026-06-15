@@ -86,9 +86,11 @@ export class UnitManager {
     }
 
     addUnit(unit: Unit): void {
-        unit.pathfindingRetriggerOffset = this.ctx.generateRandomInteger(30, 90);
         if (!unit.isPlayerControlled()) {
             unit.moveJitter = this.ctx.generateRandomInteger(0, 1000) / 1000;
+            unit.pathfindingRetriggerOffset = 30 + Math.floor(unit.moveJitter * 60);
+        } else {
+            unit.pathfindingRetriggerOffset = this.ctx.generateRandomInteger(30, 90);
         }
         this.units.push(unit);
     }
@@ -177,6 +179,7 @@ export class UnitManager {
             onBeforeEnemyAI?.();
             const tree = getUnitAITree(unit.unitAITreeId);
             if (tree) runUnitAI(unit, tree, aiContext);
+            unit.pendingInterrupts.clear();
         }
     }
 
@@ -199,14 +202,14 @@ export class UnitManager {
         this.units = this.units.filter((u) => u.active);
     }
 
-    toJSON(): Record<string, unknown>[] {
-        return this.units.map((u) => u.toJSON());
+    toJSON(currentGameTick: number = 0): Record<string, unknown>[] {
+        return this.units.map((u) => u.toJSON(currentGameTick));
     }
 
-    restoreFromJSON(unitDataArray: Record<string, unknown>[], eventBus: EventBus): void {
+    restoreFromJSON(unitDataArray: Record<string, unknown>[], eventBus: EventBus, currentGameTick: number = 0): void {
         this.units = [];
         for (const unitData of unitDataArray) {
-            const unit = Unit.fromJSON(unitData, eventBus);
+            const unit = Unit.fromJSON(unitData, eventBus, currentGameTick);
             const resourceData = unitData.resources as Record<string, unknown>[] | undefined;
             if (resourceData) {
                 for (const rd of resourceData) {

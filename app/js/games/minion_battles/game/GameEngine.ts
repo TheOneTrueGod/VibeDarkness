@@ -493,6 +493,7 @@ export class GameEngine implements EngineContext {
     private registerCoreEventListeners(): void {
         this.eventBus.clear();
         this.state.unitManager.registerListeners();
+        this.state.interruptSystem.registerListeners(this.eventBus);
 
         this.eventBus.on('unit_died', (data) => {
             const unit = this.getUnit(data.unitId);
@@ -1160,6 +1161,7 @@ export class GameEngine implements EngineContext {
             this.state.levelEventManager.processLevelEvents();
             this.state.objectiveManager.processObjectives();
             const aiCtx = this.buildAIContext();
+            this.state.groupManager.tick(this.gameTick, aiCtx);
             this.state.unitManager.gameTick(
                 dt,
                 this,
@@ -1507,7 +1509,7 @@ export class GameEngine implements EngineContext {
             gameTick: this.gameTick,
             roundNumber: this.roundNumber,
             snapshotIndex: this.snapshotIndex,
-            units: this.state.unitManager.toJSON(),
+            units: this.state.unitManager.toJSON(this.gameTick),
             projectiles: this.state.projectileManager.toJSON(),
             effectEmitters: this.state.effectEmitterManager.toJSON(),
             cards: cardData.cards as Record<string, import('./types').SerializedCardInstance[]>,
@@ -1534,6 +1536,7 @@ export class GameEngine implements EngineContext {
             lightTileGrid: this.state.lightTileGrid?.toJSON() ?? null,
             nextObjectId: this.objectIdSeq,
             mapPOIs: this.mapPOIs,
+            groups: this.state.groupManager.toJSON(this.gameTick),
         };
     }
 
@@ -1574,7 +1577,7 @@ export class GameEngine implements EngineContext {
         }));
 
         // Restore units (direct push, bypasses addUnit jitter since state is serialized)
-        engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus);
+        engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus, engine.gameTick);
 
         // Some checkpoints only list a subset of parallel waiters (e.g. host order already saved).
         // Without merging, we would clear pause while another human's unit still owes an order,
@@ -1680,6 +1683,9 @@ export class GameEngine implements EngineContext {
 
         // Restore cards + research trees
         engine.state.cardManager.restoreFromJSON(data.cards, data.playerResearchTreesByPlayer);
+
+        // Restore group blackboards (AI strategic layer)
+        engine.state.groupManager.fromJSON(data.groups ?? [], data.gameTick ?? 0);
 
         engine.syncObjectIdsFromSnapshot(data);
 

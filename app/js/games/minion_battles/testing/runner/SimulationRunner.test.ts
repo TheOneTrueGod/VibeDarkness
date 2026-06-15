@@ -28,6 +28,10 @@ import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario, exposedDurati
 import { swarmlingHuntAndBiteScenario } from '../scenarios/general/swarmlings';
 import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
+import { aiPlanHoldStabilityScenario } from '../scenarios/ai/ai_plan_hold_stability';
+import { aiTerrainInterruptScenario } from '../scenarios/ai/ai_terrain_interrupt';
+import { aiReplanStaggerScenario } from '../scenarios/ai/ai_replan_stagger';
+import { aiSerializationRoundtripScenario } from '../scenarios/ai/ai_serialization_roundtrip';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -280,6 +284,26 @@ describe('runScenarioHeadless', () => {
 
     it("passes pet Sic 'em + Pounce scenario (0704/0702): dog dashes, stops on hit, stuns enemy", () => {
         const r = runScenarioHeadless(petSicEmPounceScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('AI: hunt unit keeps same targetUnitId across rounds (plan hold stability)', () => {
+        const r = runScenarioHeadless(aiPlanHoldStabilityScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('AI: terrain-stone-damaged event near waypoint triggers replan (terrain interrupt)', () => {
+        const r = runScenarioHeadless(aiTerrainInterruptScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('AI: 6 hunt units get at least 3 distinct holdUntilTick values (replan stagger)', () => {
+        const r = runScenarioHeadless(aiReplanStaggerScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('AI: tactical plan survives toJSON / fromJSON round-trip (serialization roundtrip)', () => {
+        const r = runScenarioHeadless(aiSerializationRoundtripScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

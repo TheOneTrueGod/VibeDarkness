@@ -67,6 +67,8 @@ import type { EngineContext } from '../EngineContext';
 import { tickUnitActiveAbilities } from './unitAbilityTick';
 import { initTelegraphCastPayload } from '../../abilities/telegraphTracking';
 import { DarknessLevel } from '../darknessLevels';
+import type { Plan, TacticalPlan, InterruptFlag, SerializedTacticalPlan } from './unitAI/plans/types';
+import { serializeTacticalPlan, deserializeTacticalPlan } from './unitAI/plans/planUtils';
 
 /** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
 const WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID = 4;
@@ -201,8 +203,21 @@ export class Unit extends GameObject {
         return getUnitEnrageDef(this.characterId);
     }
 
-    /** Per-unit aim jitter factor in [0, 1]. Used to bias attack direction. */
+    /**
+     * Per-unit timing and directional seed in [0, 1]. Set once at spawn, never changed.
+     * Use as the base for any jitter-like mechanic — timing offsets, phase spreads, angle variation.
+     */
     moveJitter: number = 0;
+
+    /**
+     * Current medium-term AI goal. Serialized as relative ticks. Null means unit should replan on next tactical tick.
+     */
+    tacticalPlan: Plan<TacticalPlan> | null = null;
+
+    /**
+     * Events queued since last AI tick that may invalidate current plans. Cleared at the end of each AI decision. Not serialized.
+     */
+    pendingInterrupts: Set<InterruptFlag> = new Set();
 
     /** Seconds remaining in spawn animation (0 = not spawning). Unit is invisible and untargetable while > 0. */
     spawnTimer: number = 0;
@@ -1260,7 +1275,7 @@ export class Unit extends GameObject {
         this.abilityNote = null;
     }
 
-    toJSON(): Record<string, unknown> {
+    toJSON(currentGameTick: number = 0): Record<string, unknown> {
         return {
             _type: 'unit',
             id: this.id,
@@ -1409,10 +1424,13 @@ export class Unit extends GameObject {
             ...(this.petOwnerUnitId !== undefined ? { petOwnerUnitId: this.petOwnerUnitId } : {}),
             ...(this.petUnitIds.length > 0 ? { petUnitIds: [...this.petUnitIds] } : {}),
             ...(this.petDefId !== undefined ? { petDefId: this.petDefId } : {}),
+            tacticalPlan: this.tacticalPlan
+                ? serializeTacticalPlan(this.tacticalPlan, currentGameTick)
+                : null,
         };
     }
 
-    static fromJSON(data: Record<string, unknown>, _eventBus: EventBus): Unit {
+    static fromJSON(data: Record<string, unknown>, _eventBus: EventBus, currentGameTick: number = 0): Unit {
         const ownerId = data.ownerId as string;
         let characterId = data.characterId as string;
         let portraitId = data.portraitId as string | undefined;
@@ -1619,6 +1637,13 @@ export class Unit extends GameObject {
         const wep = data.wallEntryPoint as { x?: number; y?: number } | undefined;
         if (wep != null && typeof wep.x === 'number' && typeof wep.y === 'number') {
             unit.wallEntryPoint = { x: wep.x, y: wep.y };
+        }
+
+        if (data.tacticalPlan) {
+            unit.tacticalPlan = deserializeTacticalPlan(
+                data.tacticalPlan as SerializedTacticalPlan,
+                currentGameTick,
+            );
         }
 
         // Resources are reattached by the unit subclass factory
