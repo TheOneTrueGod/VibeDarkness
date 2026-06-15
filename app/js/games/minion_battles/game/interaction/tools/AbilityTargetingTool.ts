@@ -78,7 +78,7 @@ export class AbilityTargetingTool implements InteractionTool {
                 //   2. The raw click world position as a pixel entry so MeleeAttack can
                 //      preserve the player's original swing direction at impact time.
                 let orderTargets = newTargets;
-                if (numTargets > 1) {
+                if (allCandidates.length > 0) {
                     const additionalLockOns: ResolvedTarget[] = allCandidates
                         .slice(1, numTargets)
                         .map((c) => ({ type: 'unit' as const, unitId: c.unitId }));
