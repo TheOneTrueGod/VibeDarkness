@@ -31,9 +31,9 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const WINDUP_TIME = 0.3;
-const DASH_DURATION = 0.25;
+const DASH_DURATION = 0.3;
 const COOLDOWN_DURATION = 0.8;
-export const MAX_DASH_DISTANCE = 120;
+export const MAX_DASH_DISTANCE = 100;
 /** Step size when probing passability along the pounce path (matches DashBehaviour default). */
 export const POUNCE_COLLISION_STEP = 4;
 const DAMAGE = 8;
@@ -62,9 +62,9 @@ const pounceDash = new DashBehaviour()
     })
     .withOnHit((hitUnit, ctx) => {
         // Compute the dash direction from caster toward target at hit time.
-        const payload = ctx.behaviourPayload as { targetX?: number; targetY?: number } | null;
-        const targetX = payload?.targetX ?? ctx.caster.x + 1;
-        const targetY = payload?.targetY ?? ctx.caster.y;
+        const payload = ctx.behaviourPayload as { endX?: number; endY?: number } | null;
+        const targetX = payload?.endX ?? ctx.caster.x + 1;
+        const targetY = payload?.endY ?? ctx.caster.y;
         const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, targetX, targetY);
 
         const knockbackEngine: KnockbackEngineCtx = {
@@ -194,15 +194,15 @@ export const PounceAbility: AbilityStatic = {
                 gr, startX, startY, endX, endY,
                 caster.radius * 0.8,
                 elapsed, WINDUP_TIME,
-                0xff8800,
+                0x3b82f6,
             );
         } else {
             // Dash: shrinking line from caster's live position toward the fixed endpoint.
             gr.moveTo(caster.x, caster.y);
             gr.lineTo(endX, endY);
-            gr.stroke({ color: 0xff8800, width: 8, alpha: 0.7 });
+            gr.stroke({ color: 0x3b82f6, width: 8, alpha: 0.7 });
             gr.circle(endX, endY, caster.radius * 1.1);
-            gr.stroke({ color: 0xff8800, width: 2, alpha: 0.8 });
+            gr.stroke({ color: 0x3b82f6, width: 2, alpha: 0.8 });
         }
     },
 

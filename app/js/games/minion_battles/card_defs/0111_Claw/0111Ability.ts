@@ -19,7 +19,7 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 	{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];
 const CLAW_DURATION = 0.4;
-const CLAW_MAX_DISTANCE = 160;
+const CLAW_MAX_DISTANCE = 100;
 const COLLISION_STEP = 4;
 const DAMAGE = 5;
 const KNOCKBACK_TIER = 2;

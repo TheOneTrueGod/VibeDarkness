@@ -101,8 +101,8 @@ export const SicEmAbility = defineAbility({
             maxDistance: MAX_POUNCE_RANGE,
             collisionStep: POUNCE_COLLISION_STEP,
             style: {
-                lineStroke: { color: 0xff8800, width: 8, alpha: 0.6 },
-                endpointRingStroke: { color: 0xff8800, width: 2, alpha: 0.8 },
+                lineStroke: { color: 0x3b82f6, width: 8, alpha: 0.6 },
+                endpointRingStroke: { color: 0x3b82f6, width: 2, alpha: 0.8 },
                 endpointRadiusScale: 1.1,
             },
         },
