@@ -17,7 +17,7 @@ import type {
     CastBehaviourTickContext,
 } from '../castBehaviourTypes';
 import { getDirectionFromTo } from '../targetHelpers';
-import { applyForcedDisplacementToward } from '../effectHelpers';
+import { computeForcedDisplacement } from '../../game/forceMove';
 import { getBodyColorForUnit, getCharacterSpriteKey } from '../../game/units/unit_defs/unitDef';
 import { Effect } from '../../game/effects/Effect';
 import type { HitboxDef } from '../hitboxDef';
@@ -35,9 +35,9 @@ interface DashHitboxConfig {
 }
 
 interface DashPayload {
-    targetX: number;
-    targetY: number;
-    maxDistance: number;
+    endX: number;
+    endY: number;
+    totalDistance: number;
     // Afterimage state — null when afterimages are disabled.
     afterimage: {
         bodyColor: number;
@@ -125,13 +125,21 @@ export class DashBehaviour implements CastBehaviour {
     onSetup(ctx: CastBehaviourSetupContext): void {
         const target = ctx.target;
         if (target.type !== 'pixel' || !target.position) {
-            ctx.setBehaviourPayload({ targetX: ctx.caster.x, targetY: ctx.caster.y, maxDistance: 0, afterimage: null, hitIds: null, stopped: false });
+            ctx.setBehaviourPayload({ endX: ctx.caster.x, endY: ctx.caster.y, totalDistance: 0, afterimage: null, hitIds: null, stopped: false });
             return;
         }
 
         const { x: targetX, y: targetY } = target.position;
-        const { dirX, dirY, dist } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, targetX, targetY);
-        const maxDistance = Math.min(this._maxDistance, dist);
+        const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, targetX, targetY);
+
+        const { dx, dy, distance: totalDistance } = computeForcedDisplacement(
+            ctx.caster.x, ctx.caster.y,
+            targetX, targetY,
+            this._maxDistance,
+            { terrainManager: ctx.engine.terrainManager ?? null, step: this._collisionStep },
+        );
+        const endX = ctx.caster.x + dx;
+        const endY = ctx.caster.y + dy;
 
         let afterimage: DashPayload['afterimage'] = null;
         if (this._afterimagesEnabled) {
@@ -146,9 +154,9 @@ export class DashBehaviour implements CastBehaviour {
         }
 
         ctx.setBehaviourPayload({
-            targetX,
-            targetY,
-            maxDistance,
+            endX,
+            endY,
+            totalDistance,
             afterimage,
             hitIds: this._hitbox ? new Set<string>() : null,
             stopped: false,
@@ -157,18 +165,16 @@ export class DashBehaviour implements CastBehaviour {
 
     onTick(ctx: CastBehaviourTickContext): void {
         const payload = ctx.behaviourPayload as DashPayload | null;
-        if (!payload || payload.maxDistance <= 0) return;
+        if (!payload || payload.totalDistance <= 0) return;
 
-        const { targetX, targetY, maxDistance } = payload;
-        const distToTarget = Math.hypot(targetX - ctx.caster.x, targetY - ctx.caster.y);
+        const distToEnd = Math.hypot(payload.endX - ctx.caster.x, payload.endY - ctx.caster.y);
 
-        if (!payload.stopped && distToTarget > 0) {
+        if (!payload.stopped && distToEnd > 0) {
             const progressDelta = ctx.windowProgress - ctx.prevWindowProgress;
-            const moveThisTick = Math.min(progressDelta * maxDistance, distToTarget);
+            const moveThisTick = Math.min(progressDelta * payload.totalDistance, distToEnd);
             if (moveThisTick > 0) {
-                applyForcedDisplacementToward(ctx.engine, ctx.caster, targetX, targetY, moveThisTick, {
-                    step: this._collisionStep,
-                });
+                ctx.caster.invalidateMovementPath();
+                ctx.caster.moveUnit(payload.endX, payload.endY, moveThisTick);
             }
         }
 

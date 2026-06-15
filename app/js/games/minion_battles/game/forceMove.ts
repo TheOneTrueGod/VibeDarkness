@@ -100,13 +100,17 @@ export function computeForcedDisplacement(
     const step = Math.max(1, Math.min(options.step ?? 4, desired));
     let safeDistance = 0;
 
+    let wallHit = false;
     for (let d = step; d <= desired; d += step) {
         const x = startX + ux * d;
         const y = startY + uy * d;
-        if (!passable(x, y)) {
-            break;
-        }
+        if (!passable(x, y)) { wallHit = true; break; }
         safeDistance = d;
+    }
+    if (!wallHit && safeDistance < desired) {
+        const x = startX + ux * desired;
+        const y = startY + uy * desired;
+        if (passable(x, y)) safeDistance = desired;
     }
 
     if (safeDistance <= 0) {
