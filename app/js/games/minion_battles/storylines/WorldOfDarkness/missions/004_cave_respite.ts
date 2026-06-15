@@ -7,6 +7,7 @@ import { BaseMissionDef } from '../../BaseMissionDef';
 import type { PostMissionChoiceResolveParams } from '../../types';
 import type { PostMissionStoryDef, StoryChoiceAction, StoryChoiceOptionRow } from '../../storyTypes';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../../../researchTrees/trees/crystal_rocks';
+import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
 import {
     STICK_SWORD_NODE_JAGGED_EDGE,
     STICK_SWORD_NODE_EXTRA_USES,
@@ -102,7 +103,7 @@ function getCaveRespiteResearchFallbackRows(): StoryChoiceOptionRow[] {
     ];
 }
 
-function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, string[]> | undefined): StoryChoiceOptionRow[] {
+function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, string[]> | undefined, playerId?: string): StoryChoiceOptionRow[] {
     const trees = playerResearchTrees ?? {};
     const grant = (treeId: string, nodeId: string): StoryChoiceAction => ({
         type: 'grant_research_to_player',
@@ -110,14 +111,23 @@ function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, st
         nodeId,
     });
 
+    const chipRow: StoryChoiceOptionRow | null = playerId === '9' ? {
+        id: 'chip_bone_claws',
+        label: 'A gift for you, Chip',
+        loreTitle: 'A gift for you, Chip',
+        loreDescription: 'Bone claws made from the skeleton of the boar',
+        action: grant(EARTH_TREE_ID, EARTH_NODE_EARTH_CORE),
+    } : null;
+    const withChip = (rows: StoryChoiceOptionRow[]) => chipRow ? [...rows, chipRow] : rows;
+
     if (hasResearched(trees, TECH_SHIELD_TREE_ID, 'crystal_embedded_shield')) {
-        return [
+        return withChip([
             {
                 id: NODE_THROWING_CRYSTAL_SHIELD,
                 label: 'Shooting Shield',
                 loreTitle: 'Crystal Bolt',
                 loreDescription:
-                    'Lean into the shield’s new geometry—let a shard answer the dark at range.',
+                    "Lean into the shield's new geometry—let a shard answer the dark at range.",
                 action: grant(TECH_SHIELD_TREE_ID, NODE_THROWING_CRYSTAL_SHIELD),
             },
             {
@@ -127,11 +137,11 @@ function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, st
                 loreDescription: 'Weave the cave-light into your guard; each block carries a little healing onward.',
                 action: grant(TECH_SHIELD_TREE_ID, TECH_SHIELD_NODE_STRENGTHENING_LIGHT),
             },
-        ];
+        ]);
     }
 
     if (hasResearched(trees, CRYSTAL_ROCKS_TREE_ID, NODE_CHARGED_ROCKS)) {
-        return [
+        return withChip([
             {
                 id: NODE_MORE_POWER,
                 label: 'More Power',
@@ -146,11 +156,11 @@ function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, st
                 loreDescription: 'Train your aim so one motion can threaten two threats.',
                 action: grant(CRYSTAL_ROCKS_TREE_ID, NODE_MORE_ROCK),
             },
-        ];
+        ]);
     }
 
     if (hasResearched(trees, CRYSTAL_ROCKS_TREE_ID, NODE_THROWING_KNIVES)) {
-        return [
+        return withChip([
             {
                 id: NODE_MORE_ROCK,
                 label: 'More Rock',
@@ -158,11 +168,11 @@ function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, st
                 loreDescription: 'Hone the follow-through so your knives can find another mark.',
                 action: grant(CRYSTAL_ROCKS_TREE_ID, NODE_MORE_ROCK),
             },
-        ];
+        ]);
     }
 
     if (hasResearched(trees, STICK_SWORD_TREE_ID, NODE_CRAFT_SWORD)) {
-        return [
+        return withChip([
             {
                 id: STICK_SWORD_NODE_JAGGED_EDGE,
                 label: 'Jagged Edge',
@@ -177,10 +187,10 @@ function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, st
                 loreDescription: 'Oil the wrists and lungs—squeeze two more full swings from the same stance.',
                 action: grant(STICK_SWORD_TREE_ID, STICK_SWORD_NODE_EXTRA_USES),
             },
-        ];
+        ]);
     }
 
-    return getCaveRespiteResearchFallbackRows();
+    return withChip(getCaveRespiteResearchFallbackRows());
 }
 
 const POST_MISSION_STORY: PostMissionStoryDef = {
@@ -225,7 +235,7 @@ export class CaveRespiteMission extends BaseMissionDef {
             return getCaveRespitePunchChoiceRows();
         }
         if (params.choiceId === 'cave_respite_research_choice') {
-            return getCaveRespiteResearchChoiceRows(params.playerResearchTrees);
+            return getCaveRespiteResearchChoiceRows(params.playerResearchTrees, params.playerId);
         }
         return null;
     }

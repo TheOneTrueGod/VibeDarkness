@@ -171,6 +171,7 @@ export default function PostMissionStoryPhase({
             choiceId: currentPhrase.choiceId,
             equippedItemIds: playerEquipmentByPlayer[playerId] ?? [],
             playerResearchTrees: playerResearchTreesByPlayer[playerId],
+            playerId,
         });
         return computed ?? currentPhrase.options;
     }, [currentPhrase, missionId, playerId, playerEquipmentByPlayer, playerResearchTreesByPlayer]);

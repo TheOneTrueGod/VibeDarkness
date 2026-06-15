@@ -401,6 +401,8 @@ export interface PostMissionChoiceResolveParams {
     equippedItemIds: readonly string[];
     /** Local campaign character research (tree id → researched node ids). */
     playerResearchTrees?: Record<string, string[]>;
+    /** The player's ID, for per-player personalised options. */
+    playerId?: string;
 }
 
 /** Full battle configuration for a mission. */

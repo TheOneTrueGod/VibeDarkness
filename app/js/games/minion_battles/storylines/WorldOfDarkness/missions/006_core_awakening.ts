@@ -3,11 +3,12 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
-import type { PostMissionStoryDef } from '../../storyTypes';
+import type { PostMissionStoryDef, StoryChoiceOptionRow } from '../../storyTypes';
+import type { PostMissionChoiceResolveParams } from '../../types';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
+import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE, EARTH_NODE_DIGGING_CLAWS } from '../../../../../researchTrees/trees/earth';
 import {
     MISC_TREE_ID,
     MISC_NODE_CHARGED_CORE,
@@ -48,33 +49,47 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'choice',
             choiceId: 'core_awakening_reward',
-            options: [
-                {
-                    id: 'earth_core',
-                    label: 'The Earth Core',
-                    action: { type: 'grant_research_to_player', treeId: EARTH_TREE_ID, nodeId: EARTH_NODE_EARTH_CORE },
-                },
-                {
-                    id: 'command_core',
-                    label: 'The Command Core',
-                    action: { type: 'grant_research_to_player', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_LOYAL_COMPANION },
-                },
-                {
-                    id: 'charged_core',
-                    label: 'The Charged Core',
-                    action: { type: 'grant_research_to_player', treeId: MISC_TREE_ID, nodeId: MISC_NODE_CHARGED_CORE },
-                },
-                {
-                    id: 'blink_core',
-                    label: 'The Blink Core',
-                    action: { type: 'grant_research_to_player', treeId: MISC_TREE_ID, nodeId: MISC_NODE_BLINK_CORE },
-                },
-            ],
+            options: [],
         },
     ],
 };
 
 export class CoreAwakeningMission extends BaseMissionDef {
+    getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams): StoryChoiceOptionRow[] | null {
+        if (params.choiceId !== 'core_awakening_reward') return null;
+        const trees = params.playerResearchTrees ?? {};
+        const hasEarthCore = (trees[EARTH_TREE_ID] ?? []).includes(EARTH_NODE_EARTH_CORE);
+        const earthCoreRow: StoryChoiceOptionRow = hasEarthCore
+            ? {
+                id: 'earth_core',
+                label: 'The Earth Core',
+                action: { type: 'grant_research_to_player', treeId: EARTH_TREE_ID, nodeId: EARTH_NODE_DIGGING_CLAWS },
+              }
+            : {
+                id: 'earth_core',
+                label: 'The Earth Core',
+                action: { type: 'grant_research_to_player', treeId: EARTH_TREE_ID, nodeId: EARTH_NODE_EARTH_CORE },
+              };
+        return [
+            earthCoreRow,
+            {
+                id: 'command_core',
+                label: 'The Command Core',
+                action: { type: 'grant_research_to_player', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_LOYAL_COMPANION },
+            },
+            {
+                id: 'charged_core',
+                label: 'The Charged Core',
+                action: { type: 'grant_research_to_player', treeId: MISC_TREE_ID, nodeId: MISC_NODE_CHARGED_CORE },
+            },
+            {
+                id: 'blink_core',
+                label: 'The Blink Core',
+                action: { type: 'grant_research_to_player', treeId: MISC_TREE_ID, nodeId: MISC_NODE_BLINK_CORE },
+            },
+        ];
+    }
+
     missionId = 'core_awakening';
     mapPosition = { x: 610, y: 350 };
     description = 'A deep resonance stirs within. An awakening that will change the path ahead.';
