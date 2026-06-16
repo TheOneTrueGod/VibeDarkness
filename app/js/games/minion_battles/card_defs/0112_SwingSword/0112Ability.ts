@@ -39,7 +39,7 @@ import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext'
 import { hasResearchNode } from '../../abilities/abilityModifierHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}12`;
-const MAX_USES = 2;
+const MAX_USES = 4;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];

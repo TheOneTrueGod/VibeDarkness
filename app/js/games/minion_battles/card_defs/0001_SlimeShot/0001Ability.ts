@@ -19,8 +19,8 @@ import { defineAbility } from '../../abilities/defineAbility';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}01`;
 const LOCK_TIME = 0.5;
 const PREFIRE_TIME = 1.0;
-const PROJECTILE_SPEED = 150;
-const MAX_DISTANCE = 600;
+const PROJECTILE_SPEED = 75;
+const MAX_DISTANCE = 200;
 const DAMAGE = 4;
 const RED = 0xff0000;
 

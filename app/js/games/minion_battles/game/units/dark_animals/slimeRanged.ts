@@ -11,5 +11,5 @@ export const SLIME: EnemySpawnDef = {
     position: { x: 0, y: 0 },
     teamId: 'enemy',
     abilities: ['0001'],
-    aiSettings: { minRange: 70, maxRange: 140 },
+    aiSettings: { minRange: 0, maxRange: 140 },
 };
