@@ -32,7 +32,7 @@ import { WebRtcLobbyMesh, WebRtcPingTestFn } from './WebRtcLobbyMesh';
 import { GhostPlanContext } from './contexts/GhostPlanContext';
 import type { GhostPlanData } from './games/minion_battles/game/types';
 import { GameSyncProvider, useGameSyncOptional } from './contexts/GameSyncContext';
-import { campaignPathForTab } from './components/ability-tests/campaignTabPaths';
+import { campaignPathForTab, playerCharacterPath } from './components/ability-tests/campaignTabPaths';
 
 const LOBBY_PATH_PREFIX = '/lobby/';
 
@@ -505,8 +505,8 @@ function AppInner() {
 
     /** Create a lobby for a specific mission and go straight to character select. */
     const handleCreateLobbyForMission = useCallback(
-        async (missionId: string, campaignId: string | null) => {
-            if (!user?.id) return;
+        async (missionId: string, campaignId: string | null): Promise<boolean> => {
+            if (!user?.id) return false;
             setCurrentCampaignId(campaignId);
             try {
                 const missionDef = MISSION_MAP[missionId];
@@ -545,11 +545,13 @@ function AppInner() {
                 setPollMessagesReady(false);
                 setLastPollMessageId(null);
                 await startInLobby(lobby, player);
+                return true;
             } catch (error) {
                 showToast(
                     'Failed to start mission: ' + (error instanceof Error ? error.message : 'Unknown error'),
                     'error'
                 );
+                return false;
             }
         },
         [lobbyClient, user, showToast, startInLobby, loadGameState, navigate]
@@ -676,6 +678,40 @@ function AppInner() {
             );
         }
     }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, role]);
+
+    const handleContinueFromMission = useCallback((characterId: string | undefined) => {
+        if (!currentLobby || !currentPlayer) return;
+        const lobbyId = currentLobby.id;
+        const playerId = currentPlayer.id;
+
+        setCurrentLobby(null);
+        setCurrentPlayer(null);
+        setCurrentAccount(null);
+        setPlayers({});
+        setChatMessages([]);
+        setClicks({});
+        setChatEnabled(false);
+        setConnectionStatus('disconnected');
+        setLobbyPageState('home');
+        setLobbyGameId(null);
+        setLobbyGameType(null);
+        setLobbyGameData(null);
+        setCurrentCampaignId(null);
+        setLastPollMessageId(null);
+        setPollMessagesReady(false);
+
+        const home = role === 'admin' ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
+        const target = characterId && user?.id ? playerCharacterPath(user.id, characterId) : home;
+        navigate(target, { replace: true });
+        setScreen('lobby');
+        refetchUser();
+        showToast('Left the lobby', 'info');
+
+        lobbyClient.leaveLobby(lobbyId, playerId).catch((error) => {
+            console.error('Error leaving lobby:', error);
+            showToast('Could not confirm leave with server. Refresh or rejoin if something looks wrong.', 'error');
+        });
+    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, role, user]);
 
     // ==================== Chat and canvas handlers ====================
 
@@ -836,6 +872,42 @@ function AppInner() {
                         }
                     />
                     <Route path="/campaign" element={<CampaignIndexRedirect />} />
+                    <Route
+                        path="/players"
+                        element={
+                            <CampaignHomeScreen
+                                lobbyClient={lobbyClient}
+                                onSelectMission={handleCreateLobbyForMission}
+                                onJoinLobby={handleJoinLobby}
+                                refetchUser={refetchUser}
+                                onStartMissionForCharacter={handleStartMissionForCharacter}
+                            />
+                        }
+                    />
+                    <Route
+                        path="/players/:playerId/characters"
+                        element={
+                            <CampaignHomeScreen
+                                lobbyClient={lobbyClient}
+                                onSelectMission={handleCreateLobbyForMission}
+                                onJoinLobby={handleJoinLobby}
+                                refetchUser={refetchUser}
+                                onStartMissionForCharacter={handleStartMissionForCharacter}
+                            />
+                        }
+                    />
+                    <Route
+                        path="/players/:playerId/characters/:characterId"
+                        element={
+                            <CampaignHomeScreen
+                                lobbyClient={lobbyClient}
+                                onSelectMission={handleCreateLobbyForMission}
+                                onJoinLobby={handleJoinLobby}
+                                refetchUser={refetchUser}
+                                onStartMissionForCharacter={handleStartMissionForCharacter}
+                            />
+                        }
+                    />
                     <Route path="/" element={<CampaignIndexRedirect />} />
                     <Route path="*" element={<CampaignIndexRedirect />} />
                 </Routes>
@@ -869,9 +941,10 @@ function AppInner() {
                         onSendChat={handleSendChat}
                         onCanvasClick={handleCanvasClick}
                         onLeave={handleLeaveLobby}
+                        onContinue={handleContinueFromMission}
                         onSelectGame={handleSelectGame}
                         onRecordMissionResult={recordMissionResult}
-                        onTryAgain={(missionId) => handleCreateLobbyForMission(missionId, currentCampaignId)}
+                        onTryAgain={(missionId) => handleCreateLobbyForMission(missionId, currentCampaignId ?? null)}
                         onEmittedChatMessage={handleEmittedChatMessage}
                         onPing={() => {
                             const mesh = webRtcMeshRef.current;

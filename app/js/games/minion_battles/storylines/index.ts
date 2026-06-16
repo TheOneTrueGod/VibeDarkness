@@ -41,4 +41,4 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
 };
 
 export type { StorylineDef, StorylineFlowEdge } from './types';
-export { getUnlockedMissionIds, isMissionCompleted, getAllMissionIdsInOrder, hasVictoryResult } from './unlock';
+export { getUnlockedMissionIds, isMissionCompleted, getAllMissionIdsInOrder, hasVictoryResult, getNextVictoryMissionId } from './unlock';

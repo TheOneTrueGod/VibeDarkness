@@ -56,7 +56,7 @@ export function getTrainingPunchResearchState(
 export function getHealthBonusFromResearch(
     getResearchNodes: (treeId: string) => string[],
 ): number {
-    const nodes = getResearchNodes(TRAINING_TREE_ID);
+    const nodes = new Set(getResearchNodes(TRAINING_TREE_ID));
     let total = 0;
     for (const nodeId of nodes) {
         total += RESEARCH_HEALTH_BONUSES[nodeId] ?? 0;
@@ -68,7 +68,7 @@ export function getHealthBonusFromResearch(
 export function getDamageBonusFromResearch(
     getResearchNodes: (treeId: string) => string[],
 ): number {
-    const nodes = getResearchNodes(TRAINING_TREE_ID);
+    const nodes = new Set(getResearchNodes(TRAINING_TREE_ID));
     let total = 0;
     for (const nodeId of nodes) {
         total += RESEARCH_DAMAGE_BONUSES[nodeId] ?? 0;
@@ -80,7 +80,7 @@ export function getDamageBonusFromResearch(
 export function getStaminaRecoveryBonusFromResearch(
     getResearchNodes: (treeId: string) => string[],
 ): number {
-    const nodes = getResearchNodes(TRAINING_TREE_ID);
+    const nodes = new Set(getResearchNodes(TRAINING_TREE_ID));
     let total = 0;
     for (const nodeId of nodes) {
         total += RESEARCH_STAMINA_RECOVERY_BONUSES[nodeId] ?? 0;

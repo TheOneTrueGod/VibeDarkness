@@ -35,7 +35,7 @@ export const earthTree: ResearchTreeDef = {
             position: { x: 370, y: 90 },
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: {},
             effects: [{ type: 'replaceCard', fromCardId: '0111', toCardId: '0534' }],
             modifiesAbility: { from: '0534', to: '0534' },
@@ -49,7 +49,7 @@ export const earthTree: ResearchTreeDef = {
             position: { x: 120, y: 280 },
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: { crystals: 5 },
             effects: [],
             abilityResearchModifiers: [
@@ -70,7 +70,7 @@ export const earthTree: ResearchTreeDef = {
             position: { x: 370, y: 280 },
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: { crystals: 5 },
             effects: [],
             abilityResearchModifiers: [

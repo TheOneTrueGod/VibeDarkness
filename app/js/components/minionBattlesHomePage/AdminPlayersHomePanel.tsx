@@ -3,6 +3,7 @@
  * Lets admins browse ALL accounts, inspect their characters, and grant/equip items.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import type { AccountState } from '../../types';
 import { LobbyClient } from '../../LobbyClient';
 import CharacterEditor from '../../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
@@ -15,6 +16,7 @@ import { getPortrait } from '../../games/minion_battles/character_defs/portraits
 import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../../games/minion_battles/character_defs/items';
 import { useUser } from '../../contexts/UserContext';
 import PanelLayout from './PanelLayout';
+import { playersListPath, playerCharactersPath, playerCharacterPath } from '../ability-tests/campaignTabPaths';
 
 function formatCountdown(seconds: number): string {
     if (seconds <= 0) return '0s';
@@ -105,9 +107,9 @@ function CharacterListCard({
             <button
                 type="button"
                 onClick={onSelect}
-                className="w-full text-left hover:bg-white/5 transition-colors"
+                className="w-full text-left hover:bg-white/5 transition-colors block"
             >
-                <div className="h-24 bg-background flex items-center justify-center overflow-hidden">
+                <div className="h-36 bg-background flex items-center justify-center overflow-hidden">
                     {picture ? (
                         picture.trimStart().startsWith('<') ? (
                             <div dangerouslySetInnerHTML={{ __html: picture }} className="w-full h-full" />
@@ -116,13 +118,9 @@ function CharacterListCard({
                         )
                     ) : null}
                 </div>
-                <div className="px-3 py-2">
-                    <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-                    <p className="text-[11px] text-muted truncate">{character.id}</p>
-                </div>
             </button>
             {confirming ? (
-                <div className="flex items-center justify-between gap-1 px-3 py-2 border-t border-border-custom bg-red-950/40">
+                <div className="flex items-center justify-between gap-1 px-2 py-1.5 border-t border-border-custom bg-red-950/40">
                     <span className="text-xs text-red-300">Delete?</span>
                     <div className="flex gap-1">
                         <button type="button" onClick={() => setConfirming(false)} className="px-2 py-0.5 rounded text-xs border border-border-custom text-muted hover:text-white transition-colors cursor-pointer">Cancel</button>
@@ -130,11 +128,15 @@ function CharacterListCard({
                     </div>
                 </div>
             ) : (
-                <div className="flex justify-end px-2 py-1.5 border-t border-border-custom">
+                <div className="flex items-center gap-2 px-2 py-1.5 border-t border-border-custom">
+                    <button type="button" onClick={onSelect} className="flex-1 min-w-0 text-left">
+                        <p className="text-sm font-semibold text-white truncate">{displayName}</p>
+                        <p className="text-[10px] text-muted truncate">{character.id}</p>
+                    </button>
                     <button
                         type="button"
                         onClick={() => setConfirming(true)}
-                        className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
+                        className="shrink-0 p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
                         title="Delete character"
                         aria-label="Delete character"
                     >
@@ -200,14 +202,17 @@ interface AdminPlayersPanelProps {
 
 export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCharacter }: AdminPlayersPanelProps) {
     const { user } = useUser();
+    const { playerId: playerIdParam, characterId: characterIdParam } = useParams<{ playerId?: string; characterId?: string }>();
+    const navigate = useNavigate();
+    const selectedAccountId = playerIdParam != null ? parseInt(playerIdParam, 10) : null;
+    const selectedCharacterId = characterIdParam ?? null;
+
     const api = useMemo(() => new MinionBattlesApi(lobbyClient, '', '', ''), [lobbyClient]);
     const [accounts, setAccounts] = useState<AccountState[]>([]);
     const [accountsLoading, setAccountsLoading] = useState(false);
     const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
     const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-    const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
     const [details, setDetails] = useState<{
         account: AccountState;
         characters: CampaignCharacter[];
@@ -261,25 +266,18 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
     useEffect(() => {
         if (selectedAccountId == null) {
             setDetails(null);
-            setSelectedCharacterId(null);
             return;
         }
         void loadDetails(selectedAccountId);
     }, [loadDetails, selectedAccountId]);
 
+    // Auto-navigate to first character when account loads and no character is selected
     useEffect(() => {
-        if (!details) {
-            setSelectedCharacterId(null);
-            return;
+        if (!details || selectedAccountId == null || details.characters.length === 0) return;
+        if (!selectedCharacterId || !details.characters.some((c) => c.id === selectedCharacterId)) {
+            navigate(playerCharacterPath(selectedAccountId, details.characters[0].id), { replace: true });
         }
-        if (details.characters.length === 0) {
-            setSelectedCharacterId(null);
-            return;
-        }
-        if (!selectedCharacterId || !details.characters.some((character) => character.id === selectedCharacterId)) {
-            setSelectedCharacterId(details.characters[0].id);
-        }
-    }, [details, selectedCharacterId]);
+    }, [details, selectedAccountId, selectedCharacterId, navigate]);
 
     const selectedAccount = useMemo(() => {
         if (selectedAccountId == null) return null;
@@ -305,9 +303,11 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
 
     const handleDeleteCharacter = useCallback(async (characterId: string) => {
         await api.deleteCharacter(characterId);
-        if (selectedCharacterId === characterId) setSelectedCharacterId(null);
+        if (selectedCharacterId === characterId && selectedAccountId != null) {
+            navigate(playerCharactersPath(selectedAccountId), { replace: true });
+        }
         await refreshSelectedAccount();
-    }, [api, selectedCharacterId, refreshSelectedAccount]);
+    }, [api, selectedCharacterId, selectedAccountId, refreshSelectedAccount, navigate]);
 
     const handleGrantItem = useCallback(async () => {
         if (selectedAccountId == null || !grantItemId) return;
@@ -413,7 +413,7 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                                     key={account.id}
                                     account={account}
                                     selected={false}
-                                    onSelect={() => setSelectedAccountId(account.id)}
+                                    onSelect={() => navigate(playerCharactersPath(account.id))}
                                     now={now}
                                 />
                             ))}
@@ -478,7 +478,7 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                         </button>
                         <button
                             type="button"
-                            onClick={() => setSelectedAccountId(null)}
+                            onClick={() => navigate(playersListPath())}
                             className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom"
                         >
                             Back
@@ -497,7 +497,7 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                                 key={character.id}
                                 character={character}
                                 selected={selectedCharacterId === character.id}
-                                onSelect={() => setSelectedCharacterId(character.id)}
+                                onSelect={() => selectedAccountId != null && navigate(playerCharacterPath(selectedAccountId, character.id))}
                                 onDelete={() => void handleDeleteCharacter(character.id)}
                             />
                         ))}
@@ -635,8 +635,10 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                         missionId={missionId}
                         onCreate={async (characterId) => {
                             setCreatorOpen(false);
-                            if (selectedAccountId != null) await loadDetails(selectedAccountId);
-                            setSelectedCharacterId(characterId);
+                            if (selectedAccountId != null) {
+                                await loadDetails(selectedAccountId);
+                                navigate(playerCharacterPath(selectedAccountId, characterId), { replace: true });
+                            }
                         }}
                         onClose={() => setCreatorOpen(false)}
                         createCharacter={async (payload) => {

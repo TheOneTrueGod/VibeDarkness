@@ -4,6 +4,7 @@
  * No account selector, no inventory management, no admin controls.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import type { AccountState } from '../../types';
 import { LobbyClient } from '../../LobbyClient';
 import CharacterEditor from '../../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
@@ -15,6 +16,7 @@ import { getPortrait } from '../../games/minion_battles/character_defs/portraits
 import { useUser } from '../../contexts/UserContext';
 import { STORYLINES } from '../../games/minion_battles/storylines/index';
 import PanelLayout from './PanelLayout';
+import { playerCharactersPath, playerCharacterPath } from '../ability-tests/campaignTabPaths';
 
 function CharacterCard({
     character,
@@ -88,13 +90,22 @@ interface PlayerCharactersPanelProps {
 
 export default function PlayerCharactersPanel({ lobbyClient, onStartMissionForCharacter }: PlayerCharactersPanelProps) {
     const { user } = useUser();
+    const { playerId: playerIdParam, characterId: characterIdParam } = useParams<{ playerId?: string; characterId?: string }>();
+    const navigate = useNavigate();
     const api = useMemo(() => new MinionBattlesApi(lobbyClient, '', '', ''), [lobbyClient]);
 
     const [characters, setCharacters] = useState<CampaignCharacter[]>([]);
     const [loading, setLoading] = useState(false);
-    const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
     const [creatorOpen, setCreatorOpen] = useState(false);
     const createButtonRef = useRef<HTMLButtonElement>(null);
+
+    // Redirect if visiting another player's page or no playerId in URL
+    useEffect(() => {
+        if (!user) return;
+        if (!playerIdParam || String(user.id) !== playerIdParam) {
+            navigate(playerCharactersPath(user.id), { replace: true });
+        }
+    }, [user, playerIdParam, navigate]);
 
     const loadCharacters = useCallback(async () => {
         setLoading(true);
@@ -102,24 +113,29 @@ export default function PlayerCharactersPanel({ lobbyClient, onStartMissionForCh
             const data = await api.getMyCharacters();
             const mapped = (data as CampaignCharacterData[]).map((d) => fromCampaignCharacterData(d));
             setCharacters(mapped);
-            if (mapped.length > 0 && !selectedCharacterId) {
-                setSelectedCharacterId(mapped[0].id);
-            }
         } catch (err) {
             console.error('Failed to load characters:', err);
         } finally {
             setLoading(false);
         }
-    }, [api, selectedCharacterId]);
+    }, [api]);
 
     useEffect(() => {
         void loadCharacters();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Auto-navigate to first character when list loads and no character is selected
+    useEffect(() => {
+        if (loading || characters.length === 0 || !user) return;
+        if (!characterIdParam || !characters.some((c) => c.id === characterIdParam)) {
+            navigate(playerCharacterPath(user.id, characters[0].id), { replace: true });
+        }
+    }, [characters, characterIdParam, user, navigate, loading]);
+
     const selectedCharacter = useMemo(
-        () => characters.find((c) => c.id === selectedCharacterId) ?? null,
-        [characters, selectedCharacterId],
+        () => characters.find((c) => c.id === characterIdParam) ?? null,
+        [characters, characterIdParam],
     );
 
     const handleSaved = useCallback(async () => {
@@ -128,15 +144,17 @@ export default function PlayerCharactersPanel({ lobbyClient, onStartMissionForCh
 
     const handleDeleteCharacter = useCallback(async (characterId: string) => {
         await api.deleteCharacter(characterId);
-        if (selectedCharacterId === characterId) setSelectedCharacterId(null);
+        if (characterIdParam === characterId && user) {
+            navigate(playerCharactersPath(user.id), { replace: true });
+        }
         await loadCharacters();
-    }, [api, selectedCharacterId, loadCharacters]);
+    }, [api, characterIdParam, user, navigate, loadCharacters]);
 
     const handleCreated = useCallback(async (characterId: string) => {
         setCreatorOpen(false);
         await loadCharacters();
-        setSelectedCharacterId(characterId);
-    }, [loadCharacters]);
+        if (user) navigate(playerCharacterPath(user.id, characterId), { replace: true });
+    }, [loadCharacters, user, navigate]);
 
     const defaultCampaignId = characters[0]?.campaignId ?? STORYLINES[0]?.id ?? 'world_of_darkness';
     const defaultMissionId = STORYLINES.find((s) => s.id === defaultCampaignId)?.startMissionId ?? STORYLINES[0]?.startMissionId ?? 'dark_awakening';
@@ -147,8 +165,8 @@ export default function PlayerCharactersPanel({ lobbyClient, onStartMissionForCh
                 <CharacterCard
                     key={c.id}
                     character={c}
-                    selected={c.id === selectedCharacterId}
-                    onSelect={() => setSelectedCharacterId(c.id)}
+                    selected={c.id === characterIdParam}
+                    onSelect={() => { if (user) navigate(playerCharacterPath(user.id, c.id)); }}
                     onDelete={() => void handleDeleteCharacter(c.id)}
                 />
             ))}

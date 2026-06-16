@@ -18,12 +18,16 @@ function sortCandidatesDeterministic(candidates: NodeCandidate[]): NodeCandidate
  * Resolves a `researchRewardSlots` config into `StoryChoiceOptionRow[]`.
  *
  * Each slot becomes one option presented to the player:
- * - Specific slot (treeId + nodeId): uses that exact node.
- * - Filter slot: picks the first available node matching treeId / tier range
- *   that hasn't been claimed by a prior slot (deterministic, deduped).
+ * - Specific slot (treeId + nodeId): uses that exact node. Prereqs and exclusivity are
+ *   intentionally bypassed — the designer is making a deliberate grant.
+ * - Filter slot: picks the first available node matching treeId / tier range that hasn't
+ *   been claimed by a prior slot (deterministic, deduped). By default also checks that
+ *   all `prereqNodeIds` are satisfied and no `exclusiveWithNodeIds` entry has been
+ *   researched, so players only see nodes they could structurally unlock. Set
+ *   `respectRequirements: false` on the slot to bypass these structural checks.
  *
- * Filtering checks: not already researched, characterHasEquippedItem requirements met.
- * Does NOT check prereqs or exclusivity — mission rewards intentionally bypass these.
+ * Both slot types check `node.requirements` (e.g. characterHasEquippedItem, anyResearched).
+ * Neither slot type checks costs — mission rewards intentionally bypass cost gating.
  */
 export function resolveResearchRewardSlots(
     slots: ResearchRewardSlot[],
@@ -38,7 +42,7 @@ export function resolveResearchRewardSlots(
         const id = `slot_${index}`;
 
         if ('nodeId' in slot && slot.nodeId !== undefined) {
-            // Specific node
+            // Specific node — no prereq/exclusivity checks (intentional designer grant)
             const tree = RESEARCH_TREES.find((t) => t.id === slot.treeId);
             const node = tree?.nodes.find((n) => n.id === slot.nodeId);
             if (!node) {
@@ -56,6 +60,7 @@ export function resolveResearchRewardSlots(
         }
 
         // Filter slot — collect candidates across all trees
+        const checkStructural = slot.respectRequirements !== false;
         const candidates: NodeCandidate[] = [];
         for (const tree of RESEARCH_TREES) {
             if (slot.treeId && tree.id !== slot.treeId) continue;
@@ -66,6 +71,7 @@ export function resolveResearchRewardSlots(
                 if (slot.maxTier !== undefined && (node.tier ?? 0) > slot.maxTier) continue;
                 if (claimedKeys.has(`${tree.id}:${node.id}`)) continue;
                 if (!nodeRequirementsMet(node, equippedSet, researched)) continue;
+                if (checkStructural && !nodeStructurallyAvailable(node, researchedSet)) continue;
                 candidates.push({ treeId: tree.id, node });
             }
         }
@@ -101,6 +107,12 @@ function nodeRequirementsMet(
             if (!req.nodeIds.some((id) => researchedSet.has(id))) return false;
         }
     }
+    return true;
+}
+
+function nodeStructurallyAvailable(node: ResearchNodeDef, researchedSet: Set<string>): boolean {
+    if (!node.prereqNodeIds.every((id) => researchedSet.has(id))) return false;
+    if (node.exclusiveWithNodeIds.some((id) => researchedSet.has(id))) return false;
     return true;
 }
 

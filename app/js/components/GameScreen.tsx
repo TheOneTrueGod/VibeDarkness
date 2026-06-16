@@ -62,8 +62,12 @@ export interface GameComponentProps {
     ) => Promise<void>;
     /** Called when user leaves (e.g. from defeat modal). */
     onLeave?: () => void;
-    /** Called when user clicks Try Again after defeat; creates a new lobby for the given mission. */
-    onTryAgain?: (missionId: string) => Promise<void>;
+    /** Called when the player presses Continue after a victory; passes the campaign character id they
+     *  brought (undefined for spectators/control-enemies). Falls back to onLeave if not provided. */
+    onContinue?: (characterId: string | undefined) => void;
+    /** Called when user clicks Try Again after defeat or Continue after victory; creates a new lobby for the given
+     *  mission. Returns true on success so the caller can fall back if lobby creation fails. */
+    onTryAgain?: (missionId: string) => Promise<boolean>;
     /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     /** Called when the game is about to enter battle so the lobby UI can switch immediately. */
@@ -92,6 +96,7 @@ interface GameScreenProps {
     onSendChat: (message: string) => void;
     onCanvasClick: (x: number, y: number) => void;
     onLeave: () => void;
+    onContinue?: (characterId: string | undefined) => void;
     onSelectGame: (gameId: string) => void;
     onRecordMissionResult?: (
         missionId: string,
@@ -103,7 +108,7 @@ interface GameScreenProps {
         researchRewards?: import('../types').MissionResearchRewardEntry[]
     ) => Promise<void>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
-    onTryAgain?: (missionId: string) => Promise<void>;
+    onTryAgain?: (missionId: string) => Promise<boolean>;
     /** Called when the game sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     /** Sends a WebRTC ping event to other players. */
@@ -134,6 +139,7 @@ export default function GameScreen({
     onSendChat,
     onCanvasClick,
     onLeave,
+    onContinue,
     onSelectGame,
     onRecordMissionResult,
     onTryAgain,
@@ -459,6 +465,7 @@ export default function GameScreen({
                                     onSidebarInfoChange={setGameSidebarInfo}
                                     onRecordMissionResult={onRecordMissionResult}
                                     onLeave={onLeave}
+                                    onContinue={onContinue}
                                     onTryAgain={onTryAgain}
                                     onEmittedChatMessage={onEmittedChatMessage}
                                     onBattleStartStatusChange={setBattlePlayerListHidden}

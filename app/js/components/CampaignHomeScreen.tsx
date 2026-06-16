@@ -3,7 +3,7 @@
  * Shown when user is logged in and on the lobby screen (no active lobby).
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
 import type { CampaignState } from '../types';
@@ -20,6 +20,8 @@ import {
     CAMPAIGN_TAB_IDS,
     tabFromCampaignSlug,
     campaignPathForTab,
+    playersListPath,
+    playerCharactersPath,
 } from './ability-tests/campaignTabPaths';
 
 /** Per-tab settings: label and whether the tab is visible for the current user. */
@@ -44,7 +46,7 @@ function getDefaultTab(isAdmin: boolean): TabId {
 
 interface CampaignHomeScreenProps {
     lobbyClient: LobbyClient;
-    onSelectMission: (missionId: string, campaignId: string | null) => Promise<void>;
+    onSelectMission: (missionId: string, campaignId: string | null) => Promise<boolean>;
     onJoinLobby: (lobbyId: string) => Promise<void>;
     refetchUser: () => Promise<void>;
     onStartMissionForCharacter?: (
@@ -62,6 +64,7 @@ export default function CampaignHomeScreen({
     onStartMissionForCharacter,
 }: CampaignHomeScreenProps) {
     const navigate = useNavigate();
+    const location = useLocation();
     const { tabSlug } = useParams<{ tabSlug: string }>();
     const { user, role } = useUser();
     const isAdmin = role === 'admin';
@@ -70,9 +73,11 @@ export default function CampaignHomeScreen({
         () => CAMPAIGN_TAB_IDS.filter((id) => TAB_SETTINGS[id].isVisible(isAdmin)),
         [isAdmin]
     );
-    const activeTab = tabFromCampaignSlug(tabSlug) ?? defaultTab;
+    const onPlayersRoute = location.pathname.startsWith('/players');
+    const activeTab = onPlayersRoute ? 'players' : (tabFromCampaignSlug(tabSlug) ?? defaultTab);
 
     useEffect(() => {
+        if (onPlayersRoute) return;
         const fromUrl = tabFromCampaignSlug(tabSlug);
         if (fromUrl != null && visibleTabs.includes(fromUrl)) {
             return;
@@ -80,7 +85,7 @@ export default function CampaignHomeScreen({
         const fallback =
             (visibleTabs.includes(defaultTab) ? defaultTab : visibleTabs[0]) ?? 'welcome';
         navigate(campaignPathForTab(fallback), { replace: true });
-    }, [tabSlug, visibleTabs, defaultTab, navigate]);
+    }, [tabSlug, visibleTabs, defaultTab, navigate, onPlayersRoute]);
     const [campaign, setCampaign] = useState<CampaignState | null>(null);
     const [campaignLoading, setCampaignLoading] = useState(false);
     const [bootstrappingCampaign, setBootstrappingCampaign] = useState(false);
@@ -237,7 +242,13 @@ export default function CampaignHomeScreen({
                                         ? 'text-primary border-b-2 border-primary'
                                         : 'text-muted hover:text-white border-b-2 border-transparent'
                                 } ${adminTab ? 'bg-red-950/50 hover:bg-red-950/70' : ''}`}
-                                onClick={() => navigate(campaignPathForTab(id))}
+                                onClick={() => {
+                            if (id === 'players') {
+                                navigate(isAdmin ? playersListPath() : playerCharactersPath(user?.id ?? ''));
+                            } else {
+                                navigate(campaignPathForTab(id));
+                            }
+                        }}
                             >
                                 {displayLabel}
                             </button>

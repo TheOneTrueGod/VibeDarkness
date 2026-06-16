@@ -16,7 +16,7 @@ import CharacterSelectPhase from './ui/pages/CharacterSelectPhase';
 import PreMissionStoryPhase from './ui/pages/PreMissionStoryPhase';
 import PostMissionStoryPhase from './ui/pages/PostMissionStoryPhase';
 import BattlePhase from './ui/pages/BattlePhase';
-import { MISSION_MAP } from './storylines';
+import { MISSION_MAP, STORYLINES, getNextVictoryMissionId } from './storylines';
 import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
@@ -49,6 +49,12 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
     ) => Promise<void>;
     /** Called when user clicks Leave in the defeat modal. */
     onLeave?: () => void;
+    /** Called when the player presses Continue after a victory; passes the campaign character id they
+     *  brought (undefined for spectators/control-enemies). Falls back to onLeave if not provided. */
+    onContinue?: (characterId: string | undefined) => void;
+    /** Create a new lobby for the given mission (Try Again / Continue victory path).
+     *  Returns true on success; false triggers the onContinue fallback. */
+    onTryAgain?: (missionId: string) => Promise<boolean>;
     /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: import('../../components/Chat').MessageEntry) => void;
     /** Called when the game is about to switch from pre-battle story into battle. */
@@ -68,6 +74,8 @@ export default function MinionBattlesGame({
     onSidebarInfoChange,
     onRecordMissionResult,
     onLeave,
+    onContinue,
+    onTryAgain,
     onEmittedChatMessage,
     onBattleStartStatusChange,
     onBattleNetResyncingChange,
@@ -513,10 +521,24 @@ export default function MinionBattlesGame({
             {victoryModalOpen && (
                 <VictoryModal
                     missionRewards={missionRewards}
-                    onClose={() => {
+                    onClose={async () => {
                         setVictoryModalOpen(false);
                         setMissionRewards(null);
-                        onLeave?.();
+                        const sel = (effective.characterSelections as Record<string, string>)[playerId];
+                        const isSpectatorOrEnemy = !sel || sel === SPECTATOR_ID || isControlEnemy(sel);
+                        const characterId = isSpectatorOrEnemy ? undefined : sel;
+                        const nextMissionId = selectedMissionId
+                            ? getNextVictoryMissionId(selectedMissionId, STORYLINES)
+                            : null;
+                        if (onTryAgain && nextMissionId) {
+                            const created = await onTryAgain(nextMissionId);
+                            if (created) return;
+                        }
+                        if (onContinue) {
+                            onContinue(characterId);
+                        } else {
+                            onLeave?.();
+                        }
                     }}
                 />
             )}

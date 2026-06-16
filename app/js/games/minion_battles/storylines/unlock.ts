@@ -64,6 +64,24 @@ export function getUnlockedMissionIds(
 }
 
 /**
+ * Return the mission ID that follows `currentMissionId` on a victory edge, or null if there is none
+ * (final mission or mission not found in any storyline).
+ */
+export function getNextVictoryMissionId(
+    currentMissionId: string,
+    storylines: StorylineDef[],
+): string | null {
+    for (const storyline of storylines) {
+        for (const edge of storyline.edges ?? []) {
+            if (edge.fromMissionId === currentMissionId && edge.result === 'victory') {
+                return edge.toMissionId;
+            }
+        }
+    }
+    return null;
+}
+
+/**
  * Return all mission IDs for this storyline in display order (start first, then each edge's toMissionId).
  * Use this to show every mission in the storyline; pair with getUnlockedMissionIds to show locked state.
  */

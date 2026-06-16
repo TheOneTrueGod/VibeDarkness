@@ -85,14 +85,17 @@ export interface StoryChoiceOptionRow {
 
 /**
  * One option slot for a config-driven research reward choice.
- * - Specific: `treeId` + `nodeId` — always resolves to that exact node.
- * - Filter: omit `nodeId`; the resolver picks the first available node matching
- *   the optional `treeId` and `minTier`/`maxTier` range.
+ * - Specific: `treeId` + `nodeId` — always resolves to that exact node; prereqs and
+ *   exclusivity are intentionally bypassed (the designer is making a deliberate grant).
+ * - Filter: omit `nodeId`; the resolver picks the first available node matching the
+ *   optional `treeId` and `minTier`/`maxTier` range. By default prereqs and exclusivity
+ *   ARE checked so players only see nodes they could structurally unlock. Set
+ *   `respectRequirements: false` to revert to the old behaviour and bypass those checks.
  * `loreTitle`/`loreDescription` override the node's own title/flavorText in the UI.
  */
 export type ResearchRewardSlot =
     | { treeId: string; nodeId: string; loreTitle?: string; loreDescription?: string }
-    | { nodeId?: never; treeId?: string; minTier?: number; maxTier?: number; loreTitle?: string; loreDescription?: string };
+    | { nodeId?: never; treeId?: string; minTier?: number; maxTier?: number; loreTitle?: string; loreDescription?: string; respectRequirements?: boolean };
 
 /** Choice phrase: player selects one option; action is applied (e.g. equip item). */
 export interface ChoicePhrase {

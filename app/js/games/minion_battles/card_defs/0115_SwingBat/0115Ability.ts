@@ -32,12 +32,13 @@ import {
     renderMeleeTrackingHighlights,
 } from '../../abilities/meleeTrackingHelpers';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
-import { hasResearchNode } from '../../abilities/abilityModifierHelpers';
+import { hasResearchNode, localPlayerResearchNodesGetter } from '../../abilities/abilityModifierHelpers';
 import {
     STICK_SWORD_TREE_ID,
     STICK_SWORD_NODE_PIPE_BAT_DAMAGE,
 } from '../../../../researchTrees/trees/stick_sword';
 import { getApproxIntegerIncrease, DescriptiveValue } from '../../../../researchTrees/descriptiveValue';
+import { getDamageBonusFromResearch } from '../../research/researchTrainingEffects';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}15`;
 const MAX_USES = 2;
@@ -71,7 +72,7 @@ const SWING_BAT_PROFILE: MeleeAnimationProfile = {
     }),
 };
 
-function getDamage(engine: AbilityEngineContext | undefined, caster: Unit): number {
+function getDamage(engine: AbilityEngineContext | undefined, caster: Unit | undefined): number {
     return hasResearchNode(engine, caster, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT_DAMAGE)
         ? BASE_DAMAGE + DAMAGE_RESEARCH_BONUS
         : BASE_DAMAGE;
@@ -135,9 +136,12 @@ export const SwingBatAbility_0115: AbilityStatic = {
     targets: [],
     aiSettings: { minRange: BASE_MIN_RANGE, maxRange: SWING_BAT_HITBOX.maxRange },
 
-    getTooltipText(_gameState?: unknown): string[] {
+    getTooltipText(gameState?: unknown): string[] {
+        const eng = gameState as AbilityEngineContext | undefined;
+        const baseDmg = getDamage(eng, undefined);
+        const totalDmg = baseDmg + getDamageBonusFromResearch(localPlayerResearchNodesGetter(gameState));
         return [
-            `Swing your pipe bat dealing {${BASE_DAMAGE}} damage to up to ${MAX_TARGETS} enemies.`,
+            `Swing your pipe bat dealing {${totalDmg}} damage to up to ${MAX_TARGETS} enemies.`,
             `{knockback 3}.`,
         ];
     },

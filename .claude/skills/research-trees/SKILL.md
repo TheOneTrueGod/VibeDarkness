@@ -37,6 +37,21 @@ Research is stored on `CampaignCharacter` as `researchTrees: Record<treeId, node
 
 External requirements (accountKnowledge, equipment, costs) are intentionally ignored — the function needs no account or character context. Pass `treeId` to scope to one tree, `tier` to scope to one display tier. Both are optional.
 
+## Mission reward slots (`researchRewardSlots`)
+
+Post-mission choice phrases can set `researchRewardSlots` on a `ChoicePhrase` instead of hard-coding `options`. The resolver (`storylines/researchRewardSlots.ts`) turns each slot into one `StoryChoiceOptionRow`.
+
+Two slot forms (defined in `storyTypes.ts` as `ResearchRewardSlot`):
+- **Specific** (`treeId` + `nodeId`): always resolves to that exact node. Prereqs and exclusivity are intentionally bypassed — this is a deliberate designer grant.
+- **Filter** (no `nodeId`): picks the first unresearched node matching optional `treeId` and `minTier`/`maxTier`. By default also enforces `prereqNodeIds` and `exclusiveWithNodeIds` so players only see nodes they could structurally unlock. Set `respectRequirements: false` on the slot to revert to bypass behaviour.
+
+Both forms check `node.requirements` (e.g. `characterHasEquippedItem`, `anyResearched`). Neither checks cost — mission rewards bypass cost gating.
+
+**Adding a requirement to a node**: if a node should only appear as a randomized reward when certain conditions are met (e.g. a tier-2 upgrade that prereqs a core node), add an `anyResearched` entry to `node.requirements` mirroring the structural `prereqNodeIds`. Example:
+```ts
+requirements: [{ type: 'anyResearched', treeId: MY_TREE_ID, nodeIds: [MY_NODE_CORE] }],
+```
+
 ## Pre-battle application
 
 Research effects are applied to player units in `storylines/BaseMissionDef.ts`:

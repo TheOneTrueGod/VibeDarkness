@@ -26,3 +26,15 @@ export function tabFromCampaignSlug(slug: string | undefined): TabId | null {
 export function campaignPathForTab(tab: TabId): string {
     return `/campaign/${CAMPAIGN_TAB_SLUG[tab]}`;
 }
+
+export function playersListPath(): string {
+    return '/players';
+}
+
+export function playerCharactersPath(playerId: number | string): string {
+    return `/players/${playerId}/characters`;
+}
+
+export function playerCharacterPath(playerId: number | string, characterId: string): string {
+    return `/players/${playerId}/characters/${characterId}`;
+}

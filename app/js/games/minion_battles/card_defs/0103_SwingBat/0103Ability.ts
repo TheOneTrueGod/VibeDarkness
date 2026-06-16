@@ -14,6 +14,8 @@
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityEventType, AbilityState } from '../../abilities/Ability';
+import { localPlayerResearchNodesGetter } from '../../abilities/abilityModifierHelpers';
+import { getDamageBonusFromResearch } from '../../research/researchTrainingEffects';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
@@ -129,9 +131,10 @@ export const SwingBatAbility_0103: AbilityStatic = {
         ],
     },
 
-    getTooltipText(): string[] {
+    getTooltipText(gameState?: unknown): string[] {
+        const totalDmg = DAMAGE + getDamageBonusFromResearch(localPlayerResearchNodesGetter(gameState));
         return [
-            `Swing your stick dealing {${DAMAGE}} damage.`,
+            `Swing your stick dealing {${totalDmg}} damage.`,
             `{knockback 1}, {${STUN_DURATION}s} stun.`,
         ];
     },

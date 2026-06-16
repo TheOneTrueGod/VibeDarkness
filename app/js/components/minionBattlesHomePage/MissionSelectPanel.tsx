@@ -109,7 +109,7 @@ interface MissionSelectPanelProps {
     campaign: CampaignState;
     isAdmin: boolean;
     lobbyClient: LobbyClient;
-    onSelectMission: (missionId: string, campaignId: string | null) => Promise<void>;
+    onSelectMission: (missionId: string, campaignId: string | null) => Promise<boolean>;
     onCampaignUpdated: (updated: CampaignState) => void;
 }
 

@@ -2,6 +2,20 @@ import type { AbilityModifier } from '../../../researchTrees/types';
 import type { Unit } from '../game/units/Unit';
 import type { AbilityEngineContext } from './AbilityEngineContext';
 
+/**
+ * Returns a `getResearchNodes(treeId)` function bound to the local player, suitable for
+ * tooltip contexts where no caster unit is available.  Returns a no-op getter when the
+ * engine or player id is absent.
+ */
+export function localPlayerResearchNodesGetter(
+    engine: unknown,
+): (treeId: string) => string[] {
+    const eng = engine as AbilityEngineContext | undefined;
+    if (!eng?.getPlayerResearchNodes || !eng.localPlayerId) return () => [];
+    const { localPlayerId, getPlayerResearchNodes } = eng;
+    return (treeId: string) => getPlayerResearchNodes(localPlayerId, treeId);
+}
+
 interface EngineWithLocalUnit {
     getLocalPlayerUnit?(): Unit | null;
 }
