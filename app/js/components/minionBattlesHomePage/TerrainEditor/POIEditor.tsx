@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapSegmentPOI, POI_TYPES, POIType } from '../../games/minion_battles/terrain/segmentSchema';
+import { MapSegmentPOI, POI_TYPES, POIType } from '../../../games/minion_battles/terrain/segmentSchema';
 import { POI_STYLES } from './terrainEditorColors';
 
 interface POIEditorProps {

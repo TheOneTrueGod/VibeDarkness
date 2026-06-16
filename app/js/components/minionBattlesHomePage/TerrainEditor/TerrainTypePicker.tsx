@@ -1,5 +1,5 @@
 import React from 'react';
-import { TerrainType, TERRAIN_PROPERTIES } from '../../games/minion_battles/terrain/TerrainType';
+import { TerrainType, TERRAIN_PROPERTIES } from '../../../games/minion_battles/terrain/TerrainType';
 import { TERRAIN_COLORS } from './terrainEditorColors';
 
 interface TerrainTypePickerProps {

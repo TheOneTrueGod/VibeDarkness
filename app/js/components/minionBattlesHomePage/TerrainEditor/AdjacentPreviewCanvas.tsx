@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
-import { MapSegmentData } from '../../games/minion_battles/terrain/segmentSchema';
+import { MapSegmentData } from '../../../games/minion_battles/terrain/segmentSchema';
 import { TERRAIN_COLORS, EDITOR_CELL_SIZE } from './terrainEditorColors';
-import { TerrainType } from '../../games/minion_battles/terrain/TerrainType';
+import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 
 const PREVIEW_DEPTH = 2;
 const PREVIEW_OVERLAY_ALPHA = 0.35;

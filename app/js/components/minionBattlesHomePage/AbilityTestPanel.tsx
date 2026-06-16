@@ -1,10 +1,10 @@
 /**
- * Admin-only page: pick up to four abilities / general tests, run synced headless-style
+ * Admin-only panel: pick up to four abilities / general tests, run synced headless-style
  * simulations with live mini terrain previews (no game controls).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Dumbbell, Eye, Gem, Mountain, Pause, Play, Shield, SkipBack, SkipForward, Sword } from 'lucide-react';
+import { Brain, Bug, Droplets, Dumbbell, Eye, Footprints, Gem, Lightbulb, Mountain, Pause, PawPrint, Play, Shield, SkipBack, SkipForward, Skull, Sword } from 'lucide-react';
 import {
     type AbilityTreeSidebarGroup,
     type GeneralTestSidebarGroup,
@@ -14,15 +14,14 @@ import {
     getScenariosForSelectorKey,
     inferScenarioAbilityId,
     isRegisteredGeneralGroupSelectorKey,
-} from '../games/minion_battles/testing/scenarios/registry';
-import { getAbility } from '../games/minion_battles/abilities/AbilityRegistry';
-import ScenarioPreviewModal from './ability-tests/ScenarioPreviewModal';
-import { PlaybackButton } from './ability-tests/PlaybackButton';
-import type { ScenarioDefinition } from '../games/minion_battles/testing/types';
-import { createLiveScenarioRun, type LiveScenarioRun } from '../games/minion_battles/testing/runner/SimulationRunner';
-import { MAX_SELECTED_ABILITY_TEST_ITEMS } from './ability-tests/constants';
-import MiniTerrainView from './ability-tests/MiniTerrainView';
-import { useToast } from '../contexts/ToastContext';
+} from '../../games/minion_battles/testing/scenarios/registry';
+import { getAbility } from '../../games/minion_battles/abilities/AbilityRegistry';
+import ScenarioPreviewModal from '../ability-tests/ScenarioPreviewModal';
+import { PlaybackButton } from '../ability-tests/PlaybackButton';
+import type { ScenarioDefinition } from '../../games/minion_battles/testing/types';
+import { createLiveScenarioRun, type LiveScenarioRun } from '../../games/minion_battles/testing/runner/SimulationRunner';
+import MiniTerrainView from '../ability-tests/MiniTerrainView';
+import PanelLayout from './PanelLayout';
 
 const SELECTED_PARAM = 'selected';
 const FILTER_PARAM = 'q';
@@ -37,17 +36,27 @@ const TREE_ICONS: Record<string, React.ComponentType<{ size?: number; className?
     earth_core:    Mountain,
 };
 
+const GENERAL_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+    movement:    Footprints,
+    debuffs:     Droplets,
+    enemies:     Skull,
+    lanternites: Bug,
+    lighting:    Lightbulb,
+    pets:        PawPrint,
+    ai:          Brain,
+};
+
 function parseSelected(raw: string | null): string[] {
     if (!raw?.trim()) return [];
     return raw
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean)
-        .slice(0, MAX_SELECTED_ABILITY_TEST_ITEMS);
+        .slice(0, 4);
 }
 
 function formatSelected(keys: string[]): string {
-    return keys.slice(0, MAX_SELECTED_ABILITY_TEST_ITEMS).join(',');
+    return keys.slice(0, 4).join(',');
 }
 
 function ScenarioPane({
@@ -130,7 +139,7 @@ function ScenarioPane({
                         {passed ? 'Passed' : 'Failed'}
                         {!passed && msg ? ` · ${msg}` : ''}
                     </>
-                ) : ' '}
+                ) : ' '}
             </div>
         </div>
     );
@@ -149,9 +158,48 @@ function HpBar({ hp, maxHp, tone }: { hp: number | null; maxHp: number | null; t
     );
 }
 
-export default function AbilityTestPage() {
+function rowForTreeGroup(g: AbilityTreeSidebarGroup, selected: string[], toggle: (k: string) => void) {
+    const sel = selected.includes(g.selectorKey);
+    const pinned = sel ? 'ring-2 ring-inset ring-primary bg-primary/10' : 'hover:bg-surface-light';
+    const Icon = TREE_ICONS[g.treeId];
+    return (
+        <li key={g.selectorKey}>
+            <button
+                type="button"
+                className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded text-sm ${pinned}`}
+                onClick={() => toggle(g.selectorKey)}
+            >
+                <span className="w-8 h-8 shrink-0 rounded border border-border-custom flex items-center justify-center bg-black/30 text-muted">
+                    {Icon && <Icon size={16} />}
+                </span>
+                <span className="truncate text-white">{g.label}</span>
+            </button>
+        </li>
+    );
+}
+
+function rowForGeneralGroup(g: GeneralTestSidebarGroup, selected: string[], toggle: (k: string) => void) {
+    const sel = selected.includes(g.selectorKey);
+    const pinned = sel ? 'ring-2 ring-inset ring-primary bg-primary/10' : 'hover:bg-surface-light';
+    const Icon = GENERAL_ICONS[g.slug];
+    return (
+        <li key={g.selectorKey}>
+            <button
+                type="button"
+                className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded text-sm ${pinned}`}
+                onClick={() => toggle(g.selectorKey)}
+            >
+                <span className="w-8 h-8 shrink-0 rounded border border-border-custom flex items-center justify-center bg-black/30 text-muted">
+                    {Icon && <Icon size={16} />}
+                </span>
+                <span className="truncate text-white">{g.label}</span>
+            </button>
+        </li>
+    );
+}
+
+export default function AbilityTestPanel() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const { showToast } = useToast();
     const [filter, setFilter] = useState(() => searchParams.get(FILTER_PARAM) ?? '');
     const [renderVersion, setRenderVersion] = useState(0);
 
@@ -195,17 +243,9 @@ export default function AbilityTestPage() {
 
     const toggleKey = useCallback(
         (key: string) => {
-            if (selectedKeys.includes(key)) {
-                setSelectedKeys(selectedKeys.filter((k) => k !== key));
-                return;
-            }
-            if (selectedKeys.length >= MAX_SELECTED_ABILITY_TEST_ITEMS) {
-                showToast(`At most ${MAX_SELECTED_ABILITY_TEST_ITEMS} items`, 'info');
-                return;
-            }
-            setSelectedKeys([...selectedKeys, key]);
+            setSelectedKeys(selectedKeys.includes(key) ? [] : [key]);
         },
-        [selectedKeys, setSelectedKeys, showToast],
+        [selectedKeys, setSelectedKeys],
     );
 
     const abilityTreeGroups = useMemo(() => {
@@ -333,160 +373,139 @@ export default function AbilityTestPage() {
 
     return (
         <>
-        <div className="flex flex-col md:flex-row gap-4 min-h-[480px]">
-            <aside className="w-full md:w-56 shrink-0 flex flex-col gap-3 border border-border-custom rounded-lg p-3 bg-surface">
-                <input
-                    type="search"
-                    className="w-full px-2 py-1.5 rounded bg-surface-light border border-border-custom text-sm text-white placeholder:text-muted"
-                    placeholder="Filter…"
-                    value={filter}
-                    onChange={(e) => {
-                        const v = e.target.value;
-                        setFilter(v);
-                        const params = new URLSearchParams(searchParams);
-                        if (v.trim()) params.set(FILTER_PARAM, v.trim());
-                        else params.delete(FILTER_PARAM);
-                        if (selectedKeys.length) params.set(SELECTED_PARAM, formatSelected(selectedKeys));
-                        setSearchParams(params, { replace: true });
-                    }}
-                />
-                <div className="text-xs text-muted uppercase tracking-wide">Abilities</div>
-                <ul className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
-                    {abilityTreeGroups.map((g) => rowForTreeGroup(g, selectedKeys, toggleKey))}
-                </ul>
-                <div className="text-xs text-muted uppercase tracking-wide">General</div>
-                <ul className="space-y-1 max-h-[28vh] overflow-y-auto pr-1">
-                    {generalSidebarGroups.map((g) => rowForGeneralGroup(g, selectedKeys, toggleKey))}
-                </ul>
-            </aside>
-            <main className="flex-1 min-w-0 space-y-4">
-                {selectedKeys.map((key) => {
-                    const scenarios = getScenariosForSelectorKey(key);
-                    const title = key.startsWith('general:')
-                        ? (() => {
-                              const g = getGeneralTestSidebarGroups().find((x) => x.selectorKey === key);
-                              return g ? `General · ${g.label}` : scenarios[0]?.title ?? key;
-                          })()
-                        : key.startsWith('tree:')
-                        ? (() => {
-                              const g = getAbilityTreeSidebarGroups().find((x) => x.selectorKey === key);
-                              return g ? g.label : key;
-                          })()
-                        : `Ability · ${key}`;
-                    const groupedGeneralCard =
-                        key.startsWith('general:') &&
-                        isRegisteredGeneralGroupSelectorKey(key) &&
-                        scenarios.length > 1;
-                    const groupRuns = runsByKey.get(key) ?? [];
-                    const allFinished = groupRuns.length > 0 && groupRuns.every((run) => run.isSettled());
-                    const mode = playbackByKey[key] ?? 'playing';
-                    return (
-                        <div key={key} className="rounded-xl border border-border-custom bg-surface p-4 space-y-3">
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <div className="flex items-center gap-1 shrink-0">
-                                        <PlaybackButton
-                                            icon={SkipBack}
-                                            title="Replay"
-                                            onClick={() => replayGroup(key)}
-                                        />
-                                        <PlaybackButton
-                                            icon={!allFinished && mode === 'playing' ? Pause : Play}
-                                            title={allFinished ? 'Restart' : mode === 'playing' ? 'Pause' : 'Play'}
-                                            onClick={() => {
-                                                if (allFinished) {
-                                                    replayGroup(key);
-                                                } else {
-                                                    setPlaybackByKey((prev) => ({
-                                                        ...prev,
-                                                        [key]: mode === 'playing' ? 'paused' : 'playing',
-                                                    }));
-                                                }
-                                            }}
-                                        />
-                                        <PlaybackButton
-                                            icon={SkipForward}
-                                            title="Next frame"
-                                            onClick={() => stepGroupOneTick(key)}
-                                            disabled={allFinished || mode !== 'paused'}
-                                            invisible={allFinished || mode === 'playing'}
-                                        />
-                                    </div>
-                                    <h3 className="text-sm font-semibold text-primary truncate">{title}</h3>
-                                </div>
-                            </div>
-                            {groupedGeneralCard ? (
-                                <div className="rounded-lg border border-border-custom bg-surface-light/50 p-3">
-                                    <div className="flex flex-wrap gap-3">
-                                        {scenarios.map((s) => (
-                                            <ScenarioPane
-                                                key={s.id}
-                                                scenario={s}
-                                                run={runsById.get(s.id) ?? null}
-                                                renderVersion={renderVersion}
-                                                onPreview={() => openPreview(s.id)}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex flex-wrap gap-3">
-                                    {scenarios.map((s) => (
-                                        <ScenarioPane
-                                            key={s.id}
-                                            scenario={s}
-                                            run={runsById.get(s.id) ?? null}
-                                            renderVersion={renderVersion}
-                                            onPreview={() => openPreview(s.id)}
-                                        />
-                                    ))}
-                                </div>
-                            )}
+            <PanelLayout
+                title="Ability Test"
+                leftSize="small"
+                leftClassName="flex flex-col overflow-hidden"
+                left={
+                    <>
+                        <div className="p-3 pb-2 shrink-0">
+                            <input
+                                type="search"
+                                className="w-full px-2 py-1.5 rounded bg-surface-light border border-border-custom text-sm text-white placeholder:text-muted"
+                                placeholder="Filter…"
+                                value={filter}
+                                onChange={(e) => {
+                                    const v = e.target.value;
+                                    setFilter(v);
+                                    const params = new URLSearchParams(searchParams);
+                                    if (v.trim()) params.set(FILTER_PARAM, v.trim());
+                                    else params.delete(FILTER_PARAM);
+                                    if (selectedKeys.length) params.set(SELECTED_PARAM, formatSelected(selectedKeys));
+                                    setSearchParams(params, { replace: true });
+                                }}
+                            />
                         </div>
-                    );
-                })}
-            </main>
-        </div>
-        {previewScenario && (
-            <ScenarioPreviewModal scenario={previewScenario} onClose={closePreview} />
-        )}
+                        <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3">
+                            <div className="text-xs text-muted uppercase tracking-wide mb-1">Abilities</div>
+                            <ul className="space-y-1">
+                                {abilityTreeGroups.map((g) => rowForTreeGroup(g, selectedKeys, toggleKey))}
+                            </ul>
+                            <div className="text-xs text-muted uppercase tracking-wide mt-4 mb-1">General</div>
+                            <ul className="space-y-1">
+                                {generalSidebarGroups.map((g) => rowForGeneralGroup(g, selectedKeys, toggleKey))}
+                            </ul>
+                        </div>
+                    </>
+                }
+                center={
+                    <div className="p-4 space-y-4">
+                        {selectedKeys.length === 0 && (
+                            <div className="flex items-center justify-center h-32 text-muted text-sm">
+                                Select abilities or tests from the left panel
+                            </div>
+                        )}
+                        {selectedKeys.map((key) => {
+                            const scenarios = getScenariosForSelectorKey(key);
+                            const title = key.startsWith('general:')
+                                ? (() => {
+                                      const g = getGeneralTestSidebarGroups().find((x) => x.selectorKey === key);
+                                      return g ? `General · ${g.label}` : scenarios[0]?.title ?? key;
+                                  })()
+                                : key.startsWith('tree:')
+                                ? (() => {
+                                      const g = getAbilityTreeSidebarGroups().find((x) => x.selectorKey === key);
+                                      return g ? g.label : key;
+                                  })()
+                                : `Ability · ${key}`;
+                            const groupedGeneralCard =
+                                key.startsWith('general:') &&
+                                isRegisteredGeneralGroupSelectorKey(key) &&
+                                scenarios.length > 1;
+                            const groupRuns = runsByKey.get(key) ?? [];
+                            const allFinished = groupRuns.length > 0 && groupRuns.every((run) => run.isSettled());
+                            const mode = playbackByKey[key] ?? 'playing';
+                            return (
+                                <div key={key} className="rounded-xl border border-border-custom bg-surface p-4 space-y-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <PlaybackButton
+                                                    icon={SkipBack}
+                                                    title="Replay"
+                                                    onClick={() => replayGroup(key)}
+                                                />
+                                                <PlaybackButton
+                                                    icon={!allFinished && mode === 'playing' ? Pause : Play}
+                                                    title={allFinished ? 'Restart' : mode === 'playing' ? 'Pause' : 'Play'}
+                                                    onClick={() => {
+                                                        if (allFinished) {
+                                                            replayGroup(key);
+                                                        } else {
+                                                            setPlaybackByKey((prev) => ({
+                                                                ...prev,
+                                                                [key]: mode === 'playing' ? 'paused' : 'playing',
+                                                            }));
+                                                        }
+                                                    }}
+                                                />
+                                                <PlaybackButton
+                                                    icon={SkipForward}
+                                                    title="Next frame"
+                                                    onClick={() => stepGroupOneTick(key)}
+                                                    disabled={allFinished || mode !== 'paused'}
+                                                    invisible={allFinished || mode === 'playing'}
+                                                />
+                                            </div>
+                                            <h3 className="text-sm font-semibold text-primary truncate">{title}</h3>
+                                        </div>
+                                    </div>
+                                    {groupedGeneralCard ? (
+                                        <div className="rounded-lg border border-border-custom bg-surface-light/50 p-3">
+                                            <div className="flex flex-wrap gap-3">
+                                                {scenarios.map((s) => (
+                                                    <ScenarioPane
+                                                        key={s.id}
+                                                        scenario={s}
+                                                        run={runsById.get(s.id) ?? null}
+                                                        renderVersion={renderVersion}
+                                                        onPreview={() => openPreview(s.id)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-3">
+                                            {scenarios.map((s) => (
+                                                <ScenarioPane
+                                                    key={s.id}
+                                                    scenario={s}
+                                                    run={runsById.get(s.id) ?? null}
+                                                    renderVersion={renderVersion}
+                                                    onPreview={() => openPreview(s.id)}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                }
+            />
+            {previewScenario && (
+                <ScenarioPreviewModal scenario={previewScenario} onClose={closePreview} />
+            )}
         </>
-    );
-}
-
-
-function rowForTreeGroup(g: AbilityTreeSidebarGroup, selected: string[], toggle: (k: string) => void) {
-    const sel = selected.includes(g.selectorKey);
-    const pinned = sel ? 'ring-2 ring-inset ring-primary bg-primary/10' : 'hover:bg-surface-light';
-    const Icon = TREE_ICONS[g.treeId];
-    return (
-        <li key={g.selectorKey}>
-            <button
-                type="button"
-                className={`w-full flex items-center gap-2 text-left px-2 py-1.5 rounded text-sm ${pinned}`}
-                onClick={() => toggle(g.selectorKey)}
-            >
-                <span className="w-8 h-8 shrink-0 rounded border border-border-custom flex items-center justify-center bg-black/30 text-muted">
-                    {Icon && <Icon size={16} />}
-                </span>
-                <span className="truncate text-white">{g.label}</span>
-            </button>
-        </li>
-    );
-}
-
-function rowForGeneralGroup(g: GeneralTestSidebarGroup, selected: string[], toggle: (k: string) => void) {
-    const sel = selected.includes(g.selectorKey);
-    const pinned = sel ? 'ring-2 ring-inset ring-primary bg-primary/10' : 'hover:bg-surface-light';
-    return (
-        <li key={g.selectorKey}>
-            <button
-                type="button"
-                className={`w-full text-left px-2 py-1.5 rounded text-xs ${pinned}`}
-                onClick={() => toggle(g.selectorKey)}
-            >
-                {g.label}
-            </button>
-        </li>
     );
 }

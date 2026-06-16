@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MapSegmentData } from '../../games/minion_battles/terrain/segmentSchema';
-import { listSegments } from '../../games/minion_battles/terrain/segmentRegistry';
+import { MapSegmentData } from '../../../games/minion_battles/terrain/segmentSchema';
+import { listSegments } from '../../../games/minion_battles/terrain/segmentRegistry';
 
 interface SegmentSelectorProps {
     selectedId: string | null;

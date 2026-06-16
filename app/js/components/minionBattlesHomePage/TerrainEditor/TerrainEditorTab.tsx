@@ -9,8 +9,9 @@ import BrushSizePicker from './BrushSizePicker';
 import POIEditor from './POIEditor';
 import AdjacentPreviewCanvas from './AdjacentPreviewCanvas';
 import { EDITOR_CELL_SIZE } from './terrainEditorColors';
-import type { MapSegmentData } from '../../games/minion_battles/terrain/segmentSchema';
-import { TerrainType } from '../../games/minion_battles/terrain/TerrainType';
+import type { MapSegmentData } from '../../../games/minion_battles/terrain/segmentSchema';
+import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
+import PanelLayout from '../PanelLayout';
 
 type RightTab = 'poi';
 type CreateDir = 'north' | 'south' | 'east' | 'west';
@@ -182,189 +183,175 @@ export default function TerrainEditorTab() {
     const prevPx = PREVIEW_DEPTH * S;
 
     return (
-        <div className="flex flex-col h-full bg-surface">
-            {/* Header */}
-            <div className="flex items-center gap-3 p-3 border-b border-border-custom">
-                <SegmentSelector
-                    selectedId={state.segmentId}
-                    onSelect={guardedLoadSegment}
-                    defaultId={searchParams.get('segment') ?? '50_50_crystal_cave'}
-                    onSegmentsChange={setAvailableSegments}
-                />
-                <div className="flex-1" />
-                {state.saveStatus === 'saving' && (
-                    <span className="text-sm text-muted">Saving...</span>
-                )}
-                {state.saveStatus === 'saved' && (
-                    <span className="text-sm text-green-400">Saved ✓</span>
-                )}
-                {state.saveStatus === 'error' && (
-                    <span className="text-sm text-red-400">Save failed</span>
-                )}
-                <button
-                    className={saveButtonClass}
-                    disabled={isSaveDisabled}
-                    onClick={() => { void saveSegment(); }}
-                >
-                    {saveButtonLabel}
-                </button>
-            </div>
-
-            {/* Main body */}
-            <div className="flex flex-1 min-h-0 overflow-auto">
-                {/* Left sidebar */}
-                <div className="flex flex-col gap-4 p-3 border-r border-border-custom bg-surface w-40 shrink-0">
-                    <ToolPicker
-                        activeTool={state.activeTool}
-                        onSelect={actions.setTool}
-                    />
-                    {state.activeTool === 'terrain_paint' && (
-                        <>
-                            <TerrainTypePicker
-                                selectedType={state.selectedTerrainType}
-                                onSelect={actions.setTerrainType}
-                            />
-                            <BrushSizePicker
-                                brushSize={state.brushSize}
-                                onChange={actions.setBrushSize}
-                            />
-                        </>
-                    )}
-                </div>
-
-                {/* Center: canvas with adjacent previews */}
-                <div className="flex flex-col flex-1 items-center justify-start p-3 overflow-auto">
-                    {state.segmentData ? (
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: `${prevPx}px ${mainWidth * S}px ${prevPx}px`,
-                            gridTemplateRows: `${prevPx}px ${mainHeight * S}px ${prevPx}px`,
-                            gap: `${PREVIEW_GAP}px`,
-                        }}>
-                            {/* NW corner */}
-                            <div className="rounded-sm bg-zinc-900" />
-
-                            {/* North preview */}
-                            <AdjacentPreviewCanvas
-                                segment={adjacentSegments.north}
-                                direction="north"
-                                mainWidth={mainWidth}
-                                mainHeight={mainHeight}
-                                onClick={adjacentSegments.north ? () => guardedLoadSegment(adjacentSegments.north!) : null}
-                                onCreateMap={adjacentSegments.north ? undefined : () => setCreateDir('north')}
-                                icon={<ChevronUp />}
-                            />
-
-                            {/* NE corner */}
-                            <div className="rounded-sm bg-zinc-900" />
-
-                            {/* West preview */}
-                            <AdjacentPreviewCanvas
-                                segment={adjacentSegments.west}
-                                direction="west"
-                                mainWidth={mainWidth}
-                                mainHeight={mainHeight}
-                                onClick={adjacentSegments.west ? () => guardedLoadSegment(adjacentSegments.west!) : null}
-                                onCreateMap={adjacentSegments.west ? undefined : () => setCreateDir('west')}
-                                icon={<ChevronLeft />}
-                            />
-
-                            {/* Main canvas */}
-                            <TerrainCanvas
-                                state={state}
-                                actions={{
-                                    setHoveredCell: actions.setHoveredCell,
-                                    paintCells: actions.paintCells,
-                                    addPOI: actions.addPOI,
-                                    selectPOI: actions.selectPOI,
-                                }}
-                            />
-
-                            {/* East preview */}
-                            <AdjacentPreviewCanvas
-                                segment={adjacentSegments.east}
-                                direction="east"
-                                mainWidth={mainWidth}
-                                mainHeight={mainHeight}
-                                onClick={adjacentSegments.east ? () => guardedLoadSegment(adjacentSegments.east!) : null}
-                                onCreateMap={adjacentSegments.east ? undefined : () => setCreateDir('east')}
-                                icon={<ChevronRight />}
-                            />
-
-                            {/* SW corner */}
-                            <div className="rounded-sm bg-zinc-900" />
-
-                            {/* South preview */}
-                            <AdjacentPreviewCanvas
-                                segment={adjacentSegments.south}
-                                direction="south"
-                                mainWidth={mainWidth}
-                                mainHeight={mainHeight}
-                                onClick={adjacentSegments.south ? () => guardedLoadSegment(adjacentSegments.south!) : null}
-                                onCreateMap={adjacentSegments.south ? undefined : () => setCreateDir('south')}
-                                icon={<ChevronDown />}
-                            />
-
-                            {/* SE corner */}
-                            <div className="rounded-sm bg-zinc-900" />
+        <>
+            <PanelLayout
+                title="Terrain Editor"
+                actions={
+                    <>
+                        <SegmentSelector
+                            selectedId={state.segmentId}
+                            onSelect={guardedLoadSegment}
+                            defaultId={searchParams.get('segment') ?? '50_50_crystal_cave'}
+                            onSegmentsChange={setAvailableSegments}
+                        />
+                        {state.saveStatus === 'saving' && (
+                            <span className="text-sm text-muted">Saving...</span>
+                        )}
+                        {state.saveStatus === 'saved' && (
+                            <span className="text-sm text-green-400">Saved ✓</span>
+                        )}
+                        {state.saveStatus === 'error' && (
+                            <span className="text-sm text-red-400">Save failed</span>
+                        )}
+                        <button
+                            className={saveButtonClass}
+                            disabled={isSaveDisabled}
+                            onClick={() => { void saveSegment(); }}
+                        >
+                            {saveButtonLabel}
+                        </button>
+                    </>
+                }
+                left={
+                    <div className="flex flex-col gap-4 p-3">
+                        <ToolPicker
+                            activeTool={state.activeTool}
+                            onSelect={actions.setTool}
+                        />
+                        {state.activeTool === 'terrain_paint' && (
+                            <>
+                                <TerrainTypePicker
+                                    selectedType={state.selectedTerrainType}
+                                    onSelect={actions.setTerrainType}
+                                />
+                                <BrushSizePicker
+                                    brushSize={state.brushSize}
+                                    onChange={actions.setBrushSize}
+                                />
+                            </>
+                        )}
+                    </div>
+                }
+                leftWidth="w-40"
+                leftClassName="overflow-y-auto"
+                center={
+                    state.segmentData ? (
+                        <div className="flex flex-col items-center justify-start p-3">
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: `${prevPx}px ${mainWidth * S}px ${prevPx}px`,
+                                gridTemplateRows: `${prevPx}px ${mainHeight * S}px ${prevPx}px`,
+                                gap: `${PREVIEW_GAP}px`,
+                            }}>
+                                <div className="rounded-sm bg-zinc-900" />
+                                <AdjacentPreviewCanvas
+                                    segment={adjacentSegments.north}
+                                    direction="north"
+                                    mainWidth={mainWidth}
+                                    mainHeight={mainHeight}
+                                    onClick={adjacentSegments.north ? () => guardedLoadSegment(adjacentSegments.north!) : null}
+                                    onCreateMap={adjacentSegments.north ? undefined : () => setCreateDir('north')}
+                                    icon={<ChevronUp />}
+                                />
+                                <div className="rounded-sm bg-zinc-900" />
+                                <AdjacentPreviewCanvas
+                                    segment={adjacentSegments.west}
+                                    direction="west"
+                                    mainWidth={mainWidth}
+                                    mainHeight={mainHeight}
+                                    onClick={adjacentSegments.west ? () => guardedLoadSegment(adjacentSegments.west!) : null}
+                                    onCreateMap={adjacentSegments.west ? undefined : () => setCreateDir('west')}
+                                    icon={<ChevronLeft />}
+                                />
+                                <TerrainCanvas
+                                    state={state}
+                                    actions={{
+                                        setHoveredCell: actions.setHoveredCell,
+                                        paintCells: actions.paintCells,
+                                        addPOI: actions.addPOI,
+                                        selectPOI: actions.selectPOI,
+                                    }}
+                                />
+                                <AdjacentPreviewCanvas
+                                    segment={adjacentSegments.east}
+                                    direction="east"
+                                    mainWidth={mainWidth}
+                                    mainHeight={mainHeight}
+                                    onClick={adjacentSegments.east ? () => guardedLoadSegment(adjacentSegments.east!) : null}
+                                    onCreateMap={adjacentSegments.east ? undefined : () => setCreateDir('east')}
+                                    icon={<ChevronRight />}
+                                />
+                                <div className="rounded-sm bg-zinc-900" />
+                                <AdjacentPreviewCanvas
+                                    segment={adjacentSegments.south}
+                                    direction="south"
+                                    mainWidth={mainWidth}
+                                    mainHeight={mainHeight}
+                                    onClick={adjacentSegments.south ? () => guardedLoadSegment(adjacentSegments.south!) : null}
+                                    onCreateMap={adjacentSegments.south ? undefined : () => setCreateDir('south')}
+                                    icon={<ChevronDown />}
+                                />
+                                <div className="rounded-sm bg-zinc-900" />
+                            </div>
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-64 text-muted">
                             No segment loaded
                         </div>
-                    )}
-                </div>
+                    )
+                }
+                centerClassName="overflow-auto"
+                right={
+                    <>
+                        <div className="flex shrink-0 border-b border-border-custom">
+                            <button
+                                type="button"
+                                className={`flex-1 py-2.5 text-xs font-medium transition-colors border-b-2 ${
+                                    rightTab === 'poi'
+                                        ? 'text-primary border-primary'
+                                        : 'text-muted border-transparent hover:text-white'
+                                }`}
+                                onClick={() => setRightTab('poi')}
+                            >
+                                Points of Interest
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+                            {rightTab === 'poi' && (
+                                <>
+                                    {state.selectedPOIId && (
+                                        <div className="border-b border-border-custom pb-3">
+                                            <POIEditor
+                                                section="properties"
+                                                pointsOfInterest={state.segmentData?.pointsOfInterest ?? []}
+                                                selectedPOIId={state.selectedPOIId}
+                                                onSelect={actions.selectPOI}
+                                                onUpdate={actions.updatePOI}
+                                                onDelete={actions.deletePOI}
+                                                showPOIs={state.showPOIs}
+                                                onTogglePOIs={actions.togglePOIs}
+                                            />
+                                        </div>
+                                    )}
+                                    <POIEditor
+                                        section="list"
+                                        pointsOfInterest={state.segmentData?.pointsOfInterest ?? []}
+                                        selectedPOIId={state.selectedPOIId}
+                                        onSelect={actions.selectPOI}
+                                        onUpdate={actions.updatePOI}
+                                        onDelete={actions.deletePOI}
+                                        showPOIs={state.showPOIs}
+                                        onTogglePOIs={actions.togglePOIs}
+                                    />
+                                </>
+                            )}
+                        </div>
+                    </>
+                }
+                rightWidth="w-56"
+                rightClassName="flex flex-col overflow-hidden"
+            />
 
-                {/* Right sidebar: tabbed POI list */}
-                <div className="flex flex-col w-56 shrink-0 border-l border-border-custom bg-surface">
-                    {/* Tab bar */}
-                    <div className="flex shrink-0 border-b border-border-custom">
-                        <button
-                            type="button"
-                            className={`flex-1 py-2.5 text-xs font-medium transition-colors border-b-2 ${
-                                rightTab === 'poi'
-                                    ? 'text-primary border-primary'
-                                    : 'text-muted border-transparent hover:text-white'
-                            }`}
-                            onClick={() => setRightTab('poi')}
-                        >
-                            Points of Interest
-                        </button>
-                    </div>
-                    {/* Tab content */}
-                    <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-                        {rightTab === 'poi' && (
-                            <>
-                                {state.selectedPOIId && (
-                                    <div className="border-b border-border-custom pb-3">
-                                        <POIEditor
-                                            section="properties"
-                                            pointsOfInterest={state.segmentData?.pointsOfInterest ?? []}
-                                            selectedPOIId={state.selectedPOIId}
-                                            onSelect={actions.selectPOI}
-                                            onUpdate={actions.updatePOI}
-                                            onDelete={actions.deletePOI}
-                                            showPOIs={state.showPOIs}
-                                            onTogglePOIs={actions.togglePOIs}
-                                        />
-                                    </div>
-                                )}
-                                <POIEditor
-                                    section="list"
-                                    pointsOfInterest={state.segmentData?.pointsOfInterest ?? []}
-                                    selectedPOIId={state.selectedPOIId}
-                                    onSelect={actions.selectPOI}
-                                    onUpdate={actions.updatePOI}
-                                    onDelete={actions.deletePOI}
-                                    showPOIs={state.showPOIs}
-                                    onTogglePOIs={actions.togglePOIs}
-                                />
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
-            {/* Create map modal */}
             {createCoords && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
@@ -410,6 +397,6 @@ export default function TerrainEditorTab() {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }

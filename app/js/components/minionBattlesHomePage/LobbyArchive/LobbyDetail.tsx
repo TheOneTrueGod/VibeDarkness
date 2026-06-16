@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { LobbyClient } from '../../LobbyClient';
+import type { LobbyClient } from '../../../LobbyClient';
 import ArchiveGameStateTab from './tabs/ArchiveGameStateTab';
 import ArchiveLobbyLogTab from './tabs/ArchiveLobbyLogTab';
 import ArchiveUserStatesTab from './tabs/ArchiveUserStatesTab';

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { LobbyClient, AdminUserStateIndex } from '../../../LobbyClient';
+import type { LobbyClient, AdminUserStateIndex } from '../../../../LobbyClient';
 
 const BATCH_SIZE = 25;
 

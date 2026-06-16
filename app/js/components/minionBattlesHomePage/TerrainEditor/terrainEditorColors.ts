@@ -1,5 +1,5 @@
-import { TerrainType, TERRAIN_PROPERTIES } from '../../games/minion_battles/terrain/TerrainType';
-import { POIType } from '../../games/minion_battles/terrain/segmentSchema';
+import { TerrainType, TERRAIN_PROPERTIES } from '../../../games/minion_battles/terrain/TerrainType';
+import { POIType } from '../../../games/minion_battles/terrain/segmentSchema';
 
 /**
  * Hex color for each terrain type, sourced from TERRAIN_PROPERTIES.

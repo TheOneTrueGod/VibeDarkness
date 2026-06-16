@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { LobbyClient } from '../../../LobbyClient';
-import DebugJsonBlock from '../../DebugConsole/DebugJsonBlock';
+import type { LobbyClient } from '../../../../LobbyClient';
+import DebugJsonBlock from '../../../DebugConsole/DebugJsonBlock';
 
 interface ArchiveGameStateTabProps {
     isActive: boolean;

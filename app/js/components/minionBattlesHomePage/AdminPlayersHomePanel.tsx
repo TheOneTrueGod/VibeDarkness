@@ -3,17 +3,18 @@
  * Lets admins browse ALL accounts, inspect their characters, and grant/equip items.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { AccountState } from '../types';
-import { LobbyClient } from '../LobbyClient';
-import CharacterEditor from '../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
-import CharacterCreator from '../games/minion_battles/ui/components/CharacterEditor/CharacterCreator';
-import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
-import { STORYLINES } from '../games/minion_battles/storylines/index';
-import { fromCampaignCharacterData, type CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
-import type { CampaignCharacterData } from '../games/minion_battles/character_defs/campaignCharacterTypes';
-import { getPortrait } from '../games/minion_battles/character_defs/portraits';
-import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
-import { useUser } from '../contexts/UserContext';
+import type { AccountState } from '../../types';
+import { LobbyClient } from '../../LobbyClient';
+import CharacterEditor from '../../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
+import CharacterCreator from '../../games/minion_battles/ui/components/CharacterEditor/CharacterCreator';
+import { MinionBattlesApi } from '../../games/minion_battles/api/minionBattlesApi';
+import { STORYLINES } from '../../games/minion_battles/storylines/index';
+import { fromCampaignCharacterData, type CampaignCharacter } from '../../games/minion_battles/character_defs/CampaignCharacter';
+import type { CampaignCharacterData } from '../../games/minion_battles/character_defs/campaignCharacterTypes';
+import { getPortrait } from '../../games/minion_battles/character_defs/portraits';
+import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../../games/minion_battles/character_defs/items';
+import { useUser } from '../../contexts/UserContext';
+import PanelLayout from './PanelLayout';
 
 function formatCountdown(seconds: number): string {
     if (seconds <= 0) return '0s';
@@ -382,73 +383,72 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
         };
     }, []);
 
+    // ── Account list view ────────────────────────────────────────────────────
     if (selectedAccountId == null) {
         return (
-            <div className="w-full h-full overflow-auto p-5">
-                <div className="mx-auto flex max-w-[1400px] flex-col gap-5">
-                    <div className="flex items-center justify-between gap-3">
-                        <div>
-                            <h2 className="text-[32px] font-bold">Players</h2>
-                            <p className="text-sm text-muted">Admin overview for all accounts</p>
+            <PanelLayout
+                title="Players"
+                subtitle="Admin overview for all accounts"
+                actions={
+                    <button
+                        type="button"
+                        onClick={() => void loadAccounts()}
+                        className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom disabled:opacity-60"
+                        disabled={accountsLoading}
+                    >
+                        {accountsLoading ? 'Refreshing…' : 'Refresh'}
+                    </button>
+                }
+                center={
+                    <div className="p-5 h-full overflow-y-auto">
+                        {accountsLoading && sortedAccounts.length === 0 && (
+                            <div className="text-sm text-muted">Loading accounts…</div>
+                        )}
+                        {!accountsLoading && sortedAccounts.length === 0 && (
+                            <div className="text-sm text-muted">No accounts found</div>
+                        )}
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
+                            {sortedAccounts.map((account) => (
+                                <AccountCard
+                                    key={account.id}
+                                    account={account}
+                                    selected={false}
+                                    onSelect={() => setSelectedAccountId(account.id)}
+                                    now={now}
+                                />
+                            ))}
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => void loadAccounts()}
-                            className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom disabled:opacity-60"
-                            disabled={accountsLoading}
-                        >
-                            {accountsLoading ? 'Refreshing…' : 'Refresh'}
-                        </button>
                     </div>
-                    {accountsLoading && sortedAccounts.length === 0 && (
-                        <div className="text-sm text-muted">Loading accounts…</div>
-                    )}
-                    {!accountsLoading && sortedAccounts.length === 0 && (
-                        <div className="text-sm text-muted">No accounts found</div>
-                    )}
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
-                        {sortedAccounts.map((account) => (
-                            <AccountCard
-                                key={account.id}
-                                account={account}
-                                selected={false}
-                                onSelect={() => setSelectedAccountId(account.id)}
-                                now={now}
-                            />
-                        ))}
-                    </div>
-                </div>
-            </div>
+                }
+                centerClassName="overflow-hidden"
+            />
         );
     }
 
+    // ── Character detail view ────────────────────────────────────────────────
+    const expiresAt = details?.account.emergencyRecoveryExpiresAt;
+    const earSecondsLeft = expiresAt ? Math.max(0, expiresAt - now) : 0;
+    const inEAR = earSecondsLeft > 0;
+    const isAdminAccount = selectedAccount?.role === 'admin';
+
     return (
-        <div className="w-full h-full overflow-hidden p-5">
-            <div className="mx-auto flex h-full max-w-[1600px] min-h-0 flex-col gap-4">
-                <div className="flex items-center justify-between gap-3 shrink-0">
-                    <div>
-                        <h2 className="text-[32px] font-bold">Players</h2>
-                        <div className="flex items-center gap-3">
-                            <p className="text-sm text-muted">{selectedAccount?.name ?? `Account #${selectedAccountId}`}</p>
-                            {(() => {
-                                const expiresAt = details?.account.emergencyRecoveryExpiresAt;
-                                const secondsLeft = expiresAt ? Math.max(0, expiresAt - now) : 0;
-                                return secondsLeft > 0 ? (
-                                    <p className="text-sm font-semibold text-red-400">
-                                        Emergency Recovery: ({formatCountdown(secondsLeft)})
-                                    </p>
-                                ) : null;
-                            })()}
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {(() => {
-                            const expiresAt = details?.account.emergencyRecoveryExpiresAt;
-                            const secondsLeft = expiresAt ? Math.max(0, expiresAt - now) : 0;
-                            const inEAR = secondsLeft > 0;
-                            const isAdmin = selectedAccount?.role === 'admin';
-                            if (isAdmin) return null;
-                            return inEAR ? (
+        <>
+            <PanelLayout
+                title="Players"
+                subtitle={
+                    <span className="flex items-center gap-3">
+                        <span>{selectedAccount?.name ?? `Account #${selectedAccountId}`}</span>
+                        {inEAR && (
+                            <span className="font-semibold text-red-400">
+                                Emergency Recovery: ({formatCountdown(earSecondsLeft)})
+                            </span>
+                        )}
+                    </span>
+                }
+                actions={
+                    <>
+                        {!isAdminAccount && (
+                            inEAR ? (
                                 <button
                                     type="button"
                                     onClick={() => void handleSetEmergencyRecovery('disable')}
@@ -466,8 +466,8 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                                 >
                                     Emergency Account Recovery
                                 </button>
-                            );
-                        })()}
+                            )
+                        )}
                         <button
                             type="button"
                             onClick={() => void refreshSelectedAccount()}
@@ -483,150 +483,148 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                         >
                             Back
                         </button>
-                    </div>
-                </div>
-
-                <div className="flex flex-1 min-h-0 gap-4 overflow-hidden">
-                    <div className="w-[200px] shrink-0 overflow-auto rounded-lg border border-border-custom bg-surface p-3">
-                        <p className="mb-3 text-sm font-semibold text-white">Characters</p>
-                        <div className="space-y-3">
-                            {detailsLoading && <p className="text-sm text-muted">Loading…</p>}
-                            {!detailsLoading && details?.characters.length === 0 && (
-                                <p className="text-sm text-muted">No characters found</p>
-                            )}
-                            {details?.characters.map((character) => (
-                                <CharacterListCard
-                                    key={character.id}
-                                    character={character}
-                                    selected={selectedCharacterId === character.id}
-                                    onSelect={() => setSelectedCharacterId(character.id)}
-                                    onDelete={() => void handleDeleteCharacter(character.id)}
-                                />
-                            ))}
-                            {details && (
-                                <button
-                                    ref={createCharacterBtnRef}
-                                    type="button"
-                                    onClick={() => setCreatorOpen(true)}
-                                    className="w-full rounded-lg border-2 border-dashed border-border-custom px-3 py-2 text-sm text-muted hover:border-primary hover:text-white transition-colors cursor-pointer text-left"
-                                >
-                                    + Create new character
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0 overflow-hidden rounded-lg border border-border-custom bg-surface">
-                        {selectedCharacter ? (
-                            <CharacterEditor
-                                key={selectedCharacter.id}
-                                character={selectedCharacter}
-                                api={api}
-                                onSaved={handleSaved}
-                                onClose={() => {}}
-                                editMode
-                                inventoryItems={details?.account.inventoryItemIds ?? []}
-                                showInventoryPanel
-                                account={details?.account ?? null}
-                                viewerAccount={user ?? null}
-                                campaign={null}
-                                onStartMission={
-                                    onStartMissionForCharacter && details?.account
-                                        ? (missionId) =>
-                                              onStartMissionForCharacter(missionId, selectedCharacter, details.account)
-                                        : undefined
-                                }
-                                adminEquipmentPanel={
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <span className="text-sm font-semibold text-muted shrink-0">Items</span>
-                                        <div className="flex flex-wrap gap-2 flex-1 min-w-0">
-                                            {Object.entries(inventoryCounts).length > 0 ? (
-                                                Object.entries(inventoryCounts).map(([itemId, count]) => (
-                                                    <ItemCard
-                                                        key={itemId}
-                                                        itemId={itemId}
-                                                        count={count}
-                                                        onDragStart={handleInventoryDragStart}
-                                                        onRemove={(id) => void handleRemoveItem(id)}
-                                                    />
-                                                ))
-                                            ) : (
-                                                <p className="text-sm text-muted">No items yet</p>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                            <label className="text-xs text-muted">Give item</label>
-                                            <select
-                                                value={grantItemId}
-                                                onChange={(e) => setGrantItemId(e.target.value)}
-                                                className="rounded-md border border-border-custom bg-white px-3 py-2 text-sm text-black"
-                                            >
-                                                {ALL_PLAYER_ITEMS.map((itemId) => (
-                                                    <option key={itemId} value={itemId} className="bg-white text-black">
-                                                        {getItemName(itemId)}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                type="button"
-                                                onClick={() => void handleGrantItem()}
-                                                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
-                                                disabled={detailsLoading}
-                                            >
-                                                Give
-                                            </button>
-                                        </div>
-                                    </div>
-                                }
-                                adminKnowledgePanel={
-                                    <div className="flex flex-col gap-2 h-full">
-                                        <p className="text-xs text-muted">Knowledge</p>
-                                        <div className="flex flex-wrap gap-2 flex-1">
-                                            {Object.keys(details?.account.knowledge ?? {}).length > 0 ? (
-                                                Object.keys(details?.account.knowledge ?? {}).sort().map((key) => (
-                                                    <span
-                                                        key={key}
-                                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
-                                                        title={key}
-                                                    >
-                                                        {key}
-                                                    </span>
-                                                ))
-                                            ) : (
-                                                <p className="text-sm text-muted">No knowledge yet</p>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-auto">
-                                            <label className="text-xs text-muted">Grant</label>
-                                            <select
-                                                value={grantKnowledgeKey}
-                                                onChange={(e) => setGrantKnowledgeKey(e.target.value as typeof grantKnowledgeKey)}
-                                                className="rounded-md border border-border-custom bg-white px-2 py-1 text-sm text-black"
-                                            >
-                                                <option value="Crystals" className="bg-white text-black">Crystals</option>
-                                                <option value="Forging" className="bg-white text-black">Forging</option>
-                                                <option value="Research" className="bg-white text-black">Research</option>
-                                            </select>
-                                            <button
-                                                type="button"
-                                                onClick={() => void handleGrantKnowledge()}
-                                                className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
-                                                disabled={detailsLoading}
-                                            >
-                                                Grant
-                                            </button>
-                                        </div>
-                                    </div>
-                                }
+                    </>
+                }
+                left={
+                    <div className="p-3 space-y-3">
+                        <p className="text-sm font-semibold text-white">Characters</p>
+                        {detailsLoading && <p className="text-sm text-muted">Loading…</p>}
+                        {!detailsLoading && details?.characters.length === 0 && (
+                            <p className="text-sm text-muted">No characters found</p>
+                        )}
+                        {details?.characters.map((character) => (
+                            <CharacterListCard
+                                key={character.id}
+                                character={character}
+                                selected={selectedCharacterId === character.id}
+                                onSelect={() => setSelectedCharacterId(character.id)}
+                                onDelete={() => void handleDeleteCharacter(character.id)}
                             />
-                        ) : (
-                            <div className="flex h-full items-center justify-center p-6 text-muted">
-                                Select a character to edit it
-                            </div>
+                        ))}
+                        {details && (
+                            <button
+                                ref={createCharacterBtnRef}
+                                type="button"
+                                onClick={() => setCreatorOpen(true)}
+                                className="w-full rounded-lg border-2 border-dashed border-border-custom px-3 py-2 text-sm text-muted hover:border-primary hover:text-white transition-colors cursor-pointer text-left"
+                            >
+                                + Create new character
+                            </button>
                         )}
                     </div>
-                </div>
-            </div>
+                }
+                leftWidth="w-48"
+                center={
+                    selectedCharacter ? (
+                        <CharacterEditor
+                            key={selectedCharacter.id}
+                            character={selectedCharacter}
+                            api={api}
+                            onSaved={handleSaved}
+                            onClose={() => {}}
+                            editMode
+                            inventoryItems={details?.account.inventoryItemIds ?? []}
+                            showInventoryPanel
+                            account={details?.account ?? null}
+                            viewerAccount={user ?? null}
+                            campaign={null}
+                            onStartMission={
+                                onStartMissionForCharacter && details?.account
+                                    ? (missionId) =>
+                                          onStartMissionForCharacter(missionId, selectedCharacter, details.account)
+                                    : undefined
+                            }
+                            adminEquipmentPanel={
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <span className="text-sm font-semibold text-muted shrink-0">Items</span>
+                                    <div className="flex flex-wrap gap-2 flex-1 min-w-0">
+                                        {Object.entries(inventoryCounts).length > 0 ? (
+                                            Object.entries(inventoryCounts).map(([itemId, count]) => (
+                                                <ItemCard
+                                                    key={itemId}
+                                                    itemId={itemId}
+                                                    count={count}
+                                                    onDragStart={handleInventoryDragStart}
+                                                    onRemove={(id) => void handleRemoveItem(id)}
+                                                />
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted">No items yet</p>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                        <label className="text-xs text-muted">Give item</label>
+                                        <select
+                                            value={grantItemId}
+                                            onChange={(e) => setGrantItemId(e.target.value)}
+                                            className="rounded-md border border-border-custom bg-white px-3 py-2 text-sm text-black"
+                                        >
+                                            {ALL_PLAYER_ITEMS.map((itemId) => (
+                                                <option key={itemId} value={itemId} className="bg-white text-black">
+                                                    {getItemName(itemId)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleGrantItem()}
+                                            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
+                                            disabled={detailsLoading}
+                                        >
+                                            Give
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                            adminKnowledgePanel={
+                                <div className="flex flex-col gap-2 h-full">
+                                    <p className="text-xs text-muted">Knowledge</p>
+                                    <div className="flex flex-wrap gap-2 flex-1">
+                                        {Object.keys(details?.account.knowledge ?? {}).length > 0 ? (
+                                            Object.keys(details?.account.knowledge ?? {}).sort().map((key) => (
+                                                <span
+                                                    key={key}
+                                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
+                                                    title={key}
+                                                >
+                                                    {key}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted">No knowledge yet</p>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-auto">
+                                        <label className="text-xs text-muted">Grant</label>
+                                        <select
+                                            value={grantKnowledgeKey}
+                                            onChange={(e) => setGrantKnowledgeKey(e.target.value as typeof grantKnowledgeKey)}
+                                            className="rounded-md border border-border-custom bg-white px-2 py-1 text-sm text-black"
+                                        >
+                                            <option value="Crystals" className="bg-white text-black">Crystals</option>
+                                            <option value="Forging" className="bg-white text-black">Forging</option>
+                                            <option value="Research" className="bg-white text-black">Research</option>
+                                        </select>
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleGrantKnowledge()}
+                                            className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
+                                            disabled={detailsLoading}
+                                        >
+                                            Grant
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        />
+                    ) : (
+                        <div className="flex h-full items-center justify-center p-6 text-muted">
+                            Select a character to edit it
+                        </div>
+                    )
+                }
+                centerClassName="overflow-hidden"
+            />
 
             {creatorOpen && details && (() => {
                 const campaignId = details.characters[0]?.campaignId ?? STORYLINES[0]?.id ?? 'world_of_darkness';
@@ -650,7 +648,6 @@ export default function AdminPlayersHomePanel({ lobbyClient, onStartMissionForCh
                     />
                 );
             })()}
-        </div>
+        </>
     );
 }
-

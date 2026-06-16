@@ -1,9 +1,9 @@
 import { useReducer } from 'react';
-import { TerrainType } from '../../games/minion_battles/terrain/TerrainType';
+import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 import {
     MapSegmentData,
     MapSegmentPOI,
-} from '../../games/minion_battles/terrain/segmentSchema';
+} from '../../../games/minion_battles/terrain/segmentSchema';
 
 // ---------------------------------------------------------------------------
 // State

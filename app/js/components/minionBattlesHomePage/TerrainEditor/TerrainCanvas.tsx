@@ -8,8 +8,8 @@ import {
     POI_RADIUS_BORDER_ALPHA,
 } from './terrainEditorColors';
 import { EditorState, EditorActions } from './useEditorState';
-import { MapSegmentPOI } from '../../games/minion_battles/terrain/segmentSchema';
-import { TerrainType } from '../../games/minion_battles/terrain/TerrainType';
+import { MapSegmentPOI } from '../../../games/minion_battles/terrain/segmentSchema';
+import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 
 // ---------------------------------------------------------------------------
 // Props

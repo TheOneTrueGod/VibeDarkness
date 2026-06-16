@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { LobbyClient, AdminLobbyEntry } from '../../LobbyClient';
+import type { LobbyClient, AdminLobbyEntry } from '../../../LobbyClient';
 
 const PAGE_SIZE = 10;
 

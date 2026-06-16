@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import type { EnemyUnitId } from '../games/minion_battles/game/units/unit_defs/unitDef';
-import { getUnitDefEntry } from '../games/minion_battles/game/units/unit_defs/unitDef';
-import { getAbility } from '../games/minion_battles/abilities/AbilityRegistry';
-import slimeIcon from '../games/minion_battles/assets/characters/slime.svg';
-import swordwomanIcon from '../games/minion_battles/assets/characters/swordwoman.svg';
-import wolfHeadIcon from '../games/minion_battles/assets/characters/dark_animals/wolf-head.svg';
-import wolfHowlIcon from '../games/minion_battles/assets/characters/dark_animals/wolf-howl.svg';
-import boarIcon from '../games/minion_battles/assets/characters/dark_animals/boar.svg';
-import swarmlingIcon from '../games/minion_battles/assets/characters/dark_animals/swarmling.svg';
-import swarmNestIcon from '../games/minion_battles/assets/characters/dark_animals/swarm_nest.svg';
-import thornbinderIcon from '../games/minion_battles/assets/characters/thornbinder.svg';
-import lanterniteIcon from '../games/minion_battles/assets/characters/lanternite.svg';
-import lanterniteNestIcon from '../games/minion_battles/assets/characters/lanternite_nest.svg';
-import dogIcon from '../games/minion_battles/assets/characters/dog.png';
+import type { EnemyUnitId } from '../../games/minion_battles/game/units/unit_defs/unitDef';
+import { getUnitDefEntry } from '../../games/minion_battles/game/units/unit_defs/unitDef';
+import { getAbility } from '../../games/minion_battles/abilities/AbilityRegistry';
+import slimeIcon from '../../games/minion_battles/assets/characters/slime.svg';
+import swordwomanIcon from '../../games/minion_battles/assets/characters/swordwoman.svg';
+import wolfHeadIcon from '../../games/minion_battles/assets/characters/dark_animals/wolf-head.svg';
+import wolfHowlIcon from '../../games/minion_battles/assets/characters/dark_animals/wolf-howl.svg';
+import boarIcon from '../../games/minion_battles/assets/characters/dark_animals/boar.svg';
+import swarmlingIcon from '../../games/minion_battles/assets/characters/dark_animals/swarmling.svg';
+import swarmNestIcon from '../../games/minion_battles/assets/characters/dark_animals/swarm_nest.svg';
+import thornbinderIcon from '../../games/minion_battles/assets/characters/thornbinder.svg';
+import lanterniteIcon from '../../games/minion_battles/assets/characters/lanternite.svg';
+import lanterniteNestIcon from '../../games/minion_battles/assets/characters/lanternite_nest.svg';
+import dogIcon from '../../games/minion_battles/assets/characters/dog.png';
+import PanelLayout from './PanelLayout';
 
 const SPRITE_ICONS: Record<string, string> = {
     enemy_melee: swordwomanIcon,
@@ -64,7 +65,6 @@ const FACTION_SECTIONS: { faction: Faction; label: string }[] = [
 const ICON_SIZE = 58;
 
 function getSpriteUrl(id: EnemyUnitId): string | undefined {
-    // Character ID override takes precedence (allows units that share a spriteKey to have distinct icons).
     if (SPRITE_ICONS[id]) return SPRITE_ICONS[id];
     const spriteKey = getUnitDefEntry(id)?.characterSpriteKey;
     return spriteKey ? SPRITE_ICONS[spriteKey] : undefined;
@@ -90,7 +90,7 @@ function BestiaryList({
     onSelect: (id: EnemyUnitId) => void;
 }) {
     return (
-        <div className="p-3 overflow-y-auto h-full">
+        <div className="p-3">
             {FACTION_SECTIONS.map(({ faction, label }) => {
                 const entries = BESTIARY_ENTRIES.filter((e) => e.faction === faction);
                 if (entries.length === 0) return null;
@@ -133,7 +133,7 @@ function BestiaryDetail({ entry }: { entry: BestiaryEntry }) {
         .filter((a): a is NonNullable<typeof a> => a != null);
 
     return (
-        <div className="p-6 overflow-y-auto h-full">
+        <div className="p-6">
             <div className="flex items-start gap-6 mb-6">
                 <UnitIcon id={entry.id} size={128} />
                 <div className="flex flex-col gap-2">
@@ -198,20 +198,14 @@ function EmptyDetail() {
 
 export default function BestiaryPanel() {
     const [selectedId, setSelectedId] = useState<EnemyUnitId | null>(null);
-
     const selectedEntry = selectedId ? BESTIARY_ENTRIES.find((e) => e.id === selectedId) : null;
 
     return (
-        <div className="flex rounded-lg border border-border-custom bg-surface overflow-hidden min-w-[60rem] h-[calc(100vh-200px)]">
-            {/* Left panel — unit list, scrolls independently */}
-            <div className="w-96 flex-shrink-0 border-r border-border-custom overflow-y-auto">
-                <BestiaryList selectedId={selectedId} onSelect={setSelectedId} />
-            </div>
-
-            {/* Right panel — unit details, scrolls independently */}
-            <div className="flex-1 min-w-[36rem] overflow-y-auto">
-                {selectedEntry ? <BestiaryDetail entry={selectedEntry} /> : <EmptyDetail />}
-            </div>
-        </div>
+        <PanelLayout
+            title="Bestiary"
+            left={<BestiaryList selectedId={selectedId} onSelect={setSelectedId} />}
+            leftSize="medium"
+            center={selectedEntry ? <BestiaryDetail entry={selectedEntry} /> : <EmptyDetail />}
+        />
     );
 }

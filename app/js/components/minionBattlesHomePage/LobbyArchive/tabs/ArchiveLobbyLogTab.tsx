@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { LobbyClient } from '../../../LobbyClient';
+import type { LobbyClient } from '../../../../LobbyClient';
 
 interface ArchiveLobbyLogTabProps {
     isActive: boolean;

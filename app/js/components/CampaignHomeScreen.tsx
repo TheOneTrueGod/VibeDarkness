@@ -2,25 +2,19 @@
  * Campaign home - tabbed view: Welcome, Mission Select, Join Mission.
  * Shown when user is logged in and on the lobby screen (no active lobby).
  */
-import React, { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
-import type { ReactNode } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
-import type { CampaignResourceKey, CampaignState, MissionResult, MissionResearchRewardEntry } from '../types';
-import { STORYLINES, MISSION_MAP } from '../games/minion_battles/storylines';
-import { getUnlockedMissionIds, getAllMissionIdsInOrder, hasVictoryResult } from '../games/minion_battles/storylines/unlock';
-import { getResolvedMissionResearchRewards, type ResolvedResearchReward } from '../researchTrees/list';
-import RecentLobbiesList, { type RecentLobbyInfo } from './RecentLobbiesList';
-import AdminPlayersHomePanel from './AdminPlayersHomePanel';
-import PlayerCharactersPanel from './PlayerCharactersPanel';
-import ResourcePill, { campaignResourceGains } from './ResourcePill';
-import ResearchRewardTinyChip, { MISSION_REWARD_CHIP_CLASSNAME } from './ResearchRewardTinyChip';
-import { ITEM_ICON_URLS, getItemDef } from '../games/minion_battles/character_defs/items';
-import AbilityTestPage from './AbilityTestPage';
-import TerrainEditorTab from './TerrainEditor/TerrainEditorTab';
-import LobbyArchiveTab from './LobbyArchive/LobbyArchiveTab';
-import BestiaryPanel from './BestiaryPanel';
+import type { CampaignState } from '../types';
+import AdminPlayersHomePanel from './minionBattlesHomePage/AdminPlayersHomePanel';
+import PlayerCharactersPanel from './minionBattlesHomePage/PlayerCharactersPanel';
+import AbilityTestPanel from './minionBattlesHomePage/AbilityTestPanel';
+import MissionSelectPanel from './minionBattlesHomePage/MissionSelectPanel';
+import JoinMissionPanel from './minionBattlesHomePage/JoinMissionPanel';
+import TerrainEditorTab from './minionBattlesHomePage/TerrainEditor/TerrainEditorTab';
+import LobbyArchiveTab from './minionBattlesHomePage/LobbyArchive/LobbyArchiveTab';
+import BestiaryPanel from './minionBattlesHomePage/BestiaryPanel';
 import {
     type TabId,
     CAMPAIGN_TAB_IDS,
@@ -60,104 +54,6 @@ interface CampaignHomeScreenProps {
     ) => void;
 }
 
-type MissionResultWithItems = MissionResult & {
-    itemCardIds?: string[];
-    itemIds?: string[];
-    itemId?: string;
-    researchRewards?: MissionResearchRewardEntry[];
-};
-
-/** Design 1: single “Rewards” label + mixed row (research · items · resources). */
-function MissionRewardsStrip({
-    missionId,
-    gainedResources,
-    gainedItemCardIds,
-    gainedResearchRewards,
-}: {
-    missionId: string;
-    gainedResources: { resource: CampaignResourceKey; count: number }[];
-    gainedItemCardIds: string[];
-    gainedResearchRewards: ResolvedResearchReward[];
-}) {
-    const hasResearch = gainedResearchRewards.length > 0;
-    const hasItems = gainedItemCardIds.length > 0;
-    const hasResources = gainedResources.length > 0;
-    const hasAnyReward = hasResearch || hasItems || hasResources;
-
-    const blocks: { key: string; content: ReactNode }[] = [];
-    if (hasResearch) {
-        blocks.push({
-            key: 'research',
-            content: (
-                <span className="inline-flex flex-wrap items-center gap-2 align-middle">
-                    {gainedResearchRewards.map(({ treeId, nodeId, node }) => (
-                        <ResearchRewardTinyChip key={`${missionId}-${treeId}-${nodeId}`} node={node} />
-                    ))}
-                </span>
-            ),
-        });
-    }
-    if (hasItems) {
-        blocks.push({
-            key: 'items',
-            content: (
-                <span className="inline-flex flex-wrap items-center gap-2 align-middle">
-                    {gainedItemCardIds.map((itemId, idx) => {
-                        const itemDef = getItemDef(itemId);
-                        const iconUrl = ITEM_ICON_URLS[itemId];
-                        return (
-                            <span
-                                key={`${missionId}-${itemId}-${idx}`}
-                                className={`${MISSION_REWARD_CHIP_CLASSNAME} text-white`}
-                                title={itemDef?.name ?? itemId}
-                            >
-                                {iconUrl ? (
-                                    <img src={iconUrl} alt="" className="h-4 w-4 object-contain" aria-hidden />
-                                ) : null}
-                                {itemDef?.name ?? itemId}
-                            </span>
-                        );
-                    })}
-                </span>
-            ),
-        });
-    }
-    if (hasResources) {
-        blocks.push({
-            key: 'resources',
-            content: (
-                <span className="inline-flex flex-wrap items-center gap-2 align-middle">
-                    {gainedResources.map(({ resource, count }) => (
-                        <ResourcePill key={`${missionId}-${resource}`} resource={resource} count={count} />
-                    ))}
-                </span>
-            ),
-        });
-    }
-
-    return (
-        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted">
-            <span className="shrink-0 font-medium">Rewards:</span>
-            {!hasAnyReward ? (
-                <span className="text-muted">None</span>
-            ) : (
-                <span className="flex flex-wrap items-center gap-x-2 gap-y-2">
-                    {blocks.map((b, i) => (
-                        <Fragment key={b.key}>
-                            {i > 0 && (
-                                <span className="select-none text-zinc-600" aria-hidden>
-                                    ·
-                                </span>
-                            )}
-                            {b.content}
-                        </Fragment>
-                    ))}
-                </span>
-            )}
-        </span>
-    );
-}
-
 export default function CampaignHomeScreen({
     lobbyClient,
     onSelectMission,
@@ -188,10 +84,6 @@ export default function CampaignHomeScreen({
     const [campaign, setCampaign] = useState<CampaignState | null>(null);
     const [campaignLoading, setCampaignLoading] = useState(false);
     const [bootstrappingCampaign, setBootstrappingCampaign] = useState(false);
-    const [selectingMission, setSelectingMission] = useState(false);
-    const [resettingStorylineId, setResettingStorylineId] = useState<string | null>(null);
-    const [lobbyCode, setLobbyCode] = useState('');
-    const [recentLobbyInfos, setRecentLobbyInfos] = useState<RecentLobbyInfo[]>([]);
 
     const campaignIds = user?.campaignIds ?? [];
     const hasCampaign = campaignIds.length > 0;
@@ -255,119 +147,12 @@ export default function CampaignHomeScreen({
             });
     }, [user, hasCampaign, lobbyClient, refetchUser]);
 
-    // Active lobbies for Join tab — polls every second, appending new lobbies
-    useEffect(() => {
-        let cancelled = false;
-
-        const fetchLobbies = async () => {
-            const list = await lobbyClient.getActiveLobbies();
-            if (cancelled) return;
-            const infos: RecentLobbyInfo[] = list.map((entry) => ({
-                id: entry.lobby_id,
-                name: entry.name ?? entry.lobby_id,
-                lobbyState: (entry.lobbyState as 'home' | 'in_game') ?? 'home',
-                gameType: entry.gameType ?? null,
-                playerCount: entry.player_ids?.length ?? 0,
-            }));
-            setRecentLobbyInfos((prev) => {
-                const existingIds = new Set(prev.map((l) => l.id));
-                const newLobbies = infos.filter((l) => !existingIds.has(l.id));
-                return newLobbies.length > 0 ? [...prev, ...newLobbies] : prev;
-            });
-        };
-
-        void fetchLobbies();
-        const intervalId = setInterval(() => { void fetchLobbies(); }, 1000);
-        return () => {
-            cancelled = true;
-            clearInterval(intervalId);
-        };
-    }, [lobbyClient]);
-
-    const handleJoinByCode = useCallback(async () => {
-        const code = lobbyCode.trim().toUpperCase();
-        if (!code) return;
-        await onJoinLobby(code);
-    }, [lobbyCode, onJoinLobby]);
-
-    const handleMissionClick = useCallback(
-        async (missionId: string) => {
-            if (selectingMission) return;
-            setSelectingMission(true);
-            try {
-                await onSelectMission(missionId, campaign?.id ?? null);
-            } finally {
-                setSelectingMission(false);
-            }
-        },
-        [onSelectMission, selectingMission, campaign?.id]
-    );
-    const handleResetStoryline = useCallback(
-        async (storylineId: string) => {
-            if (!campaign) return;
-            const storyline = STORYLINES.find((entry) => entry.id === storylineId);
-            if (!storyline) return;
-            const missionIds = getAllMissionIdsInOrder(storyline);
-            if (missionIds.length === 0) return;
-            const confirmed = window.confirm(
-                `Reset storyline "${storyline.title}"? This will remove all saved mission results for this storyline in your campaign.`,
-            );
-            if (!confirmed) return;
-
-            setResettingStorylineId(storylineId);
-            try {
-                const missionIdSet = new Set(missionIds);
-                const filteredMissionResults = (campaign.missionResults ?? []).filter(
-                    (result) => !missionIdSet.has(result.missionId),
-                );
-                const updatedCampaign = await lobbyClient.updateCampaign(campaign.id, {
-                    missionResults: filteredMissionResults,
-                });
-                setCampaign(updatedCampaign);
-            } finally {
-                setResettingStorylineId(null);
-            }
-        },
-        [campaign, lobbyClient],
-    );
-
-    const missionResults = useMemo(
-        () => campaign?.missionResults ?? [],
-        [campaign?.missionResults],
-    );
-    const latestMissionResultById = useMemo(() => {
-        const map = new Map<string, MissionResultWithItems>();
-        for (const result of missionResults as MissionResultWithItems[]) {
-            const existing = map.get(result.missionId);
-            if (!existing) {
-                map.set(result.missionId, result);
-                continue;
-            }
-            const existingTs = existing.timestamp ?? 0;
-            const nextTs = result.timestamp ?? 0;
-            if (nextTs >= existingTs) {
-                map.set(result.missionId, result);
-            }
-        }
-        return map;
-    }, [missionResults]);
-
     return (
         <div className="h-screen flex flex-col">
             <div className="flex-1 overflow-y-auto w-full">
             <div
                 className={`mx-auto w-full px-5 py-8 max-md:px-5 max-md:py-5 ${
-                    activeTab === 'players'
-                        ? 'max-w-[1800px]'
-                        : activeTab === 'terrain_editor'
-                          ? 'max-w-[1400px]'
-                        : activeTab === 'ability_test'
-                          ? 'max-w-[min(1800px,100%)]'
-                        : activeTab === 'lobby_archive'
-                          ? 'max-w-[min(1800px,100%)]'
-                        : activeTab === 'bestiary'
-                          ? 'max-w-[min(1000px,100%)]'
-                          : 'max-w-[800px]'
+                    activeTab === 'welcome' ? 'max-w-[800px]' : 'max-w-full'
                 }`}
             >
                 <h1 className="text-center text-4xl max-md:text-3xl font-bold mb-8 text-primary">
@@ -393,167 +178,37 @@ export default function CampaignHomeScreen({
                         )}
 
                         {activeTab === 'mission_select' && (
-                            <div className="space-y-8">
-                                <h2 className="text-xl font-semibold text-muted">Storylines</h2>
-                                {STORYLINES.map((storyline) => {
-                                    const unlocked = getUnlockedMissionIds(storyline, missionResults);
-                                    const missionIds = getAllMissionIdsInOrder(storyline);
-                                    const isResetting = resettingStorylineId === storyline.id;
-                                    return (
-                                        <div key={storyline.id} className="bg-surface rounded-lg p-5">
-                                            <div className="mb-4 flex items-center justify-between gap-3">
-                                                <h3 className="text-lg font-medium">{storyline.title}</h3>
-                                                <button
-                                                    type="button"
-                                                    className="px-3 py-1.5 rounded border border-border-custom bg-surface-light text-sm text-muted hover:text-white hover:border-primary transition-colors disabled:opacity-60 disabled:cursor-wait"
-                                                    disabled={isResetting}
-                                                    onClick={() => {
-                                                        void handleResetStoryline(storyline.id);
-                                                    }}
-                                                >
-                                                    {isResetting ? 'Resetting…' : 'Reset Storyline'}
-                                                </button>
-                                            </div>
-                                            <ul className="space-y-2">
-                                                {missionIds.map((missionId) => {
-                                                    const def = MISSION_MAP[missionId];
-                                                    const name = def?.name ?? missionId;
-                                                    const isUnlocked = unlocked.has(missionId);
-                                                    const canStartMission = isUnlocked || isAdmin;
-                                                    const hasVictory = hasVictoryResult(missionId, missionResults);
-                                                    const missionResult = latestMissionResultById.get(missionId);
-                                                    const gainedResources = campaignResourceGains(missionResult?.resourceDelta);
-                                                    const gainedResearchRewards =
-                                                        getResolvedMissionResearchRewards(missionResult);
-                                                    const gainedItemCardIds = [
-                                                        ...(Array.isArray(missionResult?.itemCardIds)
-                                                            ? missionResult.itemCardIds
-                                                            : []),
-                                                        ...(Array.isArray(missionResult?.itemIds) ? missionResult.itemIds : []),
-                                                        ...(missionResult?.itemId ? [missionResult.itemId] : []),
-                                                    ];
-                                                    return (
-                                                        <li key={missionId}>
-                                                            <button
-                                                                type="button"
-                                                                className="w-full text-left px-4 py-3 rounded border transition-all bg-surface-light border-border-custom hover:border-primary hover:bg-surface disabled:opacity-70 disabled:cursor-wait"
-                                                                disabled={selectingMission || !canStartMission}
-                                                                onClick={() => handleMissionClick(missionId)}
-                                                                title={
-                                                                    !canStartMission
-                                                                        ? 'Complete the previous mission to unlock'
-                                                                        : undefined
-                                                                }
-                                                            >
-                                                                <span className="flex items-start justify-between gap-3">
-                                                                    <span className="flex min-w-0 items-center gap-2">
-                                                                        {!canStartMission && (
-                                                                            <svg className="w-5 h-5 flex-shrink-0 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                                            </svg>
-                                                                        )}
-                                                                        <span className="truncate">{name}</span>
-                                                                    </span>
-                                                                    <span className="flex shrink-0 items-center gap-2">
-                                                                        {missionResult ? (
-                                                                            <>
-                                                                                <span
-                                                                                    className={
-                                                                                        missionResult.result.toLowerCase() === 'victory'
-                                                                                            ? 'text-sm font-semibold text-success'
-                                                                                            : 'text-sm font-semibold text-danger'
-                                                                                    }
-                                                                                >
-                                                                                    {missionResult.result.toLowerCase() === 'victory'
-                                                                                        ? 'Victory'
-                                                                                        : missionResult.result}
-                                                                                </span>
-                                                                                {missionResult.result.toLowerCase() === 'victory' && (
-                                                                                    <span className="text-success" aria-hidden>
-                                                                                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                                        </svg>
-                                                                                    </span>
-                                                                                )}
-                                                                            </>
-                                                                        ) : (
-                                                                            hasVictory && (
-                                                                                <span className="text-success" aria-hidden>
-                                                                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                                    </svg>
-                                                                                </span>
-                                                                            )
-                                                                        )}
-                                                                    </span>
-                                                                </span>
-                                                                {missionResult && (
-                                                                    <span className="mt-3 pt-3 border-t border-border-custom flex flex-col gap-2">
-                                                                        <MissionRewardsStrip
-                                                                            missionId={missionId}
-                                                                            gainedResources={gainedResources}
-                                                                            gainedItemCardIds={gainedItemCardIds}
-                                                                            gainedResearchRewards={
-                                                                                gainedResearchRewards
-                                                                            }
-                                                                        />
-                                                                    </span>
-                                                                )}
-                                                            </button>
-                                                        </li>
-                                                    );
-                                                })}
-                                                {missionIds.length === 0 && (
-                                                    <li className="text-sm text-muted">No missions available yet.</li>
-                                                )}
-                                            </ul>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                            <MissionSelectPanel
+                                campaign={campaign}
+                                isAdmin={isAdmin}
+                                lobbyClient={lobbyClient}
+                                onSelectMission={onSelectMission}
+                                onCampaignUpdated={setCampaign}
+                            />
                         )}
 
                         {activeTab === 'join_mission' && (
-                            <div className="bg-surface rounded-lg p-6">
-                                <h2 className="text-lg text-muted mb-4">Join a Lobby</h2>
-                                <input
-                                    type="text"
-                                    className="w-full px-4 py-3 border border-border-custom rounded bg-surface-light text-white text-base focus:outline-none focus:border-primary placeholder:text-muted mb-3"
-                                    placeholder="Enter lobby code"
-                                    maxLength={6}
-                                    value={lobbyCode}
-                                    onChange={(e) => setLobbyCode(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleJoinByCode()}
-                                />
-                                <button
-                                    className="px-6 py-3 bg-surface-light text-white font-semibold text-base rounded border border-border-custom hover:bg-border-custom transition-colors"
-                                    onClick={handleJoinByCode}
-                                >
-                                    Join by Code
-                                </button>
-                                <RecentLobbiesList lobbies={recentLobbyInfos} onJoin={onJoinLobby} />
-                            </div>
+                            <JoinMissionPanel
+                                lobbyClient={lobbyClient}
+                                onJoinLobby={onJoinLobby}
+                            />
                         )}
 
                         {activeTab === 'players' && isAdmin && (
-                            <div className="rounded-lg border border-border-custom bg-surface overflow-hidden min-h-[600px]">
-                                <AdminPlayersHomePanel
-                                    lobbyClient={lobbyClient}
-                                    onStartMissionForCharacter={onStartMissionForCharacter}
-                                />
-                            </div>
+                            <AdminPlayersHomePanel
+                                lobbyClient={lobbyClient}
+                                onStartMissionForCharacter={onStartMissionForCharacter}
+                            />
                         )}
 
                         {activeTab === 'players' && !isAdmin && (
-                            <div className="rounded-lg border border-border-custom bg-surface overflow-hidden min-h-[600px]">
-                                <PlayerCharactersPanel
-                                    lobbyClient={lobbyClient}
-                                    onStartMissionForCharacter={onStartMissionForCharacter}
-                                />
-                            </div>
+                            <PlayerCharactersPanel
+                                lobbyClient={lobbyClient}
+                                onStartMissionForCharacter={onStartMissionForCharacter}
+                            />
                         )}
 
-                        {activeTab === 'ability_test' && isAdmin && <AbilityTestPage />}
+                        {activeTab === 'ability_test' && isAdmin && <AbilityTestPanel />}
 
                         {activeTab === 'terrain_editor' && isAdmin && <TerrainEditorTab />}
 

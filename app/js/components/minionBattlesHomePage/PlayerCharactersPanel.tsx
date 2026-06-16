@@ -4,16 +4,17 @@
  * No account selector, no inventory management, no admin controls.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { AccountState } from '../types';
-import { LobbyClient } from '../LobbyClient';
-import CharacterEditor from '../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
-import CharacterCreator from '../games/minion_battles/ui/components/CharacterEditor/CharacterCreator';
-import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
-import { fromCampaignCharacterData, type CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
-import type { CampaignCharacterData } from '../games/minion_battles/character_defs/campaignCharacterTypes';
-import { getPortrait } from '../games/minion_battles/character_defs/portraits';
-import { useUser } from '../contexts/UserContext';
-import { STORYLINES } from '../games/minion_battles/storylines/index';
+import type { AccountState } from '../../types';
+import { LobbyClient } from '../../LobbyClient';
+import CharacterEditor from '../../games/minion_battles/ui/components/CharacterEditor/CharacterEditor';
+import CharacterCreator from '../../games/minion_battles/ui/components/CharacterEditor/CharacterCreator';
+import { MinionBattlesApi } from '../../games/minion_battles/api/minionBattlesApi';
+import { fromCampaignCharacterData, type CampaignCharacter } from '../../games/minion_battles/character_defs/CampaignCharacter';
+import type { CampaignCharacterData } from '../../games/minion_battles/character_defs/campaignCharacterTypes';
+import { getPortrait } from '../../games/minion_battles/character_defs/portraits';
+import { useUser } from '../../contexts/UserContext';
+import { STORYLINES } from '../../games/minion_battles/storylines/index';
+import PanelLayout from './PanelLayout';
 
 function CharacterCard({
     character,
@@ -137,88 +138,89 @@ export default function PlayerCharactersPanel({ lobbyClient, onStartMissionForCh
         setSelectedCharacterId(characterId);
     }, [loadCharacters]);
 
-    // Default campaign for new characters: first character's campaign, or first storyline.
     const defaultCampaignId = characters[0]?.campaignId ?? STORYLINES[0]?.id ?? 'world_of_darkness';
     const defaultMissionId = STORYLINES.find((s) => s.id === defaultCampaignId)?.startMissionId ?? STORYLINES[0]?.startMissionId ?? 'dark_awakening';
 
-    return (
-        <div className="w-full h-full overflow-auto p-5">
-            <div className="mx-auto flex max-w-[1400px] flex-col gap-5">
-                <div>
-                    <h2 className="text-[32px] font-bold">My Characters</h2>
-                    <p className="text-sm text-muted">View your campaign progress and mission history</p>
+    const leftPanel = characters.length > 0 ? (
+        <div className="flex flex-col gap-2 p-3">
+            {characters.map((c) => (
+                <CharacterCard
+                    key={c.id}
+                    character={c}
+                    selected={c.id === selectedCharacterId}
+                    onSelect={() => setSelectedCharacterId(c.id)}
+                    onDelete={() => void handleDeleteCharacter(c.id)}
+                />
+            ))}
+            <button
+                ref={createButtonRef}
+                type="button"
+                onClick={() => setCreatorOpen(true)}
+                className="w-full rounded-lg border-2 border-dashed border-border-custom px-4 py-3 text-sm text-muted hover:border-primary hover:text-white transition-colors cursor-pointer text-left"
+            >
+                + Create new character
+            </button>
+        </div>
+    ) : undefined;
+
+    const centerPanel = (() => {
+        if (loading && characters.length === 0) {
+            return <div className="p-5 text-sm text-muted">Loading characters…</div>;
+        }
+        if (!loading && characters.length === 0) {
+            return (
+                <div className="p-5 flex flex-col items-start gap-3">
+                    <div className="text-sm text-muted">No characters yet.</div>
+                    <button
+                        ref={createButtonRef}
+                        type="button"
+                        onClick={() => setCreatorOpen(true)}
+                        className="px-4 py-2 rounded-lg bg-primary text-secondary text-sm font-bold hover:opacity-90 transition-opacity cursor-pointer"
+                    >
+                        + Create new character
+                    </button>
                 </div>
-
-                {loading && characters.length === 0 && (
-                    <div className="text-sm text-muted">Loading characters…</div>
-                )}
-                {!loading && characters.length === 0 && (
-                    <div className="flex flex-col items-start gap-3">
-                        <div className="text-sm text-muted">No characters yet.</div>
-                        <button
-                            ref={createButtonRef}
-                            type="button"
-                            onClick={() => setCreatorOpen(true)}
-                            className="px-4 py-2 rounded-lg bg-primary text-secondary text-sm font-bold hover:opacity-90 transition-opacity cursor-pointer"
-                        >
-                            + Create new character
-                        </button>
-                    </div>
-                )}
-
-                {characters.length > 0 && (
-                    <div className="flex gap-5 h-[700px]">
-                        {/* Character list */}
-                        <div className="w-56 shrink-0 flex flex-col gap-2 overflow-auto">
-                            {characters.map((c) => (
-                                <CharacterCard
-                                    key={c.id}
-                                    character={c}
-                                    selected={c.id === selectedCharacterId}
-                                    onSelect={() => setSelectedCharacterId(c.id)}
-                                    onDelete={() => void handleDeleteCharacter(c.id)}
-                                />
-                            ))}
-                            <button
-                                ref={createButtonRef}
-                                type="button"
-                                onClick={() => setCreatorOpen(true)}
-                                className="w-full rounded-lg border-2 border-dashed border-border-custom px-4 py-3 text-sm text-muted hover:border-primary hover:text-white transition-colors cursor-pointer text-left"
-                            >
-                                + Create new character
-                            </button>
-                        </div>
-
-                        {/* Character editor */}
-                        <div className="flex-1 min-w-0 overflow-hidden rounded-lg border border-border-custom bg-surface">
-                            {selectedCharacter ? (
-                                <CharacterEditor
-                                    key={selectedCharacter.id}
-                                    character={selectedCharacter}
-                                    api={api}
-                                    onSaved={handleSaved}
-                                    editMode={false}
-                                    allowNameEdit={false}
-                                    showInventoryPanel={false}
-                                    account={user ?? null}
-                                    viewerAccount={user ?? null}
-                                    campaign={null}
-                                    onStartMission={
-                                        onStartMissionForCharacter && user
-                                            ? (missionId) =>
-                                                  onStartMissionForCharacter(missionId, selectedCharacter, user)
-                                            : undefined
-                                    }
-                                />
-                            ) : (
-                                <div className="flex h-full items-center justify-center p-6 text-muted">
-                                    Select a character
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+            );
+        }
+        if (selectedCharacter) {
+            return (
+                <CharacterEditor
+                    key={selectedCharacter.id}
+                    character={selectedCharacter}
+                    api={api}
+                    onSaved={handleSaved}
+                    editMode={false}
+                    allowNameEdit={false}
+                    showInventoryPanel={false}
+                    account={user ?? null}
+                    viewerAccount={user ?? null}
+                    campaign={null}
+                    onStartMission={
+                        onStartMissionForCharacter && user
+                            ? (missionId) =>
+                                  onStartMissionForCharacter(missionId, selectedCharacter, user)
+                            : undefined
+                    }
+                />
+            );
+        }
+        return (
+            <div className="flex h-full items-center justify-center p-6 text-muted">
+                Select a character
             </div>
+        );
+    })();
+
+    return (
+        <>
+            <PanelLayout
+                title="My Characters"
+                subtitle="View your campaign progress and mission history"
+                left={leftPanel}
+                leftSize="small"
+                center={centerPanel}
+                centerClassName="overflow-hidden"
+            />
 
             {creatorOpen && (
                 <CharacterCreator
@@ -234,6 +236,6 @@ export default function PlayerCharactersPanel({ lobbyClient, onStartMissionForCh
                     localPlayerId={user?.id}
                 />
             )}
-        </div>
+        </>
     );
 }
