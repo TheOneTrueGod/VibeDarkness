@@ -19,7 +19,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Refactor BattlePhase canvas input handling | `handleCanvasClick` / `handleCanvasMouseMove` in `BattlePhase.tsx` know about admin move mode, unit selector mode, ability targeting, and lock-on hover — growing list. Explore extracting a `CanvasInputController` that BattlePhase delegates to, so BattlePhase doesn't need to know about every debug tool. |
 | Migrate window globals to `DebugConsoleContext` | Admin commands (`__minionBattlesAdminMoveUnit`, heal, kill, move pending), hover bridge, and game-state polling are all `window.__minionBattles*` globals that predate `DebugConsoleContext`. Migrate these into the context (or a dedicated `DebugBridgeContext`) to eliminate the window-global pattern over time. |
 | Move ability-use tracking out of `CardManager` | `CardManager` owns `abilityUsesThisRound`, `getAbilityUsesThisRound()`, and `clearAbilityUses()` — the last two are actively called by the ability system and at round-end. Extract this tracking into a dedicated structure (on `GameState` or a new small manager) so `CardManager` can eventually be removed. |
 | Move `playerResearchTreesByPlayer` off `CardManager` | Research trees are stored on `CardManager` for no conceptual reason and serialized alongside card data in checkpoints. Relocate to `GameState` directly (or a `ResearchManager`) and update serialization accordingly. |

@@ -9,6 +9,21 @@ import { getDebugState } from '../../debugState';
 import { resolveClick } from '../../abilities/targeting';
 import { AUTO_END_TURN } from '../gameConstants';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
+import { getLightGrid } from '../LightGrid';
+
+declare global {
+    interface Window {
+        __minionBattlesDebugMouse?: {
+            worldX: number;
+            worldY: number;
+            row: number;
+            col: number;
+            terrainName: string;
+            lightLevel: number | null;
+        };
+    }
+}
 
 type UIListener = () => void;
 
@@ -144,6 +159,28 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         }
         const dt = this.defaultTool as InteractionTool | null;
         dt?.onCanvasMouseMove?.(screenX, screenY, this.ctx, this);
+
+        const { engine, camera } = this.ctx;
+        if (engine.terrainManager) {
+            const wPos = camera.screenToWorld(screenX, screenY);
+            const grid = engine.terrainManager.grid;
+            const clampedX = Math.max(0, Math.min(wPos.x, engine.getWorldWidth()));
+            const clampedY = Math.max(0, Math.min(wPos.y, engine.getWorldHeight()));
+            const { col, row } = grid.worldToGrid(clampedX, clampedY);
+            const terrain = engine.terrainManager.getTerrainAt(clampedX, clampedY);
+            const terrainName = TERRAIN_PROPERTIES[terrain]?.name ?? String(terrain);
+            let lightLevel: number | null = null;
+            if (engine.lightLevelEnabled) {
+                const lightGrid = getLightGrid(
+                    engine.globalLightLevel,
+                    grid.width,
+                    grid.height,
+                    engine.getAllLightSources(),
+                );
+                lightLevel = lightGrid[row]?.[col] ?? null;
+            }
+            window.__minionBattlesDebugMouse = { worldX: clampedX, worldY: clampedY, row, col, terrainName, lightLevel };
+        }
     }
 
     onKeyDown(e: KeyboardEvent): void {

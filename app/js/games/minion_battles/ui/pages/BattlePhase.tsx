@@ -21,8 +21,6 @@ import {
     BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS,
 } from '../../game/battlenet';
 import type { AbilityStatic } from '../../abilities/Ability';
-import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
-import { getLightGrid } from '../../game/LightGrid';
 import BattleCanvas from '../components/BattleCanvas';
 import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
 import AbilityBar from '../components/AbilityBar';
@@ -47,14 +45,6 @@ import { AUTO_END_TURN } from '../../game/gameConstants';
 
 declare global {
     interface Window {
-        __minionBattlesDebugMouse?: {
-            worldX: number;
-            worldY: number;
-            row: number;
-            col: number;
-            terrainName: string;
-            lightLevel: number | null;
-        };
         /**
          * Debug focus/outline: used by DebugConsole when the user hovers a unit in the UI.
          * When unitId is null, the highlight is cleared.
@@ -183,8 +173,7 @@ export default function BattlePhase({
             nonconfirmedOrder: uiState?.nonconfirmedOrder ?? null,
         };
     }
-    const [, forceRender] = useState(0);
-    const [bossHud, setBossHud] = useState<BossHudSlice>(null);
+const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [storyPauseActive, setStoryPauseActive] = useState(false);
     const [netSyncStatus, setNetSyncStatus] = useState<BattleNetSyncTerminalStatus>('waiting_for_host');
     const [battleInitPhase, setBattleInitPhase] = useState<BattleInitPhase>('fetching_assets');
@@ -858,42 +847,6 @@ export default function BattlePhase({
 
     const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
         sessionRef.current?.getInteractionManager()?.onCanvasMouseMove(screenX, screenY);
-
-        // Update debug mouse overlay (terrain info) — stays in BattlePhase.
-        const engine = sessionRef.current?.getEngine();
-        const camera = sessionRef.current?.getCamera();
-        if (camera && engine?.terrainManager) {
-            const worldPos = camera.screenToWorld(screenX, screenY);
-            const grid = engine.terrainManager.grid;
-            const worldWidth = engine.getWorldWidth();
-            const worldHeight = engine.getWorldHeight();
-            const clampedX = Math.max(0, Math.min(worldPos.x, worldWidth));
-            const clampedY = Math.max(0, Math.min(worldPos.y, worldHeight));
-            const { col, row } = grid.worldToGrid(clampedX, clampedY);
-            const terrain = engine.terrainManager.getTerrainAt(clampedX, clampedY);
-            const terrainName = TERRAIN_PROPERTIES[terrain]?.name ?? String(terrain);
-
-            let lightLevel: number | null = null;
-            if (engine.lightLevelEnabled) {
-                const lightGrid = getLightGrid(
-                    engine.globalLightLevel,
-                    grid.width,
-                    grid.height,
-                    engine.getAllLightSources(),
-                );
-                lightLevel = lightGrid[row]?.[col] ?? null;
-            }
-
-            window.__minionBattlesDebugMouse = {
-                worldX: clampedX,
-                worldY: clampedY,
-                row,
-                col,
-                terrainName,
-                lightLevel,
-            };
-        }
-        forceRender((n) => n + 1);
     }, []);
 
     const handleForceResync = useCallback(() => {
