@@ -27,10 +27,7 @@ import {
     spawnRadiusScaledChargeUp,
     type MeleeAnimationProfile,
 } from '../../abilities/meleeAnimationProfile';
-import {
-    buildHitboxContext,
-    renderMeleeTrackingHighlights,
-} from '../../abilities/meleeTrackingHelpers';
+import { renderMeleeTrackingHighlights } from '../../abilities/targeting';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 import { hasResearchNode, localPlayerResearchNodesGetter } from '../../abilities/abilityModifierHelpers';
 import {
@@ -196,7 +193,7 @@ export const SwingBatAbility_0115: AbilityStatic = {
         gr.fill({ color: 0x9ca3af, alpha: 0.5 });
         gr.stroke({ color: 0x505060, width: 2, alpha: 0.9 });
 
-        const ctx = buildHitboxContext(units);
+        const ctx = { units, getUnit: (id: string) => units.find((u) => u.id === id) };
         const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, leftX, leftY, rightX, rightY, LINE_THICKNESS);
         if (hits.length > 0) {
             hits.sort((a, b) => {

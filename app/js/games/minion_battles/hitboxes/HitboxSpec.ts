@@ -403,3 +403,41 @@ export function perpendicularSwingHitbox(
 ): PerpendicularSwingHitboxSpec {
     return new PerpendicularSwingHitboxSpec(swingRange + DEFAULT_UNIT_RADIUS, swingLength, thickness, numTargets);
 }
+
+// ---------------------------------------------------------------------------
+// NullHitboxSpec — direction-only pick, no candidates
+// ---------------------------------------------------------------------------
+
+/**
+ * A HitboxSpec that renders nothing and returns no candidates.
+ *
+ * Use for direction-pick abilities (e.g. Dodge, Claw) where the player clicks
+ * a direction/position but no unit lock-on is needed. `allowMiss: true` on the
+ * SelectTargetDef delivers the pixel position as the resolved target.
+ */
+export class NullHitboxSpec extends HitboxSpec {
+    get maxRange(): number { return 0; }
+
+    renderTargetingPreview(
+        _gr: IAbilityPreviewGraphics,
+        _caster: HitboxPreviewCaster,
+        _mouseWorld: { x: number; y: number },
+        _units: Unit[],
+    ): Unit[] { return []; }
+
+    resolveTargets(
+        _caster: Unit,
+        _aimPoint: { x: number; y: number },
+        _units: Unit[],
+    ): Unit[] { return []; }
+
+    resolveHits(
+        _engine: HitboxEngineContext,
+        _caster: Unit,
+        _aimX: number,
+        _aimY: number,
+    ): Unit[] { return []; }
+}
+
+/** Singleton null hitbox for direction-pick abilities. */
+export const nullHitbox = new NullHitboxSpec();

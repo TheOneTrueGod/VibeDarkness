@@ -9,7 +9,7 @@ import type { Unit } from '../game/units/Unit';
 import type { Camera } from '../game/Camera';
 import type { ResolvedTarget } from '../game/types';
 import type { HitboxDef } from './hitboxDef';
-import type { AbilityStatic } from './Ability';
+import type { AbilityStatic, IAbilityPreviewGraphics } from './Ability';
 import type { SelectTargetDef } from './timingTargetDef';
 import { isSelectTargetDef } from './timingTargetDef';
 import { isAbilityTimingInterval } from './abilityTimings';
@@ -146,6 +146,14 @@ export function validateAndResolveTarget(
 
         default:
             return null;
+    }
+}
+
+/** Draw red highlight rings around units that will be hit by the current targeting preview. */
+export function renderMeleeTrackingHighlights(gr: IAbilityPreviewGraphics, hitUnits: Unit[]): void {
+    for (const unit of hitUnits) {
+        gr.circle(unit.x, unit.y, unit.radius + 4);
+        gr.stroke({ color: 0xff2222, width: 2.5, alpha: 0.4 });
     }
 }
 

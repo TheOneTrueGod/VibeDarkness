@@ -6,12 +6,12 @@
 import { AbilityState, AbilityEventType } from '../../abilities/Ability';
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { TargetDef } from '../../abilities/targeting';
 import { createMovementTargetPreview } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { nullHitbox } from '../../hitboxes';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11` as '0111';
 const MAX_USES = 2;
@@ -45,6 +45,7 @@ export const ClawAbility: AbilityStatic = {
 			end: CLAW_DURATION,
 			abilityPhase: AbilityPhase.Active,
 			tags: ['iframe'] as const,
+			targetDef: { kind: 'select', label: 'Dash direction', hitbox: nullHitbox, filter: 'any', allowMiss: true },
 			behaviour: CastBehaviours.Dash()
 				.withMaxDistance(CLAW_MAX_DISTANCE)
 				.withCollisionStep(COLLISION_STEP)
@@ -61,7 +62,7 @@ export const ClawAbility: AbilityStatic = {
 		},
 		{ id: 'cooldown', start: CLAW_DURATION, end: CLAW_DURATION + 0.8, abilityPhase: AbilityPhase.Cooldown },
 	],
-	targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
+	targets: [],
 	aiSettings: { minRange: 0, maxRange: CLAW_MAX_DISTANCE },
 
 	abilityEvents: {
@@ -97,7 +98,7 @@ export const ClawAbility: AbilityStatic = {
 		// Melee blocked: no additional behaviour.
 	},
 
-	renderTargetingPreview: createMovementTargetPreview(CLAW_MAX_DISTANCE, COLLISION_STEP),
+	renderTargetingPreviewSelectedTargets: createMovementTargetPreview(CLAW_MAX_DISTANCE, COLLISION_STEP),
 };
 
 export const ClawCard: CardDef = {

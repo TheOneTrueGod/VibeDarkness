@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Laser Sword â€” a resource-gated melee burst that costs Ammo.
  *
  * Wider perpendicular slash than Swing Sword, hitting up to 2 enemies for double damage with a

@@ -7,12 +7,12 @@
 import { AbilityState, AbilityEventType } from '../../abilities/Ability';
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { TargetDef } from '../../abilities/targeting';
 import type { Unit } from '../../game/units/Unit';
 import { createMovementTargetPreview } from '../../abilities/previewHelpers';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { nullHitbox } from '../../hitboxes';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const MAX_USES = 2;
@@ -48,13 +48,14 @@ export const DodgeAbility: AbilityStatic = {
             end: DODGE_DURATION,
             abilityPhase: AbilityPhase.Active,
             tags: ['iframe'] as const,
+            targetDef: { kind: 'select', label: 'Dodge direction', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             behaviour: CastBehaviours.Dash()
                 .withMaxDistance(DODGE_MAX_DISTANCE)
                 .withCollisionStep(DODGE_COLLISION_STEP)
                 .withAfterimages(true),
         },
     ],
-    targets: [{ type: 'pixel', label: 'Direction to dodge' }] as TargetDef[],
+    targets: [],
     aiSettings: { minRange: 0, maxRange: DODGE_MAX_DISTANCE },
 
     abilityEvents: {
@@ -84,7 +85,7 @@ export const DodgeAbility: AbilityStatic = {
         // Dodge has no attack that can be blocked.
     },
 
-    renderTargetingPreview: createMovementTargetPreview(DODGE_MAX_DISTANCE, DODGE_COLLISION_STEP),
+    renderTargetingPreviewSelectedTargets: createMovementTargetPreview(DODGE_MAX_DISTANCE, DODGE_COLLISION_STEP),
 };
 
 export const DodgeCard: CardDef = {
