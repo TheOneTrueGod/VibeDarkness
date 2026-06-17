@@ -453,6 +453,7 @@ export const earthCoreDiggingClawsRetargetScenario: ScenarioDefinition = {
             unitId: player.id,
             abilityId: '0534',
             targets: [{ type: 'pixel', position: { x: player.x, y: player.y - 100 } }],
+            endTurn: true,
         });
     },
     assertPass(engine) {
@@ -540,6 +541,7 @@ export const earthCoreDiggingClawsThrowRockEntombScenario: ScenarioDefinition = 
                 unitId: player.id,
                 abilityId: 'throw_rock',
                 targets: [{ type: 'pixel', position: { x: dummy.x, y: dummy.y } }],
+                endTurn: true,
             });
             return;
         }
@@ -550,6 +552,7 @@ export const earthCoreDiggingClawsThrowRockEntombScenario: ScenarioDefinition = 
                 unitId: player.id,
                 abilityId: 'wait',
                 targets: [],
+                endTurn: true,
             });
         }
     },
