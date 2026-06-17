@@ -19,8 +19,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 	{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];
 const CLAW_DURATION = 0.4;
-const CLAW_MAX_DISTANCE = 100;
-const COLLISION_STEP = 4;
+export const CLAW_MAX_DISTANCE = 100;
+export const CLAW_COLLISION_STEP = 4;
 const DAMAGE = 5;
 const KNOCKBACK_TIER = 2;
 
@@ -48,7 +48,7 @@ export const ClawAbility: AbilityStatic = {
 			targetDef: { kind: 'select', label: 'Dash direction', hitbox: nullHitbox, filter: 'any', allowMiss: true },
 			behaviour: CastBehaviours.Dash()
 				.withMaxDistance(CLAW_MAX_DISTANCE)
-				.withCollisionStep(COLLISION_STEP)
+				.withCollisionStep(CLAW_COLLISION_STEP)
 				.withAfterimages(true)
 				.addHitbox('caster', { shape: 'circle', range: 'caster' }, {
 					damage: DAMAGE,
@@ -98,7 +98,7 @@ export const ClawAbility: AbilityStatic = {
 		// Melee blocked: no additional behaviour.
 	},
 
-	renderTargetingPreviewSelectedTargets: createMovementTargetPreview(CLAW_MAX_DISTANCE, COLLISION_STEP),
+	renderTargetingPreviewSelectedTargets: createMovementTargetPreview(CLAW_MAX_DISTANCE, CLAW_COLLISION_STEP),
 };
 
 export const ClawCard: CardDef = {

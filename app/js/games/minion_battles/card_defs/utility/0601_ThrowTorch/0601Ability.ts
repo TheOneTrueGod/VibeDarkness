@@ -10,8 +10,8 @@
 
 import type { AbilityRecoveryRule, AbilityStateEntry } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
-import type { TargetDef } from '../../../abilities/targeting';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
+import { nullHitbox } from '../../../hitboxes';
 import type { Unit } from '../../../game/units/Unit';
 import { Effect } from '../../../game/effects/Effect';
 import { type CardDef } from '../../types';
@@ -72,6 +72,7 @@ export const ThrowTorchAbility = defineAbility({
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 0.05,
             abilityPhase: AbilityPhase.Active,
+            targetDef: { kind: 'select', label: 'Target location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             behaviour: CastBehaviours.Instant((ctx) => {
                 const eng = ctx.engine as AbilityEngineContext;
                 const caster = ctx.caster;
@@ -106,7 +107,7 @@ export const ThrowTorchAbility = defineAbility({
             abilityPhase: AbilityPhase.Cooldown,
         },
     ],
-    targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
+    targets: [],
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
 
     getTooltipText(_gameState?: unknown): string[] {
@@ -121,7 +122,7 @@ export const ThrowTorchAbility = defineAbility({
         return [];
     },
 
-    renderTargetingPreview: createPixelTargetPreview(MAX_RANGE),
+    renderTargetingPreviewSelectedTargets: createPixelTargetPreview(MAX_RANGE),
 });
 
 export const ThrowTorchCard: CardDef = {

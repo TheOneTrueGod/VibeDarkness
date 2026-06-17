@@ -6,14 +6,16 @@ import { areEnemies } from '../../../game/teams';
 import type { EventBus } from '../../../game/EventBus';
 import { getEarthCoreArmour, spendAllEarthCoreArmour } from '../0527_EarthCoreShared/earthCoreArmour';
 import { type CardDef } from '../../types';
+import { meleeLineHitbox } from '../../../hitboxes';
 
 const ABILITY_ID = '0533';
 const BASE_DAMAGE = 4;
 const BONUS_DAMAGE_PER_ARMOUR = 2;
 const MAX_RANGE = 75;
+const STONEY_PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, 25);
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.22, abilityPhase: AbilityPhase.Windup },
-    { id: 'active', start: 0.22, end: 0.35, abilityPhase: AbilityPhase.Active },
+    { id: 'active', start: 0.22, end: 0.35, abilityPhase: AbilityPhase.Active, targetDef: { kind: 'select', label: 'Melee target', hitbox: STONEY_PUNCH_HITBOX, filter: 'enemy', allowMiss: true } },
     { id: 'cooldown', start: 0.35, end: 0.8, abilityPhase: AbilityPhase.Cooldown },
 ];
 
@@ -35,7 +37,7 @@ export const StoneyPunch: AbilityStatic = {
     rechargeTurns: 1,
     prefireTime: 0.22,
     abilityTimings: TIMINGS,
-    targets: [{ type: 'unit', label: 'Melee target' }],
+    targets: [],
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
     getTooltipText(): string[] {
         return ['Melee burst. Consumes all armour, adding {2} damage per armour consumed.'];

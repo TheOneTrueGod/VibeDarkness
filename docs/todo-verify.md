@@ -21,6 +21,17 @@
 
 | Todo | Notes | Date |
 |------|-------|------|
+| Add ability-test scenario for Claw (0111) movement distance vs. preview | Created `clawScenarios.ts`; fires Claw toward a pixel 200 px away (beyond max distance), asserts caster lands within 5 px of start + CLAW_MAX_DISTANCE. Exported `CLAW_MAX_DISTANCE`/`CLAW_COLLISION_STEP`. Test passes. | 2026-06-16 |
+| Port StoneyPunch (0533) to `selectTargetDefs` | `meleeLineHitbox(MAX_RANGE, 25)` on the `active` interval with `filter: 'enemy'`; removed legacy `targets: [{ type: 'unit' }]`. | 2026-06-16 |
+| Port AnchoredTremor (0532) to `selectTargetDefs` | `nullHitbox` `targetDef` on `active` interval; removed legacy `targets`. | 2026-06-16 |
+| Port Knock (0531) to `selectTargetDefs` | `nullHitbox` `targetDef` on `active` interval; removed legacy `targets`. | 2026-06-16 |
+| Port StoneTomb (0530) to `selectTargetDefs` | `nullHitbox` `targetDef` on `active` interval; removed legacy `targets`. | 2026-06-16 |
+| Port Pounce (0702) to `selectTargetDefs` | `nullHitbox` `targetDef` on `dash` interval; removed legacy `targets`. | 2026-06-16 |
+| Port Heel (0703) to `selectTargetDefs` | `nullHitbox` `targetDef` on `active` interval; removed legacy `targets`. | 2026-06-16 |
+| Port SicEm (0704) to `selectTargetDefs` | `nullHitbox` `targetDef` on `active` interval; removed legacy `targets`; renamed `renderTargetingPreview` → `renderTargetingPreviewSelectedTargets` to preserve pet-sourced movement preview. | 2026-06-16 |
+| Port ThornbinderBramble (0008) to `selectTargetDefs` | Created inline `ThornbinderHitboxSpec` that draws the 320 px range circle; added `targetDef` with it to the `strike` interval; removed legacy `targets` and `renderTargetingPreview` method. | 2026-06-16 |
+| Port ThrowTorch (0601) to `selectTargetDefs` | Used `nullHitbox` on the `active` interval; renamed `renderTargetingPreview` → `renderTargetingPreviewSelectedTargets` (clamped-line preview via `createPixelTargetPreview`); removed legacy `targets`. | 2026-06-16 |
+| Port DiggingClaws (0534) to `selectTargetDefs` | Same direction-pick pattern as Claw: `nullHitbox` on the `dash` interval; renamed `renderTargetingPreview` → `renderTargetingPreviewSelectedTargets` (straight-line preview appropriate for wall-penetrating dash); removed legacy `targets`. | 2026-06-16 |
 | Port Dodge (0101) to `selectTargetDefs` | Added `NullHitboxSpec`/`nullHitbox` to `HitboxSpec.ts`; added `targetDef` with `nullHitbox` to the `iframe` timing; renamed `renderTargetingPreview` to `renderTargetingPreviewSelectedTargets` (terrain preview still draws via that hook); removed legacy `targets`. | 2026-06-16 |
 | Port Claw (0111) to `selectTargetDefs` | Same direction-pick pattern as Dodge: `nullHitbox` on the `active` timing, `renderTargetingPreviewSelectedTargets` for movement line, `targets: []`. | 2026-06-16 |
 | Port EnergyBlast (0114) to `selectTargetDefs` | Created inline `EnergyBlastHitboxSpec` that renders the line/crosshair/explosion preview and returns enemies within `EXPLOSION_RADIUS` of the impact point as soft lock-on candidates; added `targetDef` on `active` timing with `filter: 'enemy', allowMiss: true`; removed legacy `targets` and `renderTargetingPreview`. | 2026-06-16 |

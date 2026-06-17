@@ -7,9 +7,10 @@ import type { ActiveAbility } from '../../game/types';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { Effect } from '../../game/effects/Effect';
 import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
+import { HitboxSpec } from '../../hitboxes';
+import type { HitboxEngineContext, HitboxPreviewCaster } from '../../hitboxes';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
@@ -34,6 +35,19 @@ const WEAKENED_DAMAGE = 5;
 const SLOW_MULT_NORMAL = 0.52;
 const SLOW_MULT_WEAKENED = 0.72;
 const BRAMBLE_CLEAR_BEFORE_NEXT_SEC = 0.15;
+const TARGETING_RANGE = 320;
+
+class ThornbinderHitboxSpec extends HitboxSpec {
+    get maxRange(): number { return TARGETING_RANGE; }
+    renderTargetingPreview(gr: IAbilityPreviewGraphics, caster: HitboxPreviewCaster, _mouseWorld: { x: number; y: number }, _units: Unit[]): Unit[] {
+        gr.circle(caster.x, caster.y, TARGETING_RANGE);
+        gr.stroke({ width: 1, color: 0xef4444, alpha: 0.35 });
+        return [];
+    }
+    resolveTargets(_caster: Unit, _aimPoint: { x: number; y: number }, _units: Unit[]): Unit[] { return []; }
+    resolveHits(_engine: HitboxEngineContext, _caster: Unit, _aimX: number, _aimY: number): Unit[] { return []; }
+}
+const THORNBINDER_HITBOX = new ThornbinderHitboxSpec();
 
 interface EngineLike {
     units: Unit[];
@@ -66,10 +80,10 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
     prefireTime: STRIKE_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'strike', start: LOCK_TIME, end: STRIKE_TIME, abilityPhase: AbilityPhase.Active },
+        { id: 'strike', start: LOCK_TIME, end: STRIKE_TIME, abilityPhase: AbilityPhase.Active, targetDef: { kind: 'select', label: 'Ground', hitbox: THORNBINDER_HITBOX, filter: 'any', allowMiss: true } },
         { id: 'cooldown', start: STRIKE_TIME, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
-    targets: [{ type: 'pixel', label: 'Ground' }] as TargetDef[],
+    targets: [],
     aiSettings: { minRange: 0, maxRange: 320 },
 
     getTooltipText(): string[] {
@@ -157,6 +171,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         }));
     },
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
+
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
@@ -202,10 +217,6 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
             gr.circle(target.x, target.y, ringRadius);
             gr.stroke({ color: 0xfca5a5, width: 3, alpha: 0.45 + 0.45 * ringT });
         }
-    },
-    renderTargetingPreview(gr: IAbilityPreviewGraphics, caster: Unit): void {
-        gr.circle(caster.x, caster.y, 320);
-        gr.stroke({ width: 1, color: 0xef4444, alpha: 0.35 });
     },
 };
 

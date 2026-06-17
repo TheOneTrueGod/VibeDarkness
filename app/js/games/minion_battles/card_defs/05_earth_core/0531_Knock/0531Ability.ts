@@ -5,6 +5,7 @@ import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { deactivateProjectileOnBlock } from '../../../abilities/effectHelpers';
 import type { Unit } from '../../../game/units/Unit';
 import { type CardDef } from '../../types';
+import { nullHitbox } from '../../../hitboxes';
 
 const ABILITY_ID = '0531';
 const RANGE = 220;
@@ -29,6 +30,7 @@ export const KnockAbility = defineAbility({
             start: 0.25,
             end: 0.35,
             abilityPhase: AbilityPhase.Active,
+            targetDef: { kind: 'select', label: 'Target location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(950)
                 .withMaxRange(RANGE)
@@ -37,7 +39,7 @@ export const KnockAbility = defineAbility({
         },
         { id: 'cooldown', start: 0.35, end: 1.3,  abilityPhase: AbilityPhase.Cooldown },
     ],
-    targets: [{ type: 'pixel', label: 'Target location' }],
+    targets: [],
     aiSettings: { minRange: 0, maxRange: RANGE },
     getRange: () => ({ minRange: 0, maxRange: RANGE }),
     getTooltipText(): string[] {

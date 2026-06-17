@@ -40,6 +40,7 @@ import { laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenario
 import { beastClawFrontHitBackMissScenario } from './abilities/beastClawScenarios';
 import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
+import { clawMovementDistanceScenario } from './abilities/clawScenarios';
 import { pistolHitsDummyScenario } from './abilities/gunScenarios';
 import { absorptionShieldEnergyChargeScenario } from './abilities/absorptionShieldScenario';
 import {
@@ -129,6 +130,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     beastClawFrontHitBackMissScenario,
     swingBatHitsThreeTargetsScenario,
     throwKnifePiercingBleedScenario,
+    clawMovementDistanceScenario,
     pistolHitsDummyScenario,
     petAutoEngageScenario,
     petHeelScenario,
@@ -221,6 +223,7 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id === 'punch_new_baseline' || id.startsWith('bash_')) return '0120';
     if (id.startsWith('pistol_') || id.startsWith('smg_') || id.startsWith('shotgun_')) return '0203';
     if (id.startsWith('throw_rock') || id.includes('throw_rock')) return 'throw_rock';
+    if (id.startsWith('claw_')) return '0111';
     if (id.startsWith('laser_sword')) return '0105';
     if (id.startsWith('beast_claw')) return '0611';
     if (id.startsWith('swing_sword') || id.includes('buff_swing')) return '0112';

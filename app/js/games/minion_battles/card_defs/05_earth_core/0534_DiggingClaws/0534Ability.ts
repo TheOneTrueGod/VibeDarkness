@@ -6,8 +6,8 @@
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
 import { AbilityState, AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
-import type { TargetDef } from '../../../abilities/targeting';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
+import { nullHitbox } from '../../../hitboxes';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { Effect } from '../../../game/effects/Effect';
@@ -109,6 +109,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 			end: DASH_DURATION,
 			abilityPhase: AbilityPhase.Active,
 			tags: ['iframe'] as const,
+			targetDef: { kind: 'select', label: 'Direction to dash', hitbox: nullHitbox, filter: 'any', allowMiss: true },
 			conditionalCancel: {
 				condition: ({ caster, engine }) => {
 					const terrain = engine.terrainManager;
@@ -120,7 +121,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 		{ id: 'slingshot', start: DASH_DURATION, end: DASH_DURATION + SLINGSHOT_PHASE, abilityPhase: AbilityPhase.Active },
 		{ id: 'cooldown', start: DASH_DURATION + SLINGSHOT_PHASE, end: DASH_DURATION + SLINGSHOT_PHASE + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
 	],
-	targets: [{ type: 'pixel', label: 'Direction to dash' }] as TargetDef[],
+	targets: [],
 	aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
 	abilityEvents: {
 		[AbilityEventType.ON_ATTACK_HIT]: [{
@@ -349,7 +350,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 		}
 	},
 
-	renderTargetingPreview: createPixelTargetPreview(MAX_DISTANCE),
+	renderTargetingPreviewSelectedTargets: createPixelTargetPreview(MAX_DISTANCE),
 };
 
 export const DiggingClawsCard: CardDef = {

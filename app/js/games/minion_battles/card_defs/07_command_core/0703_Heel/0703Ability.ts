@@ -16,6 +16,7 @@ import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { type CardDef } from '../../types';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
+import { nullHitbox } from '../../../hitboxes';
 import heelIconUrl from './heel.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}03`;
@@ -39,6 +40,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         start: 0,
         end: CAST_DURATION,
         abilityPhase: AbilityPhase.Active,
+        targetDef: { kind: 'select', label: 'Confirm', hitbox: nullHitbox, filter: 'any', allowMiss: true },
         castBehaviours: [
             {
                 timingStart: 'start',
@@ -69,7 +71,7 @@ export const HeelAbility = defineAbility({
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
     prefireTime: 0,
-    targets: [{ type: 'pixel', label: 'Confirm' }],
+    targets: [],
     abilityTimings: ABILITY_TIMINGS,
 
     getRange: () => ({ minRange: 0, maxRange: 0 }),

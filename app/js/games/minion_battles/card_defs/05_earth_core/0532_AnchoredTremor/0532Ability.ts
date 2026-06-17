@@ -6,6 +6,7 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import type { EventBus } from '../../../game/EventBus';
 import { areEnemies } from '../../../game/teams';
 import { type CardDef } from '../../types';
+import { nullHitbox } from '../../../hitboxes';
 
 function getPixelTargetPosition(
     targets: ResolvedTarget[],
@@ -29,6 +30,7 @@ const TIMINGS: AbilityTimingInterval[] = [
         start: 0.2,
         end: 1.6,
         abilityPhase: AbilityPhase.Active,
+        targetDef: { kind: 'select', label: 'Pulse center', hitbox: nullHitbox, filter: 'any', allowMiss: true },
         emitterDef: {
             mode: 'interval',
             intervalSeconds: PULSE_INTERVAL,
@@ -68,7 +70,7 @@ export const AnchoredTremor: AbilityStatic = {
     rechargeTurns: 1,
     prefireTime: 0.2,
     abilityTimings: TIMINGS,
-    targets: [{ type: 'pixel', label: 'Pulse center' }],
+    targets: [],
     aiSettings: { minRange: 0, maxRange: 260 },
     getTooltipText(): string[] {
         return ['Pulsing tremor ramping damage each pulse. Enemies on stone take extra damage.'];

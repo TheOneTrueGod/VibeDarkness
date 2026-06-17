@@ -22,6 +22,7 @@ import { getDirectionFromTo } from '../../../abilities/targetHelpers';
 import type { KnockbackEngineCtx } from '../../../crowdControl/knockbackKeywords';
 import { drawChargeCapsuleTimingTelegraph, resolveTerrainAwareMovementDisplacement } from '../../../abilities/previewHelpers';
 import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
+import { nullHitbox } from '../../../hitboxes';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
 
@@ -98,6 +99,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         start: WINDUP_TIME,
         end: WINDUP_TIME + DASH_DURATION,
         abilityPhase: AbilityPhase.Active,
+        targetDef: { kind: 'select', label: 'Pounce target', hitbox: nullHitbox, filter: 'any', allowMiss: true },
         behaviour: pounceDash,
     },
     {
@@ -125,7 +127,7 @@ export const PounceAbility: AbilityStatic = {
     recoveries: RECOVERIES,
     prefireTime: WINDUP_TIME,
     // No aiSettings — AI never auto-queues Pounce; only Sic 'em (0704) triggers it.
-    targets: [{ type: 'pixel', label: 'Pounce target' }],
+    targets: [],
     abilityTimings: ABILITY_TIMINGS,
 
     getTooltipText(): string[] {

@@ -16,6 +16,7 @@ import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordRe
 import { swingBatHitsThreeTargetsScenario } from '../scenarios/abilities/swingBatScenarios';
 import { beastClawFrontHitBackMissScenario } from '../scenarios/abilities/beastClawScenarios';
 import { throwKnifePiercingBleedScenario } from '../scenarios/abilities/throwKnifeScenarios';
+import { clawMovementDistanceScenario } from '../scenarios/abilities/clawScenarios';
 import { absorptionShieldEnergyChargeScenario } from '../scenarios/abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
@@ -269,6 +270,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes throw knife piercing bleed scenario', () => {
         const r = runScenarioHeadless(throwKnifePiercingBleedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Claw (0111): caster moves full max distance on open terrain', () => {
+        const r = runScenarioHeadless(clawMovementDistanceScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

@@ -19,6 +19,7 @@ import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { createPetSourcedMovementPreview } from '../../../abilities/previewHelpers';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
+import { nullHitbox } from '../../../hitboxes';
 import sicEmIconUrl from './sic_em.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}04`;
@@ -37,6 +38,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         start: 0,
         end: CAST_DURATION,
         abilityPhase: AbilityPhase.Active,
+        targetDef: { kind: 'select', label: 'Pounce target', hitbox: nullHitbox, filter: 'any', allowMiss: true },
         castBehaviours: [
             {
                 timingStart: 'start',
@@ -83,7 +85,7 @@ export const SicEmAbility = defineAbility({
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
     prefireTime: 0,
-    targets: [{ type: 'pixel', label: 'Pounce target' }],
+    targets: [],
     abilityTimings: ABILITY_TIMINGS,
     abilitySource: SIC_EM_PET_SOURCE,
 
@@ -95,7 +97,7 @@ export const SicEmAbility = defineAbility({
         return [`Command the nearest pet to {Pounce} through enemies at the target point (stops on the 4th hit).`];
     },
 
-    renderTargetingPreview: createPetSourcedMovementPreview(
+    renderTargetingPreviewSelectedTargets: createPetSourcedMovementPreview(
         { abilitySource: SIC_EM_PET_SOURCE },
         {
             maxDistance: MAX_POUNCE_RANGE,

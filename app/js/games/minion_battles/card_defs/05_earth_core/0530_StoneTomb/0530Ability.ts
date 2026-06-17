@@ -3,6 +3,7 @@ import type { AttackBlockedInfo } from '../../../abilities/Ability';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { deactivateProjectileOnBlock } from '../../../abilities/effectHelpers';
+import { nullHitbox } from '../../../hitboxes';
 import { areEnemies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
 import { Effect } from '../../../game/effects/Effect';
@@ -37,6 +38,7 @@ export const StoneTomb = defineAbility({
             start: 0.3,
             end: 0.4,
             abilityPhase: AbilityPhase.Active,
+            targetDef: { kind: 'select', label: 'Impact location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(900)
                 .withMaxRange(RANGE)
@@ -45,7 +47,7 @@ export const StoneTomb = defineAbility({
         },
         { id: 'cooldown', start: 0.4, end: 1.5, abilityPhase: AbilityPhase.Cooldown },
     ],
-    targets: [{ type: 'pixel', label: 'Impact location' }],
+    targets: [],
     aiSettings: { minRange: 0, maxRange: RANGE },
     getRange: () => ({ minRange: 0, maxRange: RANGE }),
     getTooltipText(): string[] {
