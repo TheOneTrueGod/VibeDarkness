@@ -1,5 +1,5 @@
-import { Assets, AnimatedSprite } from 'pixi.js';
-import type { Container, Graphics, Texture } from 'pixi.js';
+import { Assets, AnimatedSprite, Texture } from 'pixi.js';
+import type { Container, Graphics } from 'pixi.js';
 import { Projectile } from '../../projectiles/Projectile';
 import type { AssetRegistry } from '../AssetRegistry';
 import type { SpriteProjectileGraphicDef } from '../../projectiles/ProjectileGraphicDef';
@@ -44,7 +44,7 @@ export class ProjectileRenderer {
                     for (let i = 0; i < frameCount; i++) {
                         textures.push(new Texture({ source: sheet.source, frame: { x: 0, y: i * fh, width, height: fh } as never }));
                     }
-                } else {
+                } else if (def.frameDirection === 'grid') {
                     const cols = def.columns;
                     const fw = width / cols;
                     const rows = Math.ceil(frameCount / cols);

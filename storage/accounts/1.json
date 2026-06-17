@@ -1,0 +1,39 @@
+{
+    "id": 1,
+    "name": "TheOneTrueGod",
+    "role": "admin",
+    "fire": 8,
+    "water": 7,
+    "earth": 6,
+    "air": 9,
+    "recentLobbies": [
+        "FCA333",
+        "E51D37",
+        "A13AF0",
+        "138B99",
+        "DFB2A1",
+        "D69BD4",
+        "A43FE3",
+        "3435A4",
+        "B01A70",
+        "19FC73"
+    ],
+    "campaignIds": [
+        "c2fd6eee52b4a0d2"
+    ],
+    "characterIds": [
+        "char_acd06e8d691fa658",
+        "char_4c347361a1a8935f",
+        "char_425434888d766e1a",
+        "char_d0ccfb6acb49e9d5",
+        "char_960e4e7798b70a04"
+    ],
+    "inventoryItemIds": [],
+    "knowledge": {
+        "Research": {
+            "acquiredAt": 1780429745
+        }
+    },
+    "emergencyRecoveryExpiresAt": null,
+    "passwordHash": "$2y$12$4slaAwe25DxOfE0aPaWI\/evNgycN6sYpupO17CmDakd.wOyzosM\/2"
+}

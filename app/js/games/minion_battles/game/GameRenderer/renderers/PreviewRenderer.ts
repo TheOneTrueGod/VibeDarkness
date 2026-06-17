@@ -240,7 +240,7 @@ export class PreviewRenderer {
 
             const mouseWorld = this.mouseWorldForGhostAbilityPreview(entry.order.targets, engine, unit.x, unit.y);
 
-            const selectTargetDefs = getSelectTargetDefsFromTimings(ability);
+            const selectTargetDefs = getSelectTargetDefsFromTimings(ability, unit, engine);
             if (selectTargetDefs.length > 0) {
                 for (let i = 0; i < selectTargetDefs.length; i++) {
                     const selectDef = selectTargetDefs[i]!;
@@ -415,7 +415,7 @@ export class PreviewRenderer {
         this.targetingPreviewGraphics.clear();
         const gr = this.targetingPreviewGraphics as unknown as import('../../../abilities/Ability').IAbilityPreviewGraphics;
 
-        const selectTargetDefs = getSelectTargetDefsFromTimings(ability);
+        const selectTargetDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
         if (selectTargetDefs.length > 0) {
             const targetIndex = ts.currentTargets.length;
             const selectDef = selectTargetDefs[targetIndex];
@@ -482,7 +482,7 @@ export class PreviewRenderer {
             const ability = getAbility(plan.abilityId);
             if (!ability) continue;
 
-            const selectTargetDefs = getSelectTargetDefsFromTimings(ability);
+            const selectTargetDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
             if (selectTargetDefs.length > 0) {
                 // Render hitboxes for already-committed targets
                 for (let i = 0; i < plan.currentTargets.length; i++) {

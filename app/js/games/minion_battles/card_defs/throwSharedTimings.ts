@@ -10,6 +10,7 @@ import type { AbilityEngineContext } from '../abilities/AbilityEngineContext';
 import type { CastBehaviour, CastBehaviourEntry } from '../abilities/castBehaviourTypes';
 import { withEntombedWallConditionalCancelAndLinger } from '../abilities/entombed/entombedWallCancel';
 import type { TargetDef } from '../abilities/targeting';
+import { nullHitbox } from '../hitboxes';
 import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
@@ -113,6 +114,7 @@ export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): Abi
             abilityPhase: AbilityPhase.Active,
             timelineLabel: opts.activeLabel ?? 'Active',
             timelineDescription: 'Release frame — projectile is thrown.',
+            targetDef: { kind: 'select', label: 'Target location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             ...(launch ? { castBehaviours: throwLaunchAtWindowStart(launch, 0) } : {}),
         },
         {
@@ -155,6 +157,7 @@ export function buildMoreRockTimings(opts: BuildMoreRockTimingsOpts): AbilityTim
             abilityPhase: AbilityPhase.Active,
             timelineLabel: 'First throw',
             timelineDescription: 'First projectile is in flight.',
+            targetDef: { kind: 'select', label: 'Target location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             castBehaviours: throwLaunchAtWindowStart(launchBehaviour, 0),
         },
         {
@@ -172,6 +175,7 @@ export function buildMoreRockTimings(opts: BuildMoreRockTimingsOpts): AbilityTim
             abilityPhase: AbilityPhase.Active,
             timelineLabel: 'Second throw',
             timelineDescription: 'Second projectile is in flight.',
+            targetDef: { kind: 'select', label: 'Second target (More Rock)', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             castBehaviours: throwLaunchAtWindowStart(launchBehaviour, 1),
         },
         {

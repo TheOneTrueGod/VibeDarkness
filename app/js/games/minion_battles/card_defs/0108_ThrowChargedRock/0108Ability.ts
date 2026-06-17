@@ -233,34 +233,26 @@ export const ThrowChargedRock: AbilityStatic = {
         }
     },
 
-    renderTargetingPreview(gr, caster, _currentTargets, mouseWorld, _units, gameState): void {
-        gr.clear();
-        const target = mouseWorld;
-        if (!target) return;
+    renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
         const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
         const explosionRadius = getExplosionRadiusForResearch(research);
-        const clamped = clampToMaxRange(caster, target, THROW_RANGE);
-        const impactX = clamped.endX;
-        const impactY = clamped.endY;
 
-        drawClampedLine(gr, caster, target, THROW_RANGE, { color: 0x8ef9ff, width: 2, alpha: 0.7 });
-        gr.circle(impactX, impactY, explosionRadius);
+        // Draw current aim preview at mouse position
+        const clamped = clampToMaxRange(caster, mouseWorld, THROW_RANGE);
+        drawClampedLine(gr, caster, mouseWorld, THROW_RANGE, { color: 0x8ef9ff, width: 2, alpha: 0.7 });
+        gr.circle(clamped.endX, clamped.endY, explosionRadius);
         gr.fill({ color: PREVIEW_TEAL, alpha: 0.15 });
-        gr.circle(impactX, impactY, explosionRadius);
+        gr.circle(clamped.endX, clamped.endY, explosionRadius);
         gr.stroke({ color: PREVIEW_TEAL, width: 2, alpha: 0.5 });
-    },
 
-    renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, _mouseWorld, _units, gameState): void {
-        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
-        const explosionRadius = getExplosionRadiusForResearch(research);
-
+        // Draw confirmed targets
         for (const t of currentTargets) {
             if (t.type === 'pixel' && t.position) {
-                const clamped = clampToMaxRange(caster, t.position, THROW_RANGE);
-                drawCrosshair(gr, clamped.endX, clamped.endY, 10, { color: 0x8ef9ff, width: 2, alpha: 0.95 });
-                gr.circle(clamped.endX, clamped.endY, explosionRadius);
+                const c = clampToMaxRange(caster, t.position, THROW_RANGE);
+                drawCrosshair(gr, c.endX, c.endY, 10, { color: 0x8ef9ff, width: 2, alpha: 0.95 });
+                gr.circle(c.endX, c.endY, explosionRadius);
                 gr.fill({ color: PREVIEW_TEAL, alpha: 0.1 });
-                gr.circle(clamped.endX, clamped.endY, explosionRadius);
+                gr.circle(c.endX, c.endY, explosionRadius);
                 gr.stroke({ color: PREVIEW_TEAL, width: 2, alpha: 0.45 });
             }
         }

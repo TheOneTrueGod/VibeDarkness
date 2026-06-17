@@ -14,7 +14,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Remove legacy `getAbilityTargets` targeting path from player interaction | Once all player-facing abilities define `selectTargetDefs`, delete the legacy else-branch (the `getAbilityTargets` + `validateAndResolveTarget` path) from `AbilityTargetingTool.onCanvasClick` and the matching `lockOn` branch from `onCanvasMouseMove`. Also remove the `lockOn` field and `LockOnDef` type from `targeting.ts`. Prerequisite: all per-ability `selectTargetDefs` migration TODOs above must be completed. |
 
 ## Medium
 

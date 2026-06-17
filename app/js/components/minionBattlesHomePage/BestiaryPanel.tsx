@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type { EnemyUnitId } from '../../games/minion_battles/game/units/unit_defs/unitDef';
 import { getUnitDefEntry } from '../../games/minion_battles/game/units/unit_defs/unitDef';
 import { getAbility } from '../../games/minion_battles/abilities/AbilityRegistry';
-import slimeIcon from '../../games/minion_battles/assets/characters/slime.svg';
 import swordwomanIcon from '../../games/minion_battles/assets/characters/swordwoman.svg';
 import wolfHeadIcon from '../../games/minion_battles/assets/characters/dark_animals/wolf-head.svg';
 import wolfHowlIcon from '../../games/minion_battles/assets/characters/dark_animals/wolf-howl.svg';
@@ -17,7 +16,6 @@ import PanelLayout from './PanelLayout';
 
 const SPRITE_ICONS: Record<string, string> = {
     enemy_melee: swordwomanIcon,
-    enemy_ranged: slimeIcon,
     dark_wolf: wolfHeadIcon,
     alpha_wolf: wolfHowlIcon,
     boar: boarIcon,
@@ -39,7 +37,6 @@ type BestiaryEntry = {
 };
 
 const BESTIARY_ENTRIES: BestiaryEntry[] = [
-    { id: 'enemy_ranged',    name: 'Ranged Enemy',   abilityIds: ['0001'],                         faction: 'dark_creature' },
     { id: 'dark_wolf',       name: 'Wolf',            abilityIds: ['0003'],                         faction: 'dark_creature' },
     { id: 'alpha_wolf',      name: 'Alpha Wolf',      abilityIds: ['0005', '0007', '0011', '0012'], faction: 'dark_creature' },
     { id: 'thornbinder',     name: 'Thornbinder',     abilityIds: ['0008'],                         faction: 'dark_creature' },

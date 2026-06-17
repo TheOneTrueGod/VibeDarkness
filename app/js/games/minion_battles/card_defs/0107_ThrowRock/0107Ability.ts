@@ -147,8 +147,7 @@ export const ThrowRock: AbilityStatic & { range: number } = {
         deactivateProjectileOnBlock(attackInfo);
     },
 
-    renderTargetingPreview(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
-        gr.clear();
+    renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
         const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
         if (!hasMoreRockResearch(research)) {
             drawClampedLine(gr, caster, mouseWorld, THROW_RANGE);
@@ -166,18 +165,7 @@ export const ThrowRock: AbilityStatic & { range: number } = {
                 gr.moveTo(caster.x, caster.y);
                 gr.lineTo(c.endX, c.endY);
                 gr.stroke({ color: 0xc0c0c0, width: 2, alpha: 0.35 });
-            }
-        }
-    },
-
-    renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, _mouseWorld, _units, gameState): void {
-        const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
-        if (!hasMoreRockResearch(research)) return;
-
-        for (const t of currentTargets) {
-            if (t.type === 'pixel' && t.position) {
-                const clamped = clampToMaxRange(caster, t.position, THROW_RANGE);
-                drawCrosshair(gr, clamped.endX, clamped.endY, 10, { color: 0xc0c0c0, width: 2, alpha: 0.95 });
+                drawCrosshair(gr, c.endX, c.endY, 10, { color: 0xc0c0c0, width: 2, alpha: 0.95 });
             }
         }
     },
