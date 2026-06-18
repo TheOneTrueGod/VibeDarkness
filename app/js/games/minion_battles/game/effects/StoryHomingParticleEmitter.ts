@@ -7,8 +7,8 @@
  *      visual Effect at that position (the renderer draws it using storyHomingParticleEffectDef).
  *   3. At completion (elapsed >= 2 s) spawns a Pulse Effect and deactivates.
  *
- * Using one short-lived visual Effect per tick preserves the existing renderer path
- * (storyHomingParticleEffectDef in effect_defs/deathEffects.ts) while keeping all
+ * Using one short-lived visual Effect per tick lets the renderer (storyHomingParticleEffectDef
+ * in effect_defs/deathEffects.ts, sprite path) draw the particle each frame while keeping all
  * game-logic (unit tracking, bezier math) inside an EffectEmitter where it belongs.
  */
 
@@ -18,7 +18,7 @@ import type { EngineContext } from '../EngineContext';
 
 const DURATION = 2; // seconds to reach the target
 /** Duration of each per-tick visual Effect; must exceed the game tick (1/60 s). */
-const VISUAL_EFFECT_DURATION = 2 / 60; // ~2 frames – just long enough to be seen
+const VISUAL_EFFECT_DURATION = 3 / 60; // ~3 frames – one extra frame of margin vs. tick/render timing
 
 export class StoryHomingParticleEmitter extends EffectEmitter {
     private startX: number;

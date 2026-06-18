@@ -14,7 +14,7 @@ export class EffectRenderer {
     private particleEffects: Map<string, Particle> = new Map();
     private particleContainer: ParticleContainer | null = null;
 
-    private static readonly PARTICLE_EFFECT_TYPES = new Set(['ParticleImage', 'StoryHomingParticle']);
+    private static readonly PARTICLE_EFFECT_TYPES = new Set(['ParticleImage']);
 
     constructor(
         private readonly gameContainer: Container,
@@ -107,23 +107,14 @@ export class EffectRenderer {
         const texW = Math.max(pc.texture.width || 0, 1);
         const texH = Math.max(pc.texture.height || 0, 1);
 
-        if (effect.effectType === 'ParticleImage') {
-            const data = effect.effectData as { scale?: number; tint?: number };
-            particle.tint = data.tint ?? 0xffffff;
-            const life = 1 - effect.progress;
-            particle.alpha = life * life;
-            const base = (data.scale ?? 1) * 18;
-            const s = Math.min(base * (0.6 + 0.4 * life), MAX_PARTICLE_PX);
-            particle.scaleX = s / texW;
-            particle.scaleY = s / texH;
-        } else {
-            // StoryHomingParticle
-            const life = Math.max(0.35, 1 - effect.progress * 0.4);
-            particle.alpha = life;
-            const size = Math.min(14 + (1 - effect.progress) * 6, MAX_PARTICLE_PX);
-            particle.scaleX = size / texW;
-            particle.scaleY = size / texH;
-        }
+        const data = effect.effectData as { scale?: number; tint?: number };
+        particle.tint = data.tint ?? 0xffffff;
+        const life = 1 - effect.progress;
+        particle.alpha = life * life;
+        const base = (data.scale ?? 1) * 18;
+        const s = Math.min(base * (0.6 + 0.4 * life), MAX_PARTICLE_PX);
+        particle.scaleX = s / texW;
+        particle.scaleY = s / texH;
     }
 
     destroy(): void {

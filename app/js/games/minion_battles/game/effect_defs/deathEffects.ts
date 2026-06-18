@@ -124,6 +124,7 @@ export const storyHomingParticleEffectDef: IEffectDef = {
         const texture = data.imageKey ? context.getEffectTexture(data.imageKey) : null;
         const sprite = new Sprite(texture ?? Texture.EMPTY);
         sprite.anchor.set(0.5, 0.5);
+        sprite.tint = 0xa855f7;
         sprite.width = 16;
         sprite.height = 16;
         return sprite;
@@ -135,6 +136,7 @@ export const storyHomingParticleEffectDef: IEffectDef = {
             const tex = context.getEffectTexture(data.imageKey);
             if (tex && sprite.texture !== tex) sprite.texture = tex;
         }
+        sprite.tint = 0xa855f7;
         const life = Math.max(0.35, 1 - effect.progress * 0.4);
         sprite.alpha = life;
         const size = 14 + (1 - effect.progress) * 6;
