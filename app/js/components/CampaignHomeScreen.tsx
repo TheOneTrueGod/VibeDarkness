@@ -209,16 +209,16 @@ export default function CampaignHomeScreen({
                             />
                         )}
 
-                        {(activeTab === 'players' || activeTab === 'characters') && isAdmin && (
+                        {activeTab === 'players' && isAdmin && (
                             <AdminPlayersHomePanel
                                 lobbyClient={lobbyClient}
-                                onStartMissionForCharacter={onStartMissionForCharacter}
                             />
                         )}
 
-                        {activeTab === 'characters' && !isAdmin && (
+                        {activeTab === 'characters' && (
                             <CharactersPanel
                                 api={api}
+                                lobbyClient={lobbyClient}
                                 onStartMissionForCharacter={onStartMissionForCharacter}
                             />
                         )}

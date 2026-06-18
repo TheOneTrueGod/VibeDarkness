@@ -7,11 +7,13 @@ export function CharacterCard({
     selected,
     onSelect,
     onDelete,
+    subtitle,
 }: {
     character: CampaignCharacter;
     selected: boolean;
     onSelect: () => void;
     onDelete: () => void;
+    subtitle?: string;
 }) {
     const portrait = getPortrait(character.portraitId);
     const [confirming, setConfirming] = useState(false);
@@ -38,6 +40,7 @@ export function CharacterCard({
                     )}
                     <div className="min-w-0 flex-1">
                         <p className="font-semibold text-white truncate">{character.name}</p>
+                        {subtitle && <p className="text-[10px] text-muted truncate">{subtitle}</p>}
                     </div>
                     {!confirming && (
                         <button

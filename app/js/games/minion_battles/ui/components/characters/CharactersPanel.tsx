@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import type { AccountState, PlayerState } from '../../../../../types';
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
+import type { LobbyClient } from '../../../../../LobbyClient';
 import CharacterEditor from '../CharacterEditor/CharacterEditor';
 import CharacterCreator from '../CharacterEditor/CharacterCreator';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../../../character_defs/CampaignCharacter';
@@ -10,36 +11,55 @@ import { ALL_PLAYER_ITEMS } from '../../../character_defs/items';
 import { useUser } from '../../../../../contexts/UserContext';
 import { STORYLINES } from '../../../storylines/index';
 import PanelLayout from '../../../../../components/minionBattlesHomePage/PanelLayout';
-import { playerCharactersPath, playerCharacterPath } from '../../../../../components/ability-tests/campaignTabPaths';
+import { playersListPath, playerCharactersPath, playerCharacterPath } from '../../../../../components/ability-tests/campaignTabPaths';
 import { ItemCard } from './ItemCard';
 import { CharacterCard } from './CharacterCard';
 import { CharacterListCard } from './CharacterListCard';
 import { PlayerCard } from './PlayerCard';
 import { buildCounts, sortByLastUsed, sortPlayers, getItemName } from './characterUtils';
 
+function formatCountdown(seconds: number): string {
+    if (seconds <= 0) return '0s';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 interface CharactersPanelProps {
     api: MinionBattlesApi;
+    /** Required for campaign-home admin view (EAR, knowledge grant). Omitted in lobby context. */
+    lobbyClient?: LobbyClient;
+    /** Lobby member list — when provided, admin mode shows a state-based lobby player list instead of URL routing. */
     players?: Record<string, PlayerState>;
     onStartMissionForCharacter?: (missionId: string, character: CampaignCharacter, ownerAccount: AccountState) => void;
 }
 
-export default function CharactersPanel({ api, players, onStartMissionForCharacter }: CharactersPanelProps) {
+export default function CharactersPanel({ api, lobbyClient, players, onStartMissionForCharacter }: CharactersPanelProps) {
     const { user } = useUser();
     const isAdmin = user?.role === 'admin';
 
+    // ── URL params ───────────────────────────────────────────────────────────
+    const { playerId: playerIdParam, characterId: characterIdParam } = useParams<{ playerId?: string; characterId?: string }>();
+    const navigate = useNavigate();
+
+    // ── Lobby admin state (when players prop is provided) ────────────────────
+    const [lobbySelectedPlayerId, setLobbySelectedPlayerId] = useState<string | null>(null);
+    const [lobbyAdminSelectedCharId, setLobbyAdminSelectedCharId] = useState<string | null>(null);
+
     // ── Admin state ──────────────────────────────────────────────────────────
-    const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
     const [adminDetails, setAdminDetails] = useState<{
         account: AccountState;
         characters: CampaignCharacter[];
     } | null>(null);
     const [adminLoading, setAdminLoading] = useState(false);
-    const [adminSelectedCharId, setAdminSelectedCharId] = useState<string | null>(null);
     const [grantItemId, setGrantItemId] = useState(ALL_PLAYER_ITEMS[0] ?? '');
+    const [grantKnowledgeKey, setGrantKnowledgeKey] = useState<'Crystals' | 'Forging' | 'Research'>('Crystals');
+    const [adminCreatorOpen, setAdminCreatorOpen] = useState(false);
+    const adminCreateBtnRef = useRef<HTMLButtonElement>(null);
+    const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+    const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // ── Player state ─────────────────────────────────────────────────────────
-    const { playerId: playerIdParam, characterId: characterIdParam } = useParams<{ playerId?: string; characterId?: string }>();
-    const navigate = useNavigate();
     const [playerCharacters, setPlayerCharacters] = useState<CampaignCharacter[]>([]);
     const [playerLoading, setPlayerLoading] = useState(false);
     const [creatorOpen, setCreatorOpen] = useState(false);
@@ -102,67 +122,148 @@ export default function CharactersPanel({ api, players, onStartMissionForCharact
         }
     }, [api]);
 
+    // Lobby context: load details for the selected lobby player
     useEffect(() => {
-        if (!isAdmin || !selectedPlayerId) {
-            setAdminDetails(null);
-            setAdminSelectedCharId(null);
+        if (!isAdmin || !players || !lobbySelectedPlayerId) {
+            if (players) setAdminDetails(null);
             return;
         }
-        void loadAdminDetails(selectedPlayerId);
-    }, [isAdmin, loadAdminDetails, selectedPlayerId]);
+        void loadAdminDetails(lobbySelectedPlayerId);
+    }, [isAdmin, players, loadAdminDetails, lobbySelectedPlayerId]);
+
+    // Campaign home context: load details for the player in the URL
+    useEffect(() => {
+        if (!isAdmin || players || !playerIdParam) {
+            if (!players) setAdminDetails(null);
+            return;
+        }
+        void loadAdminDetails(playerIdParam);
+    }, [isAdmin, players, loadAdminDetails, playerIdParam]);
+
+    // Lobby context: auto-select first character for the selected lobby player
+    useEffect(() => {
+        if (!isAdmin || !players || !adminDetails) { return; }
+        const sortedChars = sortByLastUsed(adminDetails.characters);
+        if (sortedChars.length === 0) { setLobbyAdminSelectedCharId(null); return; }
+        if (!lobbyAdminSelectedCharId || !sortedChars.some((c) => c.id === lobbyAdminSelectedCharId)) {
+            setLobbyAdminSelectedCharId(sortedChars[0].id);
+        }
+    }, [isAdmin, players, adminDetails, lobbyAdminSelectedCharId]);
+
+    // Campaign home context: auto-navigate to first character when no character is selected
+    useEffect(() => {
+        if (!isAdmin || players || adminLoading || !adminDetails || !playerIdParam) return;
+        const sortedChars = sortByLastUsed(adminDetails.characters);
+        if (sortedChars.length === 0) return;
+        if (!characterIdParam || !sortedChars.some((c) => c.id === characterIdParam)) {
+            navigate(playerCharacterPath(playerIdParam, sortedChars[0].id), { replace: true });
+        }
+    }, [isAdmin, players, adminLoading, adminDetails, characterIdParam, playerIdParam, navigate]);
+
+    // Admin: EAR countdown ticker
+    useEffect(() => {
+        if (!isAdmin) return;
+        const hasActiveEAR = !!(
+            adminDetails?.account.emergencyRecoveryExpiresAt &&
+            adminDetails.account.emergencyRecoveryExpiresAt > now
+        );
+        if (hasActiveEAR) {
+            if (tickerRef.current === null) {
+                tickerRef.current = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+            }
+        } else {
+            if (tickerRef.current !== null) {
+                clearInterval(tickerRef.current);
+                tickerRef.current = null;
+            }
+        }
+        return () => {};
+    }, [isAdmin, adminDetails, now]);
+
+    useEffect(() => {
+        return () => {
+            if (tickerRef.current !== null) clearInterval(tickerRef.current);
+        };
+    }, []);
 
     const sortedAdminCharacters = useMemo(
         () => (adminDetails ? sortByLastUsed(adminDetails.characters) : []),
         [adminDetails],
     );
 
-    useEffect(() => {
-        if (!adminDetails) { setAdminSelectedCharId(null); return; }
-        if (sortedAdminCharacters.length === 0) { setAdminSelectedCharId(null); return; }
-        if (!adminSelectedCharId || !sortedAdminCharacters.some((c) => c.id === adminSelectedCharId)) {
-            setAdminSelectedCharId(sortedAdminCharacters[0].id);
-        }
-    }, [adminDetails, adminSelectedCharId, sortedAdminCharacters]);
-
-    const selectedAdminCharacter = useMemo(
-        () => adminDetails?.characters.find((c) => c.id === adminSelectedCharId) ?? null,
-        [adminDetails, adminSelectedCharId],
-    );
+    const selectedAdminCharacter = useMemo(() => {
+        if (!adminDetails) return null;
+        const charId = players ? lobbyAdminSelectedCharId : characterIdParam;
+        return adminDetails.characters.find((c) => c.id === charId) ?? null;
+    }, [adminDetails, players, lobbyAdminSelectedCharId, characterIdParam]);
 
     const inventoryCounts = useMemo(
         () => buildCounts(adminDetails?.account.inventoryItemIds ?? []),
         [adminDetails],
     );
 
+    const expiresAt = adminDetails?.account.emergencyRecoveryExpiresAt;
+    const earSecondsLeft = expiresAt ? Math.max(0, expiresAt - now) : 0;
+    const inEAR = earSecondsLeft > 0;
+    const isAdminAccount = adminDetails?.account.role === 'admin';
+
     const refreshAdminPlayer = useCallback(async () => {
-        if (!selectedPlayerId) return;
-        await loadAdminDetails(selectedPlayerId);
-    }, [loadAdminDetails, selectedPlayerId]);
+        if (!playerIdParam) return;
+        await loadAdminDetails(playerIdParam);
+    }, [loadAdminDetails, playerIdParam]);
 
     const handleGrantItem = useCallback(async () => {
-        if (!selectedPlayerId || !grantItemId) return;
+        if (!playerIdParam || !grantItemId) return;
         try {
-            await api.grantAccountItem(selectedPlayerId, grantItemId);
+            await api.grantAccountItem(playerIdParam, grantItemId);
             await refreshAdminPlayer();
         } catch (error) {
             console.error('Failed to grant item:', error);
         }
-    }, [grantItemId, api, refreshAdminPlayer, selectedPlayerId]);
+    }, [grantItemId, api, refreshAdminPlayer, playerIdParam]);
 
     const handleRemoveItem = useCallback(async (itemId: string) => {
-        if (!selectedPlayerId) return;
+        if (!playerIdParam) return;
         try {
-            await api.removeAccountItem(selectedPlayerId, itemId);
+            await api.removeAccountItem(playerIdParam, itemId);
             await refreshAdminPlayer();
         } catch (error) {
             console.error('Failed to remove item:', error);
         }
-    }, [api, refreshAdminPlayer, selectedPlayerId]);
+    }, [api, refreshAdminPlayer, playerIdParam]);
 
     const handleInventoryDragStart = useCallback((itemId: string, event: React.DragEvent<HTMLDivElement>) => {
         event.dataTransfer.setData('text/plain', itemId);
         event.dataTransfer.effectAllowed = 'copy';
     }, []);
+
+    const handleGrantKnowledge = useCallback(async () => {
+        if (!playerIdParam || !lobbyClient) return;
+        try {
+            await lobbyClient.grantAccountKnowledge(playerIdParam, grantKnowledgeKey, {});
+            await refreshAdminPlayer();
+        } catch (error) {
+            console.error('Failed to grant knowledge:', error);
+        }
+    }, [grantKnowledgeKey, lobbyClient, refreshAdminPlayer, playerIdParam]);
+
+    const handleDeleteAdminCharacter = useCallback(async (characterId: string) => {
+        await api.deleteCharacter(characterId);
+        if (characterIdParam === characterId && playerIdParam != null) {
+            navigate(playerCharactersPath(playerIdParam), { replace: true });
+        }
+        await refreshAdminPlayer();
+    }, [api, characterIdParam, playerIdParam, navigate, refreshAdminPlayer]);
+
+    const handleSetEmergencyRecovery = useCallback(async (action: 'enable' | 'disable') => {
+        if (!playerIdParam || !lobbyClient) return;
+        try {
+            await lobbyClient.setEmergencyRecovery(playerIdParam, action);
+            await refreshAdminPlayer();
+        } catch (error) {
+            console.error('Failed to set emergency recovery:', error);
+        }
+    }, [lobbyClient, refreshAdminPlayer, playerIdParam]);
 
     // ── Player mode: handlers ─────────────────────────────────────────────────
     const handleDeletePlayerCharacter = useCallback(async (characterId: string) => {
@@ -179,11 +280,11 @@ export default function CharactersPanel({ api, players, onStartMissionForCharact
         if (user) navigate(playerCharacterPath(user.id, characterId), { replace: true });
     }, [loadPlayerCharacters, user, navigate]);
 
-    // ── Admin render ──────────────────────────────────────────────────────────
-    if (isAdmin) {
-        const playerList = sortPlayers(players ?? {});
+    // ── Admin render: lobby context (players prop provided) ──────────────────
+    if (isAdmin && players) {
+        const playerList = sortPlayers(players);
 
-        if (!selectedPlayerId) {
+        if (!lobbySelectedPlayerId) {
             return (
                 <div className="w-full h-full overflow-auto p-5">
                     <div className="mx-auto flex max-w-[1400px] flex-col gap-5">
@@ -197,7 +298,7 @@ export default function CharactersPanel({ api, players, onStartMissionForCharact
                                     key={player.id}
                                     player={player}
                                     selected={false}
-                                    onSelect={() => setSelectedPlayerId(player.id)}
+                                    onSelect={() => { setLobbySelectedPlayerId(player.id); setLobbyAdminSelectedCharId(null); }}
                                 />
                             ))}
                         </div>
@@ -206,7 +307,8 @@ export default function CharactersPanel({ api, players, onStartMissionForCharact
             );
         }
 
-        const selectedPlayer = players ? players[selectedPlayerId] ?? null : null;
+        const selectedLobbyPlayer = players[lobbySelectedPlayerId] ?? null;
+        const lobbyInventoryCounts = buildCounts(adminDetails?.account.inventoryItemIds ?? []);
 
         return (
             <div className="w-full h-full overflow-hidden p-5">
@@ -215,12 +317,12 @@ export default function CharactersPanel({ api, players, onStartMissionForCharact
                         <div>
                             <h2 className="text-[32px] font-bold">Players</h2>
                             <p className="text-sm text-muted">
-                                {selectedPlayer?.name ?? `Player ${selectedPlayerId}`}
+                                {selectedLobbyPlayer?.name ?? `Player ${lobbySelectedPlayerId}`}
                             </p>
                         </div>
                         <button
                             type="button"
-                            onClick={() => setSelectedPlayerId(null)}
+                            onClick={() => { setLobbySelectedPlayerId(null); setAdminDetails(null); }}
                             className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom"
                         >
                             Back
@@ -230,8 +332,8 @@ export default function CharactersPanel({ api, players, onStartMissionForCharact
                     <div className="flex items-center gap-3 overflow-x-auto rounded-lg border border-border-custom bg-surface px-4 py-3 shrink-0">
                         <span className="text-sm font-semibold text-muted shrink-0">Items</span>
                         <div className="flex flex-wrap gap-2">
-                            {Object.entries(inventoryCounts).length > 0 ? (
-                                Object.entries(inventoryCounts).map(([itemId, count]) => (
+                            {Object.entries(lobbyInventoryCounts).length > 0 ? (
+                                Object.entries(lobbyInventoryCounts).map(([itemId, count]) => (
                                     <ItemCard
                                         key={itemId}
                                         itemId={itemId}
@@ -279,8 +381,8 @@ export default function CharactersPanel({ api, players, onStartMissionForCharact
                                     <CharacterListCard
                                         key={character.id}
                                         character={character}
-                                        selected={adminSelectedCharId === character.id}
-                                        onSelect={() => setAdminSelectedCharId(character.id)}
+                                        selected={lobbyAdminSelectedCharId === character.id}
+                                        onSelect={() => setLobbyAdminSelectedCharId(character.id)}
                                         compact
                                     />
                                 ))}
@@ -311,6 +413,225 @@ export default function CharactersPanel({ api, players, onStartMissionForCharact
                     </div>
                 </div>
             </div>
+        );
+    }
+
+    // ── Admin render: campaign home context (URL-based) ───────────────────────
+    if (isAdmin) {
+        return (
+            <>
+                <PanelLayout
+                    title={`${adminDetails?.account.name ?? (playerIdParam ? `Account #${playerIdParam}` : 'Loading…')}'s Characters`}
+                    subtitle={inEAR ? (
+                        <span className="font-semibold text-red-400">
+                            Emergency Recovery: ({formatCountdown(earSecondsLeft)})
+                        </span>
+                    ) : undefined}
+                    actions={
+                        <>
+                            {!isAdminAccount && adminDetails && (
+                                inEAR ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleSetEmergencyRecovery('disable')}
+                                        className="rounded-lg border border-red-500 bg-surface-light px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-900/30 disabled:opacity-60"
+                                        disabled={adminLoading}
+                                    >
+                                        Disable Recovery
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleSetEmergencyRecovery('enable')}
+                                        className="rounded-lg border border-red-700 bg-surface-light px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-900/30 disabled:opacity-60"
+                                        disabled={adminLoading}
+                                    >
+                                        Emergency Account Recovery
+                                    </button>
+                                )
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => void refreshAdminPlayer()}
+                                className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom disabled:opacity-60"
+                                disabled={adminLoading}
+                            >
+                                {adminLoading ? 'Refreshing…' : 'Refresh'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate(playersListPath())}
+                                className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom"
+                            >
+                                Back
+                            </button>
+                        </>
+                    }
+                    left={
+                        <div className="flex flex-col gap-2 p-3">
+                            {adminLoading && <p className="text-sm text-muted">Loading…</p>}
+                            {!adminLoading && sortedAdminCharacters.length === 0 && (
+                                <p className="text-sm text-muted">No characters found</p>
+                            )}
+                            {sortedAdminCharacters.map((character) => (
+                                <CharacterCard
+                                    key={character.id}
+                                    character={character}
+                                    selected={characterIdParam === character.id}
+                                    onSelect={() => playerIdParam != null && navigate(playerCharacterPath(playerIdParam, character.id))}
+                                    onDelete={() => void handleDeleteAdminCharacter(character.id)}
+                                    subtitle={character.id}
+                                />
+                            ))}
+                            {adminDetails && (
+                                <button
+                                    ref={adminCreateBtnRef}
+                                    type="button"
+                                    onClick={() => setAdminCreatorOpen(true)}
+                                    className="w-full rounded-lg border-2 border-dashed border-border-custom px-4 py-3 text-sm text-muted hover:border-primary hover:text-white transition-colors cursor-pointer text-left"
+                                >
+                                    + Create new character
+                                </button>
+                            )}
+                        </div>
+                    }
+                    leftSize="small"
+                    center={
+                        selectedAdminCharacter ? (
+                            <CharacterEditor
+                                key={selectedAdminCharacter.id}
+                                character={selectedAdminCharacter}
+                                api={api}
+                                onSaved={() => void refreshAdminPlayer()}
+                                onClose={() => {}}
+                                editMode
+                                inventoryItems={adminDetails?.account.inventoryItemIds ?? []}
+                                showInventoryPanel
+                                account={adminDetails?.account ?? null}
+                                viewerAccount={user ?? null}
+                                campaign={null}
+                                onStartMission={
+                                    onStartMissionForCharacter && adminDetails?.account
+                                        ? (missionId) => onStartMissionForCharacter(missionId, selectedAdminCharacter, adminDetails.account)
+                                        : undefined
+                                }
+                                adminEquipmentPanel={
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <span className="text-sm font-semibold text-muted shrink-0">Items</span>
+                                        <div className="flex flex-wrap gap-2 flex-1 min-w-0">
+                                            {Object.entries(inventoryCounts).length > 0 ? (
+                                                Object.entries(inventoryCounts).map(([itemId, count]) => (
+                                                    <ItemCard
+                                                        key={itemId}
+                                                        itemId={itemId}
+                                                        count={count}
+                                                        onDragStart={handleInventoryDragStart}
+                                                        onRemove={(id) => void handleRemoveItem(id)}
+                                                    />
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted">No items yet</p>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                            <label className="text-xs text-muted">Give item</label>
+                                            <select
+                                                value={grantItemId}
+                                                onChange={(e) => setGrantItemId(e.target.value)}
+                                                className="rounded-md border border-border-custom bg-white px-3 py-2 text-sm text-black"
+                                            >
+                                                {ALL_PLAYER_ITEMS.map((itemId) => (
+                                                    <option key={itemId} value={itemId} className="bg-white text-black">
+                                                        {getItemName(itemId)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleGrantItem()}
+                                                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
+                                                disabled={adminLoading}
+                                            >
+                                                Give
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                                adminKnowledgePanel={
+                                    <div className="flex flex-col gap-2 h-full">
+                                        <p className="text-xs text-muted">Knowledge</p>
+                                        <div className="flex flex-wrap gap-2 flex-1">
+                                            {Object.keys(adminDetails?.account.knowledge ?? {}).length > 0 ? (
+                                                Object.keys(adminDetails?.account.knowledge ?? {}).sort().map((key) => (
+                                                    <span
+                                                        key={key}
+                                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
+                                                        title={key}
+                                                    >
+                                                        {key}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted">No knowledge yet</p>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-auto">
+                                            <label className="text-xs text-muted">Grant</label>
+                                            <select
+                                                value={grantKnowledgeKey}
+                                                onChange={(e) => setGrantKnowledgeKey(e.target.value as typeof grantKnowledgeKey)}
+                                                className="rounded-md border border-border-custom bg-white px-2 py-1 text-sm text-black"
+                                            >
+                                                <option value="Crystals" className="bg-white text-black">Crystals</option>
+                                                <option value="Forging" className="bg-white text-black">Forging</option>
+                                                <option value="Research" className="bg-white text-black">Research</option>
+                                            </select>
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleGrantKnowledge()}
+                                                className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
+                                                disabled={adminLoading}
+                                            >
+                                                Grant
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            />
+                        ) : (
+                            <div className="flex h-full items-center justify-center p-6 text-muted">
+                                {adminLoading ? 'Loading…' : 'Select a character to edit it'}
+                            </div>
+                        )
+                    }
+                    centerClassName="overflow-hidden"
+                />
+
+                {adminCreatorOpen && adminDetails && (() => {
+                    const campaignId = adminDetails.characters[0]?.campaignId ?? STORYLINES[0]?.id ?? 'world_of_darkness';
+                    const missionId = STORYLINES.find((s) => s.id === campaignId)?.startMissionId ?? STORYLINES[0]?.startMissionId ?? 'dark_awakening';
+                    return (
+                        <CharacterCreator
+                            campaignId={campaignId}
+                            missionId={missionId}
+                            onCreate={async (characterId) => {
+                                setAdminCreatorOpen(false);
+                                if (playerIdParam != null) {
+                                    await loadAdminDetails(playerIdParam);
+                                    navigate(playerCharacterPath(playerIdParam, characterId), { replace: true });
+                                }
+                            }}
+                            onClose={() => setAdminCreatorOpen(false)}
+                            createCharacter={async (payload) => {
+                                const { character } = await api.createCharacter(payload);
+                                return { id: character.id, portraitId: character.portraitId, name: character.name };
+                            }}
+                            anchorRef={adminCreateBtnRef}
+                            localPlayerId={user?.id}
+                        />
+                    );
+                })()}
+            </>
         );
     }
 
