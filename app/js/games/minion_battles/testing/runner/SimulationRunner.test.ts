@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { runScenarioHeadless } from './SimulationRunner';
 import { getScenarioById } from '../scenarios/registry';
-import { pathShortCommuteScenario } from '../scenarios/general/pathfinding';
+import { pathShortCommuteScenario, dodgeIFrameProtectionScenario } from '../scenarios/general/pathfinding';
 import {
     punchNEWBaselineScenario,
     punchStrongScenario,
@@ -56,6 +56,11 @@ describe('runScenarioHeadless', () => {
         const r = runScenarioHeadless(pathShortCommuteScenario);
         expect(r.passed).toBe(true);
         expect(r.ticks).toBeGreaterThan(0);
+    });
+
+    it('dodge iframes block wolf charge and slime projectile', () => {
+        const r = runScenarioHeadless(dodgeIFrameProtectionScenario);
+        expect(r.passed, r.message).toBe(true);
     });
 
     it('passes punch baseline damage scenario', () => {

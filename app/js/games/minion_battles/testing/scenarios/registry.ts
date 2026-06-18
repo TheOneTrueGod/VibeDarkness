@@ -3,6 +3,7 @@ import {
     pathAroundRockScenario,
     pathShortCommuteScenario,
     pathStraightMoveScenario,
+    dodgeIFrameProtectionScenario,
 } from './general/pathfinding';
 import { swingSwordAppliesBleedScenario } from './general/buffs';
 import {
@@ -77,6 +78,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathStraightMoveScenario,
     pathAroundRockScenario,
     pathShortCommuteScenario,
+    dodgeIFrameProtectionScenario,
     swingSwordAppliesBleedScenario,
     punchStrongScenario,
     punchDoubleScenario,
