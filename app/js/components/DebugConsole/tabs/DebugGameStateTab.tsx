@@ -3,6 +3,7 @@ import type { GameStatePayload } from '../../../types';
 import type { LobbyClient } from '../../../LobbyClient';
 import DebugJsonBlock from '../DebugJsonBlock';
 import DebugHeartbeatSyncPanel from './DebugHeartbeatSyncPanel';
+import { useDebugConsole } from '../../../contexts/DebugConsoleContext';
 
 interface DebugGameStateTabProps {
     isActive: boolean;
@@ -17,18 +18,13 @@ interface DebugGameStateTabProps {
     } | null;
 }
 
-type DebugWindow = {
-    __minionBattlesDebugGameTick?: number;
-    __minionBattlesDebugSynchash?: string;
-    __minionBattlesDebugLogLocalStateToLobby?: () => Promise<void>;
-};
-
 export default function DebugGameStateTab({
     isActive,
     gameState,
     inBattle = false,
     battleOrdersDebug = null,
 }: DebugGameStateTabProps) {
+    const { battleBridge } = useDebugConsole();
     const [liveGameTick, setLiveGameTick] = useState<number | null>(null);
     const [liveSynchash, setLiveSynchash] = useState<string | null>(null);
     const [syncBridge, setSyncBridge] = useState<Record<string, unknown> | null>(null);
@@ -39,21 +35,18 @@ export default function DebugGameStateTab({
     useEffect(() => {
         if (!isActive) return;
         const id = window.setInterval(() => {
-            const w = window as unknown as DebugWindow & {
-                __minionBattlesSyncDebug?: Record<string, unknown>;
-            };
-            const tick = w.__minionBattlesDebugGameTick;
-            setLiveGameTick(typeof tick === 'number' ? tick : null);
-            const h = w.__minionBattlesDebugSynchash;
-            setLiveSynchash(typeof h === 'string' && h.length > 0 ? h : null);
+            const snap = battleBridge?.getSnapshot();
+            setLiveGameTick(snap?.gameTick ?? null);
+            setLiveSynchash(snap?.synchash ?? null);
             if (inBattle && battleOrdersDebug != null && battleOrdersDebug.gameId != null) {
+                const w = window as unknown as { __minionBattlesSyncDebug?: Record<string, unknown> };
                 setSyncBridge(w.__minionBattlesSyncDebug ?? null);
             } else {
                 setSyncBridge(null);
             }
         }, 100);
         return () => window.clearInterval(id);
-    }, [isActive, inBattle, battleOrdersDebug]);
+    }, [isActive, inBattle, battleOrdersDebug, battleBridge]);
 
     const game = gameState?.game as Record<string, unknown> | undefined;
     const stateTick = game != null ? (game.gameTick ?? game.game_tick) : undefined;
@@ -99,19 +92,16 @@ export default function DebugGameStateTab({
         inBattle && battleOrdersDebug != null && battleOrdersDebug.gameId != null;
 
     const logLocalStateToLobby = useCallback(async () => {
-        if (!canLogLocalBattle) return;
-        const w = window as unknown as DebugWindow;
-        const fn = w.__minionBattlesDebugLogLocalStateToLobby;
-        if (!fn) return;
+        if (!canLogLocalBattle || !battleBridge) return;
         setLogLocalBusy(true);
         try {
-            await fn();
+            await battleBridge.logLocalStateToLobby();
             setLogLocalDone(true);
             window.setTimeout(() => setLogLocalDone(false), 1500);
         } finally {
             setLogLocalBusy(false);
         }
-    }, [canLogLocalBattle]);
+    }, [canLogLocalBattle, battleBridge]);
 
     if (!isActive) return null;
 

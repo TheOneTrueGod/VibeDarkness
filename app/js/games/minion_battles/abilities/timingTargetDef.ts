@@ -14,6 +14,12 @@ export interface SelectTargetDef {
      * Set explicitly only when the targetDef highlight count should differ from the hitbox default.
      */
     numTargets?: number;
+    /**
+     * Extra px beyond (caster.radius + target.radius) at which the windup telegraph tether breaks.
+     * When set, the telegraph freezes when distance > caster.radius + target.radius + maxLockOnExtra,
+     * rather than using the hitbox-derived default (hitboxMaxRange + 100px).
+     */
+    maxLockOnExtra?: number;
 }
 
 /** Reuse a target that was committed by an earlier SelectTargetDef timing. */

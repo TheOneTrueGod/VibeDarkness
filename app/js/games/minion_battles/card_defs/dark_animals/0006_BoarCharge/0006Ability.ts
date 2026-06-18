@@ -21,6 +21,7 @@ const boarCharge = new ChargeAttack({
     effectType: 'bite',
     effectDuration: 0.2,
     tooltipText: 'Charge at a target, dealing {4} damage to each enemy crossed (wide hitbox)',
+    maxUses: 2,
 });
 
 export const BoarChargeAbility = boarCharge;

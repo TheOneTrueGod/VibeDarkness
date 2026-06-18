@@ -12,10 +12,12 @@ import { MinionBattlesApi } from '../../games/minion_battles/api/minionBattlesAp
 import { STORYLINES } from '../../games/minion_battles/storylines/index';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../../games/minion_battles/character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../../games/minion_battles/character_defs/campaignCharacterTypes';
-import { getPortrait } from '../../games/minion_battles/character_defs/portraits';
-import { ALL_PLAYER_ITEMS, ITEM_ICON_URLS, getItemDef } from '../../games/minion_battles/character_defs/items';
+import { ALL_PLAYER_ITEMS } from '../../games/minion_battles/character_defs/items';
 import { useUser } from '../../contexts/UserContext';
 import PanelLayout from './PanelLayout';
+import { ItemCard } from '../../games/minion_battles/ui/components/characters/ItemCard';
+import { CharacterListCard } from '../../games/minion_battles/ui/components/characters/CharacterListCard';
+import { buildCounts, getItemName } from '../../games/minion_battles/ui/components/characters/characterUtils';
 import { playersListPath, playerCharactersPath, playerCharacterPath } from '../ability-tests/campaignTabPaths';
 
 function formatCountdown(seconds: number): string {
@@ -23,18 +25,6 @@ function formatCountdown(seconds: number): string {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
-
-function getItemName(itemId: string): string {
-    return getItemDef(itemId)?.name ?? itemId;
-}
-
-function buildCounts(items: string[]): Record<string, number> {
-    const counts: Record<string, number> = {};
-    for (const itemId of items) {
-        counts[itemId] = (counts[itemId] ?? 0) + 1;
-    }
-    return counts;
 }
 
 function AccountCard({
@@ -82,116 +72,6 @@ function AccountCard({
                 </div>
             </div>
         </button>
-    );
-}
-
-function CharacterListCard({
-    character,
-    selected,
-    onSelect,
-    onDelete,
-}: {
-    character: CampaignCharacter;
-    selected: boolean;
-    onSelect: () => void;
-    onDelete: () => void;
-}) {
-    const portrait = getPortrait(character.portraitId);
-    const displayName = character.name || portrait?.name || 'Character';
-    const picture = portrait?.picture;
-    const [confirming, setConfirming] = useState(false);
-    return (
-        <div className={`w-full rounded-lg border-2 overflow-hidden transition-colors ${
-            selected ? 'border-primary bg-surface-light' : 'border-border-custom bg-surface'
-        }`}>
-            <button
-                type="button"
-                onClick={onSelect}
-                className="w-full text-left hover:bg-white/5 transition-colors block"
-            >
-                <div className="h-36 bg-background flex items-center justify-center overflow-hidden">
-                    {picture ? (
-                        picture.trimStart().startsWith('<') ? (
-                            <div dangerouslySetInnerHTML={{ __html: picture }} className="w-full h-full" />
-                        ) : (
-                            <img src={picture} alt="" className="w-full h-full object-cover" />
-                        )
-                    ) : null}
-                </div>
-            </button>
-            {confirming ? (
-                <div className="flex items-center justify-between gap-1 px-2 py-1.5 border-t border-border-custom bg-red-950/40">
-                    <span className="text-xs text-red-300">Delete?</span>
-                    <div className="flex gap-1">
-                        <button type="button" onClick={() => setConfirming(false)} className="px-2 py-0.5 rounded text-xs border border-border-custom text-muted hover:text-white transition-colors cursor-pointer">Cancel</button>
-                        <button type="button" onClick={() => { setConfirming(false); onDelete(); }} className="px-2 py-0.5 rounded text-xs bg-red-700 hover:bg-red-600 text-white transition-colors cursor-pointer">Delete</button>
-                    </div>
-                </div>
-            ) : (
-                <div className="flex items-center gap-2 px-2 py-1.5 border-t border-border-custom">
-                    <button type="button" onClick={onSelect} className="flex-1 min-w-0 text-left">
-                        <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-                        <p className="text-[10px] text-muted truncate">{character.id}</p>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setConfirming(true)}
-                        className="shrink-0 p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
-                        title="Delete character"
-                        aria-label="Delete character"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function ItemCard({
-    itemId,
-    count,
-    onDragStart,
-    onRemove,
-}: {
-    itemId: string;
-    count: number;
-    onDragStart?: (itemId: string, event: React.DragEvent<HTMLDivElement>) => void;
-    onRemove?: (itemId: string) => void;
-}) {
-    const def = getItemDef(itemId);
-    const iconUrl = ITEM_ICON_URLS[itemId];
-    return (
-        <div
-            draggable={!!onDragStart}
-            onDragStart={onDragStart ? (event) => onDragStart(itemId, event) : undefined}
-            className="relative flex flex-col items-center justify-center rounded-lg border border-border-custom bg-surface-light px-3 py-2 min-w-[92px] cursor-grab active:cursor-grabbing"
-        >
-            {count > 1 && (
-                <span className="absolute top-1 right-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-secondary">
-                    x{count}
-                </span>
-            )}
-            {onRemove && (
-                <button
-                    type="button"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onRemove(itemId);
-                    }}
-                    className="absolute top-1 left-1 h-5 w-5 rounded-full border border-border-custom bg-surface text-white text-[12px] leading-[18px] flex items-center justify-center hover:border-danger hover:text-danger"
-                    title="Remove one"
-                    aria-label="Remove one"
-                >
-                    −
-                </button>
-            )}
-            {iconUrl ? <img src={iconUrl} alt="" className="h-10 w-10 object-contain" /> : <div className="h-10 w-10" />}
-            <p className="mt-1 w-full truncate text-center text-[11px] text-gray-200">{def?.name ?? itemId}</p>
-        </div>
     );
 }
 

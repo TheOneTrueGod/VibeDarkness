@@ -29,6 +29,7 @@ export type PlayerInteractionUIState = {
 export interface IPlayerInteractionManager {
     readonly canUseOrderUi: boolean;
     readonly waitingForOrders: WaitingForOrders | null;
+    readonly adminMovePendingUnitId: string | null;
     submitOrder(
         abilityId: string,
         targets: ResolvedTarget[],
@@ -46,6 +47,8 @@ export interface IPlayerInteractionManager {
         moveTargetUnitId: string | undefined,
         moveTargetPixel: { x: number; y: number } | undefined,
     ): void;
+    setAdminMovePendingUnitId(id: string | null): void;
+    clearAdminMovePending(): void;
 }
 
 export interface InteractionTool {

@@ -36,6 +36,20 @@ export function asTelegraphPayload(castPayload: unknown): TelegraphCastPayload |
     return p;
 }
 
+/** Walk timing intervals for the first select-target maxLockOnExtra override, if any. */
+function getAbilityMaxLockOnExtra(ability: AbilityStatic, caster: Unit, engine: EngineContext): number | null {
+    const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, caster, engine));
+    for (const interval of intervals) {
+        if (!isAbilityTimingInterval(interval)) continue;
+        if (interval.targetDef && isSelectTargetDef(interval.targetDef)) {
+            if (typeof interval.targetDef.maxLockOnExtra === 'number') {
+                return interval.targetDef.maxLockOnExtra;
+            }
+        }
+    }
+    return null;
+}
+
 /** Walk timing intervals for the first select-target hitbox maxRange (same as defineAbility). */
 export function getAbilityHitboxMaxRange(ability: AbilityStatic, caster: Unit, engine: EngineContext): number | null {
     const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, caster, engine));
@@ -136,8 +150,11 @@ export function updateTelegraphTracking(
     const target = engine.getUnit(payload.telegraphTargetUnitId);
     if (!target) return;
 
-    const lockOnRange = getLockOnRange(getAbilityHitboxMaxRange(ability, caster, engine));
-    const lockPos = evaluateTargetLockBreak(caster, target, lockOnRange);
+    const extra = getAbilityMaxLockOnExtra(ability, caster, engine);
+    const tetherBreakRange = extra !== null
+        ? caster.radius + target.radius + extra
+        : getLockOnRange(getAbilityHitboxMaxRange(ability, caster, engine));
+    const lockPos = evaluateTargetLockBreak(caster, target, tetherBreakRange);
     if (lockPos) {
         applyTelegraphLock(payload, lockPos, engine);
     } else {

@@ -43,6 +43,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
     private uiState: PlayerInteractionUIState = { ...EMPTY_UI_STATE };
     private _canUseOrderUi: boolean = false;
     private _waitingForOrders: WaitingForOrders | null = null;
+    private _adminMovePendingUnitId: string | null = null;
     private myAbilityIds: string[] = [];
     private readonly listeners = new Set<UIListener>();
 
@@ -55,6 +56,18 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
 
     get waitingForOrders(): WaitingForOrders | null {
         return this._waitingForOrders;
+    }
+
+    get adminMovePendingUnitId(): string | null {
+        return this._adminMovePendingUnitId;
+    }
+
+    setAdminMovePendingUnitId(id: string | null): void {
+        this._adminMovePendingUnitId = id;
+    }
+
+    clearAdminMovePending(): void {
+        this._adminMovePendingUnitId = null;
     }
 
     // -------------------------------------------------------------------------
@@ -113,7 +126,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         }
 
         // Debug: admin move pending unit id.
-        const adminMovePendingUnitId = window.__minionBattlesAdminMovePendingUnitId;
+        const adminMovePendingUnitId = this._adminMovePendingUnitId;
         if (adminMovePendingUnitId) {
             const adminTool = new AdminMoveDebugTool(adminMovePendingUnitId);
             this.activateTool(adminTool);

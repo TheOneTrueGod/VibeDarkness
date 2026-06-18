@@ -196,15 +196,15 @@ export default function CharacterEditor({
     }, [showAllResearchTreesDebug, eligibleResearchTrees]);
 
     useEffect(() => {
-        // Non-admins see a grid view where null means "All trees" — don't force a selection.
-        if (permissionAccount?.role !== 'admin') return;
+        // In grid view null means "All trees" — don't force a selection.
+        if (permissionAccount?.role !== 'admin' || adminUseGridView) return;
         const firstId = displayResearchTrees[0]?.id ?? null;
         const isSelectedStillAvailable =
             selectedTreeId != null && displayResearchTrees.some((t) => t.id === selectedTreeId);
         if (!isSelectedStillAvailable) {
             setSelectedTreeId(firstId);
         }
-    }, [displayResearchTrees, selectedTreeId, permissionAccount?.role]);
+    }, [displayResearchTrees, selectedTreeId, permissionAccount?.role, adminUseGridView]);
 
     useEffect(() => {
         if (campaign) {

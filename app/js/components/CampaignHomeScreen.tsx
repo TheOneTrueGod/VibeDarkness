@@ -8,7 +8,8 @@ import { LobbyClient } from '../LobbyClient';
 import { useUser } from '../contexts/UserContext';
 import type { CampaignState } from '../types';
 import AdminPlayersHomePanel from './minionBattlesHomePage/AdminPlayersHomePanel';
-import PlayerCharactersPanel from './minionBattlesHomePage/PlayerCharactersPanel';
+import CharactersPanel from '../games/minion_battles/ui/components/characters/CharactersPanel';
+import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
 import AbilityTestPanel from './minionBattlesHomePage/AbilityTestPanel';
 import MissionSelectPanel from './minionBattlesHomePage/MissionSelectPanel';
 import JoinMissionPanel from './minionBattlesHomePage/JoinMissionPanel';
@@ -32,7 +33,8 @@ const TAB_SETTINGS: Record<
     welcome: { label: 'Welcome', isVisible: () => true },
     mission_select: { label: 'Mission Select', isVisible: (isAdmin) => isAdmin, adminTab: true },
     join_mission: { label: 'Join Mission', isVisible: () => true },
-    players: { label: 'Players', isVisible: () => true },
+    players: { label: 'Players', isVisible: (isAdmin) => isAdmin, adminTab: true },
+    characters: { label: 'Characters', isVisible: () => true },
     ability_test: { label: 'Ability Test', isVisible: (isAdmin) => isAdmin, adminTab: true },
     terrain_editor: { label: 'Terrain Editor', isVisible: (isAdmin) => isAdmin, adminTab: true },
     lobby_archive: { label: 'Lobby Archive', isVisible: (isAdmin) => isAdmin, adminTab: true },
@@ -73,11 +75,18 @@ export default function CampaignHomeScreen({
         () => CAMPAIGN_TAB_IDS.filter((id) => TAB_SETTINGS[id].isVisible(isAdmin)),
         [isAdmin]
     );
-    const onPlayersRoute = location.pathname.startsWith('/players');
-    const activeTab = onPlayersRoute ? 'players' : (tabFromCampaignSlug(tabSlug) ?? defaultTab);
+    const onPlayersListRoute = location.pathname === '/players';
+    const onCharactersRoute = location.pathname.startsWith('/players/');
+    const activeTab: TabId = onPlayersListRoute ? 'players' : onCharactersRoute ? 'characters' : (tabFromCampaignSlug(tabSlug) ?? defaultTab);
 
     useEffect(() => {
-        if (onPlayersRoute) return;
+        if (onCharactersRoute) return;
+        if (onPlayersListRoute) {
+            if (!isAdmin) {
+                navigate(playerCharactersPath(user?.id ?? ''), { replace: true });
+            }
+            return;
+        }
         const fromUrl = tabFromCampaignSlug(tabSlug);
         if (fromUrl != null && visibleTabs.includes(fromUrl)) {
             return;
@@ -85,7 +94,8 @@ export default function CampaignHomeScreen({
         const fallback =
             (visibleTabs.includes(defaultTab) ? defaultTab : visibleTabs[0]) ?? 'welcome';
         navigate(campaignPathForTab(fallback), { replace: true });
-    }, [tabSlug, visibleTabs, defaultTab, navigate, onPlayersRoute]);
+    }, [tabSlug, visibleTabs, defaultTab, navigate, onPlayersListRoute, onCharactersRoute, isAdmin, user]);
+    const api = useMemo(() => new MinionBattlesApi(lobbyClient, '', '', ''), [lobbyClient]);
     const [campaign, setCampaign] = useState<CampaignState | null>(null);
     const [campaignLoading, setCampaignLoading] = useState(false);
     const [bootstrappingCampaign, setBootstrappingCampaign] = useState(false);
@@ -199,16 +209,16 @@ export default function CampaignHomeScreen({
                             />
                         )}
 
-                        {activeTab === 'players' && isAdmin && (
+                        {(activeTab === 'players' || activeTab === 'characters') && isAdmin && (
                             <AdminPlayersHomePanel
                                 lobbyClient={lobbyClient}
                                 onStartMissionForCharacter={onStartMissionForCharacter}
                             />
                         )}
 
-                        {activeTab === 'players' && !isAdmin && (
-                            <PlayerCharactersPanel
-                                lobbyClient={lobbyClient}
+                        {activeTab === 'characters' && !isAdmin && (
+                            <CharactersPanel
+                                api={api}
                                 onStartMissionForCharacter={onStartMissionForCharacter}
                             />
                         )}
@@ -231,7 +241,6 @@ export default function CampaignHomeScreen({
                 <nav className="flex border-t border-border-custom bg-surface" aria-label="Tabs">
                     {visibleTabs.map((id) => {
                         const { label, adminTab } = TAB_SETTINGS[id];
-                        const displayLabel = id === 'players' && !isAdmin ? 'Characters' : label;
                         const isActive = activeTab === id;
                         return (
                             <button
@@ -243,14 +252,16 @@ export default function CampaignHomeScreen({
                                         : 'text-muted hover:text-white border-b-2 border-transparent'
                                 } ${adminTab ? 'bg-red-950/50 hover:bg-red-950/70' : ''}`}
                                 onClick={() => {
-                            if (id === 'players') {
-                                navigate(isAdmin ? playersListPath() : playerCharactersPath(user?.id ?? ''));
-                            } else {
-                                navigate(campaignPathForTab(id));
-                            }
-                        }}
+                                    if (id === 'players') {
+                                        navigate(playersListPath());
+                                    } else if (id === 'characters') {
+                                        navigate(playerCharactersPath(user?.id ?? ''));
+                                    } else {
+                                        navigate(campaignPathForTab(id));
+                                    }
+                                }}
                             >
-                                {displayLabel}
+                                {label}
                             </button>
                         );
                     })}

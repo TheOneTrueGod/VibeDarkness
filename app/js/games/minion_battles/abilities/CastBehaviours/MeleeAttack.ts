@@ -135,6 +135,12 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
     private impactAt: number = 0.4;
     private slideConfig = { forwardDistance: 12, backwardDistance: 0 };
     private maxHits: number = 1;
+    /**
+     * When set, overrides the hitbox-derived lock-on range for guaranteed hits.
+     * Runtime range = caster.radius + target.radius + lockOnExtraOverride.
+     * Use withLockOnExtra() for basic attacks where the default 100px tether is too generous.
+     */
+    private lockOnExtraOverride: number | null = null;
 
     withHitbox(def: HitboxDef | HitboxSpec): this {
         this.hitboxDef = def;
@@ -185,6 +191,11 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
     // How many targets to lock on to (starting from the behaviour's targetIndex slot).
     withMaxHits(n: number): this {
         this.maxHits = n;
+        return this;
+    }
+
+    withLockOnExtra(px: number): this {
+        this.lockOnExtraOverride = px;
         return this;
     }
 
@@ -315,7 +326,9 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
 
         // --- Guaranteed hits: locked units still within lock-on range ---
         // Evaded units (lockedPosition set) are excluded — they dodged intentionally.
-        const lockOnRange = getLockOnRange(this.hitboxDef);
+        // When lockOnExtraOverride is set, the range is caster.radius + target.radius + extra
+        // (computed per-target so differently-sized units are handled correctly).
+        const defaultLockOnRange = getLockOnRange(this.hitboxDef);
         const guaranteedHitIds = new Set<string>();
         const guaranteedHits: Unit[] = [];
 
@@ -323,6 +336,9 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
             if (locked.lockedPosition !== null) continue; // evaded
             const liveUnit = ctx.engine.getUnit(locked.unitId);
             if (!liveUnit || !liveUnit.isAlive()) continue;
+            const lockOnRange = this.lockOnExtraOverride !== null
+                ? ctx.caster.radius + liveUnit.radius + this.lockOnExtraOverride
+                : defaultLockOnRange;
             const dx = liveUnit.x - ctx.caster.x;
             const dy = liveUnit.y - ctx.caster.y;
             if (Math.sqrt(dx * dx + dy * dy) <= lockOnRange) {

@@ -3,14 +3,6 @@ import type { GameStatePayload } from '../../../types';
 import { DebugButton } from '../DebugButton';
 import { useDebugConsole } from '../../../contexts/DebugConsoleContext';
 
-interface MouseDebugBridge {
-    __minionBattlesDebugSetUnitHover?: (unitId: string | null) => void;
-    __minionBattlesDebugGameState?: Record<string, unknown> | null;
-    __minionBattlesAdminHealUnit?: (unitId: string) => void;
-    __minionBattlesAdminKillUnit?: (unitId: string) => void;
-    __minionBattlesAdminMovePendingUnitId?: string;
-}
-
 interface DebugUnitsTabProps {
     isActive: boolean;
     inBattle: boolean;
@@ -45,12 +37,17 @@ type DebugUnit = Record<string, unknown> & {
 };
 
 export default function DebugUnitsTab({ isActive, inBattle, gameState, isAdmin = false }: DebugUnitsTabProps) {
-    const { selectedDebugUnitId: selectedUnitId, setSelectedDebugUnitId: setSelectedUnitId } = useDebugConsole();
+    const {
+        selectedDebugUnitId: selectedUnitId,
+        setSelectedDebugUnitId: setSelectedUnitId,
+        battleBridge,
+        adminMovePendingUnitId,
+        setAdminMovePendingUnitId,
+    } = useDebugConsole();
     const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null);
     const [unitStateOpen, setUnitStateOpen] = useState(false);
     const [aiStateOpen, setAiStateOpen] = useState(false);
     const [abilitiesOpen, setAbilitiesOpen] = useState(false);
-    const [awaitingMoveTargetUnitId, setAwaitingMoveTargetUnitId] = useState<string | null>(null);
 
     // Lazy-load portrait assets only when the user opens the Units debug tab.
     const [getPortraitFn, setGetPortraitFn] = useState<((id: string) => { picture: string } | undefined) | null>(null);
@@ -62,21 +59,15 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState, isAdmin =
         | null
     >(null);
 
-    // Poll live engine state when in battle so Units tab stays up to date.
-    // Also detects when BattlePhase has consumed the admin move flag (move completed).
+    // Poll live engine state from the debug bridge when in battle.
     const [liveGameState, setLiveGameState] = useState<Record<string, unknown> | null>(null);
     useEffect(() => {
-        if (!isActive || !inBattle) return;
+        if (!isActive || !inBattle || !battleBridge) return;
         const id = window.setInterval(() => {
-            const live = (window as unknown as MouseDebugBridge).__minionBattlesDebugGameState;
-            setLiveGameState(live ?? null);
-            // If we were waiting for a move target and the flag has been consumed, clear local state.
-            if ((window as unknown as MouseDebugBridge).__minionBattlesAdminMovePendingUnitId === undefined) {
-                setAwaitingMoveTargetUnitId((prev) => (prev !== null ? null : prev));
-            }
+            setLiveGameState(battleBridge.getSnapshot().gameState);
         }, 100);
         return () => window.clearInterval(id);
-    }, [isActive, inBattle]);
+    }, [isActive, inBattle, battleBridge]);
 
     const units = useMemo(() => {
         const source = liveGameState ?? (gameState?.game as Record<string, unknown> | undefined);
@@ -96,16 +87,16 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState, isAdmin =
             setUnitStateOpen(false);
             setAiStateOpen(false);
             setAbilitiesOpen(false);
-            (window as unknown as MouseDebugBridge).__minionBattlesDebugSetUnitHover?.(null);
+            battleBridge?.setUnitHover(null);
             return;
         }
 
         // When leaving the tab, clear any unit hover outline in the Pixi world.
         if (!isActive) {
             setHoveredUnitId(null);
-            (window as unknown as MouseDebugBridge).__minionBattlesDebugSetUnitHover?.(null);
+            battleBridge?.setUnitHover(null);
         }
-    }, [inBattle, isActive]);
+    }, [inBattle, isActive, battleBridge]);
 
     useEffect(() => {
         if (!isActive || !inBattle || getPortraitFn) return;
@@ -180,9 +171,8 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState, isAdmin =
         setAiStateOpen(false);
         setAbilitiesOpen(false);
         // Cancel any pending admin move when selection changes.
-        (window as unknown as MouseDebugBridge).__minionBattlesAdminMovePendingUnitId = undefined;
-        setAwaitingMoveTargetUnitId(null);
-    }, [selectedUnitId]);
+        setAdminMovePendingUnitId(null);
+    }, [selectedUnitId, setAdminMovePendingUnitId]);
 
     if (!isActive) return null;
 
@@ -218,11 +208,11 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState, isAdmin =
                                         }`}
                                         onMouseEnter={() => {
                                             setHoveredUnitId(unitId);
-                                            (window as unknown as MouseDebugBridge).__minionBattlesDebugSetUnitHover?.(unitId);
+                                            battleBridge?.setUnitHover(unitId);
                                         }}
                                         onMouseLeave={() => {
                                             setHoveredUnitId(null);
-                                            (window as unknown as MouseDebugBridge).__minionBattlesDebugSetUnitHover?.(null);
+                                            battleBridge?.setUnitHover(null);
                                         }}
                                         onClick={() => setSelectedUnitId(unitId)}
                                         title={name}
@@ -284,33 +274,31 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState, isAdmin =
                                 <div className="flex gap-2">
                                     <DebugButton
                                         onClick={() => {
-                                            if (awaitingMoveTargetUnitId) {
-                                                (window as unknown as MouseDebugBridge).__minionBattlesAdminMovePendingUnitId = undefined;
-                                                setAwaitingMoveTargetUnitId(null);
+                                            if (adminMovePendingUnitId) {
+                                                setAdminMovePendingUnitId(null);
                                             } else {
-                                                (window as unknown as MouseDebugBridge).__minionBattlesAdminMovePendingUnitId = selectedUnit.id;
-                                                setAwaitingMoveTargetUnitId(selectedUnit.id);
+                                                setAdminMovePendingUnitId(selectedUnit.id);
                                             }
                                         }}
                                     >
-                                        {awaitingMoveTargetUnitId ? 'Cancel Move' : 'Move'}
+                                        {adminMovePendingUnitId ? 'Cancel Move' : 'Move'}
                                     </DebugButton>
                                     <DebugButton
                                         onClick={() => {
-                                            (window as unknown as MouseDebugBridge).__minionBattlesAdminHealUnit?.(selectedUnit.id);
+                                            battleBridge?.adminHealUnit(selectedUnit.id);
                                         }}
                                     >
                                         Heal
                                     </DebugButton>
                                     <DebugButton
                                         onClick={() => {
-                                            (window as unknown as MouseDebugBridge).__minionBattlesAdminKillUnit?.(selectedUnit.id);
+                                            battleBridge?.adminKillUnit(selectedUnit.id);
                                         }}
                                     >
                                         Kill
                                     </DebugButton>
                                 </div>
-                                {awaitingMoveTargetUnitId && (
+                                {adminMovePendingUnitId && (
                                     <div className="text-[11px] text-amber-300 font-mono">
                                         Click on the canvas to set unit position
                                     </div>

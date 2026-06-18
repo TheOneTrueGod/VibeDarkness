@@ -200,10 +200,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     boar: {
         bodyColor: 0x4a3728,
         characterSpriteKey: 'boar',
-        hp: 36,
+        hp: 54,
         speed: 100,
         size: 'Large',
-        stamina: 1,
+        stamina: 2,
         perceptionRange: 280,
         deathEffect: darkCreatureDissolutionDeathEffect(5),
         uiDescription: 'Tough charger that bowls through the front line.',

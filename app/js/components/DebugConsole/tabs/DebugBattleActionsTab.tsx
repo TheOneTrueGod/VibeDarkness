@@ -1,16 +1,7 @@
 import React from 'react';
 import { useDebugSettings } from '../../../contexts/DebugSettingsContext';
+import { useDebugConsole } from '../../../contexts/DebugConsoleContext';
 import DebugOnOffButton from '../DebugOnOffButton';
-
-const DEBUG_TRIGGER_DESYNC_FLAG = '__minionBattlesDebugTriggerDesyncRequested';
-const DEBUG_REPLAY_FROM_START_FLAG = '__minionBattlesDebugReplayFromStartRequested';
-
-declare global {
-    interface Window {
-        __minionBattlesDebugTriggerDesyncRequested?: boolean;
-        __minionBattlesDebugReplayFromStartRequested?: boolean;
-    }
-}
 
 interface DebugBattleActionsTabProps {
     isActive: boolean;
@@ -23,6 +14,7 @@ interface DebugBattleActionsTabProps {
 export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isHost = false, skipCurrentTurn = null }: DebugBattleActionsTabProps) {
     const { darkOverlayEnabled, godModeEnabled, superSpeedEnabled, setDarkOverlayEnabled, setGodModeEnabled, setSuperSpeedEnabled } =
         useDebugSettings();
+    const { battleBridge } = useDebugConsole();
 
     if (!isActive || !inBattle || !isAdmin) return null;
 
@@ -45,7 +37,7 @@ export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isH
                     type="button"
                     className="px-3 py-2 bg-warning text-secondary text-xs font-medium rounded hover:bg-warning/80 transition-colors"
                     onClick={() => {
-                        window[DEBUG_TRIGGER_DESYNC_FLAG] = true;
+                        battleBridge?.triggerDesync();
                     }}
                 >
                     Trigger desync
@@ -57,7 +49,7 @@ export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isH
                     type="button"
                     className="px-3 py-2 bg-warning text-secondary text-xs font-medium rounded hover:bg-warning/80 transition-colors"
                     onClick={() => {
-                        window[DEBUG_REPLAY_FROM_START_FLAG] = true;
+                        battleBridge?.triggerReplayFromStart();
                     }}
                 >
                     Replay from start

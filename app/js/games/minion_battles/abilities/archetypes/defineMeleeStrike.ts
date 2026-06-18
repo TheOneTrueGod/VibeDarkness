@@ -99,6 +99,18 @@ export interface MeleeStrikeConfig {
     telegraph?: AbilityTelegraph;
     abilityEvents?: Partial<Record<AbilityEventType, readonly AbilityEventRule[]>>;
 
+    // ---- Lock-on ----
+    /**
+     * Extra px beyond (caster.radius + target.radius) for guaranteed hits at impact time.
+     * When omitted, uses the hitbox-derived default (hitboxMaxRange + 100px).
+     */
+    lockOnExtra?: number;
+    /**
+     * Extra px beyond (caster.radius + target.radius) at which the windup telegraph tether breaks.
+     * When omitted, uses the hitbox-derived default (hitboxMaxRange + 100px).
+     */
+    maxLockOnExtra?: number;
+
     // ---- AI ----
     aiPriority?: number;
     /**
@@ -164,11 +176,16 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         behaviour = behaviour.withMaxHits(config.maxHits);
     }
 
+    if (config.lockOnExtra !== undefined) {
+        behaviour = behaviour.withLockOnExtra(config.lockOnExtra);
+    }
+
     // Build timing intervals.
     const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         { id: 'windup',   start: 0,          end: windupEnd,   abilityPhase: AbilityPhase.Windup },
         { id: 'strike',   start: windupEnd,   end: activeEnd,   abilityPhase: AbilityPhase.Active,
-          targetDef: { kind: 'select', label: 'Target', hitbox, filter: 'enemy', allowMiss: true },
+          targetDef: { kind: 'select', label: 'Target', hitbox, filter: 'enemy', allowMiss: true,
+              ...(config.maxLockOnExtra !== undefined ? { maxLockOnExtra: config.maxLockOnExtra } : {}) },
           behaviour },
         { id: 'cooldown', start: activeEnd,   end: totalDuration, abilityPhase: AbilityPhase.Cooldown },
     ];

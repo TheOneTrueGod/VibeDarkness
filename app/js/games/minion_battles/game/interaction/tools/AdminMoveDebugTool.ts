@@ -1,6 +1,6 @@
 import type { InteractionTool, PlayerInteractionContext, IPlayerInteractionManager } from '../InteractionTool';
 
-/** Debug tool: click to teleport a specific unit to the clicked world position via the admin move global. */
+/** Debug tool: click to teleport a specific unit to the clicked world position. */
 export class AdminMoveDebugTool implements InteractionTool {
     constructor(private readonly unitId: string) {}
 
@@ -10,10 +10,10 @@ export class AdminMoveDebugTool implements InteractionTool {
         ctx: PlayerInteractionContext,
         manager: IPlayerInteractionManager,
     ): boolean {
-        const { camera } = ctx;
+        const { camera, engine } = ctx;
         const worldPos = camera.screenToWorld(screenX, screenY);
-        window.__minionBattlesAdminMoveUnit?.(this.unitId, worldPos.x, worldPos.y);
-        window.__minionBattlesAdminMovePendingUnitId = undefined;
+        engine.adminMoveUnit(this.unitId, worldPos.x, worldPos.y);
+        manager.clearAdminMovePending();
         manager.deactivateTool();
         return true;
     }

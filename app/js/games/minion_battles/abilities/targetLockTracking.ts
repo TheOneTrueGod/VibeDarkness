@@ -7,9 +7,24 @@ import type { Unit } from '../game/units/Unit';
 import { abilityHasTag } from './Ability';
 import { Effect } from '../game/effects/Effect';
 import type { DamageNumberMotionData } from '../game/effects/damageNumberMotion';
+import { CELL_SIZE } from '../terrain/TerrainGrid';
 
 /** Extra px beyond hitbox maxRange before a locked target breaks tether. */
 export const LOCK_ON_TETHER_EXTRA = 100;
+
+/**
+ * Extra px beyond (caster.radius + target.radius) for basic-attack guaranteed hits.
+ * Basic attacks use runtime unit radii instead of the hitbox-derived tether so the
+ * effective range scales naturally with different unit sizes.
+ */
+export const BASIC_ATTACK_LOCK_ON_EXTRA = CELL_SIZE / 2; // 20px beyond unit radii
+
+/**
+ * Extra px beyond (caster.radius + target.radius) at which the windup telegraph
+ * tether breaks for basic attacks. Slightly larger than BASIC_ATTACK_LOCK_ON_EXTRA
+ * so the aim-circle tracks the target a bit further than the guaranteed-hit bubble.
+ */
+export const BASIC_ATTACK_MAX_LOCK_ON_EXTRA = CELL_SIZE; // 40px beyond unit radii
 
 export function getLockOnRange(hitboxMaxRange: number | null): number {
     if (hitboxMaxRange === null) return LOCK_ON_TETHER_EXTRA;

@@ -102,7 +102,7 @@ const swingSwordBehaviour = CastBehaviours.MeleeAttack()
     .withKnockback(KNOCKBACK_TIER)
     .onDamage((ctx, unit) => {
         if (hasResearchNode(ctx.engine, ctx.caster, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_JAGGED_EDGE)) {
-            applyBleedStack(unit, ctx.engine.gameTime, ctx.engine.roundNumber ?? 0, 5);
+            applyBleedStack(unit, ctx.engine.gameTime, ctx.engine.roundNumber ?? 0, 3);
         }
     });
 

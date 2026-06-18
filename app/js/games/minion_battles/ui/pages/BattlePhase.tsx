@@ -38,6 +38,7 @@ import { TeamworkTextEffect } from '../../game/effect_defs/hudEffects';
 import { computeSynchash } from '@/utils/synchash';
 import { logToLobbyLog } from '../../../../lobbyLog';
 import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
+import { useDebugConsole, type BattleDebugBridge, type BattleDebugSnapshot } from '../../../../contexts/DebugConsoleContext';
 import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEffectCanvas';
 import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
@@ -46,36 +47,10 @@ import { AUTO_END_TURN } from '../../game/gameConstants';
 declare global {
     interface Window {
         /**
-         * Debug focus/outline: used by DebugConsole when the user hovers a unit in the UI.
-         * When unitId is null, the highlight is cleared.
-         */
-        __minionBattlesDebugSetUnitHover?: (unitId: string | null) => void;
-        /**
          * When > Date.now(), BattleCanvas pauses auto-follow centering to give debug camera focus time.
+         * Internal between BattlePhase and BattleCanvas — not part of the debug bridge.
          */
         __minionBattlesDebugAutoFollowPausedUntil?: number;
-        /** Live game tick from engine; DebugConsole polls this for up-to-date display. */
-        __minionBattlesDebugGameTick?: number;
-        /** Live serialized engine state; DebugConsole Units tab polls this for up-to-date unit data. */
-        __minionBattlesDebugGameState?: Record<string, unknown> | null;
-        /** Client synchash of live engine state (Game State debug tab). */
-        __minionBattlesDebugSynchash?: string;
-        /**
-         * Battle Actions debug button sets this one-shot flag; BattlePhase consumes and clears it.
-         */
-        __minionBattlesDebugTriggerDesyncRequested?: boolean;
-        /** Battle Actions debug button: replay the battle from initial state + full order replay. */
-        __minionBattlesDebugReplayFromStartRequested?: boolean;
-        /** Debug Console → BattleNet: lobby_log (critical) + host snapshot POST from live engine. */
-        __minionBattlesDebugLogLocalStateToLobby?: () => Promise<void>;
-        /** Admin command: fully heal a unit (debug/host only). */
-        __minionBattlesAdminHealUnit?: (unitId: string) => void;
-        /** Admin command: kill a unit (debug/host only). */
-        __minionBattlesAdminKillUnit?: (unitId: string) => void;
-        /** Admin command: teleport a unit to world coordinates (debug/host only). */
-        __minionBattlesAdminMoveUnit?: (unitId: string, worldX: number, worldY: number) => void;
-        /** Set by DebugUnitsTab when Move mode is active; consumed and cleared by handleCanvasClick. */
-        __minionBattlesAdminMovePendingUnitId?: string;
     }
 }
 
@@ -117,11 +92,19 @@ export default function BattlePhase({
 }: BattlePhaseProps) {
     const canSubmitOrders = true;
 
+    const { setBattleBridge, adminMovePendingUnitId, setAdminMovePendingUnitId } = useDebugConsole();
+
     const sessionRef = useRef<BattleSession | null>(null);
     const netRef = useRef<BattleNet | null>(null);
     const hudEffectCanvasRef = useRef<HudEffectCanvasHandle | null>(null);
     const prevLobbyHostPlayerIdRef = useRef<string | null>(null);
     const initialHeartbeatCheckedRef = useRef(false);
+
+    // Snapshot ref for the debug bridge — written by the 100ms polling interval.
+    const snapshotRef = useRef<BattleDebugSnapshot>({ gameTick: null, gameState: null, synchash: null });
+    // Mirror of adminMovePendingUnitId from context — readable inside setInterval closures.
+    const adminMovePendingRef = useRef<string | null>(null);
+    adminMovePendingRef.current = adminMovePendingUnitId;
 
     // UI state
     const [roundNumber, setRoundNumber] = useState(1);
@@ -291,117 +274,111 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     }, [players, api, playerId]);
 
     // ========================================================================
-    // Debug unit focus/outline bridge (DebugConsole -> Pixi world)
+    // Debug bridge — registers BattleDebugBridge into DebugConsoleContext.
+    // All functions lazily read sessionRef/netRef so the bridge is safe to
+    // set up at mount even before the session has initialised.
     // ========================================================================
     useEffect(() => {
-        window.__minionBattlesDebugSetUnitHover = (unitId: string | null) => {
-            sessionRef.current?.getRenderer()?.setDebugUnitOutline(unitId);
-
-            if (!unitId) {
-                window.__minionBattlesDebugAutoFollowPausedUntil = Date.now();
-                return;
-            }
-
-            const engine = sessionRef.current?.getEngine();
-            const camera = sessionRef.current?.getCamera();
-            if (!engine || !camera) return;
-            const unit = engine.getUnit(unitId);
-            if (!unit) return;
-
-            camera.snapTo(unit.x, unit.y, unit.radius);
-            window.__minionBattlesDebugAutoFollowPausedUntil = Date.now() + 2500;
+        const bridge: BattleDebugBridge = {
+            setUnitHover: (unitId) => {
+                sessionRef.current?.getRenderer()?.setDebugUnitOutline(unitId);
+                if (!unitId) {
+                    window.__minionBattlesDebugAutoFollowPausedUntil = Date.now();
+                    return;
+                }
+                const engine = sessionRef.current?.getEngine();
+                const camera = sessionRef.current?.getCamera();
+                if (!engine || !camera) return;
+                const unit = engine.getUnit(unitId);
+                if (!unit) return;
+                camera.snapTo(unit.x, unit.y, unit.radius);
+                window.__minionBattlesDebugAutoFollowPausedUntil = Date.now() + 2500;
+            },
+            adminHealUnit: (unitId) => {
+                const engine = sessionRef.current?.getEngine();
+                const net = netRef.current;
+                if (!engine || !net) return;
+                engine.adminHealUnit(unitId);
+                void net.debugLogLocalStateAndSubmitSnapshot();
+            },
+            adminKillUnit: (unitId) => {
+                const engine = sessionRef.current?.getEngine();
+                const net = netRef.current;
+                if (!engine || !net) return;
+                engine.adminKillUnit(unitId);
+                void net.debugLogLocalStateAndSubmitSnapshot();
+            },
+            adminMoveUnit: (unitId, worldX, worldY) => {
+                const engine = sessionRef.current?.getEngine();
+                const net = netRef.current;
+                if (!engine || !net) return;
+                engine.adminMoveUnit(unitId, worldX, worldY);
+                void net.debugLogLocalStateAndSubmitSnapshot();
+            },
+            logLocalStateToLobby: async () => {
+                const net = netRef.current;
+                if (!net) {
+                    console.warn('[BattlePhase] debug log local state: BattleNet not ready');
+                    return;
+                }
+                try {
+                    await net.debugLogLocalStateAndSubmitSnapshot();
+                } catch (e) {
+                    console.error('[BattlePhase] debugLogLocalStateAndSubmitSnapshot failed:', e);
+                }
+            },
+            triggerDesync: () => {
+                sessionRef.current?.triggerDebugDesyncOnce();
+            },
+            triggerReplayFromStart: () => {
+                void sessionRef.current?.replayMissionFromStart();
+            },
+            getSnapshot: () => snapshotRef.current,
         };
-
-        window.__minionBattlesAdminHealUnit = (unitId: string) => {
-            const engine = sessionRef.current?.getEngine();
-            const net = netRef.current;
-            if (!engine || !net) return;
-            engine.adminHealUnit(unitId);
-            void net.debugLogLocalStateAndSubmitSnapshot();
-        };
-
-        window.__minionBattlesAdminKillUnit = (unitId: string) => {
-            const engine = sessionRef.current?.getEngine();
-            const net = netRef.current;
-            if (!engine || !net) return;
-            engine.adminKillUnit(unitId);
-            void net.debugLogLocalStateAndSubmitSnapshot();
-        };
-
-        window.__minionBattlesAdminMoveUnit = (unitId: string, worldX: number, worldY: number) => {
-            const engine = sessionRef.current?.getEngine();
-            const net = netRef.current;
-            if (!engine || !net) return;
-            engine.adminMoveUnit(unitId, worldX, worldY);
-            void net.debugLogLocalStateAndSubmitSnapshot();
-        };
-
+        setBattleBridge(bridge);
         return () => {
             sessionRef.current?.getRenderer()?.setDebugUnitOutline(null);
-            window.__minionBattlesDebugSetUnitHover = undefined;
-            window.__minionBattlesDebugAutoFollowPausedUntil = undefined;
-            window.__minionBattlesDebugGameTick = undefined;
-            window.__minionBattlesDebugGameState = undefined;
-            window.__minionBattlesAdminHealUnit = undefined;
-            window.__minionBattlesAdminKillUnit = undefined;
-            window.__minionBattlesAdminMoveUnit = undefined;
-            window.__minionBattlesAdminMovePendingUnitId = undefined;
+            setBattleBridge(null);
         };
+    }, [setBattleBridge]);
 
-    }, []);
-
+    // Populate snapshotRef every 100ms for bridge.getSnapshot() callers.
+    // Also detects when AdminMoveDebugTool has consumed the pending unit ID
+    // and syncs the cleared state back to context.
     useEffect(() => {
         let hashSeq = 0;
         const id = window.setInterval(() => {
             const engine = sessionRef.current?.getEngine();
+            const mgr = sessionRef.current?.getInteractionManager();
             if (engine) {
-                if (typeof engine.gameTick === 'number') {
-                    window.__minionBattlesDebugGameTick = engine.gameTick;
-                }
                 const state = engine.toJSON() as unknown as Record<string, unknown>;
-                window.__minionBattlesDebugGameState = state;
-                if (window.__minionBattlesDebugTriggerDesyncRequested === true) {
-                    sessionRef.current?.triggerDebugDesyncOnce();
-                    window.__minionBattlesDebugTriggerDesyncRequested = false;
-                }
-                if (window.__minionBattlesDebugReplayFromStartRequested === true) {
-                    void sessionRef.current?.replayMissionFromStart();
-                    window.__minionBattlesDebugReplayFromStartRequested = false;
+                snapshotRef.current = {
+                    gameTick: typeof engine.gameTick === 'number' ? engine.gameTick : null,
+                    gameState: state,
+                    synchash: snapshotRef.current.synchash,
+                };
+                // Detect when AdminMoveDebugTool has consumed the pending unit id.
+                if (adminMovePendingRef.current !== null && (mgr?.adminMovePendingUnitId ?? null) === null) {
+                    setAdminMovePendingUnitId(null);
                 }
                 const seq = ++hashSeq;
                 void computeSynchash(state).then((h: string) => {
                     if (seq === hashSeq) {
-                        window.__minionBattlesDebugSynchash = h;
+                        snapshotRef.current = { ...snapshotRef.current, synchash: h };
                     }
                 });
             }
         }, 100);
         return () => {
             window.clearInterval(id);
-            window.__minionBattlesDebugGameTick = undefined;
-            window.__minionBattlesDebugGameState = undefined;
-            window.__minionBattlesDebugSynchash = undefined;
-            window.__minionBattlesDebugTriggerDesyncRequested = undefined;
+            snapshotRef.current = { gameTick: null, gameState: null, synchash: null };
         };
-    }, []);
+    }, [setAdminMovePendingUnitId]);
 
+    // Sync adminMovePendingUnitId from context into the interaction manager's field.
     useEffect(() => {
-        window.__minionBattlesDebugLogLocalStateToLobby = async () => {
-            const net = netRef.current;
-            if (!net) {
-                console.warn('[BattlePhase] debug log local state: BattleNet not ready');
-                return;
-            }
-            try {
-                await net.debugLogLocalStateAndSubmitSnapshot();
-            } catch (e) {
-                console.error('[BattlePhase] debugLogLocalStateAndSubmitSnapshot failed:', e);
-            }
-        };
-        return () => {
-            window.__minionBattlesDebugLogLocalStateToLobby = undefined;
-        };
-    }, []);
+        sessionRef.current?.getInteractionManager()?.setAdminMovePendingUnitId(adminMovePendingUnitId);
+    }, [adminMovePendingUnitId]);
 
     const onSidebarInfoChangeRef = useRef(onSidebarInfoChange);
     onSidebarInfoChangeRef.current = onSidebarInfoChange;
@@ -846,7 +823,14 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     }, []);
 
     const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
-        sessionRef.current?.getInteractionManager()?.onCanvasMouseMove(screenX, screenY);
+        const mgr = sessionRef.current?.getInteractionManager();
+        mgr?.onCanvasMouseMove(screenX, screenY);
+        // Bypass the React render cycle: write the live world position directly into
+        // targetingStateRef so the RAF loop always gets the current mouse location.
+        const mw = mgr?.getUIState()?.mouseWorld;
+        if (mw && targetingStateRef.current) {
+            targetingStateRef.current.mouseWorld = mw;
+        }
     }, []);
 
     const handleForceResync = useCallback(() => {

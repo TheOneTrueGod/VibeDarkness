@@ -17,7 +17,7 @@ import { getPortrait } from '../../character_defs/portraits';
 import { ALL_PLAYER_ITEMS } from '../../character_defs/items';
 import CharacterCreator from '../components/CharacterEditor/CharacterCreator';
 import CharacterEditor from '../components/CharacterEditor/CharacterEditor';
-import AdminPlayersPanel from '../components/AdminPlayersPanel';
+import CharactersPanel from '../components/characters/CharactersPanel';
 import ReplayUi from '../../replay/ReplayUi';
 import { useUser } from '../../../../contexts/UserContext';
 
@@ -518,7 +518,7 @@ export default function CharacterSelectPhase({
 
             {activeTab === 'players' && isAdmin ? (
                 <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
-                    <AdminPlayersPanel api={api} players={players} />
+                    <CharactersPanel api={api} players={players} />
                 </div>
             ) : activeTab === 'replay' && isAdmin ? (
                 <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">

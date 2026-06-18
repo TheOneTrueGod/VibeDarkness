@@ -85,7 +85,7 @@ export default function DebugConsole({
     battleOrdersDebug = null,
 }: DebugConsoleProps) {
     const { debugPauseMode, setDebugPauseMode, advanceOneDebugTick } = useDebugSettings();
-    const { setSelectedDebugUnitId } = useDebugConsole();
+    const { setSelectedDebugUnitId, battleBridge } = useDebugConsole();
     const [debugMode, setDebugMode] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [, setTildeCount] = useState(0);
@@ -167,15 +167,15 @@ export default function DebugConsole({
         } else {
             debug.unitSelectorMode = false;
             debug.unitSelectorCallback = undefined;
-            window.__minionBattlesDebugSetUnitHover?.(null);
+            battleBridge?.setUnitHover(null);
         }
         return () => {
             const d = getDebugState();
             d.unitSelectorMode = false;
             d.unitSelectorCallback = undefined;
-            window.__minionBattlesDebugSetUnitHover?.(null);
+            battleBridge?.setUnitHover(null);
         };
-    }, [activeDebugTool, setSelectedDebugUnitId]);
+    }, [activeDebugTool, setSelectedDebugUnitId, battleBridge]);
 
     const tabLabel = playerName ? `${playerName} Data` : 'Player Data';
     const charactersTabGrayed = charactersListMeta.isNull && !charactersListMeta.isLoading;
