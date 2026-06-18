@@ -393,6 +393,9 @@ export function tickUnitActiveAbilities(
                 currentTime: elapsed,
             });
         }
+        if (ability?.clearMovementOnComplete) {
+            unit.clearMovement();
+        }
         onNaturalCompletion();
         unit.activeAbilities.splice(completedIndex, 1);
     }

@@ -108,6 +108,7 @@ export const ThrowTorchAbility = defineAbility({
         },
     ],
     targets: [],
+    clearMovementOnComplete: true,
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
 
     getTooltipText(_gameState?: unknown): string[] {

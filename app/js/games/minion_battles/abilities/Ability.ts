@@ -252,6 +252,12 @@ export interface AbilityStatic {
     readonly prefireTime: number;
 
     /**
+     * When true, the unit's movement path is cleared when this ability naturally completes.
+     * Use for abilities where continued movement after casting is unexpected (e.g. Throw Torch).
+     */
+    readonly clearMovementOnComplete?: boolean;
+
+    /**
      * Half-open timing intervals for UI (timeline, segmented cooldown ring) and duration (`max(end)`).
      * Required on every ability; use `abilities/abilityTimings.ts` helpers.
      */
