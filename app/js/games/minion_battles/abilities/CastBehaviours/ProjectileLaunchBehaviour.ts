@@ -88,9 +88,8 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     }
 
     onSetup(ctx: CastBehaviourSetupContext): void {
-        console.log('[ProjectileLaunchBehaviour.onSetup] abilityId=', ctx.abilityId, 'target=', JSON.stringify(ctx.target));
         const targetPos = resolveLaunchTarget(ctx);
-        if (!targetPos) { console.log('[ProjectileLaunchBehaviour.onSetup] NO targetPos'); return; }
+        if (!targetPos) return;
 
         const engine = ctx.engine as AbilityEngineContext;
         const clamped = clampToMaxRange(ctx.caster, targetPos, this.maxRange);

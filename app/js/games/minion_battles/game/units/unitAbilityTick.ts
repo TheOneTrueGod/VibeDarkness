@@ -163,7 +163,11 @@ export function tickUnitActiveAbilities(
                     setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
                     engine,
                 };
-                entry.behaviour.onSetup?.(setupCtx);
+                if (!active.setupFiredBehaviourKeys) active.setupFiredBehaviourKeys = new Set();
+                if (!active.setupFiredBehaviourKeys.has(behaviourKey)) {
+                    active.setupFiredBehaviourKeys.add(behaviourKey);
+                    entry.behaviour.onSetup?.(setupCtx);
+                }
 
                 if (resolvedEnd !== null) {
                     unit.activeCastBehaviours.set(behaviourKey, {

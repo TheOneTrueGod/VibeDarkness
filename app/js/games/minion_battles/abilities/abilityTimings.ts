@@ -354,9 +354,8 @@ export function enteredTimingIds(
     intervals: AbilityTimingInterval[],
 ): Set<string> {
     // Use strict lower bound for prevElapsed: an interval whose start equals prevElapsed
-    // exactly is treated as "just entering now", not "already active". This prevents a
-    // floating-point edge case where `currentTime - dt` lands exactly on an interval
-    // boundary that the accumulated gameTime never reached, causing the entry to be missed.
+    // exactly is treated as "just entering now", not "already active". Duplicate onSetup
+    // at that boundary is suppressed via ActiveAbility.setupFiredBehaviourKeys in unitAbilityTick.
     const prev = new Set<string>();
     for (const it of intervals) {
         if (it.start < prevElapsed && prevElapsed < it.end) prev.add(it.id);

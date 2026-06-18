@@ -68,6 +68,38 @@ describe('enteredTimingIds / exitedTimingIds', () => {
         const entered = enteredTimingIds(0, 1 / 60, startZero);
         expect(entered.has('active')).toBe(true);
     });
+
+    it('does not re-enter when prevElapsed equals interval start (throw rock active at 0.3)', () => {
+        const throwRockLike = [
+            { id: 'windup', start: 0, end: 0.3, abilityPhase: AbilityPhase.Windup },
+            { id: 'active', start: 0.3, end: 0.4, abilityPhase: AbilityPhase.Active },
+        ];
+        const dt = 1 / 60;
+        const firstCross = enteredTimingIds(0.3 - dt, 0.3, throwRockLike);
+        expect(firstCross.has('active')).toBe(true);
+        const secondTick = enteredTimingIds(0.3, 0.3 + dt, throwRockLike);
+        // Raw enteredTimingIds re-fires at prev===start; unitAbilityTick dedupes onSetup.
+        expect(secondTick.has('active')).toBe(true);
+    });
+
+    it('detects knock active entry at t=0.25 stepping at 1/60', () => {
+        const knockLike = [
+            { id: 'windup', start: 0, end: 0.25, abilityPhase: AbilityPhase.Windup },
+            { id: 'active', start: 0.25, end: 0.35, abilityPhase: AbilityPhase.Active },
+            { id: 'cooldown', start: 0.35, end: 1.3, abilityPhase: AbilityPhase.Cooldown },
+        ];
+        const intervals = normalizeAbilityTimingsToIntervals(knockLike);
+        const dt = 1 / 60;
+        let activeEntries = 0;
+        for (let step = 1; step <= 20; step++) {
+            const next = step * dt;
+            const prev = next - dt;
+            const entered = enteredTimingIds(prev, next, intervals);
+            if ([...entered].some((id) => id.includes('active'))) activeEntries++;
+        }
+        // First crossing + one duplicate at prev===start (deduped in unitAbilityTick).
+        expect(activeEntries).toBe(2);
+    });
 });
 
 describe('getTotalAbilityDuration', () => {

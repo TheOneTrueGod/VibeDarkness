@@ -103,6 +103,26 @@ export const throwRockNoResearchScenario: ScenarioDefinition = {
     },
 };
 
+// Discriminating test: checks that the rock deals damage EXACTLY ONCE (not twice).
+// Single-player floor raises damage to 6; one hit → hp 494. Two hits → hp 488.
+export const throwRockExactlyOnceScenario: ScenarioDefinition = {
+    id: 'throw_rock_exactly_once',
+    title: 'Throw Rock deals damage exactly once (not twice)',
+    category: 'ability',
+    maxDurationMs: 5000,
+    buildEngine: () => throwRockEngine([]),
+    getInitialOrders: throwOrder,
+    assertPass: (e) => {
+        const d = e.getUnit('target_dummy');
+        // 500 - 6 (single-player floor) = 494. Double-damage would be 488.
+        return Boolean(d && d.hp >= 489 && d.hp <= 495);
+    },
+    failureMessage: (e) => {
+        const d = e.getUnit('target_dummy');
+        return `dummy hp=${d?.hp}; expected 489–495 (one hit). hp < 489 means double damage.`;
+    },
+};
+
 export const throwRockMorePowerScenario: ScenarioDefinition = {
     id: 'throw_rock_research_more_power',
     title: 'Throw Charged Rock with more_power deals higher explosion damage',

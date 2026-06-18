@@ -241,6 +241,12 @@ export interface ActiveAbility {
      */
     conditionalCancelPaused?: boolean;
     /**
+     * One-shot cast behaviour setup keys already fired this cast (`${intervalId}_${bIdx}`).
+     * Prevents duplicate onSetup when enteredTimingIds re-enters at prevElapsed === start.
+     * NOT serialized.
+     */
+    setupFiredBehaviourKeys?: Set<string>;
+    /**
      * Tag filter stored when conditionalCancelPaused is set — defines which abilities the player
      * may choose as a replacement. Undefined means any ability is valid. Serialized.
      */

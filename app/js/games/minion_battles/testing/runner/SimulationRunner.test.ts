@@ -16,6 +16,7 @@ import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordRe
 import { swingBatHitsThreeTargetsScenario } from '../scenarios/abilities/swingBatScenarios';
 import { beastClawFrontHitBackMissScenario } from '../scenarios/abilities/beastClawScenarios';
 import { throwKnifePiercingBleedScenario } from '../scenarios/abilities/throwKnifeScenarios';
+import { throwRockExactlyOnceScenario } from '../scenarios/abilities/throwRockResearch';
 import { clawMovementDistanceScenario } from '../scenarios/abilities/clawScenarios';
 import { absorptionShieldEnergyChargeScenario } from '../scenarios/abilities/absorptionShieldScenario';
 import {
@@ -270,6 +271,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes throw knife piercing bleed scenario', () => {
         const r = runScenarioHeadless(throwKnifePiercingBleedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('throw rock deals damage exactly once (not twice)', () => {
+        const r = runScenarioHeadless(throwRockExactlyOnceScenario);
         expect(r.passed, r.message).toBe(true);
     });
 
