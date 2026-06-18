@@ -111,14 +111,14 @@ function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, st
         nodeId,
     });
 
-    const chipRow: StoryChoiceOptionRow | null = playerId === '9' ? {
+    const chipRow: StoryChoiceOptionRow | null = (playerId === '9' || playerId === '1') ? {
         id: 'chip_bone_claws',
         label: 'A gift for you, Chip',
         loreTitle: 'A gift for you, Chip',
         loreDescription: 'Bone claws made from the skeleton of the boar',
         action: grant(EARTH_TREE_ID, EARTH_NODE_EARTH_CORE),
     } : null;
-    const withChip = (rows: StoryChoiceOptionRow[]) => chipRow ? [...rows, chipRow] : rows;
+    const withChip = (rows: StoryChoiceOptionRow[]) => chipRow ? [chipRow, ...rows] : rows;
 
     if (hasResearched(trees, TECH_SHIELD_TREE_ID, 'crystal_embedded_shield')) {
         return withChip([

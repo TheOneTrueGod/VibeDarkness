@@ -342,6 +342,8 @@ export class BattleSession implements BattleSessionHandle {
         }
     }
 
+    private static readonly RESYNC_CAMERA_KEY = 'mb_camera_resync_state';
+
     /** Replace simulation from a full serialized snapshot (host resync / reconnect). */
     loadFromSnapshot(
         gameState: SerializedGameState,
@@ -352,6 +354,12 @@ export class BattleSession implements BattleSessionHandle {
             gameTick: raw.gameTick ?? raw.game_tick,
             snapshotIndex: raw.snapshotIndex,
         });
+        if (this.camera) {
+            localStorage.setItem(
+                BattleSession.RESYNC_CAMERA_KEY,
+                JSON.stringify({ x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom }),
+            );
+        }
         this.appliedRemoteOrderKeys.clear();
         this.teardownEngineAndRendererOnly();
         const { api, playerId, missionId } = this.config;
@@ -381,6 +389,17 @@ export class BattleSession implements BattleSessionHandle {
         // Replacing the engine calls destroy() on the previous instance, which stops its rAF loop.
         // BattlePhase only calls startEngine() once on mount; async resync paths must restart here.
         this.startEngine();
+        const savedCamera = localStorage.getItem(BattleSession.RESYNC_CAMERA_KEY);
+        if (savedCamera) {
+            localStorage.removeItem(BattleSession.RESYNC_CAMERA_KEY);
+            try {
+                const { x, y, zoom } = JSON.parse(savedCamera) as { x: number; y: number; zoom: number };
+                this.camera.setZoomLevel(zoom);
+                this.camera.snapTo(x, y);
+            } catch {
+                // ignore malformed data
+            }
+        }
     }
 
     /** Same as {@link load} for a new or reconnecting battle with optional lobby payload. */
