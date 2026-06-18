@@ -639,7 +639,7 @@ function AppInner() {
         [lobbyClient, showToast, startInLobby, navigate]
     );
 
-    const handleLeaveLobby = useCallback(async () => {
+    const handleLeaveLobby = useCallback(async (characterId?: string) => {
         if (!currentLobby || !currentPlayer) return;
         const lobbyId = currentLobby.id;
         const playerId = currentPlayer.id;
@@ -663,7 +663,8 @@ function AppInner() {
         setPollMessagesReady(false);
         const home =
             role === 'admin' ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
-        navigate(home, { replace: true });
+        const target = characterId && user?.id ? playerCharacterPath(user.id, characterId) : home;
+        navigate(target, { replace: true });
         setScreen('lobby');
         refetchUser();
         showToast('Left the lobby', 'info');

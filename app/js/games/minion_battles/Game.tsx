@@ -47,8 +47,8 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
         researchRewardIds?: string[],
         researchRewards?: MissionResearchRewardEntry[]
     ) => Promise<void>;
-    /** Called when user clicks Leave in the defeat modal. */
-    onLeave?: () => void;
+    /** Called when user clicks Leave in the defeat modal; receives the character id they were playing (undefined for spectators). */
+    onLeave?: (characterId?: string) => void;
     /** Called when the player presses Continue after a victory; passes the campaign character id they
      *  brought (undefined for spectators/control-enemies). Falls back to onLeave if not provided. */
     onContinue?: (characterId: string | undefined) => void;
@@ -509,7 +509,9 @@ export default function MinionBattlesGame({
                                 className="px-4 py-2 bg-dark-600 hover:bg-dark-500 text-white font-medium rounded transition-colors"
                                 onClick={() => {
                                     setDefeatModalOpen(false);
-                                    onLeave?.();
+                                    const sel = (effective.characterSelections as Record<string, string>)[playerId];
+                                    const characterId = sel && sel !== SPECTATOR_ID && !isControlEnemy(sel) ? sel : undefined;
+                                    onLeave?.(characterId);
                                 }}
                             >
                                 Leave
