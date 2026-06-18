@@ -41,9 +41,9 @@ const TAB_SETTINGS: Record<
     bestiary: { label: 'Bestiary', isVisible: (isAdmin) => isAdmin, adminTab: true },
 };
 
-/** Default tab when no tab is selected; non-admins see Join Mission first. */
-function getDefaultTab(isAdmin: boolean): TabId {
-    return isAdmin ? 'mission_select' : 'join_mission';
+/** Default tab when no tab is selected. */
+function getDefaultTab(_isAdmin: boolean): TabId {
+    return 'characters';
 }
 
 interface CampaignHomeScreenProps {
@@ -93,7 +93,11 @@ export default function CampaignHomeScreen({
         }
         const fallback =
             (visibleTabs.includes(defaultTab) ? defaultTab : visibleTabs[0]) ?? 'welcome';
-        navigate(campaignPathForTab(fallback), { replace: true });
+        if (fallback === 'characters') {
+            navigate(playerCharactersPath(user?.id ?? ''), { replace: true });
+        } else {
+            navigate(campaignPathForTab(fallback), { replace: true });
+        }
     }, [tabSlug, visibleTabs, defaultTab, navigate, onPlayersListRoute, onCharactersRoute, isAdmin, user]);
     const api = useMemo(() => new MinionBattlesApi(lobbyClient, '', '', ''), [lobbyClient]);
     const [campaign, setCampaign] = useState<CampaignState | null>(null);
