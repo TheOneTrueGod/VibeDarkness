@@ -236,8 +236,7 @@ export class Projectile extends GameObject {
 
         for (const { unit } of toHit) {
             if (unit.hasIFrames(gameTime)) {
-                this.active = false;
-                return null;
+                continue;
             }
             if (engine && canAttackBeBlocked(unit, this.x, this.y, gameTime)) {
                 const block = getBlockingArcForUnit(unit, gameTime);
