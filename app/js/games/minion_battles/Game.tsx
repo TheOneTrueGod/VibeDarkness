@@ -16,7 +16,7 @@ import CharacterSelectPhase from './ui/pages/CharacterSelectPhase';
 import PreMissionStoryPhase from './ui/pages/PreMissionStoryPhase';
 import PostMissionStoryPhase from './ui/pages/PostMissionStoryPhase';
 import BattlePhase from './ui/pages/BattlePhase';
-import { MISSION_MAP, STORYLINES, getNextVictoryMissionId } from './storylines';
+import { MISSION_MAP, STORYLINES, getNextVictoryMissionId, getSideMissionIds } from './storylines';
 import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
@@ -523,6 +523,28 @@ export default function MinionBattlesGame({
             {victoryModalOpen && (
                 <VictoryModal
                     missionRewards={missionRewards}
+                    sideMissions={selectedMissionId
+                        ? getSideMissionIds(selectedMissionId, STORYLINES).map((id) => ({
+                              missionId: id,
+                              name: MISSION_MAP[id]?.name ?? id,
+                          }))
+                        : []}
+                    onStartSideMission={async (sideMissionId) => {
+                        setVictoryModalOpen(false);
+                        setMissionRewards(null);
+                        if (onTryAgain) {
+                            const created = await onTryAgain(sideMissionId);
+                            if (created) return;
+                        }
+                        const sel = (effective.characterSelections as Record<string, string>)[playerId];
+                        const isSpectatorOrEnemy = !sel || sel === SPECTATOR_ID || isControlEnemy(sel);
+                        const characterId = isSpectatorOrEnemy ? undefined : sel;
+                        if (onContinue) {
+                            onContinue(characterId);
+                        } else {
+                            onLeave?.();
+                        }
+                    }}
                     onClose={async () => {
                         setVictoryModalOpen(false);
                         setMissionRewards(null);

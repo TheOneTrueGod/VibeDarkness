@@ -14,12 +14,13 @@
 
 | Todo | Notes |
 |------|-------|
+| Create `AbilityUseTracker` class | Add `game/managers/AbilityUseTracker.ts` with a `Map<string, number>` and the three methods `trackAbilityUse`, `getAbilityUsesThisRound`, `clearAbilityUses` (copy logic from `CardManager`). No call-site changes yet — just the new file. |
+| Wire `AbilityUseTracker` into `GameState` and remove from `CardManager` | Add `abilityUseTracker: AbilityUseTracker` to `GameState` (construct it alongside `cardManager`). Redirect the three `GameEngine.ts` call sites (lines ~367, ~1402, ~1418) from `state.cardManager` to `state.abilityUseTracker`. Then delete `abilityUsesThisRound`, `trackAbilityUse`, `getAbilityUsesThisRound`, and `clearAbilityUses` from `CardManager`. |
 
 ## Medium
 
 | Todo | Notes |
 |------|-------|
-| Move ability-use tracking out of `CardManager` | `CardManager` owns `abilityUsesThisRound`, `getAbilityUsesThisRound()`, and `clearAbilityUses()` — the last two are actively called by the ability system and at round-end. Extract this tracking into a dedicated structure (on `GameState` or a new small manager) so `CardManager` can eventually be removed. |
 | Move `playerResearchTreesByPlayer` off `CardManager` | Research trees are stored on `CardManager` for no conceptual reason and serialized alongside card data in checkpoints. Relocate to `GameState` directly (or a `ResearchManager`) and update serialization accordingly. |
 | Make `darkness` a modifier on spawn behaviours, not its own behaviour | Instead of `spawnBehaviour: 'darkness'`, add an `inDarkness: boolean` flag to `SpawnWaveEntry` that can be combined with any `spawnBehaviour` (e.g. `edgeOfMap` + `inDarkness`). Requires updating the types, `LevelEventManager`, and migrating existing `'darkness'` usages. |
 | Migrate LanterniteStrike (0010) to castBehaviours | `doCardEffect` sets an ability note at LOCK_TIME then fires a projectile at prefire — two threshold effects. Map them to castBehaviours on the windup and active timing intervals; ability-note init can move to `ON_CAST_START`. |

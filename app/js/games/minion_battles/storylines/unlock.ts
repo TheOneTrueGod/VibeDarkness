@@ -65,7 +65,7 @@ export function getUnlockedMissionIds(
 
 /**
  * Return the mission ID that follows `currentMissionId` on a victory edge, or null if there is none
- * (final mission or mission not found in any storyline).
+ * (final mission or mission not found in any storyline). Side mission edges are skipped.
  */
 export function getNextVictoryMissionId(
     currentMissionId: string,
@@ -73,12 +73,44 @@ export function getNextVictoryMissionId(
 ): string | null {
     for (const storyline of storylines) {
         for (const edge of storyline.edges ?? []) {
-            if (edge.fromMissionId === currentMissionId && edge.result === 'victory') {
+            if (edge.fromMissionId === currentMissionId && edge.result === 'victory' && !edge.isSideMission) {
                 return edge.toMissionId;
             }
         }
     }
     return null;
+}
+
+/**
+ * Return all side mission IDs available from `currentMissionId` after victory.
+ */
+export function getSideMissionIds(
+    currentMissionId: string,
+    storylines: StorylineDef[],
+): string[] {
+    const ids: string[] = [];
+    for (const storyline of storylines) {
+        for (const edge of storyline.edges ?? []) {
+            if (edge.fromMissionId === currentMissionId && edge.isSideMission) {
+                ids.push(edge.toMissionId);
+            }
+        }
+    }
+    return ids;
+}
+
+/**
+ * Return true if `missionId` is only reachable via side mission edges (i.e. it is itself a side mission).
+ */
+export function isSideMissionId(missionId: string, storylines: StorylineDef[]): boolean {
+    for (const storyline of storylines) {
+        const edges = storyline.edges ?? [];
+        const incomingEdges = edges.filter((e) => e.toMissionId === missionId);
+        if (incomingEdges.length > 0 && incomingEdges.every((e) => e.isSideMission)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

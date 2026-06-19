@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
 import { STORYLINES, MISSION_MAP } from '../../../storylines/index';
-import { getUnlockedMissionIds, hasVictoryResult, isMissionCompleted, getAllMissionIdsInOrder } from '../../../storylines/unlock';
+import { getUnlockedMissionIds, hasVictoryResult, isMissionCompleted, getAllMissionIdsInOrder, isSideMissionId } from '../../../storylines/unlock';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
 import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
@@ -19,6 +19,7 @@ import { MISSION_REWARD_CHIP_CLASSNAME } from '../../../../../components/Researc
 import { getItemDef } from '../../../character_defs/items';
 
 const CIRCLE_R = 28;
+const SIDE_CIRCLE_R = 18;
 const PADDING = 70;
 
 interface Props {
@@ -68,6 +69,7 @@ function MissionTooltip({
     onDismiss: () => void;
 }) {
     const def = MISSION_MAP[data.id];
+    const isSide = isSideMissionId(data.id, STORYLINES);
     const status = getStatusLabel(data.id, missionResults);
     const result = missionResults.find((r) => r.missionId === data.id);
 
@@ -86,11 +88,12 @@ function MissionTooltip({
     const MARGIN = 12;
 
     // Position above the node circle; flip to below if near top of viewport
-    const spaceAbove = data.cy - CIRCLE_R - MARGIN;
+    const nodeR = isSide ? SIDE_CIRCLE_R : CIRCLE_R;
+    const spaceAbove = data.cy - nodeR - MARGIN;
     const placeAbove = spaceAbove > TOOLTIP_APPROX_H + 8;
     const top = placeAbove
-        ? data.cy - CIRCLE_R - MARGIN - TOOLTIP_APPROX_H
-        : data.cy + CIRCLE_R + MARGIN;
+        ? data.cy - nodeR - MARGIN - TOOLTIP_APPROX_H
+        : data.cy + nodeR + MARGIN;
 
     // Clamp horizontally so tooltip stays in viewport
     const rawLeft = data.cx - TOOLTIP_W / 2;
@@ -109,7 +112,12 @@ function MissionTooltip({
             >
                 {/* Header: name + status */}
                 <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2 border-b border-white/8">
-                    <span className="text-sm font-bold text-white leading-snug">{def?.name ?? data.id}</span>
+                    <div className="flex flex-col gap-0.5">
+                        {isSide && (
+                            <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">Side Quest</span>
+                        )}
+                        <span className="text-sm font-bold text-white leading-snug">{def?.name ?? data.id}</span>
+                    </div>
                     {status ? (
                         <span
                             className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full border mt-0.5"
@@ -247,6 +255,7 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
         const ROW_STEP = 200;
         return missionIds.map((id, idx) => {
             const def = MISSION_MAP[id];
+            const isSide = storyline ? isSideMissionId(id, STORYLINES) : false;
             const col = idx % COLS;
             const row = Math.floor(idx / COLS);
             const xDir = row % 2 === 0 ? 1 : -1;
@@ -255,9 +264,9 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                 x: baseX + xDir * col * COL_STEP,
                 y: 120 + row * ROW_STEP,
             };
-            return { id, def, pos, number: idx + 1 };
+            return { id, def, pos, number: idx + 1, isSide };
         });
-    }, [missionIds]);
+    }, [missionIds, storyline]);
 
     const posMap = useMemo(() => {
         const m = new Map<string, { x: number; y: number }>();
@@ -363,15 +372,16 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                             y1={from.y}
                             x2={to.x}
                             y2={to.y}
-                            stroke="#374151"
-                            strokeWidth={3}
+                            stroke={edge.isSideMission ? '#4c1d95' : '#374151'}
+                            strokeWidth={edge.isSideMission ? 2 : 3}
+                            strokeDasharray={edge.isSideMission ? '5 4' : undefined}
                             strokeLinecap="round"
                         />
                     );
                 })}
 
                 {/* Mission nodes */}
-                {missions.map(({ id, def, pos, number }) => {
+                {missions.map(({ id, def, pos, number, isSide }) => {
                     const isUnlocked = unlockedIds.has(id);
                     const clickable = isUnlocked || isAdmin;
                     const color = getMissionColor(id, missionResults);
@@ -379,6 +389,7 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                     const isHovered = hoveredId === id;
                     const isPressed = pressedId === id;
                     const isPinned = tooltip?.pinned && tooltip.id === id;
+                    const r = isSide ? SIDE_CIRCLE_R : CIRCLE_R;
 
                     const nodeScale = isPressed ? 0.92 : (isHovered || isPinned) ? 1.1 : 1;
                     const glowColor = color;
@@ -419,7 +430,7 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                                 {/* Outer ring for locked-but-admin-accessible */}
                                 {isAdmin && !isUnlocked && (
                                     <circle
-                                        r={CIRCLE_R + 3}
+                                        r={r + 3}
                                         fill="none"
                                         stroke="#f59e0b"
                                         strokeWidth={1.5}
@@ -429,7 +440,7 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                                 {/* Pinned ring */}
                                 {isPinned && (
                                     <circle
-                                        r={CIRCLE_R + 6}
+                                        r={r + 6}
                                         fill="none"
                                         stroke="rgba(78,205,196,0.5)"
                                         strokeWidth={2}
@@ -438,7 +449,7 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                                 {/* Hover highlight ring */}
                                 {(isHovered || isPinned) && !isPressed && (
                                     <circle
-                                        r={CIRCLE_R + 4}
+                                        r={r + 4}
                                         fill="none"
                                         stroke="white"
                                         strokeWidth={2}
@@ -446,37 +457,65 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                                     />
                                 )}
                                 <circle
-                                    r={CIRCLE_R}
-                                    fill={color}
-                                    stroke={(isHovered || isPinned) ? 'white' : '#1f2937'}
-                                    strokeWidth={(isHovered || isPinned) ? 2.5 : 2}
+                                    r={r}
+                                    fill={isSide ? '#1e1b4b' : color}
+                                    stroke={isSide ? (hasVictoryResult(id, missionResults) ? '#22c55e' : '#7c3aed') : ((isHovered || isPinned) ? 'white' : '#1f2937')}
+                                    strokeWidth={isSide ? 2 : ((isHovered || isPinned) ? 2.5 : 2)}
                                     strokeOpacity={(isHovered || isPinned) ? 0.7 : 1}
                                 />
-                                {/* Mission image if available */}
-                                {def?.image && (
-                                    <image
-                                        href={def.image}
-                                        x={-CIRCLE_R + 4}
-                                        y={-CIRCLE_R + 4}
-                                        width={(CIRCLE_R - 4) * 2}
-                                        height={(CIRCLE_R - 4) * 2}
-                                        clipPath={`circle(${CIRCLE_R - 4}px)`}
-                                    />
+                                {/* Checkmark or number inside side mission circle */}
+                                {isSide ? (
+                                    <text
+                                        textAnchor="middle"
+                                        dominantBaseline="central"
+                                        fontSize={10}
+                                        fill={hasVictoryResult(id, missionResults) ? '#22c55e' : '#a78bfa'}
+                                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                    >
+                                        {hasVictoryResult(id, missionResults) ? '✓' : '★'}
+                                    </text>
+                                ) : (
+                                    <>
+                                        {/* Mission image if available */}
+                                        {def?.image && (
+                                            <image
+                                                href={def.image}
+                                                x={-r + 4}
+                                                y={-r + 4}
+                                                width={(r - 4) * 2}
+                                                height={(r - 4) * 2}
+                                                clipPath={`circle(${r - 4}px)`}
+                                            />
+                                        )}
+                                        {/* Number inside circle */}
+                                        <text
+                                            textAnchor="middle"
+                                            dominantBaseline="central"
+                                            fontSize={13}
+                                            fontWeight="bold"
+                                            fill="white"
+                                            style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                        >
+                                            {number}
+                                        </text>
+                                    </>
                                 )}
-                                {/* Number inside circle */}
-                                <text
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    fontSize={13}
-                                    fontWeight="bold"
-                                    fill="white"
-                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                                >
-                                    {number}
-                                </text>
+                                {/* Side Quest label above node */}
+                                {isSide && (
+                                    <text
+                                        y={-r - 5}
+                                        textAnchor="middle"
+                                        fontSize={8}
+                                        fill="#7c3aed"
+                                        fontStyle="italic"
+                                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                    >
+                                        side quest
+                                    </text>
+                                )}
                                 {/* Mission name below */}
                                 <text
-                                    y={CIRCLE_R + 14}
+                                    y={r + 14}
                                     textAnchor="middle"
                                     fontSize={10}
                                     fill={(isHovered || isPinned) ? '#ffffff' : '#d1d5db'}

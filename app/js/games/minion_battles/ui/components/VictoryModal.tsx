@@ -16,9 +16,13 @@ interface VictoryModalProps {
         researchRewards?: MissionResearchRewardEntry[];
     } | null;
     onClose: () => void;
+    /** Optional side missions branching off the completed mission. */
+    sideMissions?: Array<{ missionId: string; name: string }>;
+    /** Called when the player chooses to start a side mission instead of continuing. */
+    onStartSideMission?: (missionId: string) => void;
 }
 
-export default function VictoryModal({ missionRewards, onClose }: VictoryModalProps) {
+export default function VictoryModal({ missionRewards, onClose, sideMissions, onStartSideMission }: VictoryModalProps) {
     const researchRewards = getResolvedMissionResearchRewards(missionRewards);
     const hasRewards =
         missionRewards &&
@@ -88,6 +92,23 @@ export default function VictoryModal({ missionRewards, onClose }: VictoryModalPr
                     </>
                 )}
                 {!hasRewards && <p className="text-muted mb-6">You have prevailed.</p>}
+                {sideMissions && sideMissions.length > 0 && (
+                    <div className="mb-4">
+                        <p className="text-xs text-muted mb-2">Optional side quests available:</p>
+                        <div className="flex flex-wrap justify-center gap-2">
+                            {sideMissions.map((sm) => (
+                                <button
+                                    key={sm.missionId}
+                                    type="button"
+                                    className="px-4 py-2 bg-violet-800 hover:bg-violet-700 text-violet-100 font-medium rounded transition-colors border border-violet-600"
+                                    onClick={() => onStartSideMission?.(sm.missionId)}
+                                >
+                                    {sm.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 <div className="flex justify-center">
                     <button
                         type="button"

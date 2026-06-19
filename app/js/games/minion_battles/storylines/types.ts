@@ -476,6 +476,8 @@ export interface StorylineFlowEdge {
     fromMissionId: string;
     result: string;
     toMissionId: string;
+    /** When true, this edge leads to an optional side mission that players can skip. */
+    isSideMission?: boolean;
 }
 
 /** Storyline definition for campaign UI and unlock logic. */

@@ -1,15 +1,11 @@
 /**
  * StoryHomingParticleEmitter — tracks a single homing particle along a quadratic bezier path.
  *
- * Each game tick the emitter:
- *   1. Advances elapsed / updates live target position via engine.getUnit().
- *   2. Computes the current bezier position and adds a short-lived StoryHomingParticle
- *      visual Effect at that position (the renderer draws it using storyHomingParticleEffectDef).
- *   3. At completion (elapsed >= 2 s) spawns a Pulse Effect and deactivates.
- *
- * Using one short-lived visual Effect per tick lets the renderer (storyHomingParticleEffectDef
- * in effect_defs/deathEffects.ts, sprite path) draw the particle each frame while keeping all
- * game-logic (unit tracking, bezier math) inside an EffectEmitter where it belongs.
+ * On the first game tick the emitter creates ONE StoryHomingParticle Effect with duration=DURATION.
+ * Effect.renderUpdate() advances that effect's position along the bezier each render frame
+ * (bezier params are stored in effectData), so the particle visually travels from wolf to player
+ * over the full 2 seconds.  At completion (elapsed >= DURATION) the emitter spawns a Pulse and
+ * deactivates; the long-lived Effect expires naturally via its own elapsed.
  */
 
 import { EffectEmitter } from './EffectEmitter';
@@ -17,8 +13,6 @@ import { Effect } from './Effect';
 import type { EngineContext } from '../EngineContext';
 
 const DURATION = 2; // seconds to reach the target
-/** Duration of each per-tick visual Effect; must exceed the game tick (1/60 s). */
-const VISUAL_EFFECT_DURATION = 3 / 60; // ~3 frames – one extra frame of margin vs. tick/render timing
 
 export class StoryHomingParticleEmitter extends EffectEmitter {
     private startX: number;
@@ -29,6 +23,7 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
     private targetX: number;
     private targetY: number;
     private pulseSpawned: boolean = false;
+    private currentEffect: Effect | null = null;
 
     constructor(config: {
         id?: string;
@@ -60,7 +55,7 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
     update(dt: number, engine: EngineContext): Effect[] {
         this.elapsed += dt;
 
-        // Update live target position
+        // Update live target position (units don't move during story pause, but keep tracking for correctness).
         const targetUnit = this.targetUnitId ? engine.getUnit(this.targetUnitId) : undefined;
         const tx = targetUnit?.x ?? this.targetX;
         const ty = targetUnit?.y ?? this.targetY;
@@ -75,6 +70,22 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
 
         const produced: Effect[] = [];
 
+        if (!this.currentEffect) {
+            // Create the visual effect once. The emitter updates its x, y directly each game tick.
+            this.currentEffect = new Effect({
+                x: bx,
+                y: by,
+                duration: DURATION,
+                effectType: 'StoryHomingParticle',
+                effectData: { imageKey: 'darkBlob' },
+            });
+            produced.push(this.currentEffect);
+        } else if (this.currentEffect.active) {
+            // Keep the effect's world position synced to the current bezier position.
+            this.currentEffect.x = bx;
+            this.currentEffect.y = by;
+        }
+
         if (t >= 1 && !this.pulseSpawned) {
             this.pulseSpawned = true;
             produced.push(
@@ -87,22 +98,7 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
                 }),
             );
             this.active = false;
-            return produced;
         }
-
-        // Emit a short-lived visual Effect at the current bezier position so the renderer draws it.
-        produced.push(
-            new Effect({
-                x: bx,
-                y: by,
-                duration: VISUAL_EFFECT_DURATION,
-                effectType: 'StoryHomingParticle',
-                effectData: {
-                    imageKey: 'darkBlob',
-                    /** progress is always ~0 so the visual appears at full opacity/size each tick. */
-                },
-            }),
-        );
 
         return produced;
     }
@@ -135,5 +131,6 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
         this.targetX = (d.targetX as number) ?? this.x;
         this.targetY = (d.targetY as number) ?? this.y;
         this.pulseSpawned = (d.pulseSpawned as boolean) ?? false;
+        this.currentEffect = null; // recreated on next tick
     }
 }
