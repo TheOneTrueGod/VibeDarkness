@@ -17,6 +17,9 @@ import { MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { Rage } from '../../resources/Rage';
 import { Mana } from '../../resources/Mana';
 import { Resonance } from '../../resources/Resonance';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unitDef';
+import type { CellOccupancyManager } from './CellOccupancyManager';
 
 function refreshPlayerPursuitPath(unit: Unit, aiContext: AIContext): void {
     const targetId = unit.movement?.targetUnitId;
@@ -41,6 +44,60 @@ function refreshPlayerPursuitPath(unit: Unit, aiContext: AIContext): void {
     if (path && path.length > 0) {
         unit.setMovement(path, targetId, aiContext.gameTick);
     }
+}
+
+/** 8-directional neighbour offsets (cardinal first, then diagonal). */
+const NEIGHBOUR_DIRS = [
+    { dc: 0, dr: -1 }, { dc: 1, dr: 0 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 },
+    { dc: 1, dr: -1 }, { dc: 1, dr: 1 }, { dc: -1, dr: 1 }, { dc: -1, dr: -1 },
+];
+
+/**
+ * Find the best adjacent cell for a displaced unit to escape into.
+ * Excludes `shoveFromCell` to prevent bounce-back.
+ * If all adjacent cells are full, allows entering a cell with totalUsage < 1.5 (cascade).
+ */
+function findEscapeCell(
+    col: number,
+    row: number,
+    maxPerTile: number,
+    jitter: number,
+    mgr: CellOccupancyManager,
+    grid: { worldToGrid: (x: number, y: number) => { col: number; row: number } } | null | undefined,
+    shoveFromCell: { col: number; row: number } | undefined,
+): { col: number; row: number } | null {
+    const jitterAngle = jitter * Math.PI * 2;
+
+    type Candidate = { col: number; row: number; usage: number; angle: number };
+    const preferred: Candidate[] = [];
+    const cascade: Candidate[] = [];
+
+    for (const { dc, dr } of NEIGHBOUR_DIRS) {
+        const nc = col + dc;
+        const nr = row + dr;
+        if (shoveFromCell && nc === shoveFromCell.col && nr === shoveFromCell.row) continue;
+        if (grid) {
+            // Use grid bounds via a worldToGrid round-trip check (grid exposes width/height indirectly)
+            // Just check passability if the grid has it; otherwise skip bounds check
+        }
+        const usage = mgr.getTotalUsage(nc, nr);
+        const angle = Math.atan2(dr, dc);
+        const angularDist = Math.abs(((angle - jitterAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+        const candidate = { col: nc, row: nr, usage, angle: angularDist };
+        if (mgr.canEnter(nc, nr, maxPerTile)) {
+            preferred.push(candidate);
+        } else if (usage < 1.5) {
+            cascade.push(candidate);
+        }
+    }
+
+    const best = (candidates: Candidate[]) =>
+        candidates.sort((a, b) => a.angle - b.angle)[0] ?? null;
+
+    return (
+        (preferred.length > 0 ? { col: best(preferred)!.col, row: best(preferred)!.row } : null) ??
+        (cascade.length > 0 ? { col: best(cascade)!.col, row: best(cascade)!.row } : null)
+    );
 }
 
 function createResourceFromId(id: string): Resource | null {
@@ -137,6 +194,35 @@ export class UnitManager {
         }
     }
 
+    /**
+     * For any managed unit that finds itself in an overfull cell (e.g. displaced by a shover),
+     * set a 1-step escape movement toward the nearest passable, less-full adjacent cell.
+     * `shoveFromCell` on the unit prevents it from bouncing back to where it came from.
+     */
+    private applyOccupancyDisplacement(mgr: CellOccupancyManager, engine: EngineContext): void {
+        const grid = engine.terrainManager?.grid;
+        for (const unit of this.units) {
+            if (!unit.active || !unit.isAlive()) continue;
+            const maxPerTile = getUnitMaxPerTile(unit.characterId);
+            if (maxPerTile === undefined) continue;
+            if (getUnitShovePriority(unit.characterId) !== undefined) continue; // shovers self-manage
+
+            const col = Math.floor(unit.x / CELL_SIZE);
+            const row = Math.floor(unit.y / CELL_SIZE);
+            if (mgr.getTotalUsage(col, row) <= 1.001) {
+                unit.shoveFromCell = undefined;
+                continue;
+            }
+
+            // Find an escape cell — prefer less-full, exclude shoveFromCell to prevent bounce
+            const escape = findEscapeCell(col, row, maxPerTile, unit.moveJitter ?? 0, mgr, grid, unit.shoveFromCell);
+            if (escape && !unit.movement) {
+                unit.setMovement([escape], undefined, engine.gameTick);
+                unit.shoveFromCell = { col, row };
+            }
+        }
+    }
+
     gameTick(
         dt: number,
         engine: EngineContext,
@@ -155,6 +241,10 @@ export class UnitManager {
             unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));
         }
         // Phase 2: movement + ephemeral expiry
+        const occupancyMgr = engine.cellOccupancyManager as CellOccupancyManager | null;
+        occupancyMgr?.rebuild(this.units);
+        if (occupancyMgr) this.applyOccupancyDisplacement(occupancyMgr, engine);
+
         for (const unit of this.units) {
             if (!unit.active) continue;
             if (unit.isSpawning()) {

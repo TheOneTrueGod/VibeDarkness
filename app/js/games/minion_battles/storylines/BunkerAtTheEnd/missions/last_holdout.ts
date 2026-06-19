@@ -2,15 +2,13 @@
  * The Last Holdout - Mission enemy and terrain definitions.
  *
  * C-shaped bunker on the left where players defend. Darkness -20; campfire in the
- * middle of the C (10 HP, defense point). Continuous spawn: 2 wolves + 1 slime
- * every 0.25 rounds from round 1 to 4, in a box on the right in darkness. Initial
- * 4 wolves + 1 slime on the right; same wave at start of round 4. Victory: defeat
- * all enemies after round 4.
+ * middle of the C (10 HP, defense point). Continuous spawn: 4 swarmlings randomly
+ * scattered in the right half of the map every 0.25 rounds. Victory: defeat all
+ * enemies after round 4.
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
-import { ENEMY_ALPHA_WOLF, ENEMY_DARK_WOLF, SLIME } from '../../../constants/enemyConstants';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
@@ -20,8 +18,8 @@ const ROWS = 20;
 const WORLD_WIDTH = COLS * CELL_SIZE;
 const WORLD_HEIGHT = ROWS * CELL_SIZE;
 
-/** Right-side spawn box (world coords, radius in tiles) — darkness on the right. */
-const RIGHT_BOX = { x: 1000, y: 400, radius: 8 };
+/** Right-half spawn circle: center at (1000, 400), radius 10 tiles reaches the left edge of the right half (col 15). */
+const RIGHT_HALF = { x: 1000, y: 400, radius: 10 };
 
 function createTerrain(): TerrainGrid {
     const grid = new TerrainGrid(COLS, ROWS, CELL_SIZE, TerrainType.Grass);
@@ -103,30 +101,21 @@ function createTerrain(): TerrainGrid {
     return grid;
 }
 
-/** Initial enemies: Alpha Wolf boss + 3 wolves + 1 slime on the right side in the darkness box. */
-const ENEMIES = [
-    { ...ENEMY_ALPHA_WOLF, name: 'Alpha Wolf', position: { x: 1000, y: 360 } },
-    { ...ENEMY_DARK_WOLF, position: { x: 960, y: 280 } },
-    { ...ENEMY_DARK_WOLF, position: { x: 1040, y: 400 } },
-    { ...ENEMY_DARK_WOLF, position: { x: 1000, y: 480 } },
-    { ...SLIME, position: { x: 1080, y: 320 } },
-];
+const ENEMIES: never[] = [];
 
 const LEVEL_EVENTS: LevelEvent[] = [
     {
-        type: 'continuousSpawn',
-        trigger: { intervalRounds: 0.5, startRound: 1, endRound: 4 },
+        type: 'spawnWave',
+        trigger: { atRound: 1 },
         spawns: [
-            { characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 3 },
-            { characterId: 'slime', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 2 },
+            { characterId: 'swarmling', spawnBehaviour: 'anywhere', spawnTarget: RIGHT_HALF, spawnCount: 10 },
         ],
     },
     {
-        type: 'spawnWave',
-        trigger: { atRound: 4 },
+        type: 'continuousSpawn',
+        trigger: { intervalRounds: 0.25, startRound: 1, endRound: 4 },
         spawns: [
-            { characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 4 },
-            { characterId: 'slime', spawnBehaviour: 'darkness', spawnTarget: RIGHT_BOX, spawnCount: 1 },
+            { characterId: 'swarmling', spawnBehaviour: 'anywhere', spawnTarget: RIGHT_HALF, spawnCount: 4 },
         ],
     },
     {

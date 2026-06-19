@@ -71,6 +71,8 @@ import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCore
 import { resetGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import { AlphaWolfStoryEmitter } from './effects/AlphaWolfStoryEmitter';
+import { CellOccupancyManager } from './managers/CellOccupancyManager';
+import { getUnitMaxPerTile, getUnitShovePriority } from './units/unit_defs/unitDef';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -143,6 +145,9 @@ export class GameEngine implements EngineContext {
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
     private appliedDotTicks = 0;
+
+    /** Runtime occupancy tracker — not serialized, rebuilt at the start of each movement phase. */
+    readonly cellOccupancyManager = new CellOccupancyManager();
 
     get randomSeed(): number {
         return this.state.randomSeed;
@@ -1390,8 +1395,20 @@ export class GameEngine implements EngineContext {
             terrainManager: this.terrainManager,
             findGridPathForUnit: (unit, fromCol, fromRow, toCol, toRow) => {
                 if (!this.terrainManager) return null;
-                if (areEnemies(unit.teamId, 'player')) {
-                    const blocked = this.getCrystalProtectedSet();
+                const maxPerTile = getUnitMaxPerTile(unit.characterId);
+                const shovePriority = getUnitShovePriority(unit.characterId);
+                const isOccupancyManaged = maxPerTile !== undefined && shovePriority === undefined;
+                const isEnemy = areEnemies(unit.teamId, 'player');
+                const blocked = isEnemy ? this.getCrystalProtectedSet() : undefined;
+                if (isOccupancyManaged) {
+                    const mgr = this.cellOccupancyManager;
+                    return this.terrainManager.findGridPathWithOccupancyCost(
+                        fromCol, fromRow, toCol, toRow,
+                        (col, row) => mgr.getOccupancyCost(col, row),
+                        blocked,
+                    );
+                }
+                if (blocked) {
                     return this.terrainManager.findGridPathWithBlocked(fromCol, fromRow, toCol, toRow, blocked);
                 }
                 return this.terrainManager.findGridPath(fromCol, fromRow, toCol, toRow);

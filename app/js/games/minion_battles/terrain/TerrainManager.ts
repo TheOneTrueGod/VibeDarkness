@@ -108,6 +108,17 @@ export class TerrainManager {
         return this.pathfinder.findGridPathWithBlocked(fromCol, fromRow, toCol, toRow, blockedCells);
     }
 
+    findGridPathWithOccupancyCost(
+        fromCol: number,
+        fromRow: number,
+        toCol: number,
+        toRow: number,
+        occupancyCostFn: (col: number, row: number) => number,
+        blockedCells?: Set<string>,
+    ): { col: number; row: number }[] | null {
+        return this.pathfinder.findGridPathWithOccupancyCost(fromCol, fromRow, toCol, toRow, occupancyCostFn, blockedCells);
+    }
+
     clearPathCache(): void {
         this.pathfinder.clearCache();
     }

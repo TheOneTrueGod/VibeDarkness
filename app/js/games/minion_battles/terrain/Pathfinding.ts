@@ -502,4 +502,116 @@ export class Pathfinder {
         }
         return null;
     }
+
+    /**
+     * Find a grid-cell path weighted by cell occupancy.
+     *
+     * Like findGridPath but adds occupancyCostFn(col, row) to each cell's traversal cost.
+     * Results are NOT cached because occupancy changes every tick.
+     * Pass blockedCells to also treat those cells as impassable (used for crystal-protected tiles).
+     */
+    findGridPathWithOccupancyCost(
+        fromCol: number,
+        fromRow: number,
+        toCol: number,
+        toRow: number,
+        occupancyCostFn: (col: number, row: number) => number,
+        blockedCells?: Set<string>,
+    ): { col: number; row: number }[] | null {
+        let endCol = toCol;
+        let endRow = toRow;
+
+        if (!this.isCellPassable(endCol, endRow)) {
+            const nearest = blockedCells
+                ? this.findNearestPassableOrUnblocked(endCol, endRow, blockedCells)
+                : this.findNearestPassable(endCol, endRow);
+            if (!nearest) return null;
+            endCol = nearest.col;
+            endRow = nearest.row;
+        }
+
+        if (fromCol === endCol && fromRow === endRow) return [];
+
+        const gridPath = this.astarWithOccupancyCost(fromCol, fromRow, endCol, endRow, occupancyCostFn, blockedCells);
+        if (gridPath) return gridPath.slice(1);
+        return null;
+    }
+
+    /** A* with per-cell occupancy cost added to movement cost. No caching. */
+    private astarWithOccupancyCost(
+        startCol: number,
+        startRow: number,
+        endCol: number,
+        endRow: number,
+        occupancyCostFn: (col: number, row: number) => number,
+        blockedCells?: Set<string>,
+    ): { col: number; row: number }[] | null {
+        const openSet: PathNode[] = [];
+        const closedSet = new Set<number>();
+        const W = this.grid.width;
+
+        const startNode: PathNode = {
+            col: startCol,
+            row: startRow,
+            g: 0,
+            h: this.heuristic(startCol, startRow, endCol, endRow),
+            f: 0,
+            parent: null,
+        };
+        startNode.f = startNode.g + startNode.h;
+        openSet.push(startNode);
+
+        while (openSet.length > 0) {
+            let lowestIdx = 0;
+            for (let i = 1; i < openSet.length; i++) {
+                if (
+                    openSet[i].f < openSet[lowestIdx].f ||
+                    (openSet[i].f === openSet[lowestIdx].f && openSet[i].h < openSet[lowestIdx].h)
+                ) {
+                    lowestIdx = i;
+                }
+            }
+            const current = openSet.splice(lowestIdx, 1)[0];
+
+            if (current.col === endCol && current.row === endRow) {
+                return this.reconstructPath(current);
+            }
+
+            closedSet.add(current.row * W + current.col);
+
+            for (const dir of DIRS) {
+                const nc = current.col + dir.dc;
+                const nr = current.row + dir.dr;
+                if (nc < 0 || nc >= this.grid.width || nr < 0 || nr >= this.grid.height) continue;
+
+                const neighborKey = nr * W + nc;
+                if (closedSet.has(neighborKey)) continue;
+                if (blockedCells?.has(`${nc},${nr}`)) continue;
+                if (!this.isCellPassable(nc, nr)) continue;
+
+                const isDiagonal = dir.dc !== 0 && dir.dr !== 0;
+                if (isDiagonal) {
+                    if (!this.isCellPassable(current.col + dir.dc, current.row)) continue;
+                    if (!this.isCellPassable(current.col, current.row + dir.dr)) continue;
+                }
+
+                const terrain = this.grid.get(nc, nr);
+                const props = TERRAIN_PROPERTIES[terrain];
+                const moveCost = (isDiagonal ? Math.SQRT2 : 1) * props.pathfindingWeight + occupancyCostFn(nc, nr);
+                const g = current.g + moveCost;
+
+                const existing = openSet.find((n) => n.col === nc && n.row === nr);
+                if (existing) {
+                    if (existing.g <= g) continue;
+                    existing.g = g;
+                    existing.f = g + existing.h;
+                    existing.parent = current;
+                } else {
+                    const h = this.heuristic(nc, nr, endCol, endRow);
+                    openSet.push({ col: nc, row: nr, g, h, f: g + h, parent: current });
+                }
+            }
+        }
+        return null;
+    }
 }

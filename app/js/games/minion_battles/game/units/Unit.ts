@@ -54,7 +54,7 @@ import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
 import { MIN_FOLLOW_RADIUS } from '../gameConstants';
-import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
+import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef, getUnitMaxPerTile, getUnitShovePriority, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
 import { UnitTag, parseUnitTagsFromJSON } from './unitTag';
@@ -64,6 +64,7 @@ import type { CcResistKey } from '../../crowdControl/ccTypes';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
 import type { LanterniteNestMissionConfig } from '../../storylines/types';
 import type { EngineContext } from '../EngineContext';
+import type { CellOccupancyManager } from '../managers/CellOccupancyManager';
 import { tickUnitActiveAbilities } from './unitAbilityTick';
 import { initTelegraphCastPayload } from '../../abilities/telegraphTracking';
 import { DarknessLevel } from '../darknessLevels';
@@ -72,6 +73,47 @@ import { serializeTacticalPlan, deserializeTacticalPlan } from './unitAI/plans/p
 
 /** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
 const WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID = 4;
+
+/** 8-directional neighbour offsets for slide-cell search. */
+const SLIDE_DIRS = [
+    { dc: 0, dr: -1 }, { dc: 1, dr: 0 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 },
+    { dc: 1, dr: -1 }, { dc: 1, dr: 1 }, { dc: -1, dr: 1 }, { dc: -1, dr: -1 },
+];
+
+/**
+ * When the next path cell is full, find an adjacent cell to redirect into.
+ * Candidates must be neighbours of both the current cell AND the blocked cell,
+ * passable, and have capacity. Sorted by angular distance from the unit's jitter angle
+ * so different units try different directions.
+ */
+function findSlideCell(
+    currentCol: number,
+    currentRow: number,
+    blockedCell: { col: number; row: number },
+    jitter: number,
+    maxPerTile: number,
+    mgr: CellOccupancyManager,
+): { col: number; row: number } | null {
+    const jitterAngle = jitter * Math.PI * 2;
+
+    type Candidate = { col: number; row: number; angularDist: number };
+    const candidates: Candidate[] = [];
+
+    for (const { dc, dr } of SLIDE_DIRS) {
+        const nc = currentCol + dc;
+        const nr = currentRow + dr;
+        // Must be adjacent to the blocked cell too
+        if (Math.abs(nc - blockedCell.col) > 1 || Math.abs(nr - blockedCell.row) > 1) continue;
+        if (!mgr.canEnter(nc, nr, maxPerTile)) continue;
+        const angle = Math.atan2(dr, dc);
+        const angularDist = Math.abs(((angle - jitterAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+        candidates.push({ col: nc, row: nr, angularDist });
+    }
+
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => a.angularDist - b.angularDist);
+    return { col: candidates[0].col, row: candidates[0].row };
+}
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -208,6 +250,12 @@ export class Unit extends GameObject {
      * Use as the base for any jitter-like mechanic — timing offsets, phase spreads, angle variation.
      */
     moveJitter: number = 0;
+
+    /**
+     * Set when this unit was displaced (shoved) out of a cell. Cleared when the unit reaches a valid cell.
+     * Not serialized — runtime only. Prevents bounce-back when cascading through packed cells.
+     */
+    shoveFromCell: { col: number; row: number } | undefined = undefined;
 
     /**
      * Current medium-term AI goal. Serialized as relative ticks. Null means unit should replan on next tactical tick.
@@ -823,8 +871,38 @@ export class Unit extends GameObject {
             this.movement.path.shift();
             if (this.movement.path.length === 0) {
                 this.movement = null;
+            } else {
+                // Cell boundary check: can we enter the next cell?
+                this.checkNextCellOccupancy(engine);
             }
         }
+    }
+
+    /**
+     * After arriving at a cell, check whether the next path cell has capacity.
+     * If full, try sliding to an adjacent cell. If no slide is possible, unit waits
+     * at the current position and the pathfinding retrigger will replan.
+     */
+    private checkNextCellOccupancy(engine: EngineContext): void {
+        if (!this.movement) return;
+        const maxPerTile = getUnitMaxPerTile(this.characterId);
+        if (maxPerTile === undefined) return;
+        if (getUnitShovePriority(this.characterId) !== undefined) return; // shovers bypass
+
+        const mgr = engine.cellOccupancyManager;
+        if (!mgr) return;
+
+        const nextCell = this.movement.path[0];
+        if (mgr.canEnter(nextCell.col, nextCell.row, maxPerTile)) return;
+
+        // Target cell is full — try to slide to an adjacent cell
+        const currentCol = Math.floor(this.x / CELL_SIZE);
+        const currentRow = Math.floor(this.y / CELL_SIZE);
+        const slide = findSlideCell(currentCol, currentRow, nextCell, this.moveJitter, maxPerTile, mgr);
+        if (slide) {
+            this.movement.path[0] = slide;
+        }
+        // else: unit waits at current position until pathfinding retrigger recomputes
     }
 
     /**

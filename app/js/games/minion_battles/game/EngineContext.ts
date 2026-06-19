@@ -18,6 +18,7 @@ import type { EffectEmitter } from './effects/EffectEmitter';
 import type { TerrainLayerManager } from './TerrainLayerManager';
 import type { MapSegmentPOI } from '../terrain/segmentSchema';
 import type { SpawnSource, WaitingForOrders } from './types';
+import type { CellOccupancyManager } from './managers/CellOccupancyManager';
 
 export interface EngineContext {
     gameTime: number;
@@ -107,4 +108,7 @@ export interface EngineContext {
 
     /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */
     mapPOIs: MapSegmentPOI[];
+
+    /** Runtime cell occupancy tracker for managed units (swarmlings, wolves, etc.). null when unused. */
+    cellOccupancyManager: CellOccupancyManager | null;
 }

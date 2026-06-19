@@ -125,6 +125,12 @@ export interface UnitDefEntry {
     combatCc?: UnitCombatCcDef;
     /** If set, units of this character type gain a tag when the enrage condition is met at runtime. */
     enrageDef?: EnrageDef;
+    /** Max unit objects of this type that can share one tile (tile-space share = 1/maxPerTile per object).
+     *  undefined = exempt from the occupancy system entirely. */
+    maxPerTile?: number;
+    /** Z-index-like shove priority. A unit can enter cells occupied by units with strictly lower priority,
+     *  displacing them reactively. undefined = cannot shove. */
+    shovePriority?: number;
 }
 
 const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
@@ -257,6 +263,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'dark_creature',
         deathEffect: darkCreatureIconFlashDeathEffect(4),
         uiDescription: 'Fast skittering biter — snaps twice per round.',
+        maxPerTile: 3,
     },
     lanternite: {
         bodyColor: 0x34d399,
@@ -612,6 +619,16 @@ export function getDeathEffectDef(characterId: string): UnitDeathEffectDef | und
 export function getCreatureType(characterId: string): CreatureType | undefined {
     const def = UNIT_DEFS[characterId as UnitDefId];
     return def?.creatureType;
+}
+
+/** Max unit objects of this type that can share one tile. undefined = exempt from occupancy system. */
+export function getUnitMaxPerTile(characterId: string): number | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.maxPerTile;
+}
+
+/** Shove priority for the unit. undefined = cannot shove other units. */
+export function getUnitShovePriority(characterId: string): number | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.shovePriority;
 }
 
 /**
