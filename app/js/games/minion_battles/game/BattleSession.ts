@@ -24,6 +24,8 @@ import type { ApplyRemoteOrdersResult, BattleNet, BattleSessionHandle, RemoteOrd
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogSummary';
 import { logUserState } from './battlenet/userStateLog';
+import { buildWorldModifiersFromSources } from '../worldModifiers/buildWorldModifiers';
+import { BUILTIN_WORLD_MODIFIERS } from '../worldModifiers/builtins/index';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -175,6 +177,12 @@ export class BattleSession implements BattleSessionHandle {
         const mission = MISSION_MAP[this.config.missionId] ?? DARK_AWAKENING;
         const { onVictory, onDefeat } = this.config;
         engine.registerBattleObjectives(mission.battleObjectives ?? []);
+        engine.state.worldModifierManager.install(
+            buildWorldModifiersFromSources({
+                builtins: BUILTIN_WORLD_MODIFIERS,
+                mission: mission.worldModifiers,
+            }),
+        );
         this.engine = engine;
         this.emit({ type: 'round_number', roundNumber: engine.roundNumber });
         this.emit({ type: 'round_progress', progress: engine.roundProgress });

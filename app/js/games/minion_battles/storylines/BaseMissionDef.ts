@@ -16,6 +16,7 @@ import type {
     PlayerSpawnPoint,
     BattleObjectiveDef,
 } from './types';
+import type { WorldModifierDef } from '../worldModifiers/types';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
@@ -112,6 +113,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     levelEvents?: LevelEvent[];
     /** Optional battle objectives (see MissionBattleConfig). */
     battleObjectives?: BattleObjectiveDef[];
+    /** Optional world modifiers active for this mission (merged with builtins by BattleSession). */
+    worldModifiers?: WorldModifierDef[];
     /** Optional special tiles (Campfire, Crystal, etc.) placed on the map. */
     specialTiles?: import('./types').SpecialTilePlacement[];
     /** Optional grid-based player spawn points. */
