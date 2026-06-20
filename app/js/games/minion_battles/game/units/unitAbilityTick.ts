@@ -28,6 +28,7 @@ import {
 import { isSelectTargetDef, isHitTargetDef } from '../../abilities/timingTargetDef';
 import { triggerAbilityEvent } from '../../abilities/events';
 import {
+    detectAndFreezeTelegraphDistanceBreak,
     lockTelegraphOnTargetEvade,
     updateTelegraphTracking,
 } from '../../abilities/telegraphTracking';
@@ -250,6 +251,31 @@ export function tickUnitActiveAbilities(
 
         if (active.conditionalCancelPaused) {
             continue;
+        }
+
+        // Distance-break: detect target moving out of tether range and notify behaviours.
+        // Must run before updateTelegraphTracking so the ability payload is the first thing updated.
+        // Evade-break (evade ability) is handled by the loop below.
+        const distBreak = detectAndFreezeTelegraphDistanceBreak(unit, active, ability, currentTime, engine);
+        if (distBreak) {
+            for (const [behaviourKey, rec] of unit.activeCastBehaviours) {
+                if (rec.active !== active) continue;
+                const fallback = rec.active.targets[rec.entry.targetIndex ?? 0];
+                if (fallback?.type !== 'unit' || fallback.unitId !== distBreak.unitId) continue;
+                const baseCtx: CastBehaviourBaseContext = {
+                    caster: unit,
+                    abilityId: active.abilityId,
+                    target: fallback,
+                    allTargets: active.targets,
+                    castPayload: active.castPayload,
+                    behaviourPayload: active.castBehaviourPayloads?.[behaviourKey],
+                    setBehaviourPayload: (data) => {
+                        if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
+                        active.castBehaviourPayloads[behaviourKey] = data;
+                    },
+                };
+                rec.entry.behaviour.onTargetEvade?.(distBreak.unitId, distBreak.frozenAt, baseCtx);
+            }
         }
 
         updateTelegraphTracking(unit, active, ability, currentTime, engine);

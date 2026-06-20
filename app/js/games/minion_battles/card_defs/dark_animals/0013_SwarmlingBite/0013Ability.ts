@@ -22,7 +22,7 @@ const { ability: SwarmlingBiteAbility, card: SwarmlingBiteCard } = BasicAttackBu
     description: `Snap at the target for {${DAMAGE}} damage.`,
     damage: DAMAGE,
     image: BITE_IMAGE,
-    windupDuration: 1.0,
+    windupDuration: 1.5,
     cooldownDuration: 1.1,
     telegraphColor: 0xff0000,
     // Full AI range accounts for unit radius: line 30 + thickness 20 + default unit radius 20.

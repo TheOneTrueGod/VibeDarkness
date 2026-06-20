@@ -158,14 +158,14 @@ export class LastHoldoutMission extends BaseMissionDef {
     globalLightLevel = 0;
     /** Player spawn points: eight positions inside the C-shaped bunker. */
     playerSpawnPoints = [
-        { col: 3, row: 5 },
-        { col: 4, row: 5 },
-        { col: 3, row: 6 },
-        { col: 4, row: 6 },
-        { col: 5, row: 13 },
-        { col: 6, row: 13 },
-        { col: 5, row: 14 },
-        { col: 6, row: 14 },
+        { col: 9, row: 8 },
+        { col: 10, row: 8 },
+        { col: 9, row: 9 },
+        { col: 10, row: 9 },
+        { col: 9, row: 10 },
+        { col: 10, row: 10 },
+        { col: 9, row: 11 },
+        { col: 10, row: 11 },
     ];
 }
 

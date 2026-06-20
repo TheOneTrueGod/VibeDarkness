@@ -31,8 +31,10 @@ export interface BasicAttackConfig {
     aiMaxRange?: number;
     /** AI priority weight. Default 0. Use negative values to deprioritise (e.g. -10 for fallbacks). */
     aiPriority?: number;
-    /** Colour of the shrinking-circle windup telegraph. Default 0xff8800 (orange). */
+    /** Colour of the windup telegraph. Default 0xff8800 (orange). */
     telegraphColor?: number;
+    /** Telegraph animation style. Default 'shrinkingCircle'. */
+    telegraphKind?: 'shrinkingCircle' | 'growingLine';
 }
 
 // ---------------------------------------------------------------------------
@@ -69,11 +71,9 @@ class BasicAttackBuilderInstance {
             aiMaxRange: config.aiMaxRange,
             lockOnExtra: BASIC_ATTACK_LOCK_ON_EXTRA,
             maxLockOnExtra: BASIC_ATTACK_MAX_LOCK_ON_EXTRA,
-            telegraph: {
-                kind: 'shrinkingCircle',
-                startRadius: 18,
-                color: config.telegraphColor ?? 0xff8800,
-            },
+            telegraph: config.telegraphKind === 'growingLine'
+                ? { kind: 'growingLine', color: config.telegraphColor ?? 0xff8800, alpha: 0.3 }
+                : { kind: 'shrinkingCircle', startRadius: 18, color: config.telegraphColor ?? 0xff8800, alpha: 0.3 },
             getTooltipText: () => [config.description],
         });
 

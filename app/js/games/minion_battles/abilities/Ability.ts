@@ -109,18 +109,36 @@ export type AbilityKeyword = 'nestedCard';
  * `castPayload` at cast start and no per-ability `beginActiveCast` / `renderActivePreview`
  * is needed for the standard shrinking-circle + aim-line visual.
  */
-export interface AbilityTelegraph {
+interface ShrinkingCircleTelegraph {
     kind: 'shrinkingCircle';
     /** Starting radius of the shrinking circle in world-space pixels. */
     startRadius: number;
     /** Pixi tint color (e.g. 0xff0000 for red). */
     color: number;
+    /** Overall opacity multiplier (0–1). Default 1. */
+    alpha?: number;
     /**
      * When true, the windup circle follows the primary unit target until lock breaks
      * (dodge or tether). Pixel targets remain static. Default false unless set by a factory.
      */
     trackTarget?: boolean;
 }
+
+interface GrowingLineTelegraph {
+    kind: 'growingLine';
+    /** Pixi tint color. */
+    color: number;
+    /** Overall opacity multiplier (0–1). Default 1. */
+    alpha?: number;
+    /** Line stroke width in pixels. Default 2. */
+    lineWidth?: number;
+    /** Extra px beyond caster.radius where the stub begins at progress 0. Default 4. */
+    startOffset?: number;
+    /** When true, the line tracks the target unit until lock breaks. Default false unless set by a factory. */
+    trackTarget?: boolean;
+}
+
+export type AbilityTelegraph = ShrinkingCircleTelegraph | GrowingLineTelegraph;
 
 /**
  * Simple capability / classification tags on an ability (distinct from structured `keywords` like nestedCard).

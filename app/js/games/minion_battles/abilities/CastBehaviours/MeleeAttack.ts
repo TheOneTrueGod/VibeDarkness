@@ -293,14 +293,21 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
                 aimY = payload.aimPixel.y;
             }
         } else if (ctx.target.type === 'unit' && ctx.target.unitId != null) {
-            const liveUnit = ctx.engine.getUnit(ctx.target.unitId);
-            if (liveUnit) {
-                aimX = liveUnit.x;
-                aimY = liveUnit.y;
+            const primaryLock = payload.lockedUnits.find(u => u.unitId === ctx.target.unitId);
+            if (primaryLock?.lockedPosition) {
+                // Target evaded — use the frozen position from when lock broke, not the live position.
+                aimX = primaryLock.lockedPosition.x;
+                aimY = primaryLock.lockedPosition.y;
             } else {
-                const FALLBACK_DIST = 64;
-                aimX = ctx.caster.x + payload.aimDirX * FALLBACK_DIST;
-                aimY = ctx.caster.y + payload.aimDirY * FALLBACK_DIST;
+                const liveUnit = ctx.engine.getUnit(ctx.target.unitId);
+                if (liveUnit) {
+                    aimX = liveUnit.x;
+                    aimY = liveUnit.y;
+                } else {
+                    const FALLBACK_DIST = 64;
+                    aimX = ctx.caster.x + payload.aimDirX * FALLBACK_DIST;
+                    aimY = ctx.caster.y + payload.aimDirY * FALLBACK_DIST;
+                }
             }
         } else if (ctx.target.type === 'pixel' && ctx.target.position != null) {
             // Clamp pixel targets to hitbox range so the miss VFX and hitbox check stay
@@ -370,10 +377,16 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
             }
         }
 
+        // Evaded units are excluded from all hits — the attack targets the floor at lockedPosition,
+        // not the unit itself, so even a hitbox overlap at that position should not apply damage.
+        const evadedIds = new Set<string>(
+            payload.lockedUnits.filter(lu => lu.lockedPosition !== null).map(lu => lu.unitId),
+        );
+
         // Final list: stack-aware slot assignment (stacks may appear multiple times).
         const allCandidates: Unit[] = [...guaranteedHits];
         for (const u of hitboxUnits) {
-            if (!guaranteedHitIds.has(u.id)) {
+            if (!guaranteedHitIds.has(u.id) && !evadedIds.has(u.id)) {
                 allCandidates.push(u);
             }
         }
@@ -384,23 +397,26 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
                 : allCandidates;
 
         // Spawn impact VFX — custom callback takes full control when set.
+        // Only animate from caster when the attack actually lands; misses and evades appear in place.
+        console.log('[MeleeAttack] impact VFX', {
+            casterId: ctx.caster.id,
+            aimX,
+            aimY,
+            target: ctx.target,
+            lockedUnits: payload.lockedUnits,
+            hitUnits: hitUnits.map(u => ({ id: u.id, name: u.name, x: u.x, y: u.y })),
+            evadedIds: [...evadedIds],
+            traveling: hitUnits.length > 0,
+        });
         if (this.impactVFXCallback) {
             this.impactVFXCallback(ctx, hitUnits, aimX, aimY);
-        } else if (hitUnits.length > 0) {
-            ctx.engine.addEffect(new Effect({
-                x: hitUnits[0].x,
-                y: hitUnits[0].y,
-                duration: 0.2,
-                effectType: this.impactEffectType,
-                startX: ctx.caster.x,
-                startY: ctx.caster.y,
-            }));
         } else {
             ctx.engine.addEffect(new Effect({
                 x: aimX,
                 y: aimY,
                 duration: 0.2,
                 effectType: this.impactEffectType,
+                ...(hitUnits.length > 0 ? { startX: ctx.caster.x, startY: ctx.caster.y } : {}),
             }));
         }
 
@@ -454,6 +470,12 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
             lu => lu.unitId === unitId && lu.lockedPosition === null,
         );
         if (idx === -1) return;
+        console.log('[MeleeAttack] target used dodge ability — lock released', {
+            unitId,
+            frozenAt: snapshot,
+            caster: { id: ctx.caster.id, name: ctx.caster.name, x: ctx.caster.x, y: ctx.caster.y },
+            lockedUnitsBefore: payload.lockedUnits,
+        });
         const newLockedUnits = payload.lockedUnits.map((lu, i) =>
             i === idx ? { ...lu, lockedPosition: snapshot } : lu,
         );

@@ -18,6 +18,7 @@ import {
     evaluateTargetLockBreak,
     getLockOnRange,
     spawnDodgedFloatingText,
+    unitHasActiveEvade,
 } from './targetLockTracking';
 
 export interface TelegraphCastPayload {
@@ -126,7 +127,48 @@ function applyTelegraphLock(
 }
 
 /**
+ * Detect and freeze the telegraph when the primary target moves out of tether range (not an evade
+ * ability — that case is handled by lockTelegraphOnTargetEvade via the evade-break loop).
+ * Returns the break info so the caller can notify ability behaviours; returns null when no break.
+ * Must be called before updateTelegraphTracking each tick.
+ */
+export function detectAndFreezeTelegraphDistanceBreak(
+    caster: Unit,
+    active: ActiveAbility,
+    ability: AbilityStatic,
+    elapsed: number,
+    engine: EngineContext,
+): { unitId: string; frozenAt: { x: number; y: number } } | null {
+    if (!shouldTrackTelegraph(ability)) return null;
+    if (elapsed >= ability.prefireTime) return null;
+    const payload = asTelegraphPayload(active.castPayload);
+    if (!payload?.telegraphTargetUnitId || payload.telegraphLockedPosition != null) return null;
+    const target = engine.getUnit(payload.telegraphTargetUnitId);
+    if (!target) return null;
+    if (unitHasActiveEvade(target)) return null; // evade-break loop owns this case
+    const extra = getAbilityMaxLockOnExtra(ability, caster, engine);
+    const tetherBreakRange = extra !== null
+        ? caster.radius + target.radius + extra
+        : getLockOnRange(getAbilityHitboxMaxRange(ability, caster, engine));
+    const lockPos = evaluateTargetLockBreak(caster, target, tetherBreakRange);
+    if (!lockPos) return null;
+    console.log('[telegraphTracking] target lock released', {
+        cause: 'out-of-range',
+        targetId: target.id,
+        targetName: target.name,
+        targetPos: { x: target.x, y: target.y },
+        frozenAt: lockPos,
+        casterId: caster.id,
+        casterName: caster.name,
+        tetherBreakRange,
+    });
+    applyTelegraphLock(payload, lockPos, engine);
+    return { unitId: target.id, frozenAt: lockPos };
+}
+
+/**
  * Advance tracking telegraph aim during windup. Mutates active.castPayload in place.
+ * Passive tracker only — lock-break detection is handled upstream in unitAbilityTick.ts.
  */
 export function updateTelegraphTracking(
     caster: Unit,
@@ -150,17 +192,8 @@ export function updateTelegraphTracking(
     const target = engine.getUnit(payload.telegraphTargetUnitId);
     if (!target) return;
 
-    const extra = getAbilityMaxLockOnExtra(ability, caster, engine);
-    const tetherBreakRange = extra !== null
-        ? caster.radius + target.radius + extra
-        : getLockOnRange(getAbilityHitboxMaxRange(ability, caster, engine));
-    const lockPos = evaluateTargetLockBreak(caster, target, tetherBreakRange);
-    if (lockPos) {
-        applyTelegraphLock(payload, lockPos, engine);
-    } else {
-        payload.telegraphTargetX = target.x;
-        payload.telegraphTargetY = target.y;
-    }
+    payload.telegraphTargetX = target.x;
+    payload.telegraphTargetY = target.y;
 }
 
 /**
@@ -183,5 +216,12 @@ export function lockTelegraphOnTargetEvade(
     if (payload.telegraphTargetUnitId !== dodgingUnitId) return;
     if (payload.telegraphLockedPosition != null) return;
 
+    console.log('[telegraphTracking] target lock released', {
+        cause: 'evade-ability',
+        targetId: dodgingUnitId,
+        frozenAt: snapshot,
+        casterId: caster.id,
+        casterName: caster.name,
+    });
     applyTelegraphLock(payload, snapshot, engine);
 }

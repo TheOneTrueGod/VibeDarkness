@@ -372,15 +372,33 @@ export class PreviewRenderer {
 
         const elapsed = gameTime - active.startTime;
         const progress = prefireTime > 0 ? Math.min(1, elapsed / prefireTime) : 1;
-        const circleRadius = telegraph.startRadius * (1 - progress);
+        const telegraphAlpha = telegraph.alpha ?? 1;
 
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(targetX, targetY);
-        gr.stroke({ color: telegraph.color, width: 2, alpha: 0.75 });
+        if (telegraph.kind === 'shrinkingCircle') {
+            const circleRadius = telegraph.startRadius * (1 - progress);
+            gr.moveTo(caster.x, caster.y);
+            gr.lineTo(targetX, targetY);
+            gr.stroke({ color: telegraph.color, width: 2, alpha: 0.75 * telegraphAlpha });
 
-        if (circleRadius > 0.5) {
-            gr.circle(targetX, targetY, circleRadius);
-            gr.stroke({ color: telegraph.color, width: 2, alpha: 0.8 });
+            if (circleRadius > 0.5) {
+                gr.circle(targetX, targetY, circleRadius);
+                gr.stroke({ color: telegraph.color, width: 2, alpha: 0.8 * telegraphAlpha });
+            }
+        } else if (telegraph.kind === 'growingLine') {
+            const dx = targetX - caster.x;
+            const dy = targetY - caster.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 0.5) return;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const stubDist = caster.radius + (telegraph.startOffset ?? 4);
+            const stubX = caster.x + nx * stubDist;
+            const stubY = caster.y + ny * stubDist;
+            const endX = stubX + (targetX - stubX) * progress;
+            const endY = stubY + (targetY - stubY) * progress;
+            gr.moveTo(caster.x, caster.y);
+            gr.lineTo(endX, endY);
+            gr.stroke({ color: telegraph.color, width: telegraph.lineWidth ?? 2, alpha: 0.85 * telegraphAlpha });
         }
     }
 

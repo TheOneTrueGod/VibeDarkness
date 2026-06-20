@@ -3,6 +3,7 @@ app/js-out/
 dist/
 storage/
 deploy.zip
+.env.deploy
 Plans/
 vendor/
 .claude/worktrees/
