@@ -58,6 +58,7 @@ import { aiTerrainInterruptScenario } from './ai/ai_terrain_interrupt';
 import { aiReplanStaggerScenario } from './ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from './ai/ai_serialization_roundtrip';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from './general/lightingSystem';
+import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario } from './general/worldModifiers';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -141,6 +142,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     aiTerrainInterruptScenario,
     aiReplanStaggerScenario,
     aiSerializationRoundtripScenario,
+    worldModifierDarkSwarmScenario,
+    worldModifierMidBattleAddScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -188,6 +191,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'lighting', section: 'Lighting' },
     { slug: 'pets', section: 'Pets' },
     { slug: 'ai', section: 'AI' },
+    { slug: 'world-modifiers', section: 'World Modifiers' },
 ];
 
 export interface GeneralTestSidebarGroup {

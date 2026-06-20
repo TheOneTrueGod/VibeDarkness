@@ -30,6 +30,44 @@ Optional fields:
 | `ambient` | Always-on effects stub (not implemented in v1; reserve the field for Rainy Storm follow-up). |
 | `rules` | Map of `WorldEventType → WorldEventRule[]`. This is where behavior lives. |
 
+### `overrideEffect` — per-effect-type stacking policy
+
+Controls how this modifier's effects combine with existing effects of the same type at the same target position.
+
+```typescript
+overrideEffect?: Partial<Record<WorldEffect['type'], 'replace' | 'stack' | 'sum' | 'max'>>;
+```
+
+| Mode | Behaviour for `spawnLightSource` | Other effect types |
+|------|----------------------------------|--------------------|
+| `'stack'` (default) | Add new `LightSource` alongside any existing world-modifier-spawned sources at the same grid cell. | N/A in v2 |
+| `'replace'` | Deactivate all world-modifier-spawned sources at the same grid cell, then spawn the new source. | N/A in v2 |
+| `'max'` | Skip spawn if any existing spawned source at the cell has `|lightAmount| ≥` this effect's; otherwise replace the weaker source. | N/A in v2 |
+| `'sum'` | Reserved for future numeric effect types (damage bonus, heal, etc.); not implemented in v2. | N/A in v2 |
+
+**Cell bucketing:** Grid cell is `(Math.floor(x / CELL_SIZE), Math.floor(y / CELL_SIZE))` where `CELL_SIZE = 40`.
+
+**Side map:** `WorldModifierManager` maintains a volatile (non-serialized) `spawnedLightSources` map keyed by `LightSource.id`. The map is cleared on engine destroy but **not** persisted across resync — after resync, the merge policy starts fresh. This is acceptable for v2.
+
+**Example:**
+
+```typescript
+// Modifier B replaces any existing world-modifier light at the swarmling's tile with a stronger one.
+const modB: WorldModifierDef = {
+    id: 'my_override',
+    // ...
+    overrideEffect: { spawnLightSource: 'replace' },
+    rules: {
+        on_unit_died: [{
+            conditions: [{ type: 'victimCharacterIdIs', characterId: 'swarmling' }],
+            effects: [{ type: 'spawnLightSource', lightAmount: -6, radius: 3, durationRounds: 5, position: 'victim' }],
+        }],
+    },
+};
+```
+
+---
+
 ### Rules
 
 Each rule in `rules[eventType]` is a `WorldEventRule`:

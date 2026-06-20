@@ -10,6 +10,7 @@ import type { WorldModifierDef, WorldEventType, SerializedWorldModifierInstance 
 import type { WorldCondition } from './WorldCondition';
 import type { WorldEffect } from './WorldEffect';
 import type { WorldRuleEvalContext, WorldEventContext } from './WorldModifierRuntime';
+import type { LightSource } from '../game/lightSources/LightSource';
 import { evaluateCondition, applyEffect } from './WorldModifierRuntime';
 import { type DispatchableRule, dispatchEventRules } from './EventRuleDispatcher';
 import { registerBuiltinHandlers } from './builtinHandlers';
@@ -44,6 +45,8 @@ export class WorldModifierManager {
     private instances = new Map<string, WorldModifierInstance>();
     private snapshotImport: SerializedWorldModifierInstance[] | null = null;
     private customEffectHandlers = new Map<string, CustomEffectHandler>();
+    /** Non-serialized side map of world-modifier-spawned light sources for replace/max merge policy. */
+    private readonly spawnedLightSources = new Map<string, { ls: LightSource; col: number; row: number }>();
 
     constructor(private readonly ctx: EngineContext) {
         registerBuiltinHandlers(this);
@@ -299,7 +302,20 @@ export class WorldModifierManager {
                                     console.warn(`[WorldModifierManager] no handler for custom effectId "${effectId}"`);
                                 }
                             },
-                        });
+                            getSpawnedLightSourcesAtCell: (col, row) => {
+                                const result: Array<{ id: string; ls: LightSource }> = [];
+                                for (const [id, entry] of this.spawnedLightSources) {
+                                    if (entry.col === col && entry.row === row) result.push({ id, ls: entry.ls });
+                                }
+                                return result;
+                            },
+                            onDeactivateSpawnedLightSource: (id) => {
+                                this.spawnedLightSources.delete(id);
+                            },
+                            onRegisterSpawnedLightSource: (id, ls, col, row) => {
+                                this.spawnedLightSources.set(id, { ls, col, row });
+                            },
+                        }, inst.def);
                     },
                 },
             );

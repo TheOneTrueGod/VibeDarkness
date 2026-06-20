@@ -9,6 +9,7 @@ import type { WorldEffect, VisualEffectDef } from './WorldEffect';
 import type { WorldModifierDef } from './types';
 import type { EngineContext } from '../game/EngineContext';
 import { LightSource } from '../game/lightSources/LightSource';
+import { CELL_SIZE } from '../terrain/TerrainGrid';
 
 // ---------------------------------------------------------------------------
 // Event contexts
@@ -58,6 +59,12 @@ export interface WorldEffectCallbacks {
     onRemoveModifier(id: string): void;
     onSetDisabled(id: string, disabled: boolean): void;
     onCustomEffect?(effectId: string, params: Record<string, unknown> | undefined, ctx: WorldRuleEvalContext, engine: EngineContext): void;
+    /** Query world-modifier-spawned light sources at a grid cell (for replace/max merge policy). */
+    getSpawnedLightSourcesAtCell?(col: number, row: number): Array<{ id: string; ls: LightSource }>;
+    /** Called after merge deactivation so the manager removes the entry from its side map. */
+    onDeactivateSpawnedLightSource?(id: string): void;
+    /** Register a newly spawned light source in the manager's side map. */
+    onRegisterSpawnedLightSource?(id: string, ls: LightSource, col: number, row: number): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +112,7 @@ export function applyEffect(
     ctx: WorldRuleEvalContext,
     engine: EngineContext,
     callbacks: WorldEffectCallbacks,
+    modifierDef?: WorldModifierDef,
 ): void {
     switch (effect.type) {
         case 'spawnLightSource': {
@@ -116,7 +124,26 @@ export function applyEffect(
                 const killer = engine.getUnit(ev.killerUnitId);
                 if (killer) { x = killer.x; y = killer.y; }
             }
-            engine.addLightSource(new LightSource({
+
+            const policy = modifierDef?.overrideEffect?.spawnLightSource ?? 'stack';
+            const col = Math.floor(x / CELL_SIZE);
+            const row = Math.floor(y / CELL_SIZE);
+
+            if (policy !== 'stack' && callbacks.getSpawnedLightSourcesAtCell) {
+                const existing = callbacks.getSpawnedLightSourcesAtCell(col, row);
+                if (policy === 'max' && existing.some((e) => Math.abs(e.ls.lightAmount) >= Math.abs(effect.lightAmount))) {
+                    // A source at this cell is equal or stronger — skip spawn.
+                    applyVisualEffects(effect.visualEffects, ctx);
+                    break;
+                }
+                // 'replace', or 'max' when existing is weaker: deactivate prior sources at cell.
+                for (const e of existing) {
+                    e.ls.active = false;
+                    callbacks.onDeactivateSpawnedLightSource?.(e.id);
+                }
+            }
+
+            const ls = new LightSource({
                 x,
                 y,
                 lightAmount: effect.lightAmount,
@@ -128,7 +155,9 @@ export function applyEffect(
                     initialRadius: effect.radius,
                     roundsTotal: effect.durationRounds,
                 },
-            }));
+            });
+            engine.addLightSource(ls);
+            callbacks.onRegisterSpawnedLightSource?.(ls.id, ls, col, row);
             applyVisualEffects(effect.visualEffects, ctx);
             break;
         }

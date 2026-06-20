@@ -55,6 +55,16 @@ export interface WorldModifierDef {
     /** Always-on effects while modifier is active. Stub in v1; full in Rainy Storm follow-up. */
     ambient?: WorldAmbientEffect[];
 
+    /**
+     * Per-effect-type stacking policy when multiple world modifier effects target the same position.
+     * - 'stack'   (default for spawnLightSource): add new source alongside existing ones.
+     * - 'replace': deactivate world-modifier-spawned sources at the same grid cell, then spawn new.
+     * - 'max':     skip if any existing source at the cell has |lightAmount| ≥ this effect's; otherwise replace weaker.
+     * - 'sum':     reserved for future numeric effect types; not implemented in v2.
+     * Omitting this field uses per-type defaults (spawnLightSource → 'stack').
+     */
+    overrideEffect?: Partial<Record<WorldEffect['type'], 'replace' | 'stack' | 'sum' | 'max'>>;
+
     rules?: Partial<Record<WorldEventType, WorldEventRule[]>>;
 }
 

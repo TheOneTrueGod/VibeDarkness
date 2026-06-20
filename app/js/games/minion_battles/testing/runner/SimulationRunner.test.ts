@@ -32,6 +32,7 @@ import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from '
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import { aiPlanHoldStabilityScenario } from '../scenarios/ai/ai_plan_hold_stability';
 import { aiTerrainInterruptScenario } from '../scenarios/ai/ai_terrain_interrupt';
+import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario } from '../scenarios/general/worldModifiers';
 import { aiReplanStaggerScenario } from '../scenarios/ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from '../scenarios/ai/ai_serialization_roundtrip';
 import {
@@ -321,6 +322,16 @@ describe('runScenarioHeadless', () => {
 
     it('AI: tactical plan survives toJSON / fromJSON round-trip (serialization roundtrip)', () => {
         const r = runScenarioHeadless(aiSerializationRoundtripScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('World Modifiers: swarmling death spawns dark light for 5 rounds', () => {
+        const r = runScenarioHeadless(worldModifierDarkSwarmScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('World Modifiers: mid-battle level event adds storm modifier and increments counter', () => {
+        const r = runScenarioHeadless(worldModifierMidBattleAddScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });
