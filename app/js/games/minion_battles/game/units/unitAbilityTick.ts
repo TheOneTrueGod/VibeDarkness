@@ -24,6 +24,7 @@ import {
     resolveBehaviourTimingRef,
     type CastBehaviourBaseContext,
 } from '../../abilities/castBehaviourTypes';
+import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 import { isSelectTargetDef, isHitTargetDef } from '../../abilities/timingTargetDef';
 import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
 import { triggerAbilityEvent } from '../../abilities/events';
@@ -239,6 +240,7 @@ export function tickUnitActiveAbilities(
                         if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
                         active.castBehaviourPayloads[behaviourKey] = data;
                     },
+                    engine: engine as unknown as AbilityEngineContext,
                 };
                 rec.entry.behaviour.onTargetEvade?.(distBreak.unitId, distBreak.frozenAt, baseCtx);
             }
@@ -247,6 +249,7 @@ export function tickUnitActiveAbilities(
         updateTelegraphTracking(unit, active, ability, currentTime, engine);
 
         // castBehaviours: evade-break on interval enter (declarative and legacy paths)
+        // TODO: remove isLegacyEvade branch when all evade abilities use declarative evadeEffect intervals
         for (const interval of intervals) {
             if (!entered.has(interval.id)) continue;
             const isDeclarativeEvade = interval.evadeEffect === true;
@@ -287,8 +290,26 @@ export function tickUnitActiveAbilities(
                             if (!rec.active.castBehaviourPayloads) rec.active.castBehaviourPayloads = {};
                             rec.active.castBehaviourPayloads[behaviourKey] = data;
                         },
+                        engine: engine as unknown as AbilityEngineContext,
                     };
                     rec.entry.behaviour.onTargetEvade?.(unit.id, snapshot, baseCtx);
+
+                    // Also downgrade active.targets / active.targetsByLabel so they become the
+                    // single source of truth for evade state (pixel target at frozen position).
+                    for (let ti = 0; ti < rec.active.targets.length; ti++) {
+                        const t = rec.active.targets[ti];
+                        if (t?.type === 'unit' && t.unitId === unit.id) {
+                            rec.active.targets[ti] = { type: 'pixel', position: snapshot };
+                        }
+                    }
+                    if (rec.active.targetsByLabel) {
+                        for (const label of Object.keys(rec.active.targetsByLabel)) {
+                            const t = rec.active.targetsByLabel[label];
+                            if (t?.type === 'unit' && t.unitId === unit.id) {
+                                rec.active.targetsByLabel[label] = { type: 'pixel', position: snapshot };
+                            }
+                        }
+                    }
                 }
                 for (const otherActive of otherUnit.activeAbilities) {
                     const otherAbility = getAbility(otherActive.abilityId);

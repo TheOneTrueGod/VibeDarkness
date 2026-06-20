@@ -51,6 +51,8 @@ See `GameEngine.ts` `fixedUpdate()` for the full tick order. The high-level flow
 11. Cleanup inactive objects
 12. Run defeat checks
 
+**Unit death lifecycle (step 6 vs step 11):** `Unit.takeDamage()` sets `unit.active = false` immediately when HP hits 0. The unit stays in `engine.units` until step 11 (`unitManager.cleanupInactive()`). Within the same tick, `engine.getUnit(id)` still returns the dead unit — `getUnit` has no `isAlive()` guard. Code running in step 6 (active abilities) that kills a target CAN still read that target's position in the same tick. Code running on any subsequent tick cannot — the unit has been removed. This ordering matters when you need to snapshot a dying target's position: the snapshot must happen at the end of step 6 (after all abilities have fired but before the function returns), not as a pre-tick pass on the following tick.
+
 **Render-tick updates (outside fixedUpdate):** Purely visual `Effect` objects advance via `EffectManager.renderUpdate(realDt)` every rAF frame regardless of pause state. `EffectEmitterManager.renderUpdate` also runs each frame for `ContinuousEmitter` instances (those with `emitWhilePaused: true` continue emitting even while the game is paused). See `game/effects/AGENTS.md` for the full Effect/EffectEmitter architecture.
 
 ## Backward Compatibility

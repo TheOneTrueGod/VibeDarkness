@@ -58,7 +58,6 @@ function getLockOnRange(def: HitboxDef | HitboxSpec | null): number {
 
 interface LockedUnit {
     unitId: string;
-    lockedPosition: { x: number; y: number } | null; // set when unit evades
 }
 
 interface MeleeAttackPayload {
@@ -71,6 +70,12 @@ interface MeleeAttackPayload {
      */
     aimPixel: { x: number; y: number } | null;
     lockedUnits: LockedUnit[];
+    /**
+     * Unit IDs that have successfully evaded this attack. These units are excluded from
+     * hitbox hits even if they overlap the impact area, because the aim-point is now at
+     * the frozen pixel position (already stored in active.targets via unitAbilityTick).
+     */
+    evadedUnitIds: Set<string>;
     interrupted: boolean;
     impactFired: boolean;
 }
@@ -222,7 +227,7 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         for (let i = startIdx; i < Math.min(ctx.allTargets.length, startIdx + numLockOns); i++) {
             const t = ctx.allTargets[i];
             if (t?.type === 'unit' && t.unitId != null) {
-                lockedUnits.push({ unitId: t.unitId, lockedPosition: null });
+                lockedUnits.push({ unitId: t.unitId });
             }
         }
 
@@ -245,6 +250,7 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
             aimDirY,
             aimPixel,
             lockedUnits,
+            evadedUnitIds: new Set<string>(),
             interrupted: false,
             impactFired: false,
         };
@@ -284,21 +290,16 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
                 aimY = payload.aimPixel.y;
             }
         } else if (ctx.target.type === 'unit' && ctx.target.unitId != null) {
-            const primaryLock = payload.lockedUnits.find(u => u.unitId === ctx.target.unitId);
-            if (primaryLock?.lockedPosition) {
-                // Target evaded — use the frozen position from when lock broke, not the live position.
-                aimX = primaryLock.lockedPosition.x;
-                aimY = primaryLock.lockedPosition.y;
+            // active.targets is now the single source of truth: if the target evaded or died,
+            // unitAbilityTick has already downgraded this entry to a pixel target before onTick fires.
+            const liveUnit = ctx.engine.getUnit(ctx.target.unitId);
+            if (liveUnit) {
+                aimX = liveUnit.x;
+                aimY = liveUnit.y;
             } else {
-                const liveUnit = ctx.engine.getUnit(ctx.target.unitId);
-                if (liveUnit) {
-                    aimX = liveUnit.x;
-                    aimY = liveUnit.y;
-                } else {
-                    const FALLBACK_DIST = 64;
-                    aimX = ctx.caster.x + payload.aimDirX * FALLBACK_DIST;
-                    aimY = ctx.caster.y + payload.aimDirY * FALLBACK_DIST;
-                }
+                const FALLBACK_DIST = 64;
+                aimX = ctx.caster.x + payload.aimDirX * FALLBACK_DIST;
+                aimY = ctx.caster.y + payload.aimDirY * FALLBACK_DIST;
             }
         } else if (ctx.target.type === 'pixel' && ctx.target.position != null) {
             // Clamp pixel targets to hitbox range so the miss VFX and hitbox check stay
@@ -331,7 +332,7 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         const guaranteedHits: Unit[] = [];
 
         for (const locked of payload.lockedUnits) {
-            if (locked.lockedPosition !== null) continue; // evaded
+            if (payload.evadedUnitIds.has(locked.unitId)) continue; // evaded
             const liveUnit = ctx.engine.getUnit(locked.unitId);
             if (!liveUnit || !liveUnit.isAlive()) continue;
             const lockOnRange = this.lockOnExtraOverride !== null
@@ -368,11 +369,9 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
             }
         }
 
-        // Evaded units are excluded from all hits — the attack targets the floor at lockedPosition,
-        // not the unit itself, so even a hitbox overlap at that position should not apply damage.
-        const evadedIds = new Set<string>(
-            payload.lockedUnits.filter(lu => lu.lockedPosition !== null).map(lu => lu.unitId),
-        );
+        // Evaded units are excluded from all hits — the attack targets the floor at the evade
+        // snapshot position, not the unit itself, so even a hitbox overlap should not apply damage.
+        const evadedIds = payload.evadedUnitIds;
 
         // Final list: stack-aware slot assignment (stacks may appear multiple times).
         const allCandidates: Unit[] = [...guaranteedHits];
@@ -389,16 +388,6 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
 
         // Spawn impact VFX — custom callback takes full control when set.
         // Only animate from caster when the attack actually lands; misses and evades appear in place.
-        console.log('[MeleeAttack] impact VFX', {
-            casterId: ctx.caster.id,
-            aimX,
-            aimY,
-            target: ctx.target,
-            lockedUnits: payload.lockedUnits,
-            hitUnits: hitUnits.map(u => ({ id: u.id, name: u.name, x: u.x, y: u.y })),
-            evadedIds: [...evadedIds],
-            traveling: hitUnits.length > 0,
-        });
         if (this.impactVFXCallback) {
             this.impactVFXCallback(ctx, hitUnits, aimX, aimY);
         } else {
@@ -408,27 +397,6 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
                 duration: 0.2,
                 effectType: this.impactEffectType,
                 ...(hitUnits.length > 0 ? { startX: ctx.caster.x, startY: ctx.caster.y } : {}),
-            }));
-        }
-
-        // Dodged floating text for each evaded locked unit.
-        for (const locked of payload.lockedUnits) {
-            if (locked.lockedPosition === null) continue;
-            ctx.engine.addEffect(new Effect({
-                x: locked.lockedPosition.x,
-                y: locked.lockedPosition.y,
-                duration: 0.92,
-                effectType: 'FloatingText',
-                effectData: {
-                    amount: 0,
-                    color: 0xfacc15,
-                    originX: locked.lockedPosition.x,
-                    originY: locked.lockedPosition.y,
-                    dirX: 0,
-                    dirY: -1,
-                    flightPx: 48,
-                    arcPx: 36,
-                },
             }));
         }
 
@@ -457,20 +425,30 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
     ): void {
         const payload = ctx.behaviourPayload as MeleeAttackPayload | undefined;
         if (!payload) return;
-        const idx = payload.lockedUnits.findIndex(
-            lu => lu.unitId === unitId && lu.lockedPosition === null,
-        );
-        if (idx === -1) return;
-        console.log('[MeleeAttack] target used dodge ability — lock released', {
-            unitId,
-            frozenAt: snapshot,
-            caster: { id: ctx.caster.id, name: ctx.caster.name, x: ctx.caster.x, y: ctx.caster.y },
-            lockedUnitsBefore: payload.lockedUnits,
-        });
-        const newLockedUnits = payload.lockedUnits.map((lu, i) =>
-            i === idx ? { ...lu, lockedPosition: snapshot } : lu,
-        );
-        ctx.setBehaviourPayload({ ...payload, lockedUnits: newLockedUnits });
+        const isLocked = payload.lockedUnits.some(lu => lu.unitId === unitId);
+        if (!isLocked || payload.evadedUnitIds.has(unitId)) return;
+
+        // Mark this unit as evaded — it will be excluded from guaranteed hits and hitbox hits.
+        // active.targets has already been downgraded to a pixel target by unitAbilityTick.
+        payload.evadedUnitIds.add(unitId);
+
+        // Spawn "Dodged" floating text at the evade snapshot position.
+        ctx.engine.addEffect(new Effect({
+            x: snapshot.x,
+            y: snapshot.y,
+            duration: 0.92,
+            effectType: 'FloatingText',
+            effectData: {
+                amount: 0,
+                color: 0xfacc15,
+                originX: snapshot.x,
+                originY: snapshot.y,
+                dirX: 0,
+                dirY: -1,
+                flightPx: 48,
+                arcPx: 36,
+            },
+        }));
     }
 
     getCasterRenderOffset(ctx: CastBehaviourRenderContext): { x: number; y: number } | null {

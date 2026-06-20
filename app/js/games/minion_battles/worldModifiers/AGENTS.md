@@ -146,7 +146,7 @@ Swarmling (or configured character) deaths spawn a dark light source at the vict
 
 | Option | Default | Purpose |
 |--------|---------|---------|
-| `lightAmount` | `-4` | Darklight intensity (negative = darkness) |
+| `lightAmount` | `-1` | Darklight intensity (negative = darkness) |
 | `radius` | `2` | Light source radius in tiles |
 | `durationRounds` | `5` | How many rounds the aura lasts |
 | `characterId` | `'swarmling'` | Victim character id that triggers the effect |

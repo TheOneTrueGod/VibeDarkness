@@ -41,6 +41,8 @@ export interface CastBehaviourBaseContext {
     castPayload: unknown;
     behaviourPayload: unknown;
     setBehaviourPayload: (data: unknown) => void;
+    /** Engine context — available in all CastBehaviour callbacks including onTargetEvade. */
+    engine: AbilityEngineContext;
 }
 
 export interface CastBehaviourSetupContext extends CastBehaviourBaseContext {

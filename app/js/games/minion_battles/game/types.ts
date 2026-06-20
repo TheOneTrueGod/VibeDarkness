@@ -218,7 +218,10 @@ export interface ActiveAbility {
     startTime: number;
     /** Resolved targets for this ability. */
     targets: ResolvedTarget[];
-    /** Set by one-shot abilities when their effect has fired (prevents duplicate triggers). */
+    /**
+     * Set by one-shot abilities when their effect has fired (prevents duplicate triggers).
+     * @legacy TODO: remove when doCardEffect abilities are ported to CastBehaviours
+     */
     fired?: boolean;
     /**
      * Ability-specific snapshot set once in `beginActiveCast` (e.g. charge lunge vectors).
@@ -233,7 +236,10 @@ export interface ActiveAbility {
      * NOT serialized.
      */
     targetsByLabel?: Record<string, ResolvedTarget>;
-    /** Guards legacy evade-break firing to once per cast. NOT serialized. */
+    /**
+     * Guards legacy evade-break firing to once per cast. NOT serialized.
+     * @legacy TODO: remove when all evade abilities use declarative evadeEffect intervals
+     */
     evadeFired?: boolean;
     /**
      * Set by the conditionalCancel system when a condition fires on interval exit.

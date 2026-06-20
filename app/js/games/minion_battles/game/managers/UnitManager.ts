@@ -20,6 +20,7 @@ import { Resonance } from '../../resources/Resonance';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unitDef';
 import type { CellOccupancyManager } from './CellOccupancyManager';
+import { refreshActiveTargets } from '../../abilities/targetDowngrade';
 
 function refreshPlayerPursuitPath(unit: Unit, aiContext: AIContext): void {
     const targetId = unit.movement?.targetUnitId;
@@ -270,6 +271,14 @@ export class UnitManager {
             const tree = getUnitAITree(unit.unitAITreeId);
             if (tree) runUnitAI(unit, tree, aiContext);
             unit.pendingInterrupts.clear();
+        }
+        // Phase 4: downgrade dead unit targets to pixel targets at last known position.
+        // Runs after all ticks (so kills from any source are captured) but before
+        // cleanupInactive removes dead units from engine.units.
+        for (const unit of this.units) {
+            for (const active of unit.activeAbilities) {
+                refreshActiveTargets(active, engine);
+            }
         }
     }
 
