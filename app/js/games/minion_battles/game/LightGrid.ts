@@ -35,8 +35,9 @@ function sourceContribution(emission: number, radius: number, d: number): number
 
 /**
  * Compute light level for every tile. Returns grid[row][col].
- * tileLevel = globalLightLevel + best, where best is the contribution with the
- * largest absolute value across all sources (starts at 0 — no source = no change).
+ * tileLevel = globalLightLevel + bestPositive + bestNegative, where bestPositive is the
+ * largest positive contribution and bestNegative is the largest negative contribution
+ * across all sources. Lights and darklights combine additively.
  */
 export function computeLightGrid(
     globalLightLevel: number,
@@ -48,7 +49,8 @@ export function computeLightGrid(
     for (let row = 0; row < height; row++) {
         const r: number[] = [];
         for (let col = 0; col < width; col++) {
-            let best = 0;
+            let bestPos = 0;
+            let bestNeg = 0;
             for (const s of sources) {
                 // Snap to 0.25 increments so ring boundaries transition atomically for all
                 // cells at the same distance rather than drifting cell-by-cell as values decay.
@@ -58,9 +60,10 @@ export function computeLightGrid(
                 const d = roundedEuclideanDistance(col, row, s.col, s.row);
                 if (d > range) continue;
                 const contrib = sourceContribution(emission, radius, d);
-                if (Math.abs(contrib) > Math.abs(best)) best = contrib;
+                if (contrib > bestPos) bestPos = contrib;
+                if (contrib < bestNeg) bestNeg = contrib;
             }
-            r.push(globalLightLevel + best);
+            r.push(globalLightLevel + bestPos + bestNeg);
         }
         grid.push(r);
     }

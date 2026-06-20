@@ -76,7 +76,8 @@ export class LightSourceManager {
                 ls.active = false;
                 continue;
             }
-            ls.lightAmount = Math.max(0, d.initialLightAmount - 2 * roundsLived);
+            const sign = Math.sign(d.initialLightAmount);
+            ls.lightAmount = sign * Math.max(0, Math.abs(d.initialLightAmount) - 2 * roundsLived);
             ls.radius = Math.max(0, d.initialRadius - roundsLived);
         }
     }
@@ -87,7 +88,7 @@ export class LightSourceManager {
         if (!grid) return [];
         const inputs: GridLightInput[] = [];
         for (const ls of this.lightSources) {
-            if (!ls.active || ls.lightAmount <= 0 || ls.radius <= 0) continue;
+            if (!ls.active || ls.lightAmount === 0 || ls.radius <= 0) continue;
             const { col, row } = grid.worldToGrid(ls.x, ls.y);
             inputs.push({ col, row, emission: ls.lightAmount, radius: ls.radius });
         }
