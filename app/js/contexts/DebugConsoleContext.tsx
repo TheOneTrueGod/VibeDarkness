@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
+import type { WorldModifierDebugEntry } from '../games/minion_battles/worldModifiers/WorldModifierManager';
+
+export type { WorldModifierDebugEntry };
 
 export interface BattleDebugSnapshot {
     gameTick: number | null;
@@ -15,6 +18,9 @@ export interface BattleDebugBridge {
     triggerDesync(): void;
     triggerReplayFromStart(): void;
     getSnapshot(): BattleDebugSnapshot;
+    getWorldModifiersDebug(): WorldModifierDebugEntry[];
+    setWorldModifierDisabled(modifierId: string, disabled: boolean): void;
+    addTestWorldModifier(): void;
 }
 
 interface DebugConsoleContextValue {

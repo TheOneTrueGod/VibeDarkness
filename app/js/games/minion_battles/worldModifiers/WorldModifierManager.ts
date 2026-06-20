@@ -21,6 +21,16 @@ type CustomEffectHandler = (
     engine: EngineContext,
 ) => void;
 
+export interface WorldModifierDebugEntry {
+    id: string;
+    name: string;
+    disabled: boolean;
+    isDynamic: boolean;
+    isActive: boolean;
+    counters: Record<string, number>;
+    priority?: number;
+}
+
 // ---------------------------------------------------------------------------
 // Runtime instance
 // ---------------------------------------------------------------------------
@@ -201,6 +211,22 @@ export class WorldModifierManager {
     setDisabled(id: string, disabled: boolean): void {
         const inst = this.instances.get(id);
         if (inst) inst.disabled = disabled;
+    }
+
+    // -----------------------------------------------------------------------
+    // Debug snapshot
+    // -----------------------------------------------------------------------
+
+    getModifiersDebugSnapshot(roundNumber: number): WorldModifierDebugEntry[] {
+        return [...this.instances.values()].map((inst) => ({
+            id: inst.def.id,
+            name: inst.def.name,
+            disabled: inst.disabled,
+            isDynamic: inst.isDynamic,
+            isActive: !inst.disabled && this.isModifierActive(inst.def, roundNumber),
+            counters: { ...inst.counters },
+            priority: inst.def.priority,
+        }));
     }
 
     // -----------------------------------------------------------------------

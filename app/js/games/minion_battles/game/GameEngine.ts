@@ -367,6 +367,10 @@ export class GameEngine implements EngineContext {
         return this.state.worldModifierManager.getActiveModifiersForUI(this.roundNumber);
     }
 
+    getWorldModifiersDebugSnapshot(): import('../worldModifiers/WorldModifierManager').WorldModifierDebugEntry[] {
+        return this.state.worldModifierManager.getModifiersDebugSnapshot(this.roundNumber);
+    }
+
     revealBattleObjectives(ids: readonly string[]): void {
         this.state.objectiveManager.revealObjectiveIds(ids);
     }

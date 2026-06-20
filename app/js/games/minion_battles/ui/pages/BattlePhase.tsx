@@ -337,6 +337,26 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 void sessionRef.current?.replayMissionFromStart();
             },
             getSnapshot: () => snapshotRef.current,
+            getWorldModifiersDebug: () => {
+                const engine = sessionRef.current?.getEngine();
+                return engine ? engine.getWorldModifiersDebugSnapshot() : [];
+            },
+            setWorldModifierDisabled: (modifierId, disabled) => {
+                const engine = sessionRef.current?.getEngine();
+                const net = netRef.current;
+                if (!engine || !net) return;
+                engine.state.worldModifierManager.setDisabled(modifierId, disabled);
+                void net.debugLogLocalStateAndSubmitSnapshot();
+            },
+            addTestWorldModifier: () => {
+                const engine = sessionRef.current?.getEngine();
+                const net = netRef.current;
+                if (!engine || !net) return;
+                void import('../../worldModifiers/presets').then(({ rainyStormModifier }) => {
+                    engine.state.worldModifierManager.addModifier(rainyStormModifier());
+                    void net.debugLogLocalStateAndSubmitSnapshot();
+                });
+            },
         };
         setBattleBridge(bridge);
         return () => {

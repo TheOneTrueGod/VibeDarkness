@@ -13,6 +13,7 @@ import DebugPlayerDataTab from './tabs/DebugPlayerDataTab';
 import DebugCampaignDataTab from './tabs/DebugCampaignDataTab';
 import DebugCharactersTab from './tabs/DebugCharactersTab';
 import DebugTogglesTab from './tabs/DebugTogglesTab';
+import DebugWorldModifiersTab from './tabs/DebugWorldModifiersTab';
 import DebugTabButton from './DebugTabButton';
 import { useDebugSettings } from '../../contexts/DebugSettingsContext';
 import { useDebugConsole } from '../../contexts/DebugConsoleContext';
@@ -27,7 +28,8 @@ export type TabId =
     | 'player-data'
     | 'campaign-data'
     | 'characters'
-    | 'debug-toggles';
+    | 'debug-toggles'
+    | 'world-modifiers';
 
 export interface DebugConsoleProps {
     gameState: GameStatePayload | null;
@@ -141,9 +143,9 @@ export default function DebugConsole({
         };
     }, []);
 
-    // When leaving battle or losing admin while on Battle Actions tab, switch back to Game State.
+    // When leaving battle or losing admin while on Battle Actions or World Modifiers tab, switch back to Game State.
     useEffect(() => {
-        if ((!inBattle || !isAdmin) && activeTab === 'battle-actions') {
+        if ((!inBattle || !isAdmin) && (activeTab === 'battle-actions' || activeTab === 'world-modifiers')) {
             setActiveTab('game-state');
         }
     }, [inBattle, isAdmin, activeTab]);
@@ -191,6 +193,7 @@ export default function DebugConsole({
     const debugTabs = (
             <>
                 <DebugBattleActionsTab isActive={activeTab === 'battle-actions'} inBattle={inBattle} isAdmin={isAdmin} isHost={isHost} skipCurrentTurn={skipCurrentTurn} />
+                <DebugWorldModifiersTab isActive={activeTab === 'world-modifiers'} inBattle={inBattle} isAdmin={isAdmin} />
                 <DebugGameStateTab
                     isActive={activeTab === 'game-state'}
                     gameState={gameState}
@@ -318,6 +321,15 @@ export default function DebugConsole({
                                 onClick={() => setActiveTab('battle-actions')}
                             >
                                 Battle Actions
+                            </DebugTabButton>
+                        )}
+
+                        {inBattle && isAdmin && (
+                            <DebugTabButton
+                                isActive={activeTab === 'world-modifiers'}
+                                onClick={() => setActiveTab('world-modifiers')}
+                            >
+                                World Mods
                             </DebugTabButton>
                         )}
 
