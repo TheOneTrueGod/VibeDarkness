@@ -246,12 +246,27 @@ export interface LevelEventConvertSpecialTile extends LevelEventBase {
     };
 }
 
+/**
+ * Mid-battle modifier change: add, remove, enable, or disable a world modifier when trigger fires.
+ * Actions execute once; the event is not re-triggered if the trigger condition re-evaluates.
+ */
+export interface LevelEventSetWorldModifiers extends LevelEventBase {
+    type: 'setWorldModifiers';
+    trigger: { atRound: number } | { afterSeconds: number };
+    actions: Array<
+        | { action: 'add'; modifier: WorldModifierDef }
+        | { action: 'remove'; modifierId: string }
+        | { action: 'enable' | 'disable'; modifierId: string }
+    >;
+}
+
 export type LevelEvent =
     | LevelEventSpawnWave
     | LevelEventVictoryCheck
     | LevelEventContinuousSpawn
     | LevelEventProximitySpawn
-    | LevelEventConvertSpecialTile;
+    | LevelEventConvertSpecialTile
+    | LevelEventSetWorldModifiers;
 
 /** Config for a `thornling_nest` unit — spawns creatures near itself at intervals. */
 export interface ThornlingNestMissionConfig {

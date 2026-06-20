@@ -43,6 +43,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `resources/` | In-battle resource types (mana, rage, etc.). |
 | `hitboxes/` | Hitbox shapes for ability collision. |
 | `utils/` | Shared helpers. |
+| `worldModifiers/` | Battle-wide declarative rule system: defs, runtime manager, built-in handlers, serialization. See `worldModifiers/AGENTS.md`. |
 
 ## Architecture for the game state
 

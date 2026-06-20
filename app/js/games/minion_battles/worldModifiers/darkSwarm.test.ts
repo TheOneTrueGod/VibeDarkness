@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { GameEngine } from '../game/GameEngine';
 import { resetGameObjectIdCounter } from '../game/GameObject';
-import { DARK_SWARM_MODIFIER } from '../storylines/BunkerAtTheEnd/missions/last_holdout';
+import { darkSwarmModifier } from './presets';
 import { buildWorldModifiersFromSources } from './buildWorldModifiers';
 import { createUnitFromSpawnConfig } from '../game/units';
 
@@ -12,7 +12,7 @@ describe('Dark Swarm world modifier', () => {
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
 
         engine.state.worldModifierManager.install(
-            buildWorldModifiersFromSources({ mission: [DARK_SWARM_MODIFIER] }),
+            buildWorldModifiersFromSources({ mission: [darkSwarmModifier()] }),
         );
 
         const swarmling = createUnitFromSpawnConfig(
@@ -55,7 +55,7 @@ describe('Dark Swarm world modifier', () => {
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
 
         engine.state.worldModifierManager.install(
-            buildWorldModifiersFromSources({ mission: [DARK_SWARM_MODIFIER] }),
+            buildWorldModifiersFromSources({ mission: [darkSwarmModifier()] }),
         );
 
         const boar = createUnitFromSpawnConfig(

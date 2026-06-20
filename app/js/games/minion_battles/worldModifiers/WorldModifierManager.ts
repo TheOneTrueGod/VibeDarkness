@@ -12,6 +12,13 @@ import type { WorldEffect } from './WorldEffect';
 import type { WorldRuleEvalContext, WorldEventContext } from './WorldModifierRuntime';
 import { evaluateCondition, applyEffect } from './WorldModifierRuntime';
 import { type DispatchableRule, dispatchEventRules } from './EventRuleDispatcher';
+import { registerBuiltinHandlers } from './builtinHandlers';
+
+type CustomEffectHandler = (
+    params: Record<string, unknown> | undefined,
+    ctx: WorldRuleEvalContext,
+    engine: EngineContext,
+) => void;
 
 // ---------------------------------------------------------------------------
 // Runtime instance
@@ -36,8 +43,15 @@ export class WorldModifierManager {
     private defs: WorldModifierDef[] = [];
     private instances = new Map<string, WorldModifierInstance>();
     private snapshotImport: SerializedWorldModifierInstance[] | null = null;
+    private customEffectHandlers = new Map<string, CustomEffectHandler>();
 
-    constructor(private readonly ctx: EngineContext) {}
+    constructor(private readonly ctx: EngineContext) {
+        registerBuiltinHandlers(this);
+    }
+
+    registerCustomEffectHandler(effectId: string, handler: CustomEffectHandler): void {
+        this.customEffectHandlers.set(effectId, handler);
+    }
 
     // -----------------------------------------------------------------------
     // Install / restore
@@ -277,6 +291,14 @@ export class WorldModifierManager {
                             onAddModifier: (def) => this.addModifier(def),
                             onRemoveModifier: (id) => this.removeModifier(id),
                             onSetDisabled: (id, disabled) => this.setDisabled(id, disabled),
+                            onCustomEffect: (effectId, params, ruleCtx) => {
+                                const handler = this.customEffectHandlers.get(effectId);
+                                if (handler) {
+                                    handler(params, ruleCtx, this.ctx);
+                                } else {
+                                    console.warn(`[WorldModifierManager] no handler for custom effectId "${effectId}"`);
+                                }
+                            },
                         });
                     },
                 },

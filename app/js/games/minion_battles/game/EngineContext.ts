@@ -19,6 +19,7 @@ import type { TerrainLayerManager } from './TerrainLayerManager';
 import type { MapSegmentPOI } from '../terrain/segmentSchema';
 import type { SpawnSource, WaitingForOrders } from './types';
 import type { CellOccupancyManager } from './managers/CellOccupancyManager';
+import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 
 export interface EngineContext {
     gameTime: number;
@@ -114,4 +115,7 @@ export interface EngineContext {
 
     /** Runtime cell occupancy tracker for managed units (swarmlings, wolves, etc.). null when unused. */
     cellOccupancyManager: CellOccupancyManager | null;
+
+    /** Mid-battle modifier API: add/remove/enable/disable world modifiers. */
+    readonly worldModifierManager: WorldModifierManager;
 }

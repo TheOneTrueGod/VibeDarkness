@@ -14,6 +14,7 @@ import type {
     LevelEventContinuousSpawn,
     LevelEventProximitySpawn,
     LevelEventConvertSpecialTile,
+    LevelEventSetWorldModifiers,
     EnemySpawnDef,
     SpawnWaveEntry,
 } from '../../storylines/types';
@@ -125,10 +126,40 @@ export class LevelEventManager {
                 this.processProximitySpawnEvent(i, evt);
             } else if (evt.type === 'convertSpecialTile') {
                 this.processConvertSpecialTileEvent(i, evt);
+            } else if (evt.type === 'setWorldModifiers') {
+                this.processSetWorldModifiersEvent(i, evt);
             } else if (evt.type === 'victoryCheck') {
                 if (this.ctx.roundNumber >= evt.trigger.afterRound && this.ctx.gameTick % 10 === 0) {
                     this.runVictoryCheck(i, evt);
                 }
+            }
+        }
+    }
+
+    private processSetWorldModifiersEvent(i: number, evt: LevelEventSetWorldModifiers): void {
+        if (this.firedEventIndices.has(i)) return;
+
+        let shouldFire = false;
+        if ('atRound' in evt.trigger) {
+            shouldFire = this.ctx.roundNumber >= evt.trigger.atRound;
+        } else if ('afterSeconds' in evt.trigger) {
+            shouldFire = this.ctx.gameTime >= evt.trigger.afterSeconds;
+        }
+        if (!shouldFire) return;
+
+        this.firedEventIndices.add(i);
+        if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
+
+        const wmm = this.ctx.worldModifierManager;
+        for (const a of evt.actions) {
+            if (a.action === 'add') {
+                wmm.addModifier(a.modifier);
+            } else if (a.action === 'remove') {
+                wmm.removeModifier(a.modifierId);
+            } else if (a.action === 'enable') {
+                wmm.setDisabled(a.modifierId, false);
+            } else if (a.action === 'disable') {
+                wmm.setDisabled(a.modifierId, true);
             }
         }
     }

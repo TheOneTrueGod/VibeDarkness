@@ -9,7 +9,7 @@
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
-import type { WorldModifierDef } from '../../../worldModifiers/types';
+import { darkSwarmModifier } from '../../../worldModifiers/presets';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
@@ -142,30 +142,6 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
     },
 ];
 
-/** Dark Swarm: each swarmling death leaves a pocket of darkness for 5 rounds. */
-export const DARK_SWARM_MODIFIER: WorldModifierDef = {
-    id: 'dark_swarm',
-    name: 'Dark Swarm',
-    description: 'When a Swarmling dies, it releases a burst of darkness at its death site for 5 rounds.',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#0d0024"/><ellipse cx="9" cy="9" rx="2.5" ry="2" fill="#6b21a8"/><ellipse cx="15" cy="9" rx="2" ry="1.5" fill="#6b21a8"/><ellipse cx="12" cy="15" rx="3" ry="2" fill="#6b21a8"/><ellipse cx="7" cy="14" rx="1.5" ry="1.5" fill="#6b21a8"/><ellipse cx="17" cy="14" rx="1.5" ry="1.5" fill="#6b21a8"/></svg>',
-    rules: {
-        on_unit_died: [
-            {
-                conditions: [{ type: 'victimCharacterIdIs', characterId: 'swarmling' }],
-                effects: [
-                    {
-                        type: 'spawnLightSource',
-                        lightAmount: -4,
-                        radius: 2,
-                        durationRounds: 5,
-                        position: 'victim',
-                    },
-                ],
-            },
-        ],
-    },
-};
-
 export class LastHoldoutMission extends BaseMissionDef {
     missionId = 'last_holdout';
     mapPosition = { x: 450, y: 250 };
@@ -181,7 +157,7 @@ export class LastHoldoutMission extends BaseMissionDef {
     aiController = 'stateBased' as const;
     lightLevelEnabled = true;
     globalLightLevel = 0;
-    worldModifiers = [DARK_SWARM_MODIFIER];
+    worldModifiers = [darkSwarmModifier()];
     /** Player spawn points: eight positions inside the C-shaped bunker. */
     playerSpawnPoints = [
         { col: 9, row: 8 },

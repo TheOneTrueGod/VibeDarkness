@@ -57,6 +57,7 @@ export interface WorldEffectCallbacks {
     onAddModifier(def: WorldModifierDef): void;
     onRemoveModifier(id: string): void;
     onSetDisabled(id: string, disabled: boolean): void;
+    onCustomEffect?(effectId: string, params: Record<string, unknown> | undefined, ctx: WorldRuleEvalContext, engine: EngineContext): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,9 +158,13 @@ export function applyEffect(
         }
 
         case 'custom': {
-            console.warn(
-                `[WorldModifierRuntime] custom effect "${effect.effectId}" has no registered handler.`,
-            );
+            if (callbacks.onCustomEffect) {
+                callbacks.onCustomEffect(effect.effectId, effect.params, ctx, engine);
+            } else {
+                console.warn(
+                    `[WorldModifierRuntime] custom effect "${effect.effectId}" has no registered handler.`,
+                );
+            }
             applyVisualEffects(effect.visualEffects, ctx);
             break;
         }

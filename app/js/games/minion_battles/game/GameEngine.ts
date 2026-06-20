@@ -34,8 +34,7 @@ import type { AIContext, AILightSource } from './units/unitAI';
 import { computeLightGrid, type LightSource as GridLightInput } from './LightGrid';
 import { LightTileGrid } from './lightTileGrid/LightTileGrid';
 import { LightSource } from './lightSources/LightSource';
-import { DarkCreatureIconDeathEffect } from './deathEffects/DarkCreatureIconDeathEffect';
-import { getDeathEffectDef, getBodyColorForUnit, getCharacterSpriteKey } from './units/unit_defs/unitDef';
+import { getBodyColorForUnit, getCharacterSpriteKey } from './units/unit_defs/unitDef';
 import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
@@ -376,6 +375,10 @@ export class GameEngine implements EngineContext {
         return this.state.objectiveManager.isCompleted(id);
     }
 
+    get worldModifierManager() {
+        return this.state.worldModifierManager;
+    }
+
     trackAbilityUse(unitId: string, abilityId: string): void {
         this.state.cardManager.trackAbilityUse(unitId, abilityId);
     }
@@ -520,18 +523,8 @@ export class GameEngine implements EngineContext {
             }
             if (unit.characterId === 'alpha_wolf') {
                 this.startAlphaWolfStoryDeathSequence(unit);
-                return;
             }
-            const deathEffectDef = getDeathEffectDef(unit.characterId);
-            if (!deathEffectDef) return;
-            if (deathEffectDef.kind === 'particleBurst') {
-                new deathEffectDef.type({
-                    image: deathEffectDef.image,
-                    count: deathEffectDef.count,
-                }).doEffect(this, unit);
-            } else {
-                new DarkCreatureIconDeathEffect(deathEffectDef.particleCount).doEffect(this, unit);
-            }
+            // Default death VFX is handled by _builtin_default_death_vfx via WorldModifierManager.
         });
 
         this.eventBus.on('stack_members_died', (data) => {
