@@ -1,5 +1,12 @@
 # World Modifiers — agent guide
 
+## Plan status
+
+- **v1 + v2 initiative complete** (H1–H4 done). See `docs/plans/world-modifiers.plan.md` and `docs/plans/world-modifiers-v2.plan.md`.
+- **H5 VisualEffect:** stub only — see § VisualEffect hook below; full wiring waits on the parallel VisualEffect definition system.
+- **Optional follow-up:** Step 6 built-in death migration (lanternite, alpha wolf, stack ghost) — checklist in v2 plan, not started.
+- **Unrelated pre-existing test failures:** `telegraphTracking.test.ts`, `SimulationRunner` swing sword extra uses.
+
 ## What is this system
 
 World modifiers are battle-wide declarative rules that react to game events (unit deaths, round start/end) and produce gameplay effects (spawn light sources, increment counters, add/remove other modifiers). Each modifier is a `WorldModifierDef` (pure JSON, immutable after load) paired with a runtime instance that tracks mutable state (counters, disabled flag, trigger counts).
@@ -100,7 +107,7 @@ Each rule in `rules[eventType]` is a `WorldEventRule`:
 
 | Type | Key fields |
 |------|-----------|
-| `spawnLightSource` | `lightAmount` (negative = darklight), `radius`, `durationRounds`, `position: 'victim' \| 'killer'`, optional `color` |
+| `spawnLightSource` | `lightAmount` (negative = darklight), `radius`, `durationRounds`, `position: 'victim' \| 'killer'`, optional `color`; optional `overlapMethod: OverlapMethod` (see `LightGrid.ts`; defaults to `'max'`); optional `noDecay: boolean` (hold full emission/radius until expiry, then vanish — skips linear fade) |
 | `incrementCounter` | `counterId`, optional `amount` (default 1) |
 | `addWorldModifier` | `modifierDef: WorldModifierDef` |
 | `removeWorldModifier` | `modifierId` |

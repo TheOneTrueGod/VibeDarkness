@@ -14,7 +14,7 @@ const DARK_SWARM_ICON =
 /** Dark Swarm: victim deaths leave a pocket of darkness for several rounds. */
 export function darkSwarmModifier(opts: DarkSwarmModifierOptions = {}): WorldModifierDef {
     const {
-        lightAmount = -4,
+        lightAmount = -1,
         radius = 2,
         durationRounds = 5,
         characterId = 'swarmling',
@@ -36,6 +36,8 @@ export function darkSwarmModifier(opts: DarkSwarmModifierOptions = {}): WorldMod
                             radius,
                             durationRounds,
                             position: 'victim',
+                            overlapMethod: { method: 'add', contributionDR: 0.9 },
+                            noDecay: true,
                         },
                     ],
                 },

@@ -4,6 +4,8 @@
  * Tracks position (grid), HP, and references the definition for image and maxHp.
  */
 
+import type { OverlapMethod } from '../LightGrid';
+
 /** Runtime special tile (position, hp, etc.). */
 export interface SpecialTile {
     id: string;
@@ -30,6 +32,8 @@ export interface SpecialTile {
          * Example: decayInterval=0.25 means 4 decays per round.
          */
         decayInterval?: number;
+        /** How this source combines with other light sources on the same tile. Defaults to 'max'. */
+        overlapMethod?: OverlapMethod;
     };
     /** Internal: next time (in rounds since start) we apply one decay step. */
     lightDecayNextAtRound?: number;
@@ -68,6 +72,7 @@ export function specialTileFromJSON(
                   radius: (rawEmits as { radius: number }).radius,
                   decayRate: (rawEmits as { decayRate?: number }).decayRate,
                   decayInterval: (rawEmits as { decayInterval?: number }).decayInterval,
+                  overlapMethod: (rawEmits as { overlapMethod?: OverlapMethod }).overlapMethod,
               }
             : undefined;
     const maxHp = (data.maxHp as number) ?? 1;

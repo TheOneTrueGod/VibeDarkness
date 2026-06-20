@@ -218,16 +218,26 @@ export class OverlayRenderer {
     }
 
     static lightLevelToAlpha(level: number): number {
-        const LightLevel = Math.round(level);
-        const lightAtMedium = 0.8;
+        const LightLevel = Math.floor(level);
 
         if (LightLevel <= DarknessLevel.FULL_DARKNESS) return 1;
-        if (LightLevel >= DarknessLevel.BRIGHT_LIGHT) return 0;
-        if (LightLevel >= DarknessLevel.MEDIUM_LIGHT_MIN) return (1 - lightAtMedium);
-        const baseDarkness = 0.2;
-        const remainingDarkness = 1 - baseDarkness;
-        const lightPctLerp = (LightLevel - DarknessLevel.FULL_DARKNESS) / (DarknessLevel.MEDIUM_LIGHT_MIN - DarknessLevel.FULL_DARKNESS);
-        return 1 - (baseDarkness + remainingDarkness * lightPctLerp);
+        if (LightLevel >= DarknessLevel.SUNLIGHT) return 0;
+
+        // Level 11–15: interpolate 0.2 → 0
+        if (LightLevel >= 11) {
+            const t = (LightLevel - 11) / (DarknessLevel.SUNLIGHT - 1 - 11);
+            return 0.2 * (1 - t);
+        }
+
+        // Level 4–11: interpolate 0.3 → 0.2
+        if (LightLevel >= DarknessLevel.MEDIUM_LIGHT_MIN) {
+            const t = (LightLevel - DarknessLevel.MEDIUM_LIGHT_MIN) / (11 - DarknessLevel.MEDIUM_LIGHT_MIN);
+            return 0.3 - 0.1 * t;
+        }
+
+        // Level 1–3: interpolate 1.0 → 0.3
+        const t = LightLevel / 3;
+        return 1 - 0.7 * t;
     }
 
     destroy(): void {

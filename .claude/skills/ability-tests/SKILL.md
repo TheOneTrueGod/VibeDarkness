@@ -19,6 +19,7 @@ Deterministic **scenario** objects build a small `GameEngine`, apply one batch o
 | Scenario contract | `app/js/games/minion_battles/testing/types.ts` — `ScenarioDefinition` (`generalSection` for sidebar groups) |
 | Registry & selector keys | `app/js/games/minion_battles/testing/scenarios/registry.ts` — `ALL_ABILITY_TEST_SCENARIOS`, `getScenariosForSelectorKey`, `getGeneralTestSidebarGroups`, group slugs |
 | Tiny battle harness | `app/js/games/minion_battles/testing/harness/buildTinyBattleEngine.ts` — grid, player, hand, dummies |
+| World modifier install (AbilityTests) | `app/js/games/minion_battles/testing/harness/installWorldModifiers.ts` — call in `buildEngine()`; `buildTinyBattleEngine` does **not** install modifiers. Example: `testing/scenarios/general/worldModifiers.ts` |
 | Scenario implementations | `app/js/games/minion_battles/testing/scenarios/abilities/*.ts`, `.../general/*.ts` |
 | Headless + live stepping | `app/js/games/minion_battles/testing/runner/SimulationRunner.ts` |
 | Early stop when battle idle | `GameEngine.isScenarioRunnerBattleIdle()` in `app/js/games/minion_battles/game/GameEngine.ts` |

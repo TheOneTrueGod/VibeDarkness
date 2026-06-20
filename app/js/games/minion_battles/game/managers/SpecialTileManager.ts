@@ -107,6 +107,7 @@ export class SpecialTileManager {
                     row: tile.row,
                     emission: light.lightAmount * scale,
                     radius: light.radius,
+                    overlapMethod: light.overlapMethod,
                 });
             }
         }

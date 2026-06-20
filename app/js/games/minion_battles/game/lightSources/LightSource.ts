@@ -5,6 +5,8 @@
  * LightSources are serialized as part of game state and drive the LightGrid.
  */
 
+import type { OverlapMethod } from '../LightGrid';
+
 let _lightSourceCounter = 0;
 function generateLightSourceId(): string {
     return `ls_${++_lightSourceCounter}`;
@@ -18,6 +20,8 @@ export interface LightSourceDecay {
     decayRate?: number;
     decayInterval?: number;
     lightDecayNextAtRound?: number;
+    /** If true, skip linear fade — source holds full emission/radius until roundsTotal, then vanishes. */
+    noDecay?: boolean;
 }
 
 export class LightSource {
@@ -30,6 +34,7 @@ export class LightSource {
     color?: number;
     followUnitId?: string;
     decay: LightSourceDecay;
+    overlapMethod?: OverlapMethod;
 
     constructor(config: {
         id?: string;
@@ -40,6 +45,7 @@ export class LightSource {
         color?: number;
         followUnitId?: string;
         decay: LightSourceDecay;
+        overlapMethod?: OverlapMethod;
     }) {
         this.id = config.id ?? generateLightSourceId();
         this.x = config.x;
@@ -49,6 +55,7 @@ export class LightSource {
         this.color = config.color;
         this.followUnitId = config.followUnitId;
         this.decay = { ...config.decay };
+        this.overlapMethod = config.overlapMethod;
     }
 
     toJSON(): Record<string, unknown> {

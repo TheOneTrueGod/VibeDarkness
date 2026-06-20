@@ -149,11 +149,13 @@ export function applyEffect(
                 lightAmount: effect.lightAmount,
                 radius: effect.radius,
                 color: effect.color,
+                overlapMethod: effect.overlapMethod,
                 decay: {
                     roundCreated: ev.roundNumber,
                     initialLightAmount: effect.lightAmount,
                     initialRadius: effect.radius,
                     roundsTotal: effect.durationRounds,
+                    noDecay: effect.noDecay,
                 },
             });
             engine.addLightSource(ls);

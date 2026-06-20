@@ -140,6 +140,12 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         tags: { destructible: true },
         emitsLight: { lightAmount: 6, radius: 6 },
     },
+    {
+        defId: 'DarkCrystal',
+        col: 1,
+        row: 1,
+        emitsLight: { lightAmount: -5, radius: 2 },
+    },
 ];
 
 export class LastHoldoutMission extends BaseMissionDef {

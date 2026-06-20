@@ -16,6 +16,7 @@ import type {
     StoryChoiceOptionRow,
 } from './storyTypes';
 import type { WorldModifierDef } from '../worldModifiers/types';
+import type { OverlapMethod } from '../game/LightGrid';
 
 /** Trigger for level events: at round, after round (checks start), or after seconds. */
 export type LevelEventTrigger =
@@ -395,6 +396,8 @@ export interface SpecialTilePlacement {
          * Example: decayInterval=0.25 means decay happens 4 times per round.
          */
         decayInterval?: number;
+        /** How this source combines with other light sources on the same tile. Defaults to 'max'. */
+        overlapMethod?: OverlapMethod;
     };
     /** For Crystal: tile distance (Chebyshev) for protection aura and terrain blocking. */
     protectRadius?: number;

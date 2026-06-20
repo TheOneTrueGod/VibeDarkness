@@ -1,4 +1,5 @@
 import type { WorldModifierDef } from './types';
+import type { OverlapMethod } from '../game/LightGrid';
 
 /**
  * VisualEffect — forward-compatible stub for the parallel VisualEffect definition system.
@@ -33,6 +34,10 @@ export interface SpawnLightSourceEffect {
     position: 'victim' | 'killer';
     /** Optional tint color (hex number). */
     color?: number;
+    /** How this source combines with other light sources on the same tile. Defaults to 'max'. */
+    overlapMethod?: OverlapMethod;
+    /** If true, skip linear fade — source holds full emission/radius until duration expires. */
+    noDecay?: boolean;
     /** VisualEffect: wire to VisualEffect runtime when available. */
     visualEffects?: VisualEffectDef[];
 }

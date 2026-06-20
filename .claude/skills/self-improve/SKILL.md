@@ -36,19 +36,11 @@ Look for these categories. Skip any that genuinely did not apply; say so briefly
 
 For each finding, note **evidence** (what happened) and **fix** (what to add, change, or remove).
 
-### 3) Terminology check
+### 3) Propose updates
 
-If the user used **wrong, ambiguous, or project-nonstandard terms**, call that out in a dedicated subsection.
+Capture **everything a future agent should know** here — skills, `AGENTS.md`, rules, docs, plans, and code comments. The next agent will not have this session; durable guidance must live in these files, not in a closing checklist.
 
-For **each** term issue, start the line or paragraph with the exclamation mark emoji:
-
-❗ *[correct term or clarification]* — explain what they said, what the codebase/project actually uses, and why the distinction matters.
-
-Do not scold; be precise and helpful. Skip this subsection if terminology was fine.
-
-### 4) Propose updates
-
-Prioritize fixes by impact on future similar tasks:
+Prioritize by impact:
 
 1. **Skills / rules / AGENTS** — highest leverage for agent workflows
 2. **Short comments** at non-obvious decision points in code we touched
@@ -57,18 +49,26 @@ Prioritize fixes by impact on future similar tasks:
 For each proposed change, give:
 
 - **Target** — file path (and section if applicable)
-- **Change** — concrete wording or bullet to add/replace (keep it minimal)
+- **Change** — concrete wording or bullet to add/replace (keep it minimal). Include “start here”, “avoid X”, or “use Y instead of Z” when that would have saved time this session.
 - **Why** — one sentence tied to this session
 
 Ask the user whether to **apply edits now**, **apply a subset**, or **stop at the report**. Do not silently rewrite large docs; confirm scope first unless the user already said to apply fixes.
 
-### 5) Close with a short “next time” checklist
+### 4) For you (human only)
 
-3–5 bullets: what an agent (or the user) should do first on a similar task so it finishes faster.
+End the report with guidance **only the human can act on** — the next agent will not see this conversation. Combine two topics in one final section:
+
+**Terminology** — If the user used wrong, ambiguous, or project-nonstandard terms, call each out. Start every term note with the exclamation mark emoji:
+
+❗ *[correct term or clarification]* — what they said, what the codebase/project actually uses, and why it matters.
+
+**What to do differently next time** — Short bullets for the human: clearer prompts, which skill to invoke first, vocabulary to use, scope to state up front, or when to stop and ask. Do not repeat agent instructions already covered under proposed updates.
+
+Skip either part if nothing applied. Do not scold; be precise and helpful.
 
 ## Output format
 
-Use this structure in the reply:
+Use this structure in the reply. **Proposed updates** come before the human-only closing section.
 
 ```markdown
 ## Session summary
@@ -88,14 +88,14 @@ Use this structure in the reply:
 ### Missing direction
 - …
 
-### Terminology
-❗ …
-(or “None noted.”)
-
 ## Proposed updates
 1. **[path]** — …
 
-## Next time
+## For you
+❗ …
+(or “Terminology: none noted.”)
+
+**Next time you ask for something similar:**
 - …
 ```
 
