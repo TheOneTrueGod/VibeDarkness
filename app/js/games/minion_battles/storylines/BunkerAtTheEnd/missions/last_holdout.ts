@@ -1,8 +1,8 @@
 /**
  * The Last Holdout - Mission enemy and terrain definitions.
  *
- * C-shaped bunker on the left where players defend. Darkness -20; campfire in the
- * middle of the C (10 HP, defense point). Continuous spawn: 4 swarmlings randomly
+ * C-shaped bunker on the left where players defend. Global darkness 0; campfire in the
+ * middle of the C (10 HP, defense point, light 6 radius 6). Continuous spawn: 4 swarmlings randomly
  * scattered in the right half of the map every 0.25 rounds. Victory: defeat all
  * enemies after round 4.
  */
@@ -138,7 +138,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         defendPoint: true,
         hp: 10,
         tags: { destructible: true },
-        emitsLight: { lightAmount: 15, radius: 12 },
+        emitsLight: { lightAmount: 6, radius: 6 },
     },
 ];
 
