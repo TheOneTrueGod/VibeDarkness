@@ -12,11 +12,13 @@ import type {
     CastBehaviourBaseContext,
     CastBehaviourRenderContext,
 } from '../castBehaviourTypes';
+import type { ResolvedTarget } from '../../game/types';
 import { BaseAttackBehaviour } from './BaseAttackBehaviour';
 import type { TryDamageOrBlockParams } from '../blockingHelpers';
 import { getLockOnRange as getLockOnRangeFromMax } from '../targetLockTracking';
+import { resolveMeleeSlideDirection } from '../meleeSlideDirection';
 
-// ---- Easing (mirrored from meleeAnimationProfile.ts) ----
+// ---- Easing (melee lunge slide) ----
 
 function easeOutCubic(t: number): number {
     const clamped = Math.max(0, Math.min(1, t));
@@ -28,19 +30,6 @@ function easeInOutQuad(t: number): number {
     return clamped < 0.5
         ? 2 * clamped * clamped
         : 1 - ((-2 * clamped + 2) ** 2) / 2;
-}
-
-// ---- Direction helper ----
-
-function dirFromTo(
-    x0: number, y0: number,
-    x1: number, y1: number,
-): { dirX: number; dirY: number } {
-    const dx = x1 - x0;
-    const dy = y1 - y0;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len < 1e-6) return { dirX: 0, dirY: 0 };
-    return { dirX: dx / len, dirY: dy / len };
 }
 
 /**
@@ -199,15 +188,33 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         return this;
     }
 
-    onSetup(ctx: CastBehaviourSetupContext): void {
-        const target = ctx.target;
-
-        // How many units to collect as lock-ons. For HitboxSpec-based abilities, defer to
-        // the hitbox's own numTargets so multi-hit specs (e.g. perpendicular swing) lock on
-        // to all highlighted units automatically. Fall back to this.maxHits for legacy HitboxDef.
-        const numLockOns = (this.hitboxDef && 'numTargets' in this.hitboxDef)
+    private getNumLockOns(): number {
+        return (this.hitboxDef && 'numTargets' in this.hitboxDef)
             ? (this.hitboxDef as HitboxSpec).numTargets
             : this.maxHits;
+    }
+
+    /**
+     * World-space unit direction for the caster lunge slide.
+     * Single-target timings use `ctx.target` only; multi-lock swings may use the UI aim pixel.
+     */
+    private resolveSlideDirection(ctx: {
+        caster: Unit;
+        target: ResolvedTarget;
+        allTargets: ResolvedTarget[];
+        engine: CastBehaviourSetupContext['engine'];
+    }): { dirX: number; dirY: number } {
+        return resolveMeleeSlideDirection({
+            caster: ctx.caster,
+            target: ctx.target,
+            allTargets: ctx.allTargets,
+            numLockOns: this.getNumLockOns(),
+            getUnit: (id) => ctx.engine.getUnit(id),
+        });
+    }
+
+    onSetup(ctx: CastBehaviourSetupContext): void {
+        const numLockOns = this.getNumLockOns();
 
         // Collect locked units starting at the primary target's slot, up to numLockOns.
         const startIdx = Math.max(0, ctx.allTargets.indexOf(ctx.target));
@@ -223,31 +230,15 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         // position as a pixel entry after all unit lock-ons. Find it here so onTick can
         // use it to preserve the player's intended swing direction rather than drifting
         // toward the locked-on unit's live position.
-        const aimPixelTarget = ctx.allTargets.slice(startIdx + numLockOns).find(t => t.type === 'pixel');
-        const aimPixel = (aimPixelTarget?.type === 'pixel' && aimPixelTarget.position != null)
-            ? aimPixelTarget.position
-            : null;
-
-        // Aim direction: prefer the explicit aim pixel (original click) over the primary
-        // locked unit's position, so the slide animation stays consistent with the swing.
-        let aimDirX = 0;
-        let aimDirY = 0;
-        if (aimPixel) {
-            const dir = dirFromTo(ctx.caster.x, ctx.caster.y, aimPixel.x, aimPixel.y);
-            aimDirX = dir.dirX;
-            aimDirY = dir.dirY;
-        } else if (target.type === 'unit' && target.unitId != null) {
-            const targetUnit = ctx.engine.getUnit(target.unitId);
-            const tx = targetUnit?.x ?? ctx.caster.x;
-            const ty = targetUnit?.y ?? ctx.caster.y;
-            const dir = dirFromTo(ctx.caster.x, ctx.caster.y, tx, ty);
-            aimDirX = dir.dirX;
-            aimDirY = dir.dirY;
-        } else if (target.type === 'pixel' && target.position != null) {
-            const dir = dirFromTo(ctx.caster.x, ctx.caster.y, target.position.x, target.position.y);
-            aimDirX = dir.dirX;
-            aimDirY = dir.dirY;
+        let aimPixel: { x: number; y: number } | null = null;
+        if (numLockOns > 1) {
+            const aimPixelTarget = ctx.allTargets.slice(startIdx + numLockOns).find(t => t.type === 'pixel');
+            aimPixel = (aimPixelTarget?.type === 'pixel' && aimPixelTarget.position != null)
+                ? aimPixelTarget.position
+                : null;
         }
+
+        const { dirX: aimDirX, dirY: aimDirY } = this.resolveSlideDirection(ctx);
 
         const payload: MeleeAttackPayload = {
             aimDirX,
@@ -486,12 +477,13 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         const payload = ctx.behaviourPayload as MeleeAttackPayload | undefined;
         if (!payload || payload.interrupted) return { x: 0, y: 0 };
 
+        const { dirX, dirY } = this.resolveSlideDirection(ctx);
         const p = ctx.windowProgress;
 
         if (p <= this.impactAt) {
             const t = this.impactAt > 0 ? p / this.impactAt : 1;
             const forward = easeOutCubic(t) * this.slideConfig.forwardDistance;
-            return { x: payload.aimDirX * forward, y: payload.aimDirY * forward };
+            return { x: dirX * forward, y: dirY * forward };
         }
 
         // Backstep: interpolate from +forwardDistance (at impact) → -backwardDistance (end of window).
@@ -501,6 +493,6 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         const t = remaining > 0 ? (p - this.impactAt) / remaining : 1;
         const totalSlide = this.slideConfig.forwardDistance + this.slideConfig.backwardDistance;
         const offsetMagnitude = this.slideConfig.forwardDistance - easeInOutQuad(t) * totalSlide;
-        return { x: payload.aimDirX * offsetMagnitude, y: payload.aimDirY * offsetMagnitude };
+        return { x: dirX * offsetMagnitude, y: dirY * offsetMagnitude };
     }
 }

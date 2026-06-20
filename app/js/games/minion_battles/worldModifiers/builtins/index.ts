@@ -12,6 +12,7 @@ const BUILTIN_DEFAULT_DEATH_VFX: WorldModifierDef = {
     description: 'Default particle/icon effects when enemies die.',
     icon: '',
     priority: -100,
+    visible_to_admin_only: true,
     rules: {
         on_unit_died: [
             {
@@ -39,6 +40,7 @@ const BUILTIN_LANTERNITE_DEATH: WorldModifierDef = {
     description: 'Removes lanternite torch and queues Spore Rebirth respawn.',
     icon: '',
     priority: 900,
+    visible_to_admin_only: true,
     rules: {
         on_unit_died: [
             {
@@ -67,6 +69,7 @@ const BUILTIN_ALPHA_WOLF_DEATH: WorldModifierDef = {
     description: 'Story pause and cinematic effects when the alpha wolf dies.',
     icon: '',
     priority: 800,
+    visible_to_admin_only: true,
     rules: {
         on_unit_died: [
             {
@@ -98,6 +101,7 @@ const BUILTIN_STACK_GHOST_VFX: WorldModifierDef = {
     description: 'Ghost particle burst when a unit group dies simultaneously.',
     icon: '',
     priority: 0,
+    visible_to_admin_only: true,
     rules: {},
 };
 

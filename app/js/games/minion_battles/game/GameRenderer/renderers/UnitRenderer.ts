@@ -9,6 +9,7 @@ import { UnitTag } from '../../units/unitTag';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries, getEffectiveCastBehaviours } from '../../../abilities/abilityTimings';
 import { resolveBehaviourTimingRef } from '../../../abilities/castBehaviourTypes';
+import { resolveCastBehaviourTarget } from '../../../abilities/resolveCastBehaviourTarget';
 import {
     renderUnit,
     updateUnitHpBar,
@@ -154,8 +155,14 @@ export class UnitRenderer {
                         if (elapsed < windowStart - 0.05 || elapsed > windowEnd + 0.05) continue;
                         const behaviourKey = `${interval.id}_${bIdx}`;
                         const behaviourPayload = activeAbility.castBehaviourPayloads[behaviourKey];
-                        const targetIdx = entry.targetIndex ?? 0;
-                        const target = activeAbility.targets[targetIdx] ?? activeAbility.targets[0];
+                        const target = resolveCastBehaviourTarget(
+                            entry,
+                            interval,
+                            activeAbility,
+                            unit,
+                            ability,
+                            engine,
+                        );
                         if (!target) continue;
                         const offset = entry.behaviour.getCasterRenderOffset({
                             caster: unit,
@@ -165,6 +172,7 @@ export class UnitRenderer {
                             castPayload: activeAbility.castPayload,
                             behaviourPayload,
                             setBehaviourPayload: () => { },
+                            engine,
                             gameTime: engine.gameTime,
                             windowProgress,
                         });

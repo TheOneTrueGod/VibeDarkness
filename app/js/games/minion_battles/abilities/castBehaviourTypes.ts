@@ -60,6 +60,7 @@ export interface CastBehaviourInterruptContext extends CastBehaviourBaseContext 
 }
 
 export interface CastBehaviourRenderContext extends CastBehaviourBaseContext {
+    engine: AbilityEngineContext;
     gameTime: number;
     windowProgress: number; // 0→1, CLAMPED
     // setBehaviourPayload is a no-op in render context

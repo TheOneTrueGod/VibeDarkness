@@ -1,7 +1,5 @@
-import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import { Effect } from '../game/effects/Effect';
-import { getDirectionFromTo } from './targetHelpers';
 import { DEFAULT_UNIT_RADIUS } from '../game/units/unit_defs/unitConstants';
 
 export interface ChargeUpPulseConfig {
@@ -20,16 +18,7 @@ export interface ChargeUpVisualConfig {
     pulses: ChargeUpPulseConfig[];
 }
 
-export interface MeleeSlideConfig {
-    startTime: number;
-    impactTime: number;
-    backstepEndTime: number;
-    forwardDistance: number;
-    backwardDistance: number;
-}
-
 export interface MeleeAnimationProfile {
-    slide: MeleeSlideConfig;
     chargeUp?: ChargeUpVisualConfig;
 }
 
@@ -37,23 +26,7 @@ interface ChargeUpEffectPayload extends Record<string, unknown> {
     profile: ChargeUpVisualConfig;
 }
 
-export interface MeleeAnimationCastPayload {
-    profile: MeleeAnimationProfile;
-}
-
 export type ChargeUpIntensity = 'low' | 'medium' | 'high';
-
-function easeOutCubic(t: number): number {
-    const clamped = Math.max(0, Math.min(1, t));
-    return 1 - (1 - clamped) ** 3;
-}
-
-function easeInOutQuad(t: number): number {
-    const clamped = Math.max(0, Math.min(1, t));
-    return clamped < 0.5
-        ? 2 * clamped * clamped
-        : 1 - ((-2 * clamped + 2) ** 2) / 2;
-}
 
 export function createChargeUpConfig(
     intensity: ChargeUpIntensity,
@@ -143,32 +116,3 @@ export function spawnRadiusScaledChargeUp(
     };
     spawnMeleeChargeUpEffect(engine, caster, { ...profile, chargeUp });
 }
-
-export function getMeleeAnimationOffset(
-    caster: Unit,
-    active: ActiveAbility,
-    gameTime: number,
-    profile: MeleeAnimationProfile,
-): { x: number; y: number } | null {
-    const elapsed = gameTime - active.startTime;
-    const slide = profile.slide;
-    if (elapsed < slide.startTime || elapsed > slide.backstepEndTime) return null;
-
-    const firstTarget = active.targets.find((target) => target.position != null);
-    const targetPos = firstTarget?.position;
-    if (!targetPos) return null;
-
-    const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, targetPos.x, targetPos.y);
-    if (dist <= 0) return null;
-
-    if (elapsed <= slide.impactTime) {
-        const t = (elapsed - slide.startTime) / Math.max(0.0001, slide.impactTime - slide.startTime);
-        const forward = easeOutCubic(t) * slide.forwardDistance;
-        return { x: dirX * forward, y: dirY * forward };
-    }
-
-    const tBack = (elapsed - slide.impactTime) / Math.max(0.0001, slide.backstepEndTime - slide.impactTime);
-    const back = -easeInOutQuad(tBack) * slide.backwardDistance;
-    return { x: dirX * back, y: dirY * back };
-}
-

@@ -54,13 +54,6 @@ const SWING_LENGTH = 80;
 const SWING_BAT_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
 
 const SWING_BAT_PROFILE: MeleeAnimationProfile = {
-    slide: {
-        startTime: 0.1,
-        impactTime: 0.2,
-        backstepEndTime: 0.3,
-        forwardDistance: 18,
-        backwardDistance: 0,
-    },
     chargeUp: createChargeUpConfig('high', {
         startTime: 0.04,
         endTime: 0.1,

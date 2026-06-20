@@ -59,7 +59,6 @@ const SWING_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH
 // ---- Charge-up VFX profile (used in beginActiveCast only) ----
 
 const BASE_PROFILE: MeleeAnimationProfile = {
-    slide: { startTime: 0.1, impactTime: 0.2, backstepEndTime: 0.3, forwardDistance: 9, backwardDistance: 4 },
     chargeUp: createChargeUpConfig('medium', {
         startTime: 0.04,
         endTime: 0.1,
