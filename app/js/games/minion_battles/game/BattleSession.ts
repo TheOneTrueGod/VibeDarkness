@@ -569,15 +569,6 @@ export class BattleSession implements BattleSessionHandle {
             return { newlyAppliedKeys, skippedKeys };
         }
         const engineTickBeforeApply = eng.gameTick;
-        debugLog('sync tracking', 'info', 'BattleSession.applyRemoteOrders', {
-            engineTickBefore: eng.gameTick,
-            count: orders.length,
-            queuePlan: orders.map((o) => ({
-                atTick: o.atTick ?? o.gameTick,
-                unitId: (o.order as { unitId?: string }).unitId,
-                abilityId: (o.order as { abilityId?: string }).abilityId,
-            })),
-        });
         for (const rec of orders) {
             const atTick = rec.atTick ?? rec.gameTick;
             if (typeof atTick !== 'number' || Number.isNaN(atTick)) {

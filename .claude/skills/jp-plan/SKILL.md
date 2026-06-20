@@ -2,6 +2,8 @@
 name: jp-plan
 description: Creates an implementation plan file that breaks work into numbered steps with checklist items, per-step file lists, agent handoff instructions, and high-level AbilityTest coverage, formatted for /jp-implement-plan to execute one step at a time. Use when the user says /jp-plan or asks to turn a design or discussion into a plan file.
 ---
+Save the plan file to `docs/plans/<kebab-name>.md` (not `app/js/games/minion_battles/PLANS/`, which is legacy).
+
 Please create a plan file, and break this plan down into individual changes.  Keep changes to a minimal number of files.  Use a checklist item for each one so we can clean it up after.  Include instructions to agents on how to work with the file;
 - Handing off each item in the file to a subagent for implementation
 - Checking the item off on the checklist after it has been verified.

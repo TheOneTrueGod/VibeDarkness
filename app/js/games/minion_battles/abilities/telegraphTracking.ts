@@ -152,16 +152,6 @@ export function detectAndFreezeTelegraphDistanceBreak(
         : getLockOnRange(getAbilityHitboxMaxRange(ability, caster, engine));
     const lockPos = evaluateTargetLockBreak(caster, target, tetherBreakRange);
     if (!lockPos) return null;
-    console.log('[telegraphTracking] target lock released', {
-        cause: 'out-of-range',
-        targetId: target.id,
-        targetName: target.name,
-        targetPos: { x: target.x, y: target.y },
-        frozenAt: lockPos,
-        casterId: caster.id,
-        casterName: caster.name,
-        tetherBreakRange,
-    });
     applyTelegraphLock(payload, lockPos, engine);
     return { unitId: target.id, frozenAt: lockPos };
 }
@@ -216,12 +206,5 @@ export function lockTelegraphOnTargetEvade(
     if (payload.telegraphTargetUnitId !== dodgingUnitId) return;
     if (payload.telegraphLockedPosition != null) return;
 
-    console.log('[telegraphTracking] target lock released', {
-        cause: 'evade-ability',
-        targetId: dodgingUnitId,
-        frozenAt: snapshot,
-        casterId: caster.id,
-        casterName: caster.name,
-    });
     applyTelegraphLock(payload, snapshot, engine);
 }

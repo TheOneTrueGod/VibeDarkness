@@ -40,6 +40,8 @@ For each finding, note **evidence** (what happened) and **fix** (what to add, ch
 
 Capture **everything a future agent should know** here — skills, `AGENTS.md`, rules, docs, plans, and code comments. The next agent will not have this session; durable guidance must live in these files, not in a closing checklist.
 
+**Every finding must map to at least one proposed update or a human-facing terminology/lesson note.** Before finalising, scan each finding and confirm it either has a corresponding update entry or is captured in the "For you" section. A finding with no outlet — not a skill update, not a code comment, not a human note — is missing its resolution. If a "Missing direction" finding says "no skill documents X", the proposed update should add X to a skill or AGENTS.md (not memory alone, which agents don't index on navigation questions).
+
 Prioritize by impact:
 
 1. **Skills / rules / AGENTS** — highest leverage for agent workflows

@@ -25,6 +25,7 @@ import {
     type CastBehaviourBaseContext,
 } from '../../abilities/castBehaviourTypes';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
+import type { ResolvedTarget } from '../types';
 import { isSelectTargetDef, isHitTargetDef } from '../../abilities/timingTargetDef';
 import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
 import { triggerAbilityEvent } from '../../abilities/events';
@@ -243,6 +244,24 @@ export function tickUnitActiveAbilities(
                     engine: engine as unknown as AbilityEngineContext,
                 };
                 rec.entry.behaviour.onTargetEvade?.(distBreak.unitId, distBreak.frozenAt, baseCtx);
+            }
+            // Downgrade active.targets / targetsByLabel to a pixel target at the frozen position.
+            // Mirrors the evade-break downgrade below — both events must produce a pixel target so
+            // MeleeAttack.onTick uses the frozen aim point rather than the unit's live position.
+            const frozenPixel: ResolvedTarget = { type: 'pixel', position: distBreak.frozenAt };
+            for (let ti = 0; ti < active.targets.length; ti++) {
+                const t = active.targets[ti];
+                if (t?.type === 'unit' && t.unitId === distBreak.unitId) {
+                    active.targets[ti] = frozenPixel;
+                }
+            }
+            if (active.targetsByLabel) {
+                for (const label of Object.keys(active.targetsByLabel)) {
+                    const t = active.targetsByLabel[label];
+                    if (t?.type === 'unit' && t.unitId === distBreak.unitId) {
+                        active.targetsByLabel[label] = frozenPixel;
+                    }
+                }
             }
         }
 
