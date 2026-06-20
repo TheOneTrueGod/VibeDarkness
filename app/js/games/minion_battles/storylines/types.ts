@@ -15,6 +15,7 @@ import type {
     PreMissionStoryDef,
     StoryChoiceOptionRow,
 } from './storyTypes';
+import type { WorldModifierDef } from '../worldModifiers/types';
 
 /** Trigger for level events: at round, after round (checks start), or after seconds. */
 export type LevelEventTrigger =
@@ -469,6 +470,8 @@ export interface MissionBattleConfig {
     completionRewards?: {
         knowledgeKeys?: string[];
     };
+    /** World modifiers active for this mission (merged with builtins and story sources at load time). */
+    worldModifiers?: WorldModifierDef[];
 }
 
 /** Storyline flow edge: fromMissionId + result unlocks toMissionId. */

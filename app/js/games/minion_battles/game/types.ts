@@ -143,6 +143,8 @@ export interface SerializedGameState {
     nextObjectId?: number;
     /** Serialized AI group blackboards (strategic plans, unit membership, brain scheduling). */
     groups?: import('./units/unitAI/groups/types').SerializedGroup[];
+    /** Active world modifier instance states (per-lifetime counters, disabled flag, dynamic defs). */
+    worldModifiers?: import('../worldModifiers/types').SerializedWorldModifierInstance[];
 }
 
 /** Optional args when hydrating {@link GameEngine} from JSON (e.g. server checkpoint `synchash`). */

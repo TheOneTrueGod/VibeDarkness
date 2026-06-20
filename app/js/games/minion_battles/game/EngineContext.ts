@@ -65,6 +65,9 @@ export interface EngineContext {
     /** Reveal battle objectives that declare `revealedInitially: false`. */
     revealBattleObjectives(ids: readonly string[]): void;
 
+    /** Returns true when the objective with the given id is completed. */
+    isObjectiveCompleted(id: string): boolean;
+
     /** Record that a unit cast an ability this round (for per-round use tracking). */
     trackAbilityUse(unitId: string, abilityId: string): void;
 

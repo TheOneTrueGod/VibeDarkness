@@ -364,8 +364,16 @@ export class GameEngine implements EngineContext {
         return this.state.objectiveManager.getDisplayRows();
     }
 
+    getActiveWorldModifiersForUI(): import('../worldModifiers/types').WorldModifierDef[] {
+        return this.state.worldModifierManager.getActiveModifiersForUI(this.roundNumber);
+    }
+
     revealBattleObjectives(ids: readonly string[]): void {
         this.state.objectiveManager.revealObjectiveIds(ids);
+    }
+
+    isObjectiveCompleted(id: string): boolean {
+        return this.state.objectiveManager.isCompleted(id);
     }
 
     trackAbilityUse(unitId: string, abilityId: string): void {
@@ -499,6 +507,7 @@ export class GameEngine implements EngineContext {
         this.eventBus.clear();
         this.state.unitManager.registerListeners();
         this.state.interruptSystem.registerListeners(this.eventBus);
+        this.state.worldModifierManager.registerListeners(this.eventBus);
 
         this.eventBus.on('unit_died', (data) => {
             const unit = this.getUnit(data.unitId);
@@ -1435,6 +1444,7 @@ export class GameEngine implements EngineContext {
         this.state.cardManager.clearAbilityUses();
         this.state.lightSourceManager.handleRoundEnd(this.roundNumber);
         this.state.unitManager.onRoundEnd(roundNumber);
+        this.state.worldModifierManager.handleRoundEnd(roundNumber);
     }
 
     /**
@@ -1547,6 +1557,7 @@ export class GameEngine implements EngineContext {
             storyPauseReason: this.storyPauseReason,
             storyPauseEndsAt: this.storyPauseEndsAt,
             objectives: this.state.objectiveManager.toJSON(),
+            worldModifiers: this.state.worldModifierManager.toJSON(),
             lightSources: this.state.lightSourceManager.toJSON(),
             terrainEffects: this.state.terrainLayers.toEffectsJSON(),
             floorTiles: this.state.terrainLayers.toFloorTilesJSON(),
@@ -1587,6 +1598,7 @@ export class GameEngine implements EngineContext {
         });
 
         engine.state.objectiveManager.importSnapshot(data.objectives);
+        engine.state.worldModifierManager.importSnapshot(data.worldModifiers ?? null);
 
         engine.pendingOrders = (data.orders ?? []).map((o) => ({
             gameTick: o.gameTick,

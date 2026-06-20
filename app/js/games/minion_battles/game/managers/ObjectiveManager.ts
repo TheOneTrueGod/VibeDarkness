@@ -84,6 +84,10 @@ export class ObjectiveManager {
         }
     }
 
+    isCompleted(id: string): boolean {
+        return this.completedIds.has(id);
+    }
+
     getDisplayRows(): { id: string; label: string; completed: boolean }[] {
         const rows: { id: string; label: string; completed: boolean }[] = [];
         for (const d of this.defs) {

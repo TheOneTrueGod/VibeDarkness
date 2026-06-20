@@ -21,6 +21,7 @@ import { OrderManager } from './managers/OrderManager';
 import type { LightTileGrid } from './lightTileGrid/LightTileGrid';
 import { GroupManager } from './units/unitAI/groups/GroupManager';
 import { InterruptSystem } from './units/unitAI/plans/InterruptSystem';
+import { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 
 export class GameState {
 
@@ -58,6 +59,7 @@ export class GameState {
     readonly orderMgr: OrderManager;
     readonly groupManager: GroupManager;
     readonly interruptSystem: InterruptSystem;
+    readonly worldModifierManager: WorldModifierManager;
 
     terrainManager: TerrainManager | null = null;
 
@@ -94,5 +96,6 @@ export class GameState {
         this.orderMgr = new OrderManager(ctx, () => ctx.tryResumeParallel());
         this.groupManager = new GroupManager();
         this.interruptSystem = new InterruptSystem(() => this.unitManager.units);
+        this.worldModifierManager = new WorldModifierManager(ctx);
     }
 }
