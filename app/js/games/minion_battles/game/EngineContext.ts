@@ -57,8 +57,14 @@ export interface EngineContext {
 
     getAllLightSources(): GridLightSource[];
 
+    /** All active and inactive persistent LightSources in the scene. */
+    readonly lightSources: LightSource[];
+
     /** Add a persistent LightSource to the scene (e.g. TorchProjectile landing). */
     addLightSource(ls: LightSource): void;
+
+    /** Trigger a story pause: freeze the sim, grant can't-die to player units, resume after durationSeconds. */
+    startStoryPause(reason: string, durationSeconds: number): void;
 
     /** Register an EffectEmitter to be ticked by the EffectEmitterManager. */
     addEffectEmitter(emitter: EffectEmitter): void;

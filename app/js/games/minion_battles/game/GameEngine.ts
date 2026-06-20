@@ -34,8 +34,6 @@ import type { AIContext, AILightSource } from './units/unitAI';
 import { computeLightGrid, type LightSource as GridLightInput } from './LightGrid';
 import { LightTileGrid } from './lightTileGrid/LightTileGrid';
 import { LightSource } from './lightSources/LightSource';
-import { getBodyColorForUnit, getCharacterSpriteKey } from './units/unit_defs/unitDef';
-import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
 import {
@@ -57,11 +55,7 @@ import { tickAllDots, DOT_TICKS_PER_ROUND } from './dotTick';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
-import {
-    processLanternitePulseMilestone,
-    removeLanterniteLightSources,
-    LANTERNITE_CHARACTER_ID,
-} from './lanternite/lanternitePulse';
+import { processLanternitePulseMilestone } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 import { processThornlingNests } from './lanternite/thornlingNestTick';
 import { processSwarmNests } from './lanternite/swarmNestTick';
@@ -69,7 +63,7 @@ import { TerrainLayerManager } from './TerrainLayerManager';
 import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCoreHelpers';
 import { resetGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
-import { AlphaWolfStoryEmitter } from './effects/AlphaWolfStoryEmitter';
+import { registerLateBuiltinHandlers } from '../worldModifiers/builtinHandlers';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
 import { getUnitMaxPerTile, getUnitShovePriority } from './units/unit_defs/unitDef';
 
@@ -147,6 +141,14 @@ export class GameEngine implements EngineContext {
 
     /** Runtime occupancy tracker — not serialized, rebuilt at the start of each movement phase. */
     readonly cellOccupancyManager = new CellOccupancyManager();
+
+    constructor() {
+        registerLateBuiltinHandlers(
+            this.state.worldModifierManager,
+            this,
+            { onLanterniteRespawn: (x, y, t) => this.state.lanterniteRespawnManager.onLanterniteUnitDied(x, y, t) },
+        );
+    }
 
     get randomSeed(): number {
         return this.state.randomSeed;
@@ -516,46 +518,10 @@ export class GameEngine implements EngineContext {
         this.state.interruptSystem.registerListeners(this.eventBus);
         this.state.worldModifierManager.registerListeners(this.eventBus);
 
-        this.eventBus.on('unit_died', (data) => {
-            const unit = this.getUnit(data.unitId);
-            if (!unit) return;
-            if (unit.characterId === LANTERNITE_CHARACTER_ID) {
-                removeLanterniteLightSources(unit.id, this.state.lightSourceManager.lightSources);
-                if (unit.lanterniteNestOwnerUnitId == null) {
-                    this.state.lanterniteRespawnManager.onLanterniteUnitDied(unit.x, unit.y, this.gameTime);
-                }
-            }
-            if (unit.characterId === 'alpha_wolf') {
-                this.startAlphaWolfStoryDeathSequence(unit);
-            }
-            // Default death VFX is handled by _builtin_default_death_vfx via WorldModifierManager.
-        });
+        // unit_died death effects handled by builtins (_builtin_lanternite_death,
+        // _builtin_alpha_wolf_death, _builtin_default_death_vfx) via WorldModifierManager.
 
-        this.eventBus.on('stack_members_died', (data) => {
-            const unit = this.getUnit(data.unitId);
-            if (!unit) return;
-            const ghostCount = Math.min(5, Math.ceil(Math.sqrt(data.count)));
-            const bodyColor = getBodyColorForUnit(unit);
-            const characterSpriteKey = getCharacterSpriteKey(unit.characterId);
-            for (let i = 0; i < ghostCount; i++) {
-                const direction = this.generateRandomInteger(0, 1) === 0 ? -1 : 1;
-                this.addEffect(new Effect({
-                    x: unit.x,
-                    y: unit.y,
-                    duration: STACK_GHOST_DURATION,
-                    effectType: 'StackGhost',
-                    effectData: {
-                        bodyColor,
-                        radius: unit.radius,
-                        characterSpriteKey,
-                        vx: direction * this.generateRandomInteger(80, 120),
-                        vy: -this.generateRandomInteger(100, 150),
-                        direction,
-                        initialAlpha: 0.8,
-                    },
-                }));
-            }
-        });
+        // stack_members_died ghost VFX handled by _builtin_stack_ghost_vfx via WorldModifierManager.
 
         this.eventBus.on('round_end', (data) => {
             this.handleRoundEnd(data.roundNumber);
@@ -623,7 +589,7 @@ export class GameEngine implements EngineContext {
         });
     }
 
-    private startStoryPause(reason: string, durationSeconds: number): void {
+    startStoryPause(reason: string, durationSeconds: number): void {
         this.storyPauseActive = true;
         this.storyPauseReason = reason;
         this.storyPauseEndsAt = this.gameTime + durationSeconds;
@@ -646,32 +612,6 @@ export class GameEngine implements EngineContext {
             if (!unit.isPlayerControlled()) continue;
             unit.buffs = unit.buffs.filter((buff) => buff._type !== 'cant_die');
         }
-    }
-
-    private startAlphaWolfStoryDeathSequence(unit: Unit): void {
-        const STORY_DURATION_SECONDS = 5;
-        this.startStoryPause('alpha_wolf_death', STORY_DURATION_SECONDS);
-        this.addEffect(
-            new Effect({
-                x: unit.x,
-                y: unit.y,
-                duration: STORY_DURATION_SECONDS,
-                effectType: 'AlphaWolfStoryRemnant',
-                effectData: {
-                    remnantCharacterKey: 'alpha_wolf',
-                    shakeFrequencyHz: 3.5,
-                    shakeAmplitudePx: 4,
-                },
-            }),
-        );
-        this.addEffectEmitter(
-            new AlphaWolfStoryEmitter({
-                x: unit.x,
-                y: unit.y,
-                radialRatePerSecond: 24,
-                homingRatePerSecond: 20,
-            }),
-        );
     }
 
     prepareForNewGame(config: {

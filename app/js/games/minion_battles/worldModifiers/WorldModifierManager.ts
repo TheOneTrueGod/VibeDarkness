@@ -173,6 +173,21 @@ export class WorldModifierManager {
                 roundNumber: data.roundNumber,
             });
         });
+
+        // stack_members_died is not a WorldEventType; invoke the stackGhostVfx handler directly.
+        eventBus.on('stack_members_died', (data) => {
+            const handler = this.customEffectHandlers.get('stackGhostVfx');
+            if (!handler) return;
+            handler(
+                { unitId: data.unitId, count: data.count },
+                {
+                    event: { eventType: 'on_round_start', roundNumber: this.ctx.roundNumber },
+                    counters: {},
+                    isObjectiveCompleted: () => false,
+                },
+                this.ctx,
+            );
+        });
     }
 
     /**
