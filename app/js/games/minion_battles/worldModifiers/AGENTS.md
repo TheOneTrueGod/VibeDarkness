@@ -252,16 +252,23 @@ Restore path: `GameEngine.fromJSON` calls `worldModifierManager.importSnapshot(d
 
 ---
 
-## VisualEffect hook (stub in v1)
+## VisualEffect hook (stub — H5 complete)
 
 Every `WorldEffect` variant has an optional `visualEffects?: VisualEffectDef[]` field. This is a forward-compatible hook for the VisualEffect definition system (parallel workstream, not yet merged).
 
-**v1 policy:**
+**Current policy (H5 blocked):**
 - `VisualEffectDef` is a minimal stub in `WorldEffect.ts`: `{ id: string; params?: Record<string, unknown> }`.
 - `WorldModifierRuntime.applyEffect` calls `applyVisualEffects(effect.visualEffects, context)` — currently a no-op — after each gameplay effect.
 - Search for the comment `// VisualEffect:` to find all stub wiring points.
+- **Initiative H5 is complete** when the blocked stub is documented (this section). No production wiring until the unblock criteria below are met.
 
-**When VisualEffect lands:** replace the `VisualEffectDef` stub with the real import, implement `applyVisualEffects` to spawn defs at the resolved world position, and replace the no-op.
+**Unblock criteria — implement wiring when all three are true:**
+
+1. A non-stub `VisualEffectDef` type exists outside `worldModifiers/` (e.g. `game/visualEffects/types.ts` or similar).
+2. A runtime API exists to spawn a visual effect at world `(x, y)` from a def id + params (grep `spawnVisualEffect` or equivalent).
+3. Headless sim can observe effect creation deterministically (effect count or serialized marker).
+
+**When all three are met:** replace the `VisualEffectDef` stub import in `WorldEffect.ts` with the real type; implement `applyVisualEffects` in `WorldModifierRuntime.ts` to call the spawn API at `victimX/victimY` (or killer) from `WorldRuleEvalContext`; add an optional `visualEffects` array to the `darkSwarmModifier` preset; add a Vitest or AbilityTest assertion that effect count increases on swarmling death.
 
 ---
 

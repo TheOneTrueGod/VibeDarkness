@@ -200,10 +200,10 @@ export function applyEffect(
     }
 }
 
-// VisualEffect: wire to VisualEffect runtime when available.
+// VisualEffect: no-op stub — wire when unblock criteria met (see worldModifiers/AGENTS.md § "VisualEffect hook").
+// Criteria: (1) non-stub VisualEffectDef type outside worldModifiers/, (2) spawnVisualEffect runtime API,
+// (3) headless sim can observe effect creation deterministically.
 function applyVisualEffects(
     _visualEffects: VisualEffectDef[] | undefined,
     _ctx: WorldRuleEvalContext,
-): void {
-    // No-op stub — VisualEffect runtime not yet available.
-}
+): void {}
