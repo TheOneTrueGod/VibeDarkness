@@ -34,6 +34,7 @@ import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDeca
 import { aiPlanHoldStabilityScenario } from '../scenarios/ai/ai_plan_hold_stability';
 import { aiTerrainInterruptScenario } from '../scenarios/ai/ai_terrain_interrupt';
 import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario } from '../scenarios/general/worldModifiers';
+import { deathVfxUnitDefEffectsFireScenario, deathVfxAlphaWolfUnchangedScenario } from '../scenarios/general/deathVfx';
 import { aiReplanStaggerScenario } from '../scenarios/ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from '../scenarios/ai/ai_serialization_roundtrip';
 import {
@@ -338,6 +339,16 @@ describe('runScenarioHeadless', () => {
 
     it('World Modifiers: mid-battle level event adds storm modifier and increments counter', () => {
         const r = runScenarioHeadless(worldModifierMidBattleAddScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Death VFX: slime produces DarkCreatureIconDeath, boar produces ParticleImage', () => {
+        const r = runScenarioHeadless(deathVfxUnitDefEffectsFireScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Death VFX: alpha wolf death triggers story pause (world modifier path unchanged)', () => {
+        const r = runScenarioHeadless(deathVfxAlphaWolfUnchangedScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

@@ -13,7 +13,6 @@ import type { WorldRuleEvalContext, WorldEventContext } from './WorldModifierRun
 import type { LightSource } from '../game/lightSources/LightSource';
 import { evaluateCondition, applyEffect } from './WorldModifierRuntime';
 import { type DispatchableRule, dispatchEventRules } from './EventRuleDispatcher';
-import { registerBuiltinHandlers } from './builtinHandlers';
 
 type CustomEffectHandler = (
     params: Record<string, unknown> | undefined,
@@ -59,7 +58,6 @@ export class WorldModifierManager {
     private readonly spawnedLightSources = new Map<string, { ls: LightSource; col: number; row: number }>();
 
     constructor(private readonly ctx: EngineContext) {
-        registerBuiltinHandlers(this);
     }
 
     registerCustomEffectHandler(effectId: string, handler: CustomEffectHandler): void {

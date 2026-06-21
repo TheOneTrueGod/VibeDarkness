@@ -65,7 +65,8 @@ import { resetGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import { registerLateBuiltinHandlers } from '../worldModifiers/builtinHandlers';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
-import { getUnitMaxPerTile, getUnitShovePriority } from './units/unit_defs/unitDef';
+import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, type UnitDefId } from './units/unit_defs/unitDef';
+import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -518,8 +519,14 @@ export class GameEngine implements EngineContext {
         this.state.interruptSystem.registerListeners(this.eventBus);
         this.state.worldModifierManager.registerListeners(this.eventBus);
 
-        // unit_died death effects handled by builtins (_builtin_lanternite_death,
-        // _builtin_alpha_wolf_death, _builtin_default_death_vfx) via WorldModifierManager.
+        // unit_died: apply onDeathVisualEffects from the unit def directly (no world modifier needed).
+        // Alpha wolf has no onDeathVisualEffects — its death is handled by _builtin_alpha_wolf_death.
+        // Lanternite death handled by _builtin_lanternite_death via WorldModifierManager.
+        this.eventBus.on('unit_died', (data) => {
+            const unit = this.getUnit(data.unitId);
+            const defs = unit && getUnitDefEntry(unit.characterId as UnitDefId)?.onDeathVisualEffects;
+            if (defs?.length) applyVisualEffectDefs(defs, unit, this);
+        });
 
         // stack_members_died ghost VFX handled by _builtin_stack_ghost_vfx via WorldModifierManager.
 

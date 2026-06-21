@@ -60,6 +60,7 @@ import { aiReplanStaggerScenario } from './ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from './ai/ai_serialization_roundtrip';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from './general/lightingSystem';
 import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario } from './general/worldModifiers';
+import { deathVfxUnitDefEffectsFireScenario, deathVfxAlphaWolfUnchangedScenario } from './general/deathVfx';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -146,6 +147,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     aiSerializationRoundtripScenario,
     worldModifierDarkSwarmScenario,
     worldModifierMidBattleAddScenario,
+    deathVfxUnitDefEffectsFireScenario,
+    deathVfxAlphaWolfUnchangedScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -194,6 +197,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'pets', section: 'Pets' },
     { slug: 'ai', section: 'AI' },
     { slug: 'world-modifiers', section: 'World Modifiers' },
+    { slug: 'death-vfx', section: 'Death VFX' },
 ];
 
 export interface GeneralTestSidebarGroup {

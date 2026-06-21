@@ -1,16 +1,8 @@
 import type { WorldModifierDef } from './types';
 import type { OverlapMethod } from '../game/LightGrid';
+import type { VisualEffectDef } from '../game/effects/visualEffectDef';
 
-/**
- * VisualEffect — forward-compatible stub for the parallel VisualEffect definition system.
- * Replace with the real import once that system is merged into the repo.
- *
- * VisualEffect: wire to VisualEffect runtime when available.
- */
-export interface VisualEffectDef {
-    id: string;
-    params?: Record<string, unknown>;
-}
+export type { VisualEffectDef };
 
 /**
  * Declarative effect variants for world modifier rules.
