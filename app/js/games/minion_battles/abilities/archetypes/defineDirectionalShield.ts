@@ -15,10 +15,10 @@
  */
 
 import type { AbilityRecoveryRule, AbilityStatic } from '../Ability';
-import type { TargetDef } from '../targeting';
 import { AbilityPhase } from '../abilityTimings';
 import type { AbilityTimingInterval } from '../abilityTimings';
 import { createArcTargetPreview } from '../previewHelpers';
+import { nullHitbox } from '../../hitboxes';
 import {
     createDirectionalBlockingArc,
     createMovementPenaltyStates,
@@ -91,7 +91,13 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
     const strokeAlpha = config.strokeAlpha ?? 0.9;
 
     const abilityTimings: AbilityTimingInterval[] = [
-        { id: 'juggernaut', start: 0, end: duration, abilityPhase: AbilityPhase.Active },
+        {
+            id: 'juggernaut',
+            start: 0,
+            end: duration,
+            abilityPhase: AbilityPhase.Active,
+            targetDef: { kind: 'select', label: 'Direction to block', hitbox: nullHitbox, filter: 'any', allowMiss: true },
+        },
     ];
     if (cooldownDuration > 0) {
         abilityTimings.push({
@@ -116,7 +122,7 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
         maxUses: config.maxUses,
         recoveries: config.recoveries,
         prefireTime: duration,
-        targets: [{ type: 'pixel', label: 'Direction to block' }] as TargetDef[],
+        targets: [],
         aiSettings: { minRange: config.minRange ?? 10, maxRange: config.maxRange ?? 300 },
         abilityTimings,
 
@@ -136,7 +142,7 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
             ...colorOverrides,
         }),
 
-        renderTargetingPreview: createArcTargetPreview({
+        renderTargetingPreviewSelectedTargets: createArcTargetPreview({
             arcDeg,
             innerOffset,
             outerThickness: thicknessPx,

@@ -18,7 +18,6 @@ import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses'
 import { TECH_SHIELD_NODE_STRENGTHENING_LIGHT, TECH_SHIELD_TREE_ID } from '../../../../researchTrees/trees/tech_shield';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import type { AbilityEventRuntimeContext } from '../../abilities/events/AbilityEventRuntime';
-import type { AttackBlockedInfo } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
 import type { EventBus } from '../../game/EventBus';
 import type { LightSource } from '../../game/lightSources/LightSource';
@@ -65,13 +64,9 @@ interface RetalEngineCtx {
     getPlayerResearchNodes?(playerId: string, treeId: string): string[];
 }
 
-function executeShiningBlockRetaliation(engine: unknown, defender: Unit, attackInfo: AttackBlockedInfo): void {
-    const srcX = attackInfo.attackSourceX;
-    const srcY = attackInfo.attackSourceY;
-    if (srcX === undefined || srcY === undefined) return;
-
+function executeShiningBlockRetaliation(engine: unknown, defender: Unit, aimPos: { x: number; y: number }): void {
     const eng = engine as RetalEngineCtx;
-    const { dirX, dirY } = getDirectionFromTo(defender.x, defender.y, srcX, srcY);
+    const { dirX, dirY } = getDirectionFromTo(defender.x, defender.y, aimPos.x, aimPos.y);
     const minR = defender.radius;
     const maxR = RETALIATION_RANGE + defender.radius;
 
@@ -200,11 +195,9 @@ export const ShiningBlockAbility = defineDirectionalShield({
         },
         shiningBlockConeFlash: (_params, ctx) => {
             const c = ctx as AbilityEventRuntimeContext;
-            if (!c.attackInfo) {
-                console.warn('shiningBlockConeFlash fired without attackInfo — skipping retaliation');
-                return;
-            }
-            executeShiningBlockRetaliation(c.engine, c.caster, c.attackInfo);
+            const aimPos = c.targets[0]?.position;
+            if (!aimPos) return;
+            executeShiningBlockRetaliation(c.engine, c.caster, aimPos);
         },
         shiningBlockHeal: (_params, ctx) => {
             const c = ctx as AbilityEventRuntimeContext;

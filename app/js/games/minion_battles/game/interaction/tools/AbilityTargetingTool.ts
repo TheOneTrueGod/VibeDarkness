@@ -86,31 +86,6 @@ export class AbilityTargetingTool implements InteractionTool {
             return true;
         }
 
-        // Old-style targets (ability.targets field, not per-timing SelectTargetDef)
-        const legacyTargets = this.ability.targets ?? [];
-        if (legacyTargets.length > 0) {
-            const targetDef = legacyTargets[targetIndex];
-            if (!targetDef) return true;
-
-            let resolved: ResolvedTarget;
-            if (targetDef.type === 'unit') {
-                if (!clickResult.unit) return true;
-                resolved = { type: 'unit', unitId: clickResult.unit.id };
-            } else {
-                resolved = { type: 'pixel', position: clickResult.worldPosition };
-            }
-
-            const newTargets = [...this.currentTargets, resolved];
-            this.currentTargets = newTargets;
-            manager.setCurrentTargets(newTargets);
-
-            if (newTargets.length >= legacyTargets.length) {
-                manager.submitOrder(this.ability.id, newTargets);
-                manager.deactivateTool();
-            }
-            return true;
-        }
-
         return true;
     }
 
