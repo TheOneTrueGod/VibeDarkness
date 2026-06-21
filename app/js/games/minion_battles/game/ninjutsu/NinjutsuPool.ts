@@ -20,11 +20,18 @@ export interface NinjutsuUIState {
     enabled: boolean;
 }
 
+export interface SerializedNinjutsuPool {
+    type: string;
+    config: NinjutsuPoolConfig;
+    current: number;
+    nextGrantAllowedAt: number;
+}
+
 export class NinjutsuPool {
     readonly type: string;
     readonly config: NinjutsuPoolConfig;
     current: number;
-    private nextGrantAllowedAt = 0;
+    nextGrantAllowedAt = 0;
     private pendingRequests: NinjutsuRequest[] = [];
 
     constructor(type: string, config: NinjutsuPoolConfig) {
@@ -104,5 +111,21 @@ export class NinjutsuPool {
             max: this.config.maxPool,
             enabled: this.config.enabled,
         };
+    }
+
+    toJSON(): SerializedNinjutsuPool {
+        return {
+            type: this.type,
+            config: { ...this.config },
+            current: this.current,
+            nextGrantAllowedAt: this.nextGrantAllowedAt,
+        };
+    }
+
+    static fromJSON(data: SerializedNinjutsuPool): NinjutsuPool {
+        const pool = new NinjutsuPool(data.type, data.config);
+        pool.current = data.current;
+        pool.nextGrantAllowedAt = data.nextGrantAllowedAt;
+        return pool;
     }
 }

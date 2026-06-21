@@ -145,6 +145,8 @@ export interface SerializedGameState {
     groups?: import('./units/unitAI/groups/types').SerializedGroup[];
     /** Active world modifier instance states (per-lifetime counters, disabled flag, dynamic defs). */
     worldModifiers?: import('../worldModifiers/types').SerializedWorldModifierInstance[];
+    /** Serialized ninjutsu pool configs and runtime state (budget, delay). */
+    ninjutsuPools?: import('./ninjutsu/NinjutsuPool').SerializedNinjutsuPool[];
 }
 
 /** Optional args when hydrating {@link GameEngine} from JSON (e.g. server checkpoint `synchash`). */

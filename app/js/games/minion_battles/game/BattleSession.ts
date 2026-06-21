@@ -386,6 +386,10 @@ export class BattleSession implements BattleSessionHandle {
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         const engine = GameEngine.fromJSON(gameState, playerId, terrainManager, opts);
         renderer.setTerrain(terrainManager);
+        // Fallback for snapshots predating ninjutsu serialization: re-init from mission config.
+        if (!engine.state.ninjutsuManager) {
+            engine.initNinjutsu(mission.ninjutsuPools);
+        }
         engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         if (mission.levelEvents && mission.levelEvents.length > 0) {
             engine.setLevelEvents(mission.levelEvents);

@@ -2,10 +2,10 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import type { BattleOrder, ResolvedTarget } from '../types';
 import type { Unit } from '../units/Unit';
 import { NinjutsuPool } from './NinjutsuPool';
-import type { NinjutsuUIState } from './NinjutsuPool';
+import type { NinjutsuUIState, SerializedNinjutsuPool } from './NinjutsuPool';
 import type { NinjutsuPoolConfig } from './ninjutsuConfig';
 
-export type { NinjutsuUIState };
+export type { NinjutsuUIState, SerializedNinjutsuPool };
 
 export class NinjutsuManager {
     private pools = new Map<string, NinjutsuPool>();
@@ -47,5 +47,17 @@ export class NinjutsuManager {
 
     getUIState(): NinjutsuUIState[] {
         return [...this.pools.values()].map((p) => p.getUIState());
+    }
+
+    toJSON(): SerializedNinjutsuPool[] {
+        return [...this.pools.values()].map((p) => p.toJSON());
+    }
+
+    static fromJSON(data: SerializedNinjutsuPool[]): NinjutsuManager {
+        const mgr = new NinjutsuManager({});
+        for (const poolData of data) {
+            mgr.pools.set(poolData.type, NinjutsuPool.fromJSON(poolData));
+        }
+        return mgr;
     }
 }

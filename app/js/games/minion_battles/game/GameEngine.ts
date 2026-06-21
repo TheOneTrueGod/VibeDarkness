@@ -1533,6 +1533,7 @@ export class GameEngine implements EngineContext {
             nextObjectId: this.objectIdSeq,
             mapPOIs: this.mapPOIs,
             groups: this.state.groupManager.toJSON(this.gameTick),
+            ninjutsuPools: this.state.ninjutsuManager?.toJSON() ?? undefined,
         };
     }
 
@@ -1683,6 +1684,11 @@ export class GameEngine implements EngineContext {
 
         // Restore group blackboards (AI strategic layer)
         engine.state.groupManager.fromJSON(data.groups ?? [], data.gameTick ?? 0);
+
+        // Restore ninjutsu pools (config + runtime budget/delay)
+        if (data.ninjutsuPools && data.ninjutsuPools.length > 0) {
+            engine.state.ninjutsuManager = NinjutsuManager.fromJSON(data.ninjutsuPools);
+        }
 
         engine.syncObjectIdsFromSnapshot(data);
 
