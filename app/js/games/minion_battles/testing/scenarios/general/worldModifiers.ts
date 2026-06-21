@@ -22,6 +22,7 @@ import { installWorldModifiersForTest } from '../../harness/installWorldModifier
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { darkSwarmModifier, rainyStormModifier } from '../../../worldModifiers/presets';
+import type { WorldModifierDef } from '../../../worldModifiers/types';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -154,5 +155,107 @@ export const worldModifierMidBattleAddScenario: ScenarioDefinition = {
         const instances = engine.state.worldModifierManager.toJSON();
         const storm = instances.find((i) => i.id === 'rainy_storm');
         return `rainy_storm=${JSON.stringify(storm)} | round=${engine.roundNumber}`;
+    },
+};
+
+// ============================================================================
+// Scenario C — world_effect_visual_effects_fire
+// ============================================================================
+
+const TEST_VFX_EFFECT_TYPE = 'TestWorldEffectVFX';
+
+/** Minimal modifier that fires a DirectEffectVFXDef when any unit dies. */
+const visualEffectsTestModifier: WorldModifierDef = {
+    id: 'test_visual_effects_modifier',
+    name: 'Test Visual Effects Modifier',
+    description: 'Fires a DirectEffectVFXDef on any unit death.',
+    icon: '',
+    rules: {
+        on_unit_died: [
+            {
+                id: 'test_vfx_on_death',
+                conditions: [{ type: 'always' }],
+                effects: [
+                    {
+                        type: 'incrementCounter',
+                        counterId: 'death_count',
+                        visualEffects: [
+                            {
+                                type: 'effect',
+                                effectType: TEST_VFX_EFFECT_TYPE,
+                                duration: 1,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    },
+};
+
+const VFX_PLAYER_POS_C = { x: 3 * CELL + CELL / 2, y: 2 * CELL + CELL / 2 }; // (140, 100)
+const TARGET_POS_C = { x: VFX_PLAYER_POS_C.x + 40, y: VFX_PLAYER_POS_C.y };  // (180, 100)
+const TARGET_ID_C = 'wm_vfx_target';
+
+export const worldEffectVisualEffectsFireScenario: ScenarioDefinition = {
+    id: 'world_effect_visual_effects_fire',
+    title: 'World Modifiers: DirectEffectVFXDef on WorldEffect fires on unit death',
+    category: 'general',
+    generalSection: 'World Modifiers',
+    maxDurationMs: 5000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 8, gridH: 6, localPlayerId: P });
+        installWorldModifiersForTest(engine, [visualEffectsTestModifier]);
+
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: VFX_PLAYER_POS_C.x,
+            y: VFX_PLAYER_POS_C.y,
+            abilities: ['0117'],
+        });
+
+        const target = createUnitFromSpawnConfig(
+            {
+                id: TARGET_ID_C,
+                characterId: 'swarmling',
+                name: 'VFX Target',
+                x: TARGET_POS_C.x,
+                y: TARGET_POS_C.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: [],
+                aiSettings: { minRange: 0, maxRange: 70 },
+            },
+            engine.eventBus,
+            engine,
+        );
+        target.hp = 1; // guaranteed one-hit kill
+        initializeAbilityRuntimeForUnit(target);
+        engine.addUnit(target, 'initialGameSpawn');
+
+        // Keep runner alive while the punch animation resolves.
+        engine.state.orderMgr.queueOrder(120, { unitId: player.id, abilityId: 'wait', targets: [] });
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        return [{ unitId: player.id, abilityId: '0117', targets: [{ type: 'pixel', position: TARGET_POS_C }] }];
+    },
+
+    assertPass(engine) {
+        return engine.effects.some((e) => e.effectType === TEST_VFX_EFFECT_TYPE);
+    },
+
+    failureMessage(engine) {
+        const target = engine.getUnit(TARGET_ID_C);
+        const effectTypes = [...new Set(engine.effects.map((e) => e.effectType))].join(', ');
+        return (
+            `No "${TEST_VFX_EFFECT_TYPE}" effect found` +
+            ` | effectTypes=[${effectTypes}]` +
+            ` | target alive=${target?.isAlive() ?? false} hp=${target?.hp ?? 'gone'}`
+        );
     },
 };

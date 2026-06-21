@@ -10,6 +10,7 @@ import type { AbilityTag } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
 import type { ResolvedTarget } from '../game/types';
+import type { VisualEffectDef } from '../game/effects/visualEffectDef';
 
 /** Phase of an ability's execution (for segment coloring). */
 export enum AbilityPhase {
@@ -61,6 +62,20 @@ type EmitterDefShared = {
      * Overrides `effectType` and merges with any explicit `effectData`.
      */
     spriteEffectId?: string;
+    /**
+     * Declarative visual effects applied via `applyVisualEffectDefs` when this timing
+     * window opens. Evaluated once at window-entry time (not per-tick).
+     * Use `effectPosition` to control spawn position ('caster' is default).
+     */
+    visualEffects?: VisualEffectDef[];
+    /**
+     * Which unit's position to use when spawning `visualEffects`.
+     * - `'caster'` (default) — spawn at the caster's position.
+     * - `'target'`           — spawn at the primary target's position (first resolved target).
+     *
+     * Ignored when `visualEffects` is absent or empty.
+     */
+    effectPosition?: 'caster' | 'target';
 };
 
 export type AbilityTimingEmitterDef = EmitterDefShared & (

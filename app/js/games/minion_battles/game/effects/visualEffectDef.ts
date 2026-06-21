@@ -21,6 +21,8 @@ export interface DirectEffectVFXDef {
     duration: number;
     offsetX?: number;
     offsetY?: number;
+    /** Spawn position relative to context. Defaults to 'caster' for backward compat. */
+    position?: 'caster' | 'target' | 'midpoint';
 }
 
 export type VisualEffectDef =

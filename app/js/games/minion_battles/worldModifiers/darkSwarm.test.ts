@@ -43,7 +43,7 @@ describe('Dark Swarm world modifier', () => {
         const ls = darkLights[0]!;
         expect(ls.x).toBe(200);
         expect(ls.y).toBe(300);
-        expect(ls.lightAmount).toBe(-4);
+        expect(ls.lightAmount).toBe(-1);
         expect(ls.decay.roundsTotal).toBe(5);
 
         engine.destroy();

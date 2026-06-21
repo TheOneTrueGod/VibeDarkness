@@ -4,6 +4,7 @@ import type { Effect } from '../game/effects/Effect';
 import type { ActiveAbility } from '../game/types';
 import { defineMeleeStrike } from './archetypes/defineMeleeStrike';
 import {
+    detectAndFreezeTelegraphDistanceBreak,
     initTelegraphCastPayload,
     lockTelegraphOnTargetEvade,
     updateTelegraphTracking,
@@ -126,7 +127,7 @@ describe('telegraphTracking', () => {
         expect(engine.spawnedEffects).toHaveLength(0);
     });
 
-    it('updateTelegraphTracking locks and spawns Dodged when target exceeds tether', () => {
+    it('detectAndFreezeTelegraphDistanceBreak locks and spawns Dodged when target exceeds tether', () => {
         const caster = createUnit({ id: 'caster', x: 0, y: 0, teamId: 'player' });
         const target = createUnit({ id: 'target', x: 40, y: 0, teamId: 'enemy' });
         const engine = makeEngine([caster, target]);
@@ -144,7 +145,7 @@ describe('telegraphTracking', () => {
         };
 
         target.x = 50 + LOCK_ON_TETHER_EXTRA + 1;
-        updateTelegraphTracking(caster, active, biteAbility, 0.2, engine as never);
+        detectAndFreezeTelegraphDistanceBreak(caster, active, biteAbility, 0.2, engine as never);
 
         const payload = active.castPayload as TelegraphCastPayload;
         expect(payload.telegraphLockedPosition).toEqual({ x: target.x, y: target.y });

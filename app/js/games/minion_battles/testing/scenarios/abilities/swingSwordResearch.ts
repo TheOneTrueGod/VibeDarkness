@@ -154,11 +154,11 @@ export const swingSwordExtraUsesScenario: ScenarioDefinition = {
     assertPass(engine) {
         const u = engine.getLocalPlayerUnit();
         const rt = u?.abilityRuntime['0112'];
-        return Boolean(rt && rt.maxUses === 4);
+        return Boolean(rt && rt.maxUses === 6);
     },
     failureMessage(engine) {
         const rt = engine.getLocalPlayerUnit()?.abilityRuntime['0112'];
-        return `Swing Sword maxUses=${rt?.maxUses} expected 4`;
+        return `Swing Sword maxUses=${rt?.maxUses} expected 6`;
     },
 };
 

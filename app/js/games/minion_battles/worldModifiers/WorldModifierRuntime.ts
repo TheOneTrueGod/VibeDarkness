@@ -10,6 +10,7 @@ import type { WorldModifierDef } from './types';
 import type { EngineContext } from '../game/EngineContext';
 import { LightSource } from '../game/lightSources/LightSource';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
+import { applyVisualEffectDefs } from '../game/effects/applyVisualEffectDefs';
 
 // ---------------------------------------------------------------------------
 // Event contexts
@@ -133,7 +134,7 @@ export function applyEffect(
                 const existing = callbacks.getSpawnedLightSourcesAtCell(col, row);
                 if (policy === 'max' && existing.some((e) => Math.abs(e.ls.lightAmount) >= Math.abs(effect.lightAmount))) {
                     // A source at this cell is equal or stronger — skip spawn.
-                    applyVisualEffects(effect.visualEffects, ctx);
+                    applyVisualEffects(effect.visualEffects, ctx, engine);
                     break;
                 }
                 // 'replace', or 'max' when existing is weaker: deactivate prior sources at cell.
@@ -160,31 +161,31 @@ export function applyEffect(
             });
             engine.addLightSource(ls);
             callbacks.onRegisterSpawnedLightSource?.(ls.id, ls, col, row);
-            applyVisualEffects(effect.visualEffects, ctx);
+            applyVisualEffects(effect.visualEffects, ctx, engine);
             break;
         }
 
         case 'incrementCounter': {
             callbacks.onIncrementCounter(effect.counterId, effect.amount ?? 1);
-            applyVisualEffects(effect.visualEffects, ctx);
+            applyVisualEffects(effect.visualEffects, ctx, engine);
             break;
         }
 
         case 'addWorldModifier': {
             callbacks.onAddModifier(effect.modifierDef);
-            applyVisualEffects(effect.visualEffects, ctx);
+            applyVisualEffects(effect.visualEffects, ctx, engine);
             break;
         }
 
         case 'removeWorldModifier': {
             callbacks.onRemoveModifier(effect.modifierId);
-            applyVisualEffects(effect.visualEffects, ctx);
+            applyVisualEffects(effect.visualEffects, ctx, engine);
             break;
         }
 
         case 'setWorldModifierDisabled': {
             callbacks.onSetDisabled(effect.modifierId, effect.disabled);
-            applyVisualEffects(effect.visualEffects, ctx);
+            applyVisualEffects(effect.visualEffects, ctx, engine);
             break;
         }
 
@@ -196,16 +197,42 @@ export function applyEffect(
                     `[WorldModifierRuntime] custom effect "${effect.effectId}" has no registered handler.`,
                 );
             }
-            applyVisualEffects(effect.visualEffects, ctx);
+            applyVisualEffects(effect.visualEffects, ctx, engine);
             break;
         }
     }
 }
 
-// VisualEffect: no-op stub — wire when unblock criteria met (see worldModifiers/AGENTS.md § "VisualEffect hook").
-// Criteria: (1) non-stub VisualEffectDef type outside worldModifiers/, (2) spawnVisualEffect runtime API,
-// (3) headless sim can observe effect creation deterministically.
+/**
+ * Resolve the contextual unit from the event payload and call applyVisualEffectDefs.
+ *
+ * - on_unit_died   → victim unit (data.unitId)
+ * - on_unit_damaged → damaged unit (data.unitId)  [future-proof: same field name]
+ * - Other events   → no unit context; spawn at origin with zero radius.
+ */
 function applyVisualEffects(
-    _visualEffects: VisualEffectDef[] | undefined,
-    _ctx: WorldRuleEvalContext,
-): void {}
+    visualEffects: VisualEffectDef[] | undefined,
+    ctx: WorldRuleEvalContext,
+    engine: EngineContext,
+): void {
+    if (!visualEffects?.length) return;
+
+    let unit: { x: number; y: number; radius: number; characterId: string } | undefined;
+
+    if (ctx.event.eventType === 'on_unit_died') {
+        const found = engine.getUnit(ctx.event.unitId);
+        if (found) {
+            unit = found;
+        } else {
+            // Unit already removed — use the pre-death position stored in the context.
+            unit = { x: ctx.event.victimX, y: ctx.event.victimY, radius: 0, characterId: ctx.event.victimCharacterId };
+        }
+    }
+
+    if (!unit) {
+        // No sensible unit context for this event type — skip visual effects.
+        return;
+    }
+
+    applyVisualEffectDefs(visualEffects, unit, engine);
+}

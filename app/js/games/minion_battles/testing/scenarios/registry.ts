@@ -59,8 +59,10 @@ import { aiTerrainInterruptScenario } from './ai/ai_terrain_interrupt';
 import { aiReplanStaggerScenario } from './ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from './ai/ai_serialization_roundtrip';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from './general/lightingSystem';
-import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario } from './general/worldModifiers';
+import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario, worldEffectVisualEffectsFireScenario } from './general/worldModifiers';
 import { deathVfxUnitDefEffectsFireScenario, deathVfxAlphaWolfUnchangedScenario } from './general/deathVfx';
+import { abilityTimingEmitterVisualEffectsFireScenario } from './general/abilityTimingEmitterVfx';
+import { directEffectVfxDefTargetPositionScenario } from './general/directEffectVfxDefPosition';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -147,8 +149,11 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     aiSerializationRoundtripScenario,
     worldModifierDarkSwarmScenario,
     worldModifierMidBattleAddScenario,
+    worldEffectVisualEffectsFireScenario,
     deathVfxUnitDefEffectsFireScenario,
     deathVfxAlphaWolfUnchangedScenario,
+    abilityTimingEmitterVisualEffectsFireScenario,
+    directEffectVfxDefTargetPositionScenario,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -198,6 +203,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'ai', section: 'AI' },
     { slug: 'world-modifiers', section: 'World Modifiers' },
     { slug: 'death-vfx', section: 'Death VFX' },
+    { slug: 'ability-emitter-vfx', section: 'Ability Emitter VFX' },
 ];
 
 export interface GeneralTestSidebarGroup {

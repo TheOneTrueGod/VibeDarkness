@@ -142,6 +142,15 @@ export function getAbility(id: string): AbilityStatic | undefined {
     return ABILITY_MAP.get(id);
 }
 
+/**
+ * Register an ability for use in test scenarios.
+ * Only call from test scenario files — this mutates the global registry.
+ * Idempotent: re-registering the same id overwrites the previous entry.
+ */
+export function registerAbilityForTest(ability: AbilityStatic): void {
+    register(ability);
+}
+
 /** Get all registered abilities. */
 export function getAllAbilities(): AbilityStatic[] {
     return Array.from(ABILITY_MAP.values());

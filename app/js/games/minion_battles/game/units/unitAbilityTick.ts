@@ -18,6 +18,7 @@ import {
     getEffectiveCastBehaviours,
 } from '../../abilities/abilityTimings';
 import { createEmitterFromDef } from '../../abilities/createEmitterFromDef';
+import { applyVisualEffectDefs } from '../effects/applyVisualEffectDefs';
 import { getBodyColorForUnit, getCharacterSpriteKey } from './unit_defs/unitDef';
 import { AbilityEventType, abilityHasTag } from '../../abilities/Ability';
 import {
@@ -94,6 +95,34 @@ export function tickUnitActiveAbilities(
                 const key = interval.id;
                 unit.activeTimingEmitters.set(key, emitter);
                 engine.addEffectEmitter(emitter);
+
+                // Apply declarative VisualEffectDefs at window-entry time.
+                if (emitterDef.visualEffects?.length) {
+                    const useTarget = emitterDef.effectPosition === 'target';
+                    const primaryTarget = active.targets[0];
+                    const targetUnit =
+                        useTarget && primaryTarget?.type === 'unit'
+                            ? engine.getUnit(primaryTarget.unitId)
+                            : undefined;
+                    const positionUnit =
+                        targetUnit ??
+                        (useTarget && primaryTarget?.type === 'pixel'
+                            ? { x: primaryTarget.position.x, y: primaryTarget.position.y, radius: 0, characterId: '' }
+                            : null) ??
+                        unit;
+                    // Build per-def context: resolve target from primary target for
+                    // DirectEffectVFXDef entries that specify position: 'target' or 'midpoint'.
+                    const contextTargetUnit =
+                        primaryTarget?.type === 'unit'
+                            ? engine.getUnit(primaryTarget.unitId)
+                            : undefined;
+                    const contextTarget: { x: number; y: number; radius: number } | undefined =
+                        contextTargetUnit ??
+                        (primaryTarget?.type === 'pixel'
+                            ? { x: primaryTarget.position.x, y: primaryTarget.position.y, radius: 0 }
+                            : undefined);
+                    applyVisualEffectDefs(emitterDef.visualEffects, positionUnit, engine, contextTarget ? { target: contextTarget } : undefined);
+                }
             }
             if (interval.emitterDef && exited.has(interval.id)) {
                 const key = interval.id;

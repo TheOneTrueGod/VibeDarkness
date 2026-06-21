@@ -27,6 +27,10 @@ import {
 
 interface MinimalUnit { x: number; y: number; radius: number; characterId: string }
 
+interface VFXContext {
+    target?: { x: number; y: number; radius: number };
+}
+
 export function spawnDeathParticle(
     engine: EngineContext,
     unit: { x: number; y: number; radius: number },
@@ -69,14 +73,17 @@ export function spawnDeathParticle(
 /**
  * Apply a list of VisualEffectDefs at the given unit's position.
  *
- * @param defs   - Effect definitions from the unit def or world event.
- * @param unit   - Provides position (x/y), collision radius, and characterId.
- * @param engine - EngineContext for addEffect / random generation.
+ * @param defs    - Effect definitions from the unit def or world event.
+ * @param unit    - Provides position (x/y), collision radius, and characterId (used as caster).
+ * @param engine  - EngineContext for addEffect / random generation.
+ * @param context - Optional context providing a `target` position for `DirectEffectVFXDef`
+ *                  entries that specify `position: 'target'` or `position: 'midpoint'`.
  */
 export function applyVisualEffectDefs(
     defs: VisualEffectDef[],
     unit: MinimalUnit,
     engine: EngineContext,
+    context?: VFXContext,
 ): void {
     for (const def of defs) {
         switch (def.type) {
@@ -104,9 +111,25 @@ export function applyVisualEffectDefs(
                 break;
             }
             case 'effect': {
+                const pos = def.position ?? 'caster';
+                let spawnX: number;
+                let spawnY: number;
+                if (pos === 'target') {
+                    if (!context?.target) break; // skip if no target context
+                    spawnX = context.target.x + (def.offsetX ?? 0);
+                    spawnY = context.target.y + (def.offsetY ?? 0);
+                } else if (pos === 'midpoint') {
+                    if (!context?.target) break; // skip if no target context
+                    spawnX = (unit.x + context.target.x) / 2 + (def.offsetX ?? 0);
+                    spawnY = (unit.y + context.target.y) / 2 + (def.offsetY ?? 0);
+                } else {
+                    // 'caster' (default)
+                    spawnX = unit.x + (def.offsetX ?? 0);
+                    spawnY = unit.y + (def.offsetY ?? 0);
+                }
                 engine.addEffect(new Effect({
-                    x: unit.x + (def.offsetX ?? 0),
-                    y: unit.y + (def.offsetY ?? 0),
+                    x: spawnX,
+                    y: spawnY,
                     duration: def.duration,
                     effectType: def.effectType,
                     effectData: def.effectData,
