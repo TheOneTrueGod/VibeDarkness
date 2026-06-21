@@ -273,19 +273,6 @@ export default function AbilityBar({
 
     return (
         <div className="relative bg-dark-900/80 border-t border-dark-700 p-3">
-            {playerUnit && playerUnit.resources.length > 0 && (
-                <div className="flex items-center justify-center gap-2 mb-2">
-                    {playerUnit.resources.map((resource) => (
-                        <div
-                            key={resource.id}
-                            className="px-2 py-0.5 rounded border text-xs"
-                            style={{ borderColor: resource.color, color: resource.color }}
-                        >
-                            {resource.name}: {Math.round(resource.current)}
-                        </div>
-                    ))}
-                </div>
-            )}
             {/* Bottom-aligned row: round tracker and wait flank a centered card cluster; outer gaps are 2× the card–card gap (gap-4 vs gap-2). */}
             <div ref={rowRef} className="relative flex min-h-[158px] items-end justify-center gap-4">
                 {pulseParticles.map((p) => {

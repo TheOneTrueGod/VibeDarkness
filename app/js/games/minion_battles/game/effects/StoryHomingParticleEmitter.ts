@@ -80,14 +80,20 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
                 effectData: { imageKey: 'darkBlob' },
             });
             produced.push(this.currentEffect);
+            console.log(`[WolfBoss] Homing particle spawned at (${bx.toFixed(1)}, ${by.toFixed(1)}) → target (${tx.toFixed(1)}, ${ty.toFixed(1)}) unit:${this.targetUnitId ?? 'none'}`);
         } else if (this.currentEffect.active) {
             // Keep the effect's world position synced to the current bezier position.
             this.currentEffect.x = bx;
             this.currentEffect.y = by;
         }
 
+        if (this.isFirstParticle) {
+            console.log(`[WolfBoss] First particle tick: pos=(${bx.toFixed(1)}, ${by.toFixed(1)}) elapsed=${this.elapsed.toFixed(3)}/${DURATION}s t=${t.toFixed(3)} active=${this.active}`);
+        }
+
         if (t >= 1 && !this.pulseSpawned) {
             this.pulseSpawned = true;
+            console.log(`[WolfBoss] Homing particle reached destination (${tx.toFixed(1)}, ${ty.toFixed(1)}) after ${this.elapsed.toFixed(2)}s`);
             produced.push(
                 new Effect({
                     x: tx,

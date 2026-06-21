@@ -76,7 +76,7 @@ export const darkCreatureIconDeathEffectDef: IEffectDef = {
     },
 };
 
-/** Alpha wolf story remnant: boss icon with corruption tint, slowly shakes in place. */
+/** Alpha wolf story remnant: boss icon with corruption tint, shakes and wipes top-to-bottom. */
 export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
     createVisual(effect: Effect, context: IEffectRenderContext): Container {
         const data = effect.effectData as { remnantCharacterKey?: string };
@@ -86,6 +86,8 @@ export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
         root.label = 'storyRemnantRoot';
         const shake = new Container();
         shake.label = 'storyRemnantShake';
+        const masked = new Container();
+        masked.label = 'storyRemnantMasked';
         const base = new Sprite(texture);
         base.anchor.set(0.5, 0.5);
         base.width = 42;
@@ -99,7 +101,11 @@ export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
         tint.tint = DARK_CREATURE_CORRUPTION_TINT;
         tint.alpha = DARK_CREATURE_ICON_TINT_ALPHA;
         tint.label = 'storyRemnantTint';
-        shake.addChild(base, tint);
+        masked.addChild(base, tint);
+        const maskG = new Graphics();
+        maskG.label = 'storyRemnantMask';
+        masked.mask = maskG;
+        shake.addChild(masked, maskG);
         root.addChild(shake);
         return root;
     },
@@ -108,16 +114,27 @@ export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
         const key = data.remnantCharacterKey ?? 'alpha_wolf';
         const tex = context.getCharacterTexture?.(key);
         const shake = visual.children.find((c) => c.label === 'storyRemnantShake') as Container | undefined;
-        const base = shake?.children.find((c) => c.label === 'storyRemnantBase') as Sprite | undefined;
-        const tint = shake?.children.find((c) => c.label === 'storyRemnantTint') as Sprite | undefined;
+        const masked = shake?.children.find((c) => c.label === 'storyRemnantMasked') as Container | undefined;
+        const maskG = shake?.children.find((c) => c.label === 'storyRemnantMask') as Graphics | undefined;
+        const base = masked?.children.find((c) => c.label === 'storyRemnantBase') as Sprite | undefined;
+        const tint = masked?.children.find((c) => c.label === 'storyRemnantTint') as Sprite | undefined;
         if (tex && base && base.texture !== tex) {
             base.texture = tex;
             if (tint) tint.texture = tex;
         }
-        const hz = data.shakeFrequencyHz ?? 3.5;
-        const amp = data.shakeAmplitudePx ?? 4;
+        const hz = data.shakeFrequencyHz ?? 7;
+        const amp = data.shakeAmplitudePx ?? 2;
         if (shake) shake.x = Math.sin(effect.elapsed * Math.PI * 2 * hz) * amp;
-        visual.alpha = Math.max(0, 1 - Math.max(0, effect.progress - 0.9) / 0.1);
+        const p = effect.progress;
+        const h = base?.height ?? 42;
+        const w = base?.width ?? 42;
+        if (maskG) {
+            maskG.clear();
+            const top = -h / 2 + h * p;
+            const visH = Math.max(0.5, h * (1 - p));
+            maskG.rect(-w / 2, top, w, visH);
+            maskG.fill({ color: 0xffffff });
+        }
     },
 };
 

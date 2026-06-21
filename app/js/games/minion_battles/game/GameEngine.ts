@@ -745,6 +745,9 @@ export class GameEngine implements EngineContext {
     // RNG
     // ========================================================================
 
+    /** Returns a raw 31-bit integer in [0, 0x7fffffff]. NOT a [0, 1] float.
+     *  Divide by 0x7fffffff to normalise: `const rand = () => engine.generateRandomNumber() / 0x7fffffff;`
+     *  Use generateRandomInteger(min, max) when you need a bounded integer — it normalises internally. */
     generateRandomNumber(): number {
         this.randomSeed = ((this.randomSeed * 1103515245 + 12345) >>> 0);
         this.mixRuntimeFingerprint(FingerprintEvent.RNG, this.randomSeed);

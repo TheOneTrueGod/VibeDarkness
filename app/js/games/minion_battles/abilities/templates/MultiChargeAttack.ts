@@ -243,13 +243,11 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 
 		for (let i = 0; i < this.dashPhases.length; i++) {
 			const phase = this.dashPhases[i];
-			if (elapsed < phase.windupStart || elapsed >= phase.dashStart) continue;
+			if (elapsed < phase.windupStart || elapsed >= phase.dashEnd) continue;
 
 			const dashNote = note.dashes[i];
 			if (!dashNote) continue;
 
-			const windupLocalElapsed = elapsed - phase.windupStart;
-			const windupDuration = phase.windupEnd - phase.windupStart;
 			const d = getDirectionFromTo(
 				dashNote.lungeStartX, dashNote.lungeStartY,
 				dashNote.targetX, dashNote.targetY,
@@ -258,8 +256,13 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 
 			const dirX = dashNote.chargeDirX ?? d.dirX;
 			const dirY = dashNote.chargeDirY ?? d.dirY;
-			const lineLen = caster.radius + this.config.baseMaxRange;
+			const windupDuration = phase.windupEnd - phase.windupStart;
 			const capsuleThickness = caster.radius * this.config.capsuleRadiusMultiplier;
+
+			const inDash = elapsed >= phase.dashStart;
+			const windupLocalElapsed = inDash ? windupDuration : elapsed - phase.windupStart;
+			const pctDone = inDash ? (elapsed - phase.dashStart) / (phase.dashEnd - phase.dashStart) : 0;
+			const lineLen = caster.radius + this.config.baseMaxRange * (inDash ? 1 - pctDone : 1);
 
 			drawChargeCapsuleTimingTelegraph(
 				gr,

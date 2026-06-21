@@ -44,8 +44,8 @@ export function registerLateBuiltinHandlers(
                 effectType: 'AlphaWolfStoryRemnant',
                 effectData: {
                     remnantCharacterKey: 'alpha_wolf',
-                    shakeFrequencyHz: 3.5,
-                    shakeAmplitudePx: 4,
+                    shakeFrequencyHz: 7,
+                    shakeAmplitudePx: 2,
                 },
             }));
             engine.addEffectEmitter(new AlphaWolfStoryEmitter({

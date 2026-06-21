@@ -20,6 +20,7 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
     homingRatePerSecond: number;
     private radialRemainder: number = 0;
     private homingRemainder: number = 0;
+    private homingSpawnCount: number = 0;
 
     constructor(config: {
         id?: string;
@@ -43,6 +44,9 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
     update(dt: number, engine: EngineContext): Effect[] {
         this.elapsed += dt;
 
+        // generateRandomNumber() returns a raw integer in [0, 0x7fffffff]; normalise to [0, 1).
+        const rand = () => engine.generateRandomNumber() / 0x7fffffff;
+
         const produced: Effect[] = [];
 
         const radialPhase = this.elapsed <= 1;
@@ -53,8 +57,8 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
             const spawnCount = Math.floor(total);
             this.radialRemainder = total - spawnCount;
             for (let i = 0; i < spawnCount; i++) {
-                const angle = engine.generateRandomNumber() * 2 * Math.PI;
-                const speed = 120 + engine.generateRandomNumber() * 160;
+                const angle = rand() * 2 * Math.PI;
+                const speed = 120 + rand() * 160;
                 const vx = Math.cos(angle) * speed;
                 const vy = Math.sin(angle) * speed;
                 produced.push(
@@ -63,7 +67,7 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
                         y: this.y,
                         duration: 1,
                         effectType: 'ParticleImage',
-                        effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.7 + engine.generateRandomNumber() * 0.5 },
+                        effectData: { imageKey: 'darkBlob', vx, vy, scale: 0.7 + rand() * 0.5 },
                     }),
                 );
             }
@@ -79,12 +83,14 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
                     const idx = engine.generateRandomInteger(0, homingTargets.length - 1);
                     const target = homingTargets[idx];
                     if (!target) continue;
-                    const spawnAngle = engine.generateRandomNumber() * 2 * Math.PI;
-                    const spawnRadius = 16 + engine.generateRandomNumber() * 20;
+                    const spawnAngle = rand() * 2 * Math.PI;
+                    const spawnRadius = 16 + rand() * 20;
                     const sx = this.x + Math.cos(spawnAngle) * spawnRadius;
                     const sy = this.y + Math.sin(spawnAngle) * spawnRadius;
-                    const mx = (sx + target.x) * 0.5 + (engine.generateRandomNumber() * 240 - 120);
-                    const my = (sy + target.y) * 0.5 - (70 + engine.generateRandomNumber() * 80);
+                    const mx = (sx + target.x) * 0.5 + (rand() * 240 - 120);
+                    const my = (sy + target.y) * 0.5 - (70 + rand() * 80);
+                    const isFirst = this.homingSpawnCount === 0;
+                    this.homingSpawnCount++;
                     engine.addEffectEmitter(
                         new StoryHomingParticleEmitter({
                             x: sx,
@@ -96,6 +102,7 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
                             targetUnitId: target.id,
                             targetX: target.x,
                             targetY: target.y,
+                            isFirstParticle: isFirst,
                         }),
                     );
                 }

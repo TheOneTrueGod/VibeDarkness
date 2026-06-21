@@ -75,7 +75,8 @@ GameEngine.loop() (render tick, ~60 fps)
   └── EffectEmitterManager.renderUpdate(realDt, posSnapshot, isPaused)
         └── ContinuousEmitter.renderUpdate() → new Effects → EffectManager.addEffect()
 
-GameEngine.fixedUpdate() (game tick, FIXED_DT = 1/60 s, pauses when game pauses)
+GameEngine.fixedUpdate() (game tick, FIXED_DT = 1/60 s; pauses on regular pause and waitingForOrders,
+  but continues during storyPause — EffectEmitterManager.update runs unconditionally either way)
   └── EffectEmitterManager.update(dt, engine)
         ├── OneShotEmitter.update()   → new Effects
         ├── IntervalEmitter.update()  → new Effects
