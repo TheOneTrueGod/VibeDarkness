@@ -11,9 +11,9 @@ export interface NinjutsuPoolConfig {
 export const NINJUTSU_DISABLED: NinjutsuPoolConfig =
     { enabled: false, maxPool: 0, rechargeInterval: 1, pauseBetweenUses: 0 };
 
-// Tier 1 — Very easy: 2 attacks/round, 0.4-round gap → 0.6 rounds of rest
+// Tier 1 — Very easy: 4 attacks/round, 0.2-round gap → 0.2 rounds of rest
 export const NINJUTSU_TIER_1: NinjutsuPoolConfig =
-    { enabled: true, maxPool: 2, rechargeInterval: 1, pauseBetweenUses: 0.4 };
+    { enabled: true, maxPool: 4, rechargeInterval: 1, pauseBetweenUses: 0.2 };
 
 // Tier 2 — Easy: 3 attacks/round, 0.25-round gap → 0.5 rounds of rest
 export const NINJUTSU_TIER_2: NinjutsuPoolConfig =

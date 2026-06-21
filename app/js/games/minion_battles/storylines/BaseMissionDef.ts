@@ -92,6 +92,8 @@ export interface IBaseMissionDef extends MissionBattleConfig {
     image?: string;
     /** Short flavour description shown in the Mission Map tooltip. */
     description?: string;
+    /** Per-pool ninjutsu configuration. Absent = NINJUTSU_DEFAULT for the 'shadow' pool. */
+    ninjutsuPools?: Partial<Record<string, NinjutsuPoolConfig>>;
     /** Set up initial game state: player units, enemies, projectiles, effects, cards. */
     initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void;
 }
