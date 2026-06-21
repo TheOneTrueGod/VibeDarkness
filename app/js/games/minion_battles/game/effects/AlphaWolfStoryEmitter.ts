@@ -20,7 +20,6 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
     homingRatePerSecond: number;
     private radialRemainder: number = 0;
     private homingRemainder: number = 0;
-    private homingSpawnCount: number = 0;
 
     constructor(config: {
         id?: string;
@@ -89,8 +88,6 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
                     const sy = this.y + Math.sin(spawnAngle) * spawnRadius;
                     const mx = (sx + target.x) * 0.5 + (rand() * 240 - 120);
                     const my = (sy + target.y) * 0.5 - (70 + rand() * 80);
-                    const isFirst = this.homingSpawnCount === 0;
-                    this.homingSpawnCount++;
                     engine.addEffectEmitter(
                         new StoryHomingParticleEmitter({
                             x: sx,
@@ -102,7 +99,6 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
                             targetUnitId: target.id,
                             targetX: target.x,
                             targetY: target.y,
-                            isFirstParticle: isFirst,
                         }),
                     );
                 }

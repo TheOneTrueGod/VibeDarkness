@@ -86,13 +86,8 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
             this.currentEffect.y = by;
         }
 
-        if (this.isFirstParticle) {
-            console.log(`[WolfBoss] First particle tick: pos=(${bx.toFixed(1)}, ${by.toFixed(1)}) elapsed=${this.elapsed.toFixed(3)}/${DURATION}s t=${t.toFixed(3)} active=${this.active}`);
-        }
-
         if (t >= 1 && !this.pulseSpawned) {
             this.pulseSpawned = true;
-            console.log(`[WolfBoss] Homing particle reached destination (${tx.toFixed(1)}, ${ty.toFixed(1)}) after ${this.elapsed.toFixed(2)}s`);
             produced.push(
                 new Effect({
                     x: tx,
