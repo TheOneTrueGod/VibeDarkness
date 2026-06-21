@@ -55,7 +55,7 @@ import { tickAllDots, DOT_TICKS_PER_ROUND } from './dotTick';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
-import { processLanternitePulseMilestone } from './lanternite/lanternitePulse';
+import { processLanternitePulseMilestone, removeLanterniteLightSources } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 import { processThornlingNests } from './lanternite/thornlingNestTick';
 import { processSwarmNests } from './lanternite/swarmNestTick';
@@ -146,11 +146,7 @@ export class GameEngine implements EngineContext {
     readonly cellOccupancyManager = new CellOccupancyManager();
 
     constructor() {
-        registerLateBuiltinHandlers(
-            this.state.worldModifierManager,
-            this,
-            { onLanterniteRespawn: (x, y, t) => this.state.lanterniteRespawnManager.onLanterniteUnitDied(x, y, t) },
-        );
+        registerLateBuiltinHandlers(this.state.worldModifierManager, this);
     }
 
     get randomSeed(): number {
@@ -534,13 +530,24 @@ export class GameEngine implements EngineContext {
         this.state.interruptSystem.registerListeners(this.eventBus);
         this.state.worldModifierManager.registerListeners(this.eventBus);
 
-        // unit_died: apply onDeathVisualEffects from the unit def directly (no world modifier needed).
+        // unit_died: apply onDeathVisualEffects and onDeathBehaviors from the unit def directly.
         // Alpha wolf has no onDeathVisualEffects — its death is handled by _builtin_alpha_wolf_death.
-        // Lanternite death handled by _builtin_lanternite_death via WorldModifierManager.
         this.eventBus.on('unit_died', (data) => {
             const unit = this.getUnit(data.unitId);
-            const defs = unit && getUnitDefEntry(unit.characterId as UnitDefId)?.onDeathVisualEffects;
-            if (defs?.length) applyVisualEffectDefs(defs, unit, this);
+            if (!unit) return;
+            const def = getUnitDefEntry(unit.characterId as UnitDefId);
+            if (def?.onDeathVisualEffects?.length) applyVisualEffectDefs(def.onDeathVisualEffects, unit, this);
+            if (def?.onDeathBehaviors?.length) {
+                for (const b of def.onDeathBehaviors) {
+                    if (b.type === 'removesOwnedLightSources') {
+                        removeLanterniteLightSources(unit.id, this.lightSources);
+                    } else if (b.type === 'sporeRebirth') {
+                        if (unit.lanterniteNestOwnerUnitId == null) {
+                            this.state.lanterniteRespawnManager.onLanterniteUnitDied(unit.x, unit.y, this.gameTime);
+                        }
+                    }
+                }
+            }
         });
 
         // stack_members_died ghost VFX handled by _builtin_stack_ghost_vfx via WorldModifierManager.

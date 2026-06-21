@@ -27,3 +27,19 @@ BattlePhase (UI)
 ```
 
 **Tests bypass BattleNet entirely** and call `engine.state.orderMgr.applyOrder` (or `queueOrder`) directly. A test that passes does not rule out BattleNet as the source of a live-game bug. When a behavior works in tests but not in the live game, check `BattleNet.submitOrder` first — it has several early-return paths (recovering, awaiting ack, client ahead of host heartbeat) that silently drop orders.
+
+## Code style: no magic constants
+
+Avoid bare numeric or string literals anywhere they carry domain meaning — especially in tests. Export named constants from the source of truth and import them at use sites.
+
+```ts
+// BAD — a test that breaks silently when the base value changes
+return rt.maxUses === 6;
+
+// GOOD — the assertion is self-documenting and tracks the source
+import { SWORD_BASE_MAX_USES } from '.../0112Ability';
+import { SWING_EXTRA_USES } from '.../abilityUses';
+return rt.maxUses === SWORD_BASE_MAX_USES + SWING_EXTRA_USES;
+```
+
+This applies equally to source code: if the same number appears in two files, one of them should import it from the other. The goal is that when a value changes, the compiler (or a single grep) finds every affected site rather than silent test drift.

@@ -4,6 +4,8 @@ import {
     STICK_SWORD_NODE_EXTRA_USES,
     STICK_SWORD_TREE_ID,
 } from '../../../../../researchTrees/trees/stick_sword';
+import { SWORD_BASE_MAX_USES } from '../../../card_defs/0112_SwingSword/0112Ability';
+import { SWING_EXTRA_USES } from '../../../abilities/abilityUses';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
@@ -154,11 +156,11 @@ export const swingSwordExtraUsesScenario: ScenarioDefinition = {
     assertPass(engine) {
         const u = engine.getLocalPlayerUnit();
         const rt = u?.abilityRuntime['0112'];
-        return Boolean(rt && rt.maxUses === 6);
+        return Boolean(rt && rt.maxUses === SWORD_BASE_MAX_USES + SWING_EXTRA_USES);
     },
     failureMessage(engine) {
         const rt = engine.getLocalPlayerUnit()?.abilityRuntime['0112'];
-        return `Swing Sword maxUses=${rt?.maxUses} expected 6`;
+        return `Swing Sword maxUses=${rt?.maxUses} expected ${SWORD_BASE_MAX_USES + SWING_EXTRA_USES}`;
     },
 };
 

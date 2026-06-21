@@ -27,6 +27,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
+import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from '../scenarios/general/lanterniteDeath';
 import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario, exposedDurationExtensionScenario } from '../scenarios/general/enemies';
 import { swarmlingHuntAndBiteScenario } from '../scenarios/general/swarmlings';
 import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
@@ -173,6 +174,16 @@ describe('runScenarioHeadless', () => {
 
     it('passes lanternite nest dual-spawn scenario (scout builds + defender guards)', () => {
         const r = runScenarioHeadless(lanterniteNestDualSpawnScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes lanternite death: torch off and respawn fires', () => {
+        const r = runScenarioHeadless(lanterniteDeathBehaviorsScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes lanternite death: nest-owned skips respawn', () => {
+        const r = runScenarioHeadless(lanterniteNestOwnedNoRespawnScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

@@ -39,7 +39,7 @@ import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext'
 import { hasResearchNode } from '../../abilities/abilityModifierHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}12`;
-const MAX_USES = 4;
+export const SWORD_BASE_MAX_USES = 4;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
@@ -133,7 +133,7 @@ export const SwingSwordAbility = defineAbility({
     resourceCost: null,
     resourceCosts: [],
     rechargeTurns: 1,
-    maxUses: MAX_USES,
+    maxUses: SWORD_BASE_MAX_USES,
     recoveries: RECOVERIES,
     prefireTime: 0.2,
     targets: [],

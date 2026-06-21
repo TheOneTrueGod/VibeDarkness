@@ -52,6 +52,7 @@ import {
     shiningBlockStrengtheningLightScenario,
 } from './abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from './general/lanternites';
+import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from './general/lanterniteDeath';
 import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from './general/pets';
 import { swarmlingHuntAndBiteScenario } from './general/swarmlings';
 import { aiPlanHoldStabilityScenario } from './ai/ai_plan_hold_stability';
@@ -118,6 +119,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     lanterniteNestBuildScenario,
     lanterniteNestDualSpawnScenario,
     lanterniteDefenderAttackScenario,
+    lanterniteDeathBehaviorsScenario,
+    lanterniteNestOwnedNoRespawnScenario,
     lightingIlluminatesAreaScenario,
     lightDelayedFadeScenario,
     campfireDecayScenario,

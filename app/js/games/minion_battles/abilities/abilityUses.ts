@@ -50,7 +50,7 @@ export function ensureAbilityRuntimeState(unit: Unit, abilityId: string): void {
 
 const SWING_SWORD_ABILITY_ID = '0112';
 const SWING_BAT_ABILITY_ID = '0115';
-const SWING_EXTRA_USES = 2;
+export const SWING_EXTRA_USES = 2;
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
 const CRYSTAL_ROCKS_NODE_CHARGED_ROCKS = 'charged_rocks';
 const THROW_ROCK_USES_PENALTY_WITH_CHARGED = 3;

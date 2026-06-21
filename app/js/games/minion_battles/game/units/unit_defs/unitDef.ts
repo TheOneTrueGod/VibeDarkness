@@ -20,6 +20,19 @@ import type { CcResistKey } from '../../../crowdControl/ccTypes';
 import { UnitTag } from '../unitTag';
 import type { EnrageDef } from '../enrageDef';
 
+/**
+ * Non-visual behaviors executed when a unit of this type dies.
+ * These are one-off, hardcoded entries for lanternites only — not a generic pattern.
+ * Do not model new death behaviours after this.
+ */
+export type UnitDeathBehavior =
+    // Hardcoded for lanternites only — deactivates the lantern_torch_${unitId} light source on death.
+    // Not a generic pattern; do not model new death behaviours after this.
+    | { type: 'removesOwnedLightSources' }
+    // Hardcoded for lanternites only — queues a Spore Rebirth respawn via LanterniteRespawnManager.
+    // Not a generic pattern; do not model new death behaviours after this.
+    | { type: 'sporeRebirth' };
+
 type HpBarSize = 'large' | 'small' | 'hidden';
 
 function getHpBarSize(unit: Unit): HpBarSize {
@@ -116,6 +129,7 @@ export interface UnitDefEntry {
     stackSize?: number;
     perceptionRange?: number;
     onDeathVisualEffects?: VisualEffectDef[];
+    onDeathBehaviors?: UnitDeathBehavior[];
     /** Darkness vs natural beast; drives expectations for death/damage presentation and copy. */
     creatureType?: CreatureType;
     /** Short flavor text for battle UI (e.g. timeline hover). */
@@ -271,6 +285,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 260,
         creatureType: 'beast',
+        onDeathBehaviors: [
+            { type: 'removesOwnedLightSources' },
+            { type: 'sporeRebirth' },
+        ],
         uiDescription:
             'Lantern-bearing creature — pulses light twice each round (Soul Sap) and wanders patrol routes beside its nest.',
     },
