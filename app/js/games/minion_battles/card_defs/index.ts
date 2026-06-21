@@ -35,6 +35,7 @@ import { SwingSwordCard } from './0112_SwingSword/0112Ability';
 import { SwingBatCard as SwingBatPipeBatCard } from './0115_SwingBat/0115Ability';
 import { AbsorptionShieldCard } from './0113_AbsorptionShield/0113Ability';
 import { EnergyBlastCard } from './0114_EnergyBlast/0114Ability';
+import { ConeOfLightCard } from './0121_ConeOfLight/0121Ability';
 import { ImpactConversionCard } from './05_earth_core/0521_ImpactConversion/0521Ability';
 import { BedrockScavengerCard } from './05_earth_core/0522_BedrockScavenger/0522Ability';
 import { DeepResonanceCard } from './05_earth_core/0523_DeepResonance/0523Ability';
@@ -88,6 +89,7 @@ const cardDefs: CardDef[] = [
     SwingBatPipeBatCard,
     AbsorptionShieldCard,
     EnergyBlastCard,
+    ConeOfLightCard,
     ImpactConversionCard,
     BedrockScavengerCard,
     DeepResonanceCard,

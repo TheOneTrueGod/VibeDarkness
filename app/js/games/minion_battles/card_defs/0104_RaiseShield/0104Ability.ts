@@ -11,9 +11,9 @@ import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}04`;
-const MAX_USES = 3;
+const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+    { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];
 const DURATION = 1.3;
 const COOLDOWN_TIME = 0.2;

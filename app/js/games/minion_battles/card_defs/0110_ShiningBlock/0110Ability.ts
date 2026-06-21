@@ -25,16 +25,16 @@ import type { LightSource } from '../../game/lightSources/LightSource';
 import { STANDARD_SHIELD_HALF_ARC_RAD } from '../../abilities/shieldHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}10` as '0110';
-const MAX_USES = 3;
+const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+    { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];
 const DURATION = 1;
 const SHIELD_FILL_COLOR = 0x27d3c8;
 const SHIELD_STROKE_COLOR = 0x1a9d94;
 
 const RETALIATION_RANGE = 200;
-const RETALIATION_DAMAGE = 5;
+const RETALIATION_DAMAGE = 4;
 const RETALIATION_MAX_TARGETS = 3;
 const STUN_DURATION = 2;
 const CONE_FLASH_DURATION = 0.3;
@@ -144,7 +144,7 @@ export const ShiningBlockAbility = defineDirectionalShield({
     getTooltipText(_gameState?: unknown): string[] {
         return [
             'Raise your crystal shield blocking all attacks from the front',
-            'On Block: Deals {5} damage and stuns up to {3} enemies for {2} seconds.',
+            `On Block: Deals {${RETALIATION_DAMAGE}} damage and stuns up to {${RETALIATION_MAX_TARGETS}} enemies for {${STUN_DURATION}} seconds.`,
             'Nearby allies gain {2} stamina surges, {1} light charge, and heal for 5',
         ];
     },

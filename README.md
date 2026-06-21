@@ -70,3 +70,13 @@ After deploying the battle storage refactor, run this one-time migration:
 ```bash
 php backend/scripts/migrate_battle_storage.php
 ```
+
+## Deploying
+
+```bash
+npm run deploy
+```
+
+The deploy script builds the frontend, zips the production files, uploads them via SFTP, and unzips on the server.
+
+**Environment file:** `.env.deploy` must be placed **one level above this project** (i.e. in `Programming/`, not inside `VibeDarkness/`). This keeps secrets outside the repo directory entirely. Copy `.env.deploy.example` from that same `Programming/` directory and fill in your SSH details.

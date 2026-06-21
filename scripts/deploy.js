@@ -3,7 +3,9 @@
  * Deploy script: bump version, build, zip production files, upload via SFTP, unzip on server.
  * Usage: npm run deploy
  *
- * Requires `.env.deploy` (see `.env.deploy.example`).
+ * Requires `.env.deploy` placed ONE LEVEL ABOVE the project root (i.e. alongside VibeDarkness/,
+ * not inside it). This keeps secrets out of the repo directory entirely.
+ * See `.env.deploy.example` in that same parent directory for the required fields.
  */
 
 import { execSync } from 'child_process';
@@ -37,11 +39,13 @@ const DEFAULT_REMOTE_PATH = '~/public_html/darkness.jprevoe.com';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
+// .env.deploy lives one level above the project root so it is never inside the repo directory.
+const deployEnvDir = path.resolve(rootDir, '..');
 const zipPath = path.join(rootDir, DEPLOY_ZIP_NAME);
 const packageJsonPath = path.join(rootDir, 'package.json');
 
 function loadDeployEnv() {
-  const envPath = path.join(rootDir, '.env.deploy');
+  const envPath = path.join(deployEnvDir, '.env.deploy');
   if (!fs.existsSync(envPath)) {
     return {};
   }
@@ -72,7 +76,7 @@ function requireDeployConfig(env) {
   const missing = ['DEPLOY_SSH_HOST', 'DEPLOY_SSH_USER', 'DEPLOY_SSH_KEY'].filter((k) => !env[k]);
   if (missing.length > 0) {
     throw new Error(
-      `Missing ${missing.join(', ')} in .env.deploy. Copy .env.deploy.example and fill in your SSH details.`,
+      `Missing ${missing.join(', ')} in .env.deploy. Copy .env.deploy.example from the Programming/ directory (one level above VibeDarkness/) and fill in your SSH details.`,
     );
   }
   const keyPath = path.resolve(rootDir, env.DEPLOY_SSH_KEY);
@@ -84,6 +88,7 @@ function requireDeployConfig(env) {
     port: Number(env.DEPLOY_SSH_PORT || 22),
     username: env.DEPLOY_SSH_USER,
     privateKeyPath: keyPath,
+    passphrase: env.DEPLOY_SSH_PASSPHRASE || undefined,
     remotePath: env.DEPLOY_REMOTE_PATH || DEFAULT_REMOTE_PATH,
   };
 }
@@ -130,6 +135,7 @@ function sshConnect(config) {
         port: config.port,
         username: config.username,
         privateKey: fs.readFileSync(config.privateKeyPath),
+        ...(config.passphrase ? { passphrase: config.passphrase } : {}),
       });
   });
 }
@@ -247,15 +253,21 @@ async function createDeployZip() {
   });
 }
 
+const noBuild = process.argv.includes('--no-build');
+
 const deployConfig = requireDeployConfig(loadDeployEnv());
 
 bumpPackageMinorVersion();
 
-console.log('Deploy: building frontend...');
-execSync('npm run build', {
-  cwd: rootDir,
-  stdio: 'inherit',
-});
+if (noBuild) {
+  console.log('Deploy: skipping build (--no-build).');
+} else {
+  console.log('Deploy: building frontend...');
+  execSync('npm run build', {
+    cwd: rootDir,
+    stdio: 'inherit',
+  });
+}
 
 await createDeployZip();
 await uploadAndExtract(deployConfig);
