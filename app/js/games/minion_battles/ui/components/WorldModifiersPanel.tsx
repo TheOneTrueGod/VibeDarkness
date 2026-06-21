@@ -1,18 +1,40 @@
 import React from 'react';
 import type { WorldModifierDef } from '../../worldModifiers/types';
+import type { NinjutsuUIState } from '../../game/ninjutsu/NinjutsuManager';
 
 interface WorldModifiersPanelProps {
     modifiers: WorldModifierDef[];
+    ninjutsuPools?: NinjutsuUIState[] | null;
 }
 
-export default function WorldModifiersPanel({ modifiers }: WorldModifiersPanelProps) {
-    if (modifiers.length === 0) return null;
+export default function WorldModifiersPanel({ modifiers, ninjutsuPools }: WorldModifiersPanelProps) {
+    const enabledPools = ninjutsuPools?.filter(p => p.enabled) ?? [];
+    if (modifiers.length === 0 && enabledPools.length === 0) return null;
 
     return (
         <div
             className="pointer-events-auto absolute right-2 top-2 z-20 flex flex-col gap-1"
             aria-label="Active world modifiers"
         >
+            {enabledPools.map((pool) => {
+                const pct = pool.max > 0 ? (pool.current / pool.max) * 100 : 0;
+                return (
+                    <div
+                        key={pool.type}
+                        className="relative flex items-center gap-1.5 overflow-hidden rounded-md border border-purple-800/60 bg-dark-900/80 px-2 py-1 text-xs"
+                        title={`Ninjutsu (${pool.type}): ${pool.current}/${pool.max} attacks remaining`}
+                    >
+                        <div
+                            className="absolute inset-y-0 left-0 bg-purple-800/60"
+                            style={{ width: `${pct}%` }}
+                        />
+                        <span className="relative flex h-5 w-5 shrink-0 items-center justify-center font-semibold text-purple-300">
+                            {pool.current}
+                        </span>
+                        <span className="relative text-purple-200">Ninjutsu</span>
+                    </div>
+                );
+            })}
             {modifiers.map((mod) => (
                 <div
                     key={mod.id}

@@ -291,7 +291,9 @@ function findAIAbilityTarget(
 }
 
 /**
- * Try to queue one ability order. Uses pickBestAbility (priority-based). Returns true if queued.
+ * Try to queue one ability order. Uses pickBestAbility (priority-based). Returns true if queued (or deferred).
+ * When ninjutsuManager is present and the ability participates in a pool, the order is deferred to
+ * NinjutsuManager.resolveRequests() rather than queued immediately.
  */
 export function tryQueueAbilityOrder(unit: Unit, context: AIContext, candidateEnemies: Unit[]): boolean {
     const pick = pickBestAbility(unit, candidateEnemies, context);
@@ -300,12 +302,25 @@ export function tryQueueAbilityOrder(unit: Unit, context: AIContext, candidateEn
     const { ability, target } = pick;
     const resolvedTargets =
         ability.targets.length === 0 ? [] : buildResolvedTargets(ability, target);
+    const movePath = unit.pathInvalidated ? undefined : (unit.movement?.path ? [...unit.movement.path] : undefined);
+
+    const ninjutsuCfg = ability.aiSettings?.ninjutsu;
+    const mgr = context.ninjutsuManager;
+    if (mgr && !ninjutsuCfg?.ignore) {
+        const poolType = ninjutsuCfg?.type ?? 'shadow';
+        const pool = mgr.getPool(poolType);
+        if (pool?.config.enabled) {
+            mgr.registerRequest(poolType, unit, ability, resolvedTargets, movePath, context.gameTick);
+            context.emitTurnEnd(unit.id);
+            return true;
+        }
+    }
 
     context.queueOrder(context.gameTick, {
         unitId: unit.id,
         abilityId: ability.id,
         targets: resolvedTargets,
-        movePath: unit.pathInvalidated ? undefined : (unit.movement?.path ? [...unit.movement.path] : undefined),
+        movePath,
     });
     context.emitTurnEnd(unit.id);
     return true;

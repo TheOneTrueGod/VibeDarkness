@@ -7,6 +7,7 @@ import type { Unit } from '../Unit';
 import type { SpecialTile } from '../../specialTiles/SpecialTile';
 import type { BattleOrder } from '../../types';
 import type { MapSegmentPOI } from '../../../terrain/segmentSchema';
+import type { NinjutsuManager } from '../../ninjutsu/NinjutsuManager';
 
 /** Light source for AI (e.g. Torch effect, crystal tile). */
 export interface AILightSource {
@@ -55,6 +56,8 @@ export interface AIContext {
     getAbilityUsesThisRound?(unitId: string, abilityId: string): number;
     /** Map POIs available for AI targeting (e.g. nest sites for swarmlings). Optional — not all engines provide this. */
     mapPOIs?: readonly MapSegmentPOI[];
+    /** Ninjutsu pool manager for throttling enemy attacks. Absent when ninjutsu is not configured for this session. */
+    ninjutsuManager?: NinjutsuManager;
 }
 
 /** Node ID within a tree. Format: <tree_name>_<node_name> */

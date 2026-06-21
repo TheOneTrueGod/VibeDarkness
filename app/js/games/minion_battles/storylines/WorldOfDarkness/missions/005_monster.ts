@@ -7,6 +7,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_ALPHA_WOLF } from '../../../constants/enemyConstants';
@@ -154,6 +155,7 @@ export class MonsterMission extends BaseMissionDef {
     postMissionStory = POST_MISSION_STORY;
     lightLevelEnabled = true;
     globalLightLevel = 0;
+    ninjutsuPools = { shadow: NINJUTSU_DISABLED };
     /** Spawns in the back of the cave (50_50), same relative layout as prior single-column map. */
     playerSpawnPoints = [
         { col: 17 + RIGHT_SEGMENT_COL, row: 9 },

@@ -33,6 +33,7 @@ import BossFightHud from '../components/boss/BossFightHud';
 import type { BossHudSlice } from '../components/boss/BossFightHud';
 import WorldModifiersPanel from '../components/WorldModifiersPanel';
 import type { WorldModifierDef } from '../../worldModifiers/types';
+import type { NinjutsuUIState } from '../../game/ninjutsu/NinjutsuManager';
 import { getBossSpecialMoveCharges } from '../components/boss/bossSignatureHud';
 import { UnitTag } from '../../game/units/unitTag';
 import type { MessageEntry } from '../../../../components/Chat';
@@ -160,6 +161,7 @@ export default function BattlePhase({
     }
 const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [activeWorldModifiers, setActiveWorldModifiers] = useState<WorldModifierDef[]>([]);
+    const [ninjutsuPools, setNinjutsuPools] = useState<NinjutsuUIState[] | null>(null);
     const [storyPauseActive, setStoryPauseActive] = useState(false);
     const [netSyncStatus, setNetSyncStatus] = useState<BattleNetSyncTerminalStatus>('waiting_for_host');
     const [battleInitPhase, setBattleInitPhase] = useState<BattleInitPhase>('fetching_assets');
@@ -797,6 +799,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
         const id = window.setInterval(() => {
             const eng = sessionRef.current?.getEngine();
             setActiveWorldModifiers(eng ? eng.getActiveWorldModifiersForUI() : []);
+            setNinjutsuPools(eng ? eng.getNinjutsuPoolState() : null);
         }, 500);
         return () => window.clearInterval(id);
     }, []);
@@ -962,7 +965,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div ref={battleCanvasAreaRef} className="relative flex min-h-0 flex-1 flex-col">
                         <BossFightHud boss={bossHud} />
-                        <WorldModifiersPanel modifiers={activeWorldModifiers} />
+                        <WorldModifiersPanel modifiers={activeWorldModifiers} ninjutsuPools={isHost ? ninjutsuPools : null} />
                         <BattleSyncStatus
                             variant="battle"
                             isHost={isHost}

@@ -33,6 +33,7 @@ const alphaWolfCharge = new ChargeAttack({
     forbiddenTags: [UnitTag.Enraged],
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
+    aiNinjutsu: { ignore: true },
 });
 
 export const AlphaWolfChargeAbility = alphaWolfCharge;

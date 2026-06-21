@@ -89,6 +89,7 @@ export const AlphaWolfClawAbility = defineAbility({
         maxRange: HITBOX.maxRange,
         maxUsesPerRound: 2,
         priority: 10,
+        ninjutsu: { ignore: true },
     },
     movementLock: { until: ACTIVE_END },
     getTooltipText(_gameState?: unknown): string[] {

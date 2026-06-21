@@ -67,6 +67,8 @@ import { registerLateBuiltinHandlers } from '../worldModifiers/builtinHandlers';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
 import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, type UnitDefId } from './units/unit_defs/unitDef';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
+import { NinjutsuManager, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
+import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -368,6 +370,19 @@ export class GameEngine implements EngineContext {
 
     getActiveWorldModifiersForUI(): import('../worldModifiers/types').WorldModifierDef[] {
         return this.state.worldModifierManager.getActiveModifiersForUI(this.roundNumber);
+    }
+
+    /**
+     * Initialise the ninjutsu pool(s) from mission config.
+     * Call after initializeGameState; absent config defaults to NINJUTSU_DEFAULT on the 'shadow' pool.
+     */
+    initNinjutsu(poolConfigs: Partial<Record<string, NinjutsuPoolConfig>> | undefined): void {
+        const config: Partial<Record<string, NinjutsuPoolConfig>> = poolConfigs ?? { shadow: NINJUTSU_DEFAULT };
+        this.state.ninjutsuManager = new NinjutsuManager(config);
+    }
+
+    getNinjutsuPoolState(): NinjutsuUIState[] | null {
+        return this.state.ninjutsuManager?.getUIState() ?? null;
     }
 
     getWorldModifiersDebugSnapshot(): import('../worldModifiers/WorldModifierManager').WorldModifierDebugEntry[] {
@@ -1377,6 +1392,7 @@ export class GameEngine implements EngineContext {
                 this.terrainManager?.grid.hasLineOfSight(fromX, fromY, toX, toY) ?? false,
             cancelActiveAbility: (unitId, abilityId) => this.cancelActiveAbility(unitId, abilityId),
             mapPOIs: this.mapPOIs,
+            ninjutsuManager: this.state.ninjutsuManager ?? undefined,
         };
     }
 
@@ -1414,6 +1430,7 @@ export class GameEngine implements EngineContext {
                 staminaSurgeAbilityIds,
             });
             this.state.unitManager.onRoundStart(this.roundNumber, this);
+            this.state.ninjutsuManager?.onRoundStart(this.roundNumber);
             this.applyChargedRocksLightChargePulse();
             processLanternitePulseMilestone('round_start', {
                 units: this.units,

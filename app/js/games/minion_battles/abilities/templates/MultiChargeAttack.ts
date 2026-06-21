@@ -1,5 +1,5 @@
 import { AbilityBase } from '../AbilityBase';
-import type { AbilityRecoveryRule } from '../Ability';
+import type { AbilityRecoveryRule, AbilityAISettings, AbilityNinjutsuConfig } from '../Ability';
 import { AbilityPhase, type AbilityTimingInterval, activeTimingIds } from '../abilityTimings';
 import type { AbilityStatic, IAbilityPreviewGraphics } from '../Ability';
 import type { UnitTag } from '../../game/units/unitTag';
@@ -54,6 +54,8 @@ export interface MultiChargeAttackConfig {
 	recoveries?: readonly AbilityRecoveryRule[];
 	/** Apply juggernaut tag to windup/dash intervals (enemy charge pattern). */
 	juggernautDuringActive?: boolean;
+	/** Ninjutsu pool config for this ability. Use `{ ignore: true }` for boss abilities that bypass the pool. */
+	aiNinjutsu?: AbilityNinjutsuConfig;
 	/**
 	 * When true (default), `getRange` adds caster.radius to baseMaxRange.
 	 * Triple Charge historically omits radius in getRange only.
@@ -80,7 +82,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 	readonly prefireTime: number;
 	readonly abilityTimings: AbilityTimingInterval[];
 	readonly targets: TargetDef[];
-	readonly aiSettings: { minRange: number; maxRange: number };
+	readonly aiSettings: AbilityAISettings;
 	readonly renderTargetingPreview: AbilityStatic['renderTargetingPreview'];
 	readonly requiredTags?: readonly UnitTag[];
 	readonly forbiddenTags?: readonly UnitTag[];
@@ -149,7 +151,11 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 		this.abilityTimings = timings;
 		this.dashPhases = phases;
 		this.targets = [{ type: 'unit', label: 'Target enemy' }] as TargetDef[];
-		this.aiSettings = { minRange: 0, maxRange: config.aiMaxRange };
+		this.aiSettings = {
+			minRange: 0,
+			maxRange: config.aiMaxRange,
+			...(config.aiNinjutsu ? { ninjutsu: config.aiNinjutsu } : {}),
+		};
 		this.renderTargetingPreview = createUnitTargetPreview({
 			getMinRange: () => 0,
 			getMaxRange: (caster: Unit) => config.baseMaxRange + caster.radius,

@@ -9,6 +9,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type {
     BattleObjectiveDef,
     LevelEvent,
@@ -238,6 +239,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     postMissionStory = POST_MISSION_STORY;
     lightLevelEnabled = true;
     globalLightLevel = 0;
+    ninjutsuPools = { shadow: NINJUTSU_DISABLED };
     playerSpawnPoints = [
         { col: 10, row: 9 },
         { col: 11, row: 9 },

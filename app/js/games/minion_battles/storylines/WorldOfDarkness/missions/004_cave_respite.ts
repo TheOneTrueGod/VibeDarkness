@@ -4,6 +4,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { PostMissionChoiceResolveParams } from '../../types';
 import type { PostMissionStoryDef, StoryChoiceAction, StoryChoiceOptionRow } from '../../storyTypes';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../../../researchTrees/trees/crystal_rocks';
@@ -252,6 +253,7 @@ export class CaveRespiteMission extends BaseMissionDef {
     postMissionStory = POST_MISSION_STORY;
     skipBattle = true;
     lightLevelEnabled = false;
+    ninjutsuPools = { shadow: NINJUTSU_DISABLED };
 }
 
 export const CAVE_RESPITE = new CaveRespiteMission();

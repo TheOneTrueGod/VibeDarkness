@@ -22,6 +22,7 @@ import type { LightTileGrid } from './lightTileGrid/LightTileGrid';
 import { GroupManager } from './units/unitAI/groups/GroupManager';
 import { InterruptSystem } from './units/unitAI/plans/InterruptSystem';
 import { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
+import type { NinjutsuManager } from './ninjutsu/NinjutsuManager';
 
 export class GameState {
 
@@ -62,6 +63,9 @@ export class GameState {
     readonly worldModifierManager: WorldModifierManager;
 
     terrainManager: TerrainManager | null = null;
+
+    /** Global attack-budget manager. Null when ninjutsu is not configured for this session. */
+    ninjutsuManager: NinjutsuManager | null = null;
 
     /** Stored per-tile light levels, updated every LIGHT_TICK_INTERVAL engine ticks. */
     lightTileGrid: LightTileGrid | null = null;

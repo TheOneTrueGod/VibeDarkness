@@ -6,7 +6,7 @@
  * The produced ability carries the 'free' tag so it is never consumed.
  */
 
-import type { AbilityStatic } from '../Ability';
+import type { AbilityStatic, AbilityNinjutsuConfig } from '../Ability';
 import type { CardDef } from '../../card_defs/types';
 import { defineMeleeStrike } from './defineMeleeStrike';
 import { BASIC_ATTACK_LOCK_ON_EXTRA, BASIC_ATTACK_MAX_LOCK_ON_EXTRA } from '../targetLockTracking';
@@ -35,6 +35,8 @@ export interface BasicAttackConfig {
     telegraphColor?: number;
     /** Telegraph animation style. Default 'shrinkingCircle'. */
     telegraphKind?: 'shrinkingCircle' | 'growingLine';
+    /** Ninjutsu pool config. Use `{ ignore: true }` for boss abilities that bypass the pool. */
+    aiNinjutsu?: AbilityNinjutsuConfig;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +71,7 @@ class BasicAttackBuilderInstance {
             cooldownDuration: config.cooldownDuration ?? 1.1,
             aiPriority: config.aiPriority ?? 0,
             aiMaxRange: config.aiMaxRange,
+            aiNinjutsu: config.aiNinjutsu,
             lockOnExtra: BASIC_ATTACK_LOCK_ON_EXTRA,
             maxLockOnExtra: BASIC_ATTACK_MAX_LOCK_ON_EXTRA,
             telegraph: config.telegraphKind === 'growingLine'

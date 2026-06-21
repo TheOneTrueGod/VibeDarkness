@@ -71,6 +71,21 @@ After completing the step, updating the plan file, and passing verification, spa
 
 Use whatever subagent/task tool is available in your environment. If no such tool is available, end your turn and give the user that exact prompt to paste into a new chat.
 
+## Orchestrator mode
+
+When the user says **"orchestrate the plan"** or **"kick off a subagent for each step"**, the invoking agent acts as a coordinator rather than an implementer:
+
+1. **Establish a baseline.** Before spawning any subagent, run `npx vitest run` and note any pre-existing failures. Pass this list in every subagent prompt so they aren't blocked by inherited red tests.
+
+2. **Spawn one subagent per step** with this prompt structure:
+   > Read `.claude/skills/jp-implement-plan/SKILL.md` and follow it for the plan at `<path>`. You are handling **Step N only**. Steps 1–(N-1) are already complete (all items checked). After completing Step N and checking off all its items, do NOT hand off to another agent — stop and report what you did. [Include pre-existing failure list if any.]
+
+3. **Verify after each step.** Read the plan file and confirm the checklist items are marked `[x]` before spawning the next subagent. If a step's changes look wrong, investigate before proceeding.
+
+4. **Report to the user** once all steps are complete (or immediately if a step fails).
+
+The "one step per agent" rule still applies — each subagent implements exactly one step. The orchestrator just manages the chain instead of the plan handing off automatically.
+
 ## Completion
 
 When no unchecked items remain across all steps:

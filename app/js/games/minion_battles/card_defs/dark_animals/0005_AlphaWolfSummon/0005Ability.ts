@@ -94,6 +94,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
         maxRange: 0,
         maxUsesPerRound: 1,
         priority: 20,
+        ninjutsu: { ignore: true },
     },
 
     getTooltipText(_gameState?: unknown): string[] {

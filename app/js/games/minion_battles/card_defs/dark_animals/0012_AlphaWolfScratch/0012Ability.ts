@@ -28,6 +28,7 @@ const { ability: AlphaWolfScratchAbility, card: AlphaWolfScratchCard } = BasicAt
     // Full hit range from caster centre = line 30 + thickness 20 + unit radius 20 = 70.
     aiMaxRange: 70,
     aiPriority: -10,
+    aiNinjutsu: { ignore: true },
 }).build();
 
 export { AlphaWolfScratchAbility, AlphaWolfScratchCard };

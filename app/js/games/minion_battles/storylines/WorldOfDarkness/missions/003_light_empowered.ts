@@ -6,6 +6,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF, ENEMY_BOAR, SLIME } from '../../../constants/enemyConstants';
@@ -217,6 +218,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	postMissionStory = POST_MISSION_STORY;
 	lightLevelEnabled = true;
 	globalLightLevel = 0;
+	ninjutsuPools = { shadow: NINJUTSU_DISABLED };
 	playerSpawnPoints = [
 		{ col: 17, row: 31 },
 		{ col: 18, row: 31 },

@@ -89,6 +89,18 @@ export type AbilityStateEntry =
     | { state: AbilityState.MOVEMENT_PENALTY; data: { amount: number } }
     | { state: AbilityState.IFRAMES; data?: Record<string, never> };
 
+/** Ninjutsu pool config for a specific ability. Controls how (or whether) the ability draws from the global attack budget. */
+export interface AbilityNinjutsuConfig {
+    /** If true, this ability bypasses the ninjutsu pool entirely (boss specials, defensive abilities). */
+    ignore?: boolean;
+    /** Pool units consumed when granted. Default: 1. */
+    cost?: number;
+    /** Post-grant delay as a fraction of ROUND_DURATION. Overrides the mission default when set. */
+    overrideDelay?: number;
+    /** Which named pool to draw from. Defaults to 'shadow'. */
+    type?: string;
+}
+
 /** AI-specific settings that control when the AI will use this ability. */
 export interface AbilityAISettings {
     /** Minimum distance (px) to target for the AI to consider using this ability. */
@@ -99,6 +111,8 @@ export interface AbilityAISettings {
     maxUsesPerRound?: number;
     /** Priority when multiple abilities can be used. Higher = preferred. Default 0. */
     priority?: number;
+    /** Ninjutsu pool configuration. Absent = participate in default 'shadow' pool with cost 1. */
+    ninjutsu?: AbilityNinjutsuConfig;
 }
 
 export type AbilityKeyword = 'nestedCard';

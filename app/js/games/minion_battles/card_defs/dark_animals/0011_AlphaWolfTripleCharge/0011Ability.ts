@@ -37,6 +37,7 @@ const alphaWolfTripleCharge = new MultiChargeAttack({
 	recoveries: RECOVERIES,
 	juggernautDuringActive: true,
 	rangeIncludesCasterRadius: false,
+	aiNinjutsu: { ignore: true },
 });
 
 export const AlphaWolfTripleChargeAbility = alphaWolfTripleCharge;

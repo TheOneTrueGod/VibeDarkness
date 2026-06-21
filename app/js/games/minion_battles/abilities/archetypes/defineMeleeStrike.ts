@@ -20,6 +20,7 @@ import type {
     AbilityStatic,
     AbilityTelegraph,
     AbilityEventType,
+    AbilityNinjutsuConfig,
 } from '../Ability';
 import type { AbilityEventRule } from '../events/AbilityEventRule';
 import type { CastBehaviourTickContext } from '../castBehaviourTypes';
@@ -119,6 +120,8 @@ export interface MeleeStrikeConfig {
      * unit radius padding not baked into the hitbox).
      */
     aiMaxRange?: number;
+    /** Ninjutsu pool config. Use `{ ignore: true }` for boss abilities that bypass the pool. */
+    aiNinjutsu?: AbilityNinjutsuConfig;
 
     // ---- Tooltip ----
     getTooltipText: (gameState?: unknown) => string[];
@@ -192,7 +195,12 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
 
     // Build AI settings.
     const aiMaxRange = config.aiMaxRange ?? hitbox.maxRange;
-    const aiSettings = { minRange: 0, maxRange: aiMaxRange, priority: config.aiPriority };
+    const aiSettings = {
+        minRange: 0,
+        maxRange: aiMaxRange,
+        priority: config.aiPriority,
+        ...(config.aiNinjutsu ? { ninjutsu: config.aiNinjutsu } : {}),
+    };
 
     // Assemble the full input for defineAbility.
     const defInput: AbilityDefInput = {

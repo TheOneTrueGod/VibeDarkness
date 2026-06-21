@@ -17,6 +17,7 @@ import type {
     BattleObjectiveDef,
 } from './types';
 import type { WorldModifierDef } from '../worldModifiers/types';
+import type { NinjutsuPoolConfig } from '../game/ninjutsu/ninjutsuConfig';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
@@ -115,6 +116,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     battleObjectives?: BattleObjectiveDef[];
     /** Optional world modifiers active for this mission (merged with builtins by BattleSession). */
     worldModifiers?: WorldModifierDef[];
+    /** Per-pool ninjutsu configuration. Absent = NINJUTSU_DEFAULT for the 'shadow' pool. */
+    ninjutsuPools?: Partial<Record<string, NinjutsuPoolConfig>>;
     /** Optional special tiles (Campfire, Crystal, etc.) placed on the map. */
     specialTiles?: import('./types').SpecialTilePlacement[];
     /** Optional grid-based player spawn points. */

@@ -6,6 +6,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { NINJUTSU_TIER_1 } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, SLIME } from '../../../constants/enemyConstants';
@@ -198,6 +199,7 @@ export class CrystalCorruptionMission extends BaseMissionDef {
     specialTiles = SPECIAL_TILES;
     lightLevelEnabled = true;
     globalLightLevel = 0;
+    ninjutsuPools = { shadow: NINJUTSU_TIER_1 };
     preMissionStory = PRE_MISSION_STORY;
     postMissionStory = POST_MISSION_STORY;
     battleObjectives = [

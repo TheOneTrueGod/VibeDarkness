@@ -10,6 +10,7 @@ import { BaseMissionDef } from '../../BaseMissionDef';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
+import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -241,6 +242,7 @@ export class DarkAwakeningMission extends BaseMissionDef {
     aiController = 'stateBased' as const;
     preMissionStory = PRE_MISSION_STORY;
     lightLevelEnabled = true;
+    ninjutsuPools = { shadow: NINJUTSU_DISABLED };
     globalLightLevel = 0;
     /** Player spawn points: eight positions around the campfire in a square. */
     playerSpawnPoints = [

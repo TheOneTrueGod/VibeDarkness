@@ -272,6 +272,15 @@ export class UnitManager {
             if (tree) runUnitAI(unit, tree, aiContext);
             unit.pendingInterrupts.clear();
         }
+        // Phase 3b: resolve deferred ninjutsu attack grants — units that registered requests in Phase 3
+        // have their orders queued here, ordered by ability priority with ties broken randomly.
+        if (aiContext.ninjutsuManager) {
+            aiContext.ninjutsuManager.resolveRequests(
+                engine.gameTime,
+                (tick, order) => aiContext.queueOrder(tick, order),
+                (min, max) => engine.generateRandomInteger(min, max),
+            );
+        }
         // Phase 4: downgrade dead unit targets to pixel targets at last known position.
         // Runs after all ticks (so kills from any source are captured) but before
         // cleanupInactive removes dead units from engine.units.

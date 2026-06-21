@@ -1,5 +1,5 @@
 import { AbilityBase } from '../AbilityBase';
-import type { AbilityRecoveryRule } from '../Ability';
+import type { AbilityRecoveryRule, AbilityAISettings, AbilityNinjutsuConfig } from '../Ability';
 import { AbilityPhase, type AbilityTimingInterval, activeTimingIds } from '../abilityTimings';
 import type { AbilityStatic, IAbilityPreviewGraphics, AttackBlockedInfo } from '../Ability';
 import type { UnitTag } from '../../game/units/unitTag';
@@ -52,6 +52,8 @@ export interface ChargeAttackConfig {
 	forbiddenTags?: readonly UnitTag[];
 	maxUses?: number;
 	recoveries?: readonly AbilityRecoveryRule[];
+	/** Ninjutsu pool config for this ability. Use `{ ignore: true }` for boss abilities that bypass the pool. */
+	aiNinjutsu?: AbilityNinjutsuConfig;
 }
 
 export class ChargeAttack extends AbilityBase<ChargeNote> {
@@ -63,7 +65,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	readonly prefireTime: number;
 	readonly abilityTimings: AbilityTimingInterval[];
 	readonly targets: TargetDef[];
-	readonly aiSettings: { minRange: number; maxRange: number };
+	readonly aiSettings: AbilityAISettings;
 	readonly renderTargetingPreview: AbilityStatic['renderTargetingPreview'];
 	readonly requiredTags?: readonly UnitTag[];
 	readonly forbiddenTags?: readonly UnitTag[];
@@ -92,7 +94,11 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			{ id: 'cooldown', start: w + l, end: w + l + cd, abilityPhase: AbilityPhase.Cooldown },
 		];
 		this.targets = [{ type: 'unit', label: 'Target enemy' }] as TargetDef[];
-		this.aiSettings = { minRange: 0, maxRange: config.aiMaxRange };
+		this.aiSettings = {
+			minRange: 0,
+			maxRange: config.aiMaxRange,
+			...(config.aiNinjutsu ? { ninjutsu: config.aiNinjutsu } : {}),
+		};
 		this.lunge = new LungeMovement({
 			maxRange: config.baseMaxRange,
 			lungeDuration: l,

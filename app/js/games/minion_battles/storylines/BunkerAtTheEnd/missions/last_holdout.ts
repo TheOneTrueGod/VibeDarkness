@@ -8,6 +8,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { NINJUTSU_TIER_1 } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import { darkSwarmModifier } from '../../../worldModifiers/presets';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -163,6 +164,7 @@ export class LastHoldoutMission extends BaseMissionDef {
     aiController = 'stateBased' as const;
     lightLevelEnabled = true;
     globalLightLevel = 0;
+    ninjutsuPools = { shadow: NINJUTSU_TIER_1 };
     worldModifiers = [darkSwarmModifier()];
     /** Player spawn points: eight positions inside the C-shaped bunker. */
     playerSpawnPoints = [
