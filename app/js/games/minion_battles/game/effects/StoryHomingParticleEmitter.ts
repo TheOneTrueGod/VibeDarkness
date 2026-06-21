@@ -80,7 +80,6 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
                 effectData: { imageKey: 'darkBlob' },
             });
             produced.push(this.currentEffect);
-            console.log(`[WolfBoss] Homing particle spawned at (${bx.toFixed(1)}, ${by.toFixed(1)}) → target (${tx.toFixed(1)}, ${ty.toFixed(1)}) unit:${this.targetUnitId ?? 'none'}`);
         } else if (this.currentEffect.active) {
             // Keep the effect's world position synced to the current bezier position.
             this.currentEffect.x = bx;
