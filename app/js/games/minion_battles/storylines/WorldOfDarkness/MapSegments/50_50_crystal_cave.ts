@@ -60,6 +60,13 @@ export const CRYSTAL_TILE_DEFAULTS: Omit<SpecialTilePlacement, 'col' | 'row'> = 
     protectRadius: 3,
 };
 
+/** Dark-crystal variant: corrupted appearance, no protective aura. */
+export const DARK_CRYSTAL_TILE_DEFAULTS: Omit<SpecialTilePlacement, 'col' | 'row'> = {
+    defId: 'DarkCrystal',
+    emitsLight: { lightAmount: 3, radius: 2 },
+    colorFilter: { color: 0x6633aa, alpha: 0.3, filterRadius: 3 },
+};
+
 const CRYSTAL_POSITIONS_ORDERED = [
     CRYSTAL_POINTS.crystal_1,
     CRYSTAL_POINTS.crystal_2,
@@ -76,6 +83,17 @@ const CRYSTAL_POSITIONS_ORDERED = [
 export function crystalSpecialTilesAt(colOffset: number, rowOffset = 0): SpecialTilePlacement[] {
     return CRYSTAL_POSITIONS_ORDERED.map(({ col, row }) => ({
         ...CRYSTAL_TILE_DEFAULTS,
+        col: col + colOffset,
+        row: row + rowOffset,
+    }));
+}
+
+/**
+ * Dark-crystal variant of the cave crystal placements: corrupted appearance, no protective aura.
+ */
+export function darkCrystalSpecialTilesAt(colOffset: number, rowOffset = 0): SpecialTilePlacement[] {
+    return CRYSTAL_POSITIONS_ORDERED.map(({ col, row }) => ({
+        ...DARK_CRYSTAL_TILE_DEFAULTS,
         col: col + colOffset,
         row: row + rowOffset,
     }));

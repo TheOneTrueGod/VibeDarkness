@@ -84,6 +84,8 @@ export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
         const texture = context.getCharacterTexture?.(key) ?? Texture.EMPTY;
         const root = new Container();
         root.label = 'storyRemnantRoot';
+        const shake = new Container();
+        shake.label = 'storyRemnantShake';
         const base = new Sprite(texture);
         base.anchor.set(0.5, 0.5);
         base.width = 42;
@@ -97,22 +99,24 @@ export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
         tint.tint = DARK_CREATURE_CORRUPTION_TINT;
         tint.alpha = DARK_CREATURE_ICON_TINT_ALPHA;
         tint.label = 'storyRemnantTint';
-        root.addChild(base, tint);
+        shake.addChild(base, tint);
+        root.addChild(shake);
         return root;
     },
     updateVisual(visual: Container, effect: Effect, context: IEffectRenderContext): void {
         const data = effect.effectData as { remnantCharacterKey?: string; shakeFrequencyHz?: number; shakeAmplitudePx?: number };
         const key = data.remnantCharacterKey ?? 'alpha_wolf';
         const tex = context.getCharacterTexture?.(key);
-        const base = visual.children.find((c) => c.label === 'storyRemnantBase') as Sprite | undefined;
-        const tint = visual.children.find((c) => c.label === 'storyRemnantTint') as Sprite | undefined;
+        const shake = visual.children.find((c) => c.label === 'storyRemnantShake') as Container | undefined;
+        const base = shake?.children.find((c) => c.label === 'storyRemnantBase') as Sprite | undefined;
+        const tint = shake?.children.find((c) => c.label === 'storyRemnantTint') as Sprite | undefined;
         if (tex && base && base.texture !== tex) {
             base.texture = tex;
             if (tint) tint.texture = tex;
         }
         const hz = data.shakeFrequencyHz ?? 3.5;
         const amp = data.shakeAmplitudePx ?? 4;
-        visual.x = Math.sin(effect.elapsed * Math.PI * 2 * hz) * amp;
+        if (shake) shake.x = Math.sin(effect.elapsed * Math.PI * 2 * hz) * amp;
         visual.alpha = Math.max(0, 1 - Math.max(0, effect.progress - 0.9) / 0.1);
     },
 };

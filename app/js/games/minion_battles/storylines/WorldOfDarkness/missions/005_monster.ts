@@ -19,7 +19,7 @@ import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 import {
     MAP_SEGMENT_50_50_CRYSTAL_CAVE,
     CAVE_CAMPFIRE,
-    crystalSpecialTilesAt,
+    darkCrystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
 
 const SEGMENT_COLS = 22;
@@ -102,7 +102,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         hp: 5,
         emitsLight: { lightAmount: 10, radius: 8 },
     },
-    ...crystalSpecialTilesAt(RIGHT_SEGMENT_COL),
+    ...darkCrystalSpecialTilesAt(RIGHT_SEGMENT_COL),
 ];
 
 const PRE_MISSION_STORY: PreMissionStoryDef = {

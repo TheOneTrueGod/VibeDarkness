@@ -106,6 +106,7 @@ export class ProjectileRenderer {
             anim.anchor.set(0.5, 0.5);
             anim.animationSpeed = (def.fps ?? 8) / 60;
             anim.zIndex = Z_PROJECTILES;
+            if (def.scale !== undefined) anim.scale.set(def.scale);
             anim.play();
             this.projectileVisuals.set(proj.id, anim);
             this.gameContainer.addChild(anim);
