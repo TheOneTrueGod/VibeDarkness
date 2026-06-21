@@ -38,7 +38,7 @@ export default function WorldModifiersPanel({ modifiers, ninjutsuPools }: WorldM
             {modifiers.map((mod) => (
                 <div
                     key={mod.id}
-                    className="flex items-center gap-1.5 rounded-md border border-purple-800/60 bg-dark-900/80 px-2 py-1 text-xs text-gray-200"
+                    className="flex items-center gap-1.5 rounded-md border border-purple-700/60 bg-purple-950/90 px-2 py-1 text-xs text-gray-200"
                     title={mod.description}
                 >
                     <span
