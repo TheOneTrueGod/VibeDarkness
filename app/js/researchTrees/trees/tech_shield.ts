@@ -43,8 +43,8 @@ export const techShieldTree: ResearchTreeDef = {
         },
         {
             id: 'throwing_crystal_shield',
-            title: 'Shooting Shield',
-            description: 'Convert shield into a ranged weapon.',
+            title: 'Charged Shield',
+            description: 'Learn how to store the energy from incoming blows... and redirect it.',
             order: 20,
             tier: 3,
             position: { x: 230, y: 240 },

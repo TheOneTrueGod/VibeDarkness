@@ -1,7 +1,7 @@
 /**
  * Shining Block - Crystal shield variant. Hold a shield for 1s in a direction.
  * Same blocking arc as Raise Shield. On first block: flash retaliation in a cone
- * toward the attacker - 5 damage to up to 3 enemies, stun 2s, ConeFlash effect.
+ * toward the aim direction - 4 damage to up to 3 enemies, stun 2s, ConeFlash effect.
  */
 
 import { AbilityEventType } from '../../abilities/Ability';
@@ -15,7 +15,6 @@ import { Effect } from '../../game/effects/Effect';
 import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
 import { areEnemies } from '../../game/teams';
 import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
-import { TECH_SHIELD_NODE_STRENGTHENING_LIGHT, TECH_SHIELD_TREE_ID } from '../../../../researchTrees/trees/tech_shield';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import type { AbilityEventRuntimeContext } from '../../abilities/events/AbilityEventRuntime';
 import type { Unit } from '../../game/units/Unit';
@@ -37,8 +36,6 @@ const RETALIATION_DAMAGE = 4;
 const RETALIATION_MAX_TARGETS = 3;
 const STUN_DURATION = 2;
 const CONE_FLASH_DURATION = 0.3;
-const STRENGTHENING_LIGHT_HEAL_RADIUS = 50;
-const STRENGTHENING_LIGHT_HEAL_AMOUNT = 5;
 
 const SHINING_BLOCK_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -104,16 +101,6 @@ function executeShiningBlockRetaliation(engine: unknown, defender: Unit, aimPos:
     eng.addLightSource(createCrystalLightEffect(defender.x, defender.y));
 }
 
-function applyStrengtheningLightHeal(engine: unknown, defender: Unit): void {
-    const eng = engine as { units: Unit[] };
-    for (const unit of eng.units) {
-        if (!unit.isAlive()) continue;
-        if (areEnemies(unit.teamId, defender.teamId)) continue;
-        if (Math.hypot(unit.x - defender.x, unit.y - defender.y) > STRENGTHENING_LIGHT_HEAL_RADIUS) continue;
-        unit.hp = Math.min(unit.maxHp, unit.hp + STRENGTHENING_LIGHT_HEAL_AMOUNT);
-    }
-}
-
 function grantLightChargesToNearbyAllies(engine: unknown, defender: Unit): void {
     const eng = engine as { units: Unit[]; generateRandomInteger(min: number, max: number): number };
     for (const unit of eng.units) {
@@ -140,7 +127,7 @@ export const ShiningBlockAbility = defineDirectionalShield({
         return [
             'Raise your crystal shield blocking all attacks from the front',
             `On Block: Deals {${RETALIATION_DAMAGE}} damage and stuns up to {${RETALIATION_MAX_TARGETS}} enemies for {${STUN_DURATION}} seconds.`,
-            'Nearby allies gain {2} stamina surges, {1} light charge, and heal for 5',
+            'Nearby allies gain {2} stamina surges and {1} light charge',
         ];
     },
 
@@ -168,23 +155,6 @@ export const ShiningBlockAbility = defineDirectionalShield({
                     },
                 ],
             },
-            {
-                maxTriggersPerCast: 1,
-                conditions: [
-                    {
-                        type: 'casterHasResearchNode',
-                        treeId: TECH_SHIELD_TREE_ID,
-                        nodeId: TECH_SHIELD_NODE_STRENGTHENING_LIGHT,
-                    },
-                ],
-                effects: [
-                    {
-                        type: 'custom',
-                        effectId: 'shiningBlockHeal',
-                        comment: 'Heal allies within 50px for 5 hp.',
-                    },
-                ],
-            },
         ],
     },
 
@@ -198,10 +168,6 @@ export const ShiningBlockAbility = defineDirectionalShield({
             const aimPos = c.targets[0]?.position;
             if (!aimPos) return;
             executeShiningBlockRetaliation(c.engine, c.caster, aimPos);
-        },
-        shiningBlockHeal: (_params, ctx) => {
-            const c = ctx as AbilityEventRuntimeContext;
-            applyStrengtheningLightHeal(c.engine, c.caster);
         },
     },
 });

@@ -11,6 +11,7 @@ import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { STUNNED_BUFF_TYPE } from '../../buffs/StunnedBuff';
 import { BLEED_BUFF_TYPE } from '../../buffs/BleedBuff';
+import { EXPOSED_BUFF_TYPE } from '../../buffs/ExposedBuff';
 import { type CardDef } from '../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}18`;
@@ -68,7 +69,7 @@ export const SneakyPunchAbility = defineMeleeStrike({
     movementLockUntil: 0.55,
 
     onDamage(ctx, unit) {
-        const isVulnerable = unit.hasBuff(STUNNED_BUFF_TYPE) || unit.hasBuff(BLEED_BUFF_TYPE);
+        const isVulnerable = unit.hasBuff(STUNNED_BUFF_TYPE) || unit.hasBuff(BLEED_BUFF_TYPE) || unit.hasBuff(EXPOSED_BUFF_TYPE);
         if (isVulnerable) {
             unit.takeDamage(BONUS_DAMAGE, ctx.caster.id, ctx.engine.eventBus);
             ctx.engine.addEffect(new Effect({
@@ -83,7 +84,7 @@ export const SneakyPunchAbility = defineMeleeStrike({
     getTooltipText(): string[] {
         return [
             `Hit {1} enemy for {${BASE_DAMAGE}} damage`,
-            `+{${BONUS_DAMAGE}} bonus damage vs stunned or {bleeding} enemies`,
+            `+{${BONUS_DAMAGE}} bonus damage vs stunned, {bleeding}, or {exposed} enemies`,
         ];
     },
 });

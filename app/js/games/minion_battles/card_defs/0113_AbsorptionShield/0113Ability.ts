@@ -4,8 +4,10 @@ import { defineDirectionalShield } from '../../abilities/archetypes/defineDirect
 import { type CardDef } from '../types';
 
 const CARD_ID = '0113';
-const MAX_USES = 1;
-const RECOVERIES: AbilityRecoveryRule[] = [];
+const MAX_USES = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 2 },
+];
 const DURATION = 1.5;
 const SHIELD_FILL_COLOR = 0x7de2f5;
 const SHIELD_STROKE_COLOR = 0x35a7c1;

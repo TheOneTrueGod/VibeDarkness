@@ -15,6 +15,8 @@ export interface CoreSlotLayout {
 export interface ItemDef {
     id: string;
     name: string;
+    /** Short flavour description shown in the item tooltip or character editor. */
+    description?: string;
     /** Slots this item can fill (e.g. 'weapon'). Core defines how many of each exist. */
     slots: EquipmentSlotType[];
     /** Ability card IDs granted when this item is equipped. */

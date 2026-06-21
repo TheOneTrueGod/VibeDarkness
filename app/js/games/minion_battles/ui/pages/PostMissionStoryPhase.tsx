@@ -448,14 +448,11 @@ export default function PostMissionStoryPhase({
                                         <div className="space-y-3">
                                             {postMissionChoiceOptions.map((opt) => {
                                                 const resolvedOption = resolveChoiceOption(opt);
-                                                const showPlaceholderText =
-                                                    resolvedOption.disabled &&
-                                                    (resolvedOption.disabledLabel ?? '<Not Implemented>');
+                                                if (resolvedOption.disabled) return null;
                                                 return (
                                                     <button
                                                         key={opt.id}
                                                         type="button"
-                                                        disabled={resolvedOption.disabled}
                                                         onClick={() =>
                                                             handleChoice(
                                                                 currentPhrase.choiceId,
@@ -464,25 +461,15 @@ export default function PostMissionStoryPhase({
                                                                 resolvedOption
                                                             )
                                                         }
-                                                        className={`block w-full text-left px-6 py-4 rounded-lg border-2 transition-colors text-lg flex flex-col gap-2 ${
-                                                            resolvedOption.disabled
-                                                                ? 'border-border-custom bg-surface/50 text-gray-400 cursor-not-allowed'
-                                                                : 'border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 text-white'
-                                                        }`}
+                                                        className="block w-full text-left px-6 py-4 rounded-lg border-2 transition-colors text-lg flex flex-col gap-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 text-white"
                                                     >
                                                         <span className="text-lg font-medium text-white">
                                                             {opt.loreTitle ?? opt.label}
                                                         </span>
-                                                        {showPlaceholderText ? (
-                                                            <span className="text-sm text-zinc-500 leading-snug">
-                                                                {showPlaceholderText}
+                                                        {opt.loreDescription && (
+                                                            <span className="text-sm text-zinc-400 leading-snug">
+                                                                {opt.loreDescription}
                                                             </span>
-                                                        ) : (
-                                                            opt.loreDescription && (
-                                                                <span className="text-sm text-zinc-400 leading-snug">
-                                                                    {opt.loreDescription}
-                                                                </span>
-                                                            )
                                                         )}
                                                         {resolvedOption.researchReward && (
                                                             <div className="pt-1 flex justify-start">

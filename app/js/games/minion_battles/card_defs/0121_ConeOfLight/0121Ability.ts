@@ -13,19 +13,19 @@ import { areEnemies } from '../../game/teams';
 import { drawConeSlice } from '../../abilities/previewHelpers';
 
 const CARD_ID = '0121';
-const MAX_USES = 1;
+const MAX_USES = 2;
 const STARTING_USES = 0;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'energyCharge', chargesPerRecovery: 3, usesRecovered: 1 },
 ];
-const CONE_RANGE = 200;
-const CONE_HALF_ANGLE_RAD = STANDARD_SHIELD_HALF_ARC_RAD;
+const CONE_RANGE = 220;
+const CONE_HALF_ANGLE_RAD = STANDARD_SHIELD_HALF_ARC_RAD / 2;
 const DAMAGE = 18;
 const MAX_TARGETS = 6;
 const STUN_DURATION = 2;
 const CONE_FLASH_DURATION = 0.3;
-const PREVIEW_FILL_COLOR = 0xffe066;
-const PREVIEW_STROKE_COLOR = 0xffd700;
+const PREVIEW_FILL_COLOR = 0xa0a0a0;
+const PREVIEW_STROKE_COLOR = 0x505050;
 
 class ConeOfLightHitboxSpec extends HitboxSpec {
     get maxRange(): number { return CONE_RANGE; }
@@ -170,7 +170,7 @@ export const ConeOfLightAbility: AbilityStatic = {
     getTooltipText(): string[] {
         return [
             'Release a blinding cone of light',
-            `Deals {${DAMAGE}} damage to up to {${MAX_TARGETS}} enemies in a {120}° arc`,
+            `Deals {${DAMAGE}} damage to up to {${MAX_TARGETS}} enemies in a {60}° arc`,
             `Stuns hit enemies for {${STUN_DURATION}} seconds`,
         ];
     },

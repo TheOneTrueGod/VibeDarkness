@@ -125,7 +125,7 @@ function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, st
         return withChip([
             {
                 id: NODE_THROWING_CRYSTAL_SHIELD,
-                label: 'Shooting Shield',
+                label: 'Charged Shield',
                 loreTitle: 'Crystal Bolt',
                 loreDescription:
                     "Lean into the shield's new geometry—let a shard answer the dark at range.",
