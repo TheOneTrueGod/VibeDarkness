@@ -51,7 +51,6 @@ const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
     thornling_nest: ENEMY_THORNLING_NEST,
     ally_thornling: ALLY_THORNLING,
 };
-import { getLightGrid } from '../LightGrid';
 
 const ROUND_DURATION = 10;
 
@@ -193,23 +192,6 @@ export class LevelEventManager {
 
         const occupiedCells = new Set<string>();
 
-        let lightGrid: number[][] | null = null;
-        const needsDarkness = spawns.some(
-            (entry) =>
-                (entry.spawnBehaviour ?? 'edgeOfMap') === 'darkness' ||
-                ((entry.spawnBehaviour ?? 'edgeOfMap') === 'closestEnemySpawnPoint' &&
-                    entry.enemySpawnPointConfig?.inDarkness === true) ||
-                ((entry.spawnBehaviour ?? 'edgeOfMap') === 'closest' &&
-                    entry.closestConfig?.inDarkness === true),
-        );
-        if (needsDarkness) {
-            if (!this.ctx.lightLevelEnabled) {
-                console.error('spawnWave: spawnBehaviour "darkness" requested but light system is disabled; skipping darkness spawns.');
-            } else {
-                lightGrid = getLightGrid(this.ctx.globalLightLevel, width, height, this.ctx.getAllLightSources());
-            }
-        }
-
         const edgeEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
         const otherEntries: {
             base: EnemySpawnDef;
@@ -338,8 +320,7 @@ export class LevelEventManager {
                     if (!terrainManager.isPassable(x, y)) continue;
 
                     if (behaviour === 'darkness') {
-                        if (!lightGrid) continue;
-                        const level = lightGrid[row]?.[col];
+                        const level = this.ctx.getLightAt(col, row);
                         if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
                     }
 
@@ -364,8 +345,8 @@ export class LevelEventManager {
         };
 
         for (const { base, entry, behaviour, count } of otherEntries) {
-            if (behaviour === 'darkness' && (!this.ctx.lightLevelEnabled || !lightGrid)) {
-                console.error('spawnWave: spawnBehaviour "darkness" has no valid light grid; skipping this spawn entry.');
+            if (behaviour === 'darkness' && !this.ctx.lightLevelEnabled) {
+                console.error('spawnWave: spawnBehaviour "darkness" requested but light system is disabled; skipping this spawn entry.');
                 continue;
             }
 
@@ -415,8 +396,8 @@ export class LevelEventManager {
         for (const { base, entry, count } of closestEntries) {
             const inDarkness = entry.closestConfig?.inDarkness === true;
 
-            if (inDarkness && (!this.ctx.lightLevelEnabled || !lightGrid)) {
-                console.error('spawnWave: closest inDarkness=true but no valid light grid; skipping this spawn entry.');
+            if (inDarkness && !this.ctx.lightLevelEnabled) {
+                console.error('spawnWave: closest inDarkness=true but light system is disabled; skipping this spawn entry.');
                 continue;
             }
 
@@ -440,7 +421,7 @@ export class LevelEventManager {
                     const { x, y } = grid.gridToWorld(cell.col, cell.row);
                     if (!terrainManager.isPassable(x, y)) continue;
                     if (inDarkness) {
-                        const level = lightGrid![cell.row]?.[cell.col];
+                        const level = this.ctx.getLightAt(cell.col, cell.row);
                         if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
                     }
                     spawnCells.push(cell);
@@ -533,12 +514,12 @@ export class LevelEventManager {
                 const key = `${closestPOI.col},${closestPOI.row}`;
                 if (!occupiedCells.has(key) && terrainManager.isPassable(poiWorld.x, poiWorld.y)) {
                     if (inDarkness) {
-                        if (!lightGrid) {
-                            console.warn('spawnWave: closestEnemySpawnPoint inDarkness=true but no lightGrid; skipping spawn entry.');
+                        const level = this.ctx.getLightAt(closestPOI.col, closestPOI.row);
+                        if (level == null) {
+                            console.warn('spawnWave: closestEnemySpawnPoint inDarkness=true but light system is disabled; skipping spawn entry.');
                             continue;
                         }
-                        const level = lightGrid[closestPOI.row]?.[closestPOI.col];
-                        if (level == null || level > DarknessLevel.FULL_DARKNESS) {
+                        if (level > DarknessLevel.FULL_DARKNESS) {
                             console.warn('spawnWave: closestEnemySpawnPoint — POI cell is not in darkness; skipping spawn entry.');
                             continue;
                         }
@@ -706,12 +687,6 @@ export class LevelEventManager {
         const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
 
-        const needsDarkness = evt.spawns.some((e) => (e.spawnBehaviour ?? 'darkness') === 'darkness');
-        let lightGrid: number[][] | null = null;
-        if (needsDarkness && this.ctx.lightLevelEnabled) {
-            lightGrid = getLightGrid(this.ctx.globalLightLevel, width, height, this.ctx.getAllLightSources());
-        }
-
         const maxUnits = evt.maxUnits;
         const unitCountByTeam: Record<string, number> | null =
             maxUnits != null
@@ -745,8 +720,7 @@ export class LevelEventManager {
                         if (dx * dx + dy * dy > radiusSq) continue;
                     }
                     if (behaviour === 'darkness') {
-                        if (!lightGrid) continue;
-                        const level = lightGrid[row]?.[col];
+                        const level = this.ctx.getLightAt(col, row);
                         if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
                     }
                     candidates.push({ col, row });
@@ -775,7 +749,7 @@ export class LevelEventManager {
             const behaviour = (entry.spawnBehaviour ?? 'darkness') as 'darkness' | 'anywhere';
             const count = Math.max(0, entry.spawnCount ?? 1);
             if (count <= 0) continue;
-            if (behaviour === 'darkness' && (!this.ctx.lightLevelEnabled || !lightGrid)) continue;
+            if (behaviour === 'darkness' && !this.ctx.lightLevelEnabled) continue;
 
             if (maxUnits != null && unitCountByTeam && unitCountByTeam[base.teamId] > maxUnits) continue;
 

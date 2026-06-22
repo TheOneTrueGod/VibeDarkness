@@ -40,7 +40,7 @@ export function registerLateBuiltinHandlers(
             engine.addEffect(new Effect({
                 x: unit.x,
                 y: unit.y,
-                duration: ALPHA_WOLF_STORY_DURATION,
+                duration: 2,
                 effectType: 'AlphaWolfStoryRemnant',
                 effectData: {
                     remnantCharacterKey: 'alpha_wolf',
