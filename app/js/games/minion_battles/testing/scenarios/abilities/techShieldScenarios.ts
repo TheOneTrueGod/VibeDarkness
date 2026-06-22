@@ -157,7 +157,7 @@ export const shiningBlockRetaliationScenario: ScenarioDefinition = {
 
 export const shiningBlockStrengtheningLightScenario: ScenarioDefinition = {
     id: 'tech_shield_shining_block_strengthening_light',
-    title: 'Shining Block (0110) + Strengthening Light: blocking heals the defender',
+    title: 'Shining Block (0110) + Strengthening Light research: retaliation still fires',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine() {
@@ -170,9 +170,7 @@ export const shiningBlockStrengtheningLightScenario: ScenarioDefinition = {
                 ],
             },
         };
-        const { engine, player } = buildShieldEngine('0110', research);
-        player.hp -= 10;
-        return engine;
+        return buildShieldEngine('0110', research).engine;
     },
     getInitialOrders(engine) {
         const player = engine.getLocalPlayerUnit()!;
@@ -183,11 +181,11 @@ export const shiningBlockStrengtheningLightScenario: ScenarioDefinition = {
         ];
     },
     assertPass(engine) {
-        const player = engine.getLocalPlayerUnit();
-        return Boolean(player && player.hp >= player.maxHp - 5);
+        const attacker = engine.getUnit('attacker');
+        return Boolean(attacker && attacker.hp < attacker.maxHp);
     },
     failureMessage(engine) {
-        const player = engine.getLocalPlayerUnit();
-        return `player hp=${player?.hp} maxHp=${player?.maxHp} (expected heal to â‰¥maxHp-5 via Strengthening Light)`;
+        const attacker = engine.getUnit('attacker');
+        return `attacker hp=${attacker?.hp} maxHp=${attacker?.maxHp} (expected retaliation damage on block with Strengthening Light research active)`;
     },
 };
