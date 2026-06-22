@@ -26,6 +26,10 @@ import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogS
 import { logUserState } from './battlenet/userStateLog';
 import { buildWorldModifiersFromSources } from '../worldModifiers/buildWorldModifiers';
 import { BUILTIN_WORLD_MODIFIERS } from '../worldModifiers/builtins/index';
+import { InteractiveTargetingSession } from './interaction/InteractiveTargetingSession';
+import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
+import { getAbility } from '../abilities/AbilityRegistry';
+import { getSelectTargetDefsFromTimings } from '../abilities/targeting';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -83,6 +87,8 @@ export class BattleSession implements BattleSessionHandle {
     private readonly listeners = new Set<BattleSessionListener>();
     /** Dedupe keys for remote rows applied this engine lifetime (cleared when the engine is torn down or replaced from snapshot). */
     private appliedRemoteOrderKeys = new Set<string>();
+    /** Manages the local-preview run for abilities that use SelectTargetDef. */
+    readonly interactiveTargeting = new InteractiveTargetingSession();
 
     constructor(private readonly config: BattleSessionConfig) {}
 
@@ -363,6 +369,11 @@ export class BattleSession implements BattleSessionHandle {
             gameTick: raw.gameTick ?? raw.game_tick,
             snapshotIndex: raw.snapshotIndex,
         });
+        // If an interactive targeting preview is in progress, abort it before replacing the engine.
+        // The mark/preview state is no longer valid after resync, so we just clear without restoring.
+        if (this.interactiveTargeting.isActive) {
+            this.interactiveTargeting.abort();
+        }
         if (this.camera) {
             localStorage.setItem(
                 BattleSession.RESYNC_CAMERA_KEY,
@@ -412,6 +423,51 @@ export class BattleSession implements BattleSessionHandle {
             } catch {
                 // ignore malformed data
             }
+        }
+    }
+
+    /**
+     * Restore engine to an in-memory snapshot taken earlier in the same session.
+     * Used by {@link InteractiveTargetingSession} to rewind after a local preview run.
+     * Unlike {@link loadFromSnapshot}, this does NOT fetch from the server and does NOT
+     * save/restore the camera from localStorage — it preserves the current camera directly.
+     */
+    restoreFromInMemorySnapshot(snapshot: SerializedGameState): void {
+        const { playerId, missionId } = this.config;
+        // Preserve current camera state before teardown.
+        const savedCamera = this.camera
+            ? { x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom }
+            : null;
+        this.appliedRemoteOrderKeys.clear();
+        this.teardownEngineAndRendererOnly();
+        const { api } = this.config;
+        api.setCurrentPlayerId();
+        let renderer = this.renderer;
+        if (!renderer) {
+            renderer = new GameRenderer();
+            this.renderer = renderer;
+        }
+        const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
+        const terrainGrid = mission.createTerrain();
+        const terrainManager = new TerrainManager(terrainGrid);
+        const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
+        this.camera = camera;
+        renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
+        const engine = GameEngine.fromJSON(snapshot, playerId, terrainManager);
+        renderer.setTerrain(terrainManager);
+        if (!engine.state.ninjutsuManager) {
+            engine.initNinjutsu(mission.ninjutsuPools);
+        }
+        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
+        if (mission.levelEvents && mission.levelEvents.length > 0) {
+            engine.setLevelEvents(mission.levelEvents);
+        }
+        this.finalizeEngine(engine);
+        this.startEngine();
+        // Restore camera to what it was before the preview (no localStorage involved).
+        if (savedCamera) {
+            this.camera.setZoomLevel(savedCamera.zoom);
+            this.camera.snapTo(savedCamera.x, savedCamera.y);
         }
     }
 
@@ -569,6 +625,17 @@ export class BattleSession implements BattleSessionHandle {
     applyRemoteOrders(orders: RemoteOrderWireRow[]): ApplyRemoteOrdersResult {
         const newlyAppliedKeys: string[] = [];
         const skippedKeys: string[] = [];
+        // While an interactive targeting preview is running, hold all remote orders so they
+        // don't interfere with the local preview engine state. They will be applied after
+        // the preview ends (commit/reset/replay all call _restoreToMark which applies held orders).
+        if (this.interactiveTargeting.isActive) {
+            for (const row of orders) {
+                const atTick = row.atTick ?? row.gameTick;
+                if (typeof atTick !== 'number' || Number.isNaN(atTick)) continue;
+                this.interactiveTargeting.holdRemoteOrder(atTick, row.order as BattleOrder);
+            }
+            return { newlyAppliedKeys, skippedKeys };
+        }
         const eng = this.engine;
         if (!eng) {
             return { newlyAppliedKeys, skippedKeys };
@@ -644,12 +711,24 @@ export class BattleSession implements BattleSessionHandle {
      * Local player submits an order at the current pause point.
      * Caller clears movement preview; session validates against the live engine.
      * Does not advance the engine until BattleNet submit resolves.
+     *
+     * When USE_SEQUENTIAL_TARGETING is on and the ability has SelectTargetDefs,
+     * delegates to InteractiveTargetingSession.begin() instead of submitting immediately.
      */
     async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
         const engine = this.engine;
         const batch = engine?.waitingForOrders;
         if (!batch || !opts.canSubmitOrders) return;
         if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;
+
+        if (USE_SEQUENTIAL_TARGETING) {
+            const ability = getAbility(order.abilityId);
+            const caster = engine?.getUnit(order.unitId);
+            if (ability && caster && getSelectTargetDefsFromTimings(ability, caster, engine).length > 0) {
+                this.interactiveTargeting.begin(order.abilityId, order.unitId, this);
+                return;
+            }
+        }
 
         const atTick = batch.atTick;
         await this.netAdapter?.submitOrder(order, atTick);

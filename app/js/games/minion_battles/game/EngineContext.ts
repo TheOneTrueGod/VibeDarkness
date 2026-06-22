@@ -102,6 +102,12 @@ export interface EngineContext {
     requestConditionalCancelPause(unit: Unit): void;
 
     /**
+     * Called from unitAbilityTick when an interval with a SelectTargetDef is entered but no
+     * target is yet resolved. Freezes gameTime until the target is provided via the UI.
+     */
+    signalWaitingForTarget(label: string, unitId: string, abilityId: string): void;
+
+    /**
      * Returns the light level (0–1+) at a world position, or null if light is disabled.
      * Computed lazily and cached per tick.
      */

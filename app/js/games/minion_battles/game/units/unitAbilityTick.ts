@@ -16,18 +16,19 @@ import {
     getTotalAbilityDurationForCast,
     AbilityPhase,
     getEffectiveCastBehaviours,
+    type AbilityTimingInterval,
 } from '../../abilities/abilityTimings';
 import { advanceWindupLunge, type WindupLungePayload } from '../../abilities/WindupLunge';
 import { createEmitterFromDef } from '../../abilities/createEmitterFromDef';
 import { applyVisualEffectDefs } from '../effects/applyVisualEffectDefs';
 import { getBodyColorForUnit, getCharacterSpriteKey } from './unit_defs/unitDef';
-import { AbilityEventType, abilityHasTag } from '../../abilities/Ability';
+import { AbilityEventType, abilityHasTag, type AbilityStatic } from '../../abilities/Ability';
 import {
     resolveBehaviourTimingRef,
     type CastBehaviourBaseContext,
 } from '../../abilities/castBehaviourTypes';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
-import type { ResolvedTarget } from '../types';
+import type { ActiveAbility, ResolvedTarget } from '../types';
 import { isSelectTargetDef, isHitTargetDef } from '../../abilities/timingTargetDef';
 import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
 import { triggerAbilityEvent } from '../../abilities/events';
@@ -36,6 +37,136 @@ import {
     lockTelegraphOnTargetEvade,
     updateTelegraphTracking,
 } from '../../abilities/telegraphTracking';
+
+/**
+ * Fire all entry-time side effects for a single timing interval:
+ * creates the emitter (if any) and runs castBehaviour onSetup / activeCastBehaviours registration.
+ *
+ * Called both from the normal "entered" path and from the deferred-resume path (Pass B)
+ * so that target-blocked intervals fire identically once their target is resolved.
+ */
+function fireIntervalEntry(
+    interval: AbilityTimingInterval,
+    active: ActiveAbility,
+    unit: Unit,
+    ability: AbilityStatic,
+    engine: EngineContext,
+    _dt: number,
+): void {
+    // --- emitter ---
+    if (interval.emitterDef) {
+        let emitterDef = interval.emitterDef;
+        if (emitterDef.useCasterVisualData) {
+            const visualData = {
+                bodyColor: getBodyColorForUnit(unit),
+                radius: unit.radius,
+                characterSpriteKey: getCharacterSpriteKey(unit.characterId),
+            };
+            emitterDef = {
+                ...emitterDef,
+                effectData: { ...visualData, ...emitterDef.effectData },
+            };
+        }
+        const emitter = createEmitterFromDef(emitterDef, {
+            x: unit.x,
+            y: unit.y,
+            attachedToUnitId: unit.id,
+            lifetime: interval.end - interval.start,
+        });
+        const key = interval.id;
+        unit.activeTimingEmitters.set(key, emitter);
+        engine.addEffectEmitter(emitter);
+
+        // Apply declarative VisualEffectDefs at window-entry time.
+        if (emitterDef.visualEffects?.length) {
+            const useTarget = emitterDef.effectPosition === 'target';
+            const primaryTarget = active.targets[0];
+            const targetUnit =
+                useTarget && primaryTarget?.type === 'unit'
+                    ? engine.getUnit(primaryTarget.unitId!)
+                    : undefined;
+            const positionUnit =
+                targetUnit ??
+                (useTarget && primaryTarget?.type === 'pixel'
+                    ? { x: primaryTarget.position!.x, y: primaryTarget.position!.y, radius: 0, characterId: '' }
+                    : null) ??
+                unit;
+            const contextTargetUnit =
+                primaryTarget?.type === 'unit'
+                    ? engine.getUnit(primaryTarget.unitId!)
+                    : undefined;
+            const contextTarget: { x: number; y: number; radius: number } | undefined =
+                contextTargetUnit ??
+                (primaryTarget?.type === 'pixel'
+                    ? { x: primaryTarget.position!.x, y: primaryTarget.position!.y, radius: 0 }
+                    : undefined);
+            applyVisualEffectDefs(emitterDef.visualEffects, positionUnit, engine, contextTarget ? { target: contextTarget } : undefined);
+        }
+    }
+
+    // --- castBehaviours onSetup / activeCastBehaviours registration ---
+    const effectiveBehaviours = getEffectiveCastBehaviours(interval);
+    if (effectiveBehaviours) {
+        for (let bIdx = 0; bIdx < effectiveBehaviours.length; bIdx++) {
+            const entry = effectiveBehaviours[bIdx]!;
+            const behaviourKey = `${interval.id}_${bIdx}`;
+            const resolvedStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
+            const resolvedEnd = entry.timingEnd !== undefined
+                ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
+                : null;
+
+            const target = resolveCastBehaviourTarget(entry, interval, active, unit, ability, engine);
+
+            if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
+
+            const setupCtx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext = {
+                caster: unit,
+                abilityId: active.abilityId,
+                target,
+                allTargets: active.targets,
+                castPayload: active.castPayload,
+                behaviourPayload: active.castBehaviourPayloads[behaviourKey],
+                setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
+                engine,
+                onProjectileHit: interval.onProjectileHit,
+            };
+            if (!active.setupFiredBehaviourKeys) active.setupFiredBehaviourKeys = new Set();
+            if (!active.setupFiredBehaviourKeys.has(behaviourKey)) {
+                active.setupFiredBehaviourKeys.add(behaviourKey);
+                entry.behaviour.onSetup?.(setupCtx);
+            }
+
+            if (resolvedEnd !== null) {
+                unit.activeCastBehaviours.set(behaviourKey, {
+                    entry,
+                    intervalStart: resolvedStart,
+                    intervalEnd: resolvedEnd,
+                    caster: unit,
+                    active,
+                    targetDef: interval.targetDef,
+                    onProjectileHit: interval.onProjectileHit,
+                    fireOnHitAtFirstTick: !entry.behaviour.handlesOnProjectileHit && (interval.onProjectileHit?.length ?? 0) > 0,
+                });
+            } else {
+                const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
+                    caster: unit,
+                    abilityId: active.abilityId,
+                    target,
+                    allTargets: active.targets,
+                    castPayload: active.castPayload,
+                    behaviourPayload: active.castBehaviourPayloads[behaviourKey],
+                    setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
+                    engine,
+                    windowProgress: 0,
+                    prevWindowProgress: 0,
+                    isFirstTick: true,
+                    isLastTick: true,
+                };
+                entry.behaviour.onTick?.(tickCtx);
+            }
+        }
+    }
+}
 
 /**
  * Advance all active abilities for `unit` by `dt` seconds.
@@ -73,129 +204,66 @@ export function tickUnitActiveAbilities(
         const entered = enteredTimingIds(prevTime, currentTime, intervals);
         const exited = exitedTimingIds(prevTime, currentTime, intervals);
 
-        for (const interval of intervals) {
-            if (interval.emitterDef && entered.has(interval.id)) {
-                let emitterDef = interval.emitterDef;
-                if (emitterDef.useCasterVisualData) {
-                    const visualData = {
-                        bodyColor: getBodyColorForUnit(unit),
-                        radius: unit.radius,
-                        characterSpriteKey: getCharacterSpriteKey(unit.characterId),
-                    };
-                    emitterDef = {
-                        ...emitterDef,
-                        effectData: { ...visualData, ...emitterDef.effectData },
-                    };
-                }
-                const emitter = createEmitterFromDef(emitterDef, {
-                    x: unit.x,
-                    y: unit.y,
-                    attachedToUnitId: unit.id,
-                    lifetime: interval.end - interval.start,
-                });
-                const key = interval.id;
-                unit.activeTimingEmitters.set(key, emitter);
-                engine.addEffectEmitter(emitter);
+        // Pass B — resume waiting intervals whose target has since been resolved.
+        // Must run before the emitter loop so deferred entry fires in the same tick as resolution.
+        if (active.waitingForTargetIntervals?.size) {
+            for (const waitingId of [...active.waitingForTargetIntervals]) {
+                const interval = intervals.find(iv => iv.id === waitingId);
+                if (!interval?.targetDef || interval.targetDef.kind !== 'select') continue;
+                if (!active.targetsByLabel?.[interval.targetDef.label]) continue; // still waiting
+                active.waitingForTargetIntervals!.delete(waitingId);
+                fireIntervalEntry(interval, active, unit, ability, engine, dt);
+            }
+        }
 
-                // Apply declarative VisualEffectDefs at window-entry time.
-                if (emitterDef.visualEffects?.length) {
-                    const useTarget = emitterDef.effectPosition === 'target';
-                    const primaryTarget = active.targets[0];
-                    const targetUnit =
-                        useTarget && primaryTarget?.type === 'unit'
-                            ? engine.getUnit(primaryTarget.unitId!)
-                            : undefined;
-                    const positionUnit =
-                        targetUnit ??
-                        (useTarget && primaryTarget?.type === 'pixel'
-                            ? { x: primaryTarget.position!.x, y: primaryTarget.position!.y, radius: 0, characterId: '' }
-                            : null) ??
-                        unit;
-                    // Build per-def context: resolve target from primary target for
-                    // DirectEffectVFXDef entries that specify position: 'target' or 'midpoint'.
-                    const contextTargetUnit =
-                        primaryTarget?.type === 'unit'
-                            ? engine.getUnit(primaryTarget.unitId!)
-                            : undefined;
-                    const contextTarget: { x: number; y: number; radius: number } | undefined =
-                        contextTargetUnit ??
-                        (primaryTarget?.type === 'pixel'
-                            ? { x: primaryTarget.position!.x, y: primaryTarget.position!.y, radius: 0 }
-                            : undefined);
-                    applyVisualEffectDefs(emitterDef.visualEffects, positionUnit, engine, contextTarget ? { target: contextTarget } : undefined);
+        // Pass A — detect newly-entered intervals that are blocked waiting for a SelectTargetDef target.
+        // Runs after Pass B (so a target resolved this tick doesn't also get blocked again) and
+        // before the emitter/castBehaviours loops so blocked intervals are never fired inline.
+        //
+        // Only runs when `active.targetsByLabel` is defined (non-undefined), which signals that
+        // this cast was submitted via the interactive preview path (InteractiveTargetingSession.begin()
+        // queues the order with `targetsByLabel: {}`). Normal pre-filled ability orders leave
+        // `active.targetsByLabel` as undefined, so Pass A is a no-op for them.
+        const newlyBlockedIntervals = new Set<string>();
+        if (active.targetsByLabel !== undefined) {
+            for (const interval of intervals) {
+                if (!entered.has(interval.id)) continue;
+                if (interval.targetDef?.kind !== 'select') continue;
+                const label = interval.targetDef.label;
+                const alreadyFired = active.setupFiredBehaviourKeys?.has(`${interval.id}_0`);
+                if (alreadyFired) continue;
+                // Target is resolved if it's in targetsByLabel (interactive path).
+                if (active.targetsByLabel[label] !== undefined) continue;
+                // Target not yet provided — block this interval.
+                newlyBlockedIntervals.add(interval.id);
+                if (!active.waitingForTargetIntervals) active.waitingForTargetIntervals = new Set();
+                active.waitingForTargetIntervals.add(interval.id);
+            }
+            if (newlyBlockedIntervals.size > 0) {
+                const first = intervals.find(iv => newlyBlockedIntervals.has(iv.id));
+                if (first?.targetDef?.kind === 'select') {
+                    engine.signalWaitingForTarget(first.targetDef.label, unit.id, active.abilityId);
                 }
             }
+        }
+
+        // Emitter entry/exit loop + castBehaviour entry (via fireIntervalEntry).
+        for (const interval of intervals) {
+            // Guard: skip intervals that are waiting for a target selection (blocked by Pass A).
+            if (newlyBlockedIntervals.has(interval.id)) continue;
+
+            if (entered.has(interval.id)) {
+                // fireIntervalEntry handles both emitter creation and castBehaviour onSetup.
+                fireIntervalEntry(interval, active, unit, ability, engine, dt);
+            }
             if (interval.emitterDef && exited.has(interval.id)) {
+                // Guard: skip exit cleanup for intervals that never fully entered (waiting for target).
+                if (active.waitingForTargetIntervals?.has(interval.id)) continue;
                 const key = interval.id;
                 const emitter = unit.activeTimingEmitters.get(key);
                 if (emitter) {
                     emitter.active = false;
                     unit.activeTimingEmitters.delete(key);
-                }
-            }
-        }
-
-        // castBehaviours: interval enter
-        for (const interval of intervals) {
-            const effectiveBehaviours = getEffectiveCastBehaviours(interval);
-            if (!effectiveBehaviours) continue;
-            for (let bIdx = 0; bIdx < effectiveBehaviours.length; bIdx++) {
-                const entry = effectiveBehaviours[bIdx]!;
-                if (!entered.has(interval.id)) continue;
-                const behaviourKey = `${interval.id}_${bIdx}`;
-                const resolvedStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
-                const resolvedEnd = entry.timingEnd !== undefined
-                    ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)
-                    : null;
-
-                const target = resolveCastBehaviourTarget(entry, interval, active, unit, ability, engine);
-
-                if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
-
-                const setupCtx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext = {
-                    caster: unit,
-                    abilityId: active.abilityId,
-                    target,
-                    allTargets: active.targets,
-                    castPayload: active.castPayload,
-                    behaviourPayload: active.castBehaviourPayloads[behaviourKey],
-                    setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
-                    engine,
-                    onProjectileHit: interval.onProjectileHit,
-                };
-                if (!active.setupFiredBehaviourKeys) active.setupFiredBehaviourKeys = new Set();
-                if (!active.setupFiredBehaviourKeys.has(behaviourKey)) {
-                    active.setupFiredBehaviourKeys.add(behaviourKey);
-                    entry.behaviour.onSetup?.(setupCtx);
-                }
-
-                if (resolvedEnd !== null) {
-                    unit.activeCastBehaviours.set(behaviourKey, {
-                        entry,
-                        intervalStart: resolvedStart,
-                        intervalEnd: resolvedEnd,
-                        caster: unit,
-                        active,
-                        targetDef: interval.targetDef,
-                        onProjectileHit: interval.onProjectileHit,
-                        fireOnHitAtFirstTick: !entry.behaviour.handlesOnProjectileHit && (interval.onProjectileHit?.length ?? 0) > 0,
-                    });
-                } else {
-                    const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
-                        caster: unit,
-                        abilityId: active.abilityId,
-                        target,
-                        allTargets: active.targets,
-                        castPayload: active.castPayload,
-                        behaviourPayload: active.castBehaviourPayloads[behaviourKey],
-                        setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
-                        engine,
-                        windowProgress: 0,
-                        prevWindowProgress: 0,
-                        isFirstTick: true,
-                        isLastTick: true,
-                    };
-                    entry.behaviour.onTick?.(tickCtx);
                 }
             }
         }
@@ -207,6 +275,8 @@ export function tickUnitActiveAbilities(
             for (let bIdx = 0; bIdx < effectiveBehavioursExit.length; bIdx++) {
                 const entry = effectiveBehavioursExit[bIdx]!;
                 if (!exited.has(interval.id)) continue;
+                // Guard: skip exit for intervals that never entered (still waiting for target).
+                if (active.waitingForTargetIntervals?.has(interval.id)) continue;
                 const behaviourKey = `${interval.id}_${bIdx}`;
                 const rec = unit.activeCastBehaviours.get(behaviourKey);
                 if (!rec) continue;

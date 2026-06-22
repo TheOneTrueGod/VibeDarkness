@@ -6,8 +6,9 @@ import { AbilityTargetingTool } from './tools/AbilityTargetingTool';
 import { UnitSelectorDebugTool } from './tools/UnitSelectorDebugTool';
 import { AdminMoveDebugTool } from './tools/AdminMoveDebugTool';
 import { getDebugState } from '../../debugState';
-import { resolveClick } from '../../abilities/targeting';
+import { resolveClick, getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { AUTO_END_TURN } from '../gameConstants';
+import { USE_SEQUENTIAL_TARGETING } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { getLightGrid } from '../LightGrid';
@@ -284,6 +285,13 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         if (!this._waitingForOrders || !this.ctx) return;
         const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
         if (!active) return;
+        if (USE_SEQUENTIAL_TARGETING) {
+            const caster = this.ctx.engine.getUnit(active.unitId) ?? undefined;
+            if (getSelectTargetDefsFromTimings(ability, caster, this.ctx.engine).length > 0) {
+                this.submitOrder(ability.id, []);
+                return;
+            }
+        }
         this.activateTool(new AbilityTargetingTool(ability, cardIndex, active.unitId));
     }
 

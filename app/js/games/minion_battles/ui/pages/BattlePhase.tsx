@@ -47,6 +47,9 @@ import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEf
 import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 import { AUTO_END_TURN } from '../../game/gameConstants';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { resolveClick, getSelectTargetDefsFromTimings, filterSelectTargetCandidates } from '../../abilities/targeting';
+import { Play, Pause, Square } from 'lucide-react';
 
 declare global {
     interface Window {
@@ -124,6 +127,8 @@ export default function BattlePhase({
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
     const [nonconfirmedOrder, setNonconfirmedOrder] = useState<BattleOrder | null>(null);
+    /** Playahead state while InteractiveTargetingSession is active. */
+    const [interactiveTargetingState, setInteractiveTargetingState] = useState<'inactive' | 'playing' | 'paused' | 'done'>('inactive');
     const { ghostPlans, sendGhostPlan } = useContext(GhostPlanContext);
 
     const targetingStateRef = useRef<{
@@ -149,12 +154,27 @@ export default function BattlePhase({
     {
         const manager = sessionRef.current?.getInteractionManager();
         const uiState = manager?.getUIState();
+        const its = sessionRef.current?.interactiveTargeting;
+        const itsActive = its?.isActive ?? false;
+        const itsAbilityId = itsActive && its ? its.abilityId : null;
+        const itsUnitId = itsActive && its ? its.unitId : null;
+        const itsAbility = itsAbilityId ? getAbility(itsAbilityId) : null;
+        // Only show the targeting cursor when the engine is actually paused waiting for an input.
+        const itsWaitingForTarget = itsActive
+            ? (sessionRef.current?.getEngine()?.waitingForTargetInput ?? null)
+            : null;
+        const itsShowCursor = itsActive && itsWaitingForTarget !== null;
+        const itsCurrentTargets = itsShowCursor && its
+            ? Object.values(its.collectedTargets)
+            : null;
         targetingStateRef.current = {
-            selectedAbility: uiState?.selectedAbility ?? null,
-            currentTargets: uiState?.currentTargets ?? [],
+            selectedAbility: itsShowCursor && itsAbility ? itsAbility : (uiState?.selectedAbility ?? null),
+            currentTargets: itsShowCursor && itsCurrentTargets !== null
+                ? itsCurrentTargets
+                : (uiState?.currentTargets ?? []),
             mouseWorld: uiState?.mouseWorld ?? { x: 0, y: 0 },
             waitingForOrders,
-            previewOrderUnitId: uiState?.previewOrderUnitId ?? activeLocalWaiter?.unitId ?? null,
+            previewOrderUnitId: itsActive && itsUnitId ? itsUnitId : (uiState?.previewOrderUnitId ?? activeLocalWaiter?.unitId ?? null),
             ghostPlans: Object.fromEntries(
                 Object.entries(ghostPlans).filter(([, v]) => v !== null)
             ) as Record<string, GhostPlanData>,
@@ -192,6 +212,16 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const lastSentGhostPlanRef = useRef<GhostPlanData | null>(null);
     useEffect(() => {
         const interval = setInterval(() => {
+            // Suppress ghost plan broadcast while interactive targeting preview is running —
+            // the preview is local-only and should not be visible to other players.
+            if (sessionRef.current?.interactiveTargeting.isActive) {
+                const prev = lastSentGhostPlanRef.current;
+                if (prev !== null) {
+                    lastSentGhostPlanRef.current = null;
+                    sendGhostPlan(null);
+                }
+                return;
+            }
             const manager = sessionRef.current?.getInteractionManager();
             const uiState = manager?.getUIState();
             const newPlan: GhostPlanData | null =
@@ -806,6 +836,34 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
         return () => window.clearInterval(id);
     }, []);
 
+    // Poll interactive targeting session state so the pill + buttons stay current.
+    useEffect(() => {
+        const id = window.setInterval(() => {
+            const its = sessionRef.current?.interactiveTargeting;
+            if (!its?.isActive) {
+                setInteractiveTargetingState('inactive');
+                return;
+            }
+            const eng = sessionRef.current?.getEngine();
+            if (!eng) {
+                setInteractiveTargetingState('playing');
+                return;
+            }
+            if (eng.waitingForTargetInput) {
+                setInteractiveTargetingState('paused');
+            } else {
+                const abilityDef = its.abilityId ? getAbility(its.abilityId) : null;
+                const caster = its.unitId ? eng.getUnit(its.unitId) ?? undefined : undefined;
+                const totalDefs = abilityDef && caster
+                    ? getSelectTargetDefsFromTimings(abilityDef, caster, eng).length
+                    : 0;
+                const collected = Object.keys(its.collectedTargets).length;
+                setInteractiveTargetingState(totalDefs > 0 && collected >= totalDefs ? 'done' : 'playing');
+            }
+        }, 50);
+        return () => window.clearInterval(id);
+    }, []);
+
     // ========================================================================
     // Manager subscription: mirror selectedAbility, selectedCardIndex, nonconfirmedOrder
     // into local React state for AbilityBar rendering.
@@ -851,7 +909,45 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     // Canvas event callbacks — delegate to manager.
     // ========================================================================
     const handleCanvasClick = useCallback((screenX: number, screenY: number) => {
-        sessionRef.current?.getInteractionManager()?.onCanvasClick(screenX, screenY);
+        const session = sessionRef.current;
+        const its = session?.interactiveTargeting;
+        if (its?.isActive && session) {
+            const engine = session.getEngine();
+            const camera = session.getCamera();
+            const waitingSignal = engine?.waitingForTargetInput;
+            if (engine && camera && waitingSignal) {
+                const label = waitingSignal.label;
+                const caster = engine.getUnit(waitingSignal.unitId);
+                const abilityDef = its.abilityId ? getAbility(its.abilityId) : null;
+                const clickResult = resolveClick(screenX, screenY, camera, engine.units);
+                let resolved = null;
+                if (caster && abilityDef) {
+                    const selectDefs = getSelectTargetDefsFromTimings(abilityDef, caster, engine);
+                    // Find the selectDef for this label.
+                    const selectDef = selectDefs.find((d) => d.label === label);
+                    if (selectDef) {
+                        const mouseWorld = camera.screenToWorld(screenX, screenY);
+                        const rawCandidates = selectDef.hitbox.resolveTargets(caster, mouseWorld, engine.units);
+                        const candidates = filterSelectTargetCandidates(rawCandidates, caster, selectDef.filter);
+                        candidates.sort((a, b) => {
+                            const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
+                            const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
+                            return da - db;
+                        });
+                        if (candidates.length > 0) {
+                            resolved = { type: 'unit' as const, unitId: candidates[0]!.id };
+                        } else if (selectDef.allowMiss !== false) {
+                            resolved = { type: 'pixel' as const, position: clickResult.worldPosition };
+                        }
+                    }
+                }
+                if (resolved) {
+                    its.resolveTarget(label, resolved, session);
+                }
+            }
+            return;
+        }
+        session?.getInteractionManager()?.onCanvasClick(screenX, screenY);
     }, []);
 
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean) => {
@@ -1009,6 +1105,55 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                             battleObjectives={MISSION_MAP[missionId]?.battleObjectives ?? []}
                         />
                         {!isHost && <BattleHostAnchorBanner phase={hostAnchorWaitPhase} />}
+                        {interactiveTargetingState !== 'inactive' && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50">
+                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border ${
+                                    interactiveTargetingState === 'playing'
+                                        ? 'bg-green-900/50 border-green-700 text-green-300'
+                                        : interactiveTargetingState === 'paused'
+                                            ? 'bg-yellow-900/50 border-yellow-700 text-yellow-300'
+                                            : 'bg-sky-900/50 border-sky-700 text-sky-300'
+                                }`}>
+                                    {interactiveTargetingState === 'playing' && <Play className="w-3.5 h-3.5" />}
+                                    {interactiveTargetingState === 'paused' && <Pause className="w-3.5 h-3.5" />}
+                                    {interactiveTargetingState === 'done' && <Square className="w-3.5 h-3.5" />}
+                                    <span>
+                                        {interactiveTargetingState === 'playing' ? 'Playing'
+                                            : interactiveTargetingState === 'paused' ? 'Paused'
+                                            : 'Done'}
+                                    </span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        className="px-3 py-1.5 rounded bg-red-900/60 text-red-300 text-sm hover:bg-red-800/60 border border-red-700"
+                                        onClick={() => {
+                                            const session = sessionRef.current;
+                                            if (session) session.interactiveTargeting.reset(session);
+                                        }}
+                                    >
+                                        Reset
+                                    </button>
+                                    <button
+                                        className="px-3 py-1.5 rounded bg-sky-900/60 text-sky-300 text-sm hover:bg-sky-800/60 border border-sky-700"
+                                        onClick={() => {
+                                            const session = sessionRef.current;
+                                            if (session) session.interactiveTargeting.replay(session);
+                                        }}
+                                    >
+                                        Replay
+                                    </button>
+                                    <button
+                                        className="px-3 py-1.5 rounded bg-primary text-white text-sm hover:opacity-90 border border-primary"
+                                        onClick={() => {
+                                            const session = sessionRef.current;
+                                            if (session) session.interactiveTargeting.commit(session);
+                                        }}
+                                    >
+                                        Confirm
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <TurnIndicator

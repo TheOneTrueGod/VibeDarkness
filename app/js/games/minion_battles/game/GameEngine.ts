@@ -151,6 +151,12 @@ export class GameEngine implements EngineContext {
     /** Runtime occupancy tracker — not serialized, rebuilt at the start of each movement phase. */
     readonly cellOccupancyManager = new CellOccupancyManager();
 
+    /**
+     * Set by unitAbilityTick when an interval with a SelectTargetDef is entered but no
+     * target is yet resolved. Ephemeral — not serialized (not in toJSON/fromJSON).
+     */
+    waitingForTargetInput: { label: string; unitId: string; abilityId: string } | null = null;
+
     constructor() {
         registerLateBuiltinHandlers(this.state.worldModifierManager, this);
     }
@@ -1379,6 +1385,15 @@ export class GameEngine implements EngineContext {
 
     interruptUnitAndRefundAbilities(unit: Unit): void {
         unit.interruptAndRefundAbilities(this);
+    }
+
+    /**
+     * Called from unitAbilityTick (Pass A) when an interval with a SelectTargetDef is entered
+     * but no target is yet resolved. Pauses the simulation until the target is provided.
+     */
+    signalWaitingForTarget(label: string, unitId: string, abilityId: string): void {
+        this.waitingForTargetInput = { label, unitId, abilityId };
+        this.isPaused = true;
     }
 
     // ========================================================================
