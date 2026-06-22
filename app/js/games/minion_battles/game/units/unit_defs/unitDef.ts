@@ -60,6 +60,8 @@ const ALLY_PET_GLOW_COLOR = 0x3b82f6; // blue-500
 const ALLY_PLAYER_GLOW_COLOR = 0x9ca3af; // gray-400
 /** Color for enemy unit glows. */
 const ENEMY_GLOW_COLOR = 0xef4444; // red-500
+/** Color for nature-faction unit glows. */
+const NATURE_GLOW_COLOR = 0x22c55e; // green-500
 /** Glow radius around units. */
 const GLOW_RADIUS = 6;
 /** Scale of character sprite relative to hitbox diameter (1 = same size). */
@@ -107,7 +109,7 @@ export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
  * Narrative / VFX hint for enemy categorization (see writing-style-enemies skill).
  * Set on every enemy unit def when the category is clear; if ambiguous, prompt the user before locking copy or visuals.
  */
-export type CreatureType = 'dark_creature' | 'beast';
+export type CreatureType = 'dark_creature' | 'beast' | 'nature';
 
 /** Serialized on units; all players share baseline stats from UNIT_DEFS.player. */
 export const PLAYER_CHARACTER_ID: PlayerUnitDefId = 'player';
@@ -284,7 +286,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         size: 'Extra Small',
         stamina: 1,
         perceptionRange: 260,
-        creatureType: 'beast',
+        creatureType: 'nature',
         onDeathBehaviors: [
             { type: 'removesOwnedLightSources' },
             { type: 'sporeRebirth' },
@@ -300,7 +302,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         size: 'Extra Large',
         stamina: 1,
         perceptionRange: 0,
-        creatureType: 'beast',
+        creatureType: 'nature',
         uiDescription:
             'Living nursery — births lantern scouts on a rhythm; needs protection when stirred.',
     },
@@ -435,10 +437,12 @@ class DefaultUnitDef implements IUnitDef {
         const isEnemy = areEnemies(context.localTeamId, unit.teamId);
         const glowColor = isEnemy
             ? ENEMY_GLOW_COLOR
-            : unit.isPlayerControlled()
-                ? ALLY_PLAYER_GLOW_COLOR
-                : ALLY_PET_GLOW_COLOR;
-        const glowAlpha = isEnemy ? 0.3 : unit.isPlayerControlled() ? 0.4 : 0.55;
+            : unit.teamId === 'nature'
+                ? NATURE_GLOW_COLOR
+                : unit.isPlayerControlled()
+                    ? ALLY_PLAYER_GLOW_COLOR
+                    : ALLY_PET_GLOW_COLOR;
+        const glowAlpha = isEnemy ? 0.3 : unit.teamId === 'nature' ? 0.45 : unit.isPlayerControlled() ? 0.4 : 0.55;
         const def = UNIT_DEFS[unit.characterId as UnitDefId] ?? { bodyColor: DEFAULT_BODY_COLOR };
 
         const playerPortrait =

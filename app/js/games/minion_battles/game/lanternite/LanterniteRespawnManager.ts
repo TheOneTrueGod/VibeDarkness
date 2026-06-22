@@ -36,7 +36,7 @@ export class LanterniteRespawnManager {
                     y: job.y,
                     hp: getDefaultHp(LANTERNITE_CHARACTER_ID),
                     speed: getDefaultSpeed(LANTERNITE_CHARACTER_ID),
-                    teamId: 'allied',
+                    teamId: 'nature',
                     characterId: LANTERNITE_CHARACTER_ID,
                     name: 'Lanternite',
                     abilities: [],

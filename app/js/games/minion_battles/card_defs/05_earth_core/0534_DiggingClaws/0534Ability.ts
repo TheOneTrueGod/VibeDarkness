@@ -6,6 +6,7 @@
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
 import { AbilityState, AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { CONTROLLED_SLINGSHOT } from '../../../game/gameConstants';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
 import { nullHitbox } from '../../../hitboxes';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
@@ -233,66 +234,76 @@ export const DiggingClawsAbility: AbilityStatic = {
 			if (!isAbilityNote(caster.abilityNote, CARD_ID)) {
 				return;
 			}
-			const note = caster.abilityNote.abilityNote;
 
-			// Init slingshot direction when stuck (also runs after conditional-cancel "wait" resume).
-			if (tm) {
-				initSlingshotDirectionIfStuck(caster, note, tm);
-			}
+			if (!CONTROLLED_SLINGSHOT) {
+				const note = caster.abilityNote.abilityNote;
 
-			// Active slingshot: push caster out each tick
-			if (note.slingshotDirX !== null && note.slingshotDirY !== null) {
-				const dt = currentTime - prevTime;
-				const movePerTick = SLINGSHOT_SPEED * dt;
-				caster.invalidateMovementPath();
-				// Move a fixed distance in slingshot direction, bypassing terrain
-				caster.moveUnit(
-					caster.x + note.slingshotDirX * 10000,
-					caster.y + note.slingshotDirY * 10000,
-					movePerTick,
-				);
-
+				// Init slingshot direction when stuck (also runs after conditional-cancel "wait" resume).
 				if (tm) {
-					maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
+					initSlingshotDirectionIfStuck(caster, note, tm);
 				}
 
-				if (!tm || tm.isPassable(caster.x, caster.y)) {
-					// Exited wall — launch!
-					applySlingshotLaunch(caster, note.slingshotDirX, note.slingshotDirY,
-						SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
-						eng.eventBus, caster.id, CARD_ID);
-					caster.clearAbilityNote();
-					return;
-				}
-			}
+				// Active slingshot: push caster out each tick
+				if (note.slingshotDirX !== null && note.slingshotDirY !== null) {
+					const dt = currentTime - prevTime;
+					const movePerTick = SLINGSHOT_SPEED * dt;
+					caster.invalidateMovementPath();
+					// Move a fixed distance in slingshot direction, bypassing terrain
+					caster.moveUnit(
+						caster.x + note.slingshotDirX * 10000,
+						caster.y + note.slingshotDirY * 10000,
+						movePerTick,
+					);
 
-			// Slingshot phase expired but unit still stuck: force out via nearest direction
-			if (currentTime >= DASH_DURATION + SLINGSHOT_PHASE && isAbilityNote(caster.abilityNote, CARD_ID)) {
-				if (tm && !tm.isPassable(caster.x, caster.y)) {
-					const dir = findNearestPassableDirection(tm, caster.x, caster.y);
-					if (dir) {
-						let exitX = caster.x;
-						let exitY = caster.y;
-						for (let d = 4; d <= 800; d += 4) {
-							const tx = caster.x + dir.x * d;
-							const ty = caster.y + dir.y * d;
-							if (tm.isPassable(tx, ty)) {
-								exitX = tx;
-								exitY = ty;
-								break;
-							}
-						}
-						const distToExit = Math.sqrt((exitX - caster.x) ** 2 + (exitY - caster.y) ** 2);
-						if (distToExit > 0) {
-							caster.invalidateMovementPath();
-							caster.moveUnit(exitX, exitY, distToExit);
-							applySlingshotLaunch(caster, dir.x, dir.y,
-								SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
-								eng.eventBus, caster.id, CARD_ID);
-						}
+					if (tm) {
+						maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
+					}
+
+					if (!tm || tm.isPassable(caster.x, caster.y)) {
+						// Exited wall — launch!
+						applySlingshotLaunch(caster, note.slingshotDirX, note.slingshotDirY,
+							SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
+							eng.eventBus, caster.id, CARD_ID);
+						caster.clearAbilityNote();
+						return;
 					}
 				}
-				caster.clearAbilityNote();
+
+				// Slingshot phase expired but unit still stuck: force out via nearest direction
+				if (currentTime >= DASH_DURATION + SLINGSHOT_PHASE && isAbilityNote(caster.abilityNote, CARD_ID)) {
+					if (tm && !tm.isPassable(caster.x, caster.y)) {
+						const dir = findNearestPassableDirection(tm, caster.x, caster.y);
+						if (dir) {
+							let exitX = caster.x;
+							let exitY = caster.y;
+							for (let d = 4; d <= 800; d += 4) {
+								const tx = caster.x + dir.x * d;
+								const ty = caster.y + dir.y * d;
+								if (tm.isPassable(tx, ty)) {
+									exitX = tx;
+									exitY = ty;
+									break;
+								}
+							}
+							const distToExit = Math.sqrt((exitX - caster.x) ** 2 + (exitY - caster.y) ** 2);
+							if (distToExit > 0) {
+								caster.invalidateMovementPath();
+								caster.moveUnit(exitX, exitY, distToExit);
+								applySlingshotLaunch(caster, dir.x, dir.y,
+									SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
+									eng.eventBus, caster.id, CARD_ID);
+							}
+						}
+					}
+					caster.clearAbilityNote();
+				}
+			} else {
+				// CONTROLLED_SLINGSHOT active: skip DiggingClaws' own push and force-exit.
+				// tickControlledSlingshot handles wall exit via tile-by-tile bouncing.
+				// Just wait out the slingshot-phase window then clear the note so cooldown begins.
+				if (currentTime >= DASH_DURATION + SLINGSHOT_PHASE) {
+					caster.clearAbilityNote();
+				}
 			}
 			return;
 		}

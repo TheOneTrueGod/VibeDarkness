@@ -99,12 +99,12 @@ export const ENEMY_SWARMLING: EnemySpawnDef = {
     aiSettings: { minRange: 0, maxRange: 70 },
 };
 
-/** Wild Lanternite ally — pulses / Soul Sap / torch; usually patrols from a nest. */
+/** Wild Lanternite — nature faction; neutral to players, hostile to shadow enemies. */
 export const ALLY_LANTERNITE: EnemySpawnDef = {
     characterId: 'lanternite',
     name: 'Lanternite',
     position: { x: 0, y: 0 },
-    teamId: 'allied',
+    teamId: 'nature',
     abilities: ['0010'],
     aiSettings: { minRange: 0, maxRange: 600 },
 };
@@ -151,12 +151,12 @@ export const ALLY_THORNLING_NEST: EnemySpawnDef = {
     unitAITreeId: 'default',
 };
 
-/** Nest object — spawns timed Lanternites; stays put (lanterniteNest mission field required). */
+/** Nest object — nature faction; spawns timed Lanternites; stays put (lanterniteNest mission field required). */
 export const ALLY_LANTERNITE_NEST: EnemySpawnDef = {
     characterId: 'lanternite_nest',
     name: 'Lanternite Nest',
     position: { x: 0, y: 0 },
-    teamId: 'allied',
+    teamId: 'nature',
     abilities: ['0014'],
     aiSettings: { minRange: 0, maxRange: 0 },
     unitAITreeId: 'lanterniteNestIdle',

@@ -16,10 +16,14 @@ export interface DamageTakenEffectContext {
 
 /** Match bleed-tick palette: dark creatures read as “no blood” purple, others red. */
 const DAMAGE_NUMBER_COLOR_DARK = 0xc084fc;
+const DAMAGE_NUMBER_COLOR_NATURE = 0x4ade80; // green-400
 const DAMAGE_NUMBER_COLOR_STANDARD = 0xff3344;
 
 function pickDamageNumberColor(unit: Unit): number {
-    return getCreatureType(unit.characterId) === 'dark_creature' ? DAMAGE_NUMBER_COLOR_DARK : DAMAGE_NUMBER_COLOR_STANDARD;
+    const ct = getCreatureType(unit.characterId);
+    if (ct === 'dark_creature') return DAMAGE_NUMBER_COLOR_DARK;
+    if (ct === 'nature') return DAMAGE_NUMBER_COLOR_NATURE;
+    return DAMAGE_NUMBER_COLOR_STANDARD;
 }
 
 function spawnDamageNumberEffect(

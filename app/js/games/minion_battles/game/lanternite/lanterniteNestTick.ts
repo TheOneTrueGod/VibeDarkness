@@ -127,7 +127,7 @@ export function processLanterniteNests(params: {
             {
                 x: nestPos.x,
                 y: nestPos.y,
-                teamId: 'allied' as const,
+                teamId: 'nature' as const,
                 ownerId: 'ai',
                 characterId: LANTERNITE_NEST_CHARACTER_ID,
                 name: 'Lanternite Nest',
@@ -197,7 +197,7 @@ export function processLanterniteNests(params: {
                 {
                     x: nest.x + Math.cos(spawnAngle) * spawnDist,
                     y: nest.y + Math.sin(spawnAngle) * spawnDist,
-                    teamId: 'allied' as const,
+                    teamId: 'nature' as const,
                     ownerId: 'ai',
                     characterId: LANTERNITE_CHARACTER_ID,
                     name: 'Lanternite',

@@ -153,7 +153,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         eng.terrainLayers.add({
             id: `bramble-${caster.id}-${eng.gameTime}`,
             layer: 'ground',
-            effectType: 'bramble_slow',
+            effectType: 'dark_thorn',
             placedAtGameTime: eng.gameTime,
             expiresAtGameTime: Math.max(eng.gameTime + 0.05, expiresAt),
             ownerUnitId: caster.id,

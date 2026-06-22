@@ -10,16 +10,24 @@ import type { EventBus } from './EventBus';
 import type { TerrainLayerManager } from './TerrainLayerManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { tickBleedForRoundMilestone, type BleedDamageFxContext } from '../buffs/bleedRuntime';
+import { getCreatureType } from './units/unit_defs/unitDef';
 
 export const DOT_TICKS_PER_ROUND = 8;
 
-function tickBramble(units: readonly Unit[], terrainLayers: TerrainLayerManager, eventBus: EventBus): void {
+function tickThornEffect(
+    effectType: string,
+    units: readonly Unit[],
+    terrainLayers: TerrainLayerManager,
+    eventBus: EventBus,
+    isImmune: (unit: Unit) => boolean,
+): void {
     for (const unit of units) {
         if (!unit.isAlive()) continue;
+        if (isImmune(unit)) continue;
         const col = Math.floor(unit.x / CELL_SIZE);
         const row = Math.floor(unit.y / CELL_SIZE);
         const effect = terrainLayers.getGroundEffectAt(col, row);
-        if (effect?.effectType === 'bramble_slow') {
+        if (effect?.effectType === effectType) {
             unit.takeDamage(1, effect.ownerUnitId ?? null, eventBus);
         }
     }
@@ -32,5 +40,10 @@ export function tickAllDots(
     fx?: BleedDamageFxContext,
 ): void {
     tickBleedForRoundMilestone(units, eventBus, fx);
-    tickBramble(units, terrainLayers, eventBus);
+    // Regular thorns: nature creatures are immune
+    tickThornEffect('bramble_slow', units, terrainLayers, eventBus,
+        (u) => getCreatureType(u.characterId) === 'nature');
+    // Dark thorns (Thornbinder): dark creatures are immune
+    tickThornEffect('dark_thorn', units, terrainLayers, eventBus,
+        (u) => getCreatureType(u.characterId) === 'dark_creature');
 }

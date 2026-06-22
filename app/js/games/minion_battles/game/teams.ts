@@ -1,11 +1,11 @@
 /**
  * Team system for the battle engine.
  *
- * Defines team IDs and alliance relationships. Extensible for
- * multiple enemy factions in the future.
+ * Defines team IDs and alliance relationships. A team can be allied, hostile,
+ * or neutral to another — neutral means neither allied nor actively hostile.
  */
 
-export type TeamId = 'player' | 'allied' | 'enemy';
+export type TeamId = 'player' | 'allied' | 'enemy' | 'nature';
 
 /**
  * Alliance map: each team lists the other teams it considers allies.
@@ -15,7 +15,18 @@ const ALLIANCE_MAP: Record<TeamId, TeamId[]> = {
     player: ['allied'],
     allied: ['player'],
     enemy: [],
+    nature: [],
 };
+
+/**
+ * Explicit hostile pairs. Teams not listed here are neutral to each other
+ * (neither allies nor enemies). nature vs player/allied is intentionally absent.
+ */
+const HOSTILE_PAIRS: Array<[TeamId, TeamId]> = [
+    ['player', 'enemy'],
+    ['allied', 'enemy'],
+    ['nature', 'enemy'],
+];
 
 /** Check whether two teams are allies (includes being the same team). */
 export function areAllies(teamA: TeamId, teamB: TeamId): boolean {
@@ -23,19 +34,20 @@ export function areAllies(teamA: TeamId, teamB: TeamId): boolean {
     return ALLIANCE_MAP[teamA]?.includes(teamB) ?? false;
 }
 
-/** Check whether two teams are enemies (not allied). */
+/** Check whether two teams are actively hostile (explicit enemies, not merely non-allied). */
 export function areEnemies(teamA: TeamId, teamB: TeamId): boolean {
-    return !areAllies(teamA, teamB);
+    if (teamA === teamB) return false;
+    return HOSTILE_PAIRS.some(([a, b]) => (a === teamA && b === teamB) || (a === teamB && b === teamA));
 }
 
 /** Get all team IDs that are hostile to the given team. */
 export function getHostileTeams(teamId: TeamId): TeamId[] {
-    const allTeams: TeamId[] = ['player', 'allied', 'enemy'];
+    const allTeams: TeamId[] = ['player', 'allied', 'enemy', 'nature'];
     return allTeams.filter((t) => areEnemies(teamId, t));
 }
 
 /** Get all team IDs that are allied with the given team (including itself). */
 export function getAlliedTeams(teamId: TeamId): TeamId[] {
-    const allTeams: TeamId[] = ['player', 'allied', 'enemy'];
+    const allTeams: TeamId[] = ['player', 'allied', 'enemy', 'nature'];
     return allTeams.filter((t) => areAllies(teamId, t));
 }
