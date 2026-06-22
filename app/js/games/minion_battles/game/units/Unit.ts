@@ -35,9 +35,13 @@ import {
 import {
     applySlingshotLaunch,
     computeSlingshotDirection,
+    CONTROLLED_SLINGSHOT_AIR_TIME,
+    CONTROLLED_SLINGSHOT_SLIDE_TIME,
+    findNearestPassableDirection,
     GENERIC_SLINGSHOT_AIR_TIME,
     GENERIC_SLINGSHOT_MAGNITUDE,
     GENERIC_SLINGSHOT_SLIDE_TIME,
+    snapToCardinal,
 } from './slingshotHelpers';
 import type { ResolvedTarget } from '../types';
 import { triggerAbilityEvent } from '../../abilities/events';
@@ -54,7 +58,7 @@ import { computeForcedDisplacement, findNearestPassableCell } from '../forceMove
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
-import { MIN_FOLLOW_RADIUS } from '../gameConstants';
+import { CONTROLLED_SLINGSHOT, MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef, getUnitMaxPerTile, getUnitShovePriority, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
@@ -170,6 +174,8 @@ export interface KnockbackState {
     knockbackSource: KnockbackSource;
     /** Time (seconds) this knockback has been active. */
     knockbackElapsed: number;
+    /** When true, terrain collision is bypassed so the unit can travel through walls. */
+    passThroughTerrain?: boolean;
 }
 
 /** Parameters for applying knockback to a unit. */
@@ -178,6 +184,8 @@ export interface ApplyKnockbackParams {
     knockbackAirTime: number;
     knockbackSlideTime: number;
     knockbackSource: KnockbackSource;
+    /** When true, terrain collision is bypassed so the unit can travel through walls. */
+    passThroughTerrain?: boolean;
 }
 
 export interface UnitAbilityRuntimeState {
@@ -341,6 +349,13 @@ export class Unit extends GameObject {
 
     /** Last world position where the unit was in passable terrain. Used for generic slingshot direction. */
     wallEntryPoint: { x: number; y: number } | null = null;
+
+    /**
+     * Cardinal direction for CONTROLLED_SLINGSHOT bouncing. Persists across consecutive bounces;
+     * abilities may set this before the unit enters a wall to control the bounce direction.
+     * Cleared automatically when the unit exits to passable terrain.
+     */
+    controlledSlingshotDir: { x: number; y: number } | null = null;
 
     /** Active buffs/debuffs on this unit. Serialized for checkpoints. */
     buffs: Buff[] = [];
@@ -695,6 +710,7 @@ export class Unit extends GameObject {
             knockbackSlideTime: params.knockbackSlideTime,
             knockbackSource: { ...params.knockbackSource },
             knockbackElapsed: 0,
+            passThroughTerrain: params.passThroughTerrain,
         };
         this.invalidateMovementPath();
         onApplied?.(this);
@@ -940,7 +956,7 @@ export class Unit extends GameObject {
         const newY = this.y + pushY;
 
         const segmentLength = Math.sqrt(pushX * pushX + pushY * pushY);
-        if (segmentLength > 0 && (terrainManager || grid)) {
+        if (segmentLength > 0 && !k.passThroughTerrain && (terrainManager || grid)) {
             const { distance } = computeForcedDisplacement(
                 this.x,
                 this.y,
@@ -981,6 +997,7 @@ export class Unit extends GameObject {
         if (engine.terrainManager!.isPassable(this.x, this.y)) {
             this.wallEntryPoint = { x: this.x, y: this.y };
             this.wallStuckTime = 0;
+            this.controlledSlingshotDir = null;
             return;
         }
 
@@ -989,6 +1006,11 @@ export class Unit extends GameObject {
         // Suppress while any Entombed ability is still in an active (non-Cooldown) phase.
         if (isEntombedProtectionActive(this, engine)) {
             this.wallStuckTime = 0;
+            return;
+        }
+
+        if (CONTROLLED_SLINGSHOT) {
+            this.tickControlledSlingshot(engine);
             return;
         }
 
@@ -1036,6 +1058,68 @@ export class Unit extends GameObject {
             this.x += (dx / dist) * Math.min(step, dist);
             this.y += (dy / dist) * Math.min(step, dist);
         }
+    }
+
+    /**
+     * CONTROLLED_SLINGSHOT variant of wall ejection. Called from tickWallUnstick when the flag
+     * is enabled. Bounces the unit one tile per 0.2 s in a cardinal direction, dealing 5 damage
+     * per bounce. Chains automatically through walls; reverses at map edges.
+     */
+    private tickControlledSlingshot(engine: EngineContext): void {
+        const tm = engine.terrainManager!;
+
+        // Suppress while the current bounce arc is still in flight.
+        if (this.knockback !== null) {
+            this.wallStuckTime = 0;
+            return;
+        }
+
+        // First entry into a wall: honour WALL_SNAP_DELAY (lets Entombed abilities suppress).
+        // Subsequent bounces in a chain: fire immediately (controlledSlingshotDir already set).
+        if (this.controlledSlingshotDir === null && this.wallStuckTime < Unit.WALL_SNAP_DELAY) {
+            return;
+        }
+
+        // Compute cardinal direction on first bounce of a new chain.
+        if (!this.controlledSlingshotDir) {
+            const rawDir = computeSlingshotDirection(
+                this.wallEntryPoint?.x, this.wallEntryPoint?.y, this.x, this.y, tm,
+            );
+            if (rawDir) {
+                this.controlledSlingshotDir = snapToCardinal(rawDir.x, rawDir.y);
+            } else {
+                const nearest = findNearestPassableDirection(tm, this.x, this.y);
+                this.controlledSlingshotDir = nearest
+                    ? snapToCardinal(nearest.x, nearest.y)
+                    : { x: 1, y: 0 }; // absolute fallback
+            }
+        }
+
+        let { x: dirX, y: dirY } = this.controlledSlingshotDir;
+
+        // Reverse direction when the next tile would be outside the map bounds.
+        const { width, height, cellSize } = tm.getGridSize();
+        const nextCol = Math.floor((this.x + dirX * cellSize) / cellSize);
+        const nextRow = Math.floor((this.y + dirY * cellSize) / cellSize);
+        if (nextCol < 0 || nextRow < 0 || nextCol >= width || nextRow >= height) {
+            dirX = -dirX;
+            dirY = -dirY;
+            this.controlledSlingshotDir = { x: dirX, y: dirY };
+        }
+
+        this.takeDamage(5, null, engine.eventBus);
+
+        // Arc knockback: exactly one tile, 0.2 s air, terrain-bypassing so the unit travels through walls.
+        this.applyKnockback({
+            knockbackVector: { x: dirX * cellSize, y: dirY * cellSize },
+            knockbackAirTime: CONTROLLED_SLINGSHOT_AIR_TIME,
+            knockbackSlideTime: CONTROLLED_SLINGSHOT_SLIDE_TIME,
+            knockbackSource: { unitId: this.id, abilityId: 'controlled_wall_bounce' },
+            passThroughTerrain: true,
+        }, engine.eventBus);
+
+        this.wallStuckTime = 0;
+        this.wallEntryPoint = null;
     }
 
     /**

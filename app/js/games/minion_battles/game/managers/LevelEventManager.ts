@@ -320,6 +320,7 @@ export class LevelEventManager {
                     if (!terrainManager.isPassable(x, y)) continue;
 
                     if (behaviour === 'darkness') {
+                        // Use animated visual grid (getLightAt) not a fresh target grid — tile must be visually dark.
                         const level = this.ctx.getLightAt(col, row);
                         if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
                     }
@@ -421,6 +422,7 @@ export class LevelEventManager {
                     const { x, y } = grid.gridToWorld(cell.col, cell.row);
                     if (!terrainManager.isPassable(x, y)) continue;
                     if (inDarkness) {
+                        // Use animated visual grid — tile must be visually dark, not just target-dark.
                         const level = this.ctx.getLightAt(cell.col, cell.row);
                         if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
                     }
@@ -514,6 +516,7 @@ export class LevelEventManager {
                 const key = `${closestPOI.col},${closestPOI.row}`;
                 if (!occupiedCells.has(key) && terrainManager.isPassable(poiWorld.x, poiWorld.y)) {
                     if (inDarkness) {
+                        // Use animated visual grid — POI must be visually dark, not just target-dark.
                         const level = this.ctx.getLightAt(closestPOI.col, closestPOI.row);
                         if (level == null) {
                             console.warn('spawnWave: closestEnemySpawnPoint inDarkness=true but light system is disabled; skipping spawn entry.');
@@ -720,6 +723,7 @@ export class LevelEventManager {
                         if (dx * dx + dy * dy > radiusSq) continue;
                     }
                     if (behaviour === 'darkness') {
+                        // Use animated visual grid — tile must be visually dark, not just target-dark.
                         const level = this.ctx.getLightAt(col, row);
                         if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
                     }

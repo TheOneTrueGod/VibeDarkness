@@ -40,8 +40,9 @@ When you introduce a **new** `characterId`, add its baseline row in `game/units/
 
 - **`spawnBehaviour: 'darkness'`**
   - Same rules as `'anywhere'`, but restricted to tiles in **full darkness**.
-  - Darkness is computed from mission light config and `specialTiles`.
-  - A tile counts as "full darkness" when its light level is very low, matching how the renderer hides enemies in the darkness overlay.
+  - Uses `ctx.getLightAt(col, row)` — the **animated visual grid** — so a tile is only a valid spawn candidate when it is visually dark to the player, not merely when a light source has logically departed. See `game/lighting/AGENTS.md` for the two-grid distinction.
+  - A tile counts as "full darkness" when `lightLevel == DarknessLevel.FULL_DARKNESS` (0).
+  - **Do not switch this to `getLightGrid(getAllLightSources())`** (the instantaneous target) — that causes units to spawn in tiles that still appear lit because the animated grid hasn't caught up yet.
 
 - **`spawnBehaviour: 'closest'`**
   - Scans Chebyshev rings outward from the **average position of all living player units**.

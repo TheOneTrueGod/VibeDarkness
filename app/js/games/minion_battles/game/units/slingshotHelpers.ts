@@ -14,6 +14,15 @@ export const GENERIC_SLINGSHOT_MAGNITUDE = CELL_SIZE;
 export const GENERIC_SLINGSHOT_AIR_TIME = 0.4;
 export const GENERIC_SLINGSHOT_SLIDE_TIME = 0.2;
 
+export const CONTROLLED_SLINGSHOT_AIR_TIME = 0.2;
+export const CONTROLLED_SLINGSHOT_SLIDE_TIME = 0;
+
+/** Snap a direction vector to the nearest cardinal axis. Prefers X when |dx| === |dy|. */
+export function snapToCardinal(dx: number, dy: number): { x: number; y: number } {
+    if (Math.abs(dx) >= Math.abs(dy)) return { x: dx >= 0 ? 1 : -1, y: 0 };
+    return { x: 0, y: dy >= 0 ? 1 : -1 };
+}
+
 interface PassableQuery {
     isPassable(x: number, y: number): boolean;
 }
