@@ -45,7 +45,20 @@ export interface PassiveAoeDamageEffect {
     pulseRadius?: number;
 }
 
-export type PassiveEffect = PassiveAoeDamageEffect;
+/** Convert up to `count` nearby tiles per trigger to the given terrain effect type. */
+export interface PassivePlaceTerrainEffect {
+    type: 'place_terrain';
+    /** TerrainEffectRecord effectType to place (e.g. 'bramble_slow'). */
+    effectType: string;
+    /** Pixel radius around the caster to search for eligible cells. */
+    range: number;
+    /** How many tiles to convert per trigger. */
+    count: number;
+    /** If set, emits an AuraPulse visual of this radius when at least one tile is placed. */
+    pulseRadius?: number;
+}
+
+export type PassiveEffect = PassiveAoeDamageEffect | PassivePlaceTerrainEffect;
 
 // ---- Top-level def ----
 

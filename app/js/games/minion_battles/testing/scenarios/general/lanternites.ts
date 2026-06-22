@@ -2,6 +2,7 @@
  * Lanternite network scenarios:
  *   1. Nest build â€” networked nest spawns a scout, scout travels to a connected POI and constructs a second nest.
  *   2. Defender attack â€” lanternite light-pulse ability fires at an enemy and deals damage.
+ *   3. Nest thorn spread â€” nest passive converts nearby tiles to bramble_slow terrain each tick.
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -14,6 +15,8 @@ import {
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { prepareLanterniteNestForMissionStart } from '../../../game/lanternite/lanternitePulse';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
+import { LANTERNITE_NEST_AURA_ID } from '../../../card_defs/dark_animals/0014_LanterniteNestAura/0014Ability';
+import { rasterizeArea } from '../../../game/TerrainLayerManager';
 
 const CELL = 40;
 
@@ -374,5 +377,117 @@ export const lanterniteDefenderAttackScenario: ScenarioDefinition = {
         const enemy = engine.getUnit('test_enemy');
         const lan = engine.getUnit('test_lanternite');
         return `t=${engine.gameTime.toFixed(1)} enemyHp=${enemy?.hp ?? 'â€”'} lanState=${lan?.aiContext?.aiState ?? '?'}`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Scenario 4: Lanternite nest passive spreads bramble_slow tiles each tick
+// ---------------------------------------------------------------------------
+
+const THORN_NEST_COL = 5;
+const THORN_NEST_ROW = 3;
+// Pulse radius from the ability (210 px); must match 0014Ability.ts PULSE_RADIUS.
+const THORN_PULSE_RADIUS = 210;
+
+export const lanterniteNestThornSpreadScenario: ScenarioDefinition = {
+    id: 'lanternite_nest_thorn_spread',
+    title: 'Lanternite nest: passive pulse converts nearby tiles to bramble_slow terrain',
+    category: 'general',
+    generalSection: 'Lanternites',
+    // Cover at least 3 × 1s pulse intervals with margin
+    maxDurationMs: 6000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({
+            gridW: 10,
+            gridH: 8,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        const nestPos = worldOf(THORN_NEST_COL, THORN_NEST_ROW);
+        const nestUnit = createUnitFromSpawnConfig(
+            {
+                id: 'thorn_spread_nest',
+                characterId: 'lanternite_nest',
+                name: 'Thorn Spread Nest',
+                x: nestPos.x,
+                y: nestPos.y,
+                teamId: 'allied',
+                ownerId: 'ai',
+                abilities: [LANTERNITE_NEST_AURA_ID],
+                unitAITreeId: 'lanterniteNestIdle',
+                aiSettings: { minRange: 0, maxRange: 0 },
+            },
+            engine.eventBus,
+            engine,
+        );
+        initializeAbilityRuntimeForUnit(nestUnit);
+        engine.addUnit(nestUnit, 'initialGameSpawn');
+
+        // Player unit off to the side with a wait order so the battle stays non-idle
+        spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: worldOf(0, 7).x,
+            y: worldOf(0, 7).y,
+            abilities: [],
+        });
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit();
+        if (!player) return [];
+        return [{ unitId: player.id, abilityId: 'wait', targets: [] }];
+    },
+
+    assertPass(engine) {
+        // Count ground-layer cells with bramble_slow within PULSE_RADIUS of the nest
+        const nest = engine.getUnit('thorn_spread_nest');
+        if (!nest) return false;
+        const candidates = rasterizeArea({
+            type: 'circle',
+            x: nest.x,
+            y: nest.y,
+            radiusPx: THORN_PULSE_RADIUS,
+        });
+        const brambleCells = candidates.filter(({ col, row }) => {
+            const effect = engine.terrainLayers.getGroundEffectAt(col, row);
+            return effect?.effectType === 'bramble_slow';
+        });
+        return brambleCells.length >= 2;
+    },
+
+    failureMessage(engine) {
+        const nest = engine.getUnit('thorn_spread_nest');
+        if (!nest) return `nest unit missing at t=${engine.gameTime.toFixed(1)}`;
+        const candidates = rasterizeArea({
+            type: 'circle',
+            x: nest.x,
+            y: nest.y,
+            radiusPx: THORN_PULSE_RADIUS,
+        });
+        const brambleCells = candidates.filter(({ col, row }) => {
+            const effect = engine.terrainLayers.getGroundEffectAt(col, row);
+            return effect?.effectType === 'bramble_slow';
+        });
+        return `brambleCells=${brambleCells.length} t=${engine.gameTime.toFixed(1)}`;
+    },
+
+    describeState(engine) {
+        const nest = engine.getUnit('thorn_spread_nest');
+        if (!nest) return `t=${engine.gameTime.toFixed(1)} nest=missing`;
+        const candidates = rasterizeArea({
+            type: 'circle',
+            x: nest.x,
+            y: nest.y,
+            radiusPx: THORN_PULSE_RADIUS,
+        });
+        const brambleCells = candidates.filter(({ col, row }) => {
+            const effect = engine.terrainLayers.getGroundEffectAt(col, row);
+            return effect?.effectType === 'bramble_slow';
+        });
+        return `t=${engine.gameTime.toFixed(1)} brambleCells=${brambleCells.length}`;
     },
 };
