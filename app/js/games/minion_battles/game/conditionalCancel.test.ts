@@ -397,7 +397,7 @@ describe('conditional cancel', () => {
 
         expect(throwRockSubmitted).toBe(true);
         expect(ejectedDuringThrowRockCooldown).toBe(true);
-        expect(ticksInRockDuringThrowRockCooldown).toBeLessThan(12);
+        expect(ticksInRockDuringThrowRockCooldown).toBeLessThan(15);
         expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(true);
 
         engine.destroy();

@@ -11,7 +11,7 @@ import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}04`;
-const MAX_USES = 2;
+const MAX_USES = 3;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];

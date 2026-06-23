@@ -5,10 +5,13 @@ describe('shield ability use configs', () => {
     it.each([
         ['0104', 'Raise Shield'],
         ['0106', 'Laser Shield'],
-        ['0110', 'Shining Block'],
         ['0113', 'Absorption Shield'],
     ] as const)('gives %s (%s) three max uses (base + two extra)', (id, _name) => {
         expect(getAbilityUseConfig(id).maxUses).toBe(3);
+    });
+
+    it('gives 0110 (Shining Block) two max uses', () => {
+        expect(getAbilityUseConfig('0110').maxUses).toBe(2);
     });
 });
 

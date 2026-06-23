@@ -405,7 +405,7 @@ export function exitedTimingIds(
     return out;
 }
 
-export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting' | 'defensive';
+export type BattleTimelinePhaseId = 'startup' | 'active' | 'iFrame' | 'cooldown' | 'coopCooldown' | 'waiting' | 'defensive' | 'controlled';
 
 export interface PrimaryTimelineSegment {
     start: number;

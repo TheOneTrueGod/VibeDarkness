@@ -4,7 +4,7 @@ import { defineDirectionalShield } from '../../abilities/archetypes/defineDirect
 import { type CardDef } from '../types';
 
 const CARD_ID = '0113';
-const MAX_USES = 2;
+const MAX_USES = 3;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 2 },
 ];

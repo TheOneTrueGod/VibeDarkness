@@ -357,6 +357,15 @@ export class Unit extends GameObject {
      */
     controlledSlingshotDir: { x: number; y: number } | null = null;
 
+    /**
+     * True while the engine is piloting this unit (e.g. CONTROLLED_SLINGSHOT, cinematic effects).
+     * Prevents the player from submitting orders or advancing movement paths.
+     * Does NOT count as CC and does not trigger boss CC armour.
+     */
+    controlled: boolean = false;
+    /** Estimated game-time (seconds) at which the current controlled sequence ends. Used by the timeline UI. */
+    controlledUntilTime: number | null = null;
+
     /** Active buffs/debuffs on this unit. Serialized for checkpoints. */
     buffs: Buff[] = [];
     /** Per-unit combat tuning values (optional, serialized). */
@@ -722,6 +731,11 @@ export class Unit extends GameObject {
         return this.knockback !== null;
     }
 
+    /** Whether the engine is currently piloting this unit (slingshot, cinematic, etc.). */
+    isControlled(): boolean {
+        return this.controlled;
+    }
+
     /**
      * Move the unit toward a world position by at most maxDistance.
      * If the unit has a movement path, checks whether a new step (current grid cell)
@@ -810,8 +824,8 @@ export class Unit extends GameObject {
             this.tickWallUnstick(dt, engine as EngineContext);
         }
 
-        // Stunned/exposed units must not advance along a movement path (canAct already blocks new orders).
-        if (this.hasBuff('stunned') || this.hasBuff('exposed')) {
+        // Stunned/exposed/controlled units must not advance along a movement path (canAct already blocks new orders).
+        if (this.hasBuff('stunned') || this.hasBuff('exposed') || this.controlled) {
             return;
         }
 
@@ -998,6 +1012,8 @@ export class Unit extends GameObject {
             this.wallEntryPoint = { x: this.x, y: this.y };
             this.wallStuckTime = 0;
             this.controlledSlingshotDir = null;
+            this.controlled = false;
+            this.controlledUntilTime = null;
             return;
         }
 
@@ -1006,10 +1022,35 @@ export class Unit extends GameObject {
         // Suppress while any Entombed ability is still in an active (non-Cooldown) phase.
         if (isEntombedProtectionActive(this, engine)) {
             this.wallStuckTime = 0;
+            this.controlled = false;
+            this.controlledUntilTime = null;
             return;
         }
 
         if (CONTROLLED_SLINGSHOT) {
+            if (!this.controlled) {
+                this.controlled = true;
+                // Interrupt active abilities that are not in a cooldown phase.
+                // Cooldown/CoopCooldown are designed to coexist with the slingshot
+                // (e.g. DiggingClaws waits out the slingshot window during its cooldown).
+                const kept = this.activeAbilities.filter((active) => {
+                    const ability = getAbility(active.abilityId);
+                    if (!ability) return false;
+                    const elapsed = engine.gameTime - active.startTime;
+                    const entries = resolveAbilityTimingEntries(ability, this, engine);
+                    const intervals = normalizeAbilityTimingsToIntervals(entries);
+                    const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
+                    if (phase === AbilityPhase.Cooldown || phase === AbilityPhase.CoopCooldown) {
+                        return true;
+                    }
+                    refundAbilityCost(this, ability);
+                    return false;
+                });
+                this.activeAbilities = kept;
+                if (this.activeAbilities.length === 0) {
+                    this.clearAbilityNote();
+                }
+            }
             this.tickControlledSlingshot(engine);
             return;
         }
@@ -1118,6 +1159,7 @@ export class Unit extends GameObject {
             passThroughTerrain: true,
         }, engine.eventBus);
 
+        this.controlledUntilTime = engine.gameTime + CONTROLLED_SLINGSHOT_AIR_TIME + CONTROLLED_SLINGSHOT_SLIDE_TIME;
         this.wallStuckTime = 0;
         this.wallEntryPoint = null;
     }
@@ -1181,6 +1223,7 @@ export class Unit extends GameObject {
             !this.isInKnockback() &&
             !this.hasBuff('stunned') &&
             !this.hasBuff('exposed') &&
+            !this.controlled &&
             this.activeAbilities.length === 0 &&
             !this.isInWaitLockout()
         );

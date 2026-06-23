@@ -636,6 +636,11 @@ function renderPlayerUnitTimelineUnified(
         ability ?? (isWaitLockout ? WaitAbility : null) ?? (showPreview ? previewAbility : null) ?? ghostAbility ?? null;
     const hasTimeline = !!(displayAbility && segments.length > 0 && alive);
 
+    const isControlled = unit.controlled && unit.controlledUntilTime != null && alive;
+    const controlledWidthPct = isControlled
+        ? Math.min(100, Math.max(0, ((unit.controlledUntilTime! - now) / windowSeconds) * 100))
+        : 0;
+
     const track =
         hasTimeline && displayAbility
             ? renderPlayerTimelineTrack(
@@ -652,6 +657,17 @@ function renderPlayerUnitTimelineUnified(
             : (
                   <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
                       <TimelineTimeRuler windowSeconds={windowSeconds} />
+                      {isControlled && (
+                          <TimelinePhaseSegment
+                              phase="controlled"
+                              leftPercent={0}
+                              widthPercent={controlledWidthPct}
+                              label="Controlled"
+                              description=""
+                              isHighlighted={false}
+                              onPointerEnter={() => {}}
+                          />
+                      )}
                   </div>
               );
 
