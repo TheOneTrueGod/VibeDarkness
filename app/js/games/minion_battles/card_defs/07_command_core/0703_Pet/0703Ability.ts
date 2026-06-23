@@ -1,5 +1,5 @@
 /**
- * Heel — player command card.
+ * Pet — player command card.
  *
  * Instant cast, no targets. All pets disengage, hold a tight tether,
  * and are healed for 30% of their max HP. Dead pets are revived at that HP.
@@ -17,7 +17,7 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import { type CardDef } from '../../types';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import { nullHitbox } from '../../../hitboxes';
-import heelIconUrl from './heel.png';
+import petIconUrl from './pet.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}03`;
 const SIC_EM_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}04`;
@@ -60,12 +60,12 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'cooldown', start: CAST_DURATION, end: CAST_DURATION + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
 ];
 
-const HEEL_IMAGE = `<img src="${heelIconUrl}" width="56" height="56" alt="" style="object-fit: contain; display: block; margin: 0 auto;" />`;
+const PET_IMAGE = `<img src="${petIconUrl}" width="56" height="56" alt="" style="object-fit: contain; display: block; margin: 0 auto;" />`;
 
-export const HeelAbility = defineAbility({
+export const PetAbility = defineAbility({
     id: CARD_ID,
-    name: 'Heel',
-    image: HEEL_IMAGE,
+    name: 'Pet',
+    image: PET_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
     maxUses: MAX_USES,
@@ -83,6 +83,6 @@ export const HeelAbility = defineAbility({
     },
 });
 
-export const HeelCard: CardDef = {
+export const PetCard: CardDef = {
     abilityId: CARD_ID,
 };

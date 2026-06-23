@@ -61,7 +61,7 @@ import { LanterniteNestAuraAbility } from '../card_defs/dark_animals/0014_Lanter
 import { ThornlingBiteAbility } from '../card_defs/dark_animals/0015_ThornlingBite/0015Ability';
 import { DogBiteAbility } from '../card_defs/07_command_core/0701_DogBite/0701Ability';
 import { PounceAbility } from '../card_defs/07_command_core/0702_Pounce/0702Ability';
-import { HeelAbility } from '../card_defs/07_command_core/0703_Heel/0703Ability';
+import { PetAbility } from '../card_defs/07_command_core/0703_Pet/0703Ability';
 import { SicEmAbility } from '../card_defs/07_command_core/0704_SicEm/0704Ability';
 import { WaitAbility } from './WaitAbility';
 
@@ -134,7 +134,7 @@ register(LanterniteNestAuraAbility);
 register(ThornlingBiteAbility);
 register(DogBiteAbility);
 register(PounceAbility);
-register(HeelAbility);
+register(PetAbility);
 register(SicEmAbility);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
