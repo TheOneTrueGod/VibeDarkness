@@ -53,9 +53,14 @@ function knifeLaunchBehaviour(pierce: number) {
     return CastBehaviours.ProjectileLaunch()
         .withSpeed(THROW_PROJECTILE_SPEED)
         .withMaxRange(THROW_RANGE)
-        .withProjectileType('throwing_knife')
         .withPierce(pierce)
-        .withResolveDamage(resolveKnifeDamage);
+        .withTravelFullRange()
+        .withResolveDamage(resolveKnifeDamage)
+        .withSpriteConfig({
+            sprite: { frameFiles: ['images/projectiles/knife.png'] },
+            loop: false,
+            animations: [{ type: 'rotation', mode: 'velocity-facing' }],
+        });
 }
 
 function buildKnifeTimings(research: Set<string>) {

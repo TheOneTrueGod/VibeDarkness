@@ -13,11 +13,9 @@ import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
 import { nullHitbox } from '../../../hitboxes';
 import type { Unit } from '../../../game/units/Unit';
-import { Effect } from '../../../game/effects/Effect';
+import { LightSource } from '../../../game/lightSources/LightSource';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
-import { getAimPointClampedToMaxRange, getDirectionFromTo, getPixelTargetPosition } from '../../../abilities/targetHelpers';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
@@ -33,10 +31,6 @@ const TORCH_LIGHT_AMOUNT = 4;
 const TORCH_RADIUS = 2;
 const TORCH_ROUNDS = 3;
 const TORCH_PROJECTILE_SPEED = 400;
-
-function getMaxRange(caster: Unit): number {
-    return MAX_RANGE + caster.radius + DEFAULT_UNIT_RADIUS;
-}
 
 const THROW_TORCH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -73,32 +67,11 @@ export const ThrowTorchAbility = defineAbility({
             end: PREFIRE_TIME + 0.05,
             abilityPhase: AbilityPhase.Active,
             targetDef: { kind: 'select', label: 'Target location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
-            behaviour: CastBehaviours.Instant((ctx) => {
-                const eng = ctx.engine as AbilityEngineContext;
-                const caster = ctx.caster;
-                const pos = getPixelTargetPosition(ctx.allTargets, 0);
-                if (!pos) return;
-
-                const maxR = getMaxRange(caster);
-                const { x: placeX, y: placeY } = getAimPointClampedToMaxRange(caster, pos, maxR);
-                const { dist: travelDist } = getDirectionFromTo(caster.x, caster.y, placeX, placeY);
-                const travelTime = Math.max(0.15, travelDist / TORCH_PROJECTILE_SPEED);
-
-                eng.addEffect(new Effect({
-                    x: placeX,
-                    y: placeY,
-                    duration: travelTime,
-                    effectType: 'TorchProjectile',
-                    startX: caster.x,
-                    startY: caster.y,
-                    effectData: {
-                        roundCreated: eng.roundNumber ?? 1,
-                        initialLightAmount: TORCH_LIGHT_AMOUNT,
-                        initialRadius: TORCH_RADIUS,
-                        roundsTotal: TORCH_ROUNDS,
-                    },
-                }));
-            }),
+            behaviour: CastBehaviours.ProjectileLaunch()
+                .withSpeed(TORCH_PROJECTILE_SPEED)
+                .withMaxRange(MAX_RANGE)
+                .withProjectileType('torch')
+                .withPassThroughEnemies(),
         },
         {
             id: 'cooldown',
@@ -111,12 +84,29 @@ export const ThrowTorchAbility = defineAbility({
     clearMovementOnComplete: true,
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
 
+    onProjectileExpired(engine, _caster, projectile): void {
+        const eng = engine as AbilityEngineContext & { addLightSource(ls: LightSource): void };
+        const proj = projectile as { x: number; y: number };
+        eng.addLightSource(new LightSource({
+            x: proj.x,
+            y: proj.y,
+            lightAmount: TORCH_LIGHT_AMOUNT,
+            radius: TORCH_RADIUS,
+            decay: {
+                roundCreated: eng.roundNumber ?? 1,
+                initialLightAmount: TORCH_LIGHT_AMOUNT,
+                initialRadius: TORCH_RADIUS,
+                roundsTotal: TORCH_ROUNDS,
+            },
+        }));
+    },
+
     getTooltipText(_gameState?: unknown): string[] {
         return [`Place a torch on the ground that emits light`, `Lasts ${TORCH_ROUNDS} rounds`];
     },
 
-    getRange(caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: getMaxRange(caster) };
+    getRange(_caster: Unit): { minRange: number; maxRange: number } {
+        return { minRange: 0, maxRange: MAX_RANGE };
     },
 
     getAbilityStates(_currentTime: number): AbilityStateEntry[] {

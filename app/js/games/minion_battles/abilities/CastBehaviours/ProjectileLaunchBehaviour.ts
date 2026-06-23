@@ -8,7 +8,7 @@ import { Projectile } from '../../game/projectiles/Projectile';
 import { clampToMaxRange } from '../previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../targetHelpers';
 import type { ProjectileModifierId } from '../../game/projectiles/ProjectileTravelModifiers';
-import type { SpriteProjectileGraphicDef } from '../../game/projectiles/ProjectileGraphicDef';
+import type { SpriteProjectileConfig } from '../../game/projectiles/projectile_defs';
 
 type DamageResolver = (ctx: CastBehaviourSetupContext) => number;
 
@@ -26,14 +26,15 @@ function resolveLaunchTarget(ctx: CastBehaviourSetupContext): { x: number; y: nu
 export class ProjectileLaunchBehaviour implements CastBehaviour {
     private speed: number = 400;
     private radius: number = 5;
-    private projectileType: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' = 'default';
-    private graphicDef?: SpriteProjectileGraphicDef;
+    private projectileType: string = 'default';
+    private spriteConfig?: SpriteProjectileConfig;
     private maxRange: number = 200;
     private baseDamage: number = 0;
     private resolveDamage: DamageResolver | null = null;
     private pierce: number = 0;
     private passThroughEnemies: boolean = false;
     private modifiers: ProjectileModifierId[] = [];
+    private travelFullRange: boolean = false;
 
     withSpeed(speed: number): this {
         this.speed = speed;
@@ -45,13 +46,14 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         return this;
     }
 
-    withProjectileType(type: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife'): this {
+    withProjectileType(type: string): this {
         this.projectileType = type;
         return this;
     }
 
-    withGraphicDef(def: SpriteProjectileGraphicDef): this {
-        this.graphicDef = def;
+    withSpriteConfig(config: SpriteProjectileConfig): this {
+        this.projectileType = 'sprite_projectile';
+        this.spriteConfig = config;
         return this;
     }
 
@@ -87,6 +89,11 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         return this;
     }
 
+    withTravelFullRange(): this {
+        this.travelFullRange = true;
+        return this;
+    }
+
     onSetup(ctx: CastBehaviourSetupContext): void {
         const targetPos = resolveLaunchTarget(ctx);
         if (!targetPos) return;
@@ -96,7 +103,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         const { dirX, dirY, dist } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, clamped.endX, clamped.endY);
         if (dist === 0) return;
 
-        const travelDistance = Math.min(dist, this.maxRange);
+        const travelDistance = this.travelFullRange ? this.maxRange : Math.min(dist, this.maxRange);
         const damage = this.resolveDamage ? this.resolveDamage(ctx) : this.baseDamage;
 
         const projectile = new Projectile({
@@ -110,7 +117,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             sourceAbilityId: ctx.abilityId,
             maxDistance: travelDistance,
             projectileType: this.projectileType,
-            graphicDef: this.graphicDef,
+            spriteConfig: this.spriteConfig,
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,
             modifiers: this.modifiers.length > 0 ? this.modifiers : undefined,

@@ -4,6 +4,7 @@
 
 | Todo | Notes | Date |
 |------|-------|------|
+| Add `travelFullRange` to `ProjectileLaunchBehaviour` and apply to Throw Rock / Throw Knife | Added `private travelFullRange` field and `withTravelFullRange()` builder to `ProjectileLaunchBehaviour.ts`; `onSetup` uses `maxRange` instead of `dist` when set. Applied to `rockLaunchBehaviour()` in `0107Ability.ts` and `knifeLaunchBehaviour()` in `0109Ability.ts`. | 2026-06-22 |
 | Modify your ability tests skill. One test per ability | Added "Test design principles" section to ability-tests SKILL.md: one scenario per ability max, combine multiple assertions, require comment if a second scenario is needed. | 2026-05-31 |
 | Rename `CardHand.tsx` / `CardComponent.tsx` to ability-focused names | Used `git mv` to rename all 4 files: `CardHand` → `AbilityBar`, `CardComponent` → `AbilitySlot`, `CardTooltip` → `AbilityTooltip`, `CardDescription` → `AbilityDescription`; updated all internal component/interface names, cross-imports, and the `BattlePhase.tsx` usage site. | 2026-06-05 |
 | Fix `ChargeAttack` template's reference to `discardDuration` | Already cleaned up as part of the `discardDuration` removal pass — the config field and cardDef assignment were both stripped at that time. | 2026-06-05 |

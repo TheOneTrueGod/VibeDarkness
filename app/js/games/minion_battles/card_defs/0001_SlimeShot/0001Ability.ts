@@ -67,11 +67,9 @@ const _base: AbilityStatic = defineAbility({
                 .withMaxRange(MAX_DISTANCE)
                 .withBaseDamage(DAMAGE)
                 .withRadius(10)
-                .withGraphicDef({
-                    type: 'sprite',
-                    fps: 8,
-                    scale: 2,
-                    frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL],
+                .withSpriteConfig({
+                    sprite: { fps: 8, scale: 2, frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL] },
+                    loop: true,
                 }),
         },
         {

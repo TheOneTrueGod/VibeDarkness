@@ -73,7 +73,14 @@ function rockLaunchBehaviour() {
     return CastBehaviours.ProjectileLaunch()
         .withSpeed(THROW_PROJECTILE_SPEED)
         .withMaxRange(THROW_RANGE)
-        .withResolveDamage(resolveRockProjectileDamage);
+        .withTravelFullRange()
+        .withResolveDamage(resolveRockProjectileDamage)
+        .withSpriteConfig({
+            sprite: { file: 'images/projectiles/rock_spin.png', frames: 4, frameDirection: 'row', fps: 8 },
+            loop: true,
+            trail: { effectType: 'BulletTrail' },
+            animations: [{ type: 'rotation', mode: 'constant', degreesPerSecond: 180 }],
+        });
 }
 
 const THROW_ROCK_BASE_TIMINGS = buildThrowBaseTimings({

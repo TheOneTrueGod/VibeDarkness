@@ -14,7 +14,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Add `travelFullRange` to `ProjectileLaunchBehaviour` and apply to Throw Rock / Throw Knife | In `ProjectileLaunchBehaviour.ts` (`onSetup`), `maxDistance` is currently set to `dist` (distance to the clicked target). Add a `private travelFullRange = false` field and a `withTravelFullRange(): this` builder method; when true, set `maxDistance = this.maxRange` instead so the projectile travels the full ability range if it misses. Then call `.withTravelFullRange()` on `rockLaunchBehaviour()` in `0107_ThrowRock/0107Ability.ts` and `knifeLaunchBehaviour()` in `0109_ThrowKnife/0109Ability.ts`. Throw Torch (Effect, not a Projectile) and Throw Charged Rock (stops at target by design) need no changes. |
 | Create `AbilityUseTracker` class | Add `game/managers/AbilityUseTracker.ts` with a `Map<string, number>` and the three methods `trackAbilityUse`, `getAbilityUsesThisRound`, `clearAbilityUses` (copy logic from `CardManager`). No call-site changes yet — just the new file. |
 | Wire `AbilityUseTracker` into `GameState` and remove from `CardManager` | Add `abilityUseTracker: AbilityUseTracker` to `GameState` (construct it alongside `cardManager`). Redirect the three `GameEngine.ts` call sites (lines ~367, ~1402, ~1418) from `state.cardManager` to `state.abilityUseTracker`. Then delete `abilityUsesThisRound`, `trackAbilityUse`, `getAbilityUsesThisRound`, and `clearAbilityUses` from `CardManager`. |
 

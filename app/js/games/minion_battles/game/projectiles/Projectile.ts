@@ -5,7 +5,6 @@
  * dealing damage to the first enemy hit, then deactivating.
  */
 
-import { Graphics } from 'pixi.js';
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { Effect } from '../effects/Effect';
 import type { TeamId } from '../teams';
@@ -22,7 +21,7 @@ import { TerrainType } from '../../terrain/TerrainType';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { ProjectileModifierId } from './ProjectileTravelModifiers';
 import { shouldCountTraversalDistance } from './ProjectileTravelModifiers';
-import type { SpriteProjectileGraphicDef } from './ProjectileGraphicDef';
+import type { SpriteProjectileConfig } from './projectile_defs';
 
 const THROW_KNIFE_ABILITY_ID = 'throw_knife';
 
@@ -39,10 +38,10 @@ export class Projectile extends GameObject {
     radius: number = 5;
     /** Optional visual trail type (e.g. 'bullet'). When set, update() will spawn matching effects as the projectile moves. */
     trailType?: 'bullet';
-    /** Projectile look variant for custom rendering. */
-    projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike';
-    /** Sprite-based graphic definition. When set, the renderer uses an AnimatedSprite instead of procedural Graphics. */
-    graphicDef?: SpriteProjectileGraphicDef;
+    /** Projectile look variant — key into the projectile def registry. */
+    projectileType: string;
+    /** Sprite-based config for sprite_projectile type. Travels with the instance and is serialized. */
+    spriteConfig?: SpriteProjectileConfig;
     /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
     modifiers: ProjectileModifierId[];
 
@@ -81,8 +80,8 @@ export class Projectile extends GameObject {
         sourceAbilityId: string;
         maxDistance: number;
         trailType?: 'bullet';
-        projectileType?: 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike';
-        graphicDef?: SpriteProjectileGraphicDef;
+        projectileType?: string;
+        spriteConfig?: SpriteProjectileConfig;
         modifiers?: ProjectileModifierId[];
         passThroughEnemies?: boolean;
         pierce?: number;
@@ -98,7 +97,7 @@ export class Projectile extends GameObject {
         this.maxDistance = config.maxDistance;
         this.trailType = config.trailType;
         this.projectileType = config.projectileType ?? 'default';
-        this.graphicDef = config.graphicDef;
+        this.spriteConfig = config.spriteConfig;
         this.modifiers = config.modifiers ?? [];
         this.passThroughEnemies = config.passThroughEnemies ?? false;
         this.pierce = config.pierce ?? 0;
@@ -118,7 +117,7 @@ export class Projectile extends GameObject {
         const terrainManager = (engine as { terrainManager?: TerrainManager | null })?.terrainManager ?? null;
         this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, this.x, this.y, terrainManager);
 
-        if (this.trailType === 'bullet') {
+        if (this.trailType === 'bullet' || this.spriteConfig?.trail) {
             const eng = engine as { addEffect?: (effect: Effect) => void };
             if (typeof eng.addEffect === 'function') {
                 const dx = this.x - prevX;
@@ -142,55 +141,6 @@ export class Projectile extends GameObject {
             this.triggerExpireEffect(engine);
             this.active = false;
         }
-    }
-
-    /** Create the Pixi Graphics for this projectile. The projectile owns its own visual representation. */
-    static createVisual(projectile: Projectile): Graphics {
-        const visual = new Graphics();
-        if (projectile.projectileType === 'charged_rock') {
-            visual.circle(0, 0, projectile.radius + 1);
-            visual.fill(0x7a7a7a);
-            visual.stroke({ color: 0xd9d9d9, width: 1 });
-            visual.moveTo(-8, -4);
-            visual.lineTo(-3, -6);
-            visual.lineTo(-5, -1);
-            visual.lineTo(0, -3);
-            visual.stroke({ color: 0x8ef9ff, width: 2, alpha: 0.95 });
-            visual.moveTo(2, 1);
-            visual.lineTo(7, -1);
-            visual.lineTo(4, 4);
-            visual.lineTo(9, 3);
-            visual.stroke({ color: 0x8ef9ff, width: 2, alpha: 0.95 });
-        } else if (projectile.projectileType === 'energy_blast') {
-            visual.circle(0, 0, projectile.radius);
-            visual.fill({ color: 0x93e7ff, alpha: 0.95 });
-            visual.circle(0, 0, projectile.radius * 0.65);
-            visual.fill({ color: 0xd8f7ff, alpha: 0.85 });
-            visual.circle(0, 0, projectile.radius * 1.25);
-            visual.stroke({ color: 0x63d7ff, width: 2, alpha: 0.8 });
-        } else if (projectile.projectileType === 'throwing_knife') {
-            // Minimal silhouette: short wooden handle + thin triangular blade.
-            visual.rect(-2, -4, 4, 8);
-            visual.fill({ color: 0x8b5a2b, alpha: 0.98 });
-            // Pixi v8 Graphics uses poly([x,y,...], close), not polygon().
-            visual.poly([-2, -4, 2, -4, 0, -13], true);
-            visual.fill({ color: 0xe7ebef, alpha: 1 });
-            visual.moveTo(-1, -8);
-            visual.lineTo(0, -12);
-            visual.stroke({ color: 0xf8fbff, width: 1, alpha: 0.9 });
-        } else if (projectile.projectileType === 'bramble_spike') {
-            visual.circle(0, 0, projectile.radius);
-            visual.fill({ color: 0x22c55e, alpha: 0.95 });
-            visual.circle(0, 0, projectile.radius * 0.5);
-            visual.fill({ color: 0x86efac, alpha: 0.98 });
-            visual.circle(0, 0, projectile.radius + 1);
-            visual.stroke({ color: 0x166534, width: 1, alpha: 0.8 });
-        } else {
-            visual.circle(0, 0, projectile.radius);
-            visual.fill(0xc0c0c0);
-            visual.stroke({ color: 0xffffff, width: 1 });
-        }
-        return visual;
     }
 
     /**
@@ -325,7 +275,7 @@ export class Projectile extends GameObject {
             radius: this.radius,
             trailType: this.trailType,
             projectileType: this.projectileType,
-            graphicDef: this.graphicDef,
+            spriteConfig: this.spriteConfig,
             modifiers: this.modifiers,
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,
@@ -351,10 +301,8 @@ export class Projectile extends GameObject {
         proj.distanceTraveled = data.distanceTraveled as number;
         proj.radius = (data.radius as number) ?? 5;
         proj.trailType = (data.trailType as 'bullet' | undefined) ?? undefined;
-        proj.projectileType =
-            (data.projectileType as 'default' | 'charged_rock' | 'energy_blast' | 'throwing_knife' | 'bramble_spike' | undefined) ??
-            'default';
-        proj.graphicDef = data.graphicDef as SpriteProjectileGraphicDef | undefined;
+        proj.projectileType = (data.projectileType as string | undefined) ?? 'default';
+        proj.spriteConfig = data.spriteConfig as SpriteProjectileConfig | undefined;
         proj.passThroughEnemies = (data.passThroughEnemies as boolean | undefined) ?? false;
         proj.pierce = (data.pierce as number | undefined) ?? 0;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;
