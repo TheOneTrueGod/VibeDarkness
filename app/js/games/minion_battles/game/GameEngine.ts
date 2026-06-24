@@ -118,6 +118,10 @@ export class GameEngine implements EngineContext {
     /** Monotonic id suffix for new GameObjects created while this engine is authoritative. */
     private objectIdSeq = 1;
 
+    // Client-side only — never serialized, never synchronized between host and non-host.
+    // Use this (not allocateObjectId) for visual Effect IDs.
+    private effectIdSeq = 0;
+
     /**
      * Parallel order pause scheduled during a tick; committed in the **same** `fixedUpdate` after
      * `TICK_END` for that tick (see `commitDeferredOrderPauseAfterCompletedTick`).
@@ -321,9 +325,8 @@ export class GameEngine implements EngineContext {
     }
 
     addEffect(effect: Effect): void {
-        effect.id = this.allocateObjectId('fx');
+        effect.id = this.allocateEffectObjectId('fx');
         this.state.effectManager.addEffect(effect);
-        this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(effect.id), Math.floor(effect.x), Math.floor(effect.y));
     }
 
     addLightSource(ls: LightSource): void {
@@ -818,7 +821,7 @@ export class GameEngine implements EngineContext {
             realDt, posSnapshot, this.isPaused,
         );
         for (const fx of emitterVisualEffects) {
-            fx.id = this.allocateObjectId('fx');
+            fx.id = this.allocateEffectObjectId('fx');
             this.state.effectManager.addEffect(fx);
         }
     }
@@ -861,9 +864,14 @@ export class GameEngine implements EngineContext {
         return true;
     }
 
-    /** Allocate a unique id for a new unit/projectile/effect under this engine instance. */
+    /** Allocate a unique id for a new unit or projectile under this engine instance. */
     allocateObjectId(prefix = 'obj'): string {
         return `${prefix}_${this.objectIdSeq++}`;
+    }
+
+    /** Allocate a unique id for a visual Effect. Client-side only — never fingerprinted or synced. */
+    private allocateEffectObjectId(prefix = 'fx'): string {
+        return `${prefix}_${this.effectIdSeq++}`;
     }
 
     /** Reset id allocation (e.g. fresh battle). */
@@ -1172,7 +1180,7 @@ export class GameEngine implements EngineContext {
         }
         const emitterEffects = this.state.effectEmitterManager.update(dt, this);
         for (const fx of emitterEffects) {
-            fx.id = this.allocateObjectId('fx');
+            fx.id = this.allocateEffectObjectId('fx');
             this.state.effectManager.addEffect(fx);
         }
         this.state.effectManager.gameUpdate(dt);

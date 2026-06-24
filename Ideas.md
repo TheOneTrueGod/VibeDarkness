@@ -4,6 +4,12 @@ Clarence:  Crystal + Crystal
 Kerry: Bleeding sword.  Likes shotgun builds
 Voen: metal
 
+Feedback June 23
+[] Bump bat and sword ranges back up a bit.  It's annoying how close you need to get
+[] Mission indicator is in the wrong place in firefox
+[] You can view the mission list from the "edit characters" page
+[] Ghost spawned in the middle of the cave
+
 Feedback June 9
 [x] Bug where the Alpha Wolf's triple charge is interrupted by a stunning punch
 [x] Alpha wolf seemed to use triple attack while stunned
