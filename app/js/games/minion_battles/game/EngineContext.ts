@@ -113,7 +113,13 @@ export interface EngineContext {
      */
     getLightAt(col: number, row: number): number | null;
 
-    /** When implemented (full engine), allocates unique ids for new gameplay objects for this battle instance. */
+    /**
+     * Allocate a unique id for a game entity (unit, projectile, special tile) owned by this
+     * battle instance. The returned ids are serialized and compared between host and non-host.
+     *
+     * Do NOT use this for visual effects — call `addEffect()` instead, which allocates
+     * effect ids from a separate client-side counter that is never fingerprinted or synced.
+     */
     allocateObjectId?(prefix?: string): string;
 
     /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */

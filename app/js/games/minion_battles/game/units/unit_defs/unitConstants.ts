@@ -5,10 +5,12 @@
 export const DEFAULT_UNIT_RADIUS = 20;
 
 /** Unit size categories mapped to radius in pixels. */
-export type UnitSize = 'Tiny' | 'Extra Small' | 'Small' | 'Medium' | 'Large' | 'Extra Large' | 'Giant' | 'Colossal';
+export type UnitSize = 'Minuscule' | 'Diminutive' | 'Tiny' | 'Extra Small' | 'Small' | 'Medium' | 'Large' | 'Extra Large' | 'Giant' | 'Colossal';
 
 /** Size to radius (px) mapping for unit rendering and collision. */
 export const UNIT_SIZE_MAP: Record<UnitSize, number> = {
+    Minuscule: 8,
+    Diminutive: 10,
     Tiny: 12,
     'Extra Small': 16,
     Small: 18,

@@ -270,7 +270,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         characterSpriteKey: 'swarmling',
         hp: 4,
         speed: 90,
-        size: 'Tiny',
+        size: 'Diminutive',
         stamina: 2,
         perceptionRange: 250,
         creatureType: 'dark_creature',
