@@ -149,6 +149,46 @@ describe('NinjutsuPool', () => {
         expect(pool.current).toBe(0);
     });
 
+    it('sub-round rechargeInterval refills pool mid-round via resolveRequests', () => {
+        const rechargeInterval = 1 / 3;
+        const pool = new NinjutsuPool('shadow', makeConfig({ maxPool: 2, rechargeInterval, pauseBetweenUses: 0 }));
+
+        // Drain the pool at tick 0
+        pool.registerRequest(makeUnit('a'), makeAbility('atk'), [], undefined, 0);
+        pool.registerRequest(makeUnit('b'), makeAbility('atk'), [], undefined, 0);
+        const granted: string[] = [];
+        pool.resolveRequests(0, (_tick, order) => granted.push(order.unitId), () => 0);
+        expect(granted).toHaveLength(2);
+        expect(pool.current).toBe(0);
+
+        // Before the recharge interval elapses, pool stays empty
+        const beforeRecharge = rechargeInterval * ROUND_DURATION * 0.5;
+        pool.registerRequest(makeUnit('a'), makeAbility('atk'), [], undefined, 0);
+        pool.resolveRequests(beforeRecharge, (_tick, order) => granted.push(order.unitId), () => 0);
+        expect(granted).toHaveLength(2);
+
+        // At the recharge point the pool refills and new grants are issued
+        const atRecharge = rechargeInterval * ROUND_DURATION;
+        pool.registerRequest(makeUnit('a'), makeAbility('atk'), [], undefined, 0);
+        pool.registerRequest(makeUnit('b'), makeAbility('atk'), [], undefined, 0);
+        pool.resolveRequests(atRecharge, (_tick, order) => granted.push(order.unitId), () => 0);
+        expect(granted).toHaveLength(4);
+        expect(pool.current).toBe(0);
+
+        // Second recharge fires after another interval
+        const atSecondRecharge = atRecharge + rechargeInterval * ROUND_DURATION;
+        pool.registerRequest(makeUnit('a'), makeAbility('atk'), [], undefined, 0);
+        pool.resolveRequests(atSecondRecharge, (_tick, order) => granted.push(order.unitId), () => 0);
+        expect(granted).toHaveLength(5);
+    });
+
+    it('sub-round rechargeInterval skips onRoundStart refill', () => {
+        const pool = new NinjutsuPool('shadow', makeConfig({ maxPool: 3, rechargeInterval: 1 / 3, pauseBetweenUses: 0 }));
+        pool.current = 0;
+        pool.onRoundStart(1);
+        expect(pool.current).toBe(0); // time-based system owns refills, not onRoundStart
+    });
+
     it('respects overrideDelay from ability config', () => {
         const pool = new NinjutsuPool('shadow', makeConfig({ maxPool: 3, pauseBetweenUses: 0.5 }));
 

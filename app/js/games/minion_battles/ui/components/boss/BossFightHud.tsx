@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BossArcadeHpBar, type BossArcadeHpBarProps } from './BossArcadeHpBar';
 import { AlphaWolfHpBar } from './AlphaWolfHpBar';
 import { BossCcArmourRow } from './BossCcArmourRow';
@@ -31,12 +31,21 @@ export type BossHudSlice = {
 
 type BossFightHudProps = {
     boss: BossHudSlice;
+    onRegisterCcStatusTarget?: (pageX: number, pageY: number) => void;
 };
 
 /**
  * Boss name inside HP bar, signature charges (when configured), CC pips; overlays the battle view.
  */
-export default function BossFightHud({ boss }: BossFightHudProps) {
+export default function BossFightHud({ boss, onRegisterCcStatusTarget }: BossFightHudProps) {
+    const ccStatusRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!onRegisterCcStatusTarget || !ccStatusRef.current) return;
+        const rect = ccStatusRef.current.getBoundingClientRect();
+        onRegisterCcStatusTarget(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    }, [boss, onRegisterCcStatusTarget]);
+
     if (!boss) return null;
 
     const HpBar = getBossHpBar(boss.characterId);
@@ -61,7 +70,7 @@ export default function BossFightHud({ boss }: BossFightHudProps) {
                                 />
                             ) : null}
                         </div>
-                        <div className="flex shrink-0 justify-end">
+                        <div ref={ccStatusRef} className="flex shrink-0 justify-end">
                             {boss.exposedSecondsRemaining != null && boss.exposedTotalDuration != null ? (
                                 <BossExposedTimerBar
                                     secondsRemaining={boss.exposedSecondsRemaining}

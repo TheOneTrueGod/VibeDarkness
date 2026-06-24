@@ -76,7 +76,7 @@ const pounceDash = new DashBehaviour()
                 (ctx.engine as { interruptUnitAndRefundAbilities?(u: Unit): void }).interruptUnitAndRefundAbilities?.(u),
         };
 
-        tryApplyHardCcStun(hitUnit, STUN_DURATION, ctx.engine.gameTime, knockbackEngine.roundNumber);
+        tryApplyHardCcStun(hitUnit, STUN_DURATION, ctx.engine.gameTime, knockbackEngine.roundNumber, ctx.engine.eventBus);
         // Fling the victim backward over the dog's shoulder — opposite the dash direction.
         applyDirectionalKnockback(
             hitUnit,

@@ -27,4 +27,8 @@ export const NINJUTSU_TIER_3: NinjutsuPoolConfig =
 export const NINJUTSU_TIER_4: NinjutsuPoolConfig =
     { enabled: true, maxPool: 5, rechargeInterval: 1, pauseBetweenUses: 0.1 };
 
+// 3 bursts of 4 attacks per round; pool refills every 1/3 round with no pause between grants
+export const NINJUTSU_3_FLURRY_PER_ROUND: NinjutsuPoolConfig =
+    { enabled: true, maxPool: 4, rechargeInterval: 1 / 3, pauseBetweenUses: 0 };
+
 export const NINJUTSU_DEFAULT = NINJUTSU_TIER_3;

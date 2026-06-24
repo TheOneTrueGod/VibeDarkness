@@ -1,4 +1,5 @@
 import { Buff, type BuffSerialized } from './Buff';
+import { EXPOSED_DURATION_INCREASES_FROM_CC } from '../crowdControl/ccConstants';
 
 export const EXPOSED_BUFF_TYPE = 'exposed';
 
@@ -24,8 +25,10 @@ export class ExposedBuff extends Buff {
     /**
      * Extend the exposed window by ccDuration, subject to the resistance cap.
      * Resistance always increases; the actual extension is capped so the timer never decreases.
+     * No-ops when EXPOSED_DURATION_INCREASES_FROM_CC is false.
      */
     extendDuration(ccDuration: number, gameTime: number): void {
+        if (!EXPOSED_DURATION_INCREASES_FROM_CC) return;
         const remaining = this.duration.value - (gameTime - this.appliedAtTime);
         // Compute extension with OLD resistance so the first CC can always extend a fresh exposure.
         const cap = this.maxExposedDuration - this.exposedResistance;

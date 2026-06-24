@@ -1,6 +1,7 @@
 import { StunnedBuff } from '../buffs/StunnedBuff';
 import { ExposedBuff, EXPOSED_BUFF_TYPE } from '../buffs/ExposedBuff';
 import type { Unit } from '../game/units/Unit';
+import type { EventBus } from '../game/EventBus';
 import { CC_MIN_POTENCY_SEC } from './ccConstants';
 import { resolveCcDuration } from './resolveCcDuration';
 
@@ -13,22 +14,25 @@ export type HardCcStunAttemptResult =
 
 /**
  * Apply a STUN hard CC with duration resist and hard CC armour gate + chain stacking.
+ * Pass eventBus to emit a 'boss_exposed_cc_suppressed' event when CC is absorbed by an Exposed unit.
  */
 export function tryApplyHardCcStun(
     target: Unit,
     baseSeconds: number,
     gameTime: number,
     roundNumber: number,
+    eventBus?: EventBus,
 ): HardCcStunAttemptResult {
     // Units in a juggernaut window are immune to CC interruption — no armour consumed, no stun.
     if (target.isInJuggernautWindow(gameTime)) {
         return { outcome: 'absorbed' };
     }
 
-    // Exposed units are immune to further hard CC; absorbed CC extends the exposed window instead.
+    // Exposed units are immune to further hard CC; absorbed CC may extend the exposed window.
     if (target.hasBuff('exposed')) {
         const exposedBuff = target.buffs.find(b => b._type === EXPOSED_BUFF_TYPE) as ExposedBuff | undefined;
         exposedBuff?.extendDuration(baseSeconds, gameTime);
+        eventBus?.emit('boss_exposed_cc_suppressed', { unitId: target.id });
         return { outcome: 'absorbed' };
     }
 

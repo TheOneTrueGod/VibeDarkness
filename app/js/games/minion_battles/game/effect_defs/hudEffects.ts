@@ -117,6 +117,27 @@ export class ResourceFlightEffect extends HudEffect {
     }
 }
 
+// ─── ResilientText ────────────────────────────────────────────────────────────
+// Amber "Resilient" label: spawns at the boss unit's screen position and arcs
+// toward the CC-status area of the boss HUD, shrinking and fading as it travels.
+// Triggered when a CC attempt is absorbed by an already-Exposed boss.
+
+export type ResilientTextData = {
+    sourceX: number;
+    sourceY: number;
+    destX: number;
+    destY: number;
+};
+
+export class ResilientTextEffect extends HudEffect {
+    declare effectData: ResilientTextData;
+
+    constructor(sourceX: number, sourceY: number, destX: number, destY: number) {
+        super('ResilientText', 0.9);
+        this.effectData = { sourceX, sourceY, destX, destY };
+    }
+}
+
 // ─── ResourceArrivalPulse ─────────────────────────────────────────────────────
 // Expanding ring at the destination when a ResourceFlight completes.
 // Spawned automatically by HudEffectLayer; can also be triggered directly.

@@ -25,6 +25,8 @@ export interface SerializedNinjutsuPool {
     config: NinjutsuPoolConfig;
     current: number;
     nextGrantAllowedAt: number;
+    /** Only present when config.rechargeInterval < 1 (mid-round recharge). */
+    nextRechargeAt?: number;
 }
 
 export class NinjutsuPool {
@@ -32,15 +34,21 @@ export class NinjutsuPool {
     readonly config: NinjutsuPoolConfig;
     current: number;
     nextGrantAllowedAt = 0;
+    nextRechargeAt: number;
     private pendingRequests: NinjutsuRequest[] = [];
 
     constructor(type: string, config: NinjutsuPoolConfig) {
         this.type = type;
         this.config = config;
         this.current = config.maxPool;
+        // For sub-round recharges: schedule first refill after one interval.
+        this.nextRechargeAt = config.rechargeInterval < 1 ? config.rechargeInterval * ROUND_DURATION : 0;
     }
 
     onRoundStart(roundNumber: number): void {
+        // Sub-round recharges (rechargeInterval < 1) are handled via interpolation in
+        // resolveRequests — skip here to avoid double-refill.
+        if (this.config.rechargeInterval < 1) return;
         // rechargeInterval > 1 is supported but intentionally unused by current tier presets.
         // It allows missions to configure longer droughts between attack flurries.
         if ((roundNumber - 1) % this.config.rechargeInterval === 0) {
@@ -71,6 +79,13 @@ export class NinjutsuPool {
         queueOrder: (tick: number, order: BattleOrder) => void,
         random: (min: number, max: number) => number,
     ): void {
+        // Mid-round interpolated recharge: fires every rechargeInterval rounds regardless of
+        // whether there are pending requests, so the pool is ready when units next attack.
+        if (this.config.enabled && this.config.rechargeInterval < 1 && gameTime >= this.nextRechargeAt) {
+            this.current = this.config.maxPool;
+            this.nextRechargeAt = gameTime + this.config.rechargeInterval * ROUND_DURATION;
+        }
+
         if (!this.config.enabled || this.pendingRequests.length === 0) {
             this.pendingRequests = [];
             return;
@@ -119,6 +134,7 @@ export class NinjutsuPool {
             config: { ...this.config },
             current: this.current,
             nextGrantAllowedAt: this.nextGrantAllowedAt,
+            ...(this.config.rechargeInterval < 1 ? { nextRechargeAt: this.nextRechargeAt } : {}),
         };
     }
 
@@ -126,6 +142,7 @@ export class NinjutsuPool {
         const pool = new NinjutsuPool(data.type, data.config);
         pool.current = data.current;
         pool.nextGrantAllowedAt = data.nextGrantAllowedAt;
+        if (data.nextRechargeAt !== undefined) pool.nextRechargeAt = data.nextRechargeAt;
         return pool;
     }
 }

@@ -279,7 +279,7 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
         case 'applyStunnedToPrimaryTarget': {
             const target = context.primaryTarget;
             if (!target) return;
-            tryApplyHardCcStun(target, effect.duration, context.engine.gameTime, context.engine.roundNumber);
+            tryApplyHardCcStun(target, effect.duration, context.engine.gameTime, context.engine.roundNumber, context.engine.eventBus);
             return;
         }
         case 'interruptPrimaryTargetAbilities':

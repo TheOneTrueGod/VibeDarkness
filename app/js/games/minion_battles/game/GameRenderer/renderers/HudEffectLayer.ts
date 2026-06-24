@@ -1,15 +1,17 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { GameEngine } from '../../GameEngine';
 import type { Camera } from '../../Camera';
-import type { RoundStartEvent, RecoveryChargeGrantedEvent } from '../../EventBus';
+import type { RoundStartEvent, RecoveryChargeGrantedEvent, BossExposedCcSuppressedEvent } from '../../EventBus';
 import { HudEffect } from '../../effects/HudEffect';
 import {
     RoundStartBannerEffect,
     ResourceFlightEffect,
     ResourceArrivalPulseEffect,
+    ResilientTextEffect,
     type RoundStartResourceGrant,
     type ResourceFlightData,
     type ResourceArrivalPulseData,
+    type ResilientTextData,
 } from '../../effect_defs/hudEffects';
 
 // Banner icon layout constants (shared between create and flight-spawn logic).
@@ -57,6 +59,7 @@ export class HudEffectLayer {
     private canvasPageOffset = { x: 0, y: 0 };
     private readonly onRoundStartBound: (data: RoundStartEvent) => void;
     private readonly onRecoveryChargeGrantedBound: (data: RecoveryChargeGrantedEvent) => void;
+    private readonly onBossExposedCcSuppressedBound: (data: BossExposedCcSuppressedEvent) => void;
 
     constructor(
         private readonly hudContainer: Container,
@@ -64,6 +67,7 @@ export class HudEffectLayer {
     ) {
         this.onRoundStartBound = this.onRoundStart.bind(this);
         this.onRecoveryChargeGrantedBound = this.onRecoveryChargeGranted.bind(this);
+        this.onBossExposedCcSuppressedBound = this.onBossExposedCcSuppressed.bind(this);
     }
 
     addEffect(effect: HudEffect): void {
@@ -87,10 +91,12 @@ export class HudEffectLayer {
             if (this.engineSource) {
                 this.engineSource.eventBus.off('round_start', this.onRoundStartBound);
                 this.engineSource.eventBus.off('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
+                this.engineSource.eventBus.off('boss_exposed_cc_suppressed', this.onBossExposedCcSuppressedBound);
             }
             this.engineSource = engine;
             engine.eventBus.on('round_start', this.onRoundStartBound);
             engine.eventBus.on('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
+            engine.eventBus.on('boss_exposed_cc_suppressed', this.onBossExposedCcSuppressedBound);
         }
 
         // Advance all active effects; collect deferred effects to spawn.
@@ -149,6 +155,7 @@ export class HudEffectLayer {
         if (this.engineSource) {
             this.engineSource.eventBus.off('round_start', this.onRoundStartBound);
             this.engineSource.eventBus.off('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
+            this.engineSource.eventBus.off('boss_exposed_cc_suppressed', this.onBossExposedCcSuppressedBound);
             this.engineSource = null;
         }
         for (const visual of this.effectVisuals.values()) {
@@ -282,6 +289,7 @@ export class HudEffectLayer {
             case 'TeamworkText': return this.createTeamworkText();
             case 'ResourceFlight': return this.createResourceFlight(effect);
             case 'ResourceArrivalPulse': return this.createResourceArrivalPulse(effect);
+            case 'ResilientText': return this.createResilientText();
             default: return new Container();
         }
     }
@@ -293,6 +301,7 @@ export class HudEffectLayer {
             case 'TeamworkText': return this.updateTeamworkText(visual, effect, vw, vh);
             case 'ResourceFlight': return this.updateResourceFlight(visual, effect, vw, vh);
             case 'ResourceArrivalPulse': return this.updateResourceArrivalPulse(visual as Graphics, effect);
+            case 'ResilientText': return this.updateResilientText(visual, effect);
         }
     }
 
@@ -579,5 +588,63 @@ export class HudEffectLayer {
         g.clear();
         g.circle(0, 0, radius);
         g.stroke({ color: data.color, width: 2.5, alpha });
+    }
+
+    // ─── ResilientText ───────────────────────────────────────────────────────
+
+    private onBossExposedCcSuppressed(data: BossExposedCcSuppressedEvent): void {
+        const engine = this.engineSource;
+        const camera = this.camera;
+        if (!engine || !camera) return;
+
+        const unit = engine.getUnit(data.unitId);
+        if (!unit) return;
+
+        const screen = camera.worldToScreen(unit.x, unit.y);
+        const clampedX = Math.max(0, Math.min(camera.viewportWidth, screen.x));
+        const clampedY = Math.max(0, Math.min(camera.viewportHeight, screen.y));
+        const sourceX = clampedX + this.canvasPageOffset.x;
+        const sourceY = clampedY + this.canvasPageOffset.y;
+
+        const dest = this.hudTargets.get('boss:cc_status');
+        if (!dest) return;
+
+        this.addEffect(new ResilientTextEffect(sourceX, sourceY, dest.x, dest.y));
+    }
+
+    private createResilientText(): Text {
+        const t = new Text({
+            text: 'Resilient',
+            style: new TextStyle({
+                fontFamily: 'Arial, Helvetica, sans-serif',
+                fontSize: 18,
+                fontWeight: '800',
+                fill: 0xf59e0b,
+                stroke: { color: 0x1c0a00, width: 3 },
+                dropShadow: { alpha: 0.7, angle: Math.PI / 2, blur: 6, color: 0x000000, distance: 2 },
+            }),
+        });
+        t.anchor.set(0.5, 0.5);
+        return t;
+    }
+
+    private updateResilientText(visual: Container, effect: HudEffect): void {
+        const data = effect.effectData as ResilientTextData;
+        const p = effect.progress;
+
+        // Position: ease-out cubic from source to dest
+        const t = 1 - Math.pow(1 - p, 3);
+        visual.x = data.sourceX + (data.destX - data.sourceX) * t;
+        visual.y = data.sourceY + (data.destY - data.sourceY) * t;
+
+        // Scale: quick pop-in 0.8→1.15 over first 12%, then shrink 1.15→0.25
+        if (p < 0.12) {
+            visual.scale.set(0.8 + 0.35 * (p / 0.12));
+        } else {
+            visual.scale.set(1.15 - 0.9 * ((p - 0.12) / 0.88));
+        }
+
+        // Alpha: full until 65%, then linear fade to 0
+        visual.alpha = p < 0.65 ? 1 : Math.max(0, 1 - (p - 0.65) / 0.35);
     }
 }

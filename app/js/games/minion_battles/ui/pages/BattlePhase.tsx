@@ -964,7 +964,12 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
 
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div ref={battleCanvasAreaRef} className="relative flex min-h-0 flex-1 flex-col">
-                        <BossFightHud boss={bossHud} />
+                        <BossFightHud
+                            boss={bossHud}
+                            onRegisterCcStatusTarget={(pageX, pageY) => {
+                                hudEffectCanvasRef.current?.registerHudFlightTarget('boss:cc_status', pageX, pageY);
+                            }}
+                        />
                         <WorldModifiersPanel modifiers={activeWorldModifiers} ninjutsuPools={isHost ? ninjutsuPools : null} />
                         <BattleSyncStatus
                             variant="battle"
