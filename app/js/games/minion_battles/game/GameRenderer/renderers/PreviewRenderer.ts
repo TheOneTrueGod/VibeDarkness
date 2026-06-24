@@ -577,7 +577,7 @@ export class PreviewRenderer {
         this.ghostPlanPreviewGraphics.clear();
         this.ghostPlanPreviewGraphics.alpha = GHOST_PLAN_LAYER_ALPHA;
 
-        const plans = Object.values(ghostPlans);
+        const plans = Object.values(ghostPlans).filter((p) => !p.sequentialTargeting);
         const gr = this.ghostPlanPreviewGraphics as unknown as import('../../../abilities/Ability').IAbilityPreviewGraphics;
 
         for (const plan of plans) {

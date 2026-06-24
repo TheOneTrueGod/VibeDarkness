@@ -141,11 +141,13 @@ export class BattleSession implements BattleSessionHandle {
     private bindEngineCallbacks(engine: GameEngine): void {
         const { api, isHost, onEmittedChatMessage } = this.config;
         engine.setOnCheckpoint((gameTick, state) => {
+            if (engine.isSequentialTargetingPreview) return;
             if (isHost) {
                 void this.netAdapter?.saveSnapshotOnPause(gameTick, state);
             }
         });
         engine.setOnTickComplete((gameTick, fingerprintHex, paused, adminReason) => {
+            if (engine.isSequentialTargetingPreview) return;
             if (isHost) {
                 this.netAdapter?.queueFingerprint(gameTick, fingerprintHex, paused, adminReason);
             }
@@ -153,6 +155,7 @@ export class BattleSession implements BattleSessionHandle {
         });
         if (isHost) {
             engine.setOnParallelBatchResolved((batchAtTick) => {
+                if (engine.isSequentialTargetingPreview) return;
                 const merge = this.netAdapter?.mergeAppliedOrdersForBatch(batchAtTick);
                 if (merge === undefined || merge === null) {
                     return;
@@ -195,6 +198,7 @@ export class BattleSession implements BattleSessionHandle {
         this.emit({ type: 'pause_state', paused: !!engine.waitingForOrders, waitingForOrders: engine.waitingForOrders });
 
         engine.setOnWaitingForOrders((info) => {
+            if (engine.isSequentialTargetingPreview) return;
             this.emit({
                 type: 'waiting_for_orders',
                 engine,
@@ -204,18 +208,26 @@ export class BattleSession implements BattleSessionHandle {
         });
         this.bindEngineCallbacks(engine);
         engine.setOnRoundEnd((rn) => {
+            if (engine.isSequentialTargetingPreview) return;
             this.emit({ type: 'round_number', roundNumber: rn + 1 });
             this.emit({ type: 'card_state', engine });
         });
         engine.setOnStateChanged(() => {
+            if (engine.isSequentialTargetingPreview) return;
             this.emit({ type: 'round_progress', progress: engine.roundProgress });
             this.emit({ type: 'round_number', roundNumber: engine.roundNumber });
         });
         if (onVictory) {
-            engine.setOnVictory(onVictory);
+            engine.setOnVictory((result) => {
+                if (engine.isSequentialTargetingPreview) return;
+                onVictory(result);
+            });
         }
         if (onDefeat) {
-            engine.setOnDefeat(onDefeat);
+            engine.setOnDefeat(() => {
+                if (engine.isSequentialTargetingPreview) return;
+                onDefeat();
+            });
         }
         const myUnit = engine.getLocalPlayerUnit();
         if (myUnit && this.camera) {
@@ -438,6 +450,9 @@ export class BattleSession implements BattleSessionHandle {
         const savedCamera = this.camera
             ? { x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom }
             : null;
+        // Keep dedupe keys so BattleNet poll does not re-apply orders already applied before
+        // this restore (e.g. ITS commit/reset/replay after a local preview).
+        const preservedRemoteOrderKeys = new Set(this.appliedRemoteOrderKeys);
         this.appliedRemoteOrderKeys.clear();
         this.teardownEngineAndRendererOnly();
         const { api } = this.config;
@@ -453,7 +468,9 @@ export class BattleSession implements BattleSessionHandle {
         const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
         this.camera = camera;
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        const engine = GameEngine.fromJSON(snapshot, playerId, terrainManager);
+        const engine = GameEngine.fromJSON(snapshot, playerId, terrainManager, {
+            checkpointRuntimeFingerprintHex: snapshot.checkpointRuntimeFingerprintHex,
+        });
         renderer.setTerrain(terrainManager);
         if (!engine.state.ninjutsuManager) {
             engine.initNinjutsu(mission.ninjutsuPools);
@@ -463,6 +480,9 @@ export class BattleSession implements BattleSessionHandle {
             engine.setLevelEvents(mission.levelEvents);
         }
         this.finalizeEngine(engine);
+        for (const key of preservedRemoteOrderKeys) {
+            this.appliedRemoteOrderKeys.add(key);
+        }
         this.startEngine();
         // Restore camera to what it was before the preview (no localStorage involved).
         if (savedCamera) {
@@ -732,6 +752,11 @@ export class BattleSession implements BattleSessionHandle {
 
         const atTick = batch.atTick;
         await this.netAdapter?.submitOrder(order, atTick);
+    }
+
+    /** Submit the confirmed order after interactive targeting commit (bypasses begin() routing). */
+    submitCommittedTargetingOrder(order: BattleOrder, atTick: number): void {
+        void this.netAdapter?.submitOrder(order, atTick);
     }
 
     /** Host: force a wait order and persist checkpoint (skip turn). */

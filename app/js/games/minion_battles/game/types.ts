@@ -199,6 +199,8 @@ export interface GhostPlanData {
     abilityId: string;
     currentTargets: ResolvedTarget[];
     mouseWorld: { x: number; y: number };
+    /** When true, the player is in sequential targeting preview — suppress rendering and block peer order submission. */
+    sequentialTargeting?: boolean;
 }
 
 /** A resolved target from the targeting system. */

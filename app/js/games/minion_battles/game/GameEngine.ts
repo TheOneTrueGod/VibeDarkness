@@ -156,6 +156,8 @@ export class GameEngine implements EngineContext {
      * target is yet resolved. Ephemeral — not serialized (not in toJSON/fromJSON).
      */
     waitingForTargetInput: { label: string; unitId: string; abilityId: string } | null = null;
+    /** True while an InteractiveTargetingSession preview is running. Suppresses host save/fingerprint. Ephemeral — not serialized. */
+    isSequentialTargetingPreview: boolean = false;
 
     constructor() {
         registerLateBuiltinHandlers(this.state.worldModifierManager, this);
@@ -1040,6 +1042,12 @@ export class GameEngine implements EngineContext {
         if (this.deferredOrderPause == null || this.deferredOrderPause.waiters.length === 0) {
             return false;
         }
+        // Interactive targeting preview must keep simulating locally; deferring a parallel-order
+        // pause (e.g. ally became ready mid-preview) would freeze before SelectTargetDef intervals.
+        if (this.isSequentialTargetingPreview) {
+            this.deferredOrderPause = null;
+            return false;
+        }
         const { waiters: initialWaiters, naturalCompletionUnitIds } = this.deferredOrderPause;
         this.deferredOrderPause = null;
         const atTick = this.gameTick + 1;
@@ -1182,7 +1190,7 @@ export class GameEngine implements EngineContext {
                 aiCtx,
                 () => this.state.levelEventManager.runVictoryChecks(),
             );
-            if (this.waitingForOrders == null) {
+            if (this.waitingForOrders == null && !this.isSequentialTargetingPreview) {
                 const waiters = this.state.orderMgr.collectParallelWaiters();
                 if (waiters.length > 0) {
                     this.state.levelEventManager.runVictoryChecks();
@@ -1767,7 +1775,11 @@ export class GameEngine implements EngineContext {
             engine.isPaused = true;
         }
 
-        const checkpointHex = opts?.checkpointRuntimeFingerprintHex;
+        const checkpointFromData =
+            typeof data.checkpointRuntimeFingerprintHex === 'string' && data.checkpointRuntimeFingerprintHex !== ''
+                ? data.checkpointRuntimeFingerprintHex
+                : undefined;
+        const checkpointHex = opts?.checkpointRuntimeFingerprintHex ?? checkpointFromData;
         const legacyLayoutHex = typeof data.initialFingerprint === 'string' ? data.initialFingerprint : '';
         if (typeof checkpointHex === 'string' && checkpointHex !== '') {
             engine.runtimeFingerprint = fingerprintFromHex(checkpointHex);

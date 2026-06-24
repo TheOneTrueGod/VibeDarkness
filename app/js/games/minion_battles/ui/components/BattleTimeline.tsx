@@ -589,10 +589,11 @@ function renderPlayerUnitTimelineUnified(
         previewAbility
     );
 
-    const ghostPlan =
+    const ghostPlanRaw =
         !showPreview && playerId !== localPlayerId
             ? (ghostPlans?.[playerId] ?? null)
             : null;
+    const ghostPlan = ghostPlanRaw?.sequentialTargeting ? null : ghostPlanRaw;
     const ghostAbility = ghostPlan?.unitId === unit.id ? getAbility(ghostPlan.abilityId) : null;
 
     const active = unit.activeAbilities[0];
@@ -812,10 +813,11 @@ function renderPlayerRow(
     const isLocalPlayer = playerId === localPlayerId;
     const showPreview = !!(isLocalPlayer && previewAbility);
 
-    const ghostPlan =
+    const ghostPlanRaw =
         !showPreview && playerId !== localPlayerId
             ? (ghostPlans?.[playerId] ?? null)
             : null;
+    const ghostPlan = ghostPlanRaw?.sequentialTargeting ? null : ghostPlanRaw;
     const ghostAbility = ghostPlan?.unitId === unit.id ? getAbility(ghostPlan.abilityId) : null;
 
     let segments: {

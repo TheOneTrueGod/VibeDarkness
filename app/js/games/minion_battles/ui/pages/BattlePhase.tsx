@@ -212,13 +212,22 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const lastSentGhostPlanRef = useRef<GhostPlanData | null>(null);
     useEffect(() => {
         const interval = setInterval(() => {
-            // Suppress ghost plan broadcast while interactive targeting preview is running —
-            // the preview is local-only and should not be visible to other players.
-            if (sessionRef.current?.interactiveTargeting.isActive) {
+            const its = sessionRef.current?.interactiveTargeting;
+            if (its?.isActive) {
+                // Broadcast a "sequential targeting" signal so other players know not to submit
+                // their own orders yet. The preview animation is local-only, so we send a sentinel
+                // plan (with sequentialTargeting: true) rather than null, which would clear the signal.
+                const signal: GhostPlanData = {
+                    unitId: its.unitId ?? '',
+                    abilityId: its.abilityId ?? '',
+                    currentTargets: [],
+                    mouseWorld: { x: 0, y: 0 },
+                    sequentialTargeting: true,
+                };
                 const prev = lastSentGhostPlanRef.current;
-                if (prev !== null) {
-                    lastSentGhostPlanRef.current = null;
-                    sendGhostPlan(null);
+                if (!prev?.sequentialTargeting || prev.abilityId !== signal.abilityId) {
+                    lastSentGhostPlanRef.current = signal;
+                    sendGhostPlan(signal);
                 }
                 return;
             }
@@ -245,6 +254,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 newPlan === null
                     ? prev !== null
                     : prev === null ||
+                      prev.sequentialTargeting === true ||
                       newPlan.unitId !== prev.unitId ||
                       newPlan.abilityId !== prev.abilityId ||
                       newPlan.mouseWorld.x !== prev.mouseWorld.x ||
@@ -263,6 +273,14 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
 
     const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS;
 
+    // True when any other connected player is in sequential targeting preview — block our own order
+    // submission until they confirm, since their orders are being held on the host anyway.
+    const anotherPlayerIsInSequentialTargeting = Object.entries(ghostPlans).some(
+        ([pid, plan]) => pid !== playerId && plan?.sequentialTargeting === true,
+    );
+    const anotherPlayerIsInSequentialTargetingRef = useRef(false);
+    anotherPlayerIsInSequentialTargetingRef.current = anotherPlayerIsInSequentialTargeting;
+
     const isMyTurn = activeLocalWaiter != null;
     const canUseOrderUi =
         netSyncStatus !== 'synced_pending_ack' &&
@@ -272,7 +290,8 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
         !waitingForHostCatchup &&
         !blockingHostPausePlane &&
         !sessionRef.current?.isMultiplayerAwaitHostCatchup() &&
-        (isHost || !fallingBehindHost);
+        (isHost || !fallingBehindHost) &&
+        !anotherPlayerIsInSequentialTargeting;
 
     const showHostCatchupPopover =
         !isHost &&
@@ -837,11 +856,15 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     }, []);
 
     // Poll interactive targeting session state so the pill + buttons stay current.
+    const prevItsStateRef = useRef<string>('inactive');
     useEffect(() => {
         const id = window.setInterval(() => {
             const its = sessionRef.current?.interactiveTargeting;
             if (!its?.isActive) {
                 setInteractiveTargetingState('inactive');
+                if (prevItsStateRef.current !== 'inactive') {
+                    prevItsStateRef.current = 'inactive';
+                }
                 return;
             }
             const eng = sessionRef.current?.getEngine();
@@ -849,8 +872,9 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 setInteractiveTargetingState('playing');
                 return;
             }
+            let nextState: 'playing' | 'paused' | 'done';
             if (eng.waitingForTargetInput) {
-                setInteractiveTargetingState('paused');
+                nextState = 'paused';
             } else {
                 const abilityDef = its.abilityId ? getAbility(its.abilityId) : null;
                 const caster = its.unitId ? eng.getUnit(its.unitId) ?? undefined : undefined;
@@ -858,11 +882,15 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                     ? getSelectTargetDefsFromTimings(abilityDef, caster, eng).length
                     : 0;
                 const collected = Object.keys(its.collectedTargets).length;
-                setInteractiveTargetingState(totalDefs > 0 && collected >= totalDefs ? 'done' : 'playing');
+                nextState = totalDefs > 0 && collected >= totalDefs ? 'done' : 'playing';
+            }
+            setInteractiveTargetingState(nextState);
+            if (prevItsStateRef.current !== nextState) {
+                prevItsStateRef.current = nextState;
             }
         }, 50);
         return () => window.clearInterval(id);
-    }, []);
+    }, [canUseOrderUi, anotherPlayerIsInSequentialTargeting, activeLocalWaiter]);
 
     // ========================================================================
     // Manager subscription: mirror selectedAbility, selectedCardIndex, nonconfirmedOrder
@@ -951,6 +979,8 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     }, []);
 
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean) => {
+        if (sessionRef.current?.interactiveTargeting.isActive) return;
+        if (anotherPlayerIsInSequentialTargetingRef.current) return;
         sessionRef.current?.getInteractionManager()?.onCanvasRightClick(screenX, screenY, shiftKey, ctrlKey);
     }, []);
 
@@ -1020,7 +1050,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                     ? engine.getUnit(activeLocalWaiter.unitId) ?? engine.getLocalPlayerUnit()
                     : engine.getLocalPlayerUnit()) ?? null
             }
-            isMyTurn={canUseOrderUi}
+            isMyTurn={canUseOrderUi && interactiveTargetingState === 'inactive'}
             roundNumber={roundNumber}
             roundProgress={roundProgress}
             isPaused={isPaused}
@@ -1143,13 +1173,18 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                         Replay
                                     </button>
                                     <button
-                                        className="px-3 py-1.5 rounded bg-primary text-white text-sm hover:opacity-90 border border-primary"
+                                        className={`px-3 py-1.5 rounded text-sm border transition-opacity ${
+                                            interactiveTargetingState === 'done'
+                                                ? 'bg-primary text-white hover:opacity-90 border-primary cursor-pointer'
+                                                : 'bg-dark-800 text-light-600 border-dark-600 opacity-40 cursor-not-allowed'
+                                        }`}
+                                        disabled={interactiveTargetingState !== 'done'}
                                         onClick={() => {
                                             const session = sessionRef.current;
                                             if (session) session.interactiveTargeting.commit(session);
                                         }}
                                     >
-                                        Confirm
+                                        Continue
                                     </button>
                                 </div>
                             </div>

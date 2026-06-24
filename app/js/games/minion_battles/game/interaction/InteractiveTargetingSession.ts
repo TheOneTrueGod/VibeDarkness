@@ -13,6 +13,9 @@
 
 import type { BattleOrder, ResolvedTarget, SerializedGameState } from '../types';
 import type { BattleSession } from '../BattleSession';
+import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { AUTO_END_TURN } from '../gameConstants';
 
 /** Minimal info held for one deferred remote order row. */
 interface HeldRemoteOrder {
@@ -84,14 +87,32 @@ export class InteractiveTargetingSession {
         this.heldRemoteOrders.clear();
         this._currentLabel = null;
 
-        // Snapshot the pause state.
-        this.mark = engine.toJSON();
+        // Snapshot the pause state (include runtime fingerprint so restore does not reset to fingerprintInitial).
+        const markState = engine.toJSON();
+        markState.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
+        this.mark = markState;
 
-        // Swap out onParallelBatchResolved with a no-op for the duration of the preview.
-        // We save the original so we can restore it after commit/reset/replay.
-        // Access via the public setter.
-        this.savedOnParallelBatchResolved = null; // GameEngine doesn't expose a getter, so we just set to null on restore.
+        // Flag the engine so host callbacks (checkpoint, fingerprint, batch-resolved) skip
+        // during the preview run. This prevents the preview state from being persisted to the server.
+        engine.isSequentialTargetingPreview = true;
         engine.setOnParallelBatchResolved(null);
+
+        // In multiplayer, other players haven't submitted their orders yet.
+        // Queue "wait" for every other waiter so the preview engine can advance
+        // without blocking on remote input.
+        const batch = engine.state.orderMgr.waitingForOrders;
+        if (batch) {
+            for (const waiter of batch.waiters) {
+                if (waiter.unitId !== unitId) {
+                    engine.state.orderMgr.applyOrder({
+                        unitId: waiter.unitId,
+                        abilityId: 'wait',
+                        targets: [],
+                        endTurn: true,
+                    });
+                }
+            }
+        }
 
         // Queue the preview order. `targetsByLabel: {}` is the sentinel that
         // tells Pass A in unitAbilityTick to activate blocking.
@@ -103,7 +124,7 @@ export class InteractiveTargetingSession {
             endTurn: true,
         };
         engine.state.orderMgr.applyOrder(previewOrder);
-        // applyOrder → onAfterOrderQueued → tryResumeParallel → engine starts running.
+        // applyOrder → onAfterOrderQueued → tryResumeParallel → all ready → engine starts running.
     }
 
     /**
@@ -129,9 +150,18 @@ export class InteractiveTargetingSession {
             }
         }
 
-        // Clear the waiting signal and unpause.
+        // Clear the waiting signal; unpause only while more targets remain.
         engine.waitingForTargetInput = null;
-        engine.isPaused = false;
+        const ability = getAbility(this._abilityId);
+        const totalDefs =
+            ability && caster
+                ? getSelectTargetDefsFromTimings(ability, caster, engine).length
+                : 0;
+        const allCollected = totalDefs > 0 && Object.keys(this.collectedTargets).length >= totalDefs;
+        engine.isPaused = allCollected;
+        if (allCollected && AUTO_END_TURN) {
+            this.commit(session);
+        }
     }
 
     /**
@@ -177,6 +207,27 @@ export class InteractiveTargetingSession {
         const engine = session.getEngine();
         if (!engine) return;
 
+        // restoreFromInMemorySnapshot creates a fresh engine (isSequentialTargetingPreview = false
+        // and onParallelBatchResolved re-bound to the real callback). Re-raise the flag and
+        // suppress the batch callback so the replay run doesn't persist state to the server.
+        engine.isSequentialTargetingPreview = true;
+        engine.setOnParallelBatchResolved(null);
+
+        // Re-queue wait for other players' units (restore wiped the auto-queued waits from begin()).
+        const replayBatch = engine.state.orderMgr.waitingForOrders;
+        if (replayBatch) {
+            for (const waiter of replayBatch.waiters) {
+                if (waiter.unitId !== unitId) {
+                    engine.state.orderMgr.applyOrder({
+                        unitId: waiter.unitId,
+                        abilityId: 'wait',
+                        targets: [],
+                        endTurn: true,
+                    });
+                }
+            }
+        }
+
         // Re-queue with targets pre-filled — no blocking will occur.
         const replayOrder: BattleOrder = {
             unitId,
@@ -195,27 +246,45 @@ export class InteractiveTargetingSession {
         if (!this._abilityId || !this._unitId || !this.mark) return;
         const abilityId = this._abilityId;
         const unitId = this._unitId;
-        const targets = { ...this.collectedTargets };
+        const collected = { ...this.collectedTargets };
         const markSnapshot = this.mark;
+        const heldRows = [...this.heldRemoteOrders.values()];
+        this.heldRemoteOrders.clear();
 
-        this._restoreToMark(session);
+        this._restoreToMark(session, { applyHeldRemoteOrders: false });
         this._clearActive();
 
-        // Submit the real order via BattleNet.
         const atTick = markSnapshot.waitingForOrders?.atTick;
-        if (atTick == null) return;
+        const engine = session.getEngine();
+        if (atTick == null || !engine) return;
+
+        const caster = engine.getUnit(unitId);
+        const ability = getAbility(abilityId);
+        if (!caster || !ability) return;
+
+        // Drop any stale pending row for this unit at the batch tick before submitting.
+        engine.pendingOrders = engine.pendingOrders.filter(
+            (o) => !(o.gameTick === atTick && o.order.unitId === unitId),
+        );
+
+        // Peer orders that arrived during preview (apply before host submit per doc flow).
+        for (const { atTick: heldAtTick, order: heldOrder } of heldRows) {
+            engine.state.orderMgr.queueOrder(heldAtTick, heldOrder);
+        }
+
+        const selectDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
+        const targets = selectDefs
+            .map((def) => collected[def.label])
+            .filter((t): t is ResolvedTarget => t != null);
 
         const realOrder: BattleOrder = {
             unitId,
             abilityId,
-            targets: [],
-            targetsByLabel: targets,
+            targets,
             endTurn: true,
         };
 
-        // Use the internal netAdapter via the session (accessed indirectly through submitPlayerOrder).
-        // We bypass the feature-flag routing in submitPlayerOrder by calling netAdapter directly.
-        void (session as unknown as { netAdapter: { submitOrder(o: BattleOrder, t: number): Promise<void> } | null }).netAdapter?.submitOrder(realOrder, atTick);
+        session.submitCommittedTargetingOrder(realOrder, atTick);
     }
 
     // -------------------------------------------------------------------------
@@ -226,20 +295,23 @@ export class InteractiveTargetingSession {
      * Restore engine to `mark` state and apply all held remote orders.
      * The saved `onParallelBatchResolved` callback is restored on the new engine.
      */
-    private _restoreToMark(session: BattleSession): void {
+    private _restoreToMark(
+        session: BattleSession,
+        opts?: { applyHeldRemoteOrders?: boolean },
+    ): void {
         if (!this.mark) return;
         session.restoreFromInMemorySnapshot(this.mark);
-        // Apply any remote orders that arrived while preview was active.
+        const applyHeld = opts?.applyHeldRemoteOrders !== false;
         const engine = session.getEngine();
-        if (engine) {
+        if (engine && applyHeld) {
             for (const { atTick, order } of this.heldRemoteOrders.values()) {
                 engine.state.orderMgr.queueOrder(atTick, order);
             }
             if (this.heldRemoteOrders.size > 0) {
                 engine.tryResumeParallel();
             }
+            this.heldRemoteOrders.clear();
         }
-        this.heldRemoteOrders.clear();
         // Re-bind the saved callback (was set to null; restoreFromInMemorySnapshot re-binds
         // via bindEngineCallbacks → setOnParallelBatchResolved, so nothing to do here).
     }
