@@ -1,4 +1,4 @@
-import { grantRecoveryChargeToRandomAbility } from '../abilityUses';
+import { grantRecoveryChargeToRandomAbility, applyChargeSurgeToUnit } from '../abilityUses';
 import { getAbility } from '../AbilityRegistry';
 import { AbilityEventType } from '../Ability';
 import type { AbilityStatic, AttackBlockedInfo } from '../Ability';
@@ -218,6 +218,8 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
                         opts,
                     );
                 }
+            } else if (recipient === 'allAbilities') {
+                applyChargeSurgeToUnit(context.caster, effect.chargeType, effect.amount, context.engine.eventBus);
             }
             return;
         }

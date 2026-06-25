@@ -27,6 +27,7 @@ const RED = 0xff0000;
 const SLIME_SPIT_F1_URL = new URL('../../assets/projectiles/slime_spit_f1.svg', import.meta.url).href;
 const SLIME_SPIT_F2_URL = new URL('../../assets/projectiles/slime_spit_f2.svg', import.meta.url).href;
 const SLIME_SPIT_F3_URL = new URL('../../assets/projectiles/slime_spit_f3.svg', import.meta.url).href;
+const SLIME_SPIT_F4_URL = new URL('../../assets/projectiles/slime_spit_f4.svg', import.meta.url).href;
 
 const SLIME_SHOT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -68,7 +69,7 @@ const _base: AbilityStatic = defineAbility({
                 .withBaseDamage(DAMAGE)
                 .withRadius(10)
                 .withSpriteConfig({
-                    sprite: { fps: 8, scale: 2, frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL] },
+                    sprite: { fps: 8, scale: 1, frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL, SLIME_SPIT_F4_URL] },
                     loop: true,
                 }),
         },

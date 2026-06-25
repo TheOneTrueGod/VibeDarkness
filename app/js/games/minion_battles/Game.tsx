@@ -438,6 +438,7 @@ export default function MinionBattlesGame({
                     api={api}
                     playerId={playerId}
                     isHost={isHost}
+                    isAdmin={isAdmin}
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     missionId={selectedMissionId ?? ''}

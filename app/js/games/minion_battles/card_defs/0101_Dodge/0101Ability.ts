@@ -62,7 +62,7 @@ export const DodgeAbility: AbilityStatic = {
         [AbilityEventType.ON_CAST_START]: [
             {
                 conditions: [{ type: 'always' }],
-                effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, excludeCurrentAbility: true }],
+                effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, recipient: 'allAbilities' }],
             },
         ],
     },
@@ -70,7 +70,7 @@ export const DodgeAbility: AbilityStatic = {
     getTooltipText(_gameState?: unknown): string[] {
         return [
             'Avoid attacks while dodging towards a point',
-						'Recovers {1} stamina charge',
+            'Grants {1} stamina surge to all abilities',
         ];
     },
 

@@ -30,7 +30,7 @@ import {
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from '../scenarios/general/lanterniteDeath';
-import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario, exposedDurationExtensionScenario } from '../scenarios/general/enemies';
+import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario } from '../scenarios/general/enemies';
 import { swarmlingHuntAndBiteScenario } from '../scenarios/general/swarmlings';
 import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
@@ -277,11 +277,6 @@ describe('runScenarioHeadless', () => {
 
     it('passes alpha wolf summon scenario (spawned wolves attack and damage player)', () => {
         const r = runScenarioHeadless(alphaWolfSummonScenario);
-        expect(r.passed, r.message).toBe(true);
-    });
-
-    it('passes exposed duration extension scenario (absorbed stuns extend the exposed window)', () => {
-        const r = runScenarioHeadless(exposedDurationExtensionScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

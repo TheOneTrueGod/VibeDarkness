@@ -10,7 +10,7 @@ const boarCharge = new ChargeAttack({
     name: 'Boar Charge',
     image: BOAR_CHARGE_IMAGE,
     damage: 4,
-    windupTime: 0.6,
+    windupTime: 1.0,
     lungeDuration: 0.3,
     cooldownDuration: 2,
     baseMaxRange: 100,

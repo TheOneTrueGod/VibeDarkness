@@ -1,9 +1,3 @@
-<svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-  <!-- contracted (10px), brightest frame -->
-  <rect x="7" y="5" width="6" height="2" fill="#ffccff"/>
-  <rect x="5" y="7" width="10" height="2" fill="#cc55ff"/>
-  <rect x="5" y="7" width="2" height="2" fill="#ffffff"/>
-  <rect x="5" y="9" width="10" height="2" fill="#aa33dd"/>
-  <rect x="5" y="11" width="10" height="2" fill="#8822bb"/>
-  <rect x="7" y="13" width="6" height="2" fill="#440066"/>
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <circle cx="32" cy="32" r="26" fill="#9933cc"/>
 </svg>

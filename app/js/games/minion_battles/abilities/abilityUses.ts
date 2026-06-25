@@ -193,17 +193,27 @@ export function addRecoveryChargeToUnitAbilities(
 }
 
 /**
- * Round-start stamina surge: grant the same stamina charge amount to every ability that can accept it
- * (not pooled or randomly split across abilities).
+ * Grant the same charge amount to every ability that can accept it (not pooled or randomly split).
+ * Used for surge effects where every ability benefits simultaneously.
  */
-export function applyStaminaSurgeToUnit(unit: Unit, surgeAmount: number): void {
-    if (surgeAmount <= 0) return;
+export function applyChargeSurgeToUnit(unit: Unit, chargeType: RecoveryChargeType, amount: number, eventBus?: EventBus): void {
+    if (amount <= 0) return;
     const abilityIds = getAbilityIdsEligibleForRecovery(unit);
+    let anyGranted = false;
     for (const abilityId of abilityIds) {
-        if (!canAbilityReceiveRecoveryCharge(unit, abilityId, 'staminaCharge')) continue;
-        applyRecoveryChargeToAbility(unit, abilityId, 'staminaCharge', surgeAmount);
+        if (!canAbilityReceiveRecoveryCharge(unit, abilityId, chargeType)) continue;
+        const changed = applyRecoveryChargeToAbility(unit, abilityId, chargeType, amount);
+        if (changed) anyGranted = true;
     }
     syncNestedCardAbilityState(unit);
+    if (anyGranted && eventBus) {
+        eventBus.emit('recovery_charge_granted', { unitId: unit.id, chargeType, amount });
+    }
+}
+
+/** Round-start stamina surge: grant the same stamina charge amount to every eligible ability. */
+export function applyStaminaSurgeToUnit(unit: Unit, surgeAmount: number): void {
+    applyChargeSurgeToUnit(unit, 'staminaCharge', surgeAmount);
 }
 
 /**

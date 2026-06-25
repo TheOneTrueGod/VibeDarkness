@@ -5,11 +5,13 @@ import type { NinjutsuUIState } from '../../game/ninjutsu/NinjutsuManager';
 interface WorldModifiersPanelProps {
     modifiers: WorldModifierDef[];
     ninjutsuPools?: NinjutsuUIState[] | null;
+    isAdmin?: boolean;
 }
 
-export default function WorldModifiersPanel({ modifiers, ninjutsuPools }: WorldModifiersPanelProps) {
-    const enabledPools = ninjutsuPools?.filter(p => p.enabled) ?? [];
-    if (modifiers.length === 0 && enabledPools.length === 0) return null;
+export default function WorldModifiersPanel({ modifiers, ninjutsuPools, isAdmin = false }: WorldModifiersPanelProps) {
+    const enabledPools = isAdmin ? (ninjutsuPools?.filter(p => p.enabled) ?? []) : [];
+    const visibleModifiers = isAdmin ? modifiers : modifiers.filter(m => !m.visible_to_admin_only);
+    if (visibleModifiers.length === 0 && enabledPools.length === 0) return null;
 
     return (
         <div
@@ -35,7 +37,7 @@ export default function WorldModifiersPanel({ modifiers, ninjutsuPools }: WorldM
                     </div>
                 );
             })}
-            {modifiers.map((mod) => (
+            {visibleModifiers.map((mod) => (
                 <div
                     key={mod.id}
                     className="flex items-center gap-1.5 rounded-md border border-purple-700/60 bg-purple-950/90 px-2 py-1 text-xs text-gray-200"

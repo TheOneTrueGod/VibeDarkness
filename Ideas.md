@@ -4,18 +4,32 @@ Clarence:  Crystal + Crystal
 Kerry: Bleeding sword.  Likes shotgun builds
 Voen: metal
 
+Annoying how things are out of range to be countered.  Being able to suck enemies towards you might be nice.
+Gravity
+
 Feedback June 24
-[] Non-admins can see the alpha wolf death and stack ghost VFX
-[] Shining Block does not appear to be giving stamina on block
-[] Make dodge give stamina to each ability
-[] Light source from shining block is way too large
-[] Slow down the boar charge a bit
-[] Make ghost projectile travel further
+[y] Blocking doesn't seem to work if the attacker is inside of you
+[x] Shining Block does not appear to be giving stamina on block
+[x] Make dodge give stamina to each ability
+[x] Non-admins can see the alpha wolf death and stack ghost VFX
+[x] Light source from shining block is way too large
+[x] Slow down the boar charge a bit
+
+[x] Make ghost projectile travel further
 [] Commands flash for a second before becoming disabled during optimistic playahead
 [] Clear up wording on "knock enemies back with a stun"
 [] Strengthening light description doesn't say what it does
 [] Ninjutsu is too infrequent for shield usage
 [] Increase number of targets cone of light hits
+[] Make the 'active' frames on sneaky punch much smaller so it's clearer where it hits
+
+[] Remove stun on bosses from Absorption shield, and make cone of light apply 2 stun charges
+[] Make the enrage effect be a circle that closes in, so it's differentiated from the stun
+[] Charging up with multiple hits is annoying when there's few enemies on screen
+[] Make enemies no longer cluster up (have wolves take up space in cells)
+[] Timeline view is a little out of the way on the screen
+
+
 
 Feedback June 23
 [] Bump bat and sword ranges back up a bit.  It's annoying how close you need to get
@@ -30,7 +44,7 @@ Feedback June 9
 
 
 Feedback May 28
-[] Rocks should travel the full distance, not be limited by the targeter
+[x] Rocks should travel the full distance, not be limited by the targeter
 [x] The gradual light changing system is client side, so refreshing fixes it
 [x] LOTS of desyncs today.  Gobi's on brave
 [x] Gobi winds up resynching to the start fo the game frequently

@@ -98,7 +98,7 @@ function executeShiningBlockRetaliation(engine: unknown, defender: Unit, aimPos:
             outerR: RETALIATION_RANGE,
         },
     }));
-    eng.addLightSource(createCrystalLightEffect(defender.x, defender.y));
+    eng.addLightSource(createCrystalLightEffect(defender.x, defender.y, { lightAmount: 4, radius: 3 }));
 }
 
 function grantLightChargesToNearbyAllies(engine: unknown, defender: Unit): void {

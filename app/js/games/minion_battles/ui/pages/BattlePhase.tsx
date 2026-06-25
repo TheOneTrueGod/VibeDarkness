@@ -63,6 +63,7 @@ interface BattlePhaseProps {
     api: MinionBattlesApi;
     playerId: string;
     isHost: boolean;
+    isAdmin?: boolean;
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
     missionId: string;
@@ -83,6 +84,7 @@ export default function BattlePhase({
     api,
     playerId,
     isHost,
+    isAdmin = false,
     players,
     characterSelections,
     missionId,
@@ -970,7 +972,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                 hudEffectCanvasRef.current?.registerHudFlightTarget('boss:cc_status', pageX, pageY);
                             }}
                         />
-                        <WorldModifiersPanel modifiers={activeWorldModifiers} ninjutsuPools={isHost ? ninjutsuPools : null} />
+                        <WorldModifiersPanel modifiers={activeWorldModifiers} ninjutsuPools={ninjutsuPools} isAdmin={isAdmin} />
                         <BattleSyncStatus
                             variant="battle"
                             isHost={isHost}

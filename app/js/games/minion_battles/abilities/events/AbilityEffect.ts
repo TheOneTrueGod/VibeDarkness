@@ -9,9 +9,10 @@ export type AbilityEffect =
         type: 'recoverCharge';
         chargeType: RecoveryChargeType;
         amount: number;
-        recipient?: 'randomAbility';
+        recipient?: 'randomAbility' | 'allAbilities';
         /**
          * When true, the ability currently being cast is excluded from the random recipient selection.
+         * Only applies when recipient is 'randomAbility'.
          * Maps to `excludeAbilityId: context.ability.id` at runtime.
          * Do NOT use `excludeSelf` — that would (incorrectly) exclude the caster unit.
          */
