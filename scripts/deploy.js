@@ -93,20 +93,21 @@ function requireDeployConfig(env) {
   };
 }
 
-function bumpMinorVersion(version) {
+function bumpPatchVersion(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)(.*)$/.exec(version);
   if (!match) {
     throw new Error(`Invalid package.json version: ${version}`);
   }
   const major = match[1];
-  const minor = Number(match[2]) + 1;
-  return `${major}.${minor}.0`;
+  const minor = match[2];
+  const patch = Number(match[3]) + 1;
+  return `${major}.${minor}.${patch}`;
 }
 
-function bumpPackageMinorVersion() {
+function bumpPackagePatchVersion() {
   const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   const previous = pkg.version;
-  const next = bumpMinorVersion(previous);
+  const next = bumpPatchVersion(previous);
   pkg.version = next;
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
   console.log(`Deploy: version ${previous} → ${next}`);
@@ -257,7 +258,7 @@ const noBuild = process.argv.includes('--no-build');
 
 const deployConfig = requireDeployConfig(loadDeployEnv());
 
-bumpPackageMinorVersion();
+bumpPackagePatchVersion();
 
 if (noBuild) {
   console.log('Deploy: skipping build (--no-build).');

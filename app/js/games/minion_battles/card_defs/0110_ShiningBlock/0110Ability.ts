@@ -127,7 +127,7 @@ export const ShiningBlockAbility = defineDirectionalShield({
         return [
             'Raise your crystal shield blocking all attacks from the front',
             `On Block: Deals {${RETALIATION_DAMAGE}} damage and stuns up to {${RETALIATION_MAX_TARGETS}} enemies for {${STUN_DURATION}} seconds.`,
-            'Nearby allies gain {2} stamina surges and {1} light charge',
+            'On Block: Gain {1} stamina charge. Nearby allies gain {2} stamina surges and {1} light charge',
         ];
     },
 
@@ -137,6 +137,12 @@ export const ShiningBlockAbility = defineDirectionalShield({
                 maxTriggersPerCast: 1,
                 conditions: [{ type: 'always' }],
                 effects: [
+                    {
+                        type: 'recoverCharge',
+                        chargeType: 'staminaCharge',
+                        amount: 1,
+                        recipient: 'randomAbility',
+                    },
                     {
                         type: 'grantChargeToNearbyAllies',
                         chargeType: 'staminaCharge',

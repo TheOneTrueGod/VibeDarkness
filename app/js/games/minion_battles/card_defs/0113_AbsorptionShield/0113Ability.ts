@@ -34,12 +34,24 @@ export const AbsorptionShieldAbility = defineDirectionalShield({
     getTooltipText(_gameState?: unknown): string[] {
         return [
             'Raise your shield to block attacks from the front',
-            `On Block: Gain {1} energy charge (up to {${MAX_BLOCK_SURGES}}x per use)`,
+            `On Block: Gain {1} stamina charge and {1} energy charge (up to {${MAX_BLOCK_SURGES}}x per use)`,
         ];
     },
 
     abilityEvents: {
         [AbilityEventType.ON_BLOCK_SUCCESS]: [
+            {
+                maxTriggersPerCast: 1,
+                conditions: [{ type: 'always' }],
+                effects: [
+                    {
+                        type: 'recoverCharge',
+                        chargeType: 'staminaCharge',
+                        amount: 1,
+                        recipient: 'randomAbility',
+                    },
+                ],
+            },
             {
                 maxTriggersPerCast: MAX_BLOCK_SURGES,
                 conditions: [{ type: 'always' }],

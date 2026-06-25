@@ -10,7 +10,7 @@ import {
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
-import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
+import { initializeAbilityRuntimeForUnit, ensureAbilityRuntimeState } from '../../../abilities/abilityUses';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -152,6 +152,94 @@ export const shiningBlockRetaliationScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const attacker = engine.getUnit('attacker');
         return `attacker hp=${attacker?.hp} maxHp=${attacker?.maxHp} (expected retaliation damage on block)`;
+    },
+};
+
+export const shiningBlockStaminaOnBlockScenario: ScenarioDefinition = {
+    id: 'tech_shield_shining_block_stamina_on_block',
+    title: 'Shining Block (0110): blocking grants 1 stamina charge to caster',
+    category: 'ability',
+    maxDurationMs: 5000,
+    buildEngine() {
+        const { engine, player } = buildShieldEngine('0110');
+        // Give the player Swing Sword starting at 0 uses; 1 staminaCharge recovers 1 use
+        player.abilities.push('0112');
+        ensureAbilityRuntimeState(player, '0112');
+        const swordRt = player.abilityRuntime['0112']!;
+        swordRt.currentUses = 0;
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        const attacker = engine.getUnit('attacker')!;
+        return [
+            { unitId: player.id, abilityId: '0110', targets: [{ type: 'pixel' as const, position: ATTACKER_POS }] },
+            { unitId: attacker.id, abilityId: '0120', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
+        ];
+    },
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const rt = player?.abilityRuntime['0112'];
+        return Boolean(rt && rt.currentUses >= 1);
+    },
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const rt = player?.abilityRuntime['0112'];
+        return `swing_sword uses=${rt?.currentUses ?? 0} staminaCharges=${rt?.recoveryChargesByType['staminaCharge'] ?? 0} (expected ≥1 use after 1 stamina charge on block)`;
+    },
+};
+
+export const absorptionShieldStaminaOnBlockScenario: ScenarioDefinition = {
+    id: 'absorption_shield_stamina_on_block',
+    title: 'Absorption Shield (0113): blocking grants 1 stamina charge to caster',
+    category: 'ability',
+    maxDurationMs: 5000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 10, gridH: 8, localPlayerId: P, grass: true });
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: PLAYER_POS.x,
+            y: PLAYER_POS.y,
+            abilities: ['0113', '0112'],
+        });
+        // Drain Swing Sword so we can observe the stamina recovery
+        const swordRt = player.abilityRuntime['0112'];
+        if (swordRt) swordRt.currentUses = 0;
+
+        const attacker = createUnitFromSpawnConfig(
+            {
+                id: 'attacker',
+                characterId: 'alpha_wolf',
+                name: 'Attacker',
+                x: ATTACKER_POS.x,
+                y: ATTACKER_POS.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: ['0120'],
+            },
+            engine.eventBus,
+        );
+        initializeAbilityRuntimeForUnit(attacker);
+        engine.addUnit(attacker, 'initialGameSpawn');
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        const attacker = engine.getUnit('attacker')!;
+        return [
+            { unitId: player.id, abilityId: '0113', targets: [{ type: 'pixel' as const, position: ATTACKER_POS }] },
+            { unitId: attacker.id, abilityId: '0120', targets: [{ type: 'pixel' as const, position: PLAYER_POS }] },
+        ];
+    },
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const rt = player?.abilityRuntime['0112'];
+        return Boolean(rt && rt.currentUses >= 1);
+    },
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const rt = player?.abilityRuntime['0112'];
+        return `swing_sword uses=${rt?.currentUses ?? 0} staminaCharges=${rt?.recoveryChargesByType['staminaCharge'] ?? 0} (expected ≥1 use after 1 stamina charge on block)`;
     },
 };
 

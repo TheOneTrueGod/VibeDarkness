@@ -4,6 +4,19 @@ Clarence:  Crystal + Crystal
 Kerry: Bleeding sword.  Likes shotgun builds
 Voen: metal
 
+Feedback June 24
+[] Non-admins can see the alpha wolf death and stack ghost VFX
+[] Shining Block does not appear to be giving stamina on block
+[] Make dodge give stamina to each ability
+[] Light source from shining block is way too large
+[] Slow down the boar charge a bit
+[] Make ghost projectile travel further
+[] Commands flash for a second before becoming disabled during optimistic playahead
+[] Clear up wording on "knock enemies back with a stun"
+[] Strengthening light description doesn't say what it does
+[] Ninjutsu is too infrequent for shield usage
+[] Increase number of targets cone of light hits
+
 Feedback June 23
 [] Bump bat and sword ranges back up a bit.  It's annoying how close you need to get
 [] Mission indicator is in the wrong place in firefox

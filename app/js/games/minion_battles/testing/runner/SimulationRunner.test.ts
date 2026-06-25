@@ -25,6 +25,8 @@ import {
     raiseShieldAllyStaminaSurgeScenario,
     shiningBlockRetaliationScenario,
     shiningBlockStrengtheningLightScenario,
+    shiningBlockStaminaOnBlockScenario,
+    absorptionShieldStaminaOnBlockScenario,
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from '../scenarios/general/lanterniteDeath';
@@ -159,6 +161,16 @@ describe('runScenarioHeadless', () => {
 
     it('passes shining block strengthening light heal scenario', () => {
         const r = runScenarioHeadless(shiningBlockStrengtheningLightScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes shining block stamina on block scenario', () => {
+        const r = runScenarioHeadless(shiningBlockStaminaOnBlockScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes absorption shield stamina on block scenario', () => {
+        const r = runScenarioHeadless(absorptionShieldStaminaOnBlockScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

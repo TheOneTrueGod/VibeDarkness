@@ -50,6 +50,8 @@ import {
     raiseShieldAllyStaminaSurgeScenario,
     shiningBlockRetaliationScenario,
     shiningBlockStrengtheningLightScenario,
+    shiningBlockStaminaOnBlockScenario,
+    absorptionShieldStaminaOnBlockScenario,
 } from './abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario, lanterniteNestThornSpreadScenario } from './general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from './general/lanterniteDeath';
@@ -116,6 +118,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     raiseShieldAllyStaminaSurgeScenario,
     shiningBlockRetaliationScenario,
     shiningBlockStrengtheningLightScenario,
+    shiningBlockStaminaOnBlockScenario,
+    absorptionShieldStaminaOnBlockScenario,
     lanterniteNestBuildScenario,
     lanterniteNestDualSpawnScenario,
     lanterniteDefenderAttackScenario,

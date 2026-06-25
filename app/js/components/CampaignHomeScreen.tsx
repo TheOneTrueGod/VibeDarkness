@@ -174,9 +174,16 @@ export default function CampaignHomeScreen({
                     activeTab === 'welcome' ? 'max-w-[800px]' : 'max-w-full'
                 }`}
             >
-                <h1 className="text-center text-4xl max-md:text-3xl font-bold mb-8 text-primary">
-                    Minion Battles
-                </h1>
+                <div className="relative mb-8 flex items-center justify-center">
+                    <h1 className="text-4xl max-md:text-3xl font-bold text-primary">
+                        Minion Battles
+                    </h1>
+                    {isAdmin && (
+                        <span className="absolute right-0 text-xs text-muted">
+                            v{import.meta.env.VITE_APP_VERSION}
+                        </span>
+                    )}
+                </div>
 
                 {!hasCampaign && bootstrappingCampaign && (
                     <div className="bg-surface rounded-lg p-6 mb-6 text-center text-muted">
