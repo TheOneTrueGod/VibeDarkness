@@ -73,8 +73,8 @@ function createTerrain(): TerrainGrid {
 
 /** Two wolves at mission start: one above the big rock, one below (left section). */
 const ENEMIES = [
-    { ...ENEMY_DARK_WOLF, position: { x: 17 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 } },
-    { ...ENEMY_DARK_WOLF, position: { x: 17 * CELL_SIZE + CELL_SIZE / 2, y: 12 * CELL_SIZE + CELL_SIZE / 2 } },
+    { ...ENEMY_DARK_WOLF, position: { x: 17 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 }, unitAITreeId: 'hunt' },
+    { ...ENEMY_DARK_WOLF, position: { x: 17 * CELL_SIZE + CELL_SIZE / 2, y: 12 * CELL_SIZE + CELL_SIZE / 2 }, unitAITreeId: 'hunt' },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
@@ -82,7 +82,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
         type: 'continuousSpawn',
         trigger: { intervalRounds: 0.25 },
         maxUnits: 6,
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1 }],
+        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
     },
     {
         type: 'victoryCheck',

@@ -28,6 +28,7 @@ export const ENEMY_MELEE: EnemySpawnDef = {
     teamId: 'enemy',
     abilities: ['0002'],
     aiSettings: { minRange: 30, maxRange: 80 },
+    unitAITreeId: 'hunt',
 };
 
 export { SLIME } from '../game/units/dark_animals/slimeRanged';
@@ -40,6 +41,7 @@ export const ENEMY_DARK_WOLF: EnemySpawnDef = {
     teamId: 'enemy',
     abilities: ['0003'],
     aiSettings: { minRange: 0, maxRange: 80 },
+    unitAITreeId: 'hunt',
 };
 
 /** Boar: Charge (0006), radius 22, aggroWander. Baseline hp/speed in unit defs. */
@@ -67,6 +69,7 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     aiSettings: { minRange: 0, maxRange: 100 },
     radius: 26,
     unitTags: [UnitTag.Boss],
+    unitAITreeId: 'alphaWolfBoss',
 };
 
 /** Thornbinder crawler — bramble AoE zoning; Light Hate. */
@@ -77,6 +80,7 @@ export const ENEMY_THORNBINDER: EnemySpawnDef = {
     teamId: 'enemy',
     abilities: ['0008'],
     aiSettings: { minRange: 80, maxRange: 320 },
+    unitAITreeId: 'hunt',
 };
 
 /** Husk Artillery summoner — seed pods hatch husklings; Light Hate. */
@@ -87,6 +91,7 @@ export const ENEMY_HUSK_ARTILLERY: EnemySpawnDef = {
     teamId: 'enemy',
     abilities: ['0009'],
     aiSettings: { minRange: 140, maxRange: 480 },
+    unitAITreeId: 'hunt',
 };
 
 /** Swarmling: fast small biter — two copies of Bite (0013) per round. */
@@ -97,6 +102,7 @@ export const ENEMY_SWARMLING: EnemySpawnDef = {
     teamId: 'enemy',
     abilities: ['0013', '0013'],
     aiSettings: { minRange: 0, maxRange: 70 },
+    unitAITreeId: 'hunt',
 };
 
 /** Wild Lanternite — nature faction; neutral to players, hostile to shadow enemies. */
@@ -107,6 +113,7 @@ export const ALLY_LANTERNITE: EnemySpawnDef = {
     teamId: 'nature',
     abilities: ['0010'],
     aiSettings: { minRange: 0, maxRange: 600 },
+    unitAITreeId: 'lanterniteNetwork',
 };
 
 /** Thornling: small fast beast that bites and retreats. */
@@ -117,6 +124,7 @@ export const ENEMY_THORNLING: EnemySpawnDef = {
     teamId: 'enemy',
     abilities: ['0002'],
     aiSettings: { minRange: 0, maxRange: 80 },
+    unitAITreeId: 'hunt',
 };
 
 /** Allied thornling — same stats as enemy version but fights alongside players. */
@@ -127,6 +135,7 @@ export const ALLY_THORNLING: EnemySpawnDef = {
     teamId: 'allied',
     abilities: ['0002'],
     aiSettings: { minRange: 0, maxRange: 80 },
+    unitAITreeId: 'hunt',
 };
 
 /** Thornling Nest: static enemy structure that roots the spawn cycle. */
@@ -137,7 +146,7 @@ export const ENEMY_THORNLING_NEST: EnemySpawnDef = {
     teamId: 'enemy',
     abilities: [],
     aiSettings: { minRange: 0, maxRange: 0 },
-    unitAITreeId: 'default',
+    unitAITreeId: 'hunt',
 };
 
 /** Allied thornling nest — sits near players and spawns allied thornlings. */
@@ -148,7 +157,7 @@ export const ALLY_THORNLING_NEST: EnemySpawnDef = {
     teamId: 'allied',
     abilities: [],
     aiSettings: { minRange: 0, maxRange: 0 },
-    unitAITreeId: 'default',
+    unitAITreeId: 'hunt',
 };
 
 /** Nest object — nature faction; spawns timed Lanternites; stays put (lanterniteNest mission field required). */

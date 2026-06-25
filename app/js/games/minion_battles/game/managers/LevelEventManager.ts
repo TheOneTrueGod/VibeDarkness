@@ -374,7 +374,6 @@ export class LevelEventManager {
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);
-                const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
                 const stats = resolveEnemySpawnStats({ ...base, ...entry });
                 const config = {
                     ...base,
@@ -385,7 +384,6 @@ export class LevelEventManager {
                     ownerId: 'ai' as const,
                     hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
                     speed: stats.speed,
-                    unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
                 const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
                 this.applyLanterniteEcologySpawnFields(unit, entry);
@@ -443,7 +441,6 @@ export class LevelEventManager {
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);
-                const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
                 const stats = resolveEnemySpawnStats({ ...base, ...entry });
                 const config = {
                     ...base,
@@ -454,7 +451,6 @@ export class LevelEventManager {
                     ownerId: 'ai' as const,
                     hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
                     speed: stats.speed,
-                    unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
                 const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
                 this.applyLanterniteEcologySpawnFields(unit, entry);
@@ -560,7 +556,6 @@ export class LevelEventManager {
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);
-                const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
                 const stats = resolveEnemySpawnStats({ ...base, ...entry });
                 const config = {
                     ...base,
@@ -571,7 +566,6 @@ export class LevelEventManager {
                     ownerId: 'ai' as const,
                     hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
                     speed: stats.speed,
-                    unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
                 const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
                 this.applyLanterniteEcologySpawnFields(unit, entry);
@@ -767,7 +761,6 @@ export class LevelEventManager {
                 const key = `${cell.col},${cell.row}`;
                 occupiedCells.add(key);
                 const pos = grid.gridToWorld(cell.col, cell.row);
-                const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
                 const stats = resolveEnemySpawnStats({ ...base, ...entry });
                 const config = {
                     ...base,
@@ -778,7 +771,6 @@ export class LevelEventManager {
                     ownerId: 'ai' as const,
                     hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
                     speed: stats.speed,
-                    unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
                 };
                 const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
                 this.ctx.addUnit(unit);

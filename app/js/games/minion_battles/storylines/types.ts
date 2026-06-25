@@ -54,8 +54,8 @@ export interface SpawnWaveEntry {
     spawnCount?: number;
     /** Number of individual creatures represented by each spawned token. Defaults to 1. */
     stackSize?: number;
-    /** Override the AI tree for this spawn entry (e.g. 'aggroWander'). Falls back to mission aiController mapping. */
-    unitAITreeId?: string;
+    /** AI tree for this spawn entry (required). */
+    unitAITreeId: string;
     /** Tags applied to each spawned unit (e.g. boss HUD). */
     unitTags?: UnitTag[];
     /** Passed through to spawned Lanternites (waves / proximity). */
@@ -340,8 +340,8 @@ export interface EnemySpawnDef {
     aiSettings?: AISettings;
     /** Visual/collision radius. Omitted uses unit default for that character. */
     radius?: number;
-    /** Override the AI tree for this enemy (e.g. 'aggroWander'). Falls back to mission aiController mapping. */
-    unitAITreeId?: string;
+    /** AI tree for this enemy (required). */
+    unitAITreeId: string;
     /** Tags on the spawned unit (see `UnitTag` enum). */
     unitTags?: UnitTag[];
     /** Stable checkpoint id when set (e.g. nests referenced by Lanternite patrol). */

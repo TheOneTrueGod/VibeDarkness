@@ -30,6 +30,7 @@ import { CastBehaviours } from '../CastBehaviours';
 import { meleeLineHitbox } from '../../hitboxes';
 import type { HitboxSpec } from '../../hitboxes/HitboxSpec';
 import { defineAbility, type AbilityDefInput } from '../defineAbility';
+import type { WindupLungeConfig } from '../WindupLunge';
 
 // ---------------------------------------------------------------------------
 // Config interface
@@ -133,6 +134,15 @@ export interface MeleeStrikeConfig {
      * release during cooldown).
      */
     movementLockUntil?: number;
+
+    // ---- Windup lunge ----
+    /**
+     * Optional windup lunge. When set, the caster physically steps toward the target
+     * during the windup phase by up to `lunge.distance` px.
+     * `getRange.maxRange` is automatically extended by `lunge.distance`, so set
+     * `aiMaxRange` to `hitboxMaxRange + lunge.distance` for correct AI behaviour.
+     */
+    lunge?: WindupLungeConfig;
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +231,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         abilityEvents: config.abilityEvents,
         movementLock: { until: movementLockUntil },
         getTooltipText: config.getTooltipText,
+        ...(config.lunge ? { lunge: config.lunge } : {}),
     };
 
     return defineAbility(defInput);

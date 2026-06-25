@@ -14,6 +14,7 @@
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityEventType, AbilityState } from '../../abilities/Ability';
+import { setupWindupLungePayload } from '../../abilities/WindupLunge';
 import { localPlayerResearchNodesGetter } from '../../abilities/abilityModifierHelpers';
 import { getDamageBonusFromResearch } from '../../research/researchTrainingEffects';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
@@ -40,6 +41,7 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const BASE_MAX_RANGE = 25;
+const LUNGE_DISTANCE = 30;
 const DAMAGE = 10;
 const SWING_BAT_EFFECT_DURATION = 0.4;
 const STUN_DURATION = 1.0;
@@ -115,7 +117,8 @@ export const SwingBatAbility_0103: AbilityStatic = {
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: SWING_STICK_HITBOX.maxRange },
+    aiSettings: { minRange: 0, maxRange: SWING_STICK_HITBOX.maxRange + LUNGE_DISTANCE },
+    lunge: { distance: LUNGE_DISTANCE },
 
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [
@@ -139,7 +142,7 @@ export const SwingBatAbility_0103: AbilityStatic = {
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: SWING_STICK_HITBOX.maxRange };
+        return { minRange: 0, maxRange: SWING_STICK_HITBOX.maxRange + LUNGE_DISTANCE };
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
@@ -149,7 +152,8 @@ export const SwingBatAbility_0103: AbilityStatic = {
         return [];
     },
 
-    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {
+    beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
+        setupWindupLungePayload(engine, caster, targets, active, { distance: LUNGE_DISTANCE }, SWING_STICK_HITBOX.maxRange);
         spawnRadiusScaledChargeUp(engine as { addEffect(effect: Effect): void }, caster, BASE_PROFILE);
     },
 

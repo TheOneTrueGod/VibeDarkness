@@ -73,7 +73,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	readonly recoveries?: readonly AbilityRecoveryRule[];
 
 	private readonly config: ChargeAttackConfig;
-	private readonly lunge: LungeMovement;
+	private readonly lungeMovement: LungeMovement;
 	/** End of windup interval (exclusive); same as lunge phase start. */
 	private readonly windupEnd: number;
 
@@ -99,7 +99,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			maxRange: config.aiMaxRange,
 			...(config.aiNinjutsu ? { ninjutsu: config.aiNinjutsu } : {}),
 		};
-		this.lunge = new LungeMovement({
+		this.lungeMovement = new LungeMovement({
 			maxRange: config.baseMaxRange,
 			lungeDuration: l,
 			windupTime: w,
@@ -155,7 +155,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			note.lungeOriginY = caster.y;
 		}
 
-		const segment = this.lunge.advance(caster, note, prevTime, currentTime, eng);
+		const segment = this.lungeMovement.advance(caster, note, prevTime, currentTime, eng);
 		this.damageEnemiesInPath(eng, caster, note, segment);
 
 		if (currentTime >= this.prefireTime) {

@@ -243,8 +243,8 @@ export class Unit extends GameObject {
     /** Per-controller AI context bag (serialized via toJSON/fromJSON). */
     aiContext: UnitAIContext = {};
 
-    /** UnitAITree ID for AI-controlled units. Default 'default'. */
-    unitAITreeId: string = 'default';
+    /** UnitAITree ID for AI-controlled units. */
+    unitAITreeId: string = 'hunt';
 
     /** Optional tags (crystal aura, boss UI, etc.). Serialized for checkpoints when non-empty. */
     tags: UnitTag[] = [];
@@ -513,7 +513,7 @@ export class Unit extends GameObject {
         this.name = config.name;
         this.abilities = config.abilities ?? [];
         this.aiSettings = config.aiSettings ?? null;
-        this.unitAITreeId = config.unitAITreeId ?? 'default';
+        this.unitAITreeId = config.unitAITreeId ?? 'hunt';
         this.radius = config.radius ?? DEFAULT_UNIT_RADIUS;
         this.stamina = config.stamina ?? 1;
         this.combatSettings = config.combatSettings;
@@ -1191,6 +1191,20 @@ export class Unit extends GameObject {
     }
 
     /**
+     * Returns the effective lunge distance for an ability, applying terrain speed multipliers.
+     * The same two terrain layers used for movement speed are applied here.
+     * Designed to be extended later with per-weapon-class research bonuses.
+     */
+    getLungeDistance(engine: unknown, baseLungeDistance: number): number {
+        let modifier = 1;
+        const terrainLayers = (engine as { terrainLayers?: TerrainLayerManager }).terrainLayers;
+        if (terrainLayers) modifier *= terrainLayers.getGroundMovementMultiplier(this.x, this.y);
+        const terrainManager = (engine as { terrainManager?: TerrainManager }).terrainManager ?? null;
+        if (terrainManager) modifier *= terrainManager.getSpeedMultiplier(this.x, this.y);
+        return Math.floor(baseLungeDistance * modifier);
+    }
+
+    /**
      * Whether the unit currently has invincibility frames from any active ability.
      * When true, projectiles should not deal damage to this unit.
      */
@@ -1777,7 +1791,7 @@ export class Unit extends GameObject {
         if (rawCtx.unitAINodeId !== undefined) { rawCtx.aiState = rawCtx.unitAINodeId; delete rawCtx.unitAINodeId; }
         if (rawCtx.aiTargetUnitId !== undefined) { rawCtx.targetUnitId = rawCtx.aiTargetUnitId; delete rawCtx.aiTargetUnitId; }
         unit.aiContext = rawCtx as UnitAIContext;
-        unit.unitAITreeId = (data.unitAITreeId as string) ?? 'default';
+        unit.unitAITreeId = (data.unitAITreeId as string) ?? 'hunt';
         unit.moveJitter = (data.moveJitter as number) ?? 0;
         unit.spawnTimer = (data.spawnTimer as number | undefined) ?? 0;
         unit.growAnimTimer = (data.growAnimTimer as number | undefined) ?? 0;

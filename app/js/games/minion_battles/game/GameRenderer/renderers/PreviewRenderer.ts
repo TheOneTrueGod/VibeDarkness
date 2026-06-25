@@ -4,7 +4,7 @@ import { DarknessLevel } from '../../darknessLevels';
 import type { GameEngine } from '../../GameEngine';
 import type { Unit } from '../../units/Unit';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-import { getSelectTargetDefsFromTimings, filterSelectTargetCandidates, renderMeleeTrackingHighlights } from '../../../abilities/targeting';
+import { getSelectTargetDefsFromTimings, filterSelectTargetCandidates, renderMeleeTrackingHighlights, resolveTargetToPoint } from '../../../abilities/targeting';
 import { areEnemies } from '../../teams';
 import type { TeamId } from '../../teams';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -13,6 +13,104 @@ import type { OverlayRenderer } from './OverlayRenderer';
 import type { AbilityStatic, AbilityTelegraph, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { asTelegraphPayload } from '../../../abilities/telegraphTracking';
 import type { ResolvedTarget, GhostPlanData, ActiveAbility } from '../../types';
+import type { SelectTargetDef } from '../../../abilities/timingTargetDef';
+import type { HitboxPreviewCaster } from '../../../hitboxes/Hitbox';
+
+// ---------------------------------------------------------------------------
+// Windup lunge preview helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Pure geometry for the lunge preview. Returns null when the aim point is already
+ * within the hitbox range (no lunge needed) or the direction is degenerate.
+ */
+function computeLungePreviewState(
+    caster: HitboxPreviewCaster,
+    mouseWorld: { x: number; y: number },
+    hitboxMax: number,
+    lungeMax: number,
+): { virtualX: number; virtualY: number; adjustedMouse: { x: number; y: number }; dirX: number; dirY: number } | null {
+    const dx = mouseWorld.x - caster.x;
+    const dy = mouseWorld.y - caster.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 0.5) return null;
+
+    const neededLunge = Math.max(0, dist - hitboxMax);
+    const actualLunge = Math.min(lungeMax, neededLunge);
+    if (actualLunge <= 0) return null;
+
+    const dirX = dx / dist;
+    const dirY = dy / dist;
+    const virtualX = caster.x + dirX * actualLunge;
+    const virtualY = caster.y + dirY * actualLunge;
+    // Aim point from the virtual caster: same direction, remaining distance clamped to hitboxMax.
+    const adjustedMouse = {
+        x: virtualX + dirX * Math.min(hitboxMax, dist - actualLunge),
+        y: virtualY + dirY * Math.min(hitboxMax, dist - actualLunge),
+    };
+    return { virtualX, virtualY, adjustedMouse, dirX, dirY };
+}
+
+/** Draws the movement arrow line and ghost unit circle at the lunge destination. */
+function renderLungeIndicator(
+    gr: IAbilityPreviewGraphics,
+    caster: Unit,
+    virtualX: number,
+    virtualY: number,
+): void {
+    gr.moveTo(caster.x, caster.y);
+    gr.lineTo(virtualX, virtualY);
+    gr.stroke({ color: 0xffffff, width: 2, alpha: 0.7 });
+
+    gr.circle(virtualX, virtualY, caster.radius);
+    gr.fill({ color: 0x888888, alpha: 0.35 });
+    gr.stroke({ color: 0xaaaaaa, width: 1.5, alpha: 0.7 });
+}
+
+/**
+ * Unified render for one `SelectTargetDef` at a given aim point.
+ * Handles lunge offset when `ability.lunge` is set: hitbox is drawn from the virtual
+ * caster position, then the movement line + ghost circle is drawn on top.
+ * Candidates are sorted by distance to the effective aim point before highlight slicing.
+ */
+function renderSelectTargetDef(
+    gr: IAbilityPreviewGraphics,
+    ability: AbilityStatic,
+    caster: Unit,
+    selectDef: SelectTargetDef,
+    aimPoint: { x: number; y: number },
+    engine: GameEngine,
+): void {
+    const state = ability.lunge
+        ? computeLungePreviewState(
+            caster,
+            aimPoint,
+            selectDef.hitbox.maxRange,
+            caster.getLungeDistance(engine, ability.lunge.distance),
+        )
+        : null;
+
+    const effectiveCaster: HitboxPreviewCaster = state ? { x: state.virtualX, y: state.virtualY } : caster;
+    const effectiveAim = state ? state.adjustedMouse : aimPoint;
+
+    // Draw hitbox first — some implementations call gr.clear() internally.
+    const rawCandidates = selectDef.hitbox.renderTargetingPreview(gr, effectiveCaster, effectiveAim, engine.units);
+    const candidates = filterSelectTargetCandidates(rawCandidates, caster, selectDef.filter);
+    if (candidates.length > 0) {
+        candidates.sort(
+            (a, b) =>
+                (a.x - effectiveAim.x) ** 2 + (a.y - effectiveAim.y) ** 2
+                - ((b.x - effectiveAim.x) ** 2 + (b.y - effectiveAim.y) ** 2),
+        );
+        const maxHighlights = selectDef.numTargets ?? selectDef.hitbox.numTargets;
+        renderMeleeTrackingHighlights(gr, candidates.slice(0, maxHighlights));
+    }
+
+    // Lunge indicator on top (must come after hitbox draw).
+    if (state) {
+        renderLungeIndicator(gr, caster, state.virtualX, state.virtualY);
+    }
+}
 
 const MOVE_TARGET_COLOR = 0x333333;
 const MOVE_TARGET_PATH_BG_COLOR = 0xffffff;
@@ -246,11 +344,9 @@ export class PreviewRenderer {
                     const selectDef = selectTargetDefs[i]!;
                     const target = entry.order.targets[i];
                     if (!target) continue;
-                    const targetPos = target.type === 'unit' && target.unitId
-                        ? (() => { const u = engine.getUnit(target.unitId!); return u ? { x: u.x, y: u.y } : null; })()
-                        : (target.type === 'pixel' && target.position ? target.position : null);
-                    if (!targetPos) continue;
-                    selectDef.hitbox.renderTargetingPreview(previewGr, unit, targetPos, engine.units);
+                    const aimPoint = resolveTargetToPoint(target, engine);
+                    if (!aimPoint) continue;
+                    renderSelectTargetDef(previewGr, ability, unit, selectDef, aimPoint, engine);
                 }
                 continue;
             }
@@ -438,16 +534,7 @@ export class PreviewRenderer {
             const targetIndex = ts.currentTargets.length;
             const selectDef = selectTargetDefs[targetIndex];
             if (selectDef) {
-                const rawCandidates = selectDef.hitbox.renderTargetingPreview(gr, caster, ts.mouseWorld, engine.units);
-                const candidates = filterSelectTargetCandidates(rawCandidates, caster, selectDef.filter);
-                if (candidates.length > 0) {
-                    const mw = ts.mouseWorld;
-                    candidates.sort((a, b) =>
-                        (a.x - mw.x) ** 2 + (a.y - mw.y) ** 2 - ((b.x - mw.x) ** 2 + (b.y - mw.y) ** 2),
-                    );
-                    const maxHighlights = selectDef.numTargets ?? selectDef.hitbox.numTargets;
-                    renderMeleeTrackingHighlights(gr, candidates.slice(0, maxHighlights));
-                }
+                renderSelectTargetDef(gr, ability, caster, selectDef, ts.mouseWorld, engine);
             }
             if (ability.renderTargetingPreviewSelectedTargets) {
                 ability.renderTargetingPreviewSelectedTargets(gr, caster, ts.currentTargets, ts.mouseWorld, engine.units, engine);
@@ -506,20 +593,14 @@ export class PreviewRenderer {
                 for (let i = 0; i < plan.currentTargets.length; i++) {
                     const selectDef = selectTargetDefs[i];
                     if (!selectDef) break;
-                    const target = plan.currentTargets[i]!;
-                    const pos =
-                        target.type === 'unit' && target.unitId
-                            ? (() => { const u = engine.getUnit(target.unitId!); return u ? { x: u.x, y: u.y } : null; })()
-                            : target.type === 'pixel' && target.position
-                              ? target.position
-                              : null;
-                    if (!pos) continue;
-                    selectDef.hitbox.renderTargetingPreview(gr, caster, pos, engine.units);
+                    const aimPoint = resolveTargetToPoint(plan.currentTargets[i]!, engine);
+                    if (!aimPoint) continue;
+                    renderSelectTargetDef(gr, ability, caster, selectDef, aimPoint, engine);
                 }
                 // Render in-progress cursor for the next un-confirmed target (mirrors live targeting)
                 const nextSelectDef = selectTargetDefs[plan.currentTargets.length];
                 if (nextSelectDef) {
-                    nextSelectDef.hitbox.renderTargetingPreview(gr, caster, plan.mouseWorld, engine.units);
+                    renderSelectTargetDef(gr, ability, caster, nextSelectDef, plan.mouseWorld, engine);
                 }
                 if (ability.renderTargetingPreviewSelectedTargets) {
                     ability.renderTargetingPreviewSelectedTargets(gr, caster, plan.currentTargets, plan.mouseWorld, engine.units, engine);

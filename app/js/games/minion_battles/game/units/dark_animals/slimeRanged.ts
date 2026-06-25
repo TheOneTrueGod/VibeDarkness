@@ -12,4 +12,5 @@ export const SLIME: EnemySpawnDef = {
     teamId: 'enemy',
     abilities: ['0001'],
     aiSettings: { minRange: 0, maxRange: 140 },
+    unitAITreeId: 'hunt',
 };

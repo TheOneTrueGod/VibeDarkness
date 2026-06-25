@@ -136,3 +136,18 @@ export function filterSelectTargetCandidates(
         return true; // 'any'
     });
 }
+
+/** Convert a committed `ResolvedTarget` to a world-space point, or null if unresolvable. */
+export function resolveTargetToPoint(
+    target: ResolvedTarget,
+    engine: { getUnit(id: string): { x: number; y: number } | undefined | null },
+): { x: number; y: number } | null {
+    if (target.type === 'unit' && target.unitId) {
+        const u = engine.getUnit(target.unitId);
+        return u ? { x: u.x, y: u.y } : null;
+    }
+    if (target.type === 'pixel' && target.position) {
+        return target.position;
+    }
+    return null;
+}

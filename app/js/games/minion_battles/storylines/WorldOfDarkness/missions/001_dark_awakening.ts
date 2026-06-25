@@ -113,9 +113,9 @@ function createTerrain(): TerrainGrid {
 }
 
 const ENEMIES = [
-    { ...ENEMY_DARK_WOLF, position: { x: 450, y: 370 } },
-    { ...ENEMY_DARK_WOLF, position: { x: 530, y: 500 } },
-    { ...ENEMY_DARK_WOLF, position: { x: 350, y: 600 } },
+    { ...ENEMY_DARK_WOLF, position: { x: 450, y: 370 }, unitAITreeId: 'hunt' },
+    { ...ENEMY_DARK_WOLF, position: { x: 530, y: 500 }, unitAITreeId: 'hunt' },
+    { ...ENEMY_DARK_WOLF, position: { x: 350, y: 600 }, unitAITreeId: 'hunt' },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
@@ -123,25 +123,25 @@ const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'spawnWave',
         trigger: { afterSeconds: 5 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1 }],
+        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
         emittedByNpcId: '1',
     },
     {
         type: 'spawnWave',
         trigger: { afterSeconds: 15 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1 }],
+        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
         emittedByNpcId: '1',
     },
     {
         type: 'spawnWave',
         trigger: { atRound: 2 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2 }],
+        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' }],
         emittedByNpcId: '1',
     },
     {
         type: 'spawnWave',
         trigger: { atRound: 3 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2 }],
+        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' }],
         emittedByNpcId: '1',
     },
     {

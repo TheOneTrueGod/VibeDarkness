@@ -17,6 +17,7 @@ import {
     AbilityPhase,
     getEffectiveCastBehaviours,
 } from '../../abilities/abilityTimings';
+import { advanceWindupLunge, type WindupLungePayload } from '../../abilities/WindupLunge';
 import { createEmitterFromDef } from '../../abilities/createEmitterFromDef';
 import { applyVisualEffectDefs } from '../effects/applyVisualEffectDefs';
 import { getBodyColorForUnit, getCharacterSpriteKey } from './unit_defs/unitDef';
@@ -409,6 +410,17 @@ export function tickUnitActiveAbilities(
                 isLastTick: false,
             };
             rec.entry.behaviour.onTick?.(tickCtx);
+        }
+
+        // Windup lunge: physically advance caster toward lunge target during the windup phase.
+        if (ability.lunge) {
+            const windupInterval = intervals.find(i => i.abilityPhase === AbilityPhase.Windup);
+            if (windupInterval && currentTime > 0 && currentTime <= windupInterval.end) {
+                const lungePayload = active.castPayload as WindupLungePayload | undefined;
+                if (lungePayload?.effectiveLungeDistance && lungePayload.effectiveLungeDistance > 0) {
+                    advanceWindupLunge(unit, lungePayload, ability, currentTime, windupInterval.end, engine);
+                }
+            }
         }
 
         ability.doCardEffect?.(engine, unit, active.targets, safePrevTime, currentTime, active);

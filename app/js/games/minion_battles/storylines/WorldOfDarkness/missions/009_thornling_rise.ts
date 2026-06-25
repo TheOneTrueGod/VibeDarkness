@@ -92,7 +92,7 @@ export class ThornlingRiseMission extends BaseMissionDef {
             teamId: 'allied',
             abilities: [],
             aiSettings: { minRange: 0, maxRange: 0 },
-            unitAITreeId: 'default',
+            unitAITreeId: 'hunt',
             thornlingNest: {
                 maxThornlings: 8,
                 spawnIntervalSec: 12,

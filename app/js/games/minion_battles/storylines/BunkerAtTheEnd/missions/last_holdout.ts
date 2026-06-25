@@ -110,14 +110,14 @@ const LEVEL_EVENTS: LevelEvent[] = [
         type: 'spawnWave',
         trigger: { atRound: 1 },
         spawns: [
-            { characterId: 'swarmling', spawnBehaviour: 'anywhere', spawnTarget: RIGHT_HALF, spawnCount: 10 },
+            { characterId: 'swarmling', spawnBehaviour: 'anywhere', spawnTarget: RIGHT_HALF, spawnCount: 10, unitAITreeId: 'hunt' },
         ],
     },
     {
         type: 'continuousSpawn',
         trigger: { intervalRounds: 0.25, startRound: 1, endRound: 4 },
         spawns: [
-            { characterId: 'swarmling', spawnBehaviour: 'anywhere', spawnTarget: RIGHT_HALF, spawnCount: 4 },
+            { characterId: 'swarmling', spawnBehaviour: 'anywhere', spawnTarget: RIGHT_HALF, spawnCount: 4, unitAITreeId: 'hunt' },
         ],
     },
     {

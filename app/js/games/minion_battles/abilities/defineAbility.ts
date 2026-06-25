@@ -25,18 +25,27 @@ import type { AbilityTimingEntry, AbilityTimingInterval } from './abilityTimings
 import { isAbilityTimingInterval } from './abilityTimings';
 import { isSelectTargetDef } from './timingTargetDef';
 import type { Unit } from '../game/units/Unit';
+import type { WindupLungeConfig } from './WindupLunge';
+import { setupWindupLungePayload } from './WindupLunge';
 
 // ---------------------------------------------------------------------------
 // Input type
 // ---------------------------------------------------------------------------
 
-export interface AbilityDefInput extends Omit<AbilityStatic, 'getRange' | 'getAbilityStates'> {
+export interface AbilityDefInput extends Omit<AbilityStatic, 'getRange' | 'getAbilityStates' | 'lunge'> {
     /**
      * Optional. When omitted, `getRange` is derived from the first timing
      * interval that has a `targetDef.hitbox` with a `maxRange` property.
      * If no such interval is found, the factory will throw.
      */
     getRange?: AbilityStatic['getRange'];
+    /**
+     * Optional windup lunge. When set:
+     * - `getRange.maxRange` is extended by `lunge.distance` so the targeting cursor reflects the full reach.
+     * - A `beginActiveCast` is automatically generated to snapshot the lunge target into `castPayload`
+     *   (only when the caller does not supply their own `beginActiveCast`).
+     */
+    lunge?: WindupLungeConfig;
 
     /**
      * Optional. When provided, `getAbilityStates` returns
@@ -118,6 +127,17 @@ export function defineAbility(def: AbilityDefInput): AbilityStatic {
         getAbilityStates = (_currentTime: number): AbilityStateEntry[] => [];
     }
 
+    // --- lunge: extend getRange and auto-generate beginActiveCast ---
+    if (def.lunge) {
+        const lungeDistance = def.lunge.distance;
+        const baseGetRange = getRange;
+        getRange = (caster: Unit): { minRange: number; maxRange: number } | null => {
+            const r = baseGetRange(caster);
+            if (r == null) return null;
+            return { minRange: r.minRange, maxRange: r.maxRange + lungeDistance };
+        };
+    }
+
     // --- aiSettings: derive from hitbox when not provided ---
     // When the caller omits aiSettings entirely and a hitbox is available,
     // synthesise a default { minRange: 0, maxRange: hitboxMaxRange }.
@@ -127,10 +147,27 @@ export function defineAbility(def: AbilityDefInput): AbilityStatic {
         aiSettings = { minRange: 0, maxRange: hitboxMaxRange };
     }
 
-    return {
+    const result: AbilityStatic = {
         ...def,
         aiSettings,
         getRange,
         getAbilityStates,
     };
+
+    // Wire up lunge payload setup in beginActiveCast.
+    // - No existing beginActiveCast: generate one that only does lunge setup.
+    // - Existing beginActiveCast: wrap it so lunge setup runs first, then the caller's logic.
+    //   (The caller's function may append to castPayload or spawn VFX; lunge setup must run
+    //   first so a subsequent caller override could replace it intentionally if needed.)
+    if (def.lunge) {
+        const lunge = def.lunge;
+        const localHitboxMaxRange = hitboxMaxRange;
+        const callerBeginActiveCast = def.beginActiveCast;
+        result.beginActiveCast = (engine, caster, targets, active) => {
+            setupWindupLungePayload(engine, caster, targets, active, lunge, localHitboxMaxRange);
+            callerBeginActiveCast?.(engine, caster, targets, active);
+        };
+    }
+
+    return result;
 }

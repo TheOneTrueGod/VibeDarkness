@@ -14,6 +14,7 @@ import type { AbilityTimingEntry } from './abilityTimings';
 import type { AbilityEventRule } from './events/AbilityEventRule';
 import type { UnitTag } from '../game/units/unitTag';
 import type { PassiveDef } from './passiveDef';
+import type { WindupLungeConfig } from './WindupLunge';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
 export interface IAbilityPreviewGraphics {
@@ -236,6 +237,13 @@ export interface AbilityStatic {
      * available trigger types and effects.
      */
     readonly passive?: PassiveDef;
+    /**
+     * Optional windup lunge. When set, the caster physically steps forward toward the target during
+     * the windup phase by up to `lunge.distance` px (reduced by terrain/research modifiers).
+     * `defineAbility` automatically extends `getRange.maxRange` and generates `beginActiveCast` to
+     * snapshot the lunge target into `castPayload` when this is present.
+     */
+    readonly lunge?: WindupLungeConfig;
     /**
      * Optional custom effect handlers for `{ type: 'custom' }` effects in `abilityEvents`.
      * Merged with any call-site handlers (call-site wins on key collision).
