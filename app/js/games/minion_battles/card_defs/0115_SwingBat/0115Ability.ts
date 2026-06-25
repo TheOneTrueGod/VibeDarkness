@@ -19,7 +19,8 @@ import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import { type CardDef } from '../types';
 import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
+import { DEFAULT_UNIT_RADIUS, DEFAULT_MELEE_LUNGE } from '../../game/units/unit_defs/unitConstants';
+import { setupWindupLungePayload } from '../../abilities/WindupLunge';
 import { perpendicularSwingHitbox, ThickLineHitbox } from '../../hitboxes';
 import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 import {
@@ -124,7 +125,8 @@ export const SwingBatAbility_0115: AbilityStatic = {
     prefireTime: 0.2,
     abilityTimings: ABILITY_TIMINGS,
     targets: [],
-    aiSettings: { minRange: BASE_MIN_RANGE, maxRange: SWING_BAT_HITBOX.maxRange },
+    aiSettings: { minRange: BASE_MIN_RANGE, maxRange: SWING_BAT_HITBOX.maxRange + DEFAULT_MELEE_LUNGE },
+    lunge: { distance: DEFAULT_MELEE_LUNGE },
 
     getTooltipText(gameState?: unknown): string[] {
         const eng = gameState as AbilityEngineContext | undefined;
@@ -137,7 +139,7 @@ export const SwingBatAbility_0115: AbilityStatic = {
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: BASE_MIN_RANGE, maxRange: SWING_BAT_HITBOX.maxRange };
+        return { minRange: BASE_MIN_RANGE, maxRange: SWING_BAT_HITBOX.maxRange + DEFAULT_MELEE_LUNGE };
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
@@ -147,7 +149,8 @@ export const SwingBatAbility_0115: AbilityStatic = {
         return [];
     },
 
-    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {
+    beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
+        setupWindupLungePayload(engine, caster, targets, active, { distance: DEFAULT_MELEE_LUNGE }, SWING_BAT_HITBOX.maxRange);
         spawnRadiusScaledChargeUp(engine as { addEffect(effect: Effect): void }, caster, SWING_BAT_PROFILE);
     },
 

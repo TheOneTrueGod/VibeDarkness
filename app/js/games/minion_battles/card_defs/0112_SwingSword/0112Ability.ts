@@ -18,7 +18,7 @@ import { defineAbility } from '../../abilities/defineAbility';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
+import { DEFAULT_UNIT_RADIUS, DEFAULT_MELEE_LUNGE } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
 import { applyBleedStack } from '../../buffs/bleedRuntime';
@@ -138,6 +138,8 @@ export const SwingSwordAbility = defineAbility({
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
+    aiSettings: { minRange: 0, maxRange: SWING_SWORD_HITBOX.maxRange + DEFAULT_MELEE_LUNGE },
+    lunge: { distance: DEFAULT_MELEE_LUNGE },
     // movementLock: lock movement through windup; release on lunge.
     movementLock: { until: 0.2 },
 

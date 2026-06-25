@@ -23,3 +23,6 @@ export const UNIT_SIZE_MAP: Record<UnitSize, number> = {
 
 /** Default size when not specified. */
 export const DEFAULT_UNIT_SIZE: UnitSize = 'Medium';
+
+/** Default lunge distance (px) applied to melee abilities that step toward the target during windup. */
+export const DEFAULT_MELEE_LUNGE = 30;

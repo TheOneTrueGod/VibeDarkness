@@ -20,7 +20,7 @@ import { getDamageBonusFromResearch } from '../../research/researchTrainingEffec
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
+import { DEFAULT_UNIT_RADIUS, DEFAULT_MELEE_LUNGE } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { Effect } from '../../game/effects/Effect';
 import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
@@ -41,7 +41,6 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const BASE_MAX_RANGE = 25;
-const LUNGE_DISTANCE = 30;
 const DAMAGE = 10;
 const SWING_BAT_EFFECT_DURATION = 0.4;
 const STUN_DURATION = 1.0;
@@ -117,8 +116,8 @@ export const SwingBatAbility_0103: AbilityStatic = {
     prefireTime: 0.2,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
-    aiSettings: { minRange: 0, maxRange: SWING_STICK_HITBOX.maxRange + LUNGE_DISTANCE },
-    lunge: { distance: LUNGE_DISTANCE },
+    aiSettings: { minRange: 0, maxRange: SWING_STICK_HITBOX.maxRange + DEFAULT_MELEE_LUNGE },
+    lunge: { distance: DEFAULT_MELEE_LUNGE },
 
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [
@@ -142,7 +141,7 @@ export const SwingBatAbility_0103: AbilityStatic = {
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {
-        return { minRange: 0, maxRange: SWING_STICK_HITBOX.maxRange + LUNGE_DISTANCE };
+        return { minRange: 0, maxRange: SWING_STICK_HITBOX.maxRange + DEFAULT_MELEE_LUNGE };
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {
@@ -153,7 +152,7 @@ export const SwingBatAbility_0103: AbilityStatic = {
     },
 
     beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
-        setupWindupLungePayload(engine, caster, targets, active, { distance: LUNGE_DISTANCE }, SWING_STICK_HITBOX.maxRange);
+        setupWindupLungePayload(engine, caster, targets, active, { distance: DEFAULT_MELEE_LUNGE }, SWING_STICK_HITBOX.maxRange);
         spawnRadiusScaledChargeUp(engine as { addEffect(effect: Effect): void }, caster, BASE_PROFILE);
     },
 
