@@ -73,7 +73,7 @@ function getCaveRespitePunchChoiceRows(): StoryChoiceOptionRow[] {
             label: 'Strong Punch',
             loreTitle: 'Brace and Hit',
             loreDescription:
-                'Hunting in rough ground taught you to plant your feet and drive through. Punch hits harder and can knock enemies back with a stun.',
+                'Hunting in rough ground taught you to plant your feet and drive through. Punch stuns and knocks back enemies.',
             action: grantPunch(TRAINING_NODE_STRONG_PUNCH),
         },
         {

@@ -17,9 +17,9 @@ Feedback June 24
 
 [x] Make ghost projectile travel further
 [] Commands flash for a second before becoming disabled during optimistic playahead
-[] Clear up wording on "knock enemies back with a stun"
+[x] Clear up wording on "knock enemies back with a stun"
 [] Strengthening light description doesn't say what it does
-[] Ninjutsu is too infrequent for shield usage
+[x] Ninjutsu is too infrequent for shield usage
 [] Increase number of targets cone of light hits
 [] Make the 'active' frames on sneaky punch much smaller so it's clearer where it hits
 

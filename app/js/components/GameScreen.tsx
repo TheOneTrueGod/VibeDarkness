@@ -48,6 +48,7 @@ export interface GameComponentProps {
     /** When set (Minion Battles), the game should prefer this over constructing its own facade. */
     minionBattlesApi?: MinionBattlesApi;
     isHost: boolean;
+    isAdmin: boolean;
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
@@ -125,7 +126,7 @@ export default function GameScreen({
     lobbyClient,
     lobby,
     player,
-    account: _account,
+    account,
     players,
     chatMessages,
     connectionStatus,
@@ -460,6 +461,7 @@ export default function GameScreen({
                                     minionBattlesApi={minionBattlesApi}
                                     playerId={player.id}
                                     isHost={isHost}
+                                    isAdmin={account?.role === 'admin'}
                                     players={effectivePlayers}
                                     gameData={effectiveLobbyGameData}
                                     onSidebarInfoChange={setGameSidebarInfo}
