@@ -23,10 +23,10 @@ Feedback June 24
 [] Increase number of targets cone of light hits
 [] Make the 'active' frames on sneaky punch much smaller so it's clearer where it hits
 
-[] Remove stun on bosses from Absorption shield, and make cone of light apply 2 stun charges
-[] Make the enrage effect be a circle that closes in, so it's differentiated from the stun
+[x] Remove stun on bosses from Absorption shield, and make cone of light apply 2 stun charges
+[x] Make the enrage effect be a circle that closes in, so it's differentiated from the stun
 [] Charging up with multiple hits is annoying when there's few enemies on screen
-[] Make enemies no longer cluster up (have wolves take up space in cells)
+[x] Make enemies no longer cluster up (have wolves take up space in cells)
 [] Timeline view is a little out of the way on the screen
 
 

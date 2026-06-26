@@ -179,6 +179,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'dark_creature',
         onDeathVisualEffects: darkCreatureIconFlashVFX(5),
         uiDescription: 'Stays back and harasses with ranged attacks.',
+        maxPerTile: 1,
     },
     dark_wolf: {
         bodyColor: 0x1a1a2e,
@@ -191,6 +192,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'dark_creature',
         onDeathVisualEffects: darkCreatureIconFlashVFX(5),
         uiDescription: 'Fast predator that lunges in for a quick bite.',
+        maxPerTile: 2,
     },
     alpha_wolf: {
         bodyColor: 0x1a1a2e,

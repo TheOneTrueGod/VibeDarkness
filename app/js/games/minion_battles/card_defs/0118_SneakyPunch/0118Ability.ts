@@ -64,8 +64,8 @@ export const SneakyPunchAbility = defineMeleeStrike({
     forwardDistance: 12,
     backwardDistance: 6,
     windupDuration: 0.15,
-    activeDuration: 0.4,
-    cooldownDuration: 0.85,
+    activeDuration: 0.1,
+    cooldownDuration: 1.15,
     movementLockUntil: 0.55,
 
     onDamage(ctx, unit) {
