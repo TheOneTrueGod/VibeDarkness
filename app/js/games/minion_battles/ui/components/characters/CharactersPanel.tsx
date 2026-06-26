@@ -403,6 +403,7 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                                     account={adminDetails?.account ?? null}
                                     viewerAccount={user ?? null}
                                     campaign={null}
+                                    hideMissionMap
                                 />
                             ) : (
                                 <div className="flex h-full items-center justify-center p-6 text-muted">

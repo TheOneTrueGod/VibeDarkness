@@ -59,6 +59,8 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
     onEmittedChatMessage?: (entry: import('../../components/Chat').MessageEntry) => void;
     /** Called when the game is about to switch from pre-battle story into battle. */
     onBattleStartStatusChange?: (starting: boolean) => void;
+    /** Client-only: join the next lobby that the host created after a victory. */
+    onJoinNextLobby?: (lobbyId: string) => Promise<void>;
 }
 
 export default function MinionBattlesGame({
@@ -78,6 +80,7 @@ export default function MinionBattlesGame({
     onEmittedChatMessage,
     onBattleStartStatusChange,
     onBattleNetResyncingChange,
+    onJoinNextLobby,
 }: MinionBattlesGameProps) {
     const { isAdmin } = useCurrentUser();
     const api = useMemo(
@@ -89,6 +92,7 @@ export default function MinionBattlesGame({
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
     const [victoryModalOpen, setVictoryModalOpen] = useState(false);
     const raw = useMemo(() => gameData ?? {}, [gameData]);
+    const nextLobbyId = (gameData as import('./api/types').MinionBattlesGameDataPayload | null)?.nextLobbyId ?? null;
 
     // Infer battle phase when gamePhase is missing but engine state (units, gameTick) exists.
     // This happens when loading from checkpoints that lack phase metadata.
@@ -521,6 +525,9 @@ export default function MinionBattlesGame({
             )}
             {victoryModalOpen && (
                 <VictoryModal
+                    isHost={isHost}
+                    nextLobbyId={nextLobbyId}
+                    onJoinNextLobby={onJoinNextLobby}
                     missionRewards={missionRewards}
                     sideMissions={selectedMissionId
                         ? getSideMissionIds(selectedMissionId, STORYLINES).map((id) => ({

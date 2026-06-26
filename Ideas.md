@@ -32,9 +32,9 @@ Feedback June 24
 
 
 Feedback June 23
-[] Bump bat and sword ranges back up a bit.  It's annoying how close you need to get
+[x] Bump bat and sword ranges back up a bit.  It's annoying how close you need to get
 [] Mission indicator is in the wrong place in firefox
-[] You can view the mission list from the "edit characters" page
+[x] You can view the mission list from the "edit characters" page
 [] Ghost spawned in the middle of the cave
 
 Feedback June 9

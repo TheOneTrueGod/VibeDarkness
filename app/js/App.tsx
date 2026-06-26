@@ -560,6 +560,138 @@ function AppInner() {
     );
 
     /**
+     * Host: create a new lobby for the next mission, stamp `nextLobbyId` on the current lobby
+     * so clients can auto-redirect, then navigate the host to the new lobby.
+     *
+     * The old lobby state must still be in React state when this is called (captured at the top
+     * before anything is cleared) because `updateGameState` is host-only and requires the old
+     * lobby/game/player IDs.
+     */
+    const handleHostContinueToNextMission = useCallback(
+        async (missionId: string, campaignId: string | null): Promise<boolean> => {
+            if (!user?.id) return false;
+            // Capture old lobby context before any state changes
+            const oldLobbyId = currentLobby?.id ?? null;
+            const oldGameId = lobbyGameIdRef.current;
+            const oldPlayerId = currentPlayer?.id ?? null;
+
+            setCurrentCampaignId(campaignId);
+            try {
+                // Create new lobby (mirrors handleCreateLobbyForMission logic)
+                const missionDef = MISSION_MAP[missionId];
+                const missionName = missionDef?.name ?? missionId;
+                const result = await lobbyClient.createLobby(`Mission: ${missionName}`, user.id);
+                const newLobby = result.lobby as LobbyState;
+                const newPlayer = result.player as PlayerState;
+                const newAccount = result.account as AccountState;
+
+                await lobbyClient.setLobbyState(newLobby.id, newPlayer.id, 'in_game', 'minion_battles');
+                const { gameState } = await lobbyClient.getLobbyState(newLobby.id, newPlayer.id);
+                const payload = gameState as unknown as GameStatePayload;
+                const newGameId = payload.gameId ?? null;
+                if (newGameId) {
+                    await lobbyClient.updateGameState(newLobby.id, newGameId, newPlayer.id, {
+                        gamePhase: 'character_select',
+                        selectedMissionId: missionId,
+                    });
+                }
+
+                // Stamp nextLobbyId on the OLD lobby BEFORE clearing state
+                // so clients polling the old lobby can see it
+                if (oldLobbyId && oldGameId && oldPlayerId) {
+                    lobbyClient
+                        .updateGameState(oldLobbyId, oldGameId, oldPlayerId, {
+                            nextLobbyId: newLobby.id,
+                        })
+                        .catch(console.error);
+                }
+
+                // Fetch final state then set all React state (mirrors handleCreateLobbyForMission)
+                const { gameState: finalState } = await lobbyClient.getLobbyState(newLobby.id, newPlayer.id);
+                const finalPayload = finalState as unknown as GameStatePayload;
+                loadGameState(finalPayload);
+
+                setCurrentAccount(newAccount);
+                setCurrentLobby(newLobby);
+                setCurrentPlayer(newPlayer);
+                setConnectionStatus('connecting');
+                setChatEnabled(false);
+                setPlayers({ [newPlayer.id]: { ...newPlayer, isConnected: false } });
+                setScreen('game');
+                navigate(`${LOBBY_PATH_PREFIX}${newLobby.id}`, { replace: true });
+
+                setPollMessagesReady(false);
+                setLastPollMessageId(null);
+                await startInLobby(newLobby, newPlayer);
+                return true;
+            } catch (error) {
+                showToast(
+                    'Failed to start mission: ' + (error instanceof Error ? error.message : 'Unknown error'),
+                    'error'
+                );
+                return false;
+            }
+        },
+        [currentLobby, currentPlayer, lobbyGameIdRef, user, lobbyClient, loadGameState, startInLobby, showToast, navigate]
+    );
+
+    /**
+     * Client: leave the current lobby and join the host's next lobby.
+     */
+    const handleClientJoinNextLobby = useCallback(
+        async (nextLobbyId: string): Promise<void> => {
+            if (!currentLobby || !currentPlayer) return;
+            const lobbyId = currentLobby.id;
+            const playerId = currentPlayer.id;
+
+            // Clear state immediately (same block as handleLeaveLobby)
+            setCurrentLobby(null);
+            setCurrentPlayer(null);
+            setCurrentAccount(null);
+            setPlayers({});
+            setChatMessages([]);
+            setClicks({});
+            setChatEnabled(false);
+            setConnectionStatus('disconnected');
+            setLobbyPageState('home');
+            setLobbyGameId(null);
+            setLobbyGameType(null);
+            setLobbyGameData(null);
+            setCurrentCampaignId(null);
+            setLastPollMessageId(null);
+            setPollMessagesReady(false);
+
+            // Leave old lobby (fire-and-forget — errors are non-fatal)
+            lobbyClient.leaveLobby(lobbyId, playerId).catch((error) => {
+                console.error('Error leaving lobby during client continue:', error);
+            });
+
+            // Join the new lobby using the same logic as handleJoinLobby
+            try {
+                const result = await lobbyClient.joinLobby(nextLobbyId);
+                const lobby = result.lobby as LobbyState;
+                const player = result.player as PlayerState;
+                const account = result.account as AccountState;
+                setCurrentAccount(account);
+                setCurrentLobby(lobby);
+                setCurrentPlayer(player);
+                setConnectionStatus('connecting');
+                setScreen('game');
+                setChatEnabled(false);
+                navigate(`${LOBBY_PATH_PREFIX}${lobby.id}`, { replace: true });
+                setPlayers({ [player.id]: { ...player, isConnected: false } });
+                await startInLobby(lobby, player);
+            } catch (error) {
+                showToast(
+                    'Failed to join next lobby: ' + (error instanceof Error ? error.message : 'Unknown error'),
+                    'error'
+                );
+            }
+        },
+        [currentLobby, currentPlayer, lobbyClient, showToast, startInLobby, navigate]
+    );
+
+    /**
      * Start a mission from the Mission Map — required player (character owner) must be present.
      * The clicker becomes host; the character owner's slot is pre-locked.
      */
@@ -947,7 +1079,8 @@ function AppInner() {
                         onContinue={handleContinueFromMission}
                         onSelectGame={handleSelectGame}
                         onRecordMissionResult={recordMissionResult}
-                        onTryAgain={(missionId) => handleCreateLobbyForMission(missionId, currentCampaignId ?? null)}
+                        onTryAgain={(missionId) => handleHostContinueToNextMission(missionId, currentCampaignId ?? null)}
+                        onJoinNextLobby={handleClientJoinNextLobby}
                         onEmittedChatMessage={handleEmittedChatMessage}
                         onPing={() => {
                             const mesh = webRtcMeshRef.current;

@@ -68,6 +68,8 @@ export interface GameComponentProps {
     /** Called when user clicks Try Again after defeat or Continue after victory; creates a new lobby for the given
      *  mission. Returns true on success so the caller can fall back if lobby creation fails. */
     onTryAgain?: (missionId: string) => Promise<boolean>;
+    /** Client-only: join the next lobby that the host created after a victory. */
+    onJoinNextLobby?: (nextLobbyId: string) => Promise<void>;
     /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     /** Called when the game is about to enter battle so the lobby UI can switch immediately. */
@@ -109,6 +111,8 @@ interface GameScreenProps {
     ) => Promise<void>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
     onTryAgain?: (missionId: string) => Promise<boolean>;
+    /** Client-only: join the next lobby that the host created after a victory. */
+    onJoinNextLobby?: (nextLobbyId: string) => Promise<void>;
     /** Called when the game sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     /** Sends a WebRTC ping event to other players. */
@@ -143,6 +147,7 @@ export default function GameScreen({
     onSelectGame,
     onRecordMissionResult,
     onTryAgain,
+    onJoinNextLobby,
     onEmittedChatMessage,
     onPing,
     pingEnabled = true,
@@ -468,6 +473,7 @@ export default function GameScreen({
                                     onLeave={onLeave}
                                     onContinue={onContinue}
                                     onTryAgain={onTryAgain}
+                                    onJoinNextLobby={onJoinNextLobby}
                                     onEmittedChatMessage={onEmittedChatMessage}
                                     onBattleStartStatusChange={setBattlePlayerListHidden}
                                     onBattleNetResyncingChange={setBattleNetResyncing}
@@ -534,6 +540,7 @@ export default function GameScreen({
             lobbyClient,
             minionBattlesApi,
             onEmittedChatMessage,
+            onJoinNextLobby,
             onLeave,
             onRecordMissionResult,
             onSelectGame,

@@ -20,9 +20,15 @@ interface VictoryModalProps {
     sideMissions?: Array<{ missionId: string; name: string }>;
     /** Called when the player chooses to start a side mission instead of continuing. */
     onStartSideMission?: (missionId: string) => void;
+    /** Whether the current player is the host. Controls which Continue UI is shown. */
+    isHost?: boolean;
+    /** Lobby ID the host created for the next mission (clients poll for this). */
+    nextLobbyId?: string | null;
+    /** Client-only: join the next lobby that the host created. */
+    onJoinNextLobby?: (lobbyId: string) => Promise<void>;
 }
 
-export default function VictoryModal({ missionRewards, onClose, sideMissions, onStartSideMission }: VictoryModalProps) {
+export default function VictoryModal({ missionRewards, onClose, sideMissions, onStartSideMission, isHost, nextLobbyId, onJoinNextLobby }: VictoryModalProps) {
     const researchRewards = getResolvedMissionResearchRewards(missionRewards);
     const hasRewards =
         missionRewards &&
@@ -110,13 +116,36 @@ export default function VictoryModal({ missionRewards, onClose, sideMissions, on
                     </div>
                 )}
                 <div className="flex justify-center">
-                    <button
-                        type="button"
-                        className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
-                        onClick={onClose}
-                    >
-                        Continue
-                    </button>
+                    {/* Host (or solo play): existing continue flow */}
+                    {(isHost === true || isHost === undefined) && (
+                        <button
+                            type="button"
+                            className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
+                            onClick={onClose}
+                        >
+                            Continue
+                        </button>
+                    )}
+                    {/* Client, waiting for host to choose next mission */}
+                    {isHost === false && !nextLobbyId && (
+                        <button
+                            type="button"
+                            className="px-6 py-2 bg-gray-600 text-gray-400 font-medium rounded cursor-not-allowed"
+                            disabled
+                        >
+                            Waiting for host…
+                        </button>
+                    )}
+                    {/* Client, host has created next lobby */}
+                    {isHost === false && nextLobbyId && (
+                        <button
+                            type="button"
+                            className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
+                            onClick={() => onJoinNextLobby?.(nextLobbyId)}
+                        >
+                            Continue
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

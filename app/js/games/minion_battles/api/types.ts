@@ -72,6 +72,12 @@ export interface MinionBattlesGameStatePayload {
      * Absent while the lobby is still in `character_select`.
      */
     battleSeed?: number;
+    /**
+     * Lobby ID the host has created for the next mission.
+     * Written by the host via updateGameState after victory; clients poll for
+     * this to know when to show the "Continue" button.
+     */
+    nextLobbyId?: string;
 }
 
 /** Full game blob from polling (may include arbitrary extra keys from the server). */

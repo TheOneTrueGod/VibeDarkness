@@ -543,6 +543,7 @@ export default function CharacterSelectPhase({
                         campaign={campaign}
                         equippedItemsDisplay="list"
                         localPlayerId={user?.id}
+                        hideMissionMap
                     />
                 </div>
             ) : (

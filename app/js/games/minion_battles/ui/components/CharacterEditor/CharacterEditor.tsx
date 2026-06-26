@@ -64,6 +64,8 @@ interface CharacterEditorProps {
     localPlayerId?: number;
     /** Called when the player clicks a mission on the Mission Map. */
     onStartMission?: (missionId: string) => void;
+    /** When true, hides the Mission Map tab (e.g. when opened from inside a lobby). */
+    hideMissionMap?: boolean;
     /** Admin-only content rendered pinned to the bottom of the Equipment tab (e.g. item grant UI). */
     adminEquipmentPanel?: React.ReactNode;
     /** Admin-only content rendered next to the grant-campaign-resources block in the Upgrades tab. */
@@ -107,6 +109,7 @@ export default function CharacterEditor({
     equippedItemsDisplay = 'paperDoll',
     localPlayerId,
     onStartMission,
+    hideMissionMap = false,
     adminEquipmentPanel,
     adminKnowledgePanel,
 }: CharacterEditorProps) {
@@ -127,7 +130,7 @@ export default function CharacterEditor({
     const [nameDraft, setNameDraft] = useState(character.name);
     const [isEditingName, setIsEditingName] = useState(false);
     const [equipment, setEquipment] = useState<string[]>(() => [...character.equipment]);
-    const [activeTab, setActiveTab] = useState<EditorTab>('missionMap');
+    const [activeTab, setActiveTab] = useState<EditorTab>(() => hideMissionMap ? 'research' : 'missionMap');
     const [saving, setSaving] = useState(false);
     const [dragItemId, setDragItemId] = useState<string | null>(null);
     const [dragSlot, setDragSlot] = useState<EquipmentSlotType | null>(null);
@@ -529,17 +532,19 @@ export default function CharacterEditor({
         <div className="flex flex-col h-full w-full bg-surface rounded-lg border border-border-custom overflow-hidden">
             {/* Tabs */}
             <div className="flex gap-1 px-2 pt-2 border-b border-border-custom shrink-0">
-                <button
-                    type="button"
-                    className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
-                        activeTab === 'missionMap'
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-muted hover:text-white'
-                    }`}
-                    onClick={() => setActiveTab('missionMap')}
-                >
-                    Mission Map
-                </button>
+                {!hideMissionMap && (
+                    <button
+                        type="button"
+                        className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
+                            activeTab === 'missionMap'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-muted hover:text-white'
+                        }`}
+                        onClick={() => setActiveTab('missionMap')}
+                    >
+                        Mission Map
+                    </button>
+                )}
                 {isAdmin && (
                     <button
                         type="button"
