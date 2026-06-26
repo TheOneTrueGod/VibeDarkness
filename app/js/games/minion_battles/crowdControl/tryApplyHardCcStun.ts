@@ -22,6 +22,7 @@ export function tryApplyHardCcStun(
     gameTime: number,
     roundNumber: number,
     eventBus?: EventBus,
+    ccCharges = 1,
 ): HardCcStunAttemptResult {
     // Units in a juggernaut window are immune to CC interruption — no armour consumed, no stun.
     if (target.isInJuggernautWindow(gameTime)) {
@@ -49,8 +50,8 @@ export function tryApplyHardCcStun(
         return { outcome: 'applied', effectiveDuration };
     }
 
-    if (target.hardCcArmourConsumed < threshold) {
-        target.hardCcArmourConsumed += 1;
+    if (target.hardCcArmourConsumed + ccCharges <= threshold) {
+        target.hardCcArmourConsumed += ccCharges;
         target.recordHardCcArmourEvent('absorbed', gameTime);
         return { outcome: 'absorbed' };
     }

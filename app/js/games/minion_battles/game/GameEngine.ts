@@ -64,6 +64,7 @@ import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCore
 import { resetGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import { registerLateBuiltinHandlers } from '../worldModifiers/builtinHandlers';
+import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
 import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, type UnitDefId } from './units/unit_defs/unitDef';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
@@ -107,7 +108,7 @@ export class GameEngine implements EngineContext {
     readonly eventBus = new EventBus();
 
     /** Simulation data: managers, terrain, queues, timing scalars. */
-    readonly state = new GameState(this);
+    readonly state: GameState = new GameState(this);
 
     // -- Loop / orchestration (not stored on GameState) --
     private accumulator = 0;
@@ -335,7 +336,7 @@ export class GameEngine implements EngineContext {
     }
 
     get effectEmitterManager() { return this.state.effectEmitterManager; }
-    get lightSources() { return this.state.lightSourceManager.lightSources; }
+    get lightSources(): LightSource[] { return this.state.lightSourceManager.lightSources; }
 
     addEffectEmitter(emitter: EffectEmitter): void {
         this.state.effectEmitterManager.addEmitter(emitter);
@@ -396,7 +397,7 @@ export class GameEngine implements EngineContext {
         return this.state.objectiveManager.isCompleted(id);
     }
 
-    get worldModifierManager() {
+    get worldModifierManager(): WorldModifierManager {
         return this.state.worldModifierManager;
     }
 
@@ -586,17 +587,6 @@ export class GameEngine implements EngineContext {
                 this.hashString32(data.projectileId),
                 this.hashString32(data.targetUnitId),
             );
-        });
-
-        this.eventBus.on('unit_enraged', (data) => {
-            const unit = this.getUnit(data.unitId);
-            if (!unit) return;
-            this.addEffect(new Effect({
-                x: unit.x,
-                y: unit.y,
-                duration: 0.75,
-                effectType: 'EnrageBurst',
-            }));
         });
 
         this.eventBus.on('terrain_stone_damaged', (event) => {
@@ -1156,7 +1146,7 @@ export class GameEngine implements EngineContext {
             this.state.unitManager.gameTick(
                 dt,
                 this,
-                (unitId) => this.naturalAbilityCompletionUnitIdsThisTick.add(unitId),
+                (unitId: string) => this.naturalAbilityCompletionUnitIdsThisTick.add(unitId),
                 aiCtx,
                 () => this.state.levelEventManager.runVictoryChecks(),
             );
@@ -1270,10 +1260,10 @@ export class GameEngine implements EngineContext {
     tryResumeParallel(): void {
         const batch = this.state.orderMgr.waitingForOrders;
         if (!batch) return;
-        const allReady = batch.waiters.every((w) => this.state.orderMgr.hasPendingEndTurnOrderForUnit(w.unitId, batch.atTick));
+        const allReady = batch.waiters.every((w: OrderWaiter) => this.state.orderMgr.hasPendingEndTurnOrderForUnit(w.unitId, batch.atTick));
         if (!allReady) return;
 
-        const unitIds = batch.waiters.map((w) => w.unitId).sort();
+        const unitIds = batch.waiters.map((w: OrderWaiter) => w.unitId).sort();
         const batchAtTick = batch.atTick;
         const pauseBatch = batch;
         const cb = this.onParallelBatchResolved;

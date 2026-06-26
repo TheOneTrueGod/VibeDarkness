@@ -160,7 +160,7 @@ export const ConeOfLightAbility: AbilityStatic = {
             {
                 conditions: [{ type: 'hitResultIs', result: 'hit' }],
                 effects: [
-                    { type: 'applyStunnedToPrimaryTarget', duration: STUN_DURATION },
+                    { type: 'applyStunnedToPrimaryTarget', duration: STUN_DURATION, ccCharges: 2 },
                     { type: 'interruptPrimaryTargetAbilities' },
                 ],
             },

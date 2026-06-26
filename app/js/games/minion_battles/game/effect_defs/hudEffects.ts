@@ -152,3 +152,44 @@ export class ResourceArrivalPulseEffect extends HudEffect {
         this.effectData = { x, y, color };
     }
 }
+
+// ─── EnrageRings ─────────────────────────────────────────────────────────────
+// 30 small red rings expanding from 2px to 20px radius, 2 spawning per 0.1s.
+// Each ring center is at a random offset within the boss's screen-space radius.
+// Triggered by unit_enraged; positions captured at trigger time.
+
+export type EnrageRing = {
+    offsetX: number;
+    offsetY: number;
+    spawnTime: number; // seconds from effect start when this ring begins expanding
+};
+
+export type EnrageRingsData = {
+    bossScreenX: number;
+    bossScreenY: number;
+    rings: EnrageRing[];
+};
+
+export class EnrageRingsEffect extends HudEffect {
+    declare effectData: EnrageRingsData;
+
+    constructor(bossScreenX: number, bossScreenY: number, bossScreenRadius: number) {
+        super('EnrageRings', 1.7);
+        const rings: EnrageRing[] = [];
+        for (let i = 0; i < 30; i++) {
+            const batch = Math.floor(i / 2);
+            // eslint-disable-next-line no-restricted-syntax
+            const stagger = (Math.random() - 0.5) * 0.06;
+            // eslint-disable-next-line no-restricted-syntax
+            const angle = Math.random() * Math.PI * 2;
+            // eslint-disable-next-line no-restricted-syntax
+            const r = Math.sqrt(Math.random()) * bossScreenRadius;
+            rings.push({
+                offsetX: Math.cos(angle) * r,
+                offsetY: Math.sin(angle) * r,
+                spawnTime: Math.max(0, batch * 0.1 + stagger),
+            });
+        }
+        this.effectData = { bossScreenX, bossScreenY, rings };
+    }
+}

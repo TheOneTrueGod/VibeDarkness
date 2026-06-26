@@ -904,7 +904,7 @@ export class Unit extends GameObject {
                 this.movement = null;
             } else {
                 // Cell boundary check: can we enter the next cell?
-                this.checkNextCellOccupancy(engine);
+                this.checkNextCellOccupancy(engine as EngineContext);
             }
         }
     }

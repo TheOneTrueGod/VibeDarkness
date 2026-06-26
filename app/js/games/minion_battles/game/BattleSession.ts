@@ -17,7 +17,7 @@ import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
 import { Camera } from './Camera';
 import { PlayerInteractionManager } from './interaction/PlayerInteractionManager';
-import { fingerprintToHex } from './Fingerprint';
+import { fingerprintToHex, type FingerprintRingEntry } from './Fingerprint';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
 import type { ApplyRemoteOrdersResult, BattleNet, BattleSessionHandle, RemoteOrderWireRow } from './battlenet';
@@ -497,7 +497,7 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     getFingerprintRange(from: number, to: number): Array<{ tick: number; fp: string; paused: boolean }> {
-        return (this.engine?.state.runtimeFingerprintRing.range(from, to) ?? []).map((entry) => ({
+        return (this.engine?.state.runtimeFingerprintRing.range(from, to) ?? []).map((entry: FingerprintRingEntry) => ({
             tick: entry.tick,
             fp: fingerprintToHex(entry.fp),
             paused: entry.paused,

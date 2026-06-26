@@ -41,7 +41,7 @@ export type AbilityEffect =
         tier: number;
         sourceAbilityId: string;
     }
-    | { type: 'applyStunnedToPrimaryTarget'; duration: number }
+    | { type: 'applyStunnedToPrimaryTarget'; duration: number; ccCharges?: number }
     | { type: 'interruptPrimaryTargetAbilities' }
     | { type: 'setAbilityNote'; abilityId: string; note: Record<string, unknown> }
     | {

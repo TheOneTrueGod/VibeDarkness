@@ -103,24 +103,24 @@ export function tickUnitActiveAbilities(
                     const primaryTarget = active.targets[0];
                     const targetUnit =
                         useTarget && primaryTarget?.type === 'unit'
-                            ? engine.getUnit(primaryTarget.unitId)
+                            ? engine.getUnit(primaryTarget.unitId!)
                             : undefined;
                     const positionUnit =
                         targetUnit ??
                         (useTarget && primaryTarget?.type === 'pixel'
-                            ? { x: primaryTarget.position.x, y: primaryTarget.position.y, radius: 0, characterId: '' }
+                            ? { x: primaryTarget.position!.x, y: primaryTarget.position!.y, radius: 0, characterId: '' }
                             : null) ??
                         unit;
                     // Build per-def context: resolve target from primary target for
                     // DirectEffectVFXDef entries that specify position: 'target' or 'midpoint'.
                     const contextTargetUnit =
                         primaryTarget?.type === 'unit'
-                            ? engine.getUnit(primaryTarget.unitId)
+                            ? engine.getUnit(primaryTarget.unitId!)
                             : undefined;
                     const contextTarget: { x: number; y: number; radius: number } | undefined =
                         contextTargetUnit ??
                         (primaryTarget?.type === 'pixel'
-                            ? { x: primaryTarget.position.x, y: primaryTarget.position.y, radius: 0 }
+                            ? { x: primaryTarget.position!.x, y: primaryTarget.position!.y, radius: 0 }
                             : undefined);
                     applyVisualEffectDefs(emitterDef.visualEffects, positionUnit, engine, contextTarget ? { target: contextTarget } : undefined);
                 }

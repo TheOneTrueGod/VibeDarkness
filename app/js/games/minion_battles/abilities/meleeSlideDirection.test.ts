@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolveMeleeSlideDirection } from './meleeSlideDirection';
-import type { ResolvedTarget } from '../../game/types';
+import type { ResolvedTarget } from '../game/types';
 
 describe('resolveMeleeSlideDirection — per-timing slide direction', () => {
     it('uses each timing target when an aim pixel from a later click is appended', () => {

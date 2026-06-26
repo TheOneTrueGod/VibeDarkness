@@ -1,17 +1,19 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { GameEngine } from '../../GameEngine';
 import type { Camera } from '../../Camera';
-import type { RoundStartEvent, RecoveryChargeGrantedEvent, BossExposedCcSuppressedEvent } from '../../EventBus';
+import type { RoundStartEvent, RecoveryChargeGrantedEvent, BossExposedCcSuppressedEvent, UnitEnragedEvent } from '../../EventBus';
 import { HudEffect } from '../../effects/HudEffect';
 import {
     RoundStartBannerEffect,
     ResourceFlightEffect,
     ResourceArrivalPulseEffect,
     ResilientTextEffect,
+    EnrageRingsEffect,
     type RoundStartResourceGrant,
     type ResourceFlightData,
     type ResourceArrivalPulseData,
     type ResilientTextData,
+    type EnrageRingsData,
 } from '../../effect_defs/hudEffects';
 
 // Banner icon layout constants (shared between create and flight-spawn logic).
@@ -60,6 +62,7 @@ export class HudEffectLayer {
     private readonly onRoundStartBound: (data: RoundStartEvent) => void;
     private readonly onRecoveryChargeGrantedBound: (data: RecoveryChargeGrantedEvent) => void;
     private readonly onBossExposedCcSuppressedBound: (data: BossExposedCcSuppressedEvent) => void;
+    private readonly onUnitEnragedBound: (data: UnitEnragedEvent) => void;
 
     constructor(
         private readonly hudContainer: Container,
@@ -68,6 +71,7 @@ export class HudEffectLayer {
         this.onRoundStartBound = this.onRoundStart.bind(this);
         this.onRecoveryChargeGrantedBound = this.onRecoveryChargeGranted.bind(this);
         this.onBossExposedCcSuppressedBound = this.onBossExposedCcSuppressed.bind(this);
+        this.onUnitEnragedBound = this.onUnitEnraged.bind(this);
     }
 
     addEffect(effect: HudEffect): void {
@@ -92,11 +96,13 @@ export class HudEffectLayer {
                 this.engineSource.eventBus.off('round_start', this.onRoundStartBound);
                 this.engineSource.eventBus.off('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
                 this.engineSource.eventBus.off('boss_exposed_cc_suppressed', this.onBossExposedCcSuppressedBound);
+                this.engineSource.eventBus.off('unit_enraged', this.onUnitEnragedBound);
             }
             this.engineSource = engine;
             engine.eventBus.on('round_start', this.onRoundStartBound);
             engine.eventBus.on('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
             engine.eventBus.on('boss_exposed_cc_suppressed', this.onBossExposedCcSuppressedBound);
+            engine.eventBus.on('unit_enraged', this.onUnitEnragedBound);
         }
 
         // Advance all active effects; collect deferred effects to spawn.
@@ -156,6 +162,7 @@ export class HudEffectLayer {
             this.engineSource.eventBus.off('round_start', this.onRoundStartBound);
             this.engineSource.eventBus.off('recovery_charge_granted', this.onRecoveryChargeGrantedBound);
             this.engineSource.eventBus.off('boss_exposed_cc_suppressed', this.onBossExposedCcSuppressedBound);
+            this.engineSource.eventBus.off('unit_enraged', this.onUnitEnragedBound);
             this.engineSource = null;
         }
         for (const visual of this.effectVisuals.values()) {
@@ -290,6 +297,7 @@ export class HudEffectLayer {
             case 'ResourceFlight': return this.createResourceFlight(effect);
             case 'ResourceArrivalPulse': return this.createResourceArrivalPulse(effect);
             case 'ResilientText': return this.createResilientText();
+            case 'EnrageRings': return this.createEnrageRings(effect);
             default: return new Container();
         }
     }
@@ -302,6 +310,7 @@ export class HudEffectLayer {
             case 'ResourceFlight': return this.updateResourceFlight(visual, effect, vw, vh);
             case 'ResourceArrivalPulse': return this.updateResourceArrivalPulse(visual as Graphics, effect);
             case 'ResilientText': return this.updateResilientText(visual, effect);
+            case 'EnrageRings': return this.updateEnrageRings(visual, effect);
         }
     }
 
@@ -646,5 +655,51 @@ export class HudEffectLayer {
 
         // Alpha: full until 65%, then linear fade to 0
         visual.alpha = p < 0.65 ? 1 : Math.max(0, 1 - (p - 0.65) / 0.35);
+    }
+
+    // ─── EnrageRings ─────────────────────────────────────────────────────────
+
+    private onUnitEnraged(data: UnitEnragedEvent): void {
+        const engine = this.engineSource;
+        const camera = this.camera;
+        if (!engine || !camera) return;
+        const unit = engine.getUnit(data.unitId);
+        if (!unit) return;
+        const screen = camera.worldToScreen(unit.x, unit.y);
+        const screenRadius = unit.radius * camera.zoom;
+        this.addEffect(new EnrageRingsEffect(screen.x, screen.y, screenRadius));
+    }
+
+    private createEnrageRings(effect: HudEffect): Container {
+        const data = effect.effectData as EnrageRingsData;
+        const container = new Container();
+        for (let i = 0; i < data.rings.length; i++) {
+            container.addChild(new Graphics());
+        }
+        return container;
+    }
+
+    private updateEnrageRings(visual: Container, effect: HudEffect): void {
+        const data = effect.effectData as EnrageRingsData;
+        const elapsed = effect.elapsed;
+        const RING_DURATION = 0.2;
+        for (let i = 0; i < data.rings.length; i++) {
+            const g = visual.children[i] as Graphics;
+            const ring = data.rings[i]!;
+            const localElapsed = elapsed - ring.spawnTime;
+            if (localElapsed <= 0 || localElapsed >= RING_DURATION) {
+                g.visible = false;
+                continue;
+            }
+            const t = localElapsed / RING_DURATION;
+            const radius = 2 + 18 * t;
+            const alpha = 1 - t;
+            g.visible = true;
+            g.x = data.bossScreenX + ring.offsetX;
+            g.y = data.bossScreenY + ring.offsetY;
+            g.clear();
+            g.circle(0, 0, radius);
+            g.stroke({ color: 0xff2222, width: 1.5, alpha });
+        }
     }
 }

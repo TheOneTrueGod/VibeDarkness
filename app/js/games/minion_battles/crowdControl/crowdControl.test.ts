@@ -62,6 +62,46 @@ describe('tryApplyHardCcStun threshold', () => {
         expect(u.hasBuff(EXPOSED_BUFF_TYPE)).toBe(true);
     });
 
+    it('ccCharges=2 advances consumed by 2 and breaks armour on second hit (floor 2)', () => {
+        const u = baseDummyUnit();
+        u.hardCcArmourFloor = 2;
+        u.bonusHardCcArmour = 0;
+        u.chainCcResist = 0;
+
+        // First hit: 0+2=2 <= 2 → absorbed, consumed becomes 2
+        expect(tryApplyHardCcStun(u, 2, 0, 1, undefined, 2).outcome).toBe('absorbed');
+        expect(u.hardCcArmourConsumed).toBe(2);
+
+        // Second hit: 2+2=4 > 2 → breaks armour
+        const r = tryApplyHardCcStun(u, 2, 0, 1, undefined, 2);
+        expect(r.outcome).toBe('applied');
+        expect(u.hardCcArmourConsumed).toBe(0);
+        expect(u.hasBuff(EXPOSED_BUFF_TYPE)).toBe(true);
+    });
+
+    it('ccCharges=2 breaks armour when consumed=1 (one prior hit + two charges crosses threshold)', () => {
+        const u = baseDummyUnit();
+        u.hardCcArmourFloor = 2;
+        u.bonusHardCcArmour = 0;
+        u.chainCcResist = 0;
+
+        // Prime with 1 regular charge
+        expect(tryApplyHardCcStun(u, 2, 0, 1).outcome).toBe('absorbed');
+        expect(u.hardCcArmourConsumed).toBe(1);
+
+        // Cone of Light: 1+2=3 > 2 → breaks armour
+        const r = tryApplyHardCcStun(u, 2, 0, 1, undefined, 2);
+        expect(r.outcome).toBe('applied');
+        expect(u.hasBuff(EXPOSED_BUFF_TYPE)).toBe(true);
+    });
+
+    it('ccCharges=2 on a normal unit (threshold=0) still applies direct stun', () => {
+        const u = baseDummyUnit();
+        const r = tryApplyHardCcStun(u, 2, 0, 1, undefined, 2);
+        expect(r.outcome).toBe('applied');
+        expect(u.hasBuff('stunned')).toBe(true);
+    });
+
     it('treats effective duration below potency as no_potency', () => {
         const u = baseDummyUnit();
         u.ccDurationResistPct = { ALL: 0.9 };
