@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
-import { useUser } from '../../../../contexts/UserContext';
+import { useCurrentUser } from '../../../../user/useCurrentUser';
 
 export interface ResearchRequirementBadge {
     id: string;
@@ -76,8 +76,7 @@ export default function ResearchNodeCard({
     requirementBadges = [],
     className = '',
 }: ResearchNodeCardProps) {
-    const { role } = useUser();
-    const isAdmin = role === 'admin';
+    const { isAdmin } = useCurrentUser();
 
     const mode = resolveVariant(variant, interactive);
     const isInteractive = mode === 'interactive';

@@ -1,14 +1,15 @@
 import React from 'react';
 import type { WorldModifierDef } from '../../worldModifiers/types';
 import type { NinjutsuUIState } from '../../game/ninjutsu/NinjutsuManager';
+import { useCurrentUser } from '../../../../user/useCurrentUser';
 
 interface WorldModifiersPanelProps {
     modifiers: WorldModifierDef[];
     ninjutsuPools?: NinjutsuUIState[] | null;
-    isAdmin?: boolean;
 }
 
-export default function WorldModifiersPanel({ modifiers, ninjutsuPools, isAdmin = false }: WorldModifiersPanelProps) {
+export default function WorldModifiersPanel({ modifiers, ninjutsuPools }: WorldModifiersPanelProps) {
+    const { isAdmin } = useCurrentUser();
     const enabledPools = isAdmin ? (ninjutsuPools?.filter(p => p.enabled) ?? []) : [];
     const visibleModifiers = isAdmin ? modifiers : modifiers.filter(m => !m.visible_to_admin_only);
     if (visibleModifiers.length === 0 && enabledPools.length === 0) return null;

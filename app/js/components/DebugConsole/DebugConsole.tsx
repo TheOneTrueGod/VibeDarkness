@@ -3,6 +3,7 @@
  * Shows game state JSON, player account JSON, and characters in a collapsible panel.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { useCurrentUser } from '../../user/useCurrentUser';
 import type { GameStatePayload, CampaignState } from '../../types';
 import type { CampaignCharacterPayload, LobbyClient } from '../../LobbyClient';
 import DebugBattleActionsTab from './tabs/DebugBattleActionsTab';
@@ -36,8 +37,6 @@ export interface DebugConsoleProps {
     playerName: string | null;
     /** When true, show the Battle Actions tab (e.g. in Minion Battles battle phase). */
     inBattle?: boolean;
-    /** When true, show Battle Actions only to admins and prefer it as the default tab. */
-    isAdmin?: boolean;
     /** Host-only: skip the current player's turn (battle phase). */
     skipCurrentTurn?: (() => void) | null;
     /** When true, show skip turn button (host only). */
@@ -77,7 +76,6 @@ export default function DebugConsole({
     gameState,
     playerName,
     inBattle = false,
-    isAdmin = false,
     skipCurrentTurn = null,
     isHost = false,
     fetchPlayerData,
@@ -86,6 +84,7 @@ export default function DebugConsole({
     getCharacter,
     battleOrdersDebug = null,
 }: DebugConsoleProps) {
+    const { isAdmin } = useCurrentUser();
     const { debugPauseMode, setDebugPauseMode, advanceOneDebugTick } = useDebugSettings();
     const { setSelectedDebugUnitId, battleBridge } = useDebugConsole();
     const [debugMode, setDebugMode] = useState(false);
@@ -192,15 +191,15 @@ export default function DebugConsole({
 
     const debugTabs = (
             <>
-                <DebugBattleActionsTab isActive={activeTab === 'battle-actions'} inBattle={inBattle} isAdmin={isAdmin} isHost={isHost} skipCurrentTurn={skipCurrentTurn} />
-                <DebugWorldModifiersTab isActive={activeTab === 'world-modifiers'} inBattle={inBattle} isAdmin={isAdmin} />
+                <DebugBattleActionsTab isActive={activeTab === 'battle-actions'} inBattle={inBattle} isHost={isHost} skipCurrentTurn={skipCurrentTurn} />
+                <DebugWorldModifiersTab isActive={activeTab === 'world-modifiers'} inBattle={inBattle} />
                 <DebugGameStateTab
                     isActive={activeTab === 'game-state'}
                     gameState={gameState}
                     inBattle={inBattle}
                     battleOrdersDebug={battleOrdersDebug}
                 />
-                <DebugUnitsTab isActive={activeTab === 'units'} inBattle={inBattle} gameState={gameState} isAdmin={isAdmin} />
+                <DebugUnitsTab isActive={activeTab === 'units'} inBattle={inBattle} gameState={gameState} />
                 <DebugOrdersTab
                     isActive={activeTab === 'orders'}
                     inBattle={inBattle}

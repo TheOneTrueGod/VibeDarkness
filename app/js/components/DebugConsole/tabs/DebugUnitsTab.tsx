@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GameStatePayload } from '../../../types';
 import { DebugButton } from '../DebugButton';
 import { useDebugConsole } from '../../../contexts/DebugConsoleContext';
+import { useCurrentUser } from '../../../user/useCurrentUser';
 
 interface DebugUnitsTabProps {
     isActive: boolean;
     inBattle: boolean;
     gameState: GameStatePayload | null;
-    isAdmin?: boolean;
 }
 
 type DebugUnit = Record<string, unknown> & {
@@ -36,7 +36,8 @@ type DebugUnit = Record<string, unknown> & {
     movement?: unknown;
 };
 
-export default function DebugUnitsTab({ isActive, inBattle, gameState, isAdmin = false }: DebugUnitsTabProps) {
+export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUnitsTabProps) {
+    const { isAdmin } = useCurrentUser();
     const {
         selectedDebugUnitId: selectedUnitId,
         setSelectedDebugUnitId: setSelectedUnitId,

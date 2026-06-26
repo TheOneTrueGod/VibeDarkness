@@ -8,7 +8,7 @@ import CharacterCreator from '../CharacterEditor/CharacterCreator';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../../../character_defs/campaignCharacterTypes';
 import { ALL_PLAYER_ITEMS } from '../../../character_defs/items';
-import { useUser } from '../../../../../contexts/UserContext';
+import { useUserData } from '../../../../../user/UserDataProvider';
 import { STORYLINES } from '../../../storylines/index';
 import PanelLayout from '../../../../../components/minionBattlesHomePage/PanelLayout';
 import { playersListPath, playerCharactersPath, playerCharacterPath } from '../../../../../components/ability-tests/campaignTabPaths';
@@ -35,7 +35,7 @@ interface CharactersPanelProps {
 }
 
 export default function CharactersPanel({ api, lobbyClient, players, onStartMissionForCharacter }: CharactersPanelProps) {
-    const { user } = useUser();
+    const { user } = useUserData();
     const isAdmin = user?.role === 'admin';
 
     // ── URL params ───────────────────────────────────────────────────────────

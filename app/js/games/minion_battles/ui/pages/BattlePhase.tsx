@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback, useContext } from 'react';
+import { useCurrentUser } from '../../../../user/useCurrentUser';
 import { createPortal } from 'react-dom';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
@@ -63,7 +64,6 @@ interface BattlePhaseProps {
     api: MinionBattlesApi;
     playerId: string;
     isHost: boolean;
-    isAdmin?: boolean;
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
     missionId: string;
@@ -84,7 +84,6 @@ export default function BattlePhase({
     api,
     playerId,
     isHost,
-    isAdmin = false,
     players,
     characterSelections,
     missionId,
@@ -95,6 +94,7 @@ export default function BattlePhase({
     onEmittedChatMessage,
     onBattleNetResyncingChange,
 }: BattlePhaseProps) {
+    const { isAdmin } = useCurrentUser();
     const canSubmitOrders = true;
 
     const { setBattleBridge, adminMovePendingUnitId, setAdminMovePendingUnitId } = useDebugConsole();
@@ -972,7 +972,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                 hudEffectCanvasRef.current?.registerHudFlightTarget('boss:cc_status', pageX, pageY);
                             }}
                         />
-                        <WorldModifiersPanel modifiers={activeWorldModifiers} ninjutsuPools={ninjutsuPools} isAdmin={isAdmin} />
+                        <WorldModifiersPanel modifiers={activeWorldModifiers} ninjutsuPools={ninjutsuPools} />
                         <BattleSyncStatus
                             variant="battle"
                             isHost={isHost}

@@ -1,17 +1,18 @@
 import React from 'react';
 import { useDebugSettings } from '../../../contexts/DebugSettingsContext';
 import { useDebugConsole } from '../../../contexts/DebugConsoleContext';
+import { useCurrentUser } from '../../../user/useCurrentUser';
 import DebugOnOffButton from '../DebugOnOffButton';
 
 interface DebugBattleActionsTabProps {
     isActive: boolean;
     inBattle: boolean;
-    isAdmin: boolean;
     isHost?: boolean;
     skipCurrentTurn?: (() => void) | null;
 }
 
-export default function DebugBattleActionsTab({ isActive, inBattle, isAdmin, isHost = false, skipCurrentTurn = null }: DebugBattleActionsTabProps) {
+export default function DebugBattleActionsTab({ isActive, inBattle, isHost = false, skipCurrentTurn = null }: DebugBattleActionsTabProps) {
+    const { isAdmin } = useCurrentUser();
     const { darkOverlayEnabled, godModeEnabled, superSpeedEnabled, setDarkOverlayEnabled, setGodModeEnabled, setSuperSpeedEnabled } =
         useDebugSettings();
     const { battleBridge } = useDebugConsole();

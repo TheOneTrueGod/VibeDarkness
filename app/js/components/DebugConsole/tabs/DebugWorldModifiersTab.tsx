@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useDebugConsole, type WorldModifierDebugEntry } from '../../../contexts/DebugConsoleContext';
+import { useCurrentUser } from '../../../user/useCurrentUser';
 
 interface DebugWorldModifiersTabProps {
     isActive: boolean;
     inBattle: boolean;
-    isAdmin: boolean;
 }
 
-export default function DebugWorldModifiersTab({ isActive, inBattle, isAdmin }: DebugWorldModifiersTabProps) {
+export default function DebugWorldModifiersTab({ isActive, inBattle }: DebugWorldModifiersTabProps) {
+    const { isAdmin } = useCurrentUser();
     const { battleBridge } = useDebugConsole();
     const [entries, setEntries] = useState<WorldModifierDebugEntry[]>([]);
 

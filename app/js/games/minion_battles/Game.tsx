@@ -7,6 +7,7 @@
  * for the server round-trip.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCurrentUser } from '../../user/useCurrentUser';
 import type { MissionResearchRewardEntry, MissionResult, PlayerState, GameSidebarInfo } from '../../types';
 import type { LobbyClient } from '../../LobbyClient';
 import type { GameComponentProps } from '../../components/GameScreen';
@@ -34,7 +35,6 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
     gameId: string;
     playerId: string;
     isHost: boolean;
-    isAdmin?: boolean;
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
@@ -68,7 +68,6 @@ export default function MinionBattlesGame({
     gameId,
     playerId,
     isHost,
-    isAdmin = false,
     players,
     gameData,
     onSidebarInfoChange,
@@ -80,6 +79,7 @@ export default function MinionBattlesGame({
     onBattleStartStatusChange,
     onBattleNetResyncingChange,
 }: MinionBattlesGameProps) {
+    const { isAdmin } = useCurrentUser();
     const api = useMemo(
         () =>
             minionBattlesApiProp ??
@@ -341,7 +341,6 @@ export default function MinionBattlesGame({
                     api={api}
                     playerId={playerId}
                     isHost={isHost}
-                    isAdmin={isAdmin}
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     characterSelectReadyPlayerIds={characterSelectReadyPlayerIds}
@@ -438,7 +437,6 @@ export default function MinionBattlesGame({
                     api={api}
                     playerId={playerId}
                     isHost={isHost}
-                    isAdmin={isAdmin}
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     missionId={selectedMissionId ?? ''}

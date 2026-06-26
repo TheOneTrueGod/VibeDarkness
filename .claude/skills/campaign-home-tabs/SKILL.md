@@ -45,9 +45,10 @@ Use when:
 1. Add the new `TabId` string literal to the `TabId` union in `campaignTabPaths.ts`.
 2. Add its URL slug to `CAMPAIGN_TAB_SLUG` in the same file.
 3. Add an entry to `CAMPAIGN_TAB_IDS` (controls render order in the tab bar).
-4. Add an entry to `TAB_SETTINGS` in `CampaignHomeScreen.tsx` with a `label` and `isVisible` predicate.
+4. Add an entry to `TAB_SETTINGS` in `CampaignHomeScreen.tsx` with a `label` and `isVisible` predicate. The predicate receives `isAdmin: boolean`, sourced from `useCurrentUser()` at the top of the component.
 5. Add a conditional render block in `CampaignHomeScreen.tsx` (inside the `hasCampaign && !campaignLoading && campaign` block).
 6. If the tab is admin-only, set `adminTab: true` in `TAB_SETTINGS` — this gives it the red-tinted tab-bar style.
+7. Inside the new panel component, call `const { isAdmin } = useCurrentUser()` (from `app/js/user/useCurrentUser.ts`) directly — do **not** accept `isAdmin` as a prop.
 
 ## Terrain Editor tab
 

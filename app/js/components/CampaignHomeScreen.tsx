@@ -5,7 +5,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { LobbyClient } from '../LobbyClient';
-import { useUser } from '../contexts/UserContext';
+import { useUserData } from '../user/UserDataProvider';
+import { useCurrentUser } from '../user/useCurrentUser';
 import type { CampaignState } from '../types';
 import AdminPlayersHomePanel from './minionBattlesHomePage/AdminPlayersHomePanel';
 import CharactersPanel from '../games/minion_battles/ui/components/characters/CharactersPanel';
@@ -68,8 +69,8 @@ export default function CampaignHomeScreen({
     const navigate = useNavigate();
     const location = useLocation();
     const { tabSlug } = useParams<{ tabSlug: string }>();
-    const { user, role } = useUser();
-    const isAdmin = role === 'admin';
+    const { user } = useUserData();
+    const { isAdmin } = useCurrentUser();
     const defaultTab = getDefaultTab(isAdmin);
     const visibleTabs = useMemo(
         () => CAMPAIGN_TAB_IDS.filter((id) => TAB_SETTINGS[id].isVisible(isAdmin)),
@@ -206,7 +207,6 @@ export default function CampaignHomeScreen({
                         {activeTab === 'mission_select' && (
                             <MissionSelectPanel
                                 campaign={campaign}
-                                isAdmin={isAdmin}
                                 lobbyClient={lobbyClient}
                                 onSelectMission={onSelectMission}
                                 onCampaignUpdated={setCampaign}

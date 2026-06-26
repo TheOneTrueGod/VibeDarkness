@@ -1,4 +1,5 @@
 import React, { Fragment, useCallback, useMemo, useState } from 'react';
+import { useCurrentUser } from '../../user/useCurrentUser';
 import type { ReactNode } from 'react';
 import type { CampaignResourceKey, CampaignState, MissionResearchRewardEntry, MissionResult } from '../../types';
 import type { LobbyClient } from '../../LobbyClient';
@@ -107,7 +108,6 @@ function MissionRewardsStrip({
 
 interface MissionSelectPanelProps {
     campaign: CampaignState;
-    isAdmin: boolean;
     lobbyClient: LobbyClient;
     onSelectMission: (missionId: string, campaignId: string | null) => Promise<boolean>;
     onCampaignUpdated: (updated: CampaignState) => void;
@@ -115,11 +115,11 @@ interface MissionSelectPanelProps {
 
 export default function MissionSelectPanel({
     campaign,
-    isAdmin,
     lobbyClient,
     onSelectMission,
     onCampaignUpdated,
 }: MissionSelectPanelProps) {
+    const { isAdmin } = useCurrentUser();
     const [selectingMission, setSelectingMission] = useState(false);
     const [resettingStorylineId, setResettingStorylineId] = useState<string | null>(null);
 

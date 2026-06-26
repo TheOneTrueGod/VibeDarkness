@@ -5,7 +5,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ToastProvider, useToast } from './contexts/ToastContext';
-import { UserProvider, useUser } from './contexts/UserContext';
+import { UserDataLoader } from './user/UserDataLoader';
+import { useUserData } from './user/UserDataProvider';
+import { useCurrentUser } from './user/useCurrentUser';
 import { DebugSettingsProvider } from './contexts/DebugSettingsContext';
 import { DebugConsoleProvider } from './contexts/DebugConsoleContext';
 import CampaignHomeScreen from './components/CampaignHomeScreen';
@@ -52,7 +54,7 @@ function getNextRedirect(): string {
 
 /** Auth gate: redirects unauthenticated users, shows LoginScreen or children */
 function AuthGate({ children }: { children: React.ReactNode }) {
-    const { user, loading, refetch } = useUser();
+    const { user, loading, refetch } = useUserData();
     const lobbyClient = useMemo(() => new LobbyClient(), []);
 
     const handleLogin = useCallback(
@@ -87,8 +89,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 /** Default campaign home after login or unknown `/` path. */
 function CampaignIndexRedirect() {
-    const { role } = useUser();
-    const isAdmin = role === 'admin';
+    const { isAdmin } = useCurrentUser();
     return <Navigate to={isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission')} replace />;
 }
 
@@ -96,7 +97,8 @@ function CampaignIndexRedirect() {
 function AppInner() {
     const navigate = useNavigate();
     const { showToast } = useToast();
-    const { user, role, refetch: refetchUser } = useUser();
+    const { user, refetch: refetchUser } = useUserData();
+    const { isAdmin } = useCurrentUser();
     const lobbyClient = useMemo(() => new LobbyClient(), []);
 
     // Screen
@@ -662,7 +664,7 @@ function AppInner() {
         setLastPollMessageId(null);
         setPollMessagesReady(false);
         const home =
-            role === 'admin' ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
+            isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
         const target = characterId && user?.id ? playerCharacterPath(user.id, characterId) : home;
         navigate(target, { replace: true });
         setScreen('lobby');
@@ -678,7 +680,7 @@ function AppInner() {
                 'error'
             );
         }
-    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, role]);
+    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, isAdmin]);
 
     const handleContinueFromMission = useCallback((characterId: string | undefined) => {
         if (!currentLobby || !currentPlayer) return;
@@ -701,7 +703,7 @@ function AppInner() {
         setLastPollMessageId(null);
         setPollMessagesReady(false);
 
-        const home = role === 'admin' ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
+        const home = isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
         const target = characterId && user?.id ? playerCharacterPath(user.id, characterId) : home;
         navigate(target, { replace: true });
         setScreen('lobby');
@@ -712,7 +714,7 @@ function AppInner() {
             console.error('Error leaving lobby:', error);
             showToast('Could not confirm leave with server. Refresh or rejoin if something looks wrong.', 'error');
         });
-    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, role, user]);
+    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, isAdmin, user]);
 
     // ==================== Chat and canvas handlers ====================
 
@@ -833,7 +835,7 @@ function AppInner() {
                         (error instanceof Error ? error.message : 'Unknown error'),
                     'error'
                 );
-                navigate(role === 'admin' ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission'), {
+                navigate(isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission'), {
                     replace: true,
                 });
             }
@@ -965,7 +967,6 @@ function AppInner() {
                     />
                     <DebugConsoleInGame
                         user={user}
-                        role={role}
                         currentCampaignId={currentCampaignId}
                         lobbyClient={lobbyClient}
                         currentPlayer={currentPlayer}
@@ -978,7 +979,7 @@ function AppInner() {
                 <DebugConsole
                     gameState={null}
                     playerName={user?.name ?? null}
-                    isAdmin={role === 'admin'}
+
                     inBattle={false}
                     skipCurrentTurn={null}
                     isHost={false}
@@ -1003,14 +1004,12 @@ function AppInner() {
 /** DebugConsole when in game - uses GameSyncContext as single data source (same as GameScreen) */
 function DebugConsoleInGame({
     user,
-    role,
     currentCampaignId,
     lobbyClient,
     currentPlayer,
     lobbyId,
 }: {
     user: AccountState | null;
-    role: string | null;
     currentCampaignId: string | null;
     lobbyClient: LobbyClient;
     currentPlayer: PlayerState;
@@ -1030,7 +1029,6 @@ function DebugConsoleInGame({
         <DebugConsole
             gameState={gameState}
             playerName={user?.name ?? null}
-            isAdmin={role === 'admin'}
             inBattle={inBattle}
             skipCurrentTurn={null}
             isHost={isHost}
@@ -1060,7 +1058,7 @@ export default function App() {
 
     return (
         <ToastProvider>
-            <UserProvider lobbyClient={lobbyClient}>
+            <UserDataLoader lobbyClient={lobbyClient}>
                 <DebugSettingsProvider>
                     <DebugConsoleProvider>
                         <AuthGate>
@@ -1068,7 +1066,7 @@ export default function App() {
                         </AuthGate>
                     </DebugConsoleProvider>
                 </DebugSettingsProvider>
-            </UserProvider>
+            </UserDataLoader>
         </ToastProvider>
     );
 }

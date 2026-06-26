@@ -19,13 +19,13 @@ import CharacterCreator from '../components/CharacterEditor/CharacterCreator';
 import CharacterEditor from '../components/CharacterEditor/CharacterEditor';
 import CharactersPanel from '../components/characters/CharactersPanel';
 import ReplayUi from '../../replay/ReplayUi';
-import { useUser } from '../../../../contexts/UserContext';
+import { useCurrentUser } from '../../../../user/useCurrentUser';
+import { useUserData } from '../../../../user/UserDataProvider';
 
 interface CharacterSelectPhaseProps {
     api: MinionBattlesApi;
     playerId: string;
     isHost: boolean;
-    isAdmin: boolean;
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
     /** Player IDs that have clicked Ready. */
@@ -49,7 +49,6 @@ export default function CharacterSelectPhase({
     api,
     playerId,
     isHost,
-    isAdmin,
     players,
     characterSelections,
     characterSelectReadyPlayerIds = [],
@@ -62,7 +61,8 @@ export default function CharacterSelectPhase({
     removeLocalOverride,
     onPhaseChange,
 }: CharacterSelectPhaseProps) {
-    const { user } = useUser();
+    const { isAdmin } = useCurrentUser();
+    const { user } = useUserData();
     // Ensure nullish coalescing and logical OR are not mixed without parentheses.
     const campaignId =
         campaignIdProp || (missionDef?.campaignId ?? missionId);

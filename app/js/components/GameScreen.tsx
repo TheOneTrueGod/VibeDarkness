@@ -16,7 +16,7 @@ import { getAlwaysShowSyncStatus, subscribeAlwaysShowSyncStatus } from '../debug
 import { LobbyClient } from '../LobbyClient';
 import { getGameById } from '../games/list';
 import { useGameSyncOptional } from '../contexts/GameSyncContext';
-import { useUser } from '../contexts/UserContext';
+import { useCurrentUser } from '../user/useCurrentUser';
 import { useToast } from '../contexts/ToastContext';
 import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
 import {
@@ -48,7 +48,6 @@ export interface GameComponentProps {
     /** When set (Minion Battles), the game should prefer this over constructing its own facade. */
     minionBattlesApi?: MinionBattlesApi;
     isHost: boolean;
-    isAdmin: boolean;
     players: Record<string, PlayerState>;
     gameData: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
@@ -150,7 +149,7 @@ export default function GameScreen({
     flashingPlayerIds,
     webRtcPeerConnected,
 }: GameScreenProps) {
-    const { role } = useUser();
+    const { isAdmin } = useCurrentUser();
     const { showToast } = useToast();
     const gameSync = useGameSyncOptional();
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
@@ -198,7 +197,7 @@ export default function GameScreen({
     );
     const showResyncOverlay = isLoading || (battleNetResyncing && inBattle);
     const showAdminRestartBattle =
-        role === 'admin' &&
+        isAdmin &&
         inBattle &&
         effectiveLobbyGameType === 'minion_battles' &&
         !!effectiveLobbyGameId;
@@ -461,7 +460,7 @@ export default function GameScreen({
                                     minionBattlesApi={minionBattlesApi}
                                     playerId={player.id}
                                     isHost={isHost}
-                                    isAdmin={account?.role === 'admin'}
+
                                     players={effectivePlayers}
                                     gameData={effectiveLobbyGameData}
                                     onSidebarInfoChange={setGameSidebarInfo}
