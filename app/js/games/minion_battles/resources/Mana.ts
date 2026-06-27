@@ -12,6 +12,7 @@ export class Mana extends Resource {
     readonly id = 'mana';
     readonly name = 'Mana';
     readonly color = '#3b82f6'; // blue-500
+    readonly iconName = 'Wand2';
 
     private boundOnTurnEnd: ((data: TurnEndEvent) => void) | null = null;
 

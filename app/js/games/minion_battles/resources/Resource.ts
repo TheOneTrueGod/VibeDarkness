@@ -16,6 +16,8 @@ export abstract class Resource {
     abstract readonly name: string;
     /** CSS color for UI rendering. */
     abstract readonly color: string;
+    /** Lucide icon name for UI display. Swap-point for future SVG/PNG migration. */
+    abstract readonly iconName: string;
 
     /** Current value. */
     current: number;

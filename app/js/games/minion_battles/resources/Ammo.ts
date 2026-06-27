@@ -6,6 +6,7 @@ export class Ammo extends Resource {
     readonly id = 'ammo';
     readonly name = 'Ammo';
     readonly color = '#eab308';
+    readonly iconName = 'Crosshair';
 
     constructor() {
         super(100, 100);

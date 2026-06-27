@@ -20,6 +20,7 @@ export class Resonance extends Resource {
     readonly id = 'resonance';
     readonly name = 'Resonance';
     readonly color = '#84cc16'; // lime-500
+    readonly iconName = 'Layers';
 
     private boundOnRoundStart: ((data: RoundStartEvent) => void) | null = null;
     private boundOnNearbyStoneDamaged: ((data: NearbyStoneDamagedEvent) => void) | null = null;

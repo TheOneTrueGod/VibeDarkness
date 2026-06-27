@@ -12,6 +12,7 @@ export class Rage extends Resource {
     readonly id = 'rage';
     readonly name = 'Rage';
     readonly color = '#ef4444'; // red-500
+    readonly iconName = 'Flame';
 
     private boundOnDamageTaken: ((data: DamageTakenEvent) => void) | null = null;
 

@@ -17,6 +17,7 @@ import AbilityTooltip from './AbilityTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
 import { getAbilityUseConfig, type RecoveryChargeType } from '../../abilities/abilityUses';
 import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../game/GameEngine';
+import { UnitResourcePanel } from './resources/UnitResourcePanel';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
 
@@ -273,8 +274,16 @@ export default function AbilityBar({
 
     return (
         <div className="relative bg-dark-900/80 border-t border-dark-700 p-3">
-            {/* Bottom-aligned row: round tracker and wait flank a centered card cluster; outer gaps are 2× the card–card gap (gap-4 vs gap-2). */}
-            <div ref={rowRef} className="relative flex min-h-[158px] items-end justify-center gap-4">
+            {/* Three-column layout: resource panel (left, w-80) | abilities (center, flex-1) | phantom mirror (right, w-80) */}
+            <div ref={rowRef} className="relative flex min-h-[158px] items-end">
+                {/* Left: unit portrait, health bar, and resource bars */}
+                <div className="flex w-80 shrink-0 self-stretch items-end">
+                    <UnitResourcePanel unit={playerUnit} />
+                </div>
+
+                {/* Center: round tracker + ability cards + wait button, centered within remaining space */}
+                <div className="flex flex-1 items-end justify-center gap-4">
+
                 {pulseParticles.map((p) => {
                     const t = Math.max(0, Math.min(1, (animationNow - p.startMs - p.staggerMs) / p.durationMs));
                     const oneMinus = 1 - t;
@@ -406,6 +415,11 @@ export default function AbilityBar({
                         <p className="text-muted text-sm py-4">No cards in hand</p>
                     </div>
                 )}
+
+                </div>{/* end center column */}
+
+                {/* Right phantom: mirrors left resource panel width to keep abilities centered */}
+                <div className="w-80 shrink-0" aria-hidden />
             </div>
 
             {/* Mobile tooltip overlay */}
