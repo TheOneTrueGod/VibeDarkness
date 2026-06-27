@@ -3,6 +3,7 @@
  * First 2 digits of a 4-digit card id (e.g. 00 = enemy, 01 = warrior, 02 = ranger).
  * **05 = Earth** skill tree (see `card_defs/05_earth_core/` and `EarthCore.md`). Generic utility cards use **06**.
  * **07 = Command** pet/companion tree (see `card_defs/07_command_core/`).
+ * **08 = Light** skill tree (see `card_defs/08_light_core/`).
  */
 export enum AbilityGroupId {
     Enemy = 0,
@@ -13,6 +14,7 @@ export enum AbilityGroupId {
     Earth = 5,
     Utility = 6,
     Command = 7,
+    Light = 8,
 }
 
 export function formatGroupId(group: AbilityGroupId): string {

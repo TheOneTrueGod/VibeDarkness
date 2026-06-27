@@ -52,6 +52,7 @@ import { DiggingClawsCard } from './05_earth_core/0534_DiggingClaws/0534Ability'
 import { DogBiteCard } from './07_command_core/0701_DogBite/0701Ability';
 import { PetCard } from './07_command_core/0703_Pet/0703Ability';
 import { SicEmCard } from './07_command_core/0704_SicEm/0704Ability';
+import { LightBlastCard } from './08_light_core/0801_LightBlast/0801Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -106,6 +107,7 @@ const cardDefs: CardDef[] = [
     DogBiteCard,
     PetCard,
     SicEmCard,
+    LightBlastCard,
 ];
 
 export const CARD_DEF_MAP: Map<string, CardDef> = new Map(cardDefs.map((c) => [c.abilityId, c]));
