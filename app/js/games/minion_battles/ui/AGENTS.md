@@ -55,6 +55,14 @@ All user input for the battle view lives in `BattleCanvas.tsx`:
 Do not add battle input handling anywhere else. `BattlePhase` wires the resolved click/right-click
 callbacks via props; the canvas remains unaware of ability logic.
 
+## Phase subdirectory convention
+
+When a file in `ui/pages/` grows beyond ~200 lines, split it into a same-named subdirectory:
+- `ui/pages/characterSelect/` for `CharacterSelectPhase.tsx`
+- `ui/pages/preMissionStory/` for `PreMissionStoryPhase.tsx`
+
+The subdirectory holds extracted components, named `useXxx` hooks for state and handlers, and any local-only helper components. The main `XxxPhase.tsx` becomes a thin orchestrator that imports from the subdirectory.
+
 ## What does NOT belong here
 
 - Domain state mutations (units, orders, cards) — go through `BattleSession` / `GameEngine`.
