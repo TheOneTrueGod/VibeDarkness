@@ -8,7 +8,7 @@ import type { PostMissionChoiceResolveParams } from '../../types';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE, EARTH_NODE_DIGGING_CLAWS } from '../../../../../researchTrees/trees/earth';
+import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
 import {
     MISC_TREE_ID,
     MISC_NODE_CHARGED_CORE,
@@ -18,9 +18,47 @@ import {
     COMMAND_CORE_TREE_ID,
     COMMAND_CORE_NODE_LOYAL_COMPANION,
 } from '../../../../../researchTrees/trees/command_core';
+import { LIGHT_TREE_ID, LIGHT_NODE_CORE } from '../../../../../researchTrees/trees/light';
+import { getResearchNode } from '../../../../../researchTrees/list';
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
+}
+
+const CORE_CANDIDATES: { id: string; treeId: string; nodeId: string; label: string }[] = [
+    { id: 'earth_core',   treeId: EARTH_TREE_ID,       nodeId: EARTH_NODE_EARTH_CORE,             label: 'The Earth Core'   },
+    { id: 'command_core', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_LOYAL_COMPANION, label: 'The Command Core' },
+    { id: 'charged_core', treeId: MISC_TREE_ID,         nodeId: MISC_NODE_CHARGED_CORE,            label: 'The Charged Core' },
+    { id: 'blink_core',   treeId: MISC_TREE_ID,         nodeId: MISC_NODE_BLINK_CORE,              label: 'The Blink Core'   },
+    { id: 'light_core',   treeId: LIGHT_TREE_ID,        nodeId: LIGHT_NODE_CORE,                   label: 'The Light Core'   },
+];
+
+function isCoreEligible(
+    treeId: string,
+    nodeId: string,
+    researchedTrees: Record<string, string[]>,
+    equippedItemIds: readonly string[],
+): boolean {
+    const node = getResearchNode(treeId, nodeId);
+    if (!node) return false;
+    for (const req of node.requirements) {
+        if (req.type === 'anyResearched') {
+            const inTree = researchedTrees[req.treeId] ?? [];
+            if (!req.nodeIds.some((id) => inTree.includes(id))) return false;
+        } else if (req.type === 'characterHasEquippedItem') {
+            if (!equippedItemIds.includes(req.itemId)) return false;
+        }
+    }
+    return true;
+}
+
+function shuffled<T>(arr: T[]): T[] {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
 }
 
 const POST_MISSION_STORY: PostMissionStoryDef = {
@@ -57,37 +95,23 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 export class CoreAwakeningMission extends BaseMissionDef {
     getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams): StoryChoiceOptionRow[] | null {
         if (params.choiceId !== 'core_awakening_reward') return null;
+
         const trees = params.playerResearchTrees ?? {};
-        const hasEarthCore = (trees[EARTH_TREE_ID] ?? []).includes(EARTH_NODE_EARTH_CORE);
-        const earthCoreRow: StoryChoiceOptionRow = hasEarthCore
-            ? {
-                id: 'earth_core',
-                label: 'The Earth Core',
-                action: { type: 'grant_research_to_player', treeId: EARTH_TREE_ID, nodeId: EARTH_NODE_DIGGING_CLAWS },
-              }
-            : {
-                id: 'earth_core',
-                label: 'The Earth Core',
-                action: { type: 'grant_research_to_player', treeId: EARTH_TREE_ID, nodeId: EARTH_NODE_EARTH_CORE },
-              };
-        return [
-            earthCoreRow,
-            {
-                id: 'command_core',
-                label: 'The Command Core',
-                action: { type: 'grant_research_to_player', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_LOYAL_COMPANION },
-            },
-            {
-                id: 'charged_core',
-                label: 'The Charged Core',
-                action: { type: 'grant_research_to_player', treeId: MISC_TREE_ID, nodeId: MISC_NODE_CHARGED_CORE },
-            },
-            {
-                id: 'blink_core',
-                label: 'The Blink Core',
-                action: { type: 'grant_research_to_player', treeId: MISC_TREE_ID, nodeId: MISC_NODE_BLINK_CORE },
-            },
-        ];
+
+        const anyOwned = CORE_CANDIDATES.some(({ treeId, nodeId }) =>
+            (trees[treeId] ?? []).includes(nodeId),
+        );
+        if (anyOwned) return null;
+
+        const eligible = CORE_CANDIDATES.filter(({ treeId, nodeId }) =>
+            isCoreEligible(treeId, nodeId, trees, params.equippedItemIds),
+        );
+
+        return shuffled(eligible).slice(0, 4).map(({ id, treeId, nodeId, label }) => ({
+            id,
+            label,
+            action: { type: 'grant_research_to_player', treeId, nodeId },
+        }));
     }
 
     missionId = 'core_awakening';

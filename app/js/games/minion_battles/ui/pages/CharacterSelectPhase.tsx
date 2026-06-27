@@ -5,6 +5,7 @@
  * Disallow reason shown diagonally on cards when they cannot be used.
  */
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
@@ -14,7 +15,13 @@ import { fromCampaignCharacterData, type CampaignCharacter } from '../../charact
 import { SPECTATOR_ID, CONTROL_ENEMY_ALPHA_WOLF, isControlEnemy } from '../../state';
 import type { CampaignCharacterData } from '../../character_defs/campaignCharacterTypes';
 import { getPortrait } from '../../character_defs/portraits';
-import { ALL_PLAYER_ITEMS } from '../../character_defs/items';
+import { ALL_PLAYER_ITEMS, getItemDef } from '../../character_defs/items';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import type { AbilityStatic } from '../../abilities/Ability';
+import { getAbilityUseConfig } from '../../abilities/abilityUses';
+import AbilitySlot from '../components/AbilitySlot';
+import AbilityTooltip from '../components/AbilityTooltip';
+import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import CharacterCreator from '../components/CharacterEditor/CharacterCreator';
 import CharacterEditor from '../components/CharacterEditor/CharacterEditor';
 import CharactersPanel from '../components/characters/CharactersPanel';
@@ -77,6 +84,8 @@ export default function CharacterSelectPhase({
     const [setReadyLoading, setSetReadyLoading] = useState(false);
     /** Optimistic: true after API succeeds, before next poll confirms. Keeps button disabled. */
     const [optimisticAmReady, setOptimisticAmReady] = useState(false);
+    /** Which screen to show: character overview (portrait + cards) or character picker grid. */
+    const [view, setView] = useState<'overview' | 'grid'>('overview');
 
     const didAutoOpenCreatorForMissionRef = useRef(false);
     const autoSelectAttemptedForMissionRef = useRef(false);
@@ -225,6 +234,14 @@ export default function CharacterSelectPhase({
             }
         },
         [api, playerId, setLocalOverride, removeLocalOverride],
+    );
+
+    const handleSelectCharacterAndShowOverview = useCallback(
+        async (characterId: string, portraitId: string, characterDisplayName?: string) => {
+            await handleSelectCharacter(characterId, portraitId, characterDisplayName);
+            setView('overview');
+        },
+        [handleSelectCharacter],
     );
 
     // Check if this player is a required player and get their locked character ID.
@@ -464,17 +481,10 @@ export default function CharacterSelectPhase({
 
     return (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
-            <h2 className="text-[32px] font-bold text-center py-5 shrink-0">
-                {activeTab === 'players' && isAdmin
-                    ? 'Players'
-                    : editorOpen && characterToEdit
-                      ? 'Edit character'
-                      : 'Select your character'}
-            </h2>
-
-            {(!(editorOpen && characterToEdit) || isAdmin) && (
-                <div className="flex gap-2 px-5 pb-4 shrink-0">
-                    {!(editorOpen && characterToEdit) && (
+            <div className="flex items-center px-5 py-5 shrink-0">
+                {/* Left: tab buttons — takes equal share of space so title stays centered */}
+                <div className="flex-1 flex gap-2">
+                    {(!(editorOpen && characterToEdit) || isAdmin) && !(editorOpen && characterToEdit) && (
                         <button
                             type="button"
                             className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
@@ -514,7 +524,19 @@ export default function CharacterSelectPhase({
                         </button>
                     )}
                 </div>
-            )}
+
+                {/* Center: title, centered relative to the full row */}
+                <h2 className="text-[32px] font-bold shrink-0">
+                    {activeTab === 'players' && isAdmin
+                        ? 'Players'
+                        : editorOpen && characterToEdit
+                          ? 'Edit character'
+                          : 'Select your character'}
+                </h2>
+
+                {/* Right: empty mirror of the left to keep title centered */}
+                <div className="flex-1" />
+            </div>
 
             {activeTab === 'players' && isAdmin ? (
                 <div className="flex-1 min-h-0 overflow-hidden px-5 pb-4">
@@ -546,6 +568,11 @@ export default function CharacterSelectPhase({
                         hideMissionMap
                     />
                 </div>
+            ) : view === 'overview' && characterToEdit && mySelection && mySelection !== SPECTATOR_ID && !isControlEnemy(mySelection) ? (
+                <CharacterOverview
+                    character={characterToEdit}
+                    onChangeCharacter={() => setView('grid')}
+                />
             ) : (
                 <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
                     <div className="grid grid-cols-[repeat(auto-fill,200px)] justify-center gap-6">
@@ -568,7 +595,7 @@ export default function CharacterSelectPhase({
                                         isLocked
                                         playerSelections={characterSelections}
                                         players={players}
-                                        onSelect={handleSelectCharacter}
+                                        onSelect={handleSelectCharacterAndShowOverview}
                                         onDelete={handleDeleteCharacter}
                                     />
                                 ) : null;
@@ -584,7 +611,7 @@ export default function CharacterSelectPhase({
                                     isMySelection={mySelection === char.id}
                                     playerSelections={characterSelections}
                                     players={players}
-                                    onSelect={handleSelectCharacter}
+                                    onSelect={handleSelectCharacterAndShowOverview}
                                     onDelete={handleDeleteCharacter}
                                 />
                             ))
@@ -942,6 +969,139 @@ function CampaignCharacterCard({
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+function CharacterOverview({
+    character,
+    onChangeCharacter,
+}: {
+    character: CampaignCharacter;
+    onChangeCharacter: () => void;
+}) {
+    const portrait = getPortrait(character.portraitId);
+    const displayName = character.name || (portrait?.name ?? 'Character');
+
+    const abilityCards = useMemo((): AbilityStatic[] => {
+        const cardIds: string[] = [];
+        const seen = new Set<string>();
+        for (const itemId of character.equipment) {
+            const item = getItemDef(itemId);
+            if (!item) continue;
+            for (const cardId of item.cardsToAdd) {
+                if (!seen.has(cardId)) {
+                    seen.add(cardId);
+                    cardIds.push(cardId);
+                }
+            }
+        }
+        return cardIds.map((id) => getAbility(id)).filter((a): a is AbilityStatic => a != null);
+    }, [character.equipment]);
+
+    const [hoveredCard, setHoveredCard] = useState<{ ability: AbilityStatic; rect: DOMRect } | null>(null);
+    const handleCardHover = useCallback((ability: AbilityStatic | null, rect: DOMRect | null) => {
+        setHoveredCard(ability && rect ? { ability, rect } : null);
+    }, []);
+
+    return (
+        <>
+        <div className="flex-1 min-h-0 flex px-5 pb-5 pt-4 gap-0 items-start">
+            {/* Left: portrait + change button */}
+            <div className="flex flex-col items-center gap-3 shrink-0 w-[220px]">
+                <div className="w-[220px] h-[220px] rounded-lg overflow-hidden bg-background border-2 border-green-500 shadow-[0_0_16px_rgba(34,197,94,0.35)] flex flex-col">
+                    <div className="flex-1 overflow-hidden flex items-center justify-center relative">
+                        {portrait?.picture
+                            ? <img src={portrait.picture} alt={displayName} className="w-full h-full object-cover" />
+                            : <span className="text-gray-500 text-sm">No portrait</span>
+                        }
+                    </div>
+                    <div className="px-3 py-2 bg-surface-light text-center">
+                        <span className="text-sm font-semibold text-white">{displayName}</span>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    className="w-full px-4 py-2 rounded-lg border border-border-custom bg-surface text-sm font-medium text-muted hover:text-white hover:border-primary transition-colors cursor-pointer"
+                    onClick={onChangeCharacter}
+                >
+                    Change character
+                </button>
+            </div>
+
+            {/* Divider — spans only the portrait height */}
+            <div className="w-px bg-border-custom mx-5 shrink-0" style={{ height: 220 }} />
+
+            {/* Right: card list vertically centered against the portrait */}
+            <div className="flex-1 min-w-0 flex items-center" style={{ height: 220 }}>
+                {abilityCards.length === 0 ? (
+                    <p className="text-muted text-sm italic">No ability cards</p>
+                ) : (
+                    <div className="overflow-x-auto pb-2 w-full">
+                        <div className="flex gap-3 w-max">
+                            {abilityCards.map((ability) => (
+                                <AbilitySlotPreview key={ability.id} ability={ability} onHover={handleCardHover} />
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {/* Tooltip portal — renders into document.body to escape the overflow-x-auto clip */}
+        {hoveredCard && createPortal(
+            <div
+                style={{
+                    position: 'fixed',
+                    top: hoveredCard.rect.top,
+                    left: hoveredCard.rect.left + hoveredCard.rect.width / 2,
+                    width: 0,
+                    height: 0,
+                    pointerEvents: 'none',
+                    zIndex: 9999,
+                }}
+            >
+                <AbilityTooltip title={hoveredCard.ability.name} lines={hoveredCard.ability.getTooltipText()} />
+            </div>,
+            document.body,
+        )}
+        </>
+    );
+}
+
+function AbilitySlotPreview({
+    ability,
+    onHover,
+}: {
+    ability: AbilityStatic;
+    onHover: (ability: AbilityStatic | null, rect: DOMRect | null) => void;
+}) {
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const useConfig = getAbilityUseConfig(ability.id);
+    const runtime = useMemo((): UnitAbilityRuntimeState => ({
+        currentUses: useConfig.maxUses,
+        maxUses: useConfig.maxUses,
+        recoveryChargesByType: {},
+    }), [useConfig.maxUses]);
+    return (
+        <div
+            ref={wrapperRef}
+            onPointerEnter={() => onHover(ability, wrapperRef.current?.getBoundingClientRect() ?? null)}
+            onPointerLeave={() => onHover(null, null)}
+        >
+            <AbilitySlot
+                ability={ability}
+                runtime={runtime}
+                isSelected={false}
+                isDisabled={false}
+                onSelect={() => {}}
+                isHovered={false}
+                onHoverChange={() => {}}
+                isMobile={false}
+                showMobileDescription={false}
+                onMobileDescriptionToggle={() => {}}
+                onMobileDescriptionDismiss={() => {}}
+            />
         </div>
     );
 }
