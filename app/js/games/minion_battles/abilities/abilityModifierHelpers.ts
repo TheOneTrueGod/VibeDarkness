@@ -12,8 +12,8 @@ export function localPlayerResearchNodesGetter(
 ): (treeId: string) => string[] {
     const eng = engine as AbilityEngineContext | undefined;
     if (!eng?.getPlayerResearchNodes || !eng.localPlayerId) return () => [];
-    const { localPlayerId } = eng;
-    return (treeId: string) => eng.getPlayerResearchNodes(localPlayerId, treeId);
+    const { localPlayerId, getPlayerResearchNodes } = eng;
+    return (treeId: string) => getPlayerResearchNodes.call(eng, localPlayerId, treeId);
 }
 
 interface EngineWithLocalUnit {

@@ -11,7 +11,7 @@ import { StrongPunchCard } from './0117_StrongPunch/0117Ability';
 import { SneakyPunchCard } from './0118_SneakyPunch/0118Ability';
 import { ChargingPunchCard } from './0119_ChargingPunch/0119Ability';
 import { PunchNEWCard } from './0120_PunchNEW/0120Ability';
-import { SwingBatCard } from './0103_SwingBat/0103Ability';
+import { SwingStickCard } from './0103_SwingStick/0103Ability';
 import { LaserSwordCard } from './0105_LaserSword/0105Ability';
 import { DarkWolfBiteCard } from './dark_animals/0003_DarkWolfBite/0003Ability';
 import { AlphaWolfClawCard } from './dark_animals/0004_AlphaWolfClaw/0004Ability';
@@ -66,7 +66,7 @@ const cardDefs: CardDef[] = [
     SneakyPunchCard,
     ChargingPunchCard,
     PunchNEWCard,
-    SwingBatCard,
+    SwingStickCard,
     LaserSwordCard,
     DarkWolfBiteCard,
     AlphaWolfClawCard,

@@ -1,6 +1,6 @@
 import type { ItemDef } from '../types';
 
-/** Stick (Big) - adds Swing Bat cards. */
+/** Stick (Big) - adds Swing Stick cards. */
 export const torchItem: ItemDef = {
     id: '002',
     name: 'Stick (Big)',
