@@ -192,6 +192,14 @@ export default function PostMissionStoryPhase({
             return;
         }
         const phrase = currentPhrase;
+        const myResearch = playerResearchTreesByPlayer[playerId] ?? {};
+        const shouldSkip = (phrase.skipIfResearched ?? []).some(({ treeId, nodeIds }) =>
+            (myResearch[treeId] ?? []).some((id) => nodeIds.includes(id))
+        );
+        if (shouldSkip) {
+            advancePhrase();
+            return;
+        }
         const rewardId = `${phrase.treeId}+${phrase.nodeId}`;
         void api.sendMessage(MessageType.STORY_CHOICE, {
             choiceId: 'auto_grant_research',

@@ -180,6 +180,11 @@ export interface GrantResearchAutoPhrase {
     type: 'grant_research_auto';
     treeId: string;
     nodeId: string;
+    /**
+     * Skip the grant for this player if they already hold any of the listed
+     * nodes in the given tree (checked client-side before sending the message).
+     */
+    skipIfResearched?: { treeId: string; nodeIds: string[] }[];
 }
 
 /** Post-mission phrase: dialogue, per-player choice, or silent auto-grant. */

@@ -28,7 +28,7 @@ import {
     crystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
-import { MISC_TREE_ID, MISC_NODE_LIGHTBEARER } from '../../../../../researchTrees/trees/misc';
+import { MISC_TREE_ID, MISC_NODE_LIGHTBEARER, MISC_NODE_TORCH_COPY } from '../../../../../researchTrees/trees/misc';
 
 const COLS = 66;
 const ROWS = 22;
@@ -194,7 +194,8 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'grant_research_auto',
             treeId: MISC_TREE_ID,
-            nodeId: MISC_NODE_LIGHTBEARER,
+            nodeId: MISC_NODE_TORCH_COPY,
+            skipIfResearched: [{ treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_LIGHTBEARER] }],
         },
         {
             type: 'choice',

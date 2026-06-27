@@ -43,8 +43,7 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
     update(dt: number, engine: EngineContext): Effect[] {
         this.elapsed += dt;
 
-        // generateRandomNumber() returns a raw integer in [0, 0x7fffffff]; normalise to [0, 1).
-        const rand = () => engine.generateRandomNumber() / 0x7fffffff;
+        const rand = () => Math.random();
 
         const produced: Effect[] = [];
 
@@ -79,8 +78,7 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
                 const spawnCount = Math.floor(total);
                 this.homingRemainder = total - spawnCount;
                 for (let i = 0; i < spawnCount; i++) {
-                    const idx = engine.generateRandomInteger(0, homingTargets.length - 1);
-                    const target = homingTargets[idx];
+                    const target = homingTargets[i % homingTargets.length];
                     if (!target) continue;
                     const spawnAngle = rand() * 2 * Math.PI;
                     const spawnRadius = 16 + rand() * 20;

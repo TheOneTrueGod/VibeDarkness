@@ -40,6 +40,7 @@ import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario } fro
 import { deathVfxUnitDefEffectsFireScenario, deathVfxAlphaWolfUnchangedScenario } from '../scenarios/general/deathVfx';
 import { aiReplanStaggerScenario } from '../scenarios/ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from '../scenarios/ai/ai_serialization_roundtrip';
+import { throwTorchHitsDummyScenario } from '../scenarios/abilities/throwTorchScenario';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -367,6 +368,11 @@ describe('runScenarioHeadless', () => {
 
     it('Death VFX: alpha wolf death triggers story pause (world modifier path unchanged)', () => {
         const r = runScenarioHeadless(deathVfxAlphaWolfUnchangedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Throw Torch (0601) creates a light source at the target location', () => {
+        const r = runScenarioHeadless(throwTorchHitsDummyScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

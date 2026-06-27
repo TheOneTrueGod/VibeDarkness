@@ -39,6 +39,7 @@ import {
     swingSwordHitsTwoTargetsScenario,
 } from './abilities/swingSwordResearch';
 import { laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenarios';
+import { throwTorchHitsDummyScenario } from './abilities/throwTorchScenario';
 import { beastClawFrontHitBackMissScenario } from './abilities/beastClawScenarios';
 import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
@@ -143,6 +144,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
     laserSwordHitsTwoTargetsScenario,
+    throwTorchHitsDummyScenario,
     beastClawFrontHitBackMissScenario,
     swingBatHitsThreeTargetsScenario,
     throwKnifePiercingBleedScenario,
@@ -177,6 +179,7 @@ export interface AbilityTreeSidebarGroup {
 }
 
 const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
+    { treeId: 'lightbearer',   label: 'Torch',          selectorKey: 'tree:lightbearer',   abilityIds: ['0601'] },
     { treeId: 'training',      label: 'Training',      selectorKey: 'tree:training',      abilityIds: ['0116', '0117', '0118', '0119'] },
     { treeId: 'crystal_rocks', label: 'Rocks',          selectorKey: 'tree:crystal_rocks', abilityIds: ['throw_rock'] },
     { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112', '0105', '0115'] },
@@ -242,6 +245,7 @@ export function isRegisteredGeneralGroupSelectorKey(key: string): boolean {
 export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | null {
     if (scenario.category !== 'ability') return null;
     const id = scenario.id;
+    if (id.startsWith('throw_torch_')) return '0601';
     if (id === 'punch_research_strong') return '0117';
     if (id === 'punch_research_double' || id === 'double_punch_two_targets' || id === 'double_punch_death_fallback') return '0116';
     if (id === 'punch_research_sneaky') return '0118';
