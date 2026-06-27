@@ -53,8 +53,10 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
      *  brought (undefined for spectators/control-enemies). Falls back to onLeave if not provided. */
     onContinue?: (characterId: string | undefined) => void;
     /** Create a new lobby for the given mission (Try Again / Continue victory path).
-     *  Returns true on success; false triggers the onContinue fallback. */
-    onTryAgain?: (missionId: string) => Promise<boolean>;
+     *  Returns true on success; false triggers the onContinue fallback.
+     *  previousCharacterSelections carries the battle's character selections into the new lobby so
+     *  players see their prior character pre-selected without having to re-pick. */
+    onTryAgain?: (missionId: string, previousCharacterSelections: Record<string, string>) => Promise<boolean>;
     /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: import('../../components/Chat').MessageEntry) => void;
     /** Called when the game is about to switch from pre-battle story into battle. */
@@ -539,7 +541,7 @@ export default function MinionBattlesGame({
                         setVictoryModalOpen(false);
                         setMissionRewards(null);
                         if (onTryAgain) {
-                            const created = await onTryAgain(sideMissionId);
+                            const created = await onTryAgain(sideMissionId, characterSelections);
                             if (created) return;
                         }
                         const sel = (effective.characterSelections as Record<string, string>)[playerId];
@@ -561,7 +563,7 @@ export default function MinionBattlesGame({
                             ? getNextVictoryMissionId(selectedMissionId, STORYLINES)
                             : null;
                         if (onTryAgain && nextMissionId) {
-                            const created = await onTryAgain(nextMissionId);
+                            const created = await onTryAgain(nextMissionId, characterSelections);
                             if (created) return;
                         }
                         if (onContinue) {

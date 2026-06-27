@@ -568,7 +568,7 @@ function AppInner() {
      * lobby/game/player IDs.
      */
     const handleHostContinueToNextMission = useCallback(
-        async (missionId: string, campaignId: string | null): Promise<boolean> => {
+        async (missionId: string, campaignId: string | null, previousCharacterSelections: Record<string, string> = {}): Promise<boolean> => {
             if (!user?.id) return false;
             // Capture old lobby context before any state changes
             const oldLobbyId = currentLobby?.id ?? null;
@@ -593,6 +593,7 @@ function AppInner() {
                     await lobbyClient.updateGameState(newLobby.id, newGameId, newPlayer.id, {
                         gamePhase: 'character_select',
                         selectedMissionId: missionId,
+                        characterSelections: previousCharacterSelections,
                     });
                 }
 
@@ -1079,7 +1080,7 @@ function AppInner() {
                         onContinue={handleContinueFromMission}
                         onSelectGame={handleSelectGame}
                         onRecordMissionResult={recordMissionResult}
-                        onTryAgain={(missionId) => handleHostContinueToNextMission(missionId, currentCampaignId ?? null)}
+                        onTryAgain={(missionId, prevCharSel) => handleHostContinueToNextMission(missionId, currentCampaignId ?? null, prevCharSel)}
                         onJoinNextLobby={handleClientJoinNextLobby}
                         onEmittedChatMessage={handleEmittedChatMessage}
                         onPing={() => {

@@ -67,7 +67,7 @@ export interface GameComponentProps {
     onContinue?: (characterId: string | undefined) => void;
     /** Called when user clicks Try Again after defeat or Continue after victory; creates a new lobby for the given
      *  mission. Returns true on success so the caller can fall back if lobby creation fails. */
-    onTryAgain?: (missionId: string) => Promise<boolean>;
+    onTryAgain?: (missionId: string, previousCharacterSelections: Record<string, string>) => Promise<boolean>;
     /** Client-only: join the next lobby that the host created after a victory. */
     onJoinNextLobby?: (nextLobbyId: string) => Promise<void>;
     /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
@@ -110,7 +110,7 @@ interface GameScreenProps {
         researchRewards?: import('../types').MissionResearchRewardEntry[]
     ) => Promise<void>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
-    onTryAgain?: (missionId: string) => Promise<boolean>;
+    onTryAgain?: (missionId: string, previousCharacterSelections: Record<string, string>) => Promise<boolean>;
     /** Client-only: join the next lobby that the host created after a victory. */
     onJoinNextLobby?: (nextLobbyId: string) => Promise<void>;
     /** Called when the game sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
