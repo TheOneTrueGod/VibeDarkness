@@ -30,26 +30,7 @@ const BUILTIN_ALPHA_WOLF_DEATH: WorldModifierDef = {
     },
 };
 
-/**
- * Stack ghost VFX — ghost particles when a swarm/stack group dies simultaneously.
- * Listens to the separate `stack_members_died` event via a custom handler.
- * Custom handler: 'stackGhostVfx' registered via registerLateBuiltinHandlers.
- *
- * NOTE: stack_members_died is not a WorldEventType (no on_round_start/on_unit_died mapping).
- * The handler is registered directly on the EventBus inside registerLateBuiltinHandlers.
- */
-const BUILTIN_STACK_GHOST_VFX: WorldModifierDef = {
-    id: '_builtin_stack_ghost_vfx',
-    name: 'Stack Ghost VFX',
-    description: 'Ghost particle burst when a unit group dies simultaneously.',
-    icon: '',
-    priority: 0,
-    visible_to_admin_only: true,
-    rules: {},
-};
-
 /** Built-in world modifiers active for every mission. */
 export const BUILTIN_WORLD_MODIFIERS: WorldModifierDef[] = [
     BUILTIN_ALPHA_WOLF_DEATH,
-    BUILTIN_STACK_GHOST_VFX,
 ];

@@ -1,7 +1,7 @@
 /**
  * Built-in custom effect handlers for WorldModifierManager.
  *
- * registerLateBuiltinHandlers — handlers requiring GameState (alpha wolf, stack ghost);
+ * registerLateBuiltinHandlers — handlers requiring GameState (alpha wolf);
  *   call from GameEngine constructor after this.state is initialized.
  *
  * Note: The former registerBuiltinHandlers (defaultDeathVfx) was removed in Step 5 of
@@ -9,6 +9,8 @@
  * unit_died listener in GameEngine.registerCoreEventListeners().
  * Lanternite death (light removal + Spore Rebirth) was migrated to onDeathBehaviors
  * on the lanternite UnitDefEntry.
+ * Stack ghost VFX was migrated to a stack_members_died listener in
+ * GameEngine.registerCoreEventListeners().
  *
  * See Decision A in docs/plans/world-modifiers.plan.md for migration context.
  */
@@ -16,9 +18,7 @@
 import type { WorldModifierManager } from './WorldModifierManager';
 import type { EngineContext } from '../game/EngineContext';
 import { Effect } from '../game/effects/Effect';
-import { getBodyColorForUnit, getCharacterSpriteKey } from '../game/units/unit_defs/unitDef';
 import { AlphaWolfStoryEmitter } from '../game/effects/AlphaWolfStoryEmitter';
-import { STACK_GHOST_DURATION } from '../game/effect_defs/movementEffects';
 
 // ---------------------------------------------------------------------------
 // Late handlers — registered after GameState is initialized (need extra state)
@@ -57,38 +57,5 @@ export function registerLateBuiltinHandlers(
         },
     );
 
-    // Stack ghost VFX — ghost particles on simultaneous stack death.
-    // Invoked directly from WorldModifierManager.registerListeners on stack_members_died.
-    manager.registerCustomEffectHandler(
-        'stackGhostVfx',
-        (params) => {
-            const unitId = params?.unitId as string | undefined;
-            const count = typeof params?.count === 'number' ? params.count : 0;
-            if (!unitId) return;
-            const unit = engine.getUnit(unitId);
-            if (!unit) return;
-            const ghostCount = Math.min(5, Math.ceil(Math.sqrt(count)));
-            const bodyColor = getBodyColorForUnit(unit);
-            const characterSpriteKey = getCharacterSpriteKey(unit.characterId);
-            for (let i = 0; i < ghostCount; i++) {
-                const direction = engine.generateRandomInteger(0, 1) === 0 ? -1 : 1;
-                engine.addEffect(new Effect({
-                    x: unit.x,
-                    y: unit.y,
-                    duration: STACK_GHOST_DURATION,
-                    effectType: 'StackGhost',
-                    effectData: {
-                        bodyColor,
-                        radius: unit.radius,
-                        characterSpriteKey,
-                        vx: direction * engine.generateRandomInteger(80, 120),
-                        vy: -engine.generateRandomInteger(100, 150),
-                        direction,
-                        initialAlpha: 0.8,
-                    },
-                }));
-            }
-        },
-    );
 }
 

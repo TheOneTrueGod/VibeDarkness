@@ -66,7 +66,8 @@ import type { EffectEmitter } from './effects/EffectEmitter';
 import { registerLateBuiltinHandlers } from '../worldModifiers/builtinHandlers';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
-import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, type UnitDefId } from './units/unit_defs/unitDef';
+import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, type UnitDefId } from './units/unit_defs/unitDef';
+import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
 import { NinjutsuManager, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
@@ -554,7 +555,31 @@ export class GameEngine implements EngineContext {
             }
         });
 
-        // stack_members_died ghost VFX handled by _builtin_stack_ghost_vfx via WorldModifierManager.
+        this.eventBus.on('stack_members_died', (data) => {
+            const unit = this.getUnit(data.unitId);
+            if (!unit) return;
+            const ghostCount = Math.min(5, Math.ceil(Math.sqrt(data.count)));
+            const bodyColor = getBodyColorForUnit(unit);
+            const characterSpriteKey = getCharacterSpriteKey(unit.characterId);
+            for (let i = 0; i < ghostCount; i++) {
+                const direction = this.generateRandomInteger(0, 1) === 0 ? -1 : 1;
+                this.addEffect(new Effect({
+                    x: unit.x,
+                    y: unit.y,
+                    duration: STACK_GHOST_DURATION,
+                    effectType: 'StackGhost',
+                    effectData: {
+                        bodyColor,
+                        radius: unit.radius,
+                        characterSpriteKey,
+                        vx: direction * this.generateRandomInteger(80, 120),
+                        vy: -this.generateRandomInteger(100, 150),
+                        direction,
+                        initialAlpha: 0.8,
+                    },
+                }));
+            }
+        });
 
         this.eventBus.on('round_end', (data) => {
             this.handleRoundEnd(data.roundNumber);
