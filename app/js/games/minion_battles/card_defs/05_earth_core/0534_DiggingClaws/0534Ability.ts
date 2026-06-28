@@ -98,7 +98,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 	name: 'Digging Claws',
 	image: DIGGING_CLAWS_IMAGE,
 	tags: ['Entombed'],
-	resourceCost: { resourceId: 'movement', amount: 1 },
+	resourceCost: { resourceId: 'movement_points', amount: 1 },
 	rechargeTurns: 0,
 	maxUses: MAX_USES,
 	recoveries: RECOVERIES,

@@ -46,8 +46,8 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
         : unit.resources;
 
     // Movement is rendered as shoe icons in the HP row; exclude from generic bars
-    const displayResources = allResources.filter((r) => r.id !== 'movement');
-    const movementResource = allResources.find((r) => r.id === 'movement');
+    const displayResources = allResources.filter((r) => r.id !== 'movement_points');
+    const movementResource = allResources.find((r) => r.id === 'movement_points');
     const movementCount = movementResource ? Math.floor(movementResource.current) : 0;
 
     return (
@@ -78,7 +78,7 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                             </span>
                         </div>
                         {movementResource && (
-                            <div className="flex items-center gap-0.5" title="Movement">
+                            <div className="flex items-center gap-0.5" title="Movement Points">
                                 {Array.from({ length: movementResource.max }, (_, i) => (
                                     <Footprints
                                         key={i}

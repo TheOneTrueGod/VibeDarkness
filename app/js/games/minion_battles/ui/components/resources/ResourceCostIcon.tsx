@@ -13,7 +13,7 @@ interface ResourceCostDisplay {
 }
 
 const RESOURCE_COST_DISPLAY: Record<string, ResourceCostDisplay> = {
-    movement: {
+    movement_points: {
         icon: Footprints,
         borderClass: 'border-green-500',
         iconClass: 'text-green-400',

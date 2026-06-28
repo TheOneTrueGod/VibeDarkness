@@ -36,7 +36,7 @@ describe('Movement resource', () => {
         const movement = new Movement();
         expect(movement.current).toBe(2);
         expect(movement.max).toBe(2);
-        expect(movement.id).toBe('movement');
+        expect(movement.id).toBe('movement_points');
     });
 
     it('subscribe/unsubscribe are no-ops', () => {

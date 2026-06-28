@@ -244,7 +244,7 @@ While knockback is active, the unit cannot move or act. If it hits a wall, it bo
 Abilities that **reposition the caster** (dashes, lunges, teleports) cost 1 movement point in addition to any uses or other resources:
 
 ```typescript
-resourceCost: { resourceId: 'movement', amount: 1 },
+resourceCost: { resourceId: 'movement_points', amount: 1 },
 ```
 
 All player units have the `movement` resource attached at battle start (initial 2, max 3, recovers 2 per round). Set the cost directly — no guard needed.

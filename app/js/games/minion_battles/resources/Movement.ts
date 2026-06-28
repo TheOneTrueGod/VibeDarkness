@@ -10,8 +10,8 @@ import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 
 export class Movement extends Resource {
-    readonly id = 'movement';
-    readonly name = 'Movement';
+    readonly id = 'movement_points';
+    readonly name = 'Movement Points';
     readonly color = '#22c55e'; // green-500
     readonly iconName = 'Footprints';
 

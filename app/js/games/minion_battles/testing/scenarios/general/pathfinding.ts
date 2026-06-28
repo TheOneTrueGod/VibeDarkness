@@ -286,7 +286,7 @@ export const dodgeIFrameProtectionScenario: ScenarioDefinition = {
         // Slime projectile arrives ~t=1.15s (tick 69); wolf lunge covers ticks 61-85.
         // Check at t≥1.2s so both attacks have been attempted before asserting no damage.
         if (!player || engine.gameTime < 1.2) return false;
-        const movement = player.getResource('movement');
+        const movement = player.getResource('movement_points');
         const movementConsumed = movement !== undefined && movement.current === 1;
         return player.hp === player.maxHp && movementConsumed;
     },

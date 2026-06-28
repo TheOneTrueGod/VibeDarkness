@@ -1300,7 +1300,7 @@ export class Unit extends GameObject {
         if (!this.isAlive()) return;
         this.applyStaminaSurge(Math.max(0, Math.floor(this.stamina)));
         this.grantRoundCharges();
-        const movement = this.getResource('movement');
+        const movement = this.getResource('movement_points');
         if (movement) {
             const recovery = Math.max(0, this.getMovementRecoveryPerRound() - this.getMovementSlowStacks(engine));
             movement.add(recovery);

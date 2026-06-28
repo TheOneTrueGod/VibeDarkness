@@ -119,7 +119,7 @@ function createResourceFromId(id: string): Resource | null {
             return new EarthPower();
         case 'gravity':
             return new Gravity();
-        case 'movement':
+        case 'movement_points':
             return new Movement();
         default:
             return null;
