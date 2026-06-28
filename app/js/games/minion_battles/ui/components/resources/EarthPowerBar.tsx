@@ -3,83 +3,113 @@ interface EarthPowerBarProps {
     max: number;
 }
 
-// Pre-defined pebble positions as percentages of the SVG viewBox (100 × 20).
-// Sorted left-to-right so filling left-to-right is natural.
-// Simulates rocks dropped into a rectangular container — tight packing with
-// row offsets to break the grid and give a natural stacked appearance.
-const PEBBLES: Array<{ cx: number; cy: number; rx: number; ry: number }> = [
-    // Bottom row
-    { cx: 4,   cy: 15, rx: 3.5, ry: 2.8 },
-    { cx: 10,  cy: 16, rx: 3.2, ry: 2.5 },
-    { cx: 16,  cy: 15, rx: 3.8, ry: 2.6 },
-    { cx: 22,  cy: 16, rx: 3.0, ry: 2.4 },
-    { cx: 28,  cy: 15, rx: 3.6, ry: 2.7 },
-    { cx: 34,  cy: 16, rx: 3.3, ry: 2.5 },
-    { cx: 40,  cy: 15, rx: 3.5, ry: 2.6 },
-    { cx: 46,  cy: 16, rx: 3.1, ry: 2.4 },
-    { cx: 52,  cy: 15, rx: 3.7, ry: 2.7 },
-    { cx: 58,  cy: 16, rx: 3.2, ry: 2.5 },
-    { cx: 64,  cy: 15, rx: 3.5, ry: 2.6 },
-    { cx: 70,  cy: 16, rx: 3.0, ry: 2.4 },
-    { cx: 76,  cy: 15, rx: 3.6, ry: 2.7 },
-    { cx: 82,  cy: 16, rx: 3.3, ry: 2.5 },
-    { cx: 88,  cy: 15, rx: 3.4, ry: 2.6 },
-    { cx: 94,  cy: 16, rx: 3.2, ry: 2.4 },
-    // Middle row (sparse, nestled between top and bottom rows)
-    { cx: 10,  cy: 11, rx: 3.0, ry: 2.2 },
-    { cx: 22,  cy: 10, rx: 3.2, ry: 2.3 },
-    { cx: 34,  cy: 11, rx: 2.9, ry: 2.1 },
-    { cx: 46,  cy: 10, rx: 3.1, ry: 2.3 },
-    { cx: 58,  cy: 11, rx: 3.0, ry: 2.2 },
-    { cx: 70,  cy: 10, rx: 3.2, ry: 2.3 },
-    { cx: 82,  cy: 11, rx: 2.9, ry: 2.1 },
-    { cx: 94,  cy: 10, rx: 3.1, ry: 2.2 },
-    // Top row (offset to nestle between middle row pebbles)
-    { cx: 7,   cy: 7,  rx: 3.3, ry: 2.5 },
-    { cx: 13,  cy: 6,  rx: 3.6, ry: 2.7 },
-    { cx: 19,  cy: 7,  rx: 3.1, ry: 2.4 },
-    { cx: 25,  cy: 6,  rx: 3.5, ry: 2.6 },
-    { cx: 31,  cy: 7,  rx: 3.3, ry: 2.5 },
-    { cx: 37,  cy: 6,  rx: 3.7, ry: 2.7 },
-    { cx: 43,  cy: 7,  rx: 3.2, ry: 2.4 },
-    { cx: 49,  cy: 6,  rx: 3.5, ry: 2.6 },
-    { cx: 55,  cy: 7,  rx: 3.3, ry: 2.5 },
-    { cx: 61,  cy: 6,  rx: 3.6, ry: 2.7 },
-    { cx: 67,  cy: 7,  rx: 3.1, ry: 2.4 },
-    { cx: 73,  cy: 6,  rx: 3.5, ry: 2.6 },
-    { cx: 79,  cy: 7,  rx: 3.4, ry: 2.5 },
-    { cx: 85,  cy: 6,  rx: 3.2, ry: 2.4 },
-    { cx: 91,  cy: 7,  rx: 3.6, ry: 2.7 },
-    { cx: 97,  cy: 6,  rx: 3.0, ry: 2.3 },
-];
+type Pt = [number, number];
 
-// Sort by cx so filling left-to-right aligns with resource amount
-const SORTED_PEBBLES = [...PEBBLES].sort((a, b) => a.cx - b.cx);
-const PEBBLE_COUNT = SORTED_PEBBLES.length;
+// Sutherland-Hodgman half-plane clip: keeps vertices where a·x + b·y + c ≥ 0
+function clipHalfPlane(poly: Pt[], a: number, b: number, c: number): Pt[] {
+    if (poly.length === 0) return [];
+    const out: Pt[] = [];
+    const n = poly.length;
+    for (let i = 0; i < n; i++) {
+        const [x0, y0] = poly[i];
+        const [x1, y1] = poly[(i + 1) % n];
+        const d0 = a * x0 + b * y0 + c;
+        const d1 = a * x1 + b * y1 + c;
+        if (d0 >= 0) out.push([x0, y0]);
+        if ((d0 >= 0) !== (d1 >= 0)) {
+            const t = d0 / (d0 - d1);
+            out.push([x0 + t * (x1 - x0), y0 + t * (y1 - y0)]);
+        }
+    }
+    return out;
+}
+
+// Voronoi cell for seeds[idx] clipped to [0,W]×[0,H]
+function voronoiCell(seeds: Pt[], idx: number, W: number, H: number): Pt[] {
+    const [px, py] = seeds[idx];
+    let poly: Pt[] = [[0, 0], [W, 0], [W, H], [0, H]];
+    for (let i = 0; i < seeds.length; i++) {
+        if (i === idx || poly.length === 0) continue;
+        const [qx, qy] = seeds[i];
+        // Half-plane keeping points closer to P than Q
+        const a = 2 * (px - qx);
+        const b = 2 * (py - qy);
+        const c = qx * qx - px * px + qy * qy - py * py;
+        poly = clipHalfPlane(poly, a, b, c);
+    }
+    return poly;
+}
+
+// Mulberry32 — fast, seedable PRNG; fixed seed → identical layout on every load
+function makePrng(seed: number) {
+    let s = seed;
+    return () => {
+        s = (s + 0x6d2b79f5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+interface Rock { poly: Pt[]; cx: number; }
+
+function buildRocks(): Rock[] {
+    const rand = makePrng(0x4ea7d0e5);
+
+    // Interior seeds — rejection sampling keeps rocks roughly uniform in size
+    const interior: Pt[] = [];
+    let attempts = 0;
+    while (interior.length < 40 && attempts < 100_000) {
+        attempts++;
+        const x = 4 + rand() * 152;
+        const y = 2.5 + rand() * 11;
+        if (!interior.some(p => Math.abs(p[0] - x) < 5.5 && Math.abs(p[1] - y) < 3.8)) {
+            interior.push([x, y]);
+        }
+    }
+
+    // Guard seeds placed just outside each edge. Bisectors between guards and
+    // nearby interior seeds fall inside the bar, giving jagged Voronoi edges
+    // instead of the rectangular clip at the boundary.
+    const guards: Pt[] = [];
+    for (let i = 0; i < 22; i++) guards.push([rand() * 170 - 5, -2.5 + rand() * 1.5]);  // top
+    for (let i = 0; i < 22; i++) guards.push([rand() * 170 - 5, 17 + rand() * 1.5]);    // bottom
+    for (let i = 0; i < 6;  i++) guards.push([-2.5 + rand() * 1.5, rand() * 16]);        // left
+    for (let i = 0; i < 6;  i++) guards.push([161.5 + rand() * 1.5, rand() * 16]);       // right
+
+    const allSeeds: Pt[] = [...interior, ...guards];
+
+    return interior
+        .map((seed, i) => ({
+            poly: voronoiCell(allSeeds, i, 160, 16),
+            cx: seed[0],
+        }))
+        .filter(r => r.poly.length >= 3)
+        .sort((a, b) => a.cx - b.cx);
+}
+
+// Computed once at module load — same seed → same layout every render
+const ROCKS = buildRocks();
+const ROCK_COUNT = ROCKS.length;
 
 export function EarthPowerBar({ current, max }: EarthPowerBarProps) {
-    const filledCount = Math.round((current / Math.max(max, 1)) * PEBBLE_COUNT);
+    const filledCount = Math.round((current / Math.max(max, 1)) * ROCK_COUNT);
 
     return (
         <div className="h-4 w-full overflow-hidden rounded ring-1 ring-inset ring-stone-600/50">
-        <svg
-            viewBox="0 0 100 20"
-            className="h-full w-full"
-            preserveAspectRatio="none"
-        >
-            {SORTED_PEBBLES.map((p, i) => (
-                <ellipse
-                    key={i}
-                    cx={p.cx}
-                    cy={p.cy}
-                    rx={p.rx}
-                    ry={p.ry}
-                    fill={i < filledCount ? '#78716c' : '#1c1917'}
-                    stroke={i < filledCount ? '#a8a29e' : '#292524'}
-                    strokeWidth="0.5"
-                />
-            ))}
-        </svg>
+            <svg viewBox="0 0 160 16" className="h-full w-full" preserveAspectRatio="none">
+                {ROCKS.map((rock, i) =>
+                    i < filledCount ? (
+                        <polygon
+                            key={i}
+                            points={rock.poly.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ')}
+                            fill="#78716c"
+                            stroke="#a8a29e"
+                            strokeWidth="0.5"
+                        />
+                    ) : null
+                )}
+            </svg>
         </div>
     );
 }
