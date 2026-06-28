@@ -20,6 +20,7 @@ import { Resonance } from '../../resources/Resonance';
 import { Light } from '../../resources/Light';
 import { EarthPower } from '../../resources/EarthPower';
 import { Gravity } from '../../resources/Gravity';
+import { Movement } from '../../resources/Movement';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unitDef';
 import type { CellOccupancyManager } from './CellOccupancyManager';
@@ -118,6 +119,8 @@ function createResourceFromId(id: string): Resource | null {
             return new EarthPower();
         case 'gravity':
             return new Gravity();
+        case 'movement':
+            return new Movement();
         default:
             return null;
     }

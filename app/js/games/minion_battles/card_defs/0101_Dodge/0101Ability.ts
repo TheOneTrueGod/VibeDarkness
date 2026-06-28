@@ -36,7 +36,7 @@ export const DodgeAbility: AbilityStatic = {
     id: CARD_ID,
     name: 'Dodge',
     image: DODGE_IMAGE,
-    resourceCost: null,
+    resourceCost: { resourceId: 'movement', amount: 1 },
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,

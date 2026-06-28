@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { Heart } from 'lucide-react';
+import { Heart, Footprints } from 'lucide-react';
 import type { Unit } from '../../../game/units/Unit';
 import { PLAYER_CHARACTER_ID } from '../../../game/units/unit_defs/unitDef';
 import { getPortrait } from '../../../character_defs/portraits';
@@ -38,12 +38,17 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
 
     const displayHp = debugEnabled ? Math.round((debugFill / 100) * unit.maxHp) : unit.hp;
 
-    const displayResources: ResourceDisplay[] = debugEnabled
+    const allResources: ResourceDisplay[] = debugEnabled
         ? ALL_RESOURCE_DISPLAY_DEFS.map((def) => ({
               ...def,
               current: Math.round((debugFill / 100) * def.max),
           }))
         : unit.resources;
+
+    // Movement is rendered as shoe icons in the HP row; exclude from generic bars
+    const displayResources = allResources.filter((r) => r.id !== 'movement');
+    const movementResource = allResources.find((r) => r.id === 'movement');
+    const movementCount = movementResource ? Math.floor(movementResource.current) : 0;
 
     return (
         <div className="flex w-full flex-row gap-3 border-r border-dark-700 bg-dark-900/60 p-4">
@@ -63,13 +68,27 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                     )}
                 </div>
 
-                {/* Heart icon + count + 4-segment bar */}
+                {/* Heart icon + count + shoe icons + 4-segment bar */}
                 <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-center gap-1">
+                    <div className="flex flex-wrap items-center justify-center gap-1">
                         <Heart size={12} className="shrink-0 text-red-400" />
                         <span className="text-[10px] tabular-nums text-gray-300">
                             {displayHp}/{unit.maxHp}
                         </span>
+                        {movementResource && (
+                            <div className="flex items-center gap-0.5">
+                                {movementCount <= 5
+                                    ? Array.from({ length: movementCount }, (_, i) => (
+                                          <Footprints key={i} size={10} className="text-green-400" />
+                                      ))
+                                    : (
+                                          <>
+                                              <Footprints size={10} className="text-green-400" />
+                                              <span className="text-[10px] tabular-nums text-green-400">{movementCount}</span>
+                                          </>
+                                      )}
+                            </div>
+                        )}
                     </div>
                     <HealthSegmentBar hp={displayHp} maxHp={unit.maxHp} />
                 </div>

@@ -301,6 +301,20 @@ export class TerrainLayerManager {
         return typeof slowMult === 'number' ? slowMult : 1;
     }
 
+    /**
+     * Returns how many movement-recovery slow stacks are active at a world position.
+     * Reads params.movementRecoverySlow from the owning ground effect (default 0 if none).
+     * A tall_grass terrain effect would set params: { movementRecoverySlow: 1 }.
+     */
+    getGroundMovementRecoverySlowStacks(worldX: number, worldY: number): number {
+        const col = Math.floor(worldX / CELL_SIZE);
+        const row = Math.floor(worldY / CELL_SIZE);
+        const effect = this.getGroundEffectAt(col, row);
+        if (!effect) return 0;
+        const slowStacks = effect.params.movementRecoverySlow;
+        return typeof slowStacks === 'number' ? slowStacks : 0;
+    }
+
     /** All effect records (read-only view). Used by renderers for ground/air overlays. */
     get allEffects(): ReadonlyMap<string, TerrainEffectRecord> {
         return this.effectRegistry;

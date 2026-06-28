@@ -215,6 +215,8 @@ export class Unit extends GameObject {
     abilityModifiers: Record<string, AbilityModifier> = {};
     /** Stamina stat: round-start surge grants this many stamina charges to each eligible ability. */
     stamina: number = 1;
+    /** Stacks of movement recovery slow from spell/ability effects (1 per stack = −1 movement/round). */
+    movementRecoverySlowStacks: number = 0;
 
     /** Movement state: grid path, optional target unit, and pathfinding tick. */
     movement: UnitMovement | null = null;
@@ -1190,6 +1192,17 @@ export class Unit extends GameObject {
         return this.speed * lowestPenalty;
     }
 
+    /** Maximum movement points. Override via research/item effects. */
+    getMaxMovement(): number { return 3; }
+    /** Movement points recovered at round start before slow stacks are applied. */
+    getMovementRecoveryPerRound(): number { return 2; }
+    /** Total slow stacks reducing movement recovery this round (terrain + spell effects). */
+    getMovementSlowStacks(engine: EngineContext): number {
+        let stacks = this.movementRecoverySlowStacks;
+        stacks += engine.terrainLayers.getGroundMovementRecoverySlowStacks(this.x, this.y);
+        return stacks;
+    }
+
     /**
      * Returns the effective lunge distance for an ability, applying terrain speed multipliers.
      * The same two terrain layers used for movement speed are applied here.
@@ -1287,6 +1300,11 @@ export class Unit extends GameObject {
         if (!this.isAlive()) return;
         this.applyStaminaSurge(Math.max(0, Math.floor(this.stamina)));
         this.grantRoundCharges();
+        const movement = this.getResource('movement');
+        if (movement) {
+            const recovery = Math.max(0, this.getMovementRecoveryPerRound() - this.getMovementSlowStacks(engine));
+            movement.add(recovery);
+        }
         for (const abilityId of this.abilities) {
             getAbility(abilityId)?.onRoundStart?.(this, engine);
         }

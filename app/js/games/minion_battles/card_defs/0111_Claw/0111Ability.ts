@@ -33,7 +33,7 @@ export const ClawAbility: AbilityStatic = {
 	id: CARD_ID,
 	name: 'Claw',
 	image: CLAW_IMAGE,
-	resourceCost: null,
+	resourceCost: { resourceId: 'movement', amount: 1 },
 	rechargeTurns: 0,
 	maxUses: MAX_USES,
 	recoveries: RECOVERIES,

@@ -239,6 +239,18 @@ Use `tryApplyKnockbackByTier(target, tier, source, casterX, casterY, engine)` fr
 
 While knockback is active, the unit cannot move or act. If it hits a wall, it bounces. All knockback state is serialized for save/restore.
 
+## Movement abilities
+
+Abilities that **reposition the caster** (dashes, lunges, teleports) cost 1 movement point in addition to any uses or other resources:
+
+```typescript
+resourceCost: { resourceId: 'movement', amount: 1 },
+```
+
+All player units have the `movement` resource attached at battle start (initial 2, max 3, recovers 2 per round). Set the cost directly — no guard needed.
+
+For longer-range or more powerful repositions, use `amount: 2`. Abilities that do not move the caster (stationary attacks, buffs, summons) should use `resourceCost: null`.
+
 ## Checklist
 
 - [ ] Design comment at the top of the file: a short prose paragraph (≤ 4 lines) covering what the ability looks like, its role in the kit, and how it plays out in battle.

@@ -42,6 +42,7 @@ import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, g
 import { getPetDef } from '../game/units/pet_defs/petDef';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { Ammo } from '../resources/Ammo';
+import { Movement } from '../resources/Movement';
 import {
     hydrateLanterniteNestFromMissionDef,
     prepareLanterniteNestForMissionStart,
@@ -235,6 +236,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
+            unit.attachResource(new Movement(), engine.eventBus);
             engine.addUnit(unit, 'initialGameSpawn');
 
             // Spawn pets granted by research alongside this player unit.
