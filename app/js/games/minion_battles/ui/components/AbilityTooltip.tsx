@@ -97,7 +97,7 @@ export default function AbilityTooltip({
 
     return (
         <div
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black border border-dark-600 rounded-lg p-3 shadow-lg pointer-events-none z-50 flex flex-col"
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black border border-white rounded-lg p-3 shadow-lg pointer-events-none z-50 flex flex-col"
             style={{
                 width: TOOLTIP_WIDTH,
                 height: TOOLTIP_HEIGHT,

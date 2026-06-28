@@ -1193,7 +1193,7 @@ export class Unit extends GameObject {
     }
 
     /** Maximum movement points. Override via research/item effects. */
-    getMaxMovement(): number { return 3; }
+    getMaxMovement(): number { return 2; }
     /** Movement points recovered at round start before slow stacks are applied. */
     getMovementRecoveryPerRound(): number { return 2; }
     /** Total slow stacks reducing movement recovery this round (terrain + spell effects). */

@@ -69,24 +69,23 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                 </div>
 
                 {/* Heart icon + count + shoe icons + 4-segment bar */}
-                <div className="flex flex-col gap-1">
-                    <div className="flex flex-wrap items-center justify-center gap-1">
-                        <Heart size={12} className="shrink-0 text-red-400" />
-                        <span className="text-[10px] tabular-nums text-gray-300">
-                            {displayHp}/{unit.maxHp}
-                        </span>
+                <div className="flex w-full flex-col gap-1">
+                    <div className="flex w-full items-center justify-between">
+                        <div className="flex items-center gap-1">
+                            <Heart size={12} className="shrink-0 text-red-400" />
+                            <span className="text-[10px] tabular-nums text-gray-300">
+                                {displayHp}/{unit.maxHp}
+                            </span>
+                        </div>
                         {movementResource && (
-                            <div className="flex items-center gap-0.5">
-                                {movementCount <= 5
-                                    ? Array.from({ length: movementCount }, (_, i) => (
-                                          <Footprints key={i} size={10} className="text-green-400" />
-                                      ))
-                                    : (
-                                          <>
-                                              <Footprints size={10} className="text-green-400" />
-                                              <span className="text-[10px] tabular-nums text-green-400">{movementCount}</span>
-                                          </>
-                                      )}
+                            <div className="flex items-center gap-0.5" title="Movement">
+                                {Array.from({ length: movementResource.max }, (_, i) => (
+                                    <Footprints
+                                        key={i}
+                                        size={10}
+                                        className={i < movementCount ? 'text-green-400' : 'text-gray-600'}
+                                    />
+                                ))}
                             </div>
                         )}
                     </div>

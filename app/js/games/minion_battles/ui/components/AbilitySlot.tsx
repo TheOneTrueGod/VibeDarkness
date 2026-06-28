@@ -13,6 +13,7 @@ import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abi
 import { ChargeIcon } from './ChargeIcon';
 import { RECOVERY_CHARGE_DEFINITIONS } from './recoveryChargeDefinitions';
 import AbilityTooltip from './AbilityTooltip';
+import { ResourceCostIcon } from './resources/ResourceCostIcon';
 
 interface AbilitySlotProps {
     ability: AbilityStatic;
@@ -113,6 +114,17 @@ export default function AbilitySlot({
                     }
                 `}
             >
+                {costs.length > 0 && (
+                    <div className="absolute top-1 right-1 z-10 flex flex-col items-center gap-0.5 pointer-events-none">
+                        {costs.map((cost) => (
+                            <ResourceCostIcon
+                                key={cost.resourceId}
+                                resourceId={cost.resourceId}
+                                amount={cost.amount}
+                            />
+                        ))}
+                    </div>
+                )}
                 <div
                     className={`flex min-h-0 flex-1 flex-col items-center justify-between ${isDisabled ? 'opacity-50' : ''}`}
                 >
@@ -126,19 +138,6 @@ export default function AbilitySlot({
                     <span className="w-full whitespace-normal px-1 text-center text-[14px] font-medium leading-tight text-gray-100">
                         {ability.name}
                     </span>
-
-                    {costs.length > 0 && (
-                        <div className="mt-1 flex w-full flex-wrap items-center justify-center gap-1">
-                            {costs.map((cost) => (
-                                <div
-                                    key={`${cost.resourceId}-${cost.amount}`}
-                                    className="rounded border border-border-custom bg-surface px-1.5 py-0.5 text-[10px] text-gray-200"
-                                >
-                                    {cost.resourceId} -{cost.amount}
-                                </div>
-                            ))}
-                        </div>
-                    )}
 
                     <div className="mt-1 flex min-h-[22px] w-full items-center gap-1">
                         <div className="rounded border border-white bg-surface px-2.5 py-1 text-[11px] tabular-nums leading-none text-gray-100">

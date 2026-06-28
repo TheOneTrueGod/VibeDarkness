@@ -10,6 +10,7 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { createDarkWolfUnit } from '../../../game/units/dark_animals/DarkWolf';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
+import { Movement } from '../../../resources/Movement';
 
 /** Path scenarios only: no AI tree / retrigger so scripted move orders are not overwritten. */
 function configurePathTestPlayer(engine: GameEngine): void {
@@ -216,6 +217,7 @@ export const dodgeIFrameProtectionScenario: ScenarioDefinition = {
             y: IFRAME_PLAYER.y,
             abilities: ['0101'],
         });
+        player.attachResource(new Movement(), engine.eventBus);
 
         // Wolf 80 px east — within DarkWolfBite range (100 px). Lunge sweeps through player
         // during the dodge iframe window.
@@ -283,15 +285,19 @@ export const dodgeIFrameProtectionScenario: ScenarioDefinition = {
         const player = engine.getLocalPlayerUnit();
         // Slime projectile arrives ~t=1.15s (tick 69); wolf lunge covers ticks 61-85.
         // Check at t≥1.2s so both attacks have been attempted before asserting no damage.
-        return Boolean(player && player.hp === player.maxHp && engine.gameTime >= 1.2);
+        if (!player || engine.gameTime < 1.2) return false;
+        const movement = player.getResource('movement');
+        const movementConsumed = movement !== undefined && movement.current === 1;
+        return player.hp === player.maxHp && movementConsumed;
     },
 
     failureMessage(engine) {
         const player = engine.getLocalPlayerUnit();
         const wolf = engine.getUnit('dodge_iframe_wolf');
         const slime = engine.getUnit('dodge_iframe_slime');
+        const movement = player?.getResource('movement');
         return (
-            `player hp=${player?.hp}/${player?.maxHp} t=${engine.gameTime.toFixed(2)} ` +
+            `player hp=${player?.hp}/${player?.maxHp} movement=${movement?.current}/${movement?.max} t=${engine.gameTime.toFixed(2)} ` +
             `wolf active=[${wolf?.activeAbilities.map((a) => a.abilityId).join(',') ?? '—'}] ` +
             `slime active=[${slime?.activeAbilities.map((a) => a.abilityId).join(',') ?? '—'}]`
         );

@@ -67,6 +67,19 @@ function researchGetter(
 /**
  * Spawn the local player unit and optional research-derived combat stats (mirrors `BaseMissionDef` intent).
  */
+/**
+ * Spawn a player unit for headless scenario tests.
+ *
+ * Optional resources (Movement, Ammo, etc.) are NOT attached automatically —
+ * the real game adds them via items/loadout, but the test harness skips that.
+ * When the ability under test has a resource cost, attach the resource manually
+ * after calling this function:
+ *
+ *   const movement = new Movement();
+ *   player.attachResource(movement, engine.eventBus);
+ *
+ * See Movement.test.ts for more examples of resource setup in tests.
+ */
 export function spawnTinyPlayerUnit(
     engine: GameEngine,
     params: {

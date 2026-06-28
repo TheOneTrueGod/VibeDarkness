@@ -15,6 +15,7 @@ import {
     Wand2,
     Layers,
     Heart,
+    Footprints,
     type LucideIcon,
 } from 'lucide-react';
 
@@ -27,6 +28,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
     Wand2,
     Layers,
     Heart,
+    Footprints,
 };
 
 interface ResourceIconProps {

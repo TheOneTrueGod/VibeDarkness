@@ -32,10 +32,10 @@ function makeEngineContext(terrainSlowStacks = 0): EngineContext {
 }
 
 describe('Movement resource', () => {
-    it('starts at 2 with max 3', () => {
+    it('starts at 2 with max 2', () => {
         const movement = new Movement();
         expect(movement.current).toBe(2);
-        expect(movement.max).toBe(3);
+        expect(movement.max).toBe(2);
         expect(movement.id).toBe('movement');
     });
 
@@ -61,24 +61,24 @@ describe('Movement recovery at round start', () => {
         expect(movement.current).toBe(2);
     });
 
-    it('is capped at max 3', () => {
+    it('is capped at max 2', () => {
         const unit = makeUnit('u1');
         const movement = new Movement();
         movement.current = 1;
         unit.attachResource(movement, new EventBus());
 
         unit.onRoundStart(1, makeEngineContext());
-        expect(movement.current).toBe(3); // 1 + 2 = 3
+        expect(movement.current).toBe(2); // 1 + 2 = 3, capped at max 2
     });
 
     it('stays at max when already full', () => {
         const unit = makeUnit('u1');
         const movement = new Movement();
-        movement.current = 3;
+        movement.current = 2;
         unit.attachResource(movement, new EventBus());
 
         unit.onRoundStart(1, makeEngineContext());
-        expect(movement.current).toBe(3);
+        expect(movement.current).toBe(2);
     });
 
     it('1 slow stack reduces recovery to 1', () => {

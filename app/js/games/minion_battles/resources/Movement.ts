@@ -16,7 +16,7 @@ export class Movement extends Resource {
     readonly iconName = 'Footprints';
 
     constructor() {
-        super(2, 3);
+        super(2, 2);
     }
 
     protected subscribe(_unit: Unit, _eventBus: EventBus): void {}
