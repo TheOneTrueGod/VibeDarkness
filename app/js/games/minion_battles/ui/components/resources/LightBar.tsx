@@ -17,7 +17,7 @@ export function LightBar({ current, max }: LightBarProps) {
                     100% { background-position: 100% 50%; }
                 }
             `}</style>
-            <div className="relative h-5 w-full overflow-hidden rounded bg-dark-800/40">
+            <div className="relative h-4 w-full overflow-hidden rounded bg-dark-800/40">
                 <div
                     className="absolute inset-y-0 left-0 transition-[width] duration-150"
                     style={{

@@ -9,6 +9,16 @@
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 
+/** Minimal shape needed to render a resource bar. The full Resource class satisfies this. */
+export interface ResourceDisplay {
+    id: string;
+    name: string;
+    color: string;
+    iconName: string;
+    current: number;
+    max: number;
+}
+
 export abstract class Resource {
     /** Unique resource type ID (e.g. 'rage', 'mana'). */
     abstract readonly id: string;

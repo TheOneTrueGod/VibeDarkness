@@ -28,7 +28,7 @@ export function GravityBar({ current, max }: GravityBarProps) {
                     50%       { opacity: 1; }
                 }
             `}</style>
-            <div className="relative h-5 w-full overflow-hidden rounded bg-purple-950/60">
+            <div className="relative h-4 w-full overflow-hidden rounded bg-purple-950/60">
                 {/* Fill */}
                 <div
                     className="absolute inset-y-0 left-0 bg-purple-700 transition-[width] duration-150"

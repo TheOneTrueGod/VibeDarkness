@@ -59,6 +59,56 @@ export function subscribeAlwaysShowSyncStatus(onStoreChange: () => void): () => 
     };
 }
 
+const RESOURCE_BAR_DEBUG_KEY = 'vibedarkness.debug.resourceBarDebug';
+const RESOURCE_BAR_DEBUG_FILL_KEY = 'vibedarkness.debug.resourceBarDebugFill';
+
+export function getResourceBarDebugEnabled(): boolean {
+    try {
+        return localStorage.getItem(RESOURCE_BAR_DEBUG_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+export function setResourceBarDebugEnabled(value: boolean): void {
+    try {
+        localStorage.setItem(RESOURCE_BAR_DEBUG_KEY, value ? '1' : '0');
+    } catch {
+        /* ignore */
+    }
+    window.dispatchEvent(new Event('vd-debug-flags-changed'));
+}
+
+/** Returns the current debug fill percentage (0–100). Defaults to 50. */
+export function getResourceBarDebugFill(): number {
+    try {
+        const raw = localStorage.getItem(RESOURCE_BAR_DEBUG_FILL_KEY);
+        const n = raw !== null ? parseInt(raw, 10) : NaN;
+        return isNaN(n) ? 50 : Math.max(0, Math.min(100, n));
+    } catch {
+        return 50;
+    }
+}
+
+export function setResourceBarDebugFill(value: number): void {
+    try {
+        localStorage.setItem(RESOURCE_BAR_DEBUG_FILL_KEY, String(Math.round(value)));
+    } catch {
+        /* ignore */
+    }
+    window.dispatchEvent(new Event('vd-debug-flags-changed'));
+}
+
+export function subscribeResourceBarDebug(onStoreChange: () => void): () => void {
+    const handler = () => onStoreChange();
+    window.addEventListener('vd-debug-flags-changed', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+        window.removeEventListener('vd-debug-flags-changed', handler);
+        window.removeEventListener('storage', handler);
+    };
+}
+
 const USER_STATE_LOGGING_KEY = 'vibedarkness.debug.userStateLogging';
 
 export function getUserStateLogging(): boolean {

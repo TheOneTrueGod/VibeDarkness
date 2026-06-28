@@ -20,6 +20,11 @@ import {
     getUserStateLogging,
     setUserStateLogging,
     subscribeUserStateLogging,
+    getResourceBarDebugEnabled,
+    setResourceBarDebugEnabled,
+    getResourceBarDebugFill,
+    setResourceBarDebugFill,
+    subscribeResourceBarDebug,
 } from '../../../debugFlags';
 import {
     LOBBY_LOG_TYPES,
@@ -62,6 +67,18 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
         subscribeUserStateLogging,
         getUserStateLogging,
         getUserStateLogging,
+    );
+
+    const resourceBarDebugEnabled = useSyncExternalStore(
+        subscribeResourceBarDebug,
+        getResourceBarDebugEnabled,
+        getResourceBarDebugEnabled,
+    );
+
+    const resourceBarDebugFill = useSyncExternalStore(
+        subscribeResourceBarDebug,
+        getResourceBarDebugFill,
+        getResourceBarDebugFill,
     );
 
     const subscribeDebugLog = useCallback((onStoreChange: () => void) => debugLogState.subscribe(onStoreChange), []);
@@ -134,6 +151,40 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                         onChange={(e) => setUserStateLogging(e.target.checked)}
                     />
                     <span className="leading-snug">Log user state to server</span>
+                </label>
+            </div>
+
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mt-8 mb-2">
+                Resource bars
+            </h3>
+            <p className="text-xs text-muted mb-3 max-w-xl">
+                Override resource display in the battle HUD. When enabled, all resource types are shown at the specified fill level regardless of actual values.
+            </p>
+            <div className="flex flex-col gap-3 max-w-lg">
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border border-border-custom bg-surface text-primary focus:ring-primary shrink-0"
+                        checked={resourceBarDebugEnabled}
+                        onChange={(e) => setResourceBarDebugEnabled(e.target.checked)}
+                    />
+                    <span className="leading-snug">Override resource fill</span>
+                </label>
+                <label className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted">Fill amount</span>
+                        <span className="text-xs tabular-nums text-white">{resourceBarDebugFill}%</span>
+                    </div>
+                    <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={resourceBarDebugFill}
+                        disabled={!resourceBarDebugEnabled}
+                        onChange={(e) => setResourceBarDebugFill(Number(e.target.value))}
+                        className="w-full accent-primary disabled:opacity-40"
+                    />
                 </label>
             </div>
 
