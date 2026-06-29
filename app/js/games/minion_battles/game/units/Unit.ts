@@ -62,6 +62,7 @@ import { CONTROLLED_SLINGSHOT, MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef, getUnitMaxPerTile, getUnitShovePriority, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import type { RecoveryChargeType } from '../../abilities/abilityUses';
+import { evaluateSwapTriggers } from '../../abilities/abilitySwap';
 import { UnitTag, parseUnitTagsFromJSON } from './unitTag';
 import type { EnrageDef } from './enrageDef';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
@@ -192,6 +193,10 @@ export interface UnitAbilityRuntimeState {
     currentUses: number;
     maxUses: number;
     recoveryChargesByType: Partial<Record<RecoveryChargeType, number>>;
+    /** False when this ability is hidden by the swap network (not shown in UI, not usable). Defaults to true. */
+    active: boolean;
+    /** The ability ID this ability pushed aside when it activated. Null when not currently swapped in. */
+    replacedAbilityId: string | null;
 }
 
 export class Unit extends GameObject {
@@ -1280,6 +1285,7 @@ export class Unit extends GameObject {
         buff.appliedAtTime = gameTime;
         buff.appliedAtRound = roundNumber;
         this.buffs.push(buff);
+        evaluateSwapTriggers(this, { type: 'buffApplied', buffType: buff._type });
     }
 
     /** Interrupt all active abilities (e.g. when stunned). Refunds resource costs. */
@@ -1592,6 +1598,8 @@ export class Unit extends GameObject {
                         currentUses: runtime.currentUses,
                         maxUses: runtime.maxUses,
                         recoveryChargesByType: { ...runtime.recoveryChargesByType },
+                        active: runtime.active,
+                        ...(runtime.replacedAbilityId != null ? { replacedAbilityId: runtime.replacedAbilityId } : {}),
                     },
                 ]),
             ),
@@ -1860,6 +1868,8 @@ export class Unit extends GameObject {
                     currentUses: runtime.currentUses,
                     maxUses: runtime.maxUses,
                     recoveryChargesByType: { ...(runtime.recoveryChargesByType ?? {}) },
+                    active: (runtime as any).active ?? true,          // default true for old snapshots
+                    replacedAbilityId: (runtime as any).replacedAbilityId ?? null,
                 },
             ]),
         );

@@ -41,6 +41,7 @@ import { deathVfxUnitDefEffectsFireScenario, deathVfxAlphaWolfUnchangedScenario 
 import { aiReplanStaggerScenario } from '../scenarios/ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from '../scenarios/ai/ai_serialization_roundtrip';
 import { throwTorchHitsDummyScenario } from '../scenarios/abilities/throwTorchScenario';
+import { lightImbuementAndImbuedBatScenario } from '../scenarios/abilities/lightImbuementScenario';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -373,6 +374,11 @@ describe('runScenarioHeadless', () => {
 
     it('Throw Torch (0601) creates a light source at the target location', () => {
         const r = runScenarioHeadless(throwTorchHitsDummyScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Light Imbuement (0802) + Imbued Bat (0803): full cast flow deals damage', () => {
+        const r = runScenarioHeadless(lightImbuementAndImbuedBatScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

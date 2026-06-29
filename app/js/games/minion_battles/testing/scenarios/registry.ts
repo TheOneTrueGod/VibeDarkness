@@ -42,6 +42,7 @@ import { laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenario
 import { throwTorchHitsDummyScenario } from './abilities/throwTorchScenario';
 import { beastClawFrontHitBackMissScenario } from './abilities/beastClawScenarios';
 import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios';
+import { lightImbuementAndImbuedBatScenario } from './abilities/lightImbuementScenario';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
 import { clawMovementDistanceScenario } from './abilities/clawScenarios';
 import { pistolHitsDummyScenario } from './abilities/gunScenarios';
@@ -147,6 +148,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     throwTorchHitsDummyScenario,
     beastClawFrontHitBackMissScenario,
     swingBatHitsThreeTargetsScenario,
+    lightImbuementAndImbuedBatScenario,
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,
     pistolHitsDummyScenario,
@@ -185,6 +187,7 @@ const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112', '0105', '0115'] },
     { treeId: 'tech_shield',   label: 'Tech Shield',    selectorKey: 'tree:tech_shield',   abilityIds: ['0104', '0110', '0113'] },
     { treeId: 'earth_core',    label: 'Earth Core',     selectorKey: 'tree:earth_core',    abilityIds: ['earth_core'] },
+    { treeId: 'light',         label: 'Light Core',     selectorKey: 'tree:light',         abilityIds: ['0802'] },
 ];
 
 export function getAbilityTreeSidebarGroups(): AbilityTreeSidebarGroup[] {
@@ -245,6 +248,7 @@ export function isRegisteredGeneralGroupSelectorKey(key: string): boolean {
 export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | null {
     if (scenario.category !== 'ability') return null;
     const id = scenario.id;
+    if (id.startsWith('light_imbuement_') || id.startsWith('imbued_bat_')) return '0802';
     if (id.startsWith('throw_torch_')) return '0601';
     if (id === 'punch_research_strong') return '0117';
     if (id === 'punch_research_double' || id === 'double_punch_two_targets' || id === 'double_punch_death_fallback') return '0116';

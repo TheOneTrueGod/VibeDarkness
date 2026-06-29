@@ -23,6 +23,8 @@ function AbilitySlotPreview({
         currentUses: useConfig.maxUses,
         maxUses: useConfig.maxUses,
         recoveryChargesByType: {},
+        active: true,
+        replacedAbilityId: null,
     }), [useConfig.maxUses]);
     return (
         <div

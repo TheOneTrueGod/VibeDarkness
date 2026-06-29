@@ -64,6 +64,8 @@ import { PounceAbility } from '../card_defs/07_command_core/0702_Pounce/0702Abil
 import { PetAbility } from '../card_defs/07_command_core/0703_Pet/0703Ability';
 import { SicEmAbility } from '../card_defs/07_command_core/0704_SicEm/0704Ability';
 import { LightBlastAbility } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
+import { LightImbuementAbility } from '../card_defs/08_light_core/0802_LightImbuement/0802Ability';
+import { ImbuedBatAbility } from '../card_defs/08_light_core/0803_ImbuedBat/0803Ability';
 import { WaitAbility } from './WaitAbility';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
@@ -138,6 +140,8 @@ register(PounceAbility);
 register(PetAbility);
 register(SicEmAbility);
 register(LightBlastAbility);
+register(LightImbuementAbility);
+register(ImbuedBatAbility);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 

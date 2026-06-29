@@ -14,6 +14,7 @@ import {
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 import { getAbility } from './AbilityRegistry';
 import type { AbilityModifier } from '../../../researchTrees/types';
+import { evaluateSwapTriggers } from './abilitySwap';
 
 export type { RecoveryChargeType, AbilityRecoveryRule };
 
@@ -41,10 +42,13 @@ export function getAbilityUseConfig(abilityId: string): AbilityUseConfig {
 export function ensureAbilityRuntimeState(unit: Unit, abilityId: string): void {
     if (unit.abilityRuntime[abilityId]) return;
     const config = getAbilityUseConfig(abilityId);
+    const ability = getAbility(abilityId);
     unit.abilityRuntime[abilityId] = {
         maxUses: config.maxUses,
         currentUses: config.startingUses ?? config.maxUses,
         recoveryChargesByType: {},
+        active: !ability?.swapConfig,   // abilities with swapConfig start hidden
+        replacedAbilityId: null,
     };
 }
 
@@ -134,6 +138,9 @@ export function consumeAbilityUse(unit: Unit, abilityId: string): boolean {
     const runtime = unit.abilityRuntime[abilityId];
     if (!runtime || runtime.currentUses <= 0) return false;
     runtime.currentUses -= 1;
+    if (runtime.currentUses === 0) {
+        evaluateSwapTriggers(unit, { type: 'abilityExhausted', abilityId });
+    }
     syncNestedCardAbilityState(unit);
     return true;
 }

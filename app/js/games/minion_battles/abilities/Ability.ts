@@ -192,6 +192,24 @@ export interface AbilityRecoveryRule {
     usesRecovered: number;
 }
 
+export type SwapTrigger =
+    | { type: 'buffApplied'; buffType: string };
+
+export type DeactivateTrigger =
+    | { type: 'selfExhausted' }
+    | { type: 'selfUsed' };
+
+export interface AbilitySwapConfig {
+    /** The trigger that causes this ability to activate and push aside `replacesAbilityId`. */
+    activateTrigger: SwapTrigger;
+    /** The ability ID that this ability replaces when it activates. */
+    replacesAbilityId: string;
+    /** Uses to grant when activating. Defaults to this ability's own `maxUses`. */
+    usesOnActivation?: number;
+    /** The trigger that causes this ability to deactivate and restore `replacedAbilityId`. */
+    deactivateTrigger: DeactivateTrigger;
+}
+
 /** The shape every static ability class must implement. */
 export interface AbilityStatic {
     /** Unique ability ID. */
@@ -464,6 +482,8 @@ export interface AbilityStatic {
      * Use for passive round-start effects (e.g. armour from terrain, resource charges).
      */
     onRoundStart?(unit: Unit, engine: import('../game/EngineContext').EngineContext): void;
+    /** Swap network config. When present, this ability starts hidden and activates via the swap evaluator. */
+    readonly swapConfig?: AbilitySwapConfig;
 }
 
 /** Information about an attack that was blocked. */

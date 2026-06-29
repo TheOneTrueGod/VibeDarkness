@@ -85,6 +85,8 @@ describe('snapshotChargeAnimState', () => {
             maxUses: 2,
             currentUses: 1,
             recoveryChargesByType: { staminaCharge: 1, lightCharge: 0, energyCharge: 0 },
+            active: true,
+            replacedAbilityId: null,
         };
         const snap = snapshotChargeAnimState(runtime, {
             chargeType: 'staminaCharge',

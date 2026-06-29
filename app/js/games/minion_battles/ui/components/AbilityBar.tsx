@@ -115,8 +115,16 @@ export default function AbilityBar({
         return () => mq.removeEventListener('change', sync);
     }, []);
 
+    const visibleAbilityIds = useMemo(
+        () => abilityIds.filter(id => {
+            const runtime = playerUnit?.abilityRuntime[id];
+            return !runtime || runtime.active !== false;
+        }),
+        [abilityIds, playerUnit],
+    );
+
     const handCards = useMemo(() => {
-        return abilityIds
+        return visibleAbilityIds
             .map((abilityId) => {
                 const ability = getAbility(abilityId);
                 if (!ability || !playerUnit) return null;
@@ -125,7 +133,7 @@ export default function AbilityBar({
                 return { abilityId, ability, runtime };
             })
             .filter((entry): entry is { abilityId: string; ability: AbilityStatic; runtime: UnitAbilityRuntimeState } => Boolean(entry));
-    }, [abilityIds, playerUnit]);
+    }, [visibleAbilityIds, playerUnit]);
 
     const runtimeSnapshot = useMemo<
         Record<string, { currentUses: number; charges: Partial<Record<RecoveryChargeType, number>> }>

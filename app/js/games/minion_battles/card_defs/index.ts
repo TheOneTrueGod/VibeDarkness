@@ -53,6 +53,8 @@ import { DogBiteCard } from './07_command_core/0701_DogBite/0701Ability';
 import { PetCard } from './07_command_core/0703_Pet/0703Ability';
 import { SicEmCard } from './07_command_core/0704_SicEm/0704Ability';
 import { LightBlastCard } from './08_light_core/0801_LightBlast/0801Ability';
+import { LightImbuementCard } from './08_light_core/0802_LightImbuement/0802Card';
+import { ImbuedBatCard } from './08_light_core/0803_ImbuedBat/0803Card';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -108,6 +110,8 @@ const cardDefs: CardDef[] = [
     PetCard,
     SicEmCard,
     LightBlastCard,
+    LightImbuementCard,
+    ImbuedBatCard,
 ];
 
 export const CARD_DEF_MAP: Map<string, CardDef> = new Map(cardDefs.map((c) => [c.abilityId, c]));
