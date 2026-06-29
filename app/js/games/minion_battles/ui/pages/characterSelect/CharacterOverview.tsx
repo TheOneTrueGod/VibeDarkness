@@ -34,7 +34,7 @@ function AbilitySlotPreview({
                 ability={ability}
                 runtime={runtime}
                 isSelected={false}
-                isDisabled={false}
+                disabledReason={null}
                 onSelect={() => {}}
                 isHovered={false}
                 onHoverChange={() => {}}

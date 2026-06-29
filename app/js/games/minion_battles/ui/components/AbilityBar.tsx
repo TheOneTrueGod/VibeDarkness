@@ -7,11 +7,9 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { canAffordAbility } from '../../abilities/Ability';
-import { unitAbilityHasTag } from '../../abilities/abilityUses';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../game/units/Unit';
-import { getLivingPetsOfUnit } from '../../game/units/petHelpers';
+import { getAbilityDisabledReason } from './abilityDisabledReason';
 import AbilitySlot from './AbilitySlot';
 import AbilityTooltip from './AbilityTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
@@ -321,21 +319,15 @@ export default function AbilityBar({
                             onPointerLeave={() => setHoveredCardId(null)}
                         >
                             {handCards.map((card, index) => {
-                                const canAfford = playerUnit ? canAffordAbility(playerUnit, card.ability) : false;
-                                const canUse = card.runtime.currentUses > 0;
-                                const hasPetSource =
-                                    card.ability.abilitySource?.type !== 'pet'
-                                    || (playerUnit != null && getLivingPetsOfUnit(playerUnit, allUnits).length > 0);
-                                const tagFilter = conditionalCancelContext?.abilityTagFilter;
-                                const matchesTagFilter =
-                                    !tagFilter || tagFilter.length === 0
-                                    || tagFilter.every((tag) => playerUnit ? unitAbilityHasTag(playerUnit, card.abilityId, tag) : false);
-                                const isDisabled =
-                                    !isMyTurn
-                                    || !canAfford
-                                    || !canUse
-                                    || !hasPetSource
-                                    || (conditionalCancelContext != null && !matchesTagFilter);
+                                const disabledReason = getAbilityDisabledReason({
+                                    playerUnit,
+                                    ability: card.ability,
+                                    abilityId: card.abilityId,
+                                    currentUses: card.runtime.currentUses,
+                                    isMyTurn,
+                                    allUnits,
+                                    conditionalCancelContext,
+                                });
                                 const isHovered = hoveredCardId === card.abilityId;
                                 const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
                                 const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
@@ -353,7 +345,7 @@ export default function AbilityBar({
                                             runtime={card.runtime}
                                             isSelected={selectedCardIndex === index}
                                             isActive={isActive}
-                                            isDisabled={isDisabled}
+                                            disabledReason={disabledReason}
                                             onSelect={() => handleSelectCard(index)}
                                             isHovered={isHovered}
                                             onHoverChange={(hovered) => {

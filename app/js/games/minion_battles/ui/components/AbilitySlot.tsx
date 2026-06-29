@@ -14,6 +14,7 @@ import { ChargeIcon } from './ChargeIcon';
 import { RECOVERY_CHARGE_DEFINITIONS } from './recoveryChargeDefinitions';
 import AbilityTooltip from './AbilityTooltip';
 import { ResourceCostIcon } from './resources/ResourceCostIcon';
+import type { DisabledReason } from './abilityDisabledReason';
 
 interface AbilitySlotProps {
     ability: AbilityStatic;
@@ -21,7 +22,7 @@ interface AbilitySlotProps {
     isSelected: boolean;
     /** Whether this card is currently being used (ability executing). */
     isActive?: boolean;
-    isDisabled: boolean;
+    disabledReason: DisabledReason | null;
     onSelect: () => void;
     isHovered: boolean;
     onHoverChange: (hovered: boolean) => void;
@@ -42,7 +43,7 @@ export default function AbilitySlot({
     runtime,
     isSelected,
     isActive = false,
-    isDisabled,
+    disabledReason,
     onSelect,
     isHovered,
     onHoverChange,
@@ -53,6 +54,8 @@ export default function AbilitySlot({
     gameState,
     onPrimaryRecoveryPillRef,
 }: AbilitySlotProps) {
+    const isDisabled = disabledReason !== null;
+
     const handleClick = useCallback(() => {
         if (isDisabled) return;
         if (isMobile && !showMobileDescription) {
@@ -214,6 +217,7 @@ export default function AbilitySlot({
                 <AbilityTooltip
                     title={ability.name}
                     lines={tooltipLines}
+                    disabledReason={disabledReason ?? undefined}
                 />
             )}
 

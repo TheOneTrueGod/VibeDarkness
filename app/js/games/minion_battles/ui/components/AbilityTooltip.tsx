@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { getDisabledReasonDisplay, type DisabledReason } from './abilityDisabledReason';
 
 /**
  * Splits a line into static and dynamic segments. Dynamic parts are inside {}.
@@ -45,6 +46,8 @@ export interface AbilityTooltipProps {
     title: string;
     /** One or more lines. Use {value} for dynamic parts (e.g. "Hit {1} enemy for {8} damage"). */
     lines: string[];
+    /** When set, shows a rose-colored section explaining why the ability is disabled. */
+    disabledReason?: DisabledReason;
     /** Whether this is a mobile overlay (full-width with dismiss). */
     isMobileOverlay?: boolean;
     /** Called when the mobile overlay's X button is tapped. */
@@ -58,9 +61,12 @@ const LINE_HEIGHT = 1.35;
 export default function AbilityTooltip({
     title,
     lines,
+    disabledReason,
     isMobileOverlay = false,
     onDismiss,
 }: AbilityTooltipProps) {
+    const reasonDisplay = disabledReason ? getDisabledReasonDisplay(disabledReason) : null;
+
     if (isMobileOverlay) {
         return (
             <div
@@ -91,6 +97,12 @@ export default function AbilityTooltip({
                         </div>
                     ))}
                 </div>
+                {reasonDisplay && (
+                    <div className="mt-3 pt-3 border-t border-rose-900">
+                        <p className="text-rose-300 font-bold text-xs">{reasonDisplay.title}</p>
+                        <p className="text-rose-200 text-xs mt-0.5">{reasonDisplay.description}</p>
+                    </div>
+                )}
             </div>
         );
     }
@@ -100,7 +112,7 @@ export default function AbilityTooltip({
             className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black border border-white rounded-lg p-3 shadow-lg pointer-events-none z-50 flex flex-col"
             style={{
                 width: TOOLTIP_WIDTH,
-                height: TOOLTIP_HEIGHT,
+                minHeight: TOOLTIP_HEIGHT,
             }}
             role="tooltip"
         >
@@ -120,6 +132,14 @@ export default function AbilityTooltip({
                     </div>
                 ))}
             </div>
+            {reasonDisplay && (
+                <div className="mt-auto">
+                    <div className="mt-2 pt-2 border-t border-rose-900">
+                        <p className="text-rose-300 font-bold text-xs">{reasonDisplay.title}</p>
+                        <p className="text-rose-200 text-xs mt-0.5">{reasonDisplay.description}</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
