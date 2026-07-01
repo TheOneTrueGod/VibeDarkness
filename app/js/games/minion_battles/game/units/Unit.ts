@@ -285,8 +285,6 @@ export class Unit extends GameObject {
 
     /** Seconds remaining in spawn animation (0 = not spawning). Unit is invisible and untargetable while > 0. */
     spawnTimer: number = 0;
-    spawnParticleAcc1: number = 0;
-    spawnParticleAcc2: number = 0;
     /** Seconds remaining in grow-in scale animation (0 = not growing). Set when spawned via nestSpawn. */
     growAnimTimer: number = 0;
 

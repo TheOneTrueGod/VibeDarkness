@@ -18,6 +18,7 @@ import {
     CHARACTER_SPRITE_SCALE,
     type IUnitRenderContext,
 } from '../../units/unit_defs/unitDef';
+import { getSpawnRenderState } from '../../units/spawnVisuals';
 import { getBuffVisualRenderer } from '../../../buffs/buffVisuals';
 import type { DamageTakenEvent } from '../../EventBus';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -224,15 +225,18 @@ export class UnitRenderer {
                 if (knockbackShadow) knockbackShadow.visible = false;
             }
 
+            const spawnState = getSpawnRenderState(unit);
             visual.x = unit.x + renderOffsetX;
-            visual.y = unit.y + renderOffsetY + knockupYOffset;
-            visual.visible = unit.active && !unit.isSpawning();
+            visual.y = unit.y + renderOffsetY + knockupYOffset + (spawnState?.yOffset ?? 0);
+            visual.visible = unit.active && (spawnState ? spawnState.visible : true);
 
             // Grow-in animation: scale from 0 → 1 over growAnimTimer duration (nestSpawn units)
             if (unit.growAnimTimer > 0) {
                 const growProgress = 1 - unit.growAnimTimer / 0.3;
                 const eased = 1 - Math.pow(1 - Math.min(1, growProgress), 3);
                 visual.scale.set(eased);
+            } else if (spawnState) {
+                visual.scale.set(spawnState.scale);
             } else {
                 visual.scale.set(1);
             }

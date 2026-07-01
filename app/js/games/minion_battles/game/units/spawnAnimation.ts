@@ -1,20 +1,32 @@
 import type { Unit } from './Unit';
 import type { EngineContext } from '../EngineContext';
 import { Effect } from '../effects/Effect';
+import { getUnitSpawnDef } from './unit_defs/unitDef';
 
-const TOTAL_DURATION = 0.5;
-const PHASE2_START = 0.2;
+const DEFAULT_DARK_VORTEX_DURATION = 0.5;
+const PHASE2_START_FRACTION = 0.4; // fraction of duration at which phase 2 starts
 
-/** Tick the spawn animation for a spawning enemy unit, emitting particles and decrementing the timer. */
+/** Tick the spawn animation for a spawning unit, emitting particles and decrementing the timer. */
 export function tickSpawnAnimation(unit: Unit, dt: number, engine: EngineContext): void {
-    const elapsed = TOTAL_DURATION - unit.spawnTimer;
+    const spawnDef = getUnitSpawnDef(unit.characterId);
 
-    // Phase 1: spiral condensing particles (elapsed 0–0.2s)
-    if (elapsed < PHASE2_START) {
+    if (!spawnDef || spawnDef.type === 'darkVortex') {
+        tickDarkVortex(unit, dt, engine, spawnDef?.duration ?? DEFAULT_DARK_VORTEX_DURATION);
+    }
+    // burstRise: pure renderer animation — no engine-side particle effects
+
+    unit.spawnTimer = Math.max(0, unit.spawnTimer - dt);
+}
+
+function tickDarkVortex(unit: Unit, dt: number, engine: EngineContext, duration: number): void {
+    const elapsed = duration - unit.spawnTimer;
+    const prevElapsed = Math.max(0, elapsed - dt);
+    const phase2Start = duration * PHASE2_START_FRACTION;
+
+    // Phase 1: spiral condensing particles
+    if (elapsed < phase2Start) {
         const RATE = 20;
-        unit.spawnParticleAcc1 += RATE * dt;
-        const count = Math.floor(unit.spawnParticleAcc1);
-        unit.spawnParticleAcc1 -= count;
+        const count = Math.floor(elapsed * RATE) - Math.floor(prevElapsed * RATE);
         for (let i = 0; i < count; i++) {
             const angle = engine.generateRandomNumber() * 2 * Math.PI;
             const radius = 40 + engine.generateRandomNumber() * 30;
@@ -32,12 +44,12 @@ export function tickSpawnAnimation(unit: Unit, dt: number, engine: EngineContext
         }
     }
 
-    // Phase 2: dust cloud burst (elapsed 0.2–0.5s)
-    if (elapsed >= PHASE2_START) {
+    // Phase 2: dust cloud burst
+    if (elapsed >= phase2Start) {
         const RATE = 15;
-        unit.spawnParticleAcc2 += RATE * dt;
-        const count = Math.floor(unit.spawnParticleAcc2);
-        unit.spawnParticleAcc2 -= count;
+        const phase2Elapsed = elapsed - phase2Start;
+        const phase2PrevElapsed = Math.max(0, prevElapsed - phase2Start);
+        const count = Math.floor(phase2Elapsed * RATE) - Math.floor(phase2PrevElapsed * RATE);
         for (let i = 0; i < count; i++) {
             const angle = engine.generateRandomNumber() * 2 * Math.PI;
             const speed = 50 + engine.generateRandomNumber() * 60;
@@ -56,6 +68,4 @@ export function tickSpawnAnimation(unit: Unit, dt: number, engine: EngineContext
             }));
         }
     }
-
-    unit.spawnTimer = Math.max(0, unit.spawnTimer - dt);
 }

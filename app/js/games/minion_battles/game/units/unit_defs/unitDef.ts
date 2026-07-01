@@ -21,6 +21,14 @@ import { UnitTag } from '../unitTag';
 import type { EnrageDef } from '../enrageDef';
 
 /**
+ * Defines the spawn animation played when a unit of this type enters the field via darknessSpawn.
+ * Duration drives spawnTimer; all other animation parameters live here, not on Unit.
+ */
+export type SpawnDefinition =
+    | { type: 'darkVortex'; duration: number }
+    | { type: 'burstRise'; duration: number; riseHeight?: number };
+
+/**
  * Non-visual behaviors executed when a unit of this type dies.
  * These are one-off, hardcoded entries for lanternites only — not a generic pattern.
  * Do not model new death behaviours after this.
@@ -145,6 +153,8 @@ export interface UnitDefEntry {
     /** Z-index-like shove priority. A unit can enter cells occupied by units with strictly lower priority,
      *  displacing them reactively. undefined = cannot shove. */
     shovePriority?: number;
+    /** Spawn animation played when this unit enters via darknessSpawn. Absent = default dark vortex (0.5 s). */
+    spawnDef?: SpawnDefinition;
 }
 
 const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
@@ -279,6 +289,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         onDeathVisualEffects: darkCreatureIconFlashVFX(4),
         uiDescription: 'Fast skittering biter — snaps twice per round.',
         maxPerTile: 3,
+        spawnDef: { type: 'burstRise', duration: 0.6, riseHeight: 24 },
     },
     lanternite: {
         bodyColor: 0x34d399,
@@ -645,6 +656,11 @@ export function getUnitMaxPerTile(characterId: string): number | undefined {
 /** Shove priority for the unit. undefined = cannot shove other units. */
 export function getUnitShovePriority(characterId: string): number | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.shovePriority;
+}
+
+/** Spawn animation definition for a character (undefined = use default dark vortex 0.5 s). */
+export function getUnitSpawnDef(characterId: string): SpawnDefinition | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.spawnDef;
 }
 
 /**

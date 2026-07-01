@@ -66,7 +66,7 @@ import type { EffectEmitter } from './effects/EffectEmitter';
 import { registerLateBuiltinHandlers } from '../worldModifiers/builtinHandlers';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
-import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, type UnitDefId } from './units/unit_defs/unitDef';
+import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, type UnitDefId } from './units/unit_defs/unitDef';
 import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
 import { NinjutsuManager, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
@@ -307,7 +307,8 @@ export class GameEngine implements EngineContext {
 
     addUnit(unit: Unit, spawnSource: SpawnSource = 'darknessSpawn'): void {
         if (!unit.isPlayerControlled() && spawnSource === 'darknessSpawn') {
-            unit.spawnTimer = 0.5;
+            const spawnDef = getUnitSpawnDef(unit.characterId);
+            unit.spawnTimer = spawnDef?.duration ?? 0.5;
         }
         if (spawnSource === 'nestSpawn') {
             unit.growAnimTimer = 0.3;
