@@ -6,6 +6,7 @@ import { getItemDef } from '../../../character_defs/items';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import { getAbilityUseConfig } from '../../../abilities/abilityUses';
+import { mergeBattleEquipmentIdsFromResearch, getDirectCardsFromResearch, getCardReplacementsFromResearch } from '../../../../../researchTrees/evaluator';
 import type { UnitAbilityRuntimeState } from '../../../game/units/Unit';
 import AbilitySlot from '../../components/AbilitySlot';
 import AbilityTooltip from '../../components/AbilityTooltip';
@@ -60,20 +61,28 @@ export function CharacterOverview({
     const displayName = character.name || (portrait?.name ?? 'Character');
 
     const abilityCards = useMemo((): AbilityStatic[] => {
-        const cardIds: string[] = [];
-        const seen = new Set<string>();
-        for (const itemId of character.equipment) {
+        const merged = mergeBattleEquipmentIdsFromResearch(character.equipment, character.researchTrees);
+        const equippedIds = [...merged.equipmentIds, ...merged.extraEquippedItemIds];
+        const abilities: string[] = [];
+        for (const itemId of equippedIds) {
             const item = getItemDef(itemId);
             if (!item) continue;
             for (const cardId of item.cardsToAdd) {
-                if (!seen.has(cardId)) {
-                    seen.add(cardId);
-                    cardIds.push(cardId);
-                }
+                if (!abilities.includes(cardId)) abilities.push(cardId);
             }
         }
-        return cardIds.map((id) => getAbility(id)).filter((a): a is AbilityStatic => a != null);
-    }, [character.equipment]);
+        for (const cardId of getDirectCardsFromResearch(character.researchTrees)) {
+            if (!abilities.includes(cardId)) abilities.push(cardId);
+        }
+        const replacements = getCardReplacementsFromResearch(character.researchTrees);
+        if (replacements.size > 0) {
+            for (let i = 0; i < abilities.length; i++) {
+                const r = replacements.get(abilities[i]!);
+                if (r) abilities[i] = r;
+            }
+        }
+        return abilities.map((id) => getAbility(id)).filter((a): a is AbilityStatic => a != null);
+    }, [character.equipment, character.researchTrees]);
 
     const [hoveredCard, setHoveredCard] = useState<{ ability: AbilityStatic; rect: DOMRect } | null>(null);
     const handleCardHover = useCallback((ability: AbilityStatic | null, rect: DOMRect | null) => {
