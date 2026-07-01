@@ -7,6 +7,7 @@
 
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { computeDamageNumberWorldPosition, type DamageNumberMotionData } from './damageNumberMotion';
+import type { EffectProperties } from './effectProperties';
 
 export class Effect extends GameObject {
     /** Total duration in seconds. */
@@ -19,6 +20,8 @@ export class Effect extends GameObject {
     effectType: string;
     /** Optional radius for size-dependent effects (e.g. bite). */
     effectRadius?: number;
+    /** Typed per-instance visual properties; read by the effect def for rendering. */
+    effectProperties?: EffectProperties;
     /** When set, effect travels from (startX, startY) to (endX, endY) over its duration. */
     private startX?: number;
     private endX: number;
@@ -38,6 +41,8 @@ export class Effect extends GameObject {
         startY?: number;
         /** Optional radius for size-dependent effects (e.g. bite). */
         effectRadius?: number;
+        /** Typed per-instance visual properties; read by the effect def for rendering. */
+        effectProperties?: EffectProperties;
         /** Optional payload for effect-type-specific state. */
         effectData?: Record<string, unknown>;
         /** Optional delay before effect starts. */
@@ -48,6 +53,7 @@ export class Effect extends GameObject {
         this.delay = config.delay;
         this.effectType = config.effectType;
         this.effectRadius = config.effectRadius;
+        if (config.effectProperties) this.effectProperties = config.effectProperties;
         this.endX = config.x;
         this.endY = config.y;
         this.startX = config.startX;

@@ -71,6 +71,13 @@ export const LightBlastAbility = defineAbility({
             end: PREFIRE_TIME + 0.05,
             abilityPhase: AbilityPhase.Active,
             targetDef: { kind: 'select', label: 'Target', hitbox: nullHitbox, filter: 'any', allowMiss: true },
+            onProjectileHit: [{
+                type: 'effect',
+                effectType: 'Explosion',
+                effectProperties: { radius: LIGHT_BLAST_RADIUS, color: 0xffe066, direction: 'expand' },
+                duration: 0.35,
+                position: 'target',
+            }],
             behaviour: CastBehaviours.Instant((ctx) => {
                 const pos = ctx.target.position ?? { x: ctx.caster.x, y: ctx.caster.y };
                 const eng = ctx.engine as EngineWithLight;

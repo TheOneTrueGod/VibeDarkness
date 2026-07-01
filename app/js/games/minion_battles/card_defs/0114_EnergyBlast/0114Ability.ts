@@ -114,7 +114,8 @@ export const EnergyBlastAbility: AbilityStatic = {
                 effects: [
                     {
                         type: 'triggerAoEExplosion',
-                        effectType: 'EnergyBlastExplosion',
+                        effectType: 'Explosion',
+                        effectProperties: { color: 0x8be9ff, direction: 'contract' },
                         effectRadius: EXPLOSION_RADIUS,
                         damage: EXPLOSION_DAMAGE,
                         maxTargets: MAX_EXPLOSION_TARGETS,

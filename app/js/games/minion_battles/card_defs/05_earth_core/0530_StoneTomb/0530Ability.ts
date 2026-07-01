@@ -70,8 +70,9 @@ export const StoneTomb = defineAbility({
             x: projectile.x,
             y: projectile.y,
             duration: 0.2,
-            effectType: 'ChargedRockExplosion',
+            effectType: 'Explosion',
             effectRadius: IMPACT_RADIUS,
+            effectProperties: { color: 0x27d3c8, direction: 'contract' },
         }));
 
         for (const unit of eng.units) {

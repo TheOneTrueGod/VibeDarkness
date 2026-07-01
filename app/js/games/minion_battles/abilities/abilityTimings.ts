@@ -11,6 +11,7 @@ import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
 import type { ResolvedTarget } from '../game/types';
 import type { VisualEffectDef } from '../game/effects/visualEffectDef';
+import type { EffectProperties } from '../game/effects/effectProperties';
 
 /** Phase of an ability's execution (for segment coloring). */
 export enum AbilityPhase {
@@ -62,6 +63,8 @@ type EmitterDefShared = {
      * Overrides `effectType` and merges with any explicit `effectData`.
      */
     spriteEffectId?: string;
+    /** Typed per-instance visual properties forwarded to Effects spawned by this emitter. */
+    effectProperties?: EffectProperties;
     /**
      * Declarative visual effects applied via `applyVisualEffectDefs` when this timing
      * window opens. Evaluated once at window-entry time (not per-tick).
@@ -181,6 +184,14 @@ export interface AbilityTimingInterval {
      * Does NOT trigger coop cancel. Compatible with checkpoints.
      */
     conditionalCancel?: ConditionalCancelDef;
+    /**
+     * Visual effects spawned at the target position when this timing's hit resolves.
+     * - Projectile abilities: fires when the projectile reaches its target (via ProjectileLaunchBehaviour).
+     * - Instant abilities: fires at the first tick of this timing window.
+     *
+     * Only place this on Active intervals. applyCoopTailSplit does NOT preserve this field.
+     */
+    onProjectileHit?: VisualEffectDef[];
 }
 
 export type AbilityTimingEntry = AbilityTiming | AbilityTimingInterval;

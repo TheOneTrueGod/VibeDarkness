@@ -13,7 +13,7 @@ import type { IEffectDef, IEffectRenderContext } from './types';
 import { punchEffectDef, biteEffectDef, slashingSwordEffectDef, coneFlashEffectDef } from './impactEffects';
 import { bulletTrailEffectDef, slashTrailEffectDef } from './trailEffects';
 import { afterimageEffectDef, stackGhostEffectDef } from './movementEffects';
-import { chargedRockExplosionEffectDef, energyBlastExplosionEffectDef } from './explosionEffects';
+import { explosionEffectDef } from './explosionEffects';
 import { chargeUpEffectDef } from './chargeEffects';
 import { pulseEffectDef, howlShockwaveEffectDef, critShockwaveEffectDef, enrageBurstEffectDef } from './aoeEffects';
 import {
@@ -65,8 +65,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     BulletTrail: bulletTrailEffectDef,
     SlashingSword: slashingSwordEffectDef,
     SlashTrail: slashTrailEffectDef,
-    ChargedRockExplosion: chargedRockExplosionEffectDef,
-    EnergyBlastExplosion: energyBlastExplosionEffectDef,
+    Explosion: explosionEffectDef,
     DamageNumber: damageNumberEffectDef,
     FloatingText: floatingTextEffectDef,
     LanterniteConstParticle: lanterniteConstParticleEffectDef,

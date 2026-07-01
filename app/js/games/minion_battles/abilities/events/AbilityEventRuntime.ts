@@ -303,6 +303,7 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
                 effectType: resolvedEffectType,
                 effectRadius,
                 effectData: resolvedEffectData,
+                effectProperties: effect.effectProperties,
             }));
             const allUnits = context.engine.units ?? [];
             const hits = allUnits

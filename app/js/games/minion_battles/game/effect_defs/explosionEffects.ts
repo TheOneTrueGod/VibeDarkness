@@ -1,34 +1,36 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Effect } from '../effects/Effect';
+import type { ExplosionEffectProperties } from '../effects/effectProperties';
 import type { IEffectDef, IEffectRenderContext } from './types';
 
-/** Charged rock explosion: solid teal circle that shrinks to 50% size over lifetime. */
-export const chargedRockExplosionEffectDef: IEffectDef = {
+export const explosionEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
         return new Graphics();
     },
     updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
         const g = visual as Graphics;
         g.clear();
-        const startRadius = effect.effectRadius ?? 50;
-        const scale = 1 - effect.progress * 0.5;
-        const radius = Math.max(1, startRadius * scale);
-        const alpha = Math.max(0.2, 0.85 * (1 - effect.progress));
-        g.circle(0, 0, radius);
-        g.fill({ color: 0x27d3c8, alpha });
-    },
-};
+        const p = effect.progress;
+        const props = (effect.effectProperties ?? {}) as ExplosionEffectProperties;
+        const base = props.radius ?? effect.effectRadius ?? 50;
+        const color = props.color ?? 0x8be9ff;
 
-/** Energy blast explosion: light blue circle that shrinks to 50% size over lifetime. */
-export const energyBlastExplosionEffectDef: IEffectDef = {
-    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics { return new Graphics(); },
-    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
-        const g = visual as Graphics;
-        g.clear();
-        const startRadius = effect.effectRadius ?? 40;
-        const radius = Math.max(1, startRadius * (1 - effect.progress * 0.5));
-        const alpha = Math.max(0.2, 0.85 * (1 - effect.progress));
-        g.circle(0, 0, radius);
-        g.fill({ color: 0x8be9ff, alpha });
+        if (props.direction === 'expand') {
+            const discR = base * 1.2 * p;
+            if (discR > 0) {
+                g.circle(0, 0, discR);
+                g.fill({ color: 0xffffff, alpha: Math.max(0, 0.75 * (1 - p)) });
+            }
+            g.circle(0, 0, base * (0.4 + p * 1.2));
+            g.stroke({ color, width: 3, alpha: Math.max(0, 0.85 * (1 - p)) });
+            if (p > 0.18) {
+                const p2 = (p - 0.18) / 0.82;
+                g.circle(0, 0, base * (0.4 + p2 * 0.9));
+                g.stroke({ color: 0xff9900, width: 2, alpha: Math.max(0, 0.7 * (1 - p2)) });
+            }
+        } else {
+            g.circle(0, 0, Math.max(1, base * (1 - p * 0.5)));
+            g.fill({ color, alpha: Math.max(0.2, 0.85 * (1 - p)) });
+        }
     },
 };

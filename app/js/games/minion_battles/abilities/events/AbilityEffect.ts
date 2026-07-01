@@ -1,4 +1,5 @@
 import type { RecoveryChargeType } from '../abilityUses';
+import type { ExplosionEffectProperties } from '../../game/effects/effectProperties';
 
 /**
  * Declarative effect variants for ability event rules.
@@ -67,6 +68,8 @@ export type AbilityEffect =
         knockbackTier?: number;
         /** Duration of the spawned VFX effect in seconds. Default: 0.25. */
         effectDuration?: number;
+        /** Typed visual properties forwarded to the spawned explosion Effect. */
+        effectProperties?: ExplosionEffectProperties;
     }
     | AbilityCustomEffect;
 

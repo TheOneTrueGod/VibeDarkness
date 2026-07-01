@@ -34,8 +34,9 @@ const TIMINGS: AbilityTimingInterval[] = [
         emitterDef: {
             mode: 'interval',
             intervalSeconds: PULSE_INTERVAL,
-            effectType: 'ChargedRockExplosion',
+            effectType: 'Explosion',
             effectRadius: RADIUS,
+            effectProperties: { color: 0x27d3c8, direction: 'contract' },
             fireImmediately: true,
         },
     },

@@ -1,4 +1,5 @@
 import type { EffectImageKey } from '../effectImages';
+import type { EffectProperties } from './effectProperties';
 
 /** Spawns N particles in a radial ring. Maps to existing `particleBurst` death effect. */
 export interface ParticleRingVFXDef {
@@ -18,6 +19,8 @@ export interface DirectEffectVFXDef {
     type: 'effect';
     effectType: string;
     effectData?: Record<string, unknown>;
+    /** Typed visual properties passed through to the spawned Effect. */
+    effectProperties?: EffectProperties;
     duration: number;
     offsetX?: number;
     offsetY?: number;

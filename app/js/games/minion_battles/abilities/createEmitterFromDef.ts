@@ -63,6 +63,7 @@ export function createEmitterFromDef(
                         duration: def.effectDuration ?? 1,
                         effectType,
                         effectData: { ...effectData },
+                        effectProperties: def.effectProperties,
                     }));
                 }
                 return effects;
@@ -87,6 +88,7 @@ export function createEmitterFromDef(
                     effectType,
                     effectRadius: def.effectRadius,
                     effectData: { ...effectData },
+                    effectProperties: def.effectProperties,
                 }),
             ],
         });
@@ -108,6 +110,7 @@ export function createEmitterFromDef(
                 duration: def.effectDuration ?? 1,
                 effectType,
                 effectData: { ...effectData },
+                effectProperties: def.effectProperties,
             }),
         ],
     });

@@ -198,8 +198,9 @@ export const ThrowChargedRock: AbilityStatic = {
                 x: proj.x,
                 y: proj.y,
                 duration: 0.25,
-                effectType: 'ChargedRockExplosion',
+                effectType: 'Explosion',
                 effectRadius: explosionRadius,
+                effectProperties: { color: 0x27d3c8, direction: 'contract' },
             }),
         );
 

@@ -22,6 +22,9 @@ import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { ProjectileModifierId } from './ProjectileTravelModifiers';
 import { shouldCountTraversalDistance } from './ProjectileTravelModifiers';
 import type { SpriteProjectileConfig } from './projectile_defs';
+import type { VisualEffectDef } from '../effects/visualEffectDef';
+import type { EngineContext } from '../EngineContext';
+import { applyVisualEffectDefs } from '../effects/applyVisualEffectDefs';
 
 const THROW_KNIFE_ABILITY_ID = 'throw_knife';
 
@@ -44,6 +47,8 @@ export class Projectile extends GameObject {
     spriteConfig?: SpriteProjectileConfig;
     /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
     modifiers: ProjectileModifierId[];
+    /** Runtime-only: visual effects fired when the projectile reaches its target. Not serialized. */
+    onHitEffects?: VisualEffectDef[];
 
     /**
      * When true, does not collide with units; travels until max distance then expires
@@ -316,6 +321,20 @@ export class Projectile extends GameObject {
         if (!caster) return;
         const ability = getAbility(this.sourceAbilityId);
         ability?.onProjectileExpired?.(engine, caster, this, hitUnitId);
+        if (this.onHitEffects?.length) {
+            const hitUnit = hitUnitId
+                ? (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(hitUnitId)
+                : undefined;
+            const impactTarget = hitUnit
+                ? { x: hitUnit.x, y: hitUnit.y, radius: hitUnit.radius }
+                : { x: this.x, y: this.y, radius: 0 };
+            applyVisualEffectDefs(
+                this.onHitEffects,
+                { x: caster.x, y: caster.y, radius: caster.radius, characterId: '' },
+                engine as EngineContext,
+                { target: impactTarget },
+            );
+        }
     }
 
     private calculateDistanceContribution(

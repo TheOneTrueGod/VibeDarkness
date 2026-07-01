@@ -479,6 +479,10 @@ export class Unit extends GameObject {
         active: ActiveAbility;
         /** targetDef from the parent timing interval, for resolving targetsByLabel. */
         targetDef?: import('../../abilities/timingTargetDef').TimingTargetDef;
+        /** Visual effects to fire at the first tick for instant abilities that don't launch a projectile. */
+        onProjectileHit?: import('../effects/visualEffectDef').VisualEffectDef[];
+        /** When true, fire onProjectileHit at the first sustained tick (instant abilities). */
+        fireOnHitAtFirstTick?: boolean;
     }> = new Map();
 
     constructor(config: {

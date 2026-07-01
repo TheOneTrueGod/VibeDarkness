@@ -19,8 +19,8 @@ const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];
-const MAX_RANGE = 30; // px
-const LINE_THICKNESS = 20; // px
+const MAX_RANGE = 36; // px
+const LINE_THICKNESS = 22; // px
 const BASE_DAMAGE = 8;
 // ~30% medium bonus on top of base = 12
 const BONUS_DAMAGE = 12;

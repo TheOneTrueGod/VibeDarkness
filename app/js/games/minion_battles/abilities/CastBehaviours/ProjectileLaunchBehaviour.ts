@@ -24,6 +24,7 @@ function resolveLaunchTarget(ctx: CastBehaviourSetupContext): { x: number; y: nu
  * impact / AoE effects at max range or on hit.
  */
 export class ProjectileLaunchBehaviour implements CastBehaviour {
+    readonly handlesOnProjectileHit = true as const;
     private speed: number = 400;
     private radius: number = 5;
     private projectileType: string = 'default';
@@ -123,6 +124,9 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             modifiers: this.modifiers.length > 0 ? this.modifiers : undefined,
         });
         projectile.radius = this.radius;
+        if (ctx.onProjectileHit?.length) {
+            projectile.onHitEffects = ctx.onProjectileHit;
+        }
         engine.addProjectile(projectile);
     }
 }

@@ -161,6 +161,7 @@ export function tickUnitActiveAbilities(
                     behaviourPayload: active.castBehaviourPayloads[behaviourKey],
                     setBehaviourPayload: (data) => { active.castBehaviourPayloads![behaviourKey] = data; },
                     engine,
+                    onProjectileHit: interval.onProjectileHit,
                 };
                 if (!active.setupFiredBehaviourKeys) active.setupFiredBehaviourKeys = new Set();
                 if (!active.setupFiredBehaviourKeys.has(behaviourKey)) {
@@ -176,6 +177,8 @@ export function tickUnitActiveAbilities(
                         caster: unit,
                         active,
                         targetDef: interval.targetDef,
+                        onProjectileHit: interval.onProjectileHit,
+                        fireOnHitAtFirstTick: !entry.behaviour.handlesOnProjectileHit && (interval.onProjectileHit?.length ?? 0) > 0,
                     });
                 } else {
                     const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
@@ -410,6 +413,22 @@ export function tickUnitActiveAbilities(
                 isLastTick: false,
             };
             rec.entry.behaviour.onTick?.(tickCtx);
+            if (rec.fireOnHitAtFirstTick && tickCtx.isFirstTick && rec.onProjectileHit?.length) {
+                const primaryTarget = active.targets[0];
+                const contextTargetUnit =
+                    primaryTarget?.type === 'unit' ? engine.getUnit(primaryTarget.unitId!) : undefined;
+                const contextTarget: { x: number; y: number; radius: number } | undefined =
+                    contextTargetUnit ??
+                    (primaryTarget?.type === 'pixel' && primaryTarget.position
+                        ? { x: primaryTarget.position.x, y: primaryTarget.position.y, radius: 0 }
+                        : undefined);
+                applyVisualEffectDefs(
+                    rec.onProjectileHit,
+                    unit,
+                    engine,
+                    contextTarget ? { target: contextTarget } : undefined,
+                );
+            }
         }
 
         // Windup lunge: physically advance caster toward lunge target during the windup phase.

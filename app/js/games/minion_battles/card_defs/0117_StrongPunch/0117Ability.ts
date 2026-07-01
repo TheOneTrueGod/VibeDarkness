@@ -16,8 +16,8 @@ const MAX_USES = 4;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
-const MAX_RANGE = 30; // px
-const LINE_THICKNESS = 20; // px
+const MAX_RANGE = 36; // px
+const LINE_THICKNESS = 24; // px
 // 8 base + ~20% small bonus = 10
 const PUNCH_DAMAGE = 10;
 const STUN_DURATION = 1.2; // seconds

@@ -1,6 +1,7 @@
 import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
 import type { AbilityEngineContext } from './AbilityEngineContext';
+import type { VisualEffectDef } from '../game/effects/visualEffectDef';
 
 // ---- Timing refs ----
 export type BehaviourTimingRef = 'start' | 'end' | `${number}%` | number;
@@ -47,6 +48,8 @@ export interface CastBehaviourBaseContext {
 
 export interface CastBehaviourSetupContext extends CastBehaviourBaseContext {
     engine: AbilityEngineContext;
+    /** Visual effects to fire at the hit moment for this timing window. Set by unitAbilityTick from interval.onProjectileHit. */
+    onProjectileHit?: VisualEffectDef[];
 }
 
 export interface CastBehaviourTickContext extends CastBehaviourBaseContext {
@@ -70,6 +73,11 @@ export interface CastBehaviourRenderContext extends CastBehaviourBaseContext {
 
 // ---- Behaviour interface ----
 export interface CastBehaviour {
+    /**
+     * When true, this behaviour reads ctx.onProjectileHit in onSetup and forwards it to the
+     * projectile. unitAbilityTick will NOT fire onProjectileHit at the first tick of the window.
+     */
+    readonly handlesOnProjectileHit?: true;
     onSetup?(context: CastBehaviourSetupContext): void;
     onTick?(context: CastBehaviourTickContext): void;
     onInterrupt?(context: CastBehaviourInterruptContext): void;
