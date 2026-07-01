@@ -19,6 +19,31 @@ function accountKnowledgeKeys(requirements: Requirement[]): string[] {
 	return keys;
 }
 
+function crossTreeResearchBadges(
+	node: ResearchNodeDef,
+	currentTreeId: string,
+	allTrees: ResearchTreeDef[],
+	researchedByTreeId: Record<string, Set<string>>,
+): ResearchRequirementBadge[] {
+	const badges: ResearchRequirementBadge[] = [];
+	for (const req of node.requirements) {
+		if (req.type !== 'anyResearched' || req.treeId === currentTreeId) continue;
+		const otherTree = allTrees.find((t) => t.id === req.treeId);
+		const nodeLabels = req.nodeIds.map((id) => otherTree?.nodes.find((n) => n.id === id)?.title ?? id);
+		const label = nodeLabels.join(' / ');
+		const researchedInTree = researchedByTreeId[req.treeId] ?? new Set<string>();
+		const satisfied = req.nodeIds.some((id) => researchedInTree.has(id));
+		badges.push({
+			id: `${node.id}-cross-${req.treeId}-${req.nodeIds.join('-')}`,
+			label,
+			type: 'knowledge',
+			satisfied,
+			title: `Requires (${otherTree?.title ?? req.treeId}): ${label}${satisfied ? ' (met)' : ''}`,
+		});
+	}
+	return badges;
+}
+
 function equippedItemRequirementLabels(requirements: Requirement[]): { itemId: string; label: string }[] {
 	const out: { itemId: string; label: string }[] = [];
 	for (const r of requirements) {
@@ -379,6 +404,7 @@ export function ResearchTreeContent({
 										title: `Equipped: ${label} (${itemId})${satisfied ? ' (met)' : ' (required)'}`,
 									};
 								}),
+								...crossTreeResearchBadges(n, tree.id, allTrees, researchedByTreeId),
 							];
 							return (
 								<div

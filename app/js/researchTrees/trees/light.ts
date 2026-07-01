@@ -14,11 +14,11 @@ export const lightTree: ResearchTreeDef = {
         {
             id: LIGHT_NODE_CORE,
             title: 'Light Core',
-            description: 'Your torch becomes a weapon of light. Replace Throw Torch with Light Blast.',
+            description: 'Channel the power of light into a blast of energy.',
             flavorText: 'Light does not ask permission to fill the dark.',
             order: 5,
             tier: 1,
-            position: { x: 120, y: 290 },
+            position: { x: 180, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
             requirements: [
@@ -32,10 +32,10 @@ export const lightTree: ResearchTreeDef = {
         {
             id: LIGHT_NODE_IMBUEMENT,
             title: 'Light Imbuement',
-            description: 'Channel your Light into the physical. Gain Light Imbuement — charge to power up your next Swing Bat into an Imbued Bat that deals bonus light damage.',
+            description: 'Learn to infuse your bat with light, exploding when you next strike your target.',
             order: 10,
             tier: 2,
-            position: { x: 300, y: 290 },
+            position: { x: 420, y: 290 },
             prereqNodeIds: [LIGHT_NODE_CORE],
             exclusiveWithNodeIds: [],
             requirements: [

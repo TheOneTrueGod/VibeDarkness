@@ -118,7 +118,9 @@ export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: Rese
     if (!node) return { ok: false, missing: ['unknown_node'] };
 
     const researchedForTree = getResearchedSet(ctx.character, tree.id);
-    const researched: Record<string, Set<string>> = { [tree.id]: researchedForTree };
+    const researched: Record<string, Set<string>> = Object.fromEntries(
+        Object.entries(ctx.character.researchTrees ?? {}).map(([tid, ids]) => [tid, new Set(ids)]),
+    );
 
     const closureIds = prereqClosure(tree, nodeId);
     const closureNodes = closureIds.map((id) => byId[id]).filter(Boolean) as ResearchNodeDef[];
