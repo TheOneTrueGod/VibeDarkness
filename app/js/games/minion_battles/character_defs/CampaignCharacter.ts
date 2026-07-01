@@ -5,6 +5,9 @@
 
 import type { CampaignCharacterData, CharacterDisallowReason } from './campaignCharacterTypes';
 import type { MissionResult } from '../../../types';
+import { getItemDef } from './items';
+import { LIGHT_TREE_ID, LIGHT_NODE_CORE } from '../../../researchTrees/trees/light';
+import { coreLightItem } from './items/core/017_core_light';
 
 export interface MissionTraitFilter {
     allowedTraits?: string[];
@@ -16,6 +19,22 @@ export interface MissionTraitFilter {
  */
 export function fromCampaignCharacterData(data: CampaignCharacterData): CampaignCharacter {
     return new CampaignCharacter(data);
+}
+
+/**
+ * The Light Core item briefly shared id '008' with the SMG, so characters who
+ * researched the Light Core node were saved with an SMG and no core equipped.
+ * Rewrites that saved '008' to the Light Core's current id.
+ */
+function migrateLightCoreEquipment(
+    equipment: string[],
+    researchTrees: Record<string, string[]>,
+): string[] {
+    const researchedLightCore = (researchTrees[LIGHT_TREE_ID] ?? []).includes(LIGHT_NODE_CORE);
+    if (!researchedLightCore || !equipment.includes('008')) return equipment;
+    const hasCore = equipment.some((id) => getItemDef(id)?.slots.includes('core'));
+    if (hasCore) return equipment;
+    return equipment.map((id) => (id === '008' ? coreLightItem.id : id));
 }
 
 export class CampaignCharacter {
@@ -39,7 +58,12 @@ export class CampaignCharacter {
         this.id = data.id;
         this.ownerAccountId = data.ownerAccountId;
         this.name = typeof data.name === 'string' && data.name !== '' ? data.name : 'Adventurer';
-        this.equipment = Array.isArray(data.equipment) ? [...data.equipment] : [];
+        const rawEquipment = Array.isArray(data.equipment) ? [...data.equipment] : [];
+        const rawResearchTrees =
+            data.researchTrees && typeof data.researchTrees === 'object'
+                ? (data.researchTrees as Record<string, string[]>)
+                : {};
+        this.equipment = migrateLightCoreEquipment(rawEquipment, rawResearchTrees);
         this.knowledge =
             data.knowledge && typeof data.knowledge === 'object' ? { ...data.knowledge } : {};
         this.traits = Array.isArray(data.traits) ? [...data.traits] : [];
@@ -50,8 +74,7 @@ export class CampaignCharacter {
                 : {};
         this.campaignId = typeof data.campaignId === 'string' ? data.campaignId : '';
         this.missionId = typeof data.missionId === 'string' ? data.missionId : '';
-        this.researchTrees =
-            data.researchTrees && typeof data.researchTrees === 'object' ? (data.researchTrees as Record<string, string[]>) : {};
+        this.researchTrees = rawResearchTrees;
         this.lastUsed =
             typeof data.lastUsed === 'number' && Number.isFinite(data.lastUsed) && data.lastUsed > 0
                 ? Math.floor(data.lastUsed)

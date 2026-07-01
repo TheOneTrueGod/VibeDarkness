@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { PlayerState } from '../../../../../types';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import { SPECTATOR_ID, CONTROL_ENEMY_ALPHA_WOLF } from '../../../state';
@@ -47,6 +47,13 @@ export function CharacterGrid({
     onOpenCreator,
     setCreateCardRef,
 }: CharacterGridProps) {
+    // Show the local player's current selection as an ordinary, unselected card so it
+    // can always be picked again — even when it's their only character.
+    const otherPlayerSelections = useMemo(() => {
+        const { [playerId]: _mine, ...rest } = characterSelections;
+        return rest;
+    }, [characterSelections, playerId]);
+
     return (
         <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
             <div className="grid grid-cols-[repeat(auto-fill,200px)] justify-center gap-6">
@@ -64,9 +71,8 @@ export function CharacterGrid({
                                 campaignId={campaignId}
                                 missionId={missionId}
                                 missionTraitFilter={missionTraitFilter}
-                                isMySelection={mySelection === lockedChar.id}
                                 isLocked
-                                playerSelections={characterSelections}
+                                playerSelections={otherPlayerSelections}
                                 players={players}
                                 onSelect={onSelect}
                                 onDelete={onDelete}
@@ -81,8 +87,7 @@ export function CharacterGrid({
                             campaignId={campaignId}
                             missionId={missionId}
                             missionTraitFilter={missionTraitFilter}
-                            isMySelection={mySelection === char.id}
-                            playerSelections={characterSelections}
+                            playerSelections={otherPlayerSelections}
                             players={players}
                             onSelect={onSelect}
                             onDelete={onDelete}

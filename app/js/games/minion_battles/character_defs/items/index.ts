@@ -14,7 +14,7 @@ import { throwingKnivesItem } from './hands/016_throwing_knives';
 import { pipeBatItem } from './hands/021_pipe_bat';
 import { coreBasicItem } from './core/004_core_basic';
 import { coreWeaponsItem } from './core/006_core_weapons';
-import { coreLightItem } from './core/008_core_light';
+import { coreLightItem } from './core/017_core_light';
 import { throwTorchUtilityItem } from './utility/005_throw_torch';
 import { pistolItem } from './weapons/007_pistol';
 import { smgItem } from './weapons/008_smg';
@@ -30,7 +30,7 @@ import throwingCrystalShieldIcon from './assets/012_throwing_crystal_shield.svg'
 import chargedRocksIcon from './assets/013_charged_rocks.svg';
 import throwingKnivesIcon from './assets/016_throwing_knives.svg';
 import coreBasicIcon from './assets/004_core_basic.svg';
-import coreLightIcon from './assets/008_core_light.svg';
+import coreLightIcon from './assets/017_core_light.svg';
 import throwTorchIcon from './assets/005_throw_torch.svg';
 import coreWeaponsIcon from './assets/006_core_weapons.svg';
 import pistolIcon from './assets/007_pistol.svg';
