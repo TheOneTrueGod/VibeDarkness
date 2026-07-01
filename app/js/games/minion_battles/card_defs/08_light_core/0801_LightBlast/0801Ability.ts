@@ -53,7 +53,7 @@ export const LightBlastAbility = defineAbility({
     id: CARD_ID,
     name: 'Light Blast',
     image: LIGHT_BLAST_IMAGE,
-    resourceCost: null,
+    resourceCost: { resourceId: 'light', amount: 2 },
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],

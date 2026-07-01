@@ -8,6 +8,7 @@
 
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
+import type { EngineContext } from '../game/EngineContext';
 
 /** Minimal shape needed to render a resource bar. The full Resource class satisfies this. */
 export interface ResourceDisplay {
@@ -75,6 +76,9 @@ export abstract class Resource {
         this.unsubscribe(eventBus);
         this.unitId = null;
     }
+
+    /** Called each round; override for engine-context-dependent recovery (e.g. tile-based gain). */
+    onRoundStart?(unit: Unit, engine: EngineContext): void;
 
     /** Subclasses add their event subscriptions here. */
     protected abstract subscribe(unit: Unit, eventBus: EventBus): void;

@@ -1,24 +1,11 @@
 /**
- * ResourceCostIcon — circular icon badge for displaying a resource cost on ability cards.
- * Style matches the ChargeIcon "recovery pip" pattern: circular border, solid background,
- * icon in the resource's primary colour. If amount > 1, a count circle appears below.
+ * ResourceCostIcon — shows the cost of an ability in resource tokens.
+ *
+ * Renders `amount` overlapping ResourceIcon discs, right-to-left stacking
+ * so the first disc sits on top. Used in the top-right corner of AbilitySlot cards.
  */
 
-import { Footprints, type LucideIcon } from 'lucide-react';
-
-interface ResourceCostDisplay {
-    icon: LucideIcon;
-    borderClass: string;
-    iconClass: string;
-}
-
-const RESOURCE_COST_DISPLAY: Record<string, ResourceCostDisplay> = {
-    movement_points: {
-        icon: Footprints,
-        borderClass: 'border-green-500',
-        iconClass: 'text-green-400',
-    },
-};
+import { ResourceIcon } from './ResourceIcon';
 
 interface ResourceCostIconProps {
     resourceId: string;
@@ -26,24 +13,17 @@ interface ResourceCostIconProps {
 }
 
 export function ResourceCostIcon({ resourceId, amount }: ResourceCostIconProps) {
-    const display = RESOURCE_COST_DISPLAY[resourceId];
-    if (!display) return null;
-    const { icon: Icon, borderClass, iconClass } = display;
-
+    if (amount <= 0) return null;
     return (
-        <div className="flex flex-col items-center gap-0.5">
-            <span
-                className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border bg-black ${borderClass}`}
-            >
-                <Icon className={`h-3 w-3 ${iconClass}`} strokeWidth={2} aria-hidden />
-            </span>
-            {amount > 1 && (
-                <span
-                    className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border bg-black text-[10px] font-bold ${borderClass} ${iconClass}`}
-                >
-                    {amount}
-                </span>
-            )}
+        <div className="flex">
+            {Array.from({ length: amount }).map((_, i) => (
+                <ResourceIcon
+                    key={i}
+                    resourceId={resourceId}
+                    size={22}
+                    style={{ marginLeft: i === 0 ? 0 : -8, zIndex: amount - i }}
+                />
+            ))}
         </div>
     );
 }

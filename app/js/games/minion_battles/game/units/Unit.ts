@@ -1313,6 +1313,9 @@ export class Unit extends GameObject {
             const recovery = Math.max(0, this.getMovementRecoveryPerRound() - this.getMovementSlowStacks(engine));
             movement.add(recovery);
         }
+        for (const resource of this.resources) {
+            resource.onRoundStart?.(this, engine);
+        }
         for (const abilityId of this.abilities) {
             getAbility(abilityId)?.onRoundStart?.(this, engine);
         }

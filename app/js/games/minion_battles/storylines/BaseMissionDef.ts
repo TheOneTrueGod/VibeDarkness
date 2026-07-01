@@ -42,6 +42,7 @@ import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, g
 import { getPetDef } from '../game/units/pet_defs/petDef';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { Ammo } from '../resources/Ammo';
+import { Light } from '../resources/Light';
 import { Movement } from '../resources/Movement';
 import {
     hydrateLanterniteNestFromMissionDef,
@@ -55,6 +56,18 @@ import {
 } from '../game/lanternite/thornlingNestTick';
 
 const AMMO_ABILITIES = new Set(['0105', '0112', '0203', '0204', '0205']);
+
+function attachResourcesFromEquipment(equippedIds: string[], unit: Unit, eventBus: EventBus): void {
+    const seen = new Set<string>();
+    for (const itemId of equippedIds) {
+        for (const rid of getItemDef(itemId)?.resourcesToAdd ?? []) {
+            if (seen.has(rid) || unit.getResource(rid)) continue;
+            seen.add(rid);
+            if (rid === 'light') unit.attachResource(new Light(), eventBus);
+            // Extend here as more resource-granting items are added.
+        }
+    }
+}
 
 function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
     const needsAmmo = unit.abilities.some((abilityId) => AMMO_ABILITIES.has(abilityId));
@@ -236,6 +249,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
+            attachResourcesFromEquipment(equippedIds, unit, engine.eventBus);
             unit.attachResource(new Movement(), engine.eventBus);
             engine.addUnit(unit, 'initialGameSpawn');
 

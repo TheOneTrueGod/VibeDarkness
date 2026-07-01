@@ -35,9 +35,8 @@ export function ResourceBarRow({ resource }: ResourceBarRowProps) {
             {/* Icon with current-value badge overlaid */}
             <div className="relative shrink-0">
                 <ResourceIcon
-                    name={resource.iconName}
-                    size={16}
-                    className="text-gray-400"
+                    resourceId={resource.id}
+                    size={20}
                 />
                 <span
                     className="absolute -bottom-0.5 -right-1 rounded px-0.5 text-[8px] font-bold leading-none text-white"

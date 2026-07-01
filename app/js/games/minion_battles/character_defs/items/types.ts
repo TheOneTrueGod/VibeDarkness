@@ -21,6 +21,8 @@ export interface ItemDef {
     slots: EquipmentSlotType[];
     /** Ability card IDs granted when this item is equipped. */
     cardsToAdd: string[];
+    /** Resource IDs to attach to the unit when this item is equipped. */
+    resourcesToAdd?: string[];
     /** Icon filename under character_defs/items/assets (e.g. '001_rocks.svg'). */
     icon: string;
     /** If set, this is a core item that defines how many weapon/utility slots the character has. */
