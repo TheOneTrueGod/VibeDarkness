@@ -12,6 +12,8 @@
  * Scenario F: After final target injected, engine runs final hit then pauses (not waitingForOrders).
  * Scenario G: Light Blast playahead pauses before active interval; inject damages enemy.
  * Scenario H: Committed vs preview Light Blast damage timing matches within FIXED_DT.
+ * Scenario I: Swing Bat deferred preview pauses before cast (windup lunge).
+ * Scenario J: Swing Bat preview with positional target runs windup lunge before hit interval.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -22,7 +24,13 @@ import type { Unit } from './units/Unit';
 import type { BattleOrder, ResolvedTarget } from './types';
 import {
     buildFinalizedSequentialTargetingOrder,
+    buildPositionalTargetsFromLabels,
 } from './interaction/InteractiveTargetingSession';
+import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookahead';
+import { getAbility } from '../abilities/AbilityRegistry';
+import { SwingBatCard } from '../card_defs/0115_SwingBat/0115Ability';
+import type { WindupLungePayload } from '../abilities/WindupLunge';
+import { DEFAULT_MELEE_LUNGE } from './units/unit_defs/unitConstants';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
@@ -45,6 +53,49 @@ const LIGHT_BLAST_ID = '0801';
 const LIGHT_BLAST_PREFIRE = 0.4;
 /** Matches `0801Ability` `resourceCost.amount`. */
 const LIGHT_BLAST_LIGHT_COST = 2;
+
+/** Swing Bat — matches `SwingBatCard.abilityId` in `0115Ability.ts`. */
+const SWING_BAT_ABILITY_ID = SwingBatCard.abilityId;
+/** SelectTargetDef label on Swing Bat timings. */
+const SWING_BAT_TARGET_LABEL = 'Target';
+/** Matches `0115Ability` windup interval end. */
+const SWING_BAT_WINDUP_END = 0.2;
+/** Hitbox reach before lunge extension — matches `0115Ability` `BASE_MAX_RANGE`. */
+const SWING_BAT_HITBOX_MAX_RANGE = 25;
+
+interface SwingBatFixture {
+    engine: ReturnType<typeof buildTinyBattleEngine>;
+    player: Unit;
+    aimPixel: { x: number; y: number };
+}
+
+/** Player with Swing Bat; aim point at max lunge+hitbox range east. */
+function buildSwingBatFixture(): SwingBatFixture {
+    resetGameObjectIdCounter(1);
+
+    const engine = buildTinyBattleEngine({
+        gridW: 16,
+        gridH: 10,
+        localPlayerId: TINY_BATTLE_PLAYER_ID,
+        grass: true,
+    });
+
+    const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+    const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+    const player = spawnTinyPlayerUnit(engine, {
+        playerId: TINY_BATTLE_PLAYER_ID,
+        x: playerX,
+        y: playerY,
+        abilities: [SWING_BAT_ABILITY_ID],
+    });
+
+    const aimPixel = {
+        x: playerX + SWING_BAT_HITBOX_MAX_RANGE + DEFAULT_MELEE_LUNGE,
+        y: playerY,
+    };
+
+    return { engine, player, aimPixel };
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -1094,6 +1145,74 @@ describe('interactive sequential targeting', () => {
         expect(committedElapsed).not.toBeNull();
         expect(previewElapsed).not.toBeNull();
         expect(Math.abs(committedElapsed! - previewElapsed!)).toBeLessThanOrEqual(FIXED_DT);
+    });
+
+    /**
+     * Scenario I — Swing Bat defers preview until target (windup lunge needs beginActiveCast input).
+     */
+    it('Scenario I: Swing Bat deferred preview pauses before cast with zero ticks advanced', () => {
+        const { engine, player, aimPixel: _aimPixel } = buildSwingBatFixture();
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        const ability = getAbility(SWING_BAT_ABILITY_ID);
+        expect(ability).toBeDefined();
+        expect(findPreviewDeferredSelectLabel(ability!, player, engine)).toBe(SWING_BAT_TARGET_LABEL);
+
+        const tickAtDefer = engine.gameTick;
+        engine.isSequentialTargetingPreview = true;
+        engine.signalWaitingForTarget(SWING_BAT_TARGET_LABEL, player.id, SWING_BAT_ABILITY_ID);
+        engine.isPaused = true;
+
+        expect(engine.waitingForTargetInput?.label).toBe(SWING_BAT_TARGET_LABEL);
+        expect(player.activeAbilities.some((a) => a.abilityId === SWING_BAT_ABILITY_ID)).toBe(false);
+        expect(engine.gameTick).toBe(tickAtDefer);
+
+        engine.destroy();
+    });
+
+    /**
+     * Scenario J — preview order with positional targets runs windup lunge before the hit interval.
+     */
+    it('Scenario J: Swing Bat preview with positional target advances during windup lunge', () => {
+        const { engine, player, aimPixel } = buildSwingBatFixture();
+        const startX = player.x;
+        const startY = player.y;
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        const target: ResolvedTarget = { type: 'pixel', position: aimPixel };
+        const selectLabels = [SWING_BAT_TARGET_LABEL];
+        const collectedTargets = { [SWING_BAT_TARGET_LABEL]: target };
+
+        engine.isSequentialTargetingPreview = true;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: SWING_BAT_ABILITY_ID,
+            targets: buildPositionalTargetsFromLabels(selectLabels, collectedTargets),
+            targetsByLabel: collectedTargets,
+            endTurn: true,
+        });
+
+        const castStarted = stepUntil(
+            engine,
+            () => player.activeAbilities.some((a) => a.abilityId === SWING_BAT_ABILITY_ID),
+            30,
+        );
+        expect(castStarted).toBe(true);
+
+        const active = player.activeAbilities.find((a) => a.abilityId === SWING_BAT_ABILITY_ID);
+        expect(active).toBeDefined();
+        const payload = active!.castPayload as WindupLungePayload | undefined;
+        expect(payload?.effectiveLungeDistance).toBeGreaterThan(0);
+
+        const windupTicks = Math.ceil(SWING_BAT_WINDUP_END / FIXED_DT) - 1;
+        if (windupTicks > 0) {
+            engine.stepSimulationFixedTicks(windupTicks);
+        }
+        expect(getCastElapsed(engine, player, SWING_BAT_ABILITY_ID)).toBeLessThan(SWING_BAT_WINDUP_END);
+        expect(Math.hypot(player.x - startX, player.y - startY)).toBeGreaterThan(1);
+
+        engine.destroy();
     });
 });
 

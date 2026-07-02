@@ -62,9 +62,33 @@ function findImpendingNeedForCast(
  * next fixed tick, or null when no interactive preview cast needs input.
  */
 /**
- * Returns the label of the first SelectTargetDef interval (document order) when that
- * interval starts at elapsed 0, or null when the first select fires later.
+ * Returns the label of the first SelectTargetDef when interactive preview must defer
+ * queueing the cast order until the player picks (no simulation ticks before input).
+ *
+ * Defer when:
+ * - the first select interval starts at elapsed 0 (lookahead cannot pause before cast apply), or
+ * - the ability has windup `lunge` (beginActiveCast needs a target before windup movement).
+ *
+ * Otherwise returns null and pre-tick lookahead handles the first pause.
  */
+export function findPreviewDeferredSelectLabel(
+    ability: AbilityStatic,
+    unit: Unit,
+    engine: EngineContext,
+): string | null {
+    const intervals = normalizeAbilityTimingsToIntervals(
+        resolveAbilityTimingEntries(ability, unit, engine),
+    );
+    for (const interval of intervals) {
+        if (!interval.targetDef || !isSelectTargetDef(interval.targetDef)) continue;
+        if (interval.start === 0) return interval.targetDef.label;
+        if (ability.lunge != null) return interval.targetDef.label;
+        return null;
+    }
+    return null;
+}
+
+/** @deprecated Use {@link findPreviewDeferredSelectLabel}. */
 export function findFirstSelectTargetLabelAtElapsedZero(
     ability: AbilityStatic,
     unit: Unit,

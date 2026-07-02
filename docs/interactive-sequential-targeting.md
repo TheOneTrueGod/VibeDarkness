@@ -57,7 +57,16 @@ The current mechanism runs **`findImpendingSelectTargetNeed`** at the top of `fi
 
 After `resolveTarget` injects the label into `active.targetsByLabel` and unpauses, the interval enters through the normal `entered` path in `unitAbilityTick.ts` on the **same tick** as a prefilled committed order. If a select interval ever enters during preview without a resolved label, `unitAbilityTick` logs `console.error` and skips firing (parity is already broken).
 
-Abilities whose first select interval starts at elapsed 0 defer queueing the preview order until that target is collected (`begin()` signals the pause up front).
+Abilities whose first target must be known **before any cast ticks** defer queueing the preview order until that target is collected (`begin()` signals the pause up front via `findPreviewDeferredSelectLabel`):
+
+| Condition | Why defer |
+|---|---|
+| First `SelectTargetDef` starts at elapsed 0 | Lookahead cannot pause before the cast order applies |
+| Ability has windup `lunge` (e.g. Swing Bat) | `beginActiveCast` / `setupWindupLungePayload` needs positional `targets[]` before windup movement |
+
+When deferring, **no simulation ticks run** until the player picks. After `resolveTarget`, the session queues the preview order with both `targetsByLabel` and positional `targets[]` (same label order as commit) so `Unit.executeAbility` passes the aim point into `beginActiveCast` on the first cast tick.
+
+Abilities without windup lunge (e.g. Double Punch, Light Blast) keep using pre-tick lookahead for the first pause.
 
 ---
 
@@ -131,7 +140,7 @@ Interactive preview orders set `targetsByLabel: {}` (empty object, not `undefine
 |---|---|
 | `featureFlags.ts` | `USE_SEQUENTIAL_TARGETING` on/off switch |
 | `game/GameEngine.ts` | `waitingForTargetInput`, lookahead gate, preview stop condition, `isSequentialTargetingPreview` |
-| `game/interaction/selectTargetLookahead.ts` | Pre-tick impending select detection; t=0 first-select helper |
+| `game/interaction/selectTargetLookahead.ts` | Pre-tick impending select detection; deferred-first-select helper (`findPreviewDeferredSelectLabel`) |
 | `game/units/unitAbilityTick.ts` | Entered-loop interval fire; `movementByLabel` at select entry; loud missing-label guard |
 | `game/interaction/InteractiveTargetingSession.ts` | Session lifecycle: begin / resolveTarget / reset / replay / commit; mode gate |
 | `game/BattleSession.ts` | `isSoloHost`, `restoreFromInMemorySnapshot`, `persistInPlaceCommittedTargetingOrder` |

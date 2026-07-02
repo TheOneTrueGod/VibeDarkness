@@ -17,7 +17,17 @@ import type { BattleOrder, ResolvedTarget, SerializedGameState } from '../types'
 import type { BattleSession } from '../BattleSession';
 import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { findFirstSelectTargetLabelAtElapsedZero } from './selectTargetLookahead';
+import { findPreviewDeferredSelectLabel } from './selectTargetLookahead';
+
+/** Map frozen select labels to positional targets collected so far (commit + preview orders). */
+export function buildPositionalTargetsFromLabels(
+    selectLabels: readonly string[],
+    collectedTargets: Record<string, ResolvedTarget>,
+): ResolvedTarget[] {
+    return selectLabels
+        .map((label) => collectedTargets[label])
+        .filter((t): t is ResolvedTarget => t != null);
+}
 
 /** Payload for a movement re-input collected during interactive preview. */
 export interface MovementReInput {
@@ -41,9 +51,7 @@ export function buildFinalizedSequentialTargetingOrder(
     baseOrder: BattleOrder,
     movementByLabel?: Record<string, MovementReInput>,
 ): BattleOrder {
-    const targets = selectLabels
-        .map((label) => collectedTargets[label])
-        .filter((t): t is ResolvedTarget => t != null);
+    const targets = buildPositionalTargetsFromLabels(selectLabels, collectedTargets);
     return {
         ...baseOrder,
         targets,
@@ -129,8 +137,8 @@ export class InteractiveTargetingSession {
      *   for other batch waiters. In-place keeps the real callback (flag-guarded) and skips
      *   auto-wait because no other local units need stand-in orders.
      * - Queues a preview order with `targetsByLabel: {}` (interactive sentinel).
-     *   When the first select interval starts at elapsed 0, the order is deferred until
-     *   that target is collected so the lookahead invariant holds on the cast tick.
+     *   When the first select is deferred (elapsed 0 or windup lunge), the order is held
+     *   until that target is collected so beginActiveCast sees positional targets.
      * - `tryResumeParallel` is triggered automatically by applyOrder.
      */
     begin(order: BattleOrder, session: BattleSession): boolean {
@@ -193,7 +201,7 @@ export class InteractiveTargetingSession {
             }
         }
 
-        const t0Label = findFirstSelectTargetLabelAtElapsedZero(ability, caster, engine);
+        const deferredLabel = findPreviewDeferredSelectLabel(ability, caster, engine);
 
         const previewOrder: BattleOrder = {
             ...order,
@@ -202,12 +210,11 @@ export class InteractiveTargetingSession {
             endTurn: true,
         };
 
-        if (t0Label != null) {
-            // First select fires on the cast-application tick — lookahead cannot see the cast
-            // until after orders apply. Pause for input now and defer queueing until resolved.
-            engine.signalWaitingForTarget(t0Label, unitId, abilityId);
+        if (deferredLabel != null) {
+            // Cast cannot start until the first target is known (t=0 select or windup lunge).
+            engine.signalWaitingForTarget(deferredLabel, unitId, abilityId);
             engine.isPaused = true;
-            this._currentLabel = t0Label;
+            this._currentLabel = deferredLabel;
             return true;
         }
 
@@ -226,7 +233,7 @@ export class InteractiveTargetingSession {
             : undefined;
         return {
             ...this.originalOrder!,
-            targets: [],
+            targets: buildPositionalTargetsFromLabels(this._selectLabels, this.collectedTargets),
             targetsByLabel: { ...this.collectedTargets },
             endTurn: true,
             ...(movementByLabel ? { movementByLabel } : {}),
@@ -370,7 +377,7 @@ export class InteractiveTargetingSession {
         // Include movementByLabel so per-label movement fires at interval entry.
         const replayOrder: BattleOrder = {
             ...baseOrder,
-            targets: [],
+            targets: buildPositionalTargetsFromLabels(this._selectLabels, targets),
             targetsByLabel: targets,
             endTurn: true,
             ...(movementByLabel ? { movementByLabel } : {}),
