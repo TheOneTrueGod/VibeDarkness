@@ -2,6 +2,7 @@ import {
     resolveClick,
     getSelectTargetDefsFromTimings,
     filterSelectTargetCandidates,
+    buildMeleeSelectOrderTargets,
 } from '../../../abilities/targeting';
 import type { ResolvedTarget } from '../../types';
 import type { InteractionTool, PlayerInteractionContext, IPlayerInteractionManager } from '../InteractionTool';
@@ -64,22 +65,12 @@ export class AbilityTargetingTool implements InteractionTool {
             manager.setCurrentTargets(newTargets);
 
             if (newTargets.length >= selectTargetDefs.length) {
-                // Build the order's targets array. For multi-target hitboxes we append:
-                //   1. Additional lock-on units (candidates 1..numTargets-1) so MeleeAttack
-                //      can guarantee all highlighted units, not just the primary.
-                //   2. The raw click world position as a pixel entry so MeleeAttack can
-                //      preserve the player's original swing direction at impact time.
-                let orderTargets = newTargets;
-                if (allCandidates.length > 0) {
-                    const additionalLockOns: ResolvedTarget[] = allCandidates
-                        .slice(1, numTargets)
-                        .map((c) => ({ type: 'unit' as const, unitId: c.unitId }));
-                    const aimPixelEntry: ResolvedTarget = {
-                        type: 'pixel',
-                        position: clickResult.worldPosition,
-                    };
-                    orderTargets = [...newTargets, ...additionalLockOns, aimPixelEntry];
-                }
+                const orderTargets = buildMeleeSelectOrderTargets(
+                    resolved,
+                    allCandidates,
+                    clickResult.worldPosition,
+                    numTargets,
+                );
                 manager.submitOrder(this.ability.id, orderTargets, newTargetsByLabel);
                 manager.deactivateTool();
             }

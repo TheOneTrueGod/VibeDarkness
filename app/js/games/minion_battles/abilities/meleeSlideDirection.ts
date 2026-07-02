@@ -1,4 +1,5 @@
 import type { ResolvedTarget } from '../game/types';
+import { findMeleeAimPixelInTargets } from './targeting';
 
 export function dirFromTo(
     x0: number, y0: number,
@@ -26,9 +27,9 @@ export function resolveMeleeSlideDirection(args: {
     const startIdx = Math.max(0, allTargets.indexOf(target));
 
     if (numLockOns > 1) {
-        const aimPixelTarget = allTargets.slice(startIdx + numLockOns).find(t => t.type === 'pixel');
-        if (aimPixelTarget?.type === 'pixel' && aimPixelTarget.position != null) {
-            return dirFromTo(caster.x, caster.y, aimPixelTarget.position.x, aimPixelTarget.position.y);
+        const aimPixelPos = findMeleeAimPixelInTargets(allTargets);
+        if (aimPixelPos != null) {
+            return dirFromTo(caster.x, caster.y, aimPixelPos.x, aimPixelPos.y);
         }
     }
 

@@ -52,7 +52,7 @@ import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 import { AUTO_END_TURN } from '../../game/gameConstants';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { resolveClick, getSelectTargetDefsFromTimings, filterSelectTargetCandidates } from '../../abilities/targeting';
+import { resolveClick, getSelectTargetDefsFromTimings, filterSelectTargetCandidates, buildMeleeSelectOrderTargets } from '../../abilities/targeting';
 import { buildPlayerMovePathThroughWaypoints } from '../../terrain/playerMovePath';
 import { Play, Pause, Square } from 'lucide-react';
 
@@ -1001,7 +1001,6 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 const caster = engine.getUnit(waitingSignal.unitId);
                 const abilityDef = its.abilityId ? getAbility(its.abilityId) : null;
                 const clickResult = resolveClick(screenX, screenY, camera, engine.units);
-                let resolved = null;
                 if (caster && abilityDef) {
                     const selectDefs = getSelectTargetDefsFromTimings(abilityDef, caster, engine);
                     // Find the selectDef for this label.
@@ -1015,15 +1014,23 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                             const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
                             return da - db;
                         });
+                        let resolved = null;
                         if (candidates.length > 0) {
                             resolved = { type: 'unit' as const, unitId: candidates[0]!.id };
                         } else if (selectDef.allowMiss !== false) {
                             resolved = { type: 'pixel' as const, position: clickResult.worldPosition };
                         }
+                        if (resolved) {
+                            const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
+                            const lockOnCandidates = candidates.slice(0, numTargets).map((u) => ({ unitId: u.id }));
+                            its.resolveTarget(
+                                label,
+                                resolved,
+                                session,
+                                buildMeleeSelectOrderTargets(resolved, lockOnCandidates, clickResult.worldPosition, numTargets),
+                            );
+                        }
                     }
-                }
-                if (resolved) {
-                    its.resolveTarget(label, resolved, session);
                 }
             }
             return;

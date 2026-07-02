@@ -137,6 +137,49 @@ export function filterSelectTargetCandidates(
     });
 }
 
+/**
+ * Find the trailing aim pixel appended by `buildMeleeSelectOrderTargets`.
+ * Convention: last `pixel` entry in the array (always appended after lock-on units).
+ * Returns `null` when no pixel entry is present.
+ */
+export function findMeleeAimPixelInTargets(targets: ResolvedTarget[]): { x: number; y: number } | null {
+    for (let i = targets.length - 1; i >= 0; i--) {
+        const t = targets[i];
+        if (t?.type === 'pixel' && t.position != null) {
+            return t.position;
+        }
+    }
+    return null;
+}
+
+/**
+ * Build the `order.targets` array for a melee SelectTargetDef click.
+ *
+ * Convention (mirrors AbilityTargetingTool upfront path):
+ * - Candidates present: `[primary, ...additionalLockOns(1..numTargets-1), aimPixel]`
+ * - No candidates:      `[labelResolved]` only
+ *
+ * @param labelResolved  Primary resolved target (unit or pixel) stored in `targetsByLabel`.
+ * @param lockOnCandidates All sorted lock-on candidates (closest-first), up to hitbox numTargets.
+ * @param clickWorldPosition Raw click world position — appended as trailing aim pixel when candidates exist.
+ * @param numTargets Max lock-on slots from the SelectTargetDef / hitbox.
+ */
+export function buildMeleeSelectOrderTargets(
+    labelResolved: ResolvedTarget,
+    lockOnCandidates: Array<{ unitId: string }>,
+    clickWorldPosition: { x: number; y: number },
+    numTargets: number,
+): ResolvedTarget[] {
+    if (lockOnCandidates.length === 0) {
+        return [labelResolved];
+    }
+    const additionalLockOns: ResolvedTarget[] = lockOnCandidates
+        .slice(1, numTargets)
+        .map((c) => ({ type: 'unit' as const, unitId: c.unitId }));
+    const aimPixel: ResolvedTarget = { type: 'pixel', position: clickWorldPosition };
+    return [labelResolved, ...additionalLockOns, aimPixel];
+}
+
 /** Convert a committed `ResolvedTarget` to a world-space point, or null if unresolvable. */
 export function resolveTargetToPoint(
     target: ResolvedTarget,

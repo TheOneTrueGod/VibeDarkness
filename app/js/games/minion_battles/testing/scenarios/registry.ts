@@ -43,6 +43,7 @@ import { laserSwordHitsTwoTargetsScenario } from './abilities/laserSwordScenario
 import { throwTorchHitsDummyScenario } from './abilities/throwTorchScenario';
 import { beastClawFrontHitBackMissScenario } from './abilities/beastClawScenarios';
 import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios';
+import { swingBatSequentialAimPixelScenario } from './abilities/swingBatSequentialAim';
 import { lightImbuementAndImbuedBatScenario } from './abilities/lightImbuementScenario';
 import { lightBlastCommittedScenario } from './abilities/lightBlastScenario';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
@@ -151,6 +152,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     throwTorchHitsDummyScenario,
     beastClawFrontHitBackMissScenario,
     swingBatHitsThreeTargetsScenario,
+    swingBatSequentialAimPixelScenario,
     lightImbuementAndImbuedBatScenario,
     lightBlastCommittedScenario,
     throwKnifePiercingBleedScenario,

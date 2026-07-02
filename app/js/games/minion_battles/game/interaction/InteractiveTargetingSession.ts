@@ -50,8 +50,11 @@ export function buildFinalizedSequentialTargetingOrder(
     collectedTargets: Record<string, ResolvedTarget>,
     baseOrder: BattleOrder,
     movementByLabel?: Record<string, MovementReInput>,
+    positionalTargetsOverride?: ResolvedTarget[],
 ): BattleOrder {
-    const targets = buildPositionalTargetsFromLabels(selectLabels, collectedTargets);
+    const targets = positionalTargetsOverride != null && positionalTargetsOverride.length > 0
+        ? positionalTargetsOverride
+        : buildPositionalTargetsFromLabels(selectLabels, collectedTargets);
     return {
         ...baseOrder,
         targets,
@@ -71,6 +74,8 @@ export class InteractiveTargetingSession {
     readonly collectedTargets: Record<string, ResolvedTarget> = {};
     /** Movement re-inputs collected via resolveMovement(), keyed by SelectTargetDef label. */
     private collectedMovementByLabel: Record<string, MovementReInput> = {};
+    /** Full positional targets array (lock-ons + aim pixel) supplied by UI on resolveTarget; empty for non-melee abilities. */
+    private _orderPositionalTargets: ResolvedTarget[] = [];
     /** Remote orders that arrived while preview is active; held until preview ends. */
     private heldRemoteOrders: Map<string, HeldRemoteOrder> = new Map();
     /** The label currently waiting for player input (set externally by UI). */
@@ -168,6 +173,7 @@ export class InteractiveTargetingSession {
         // Clear any leftover state from a previous session.
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
         this.collectedMovementByLabel = {};
+        this._orderPositionalTargets = [];
         this.heldRemoteOrders.clear();
         this._currentLabel = null;
         this._previewOrderQueued = false;
@@ -231,9 +237,12 @@ export class InteractiveTargetingSession {
         const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
             ? { ...this.collectedMovementByLabel }
             : undefined;
+        const targets = this._orderPositionalTargets.length > 0
+            ? this._orderPositionalTargets
+            : buildPositionalTargetsFromLabels(this._selectLabels, this.collectedTargets);
         return {
             ...this.originalOrder!,
-            targets: buildPositionalTargetsFromLabels(this._selectLabels, this.collectedTargets),
+            targets,
             targetsByLabel: { ...this.collectedTargets },
             endTurn: true,
             ...(movementByLabel ? { movementByLabel } : {}),
@@ -251,13 +260,20 @@ export class InteractiveTargetingSession {
      * Called by the UI when the player selects a target for `label`.
      * Stores the target, injects it into the live engine's active ability (or queues the
      * deferred preview order for t=0 first-select abilities), and unpauses the engine.
+     *
+     * @param orderPositionalTargets Full positional array for `order.targets` (e.g. lock-ons + aim
+     *   pixel from `buildMeleeSelectOrderTargets`). When provided, replaces the label-derived array
+     *   in the preview order, replay, and commit. Omit for non-melee abilities.
      */
-    resolveTarget(label: string, target: ResolvedTarget, session: BattleSession): void {
+    resolveTarget(label: string, target: ResolvedTarget, session: BattleSession, orderPositionalTargets?: ResolvedTarget[]): void {
         if (!this._isActive || !this._unitId || !this._abilityId) return;
         const engine = session.getEngine();
         if (!engine) return;
 
         this.collectedTargets[label] = target;
+        if (orderPositionalTargets != null) {
+            this._orderPositionalTargets = orderPositionalTargets;
+        }
 
         if (!this._previewOrderQueued) {
             this._queuePreviewOrder(session);
@@ -317,6 +333,7 @@ export class InteractiveTargetingSession {
         this._restoreToMark(session);
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
         this.collectedMovementByLabel = {};
+        this._orderPositionalTargets = [];
         this._clearActive();
     }
 
@@ -328,6 +345,7 @@ export class InteractiveTargetingSession {
     abort(): void {
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
         this.collectedMovementByLabel = {};
+        this._orderPositionalTargets = [];
         this.heldRemoteOrders.clear();
         this._clearActive();
     }
@@ -340,6 +358,9 @@ export class InteractiveTargetingSession {
         if (!this._abilityId || !this._unitId || !this.originalOrder) return;
         const unitId = this._unitId;
         const targets = { ...this.collectedTargets };
+        const positionalTargets = this._orderPositionalTargets.length > 0
+            ? [...this._orderPositionalTargets]
+            : null;
         const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
             ? { ...this.collectedMovementByLabel }
             : undefined;
@@ -377,7 +398,7 @@ export class InteractiveTargetingSession {
         // Include movementByLabel so per-label movement fires at interval entry.
         const replayOrder: BattleOrder = {
             ...baseOrder,
-            targets: buildPositionalTargetsFromLabels(this._selectLabels, targets),
+            targets: positionalTargets ?? buildPositionalTargetsFromLabels(this._selectLabels, targets),
             targetsByLabel: targets,
             endTurn: true,
             ...(movementByLabel ? { movementByLabel } : {}),
@@ -419,6 +440,9 @@ export class InteractiveTargetingSession {
         const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
             ? { ...this.collectedMovementByLabel }
             : undefined;
+        const positionalTargetsOverride = this._orderPositionalTargets.length > 0
+            ? [...this._orderPositionalTargets]
+            : undefined;
         const baseOrder = this.originalOrder;
         const heldRows = [...this.heldRemoteOrders.values()];
         this.heldRemoteOrders.clear();
@@ -428,6 +452,7 @@ export class InteractiveTargetingSession {
             collected,
             baseOrder,
             movementByLabel,
+            positionalTargetsOverride,
         );
 
         if (commitMode === 'inPlace') {

@@ -1171,6 +1171,61 @@ describe('interactive sequential targeting', () => {
     });
 
     /**
+     * Scenario K — full positional targets [unit, aimPixel] with 1 enemy lock-on:
+     * windup lunge aims at click pixel, not the unit position.
+     *
+     * Regression: old code looked for aim pixel at slice(startIdx + numLockOns) which
+     * missed the pixel when fewer enemies than numTargets slots were locked on.
+     */
+    it('Scenario K: Swing Bat with 1 enemy lock-on and trailing aim pixel lunges toward click pixel', () => {
+        const { engine, player, aimPixel } = buildSwingBatFixture();
+
+        const enemy = createTargetDummyAtWorld(engine, player.x + 20, player.y, {
+            id: 'enemy_k',
+            hp: 100,
+        });
+        initializeAbilityRuntimeForUnit(enemy);
+        engine.addUnit(enemy, 'initialGameSpawn');
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        // 1 enemy lock-on, numTargets=3 for Swing Bat → targets = [unit, aimPixel].
+        const targets: ResolvedTarget[] = [
+            { type: 'unit', unitId: enemy.id },
+            { type: 'pixel', position: aimPixel },
+        ];
+
+        engine.isSequentialTargetingPreview = true;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: SWING_BAT_ABILITY_ID,
+            targets,
+            targetsByLabel: { [SWING_BAT_TARGET_LABEL]: targets[0]! },
+            endTurn: true,
+        });
+
+        const castStarted = stepUntil(
+            engine,
+            () => player.activeAbilities.some((a) => a.abilityId === SWING_BAT_ABILITY_ID),
+            30,
+        );
+        expect(castStarted).toBe(true);
+
+        const active = player.activeAbilities.find((a) => a.abilityId === SWING_BAT_ABILITY_ID);
+        expect(active).toBeDefined();
+        const payload = active!.castPayload as WindupLungePayload | undefined;
+        expect(payload).toBeDefined();
+
+        // Lunge must aim at the click pixel, not the lock-on unit's position.
+        expect(payload!.lungeTargetX).toBeCloseTo(aimPixel.x, 0);
+        expect(payload!.lungeTargetY).toBeCloseTo(aimPixel.y, 0);
+        expect(payload!.lungeTargetUnitId).toBeUndefined();
+        expect(payload!.effectiveLungeDistance).toBeGreaterThan(0);
+
+        engine.destroy();
+    });
+
+    /**
      * Scenario J — preview order with positional targets runs windup lunge before the hit interval.
      */
     it('Scenario J: Swing Bat preview with positional target advances during windup lunge', () => {

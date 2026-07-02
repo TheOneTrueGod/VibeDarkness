@@ -49,6 +49,26 @@ Player clicks Confirm
 
 ---
 
+## Melee select: full positional targets (lock-ons + aim pixel)
+
+For abilities with a `SelectTargetDef` that has a **melee lock-on hitbox** (e.g. Swing Bat, Swing Sword, Laser Sword), the sequential and upfront targeting paths submit the same `order.targets` array:
+
+```
+[primary lock-on (unit), …additional lock-ons, aim pixel at click position]
+```
+
+This is assembled by `buildMeleeSelectOrderTargets` in `abilities/targeting.ts`. The sequential click path (`BattlePhase.handleCanvasClick`) calls this helper and passes the full positional array to `InteractiveTargetingSession.resolveTarget` as the fourth argument, which stores it in `_orderPositionalTargets`. On preview queue and on commit, `_orderPositionalTargets` is used as `order.targets` instead of reconstructing from label map alone.
+
+**Why the trailing aim pixel matters:**
+
+- **Windup lunge** (`setupWindupLungePayload` in `abilities/WindupLunge.ts`): when a trailing `pixel` entry exists in `targets`, the player lunges toward that pixel rather than the primary lock-on unit. This preserves the click position as the swing center even when enemies shift during the windup.
+- **Swing bar direction** (`MeleeAttack.onSetup` / `resolveMeleeSlideDirection`): the perpendicular bar is drawn through the click position rather than through the unit's live position.
+- **Aim pixel is found by `findMeleeAimPixelInTargets`** (last `pixel` entry in the array), which works correctly when fewer enemies are locked on than the hitbox allows (e.g. 1 enemy in a 3-slot hitbox → `[unit, pixel]` with pixel at index 1).
+
+Abilities that are NOT multi-lock melee (e.g. Double Punch, Light Blast) do not use this pattern; their `SelectTargetDef` produces only `[labelResolved]`.
+
+---
+
 ## Select-target lookahead (replaces Pass A / Pass B)
 
 Older designs blocked select intervals **after** entry (Pass A) and fired them one tick late when the target arrived (Pass B). That broke parity with committed runs.
@@ -148,3 +168,4 @@ Interactive preview orders set `targetsByLabel: {}` (empty object, not `undefine
 | `game/interaction/PlayerInteractionManager.ts` | `activateAbilityTargeting` skips `AbilityTargetingTool` when flag is on |
 | `ui/pages/BattlePhase.tsx` | Targeting cursor gating, status pill, Reset/Replay/Confirm buttons |
 | `game/interactiveTargeting.test.ts` | Engine pause/resume, fingerprint parity, preview stop condition |
+| `abilities/targeting.ts` | `buildMeleeSelectOrderTargets`, `findMeleeAimPixelInTargets` — melee order-target builder and aim-pixel lookup |

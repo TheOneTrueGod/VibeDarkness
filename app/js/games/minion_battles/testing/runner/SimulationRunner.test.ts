@@ -16,6 +16,7 @@ import {
 import { doublePunchDeathFallbackScenario } from '../scenarios/abilities/doublePunchScenario';
 import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordResearch';
 import { swingBatHitsThreeTargetsScenario } from '../scenarios/abilities/swingBatScenarios';
+import { swingBatSequentialAimPixelScenario } from '../scenarios/abilities/swingBatSequentialAim';
 import { beastClawFrontHitBackMissScenario } from '../scenarios/abilities/beastClawScenarios';
 import { throwKnifePiercingBleedScenario } from '../scenarios/abilities/throwKnifeScenarios';
 import { throwRockExactlyOnceScenario } from '../scenarios/abilities/throwRockResearch';
@@ -135,6 +136,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes swing bat hits 3 of 4 targets with knockback scenario', () => {
         const r = runScenarioHeadless(swingBatHitsThreeTargetsScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes swing bat sequential aim pixel: lock-on hit + lunge toward click pixel', () => {
+        const r = runScenarioHeadless(swingBatSequentialAimPixelScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

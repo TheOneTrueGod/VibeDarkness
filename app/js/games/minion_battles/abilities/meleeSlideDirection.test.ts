@@ -38,6 +38,26 @@ describe('resolveMeleeSlideDirection — per-timing slide direction', () => {
         expect(Math.sign(punch1Dir.dirY)).not.toBe(Math.sign(punch2Dir.dirY));
     });
 
+    it('finds aim pixel when 1 lock-on but numLockOns=3 (fewer candidates than slots)', () => {
+        // Regression: old code did slice(startIdx + 3) = slice(3) which misses pixel at index 1.
+        const caster = { x: 0, y: 0 };
+        const unit: ResolvedTarget = { type: 'unit' as const, unitId: 'dummy1' };
+        const aimPixel: ResolvedTarget = { type: 'pixel', position: { x: 50, y: 0 } };
+        const allTargets: ResolvedTarget[] = [unit, aimPixel];
+
+        const dir = resolveMeleeSlideDirection({
+            caster,
+            target: unit,
+            allTargets,
+            numLockOns: 3,
+            getUnit: () => ({ x: 10, y: 30 }),
+        });
+
+        // Direction should be toward pixel (50, 0), not unit (10, 30).
+        expect(dir.dirX).toBeCloseTo(1, 5);
+        expect(dir.dirY).toBeCloseTo(0, 5);
+    });
+
     it('still uses aim pixel for multi-lock swing timings', () => {
         const caster = { x: 0, y: 0 };
         const t1 = { type: 'unit' as const, unitId: 'dummy1' };

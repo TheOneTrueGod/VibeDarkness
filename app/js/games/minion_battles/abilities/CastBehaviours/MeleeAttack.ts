@@ -17,6 +17,7 @@ import { BaseAttackBehaviour } from './BaseAttackBehaviour';
 import type { TryDamageOrBlockParams } from '../blockingHelpers';
 import { getLockOnRange as getLockOnRangeFromMax } from '../targetLockTracking';
 import { resolveMeleeSlideDirection } from '../meleeSlideDirection';
+import { findMeleeAimPixelInTargets } from '../targeting';
 
 // ---- Easing (melee lunge slide) ----
 
@@ -235,12 +236,11 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         // position as a pixel entry after all unit lock-ons. Find it here so onTick can
         // use it to preserve the player's intended swing direction rather than drifting
         // toward the locked-on unit's live position.
+        // Uses findMeleeAimPixelInTargets (last pixel) so fewer-than-numLockOns cases
+        // (e.g. 1 enemy in a 3-slot hitbox → [unit, pixel]) are handled correctly.
         let aimPixel: { x: number; y: number } | null = null;
         if (numLockOns > 1) {
-            const aimPixelTarget = ctx.allTargets.slice(startIdx + numLockOns).find(t => t.type === 'pixel');
-            aimPixel = (aimPixelTarget?.type === 'pixel' && aimPixelTarget.position != null)
-                ? aimPixelTarget.position
-                : null;
+            aimPixel = findMeleeAimPixelInTargets(ctx.allTargets);
         }
 
         const { dirX: aimDirX, dirY: aimDirY } = this.resolveSlideDirection(ctx);

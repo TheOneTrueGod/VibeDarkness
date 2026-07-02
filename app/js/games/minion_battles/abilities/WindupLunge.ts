@@ -1,6 +1,7 @@
 import type { Unit } from '../game/units/Unit';
 import type { AbilityStatic } from './Ability';
 import type { ActiveAbility, ResolvedTarget } from '../game/types';
+import { findMeleeAimPixelInTargets } from './targeting';
 
 export interface WindupLungeConfig {
     /** Max lunge distance in px (base, before terrain/research modifiers). */
@@ -56,14 +57,23 @@ export function setupWindupLungePayload(
     let ty: number | undefined;
     let unitId: string | undefined;
 
-    const resolveToUnit = (lunge.target ?? 'unit') === 'unit';
-    if (resolveToUnit && primary?.type === 'unit' && primary.unitId != null) {
-        const u = eng.getUnit(primary.unitId);
-        if (u != null) { tx = u.x; ty = u.y; unitId = primary.unitId; }
-    }
-    if (tx === undefined && primary?.type === 'pixel' && primary.position != null) {
-        tx = primary.position.x;
-        ty = primary.position.y;
+    // If the targets array carries a trailing aim pixel (appended by buildMeleeSelectOrderTargets),
+    // use it as a fixed-position lunge destination so the player lunges toward their click, not the unit.
+    const aimPixel = findMeleeAimPixelInTargets(targets);
+    if (aimPixel != null) {
+        tx = aimPixel.x;
+        ty = aimPixel.y;
+        // unitId intentionally omitted — fixed position lunge, not unit-follow.
+    } else {
+        const resolveToUnit = (lunge.target ?? 'unit') === 'unit';
+        if (resolveToUnit && primary?.type === 'unit' && primary.unitId != null) {
+            const u = eng.getUnit(primary.unitId);
+            if (u != null) { tx = u.x; ty = u.y; unitId = primary.unitId; }
+        }
+        if (tx === undefined && primary?.type === 'pixel' && primary.position != null) {
+            tx = primary.position.x;
+            ty = primary.position.y;
+        }
     }
     if (tx === undefined || ty === undefined) return;
 
