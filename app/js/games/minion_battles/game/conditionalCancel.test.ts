@@ -28,6 +28,7 @@ import {
 } from '../testing/harness/buildTinyBattleEngine';
 import { runScenarioHeadless } from '../testing/runner/SimulationRunner';
 import { earthCoreDiggingClawsScenario } from '../testing/scenarios/abilities/earthCoreScenarios';
+import { Movement } from '../resources/Movement';
 
 type EnginePrivatePauseTest = {
     deferredOrderPause: {
@@ -149,6 +150,7 @@ describe('conditional cancel', () => {
         });
 
         const player = engine.getLocalPlayerUnit()!;
+        player.attachResource(new Movement(), engine.eventBus);
         engine.state.orderMgr.applyOrder({
             unitId: player.id,
             abilityId: '0534',
@@ -256,6 +258,7 @@ describe('conditional cancel', () => {
         });
 
         const player = engine.getLocalPlayerUnit()!;
+        player.attachResource(new Movement(), engine.eventBus);
         engine.state.orderMgr.applyOrder({
             unitId: player.id,
             abilityId: '0534',
@@ -336,6 +339,7 @@ describe('conditional cancel', () => {
             getAbilityTagsForId,
             player.abilities,
         );
+        player.attachResource(new Movement(), engine.eventBus);
 
         engine.state.orderMgr.applyOrder({
             unitId: player.id,
@@ -549,6 +553,7 @@ describe('conditional cancel', () => {
             getAbilityTagsForId,
             player.abilities,
         );
+        player.attachResource(new Movement(), engine.eventBus);
 
         engine.state.orderMgr.applyOrder({
             unitId: player.id,
@@ -633,6 +638,7 @@ describe('conditional cancel', () => {
             getAbilityTagsForId,
             player.abilities,
         );
+        player.attachResource(new Movement(), engine.eventBus);
 
         engine.state.orderMgr.applyOrder({
             unitId: player.id,

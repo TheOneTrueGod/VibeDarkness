@@ -18,6 +18,8 @@ export interface ResourceDisplay {
     iconName: string;
     current: number;
     max: number;
+    /** If present, tooltip shows "+N per round" in the resource colour. */
+    perRoundGain?: number;
 }
 
 export abstract class Resource {

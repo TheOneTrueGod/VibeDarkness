@@ -29,8 +29,13 @@ export function ResourceBarRow({ resource }: ResourceBarRowProps) {
     return (
         <div className="group relative flex items-center gap-1.5">
             {/* Tooltip */}
-            <div className="pointer-events-none absolute -top-6 left-0 z-10 whitespace-nowrap rounded border border-gray-200 bg-black px-1.5 py-0.5 text-[10px] text-gray-200 opacity-0 shadow transition-opacity duration-100 group-hover:opacity-100">
-                {resource.name}
+            <div className="pointer-events-none absolute bottom-full mb-0.5 left-0 z-10 rounded border border-gray-200 bg-black px-1.5 py-0.5 text-[10px] text-gray-200 opacity-0 shadow transition-opacity duration-100 group-hover:opacity-100">
+                <div className="whitespace-nowrap">{resource.name}</div>
+                {resource.perRoundGain !== undefined && (
+                    <div className="whitespace-nowrap">
+                        +<span style={{ color: '#fef08a' }}>{resource.perRoundGain}</span> per round
+                    </div>
+                )}
             </div>
             {/* Icon with current-value badge overlaid */}
             <div className="relative shrink-0">

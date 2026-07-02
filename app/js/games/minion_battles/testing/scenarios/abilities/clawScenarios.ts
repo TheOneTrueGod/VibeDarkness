@@ -5,6 +5,7 @@ import {
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
 import { CLAW_MAX_DISTANCE } from '../../../card_defs/0111_Claw/0111Ability';
+import { Movement } from '../../../resources/Movement';
 
 const P = TINY_BATTLE_PLAYER_ID;
 
@@ -27,12 +28,13 @@ export const clawMovementDistanceScenario: ScenarioDefinition = {
             localPlayerId: P,
             grass: true,
         });
-        spawnTinyPlayerUnit(engine, {
+        const player = spawnTinyPlayerUnit(engine, {
             playerId: P,
             x: START_X,
             y: START_Y,
             abilities: ['0111'],
         });
+        player.attachResource(new Movement(), engine.eventBus);
         return engine;
     },
     getInitialOrders(engine) {

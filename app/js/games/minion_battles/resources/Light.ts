@@ -24,18 +24,28 @@ export class Light extends Resource {
     readonly color = '#fef9c3'; // warm white-yellow
     readonly iconName = 'Sun';
 
+    private _unit: Unit | null = null;
+    private _engine: EngineContext | null = null;
+
     constructor() {
         super(0, 5);
     }
 
-    onRoundStart(unit: Unit, engine: EngineContext): void {
-        const level = engine.getLightLevelAt(unit.x, unit.y);
-        if (level === null) return;
-        const gain = Math.max(
+    /** Live per-round gain for the unit's current tile. Used by the tooltip. */
+    get perRoundGain(): number {
+        if (!this._unit || !this._engine) return 0;
+        const level = this._engine.getLightLevelAt(this._unit.x, this._unit.y);
+        if (level === null) return 0;
+        return Math.max(
             0,
             Math.ceil((level - LIGHT_RESOURCE_MIN_LIGHT_LEVEL) / LIGHT_RESOURCE_DIVISOR),
         );
-        this.add(gain);
+    }
+
+    onRoundStart(unit: Unit, engine: EngineContext): void {
+        this._unit = unit;
+        this._engine = engine;
+        this.add(this.perRoundGain);
     }
 
     protected subscribe(_unit: Unit, _eventBus: EventBus): void {
@@ -43,6 +53,7 @@ export class Light extends Resource {
     }
 
     protected unsubscribe(_eventBus: EventBus): void {
-        // No listeners to remove.
+        this._unit = null;
+        this._engine = null;
     }
 }

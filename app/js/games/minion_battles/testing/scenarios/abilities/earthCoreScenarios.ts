@@ -2,6 +2,7 @@
 import type { EngineContext } from '../../../game/EngineContext';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { Resonance } from '../../../resources/Resonance';
+import { Movement } from '../../../resources/Movement';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
@@ -376,12 +377,13 @@ export const earthCoreDiggingClawsScenario: ScenarioDefinition = {
                 engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
             }
         }
-        placePlayerAndDummy(engine, {
+        const { player } = placePlayerAndDummy(engine, {
             playerId: P,
             playerWorld: DC_PLAYER_POS,
             dummyWorld: DC_ENEMY_POS,
             abilities: ['0534'],
         });
+        player.attachResource(new Movement(), engine.eventBus);
         return engine;
     },
     getInitialOrders(engine) {
@@ -433,12 +435,13 @@ export const earthCoreDiggingClawsRetargetScenario: ScenarioDefinition = {
                 engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
             }
         }
-        placePlayerAndDummy(engine, {
+        const { player } = placePlayerAndDummy(engine, {
             playerId: P,
             playerWorld: DC_PLAYER_POS,
             dummyWorld: DC_ENEMY_POS,
             abilities: ['0534'],
         });
+        player.attachResource(new Movement(), engine.eventBus);
         return engine;
     },
     getInitialOrders(engine) {
@@ -521,6 +524,7 @@ export const earthCoreDiggingClawsThrowRockEntombScenario: ScenarioDefinition = 
             getAbilityTagsForId,
             player.abilities,
         );
+        player.attachResource(new Movement(), engine.eventBus);
         return engine;
     },
     getInitialOrders(engine) {

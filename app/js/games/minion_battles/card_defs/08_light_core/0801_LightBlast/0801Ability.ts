@@ -13,12 +13,13 @@ import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
+import { createMovementPenaltyStates } from '../../../abilities/shieldHelpers';
 import { areEnemies } from '../../../game/teams';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { Unit } from '../../../game/units/Unit';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}01`;
-const MAX_USES = 1;
+const MAX_USES = 3;
 const PREFIRE_TIME = 0.4;
 const MAX_RANGE = 200;
 const LIGHT_BLAST_RADIUS = 40;
@@ -122,6 +123,7 @@ export const LightBlastAbility = defineAbility({
             abilityPhase: AbilityPhase.Cooldown,
         },
     ],
+    getAbilityStates: createMovementPenaltyStates(0.4, PREFIRE_TIME + 0.05),
     targets: [],
     clearMovementOnComplete: true,
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
