@@ -16,6 +16,19 @@ export type SwapEvent =
     | { type: 'abilityExhausted'; abilityId: string };
 
 /**
+ * Swap two entries in `unit.abilities` so the swap ability occupies the
+ * replaced ability's bar slot (and vice versa). No-op when either id is missing.
+ */
+export function swapAbilityBarSlots(unit: Unit, abilityIdA: string, abilityIdB: string): boolean {
+    const idxA = unit.abilities.indexOf(abilityIdA);
+    const idxB = unit.abilities.indexOf(abilityIdB);
+    if (idxA < 0 || idxB < 0 || idxA === idxB) return false;
+    unit.abilities[idxA] = abilityIdB;
+    unit.abilities[idxB] = abilityIdA;
+    return true;
+}
+
+/**
  * Activate a swap-network ability: hide the ability it replaces and
  * mark itself active with the configured number of uses.
  */
@@ -41,6 +54,9 @@ function activateSwappedAbility(unit: Unit, abilityId: string): void {
     runtime.active = true;
     runtime.replacedAbilityId = replacesAbilityId;
     runtime.currentUses = usesOnActivation ?? runtime.maxUses;
+
+    // Show the swap ability in the replaced ability's bar slot.
+    swapAbilityBarSlots(unit, abilityId, replacesAbilityId);
 }
 
 /**
@@ -64,6 +80,9 @@ function deactivateSwappedAbility(unit: Unit, abilityId: string): void {
     // Clear this ability's swap state.
     runtime.active = false;
     runtime.replacedAbilityId = null;
+
+    // Restore original bar order.
+    swapAbilityBarSlots(unit, abilityId, replacedAbilityId);
 }
 
 /**

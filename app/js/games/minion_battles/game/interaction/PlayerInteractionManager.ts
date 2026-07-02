@@ -1,4 +1,5 @@
 import type { AbilityStatic } from '../../abilities/Ability';
+import { getAbilityTargets } from '../../abilities/Ability';
 import type { BattleOrder, ResolvedTarget, WaitingForOrders } from '../types';
 import type { InteractionTool, PlayerInteractionContext, PlayerInteractionUIState, IPlayerInteractionManager } from './InteractionTool';
 import { DefaultTool } from './tools/DefaultTool';
@@ -287,7 +288,14 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         if (!active) return;
         if (USE_SEQUENTIAL_TARGETING) {
             const caster = this.ctx.engine.getUnit(active.unitId) ?? undefined;
-            if (getSelectTargetDefsFromTimings(ability, caster, this.ctx.engine).length > 0) {
+            const selectDefs = getSelectTargetDefsFromTimings(ability, caster, this.ctx.engine);
+            if (selectDefs.length > 0) {
+                this.submitOrder(ability.id, []);
+                return;
+            }
+            // Self-cast abilities with no select steps submit immediately (e.g. Light Imbuement).
+            const staticTargets = getAbilityTargets(ability, caster, this.ctx.engine);
+            if (staticTargets.length === 0) {
                 this.submitOrder(ability.id, []);
                 return;
             }

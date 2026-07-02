@@ -115,12 +115,15 @@ export default function AbilityBar({
         return () => mq.removeEventListener('change', sync);
     }, []);
 
+    // Prefer live unit.abilities order so swap-network replacements keep the same bar slot.
+    const orderedAbilityIds = playerUnit?.abilities ?? abilityIds;
+
     const visibleAbilityIds = useMemo(
-        () => abilityIds.filter(id => {
+        () => orderedAbilityIds.filter(id => {
             const runtime = playerUnit?.abilityRuntime[id];
             return !runtime || runtime.active !== false;
         }),
-        [abilityIds, playerUnit],
+        [orderedAbilityIds, playerUnit],
     );
 
     const handCards = useMemo(() => {

@@ -90,11 +90,30 @@ Use this pattern for any stat that is set once from the def and never mutated at
 
 ### Keyword tooltip format
 
-Keyworded effects on cards use `{value}` stat-highlight notation, same as damage/duration values:
+`getTooltipText()` returns an array of strings. Two line types:
+
+| Line type | Format |
+|-----------|--------|
+| Description line | Prose + inline `{dynamic stats}` (e.g. `` `Deal {${DAMAGE}} damage` ``) |
+| Keyword line | Entire line is `{Keyword value}` only (e.g. `'{Bright 3}'`, `'{knockback 1}'`) |
+
+The `{...}` wrapper signals to `AbilityTooltip` that the enclosed text is highlighted in amber.
+
+**Keyword lines** — one keyword per array entry, no periods, no prefixes (`On Block:`), no prose:
 
 ```typescript
-// Good — keyword effects go on their own tooltip-array line, no "On hit:" prefix
-[`Deal {${DAMAGE}} damage.`, `{knockback 1}, {${STUN_DURATION}s} stun.`]
+// Good
+return [
+    `Deal {${DAMAGE}} damage to enemies in the blast`,
+    '{Bright 3}',
+];
+
+// Bad — keyword embedded in prose, prefixed, or punctuated
+return [
+    'Leaves a {Bright 3} at the target point',
+    `On Block: Leaves a {Bright 2} flash`,
+    `{knockback 3}.`,
+];
 ```
 
-The `{...}` wrapper signals to the tooltip renderer that the enclosed text is a highlighted stat or keyword. Use `{knockback N}` for tier-based knockback, `{Ns}` for durations. Put keyword effects on a separate array entry rather than appending ". On hit: ..." to the description string.
+This replaces the old multi-keyword-per-line pattern (e.g. `` `{knockback 1}, {${STUN}s} stun.` `` on one entry). For tone and prose rhythm, see **writing-style-abilities** (`STYLE.md` → Keyword lines [Canon]).

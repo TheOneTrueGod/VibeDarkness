@@ -13,11 +13,9 @@
  *   2. Use Imbued Bat (0803) targeting the dummy — melee swing plus light AoE fires.
  *
  * Expected:
+ *   - After Light Imbuement completes, Swing Bat is hidden and Imbued Bat is active with 1 use.
  *   - The dummy took damage (primary swing + possibly light AoE).
  *   - No engine errors during either cast.
- *
- * Assertions are intentionally high-level (HP decreased) — exact damage numbers are
- * covered by unit tests; this scenario validates the full cast flow end-to-end.
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -38,7 +36,13 @@ const PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (140, 
 // 35 px to the right — within Swing Bat / Imbued Bat max range (25 px + unit radius).
 const DUMMY_POS  = { x: PLAYER_POS.x + 35, y: PLAYER_POS.y };
 
-const LIGHT_AMOUNT = 100; // plenty to cover the 20-Light cost
+const LIGHT_AMOUNT = 100; // plenty to cover the Light cost
+
+const SWING_BAT_ABILITY_ID = '0115';
+const LIGHT_IMBUEMENT_ABILITY_ID = '0802';
+const IMBUED_BAT_ABILITY_ID = '0803';
+
+const SWING_BAT_INITIAL_SLOT = 0;
 
 export const lightImbuementAndImbuedBatScenario: ScenarioDefinition = {
     id: 'light_imbuement_imbued_bat_e2e',
@@ -95,24 +99,35 @@ export const lightImbuementAndImbuedBatScenario: ScenarioDefinition = {
     },
 
     assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
         const dummy = engine.getUnit('imbue_dummy');
-        if (!dummy) return false;
+        if (!player || !dummy) return false;
         // Dummy must have taken at least some damage (primary swing is 10 base).
-        return dummy.hp < dummy.maxHp;
+        if (dummy.hp >= dummy.maxHp) return false;
+        // After Imbued Bat exhausts, Swing Bat returns to its original bar slot.
+        return player.abilities.indexOf(SWING_BAT_ABILITY_ID) === SWING_BAT_INITIAL_SLOT;
     },
 
     failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
         const dummy = engine.getUnit('imbue_dummy');
         if (!dummy) return 'Target dummy was removed from the engine.';
-        return `Dummy took no damage (hp=${dummy.hp}/${dummy.maxHp}). Either Light Imbuement did not apply the buff, the swap did not fire, or Imbued Bat did not connect.`;
+        if (!player) return 'Player unit was removed from the engine.';
+        if (dummy.hp >= dummy.maxHp) {
+            return `Dummy took no damage (hp=${dummy.hp}/${dummy.maxHp}). Light Imbuement may not have applied the buff, the swap did not fire, or Imbued Bat did not connect.`;
+        }
+        if (player.abilities.indexOf(SWING_BAT_ABILITY_ID) !== SWING_BAT_INITIAL_SLOT) {
+            return `Swing Bat is not in its original bar slot after the full cast (index=${player.abilities.indexOf(SWING_BAT_ABILITY_ID)}, expected=${SWING_BAT_INITIAL_SLOT}).`;
+        }
+        return 'Scenario failed for an unknown reason.';
     },
 
     describeState(engine) {
         const dummy  = engine.getUnit('imbue_dummy');
         const player = engine.getLocalPlayerUnit();
-        const r0803  = player?.abilityRuntime['0803'];
-        const r0115  = player?.abilityRuntime['0115'];
-        const r0802  = player?.abilityRuntime['0802'];
+        const r0803  = player?.abilityRuntime[IMBUED_BAT_ABILITY_ID];
+        const r0115  = player?.abilityRuntime[SWING_BAT_ABILITY_ID];
+        const r0802  = player?.abilityRuntime[LIGHT_IMBUEMENT_ABILITY_ID];
         return [
             `dummy: hp=${dummy ? `${dummy.hp}/${dummy.maxHp}` : 'gone'}`,
             `0115 active=${r0115?.active} uses=${r0115?.currentUses}`,

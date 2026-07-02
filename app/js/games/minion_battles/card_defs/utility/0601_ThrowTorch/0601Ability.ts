@@ -89,7 +89,7 @@ export const ThrowTorchAbility = defineAbility({
     },
 
     getTooltipText(_gameState?: unknown): string[] {
-        return ['Leaves a {Bright 3} at the target point'];
+        return ['{Bright 3}'];
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {

@@ -95,6 +95,19 @@ describe('Swap Network — Scenario B: swap fires on buff', () => {
 
         expect(player.abilityRuntime['0803']?.currentUses).toBe(1);
     });
+
+    it('Imbued Bat occupies Swing Bat bar slot after activation', () => {
+        const { engine, player } = buildTestEngine();
+        const swingBatSlot = player.abilities.indexOf('0115');
+        const imbuedBatSlot = player.abilities.indexOf('0803');
+        expect(swingBatSlot).toBeGreaterThanOrEqual(0);
+        expect(imbuedBatSlot).toBeGreaterThan(swingBatSlot);
+
+        player.addBuff(new LightImbueBuff(), engine.gameTime, engine.roundNumber ?? 1);
+
+        expect(player.abilities.indexOf('0803')).toBe(swingBatSlot);
+        expect(player.abilities.indexOf('0115')).toBe(imbuedBatSlot);
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -124,6 +137,18 @@ describe('Swap Network — Scenario C: swap restores on exhaust', () => {
     it('Swing Bat is restored to active after Imbued Bat deactivates', () => {
         const { player } = buildActivatedEngine();
         expect(player.abilityRuntime['0115']?.active).toBe(true);
+    });
+
+    it('bar slot order is restored after Imbued Bat deactivates', () => {
+        const { engine, player } = buildTestEngine();
+        const swingBatSlot = player.abilities.indexOf('0115');
+        const imbuedBatSlot = player.abilities.indexOf('0803');
+
+        player.addBuff(new LightImbueBuff(), engine.gameTime, engine.roundNumber ?? 1);
+        consumeAbilityUse(player, '0803');
+
+        expect(player.abilities.indexOf('0115')).toBe(swingBatSlot);
+        expect(player.abilities.indexOf('0803')).toBe(imbuedBatSlot);
     });
 });
 

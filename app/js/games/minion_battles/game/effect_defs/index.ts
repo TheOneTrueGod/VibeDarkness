@@ -15,6 +15,7 @@ import { bulletTrailEffectDef, slashTrailEffectDef } from './trailEffects';
 import { afterimageEffectDef, stackGhostEffectDef } from './movementEffects';
 import { explosionEffectDef } from './explosionEffects';
 import { chargeUpEffectDef } from './chargeEffects';
+import { casterChargeUpEffectDef, CASTER_CHARGE_UP_EFFECT_TYPE } from './casterChargeUpEffect';
 import { pulseEffectDef, howlShockwaveEffectDef, critShockwaveEffectDef, enrageBurstEffectDef } from './aoeEffects';
 import {
     darkCreatureIconDeathEffectDef,
@@ -54,6 +55,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     CritShockwave: critShockwaveEffectDef,
     EnrageBurst: enrageBurstEffectDef,
     ChargeUpEffect: chargeUpEffectDef,
+    [CASTER_CHARGE_UP_EFFECT_TYPE]: casterChargeUpEffectDef,
     AlphaWolfStoryRemnant: alphaWolfStoryRemnantEffectDef,
     DarkCreatureIconDeath: darkCreatureIconDeathEffectDef,
     StoryHomingParticle: storyHomingParticleEffectDef,

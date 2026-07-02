@@ -154,7 +154,7 @@ export const ThrowChargedRock: AbilityStatic = {
         return [
             firstLine,
             `Explodes, dealing {${explosionDamage}} to up to {${maxTargets}} enemies.`,
-            'Leaves a {Bright 2} at the impact point',
+            '{Bright 2}',
             'Exhaust into {Throw Rock}',
         ];
     },

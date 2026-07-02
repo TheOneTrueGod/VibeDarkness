@@ -13,4 +13,6 @@ When implementing or reviewing a new ability, also read **`## Juicing the game`*
 
 For `abilityEvents` authoring, follow the policy in the full guide: prefer reusable presets, then inline event rules, and use custom handlers only as a last resort with a short explanatory comment.
 
+**Player-facing copy** — When writing `getTooltipText`, keyword lines follow the standalone-line rule in **writing-style-abilities** (`STYLE.md` → Keyword lines [Canon]): one `{Keyword value}` per array entry, no prose or punctuation on that line.
+
 **Command / pet abilities** — when `abilitySource: 'pet'` delegates a dash to another card (Sic 'em → Pounce), read **`## Command cards and delegated abilities`** and **`## Targeting preview helper choice`** in the full guide before touching `renderTargetingPreview`.

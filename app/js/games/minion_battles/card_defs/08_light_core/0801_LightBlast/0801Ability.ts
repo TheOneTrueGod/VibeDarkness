@@ -119,10 +119,9 @@ export const LightBlastAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Blast a point within ${MAX_RANGE}px with a burst of light`,
-            `Deals ${LIGHT_BLAST_DAMAGE} damage to enemies in the blast`,
-            `Heals allies in the blast for ${LIGHT_BLAST_HEAL}`,
-            'Leaves a {Bright 3} at the target point',
+            `Create a sudden blast of light, dealing ${LIGHT_BLAST_DAMAGE} damage.`,
+            `Heals allies in the blast for ${LIGHT_BLAST_HEAL}.`,
+            '{Bright 3}',
         ];
     },
 

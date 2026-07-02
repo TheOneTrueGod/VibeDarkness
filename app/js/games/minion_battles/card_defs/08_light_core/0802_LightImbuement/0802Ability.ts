@@ -11,7 +11,10 @@ import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { LightImbueBuff } from '../../../buffs/LightImbueBuff';
-import { nullHitbox } from '../../../hitboxes';
+import { spawnCasterChargeUpEffect } from '../../../abilities/casterChargeUpVisual';
+import { Effect } from '../../../game/effects/Effect';
+import type { Unit } from '../../../game/units/Unit';
+import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}02`;
 const MAX_USES = 1;
@@ -58,7 +61,6 @@ export const LightImbuementAbility = defineAbility({
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + ACTIVE_DURATION,
             abilityPhase: AbilityPhase.Active,
-            targetDef: { kind: 'select', label: 'Confirm', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             castBehaviours: [
                 {
                     timingStart: 'start',
@@ -81,6 +83,14 @@ export const LightImbuementAbility = defineAbility({
     ],
 
     getRange: () => ({ minRange: 0, maxRange: 0 }),
+
+    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {
+        spawnCasterChargeUpEffect(
+            engine as { addEffect(effect: Effect): void },
+            caster,
+            PREFIRE_TIME + ACTIVE_DURATION,
+        );
+    },
 
     getTooltipText(): string[] {
         return [

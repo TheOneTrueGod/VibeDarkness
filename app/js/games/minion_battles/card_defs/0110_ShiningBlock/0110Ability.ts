@@ -127,7 +127,7 @@ export const ShiningBlockAbility = {
         return [
             'Raise your crystal shield blocking all attacks from the front',
             `On Block: Deals {${RETALIATION_DAMAGE}} damage and stuns up to {${RETALIATION_MAX_TARGETS}} enemies for {${STUN_DURATION}} seconds.`,
-            'On Block: Leaves a {Bright 2} flash',
+            '{Bright 2}',
             'On Block: Gain {1} stamina charge. Nearby allies gain {2} stamina surges and {1} light charge',
         ];
     },
