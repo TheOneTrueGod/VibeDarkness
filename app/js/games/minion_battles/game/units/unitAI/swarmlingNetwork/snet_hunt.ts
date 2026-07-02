@@ -31,7 +31,7 @@ export const snet_hunt: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             }
 
             // Compute this swarmling's orbit position around the target
-            const orbitAngle = unit.swarmlingOrbitAngle ?? 0;
+            const orbitAngle = unit.swarmState.orbitAngle ?? 0;
             const orbitX = target.x + Math.cos(orbitAngle) * HUNT_RING_RADIUS;
             const orbitY = target.y + Math.sin(orbitAngle) * HUNT_RING_RADIUS;
 
@@ -69,7 +69,7 @@ export const snet_hunt: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             if (!target?.isAlive()) return;
             const grid = context.terrainManager?.grid;
             if (!grid) return;
-            const orbitAngle = unit.swarmlingOrbitAngle ?? 0;
+            const orbitAngle = unit.swarmState.orbitAngle ?? 0;
             const orbitX = target.x + Math.cos(orbitAngle) * HUNT_RING_RADIUS;
             const orbitY = target.y + Math.sin(orbitAngle) * HUNT_RING_RADIUS;
             const from = grid.worldToGrid(unit.x, unit.y);

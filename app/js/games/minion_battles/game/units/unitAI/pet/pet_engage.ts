@@ -28,10 +28,10 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
                 return;
             }
 
-            const petDef = unit.petDefId ? getPetDef(unit.petDefId) : null;
+            const petDef = unit.petState.defId ? getPetDef(unit.petState.defId) : null;
             const returnRange = petDef?.returnLeashRange ?? 300;
 
-            const owner = unit.petOwnerUnitId ? context.getUnit(unit.petOwnerUnitId) : null;
+            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
             const ownerAlive = owner?.isAlive() ?? false;
 
             // Check return leash
@@ -130,9 +130,9 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
         {
             targetNodeId: 'pet_return',
             evaluate(unit: Unit, context: AIContext): boolean {
-                const petDef = unit.petDefId ? getPetDef(unit.petDefId) : null;
+                const petDef = unit.petState.defId ? getPetDef(unit.petState.defId) : null;
                 const returnRange = petDef?.returnLeashRange ?? 300;
-                const owner = unit.petOwnerUnitId ? context.getUnit(unit.petOwnerUnitId) : null;
+                const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
                 if (!owner?.isAlive()) return false;
                 return distance(unit.x, unit.y, owner.x, owner.y) > returnRange;
             },

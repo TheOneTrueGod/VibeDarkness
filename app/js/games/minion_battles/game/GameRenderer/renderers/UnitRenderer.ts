@@ -366,8 +366,8 @@ export class UnitRenderer {
             // Lanternite nest spawn progress arc
             if (unit.characterId === 'lanternite_nest') {
                 let nestSpawnArc = visual.children.find((c) => c.label === 'nestSpawnArc') as Graphics | undefined;
-                const nestCfg = unit.lanterniteNestConfig;
-                const nestState = unit.lanterniteNestSpawnState;
+                const nestCfg = unit.lanterniteState.nestConfig;
+                const nestState = unit.lanterniteState.nestSpawnState;
                 const showArc = nestCfg != null && nestState != null
                     && nestState.spawnedIds.length < nestCfg.maxLanternites
                     && gameTime < nestState.nextSpawnAtGameTime;
@@ -403,14 +403,14 @@ export class UnitRenderer {
 
         for (const unit of engine.units) {
             if (!unit.isAlive()) continue;
-            if (unit.lanterniteConstructionCompleteAtGameTime == null) continue;
-            const targetPos = unit.lanternPatrolFarWorld;
+            if (unit.lanterniteState.constructionCompleteAtGameTime == null) continue;
+            const targetPos = unit.lanterniteState.patrolFarWorld;
             if (!targetPos) continue;
 
             activeScoutIds.add(unit.id);
 
-            const totalSec = unit.lanterniteNestConfig?.scoutConstructionSec ?? 10;
-            const remaining = Math.max(0, unit.lanterniteConstructionCompleteAtGameTime - engine.gameTime);
+            const totalSec = unit.lanterniteState.nestConfig?.scoutConstructionSec ?? 10;
+            const remaining = Math.max(0, unit.lanterniteState.constructionCompleteAtGameTime - engine.gameTime);
             const progress = Math.min(1, Math.max(0, 1 - remaining / totalSec));
 
             let ghost = this.constructionGhostVisuals.get(unit.id);

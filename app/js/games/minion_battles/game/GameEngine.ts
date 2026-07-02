@@ -563,7 +563,7 @@ export class GameEngine implements EngineContext {
                     if (b.type === 'removesOwnedLightSources') {
                         removeLanterniteLightSources(unit.id, this.lightSources);
                     } else if (b.type === 'sporeRebirth') {
-                        if (unit.lanterniteNestOwnerUnitId == null) {
+                        if (unit.lanterniteState.nestOwnerUnitId == null) {
                             this.state.lanterniteRespawnManager.onLanterniteUnitDied(unit.x, unit.y, this.gameTime);
                         }
                     }

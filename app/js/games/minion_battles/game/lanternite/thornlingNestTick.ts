@@ -14,7 +14,7 @@ export const THORNLING_CHARACTER_ID = 'thornling';
 const NEST_SPAWN_EXTRA_RADIUS = 60;
 
 function pruneSpawnedThornlingIds(nest: Unit, units: readonly Unit[]): void {
-    const state = nest.thornlingNestSpawnState;
+    const state = nest.thornlingState.nestSpawnState;
     if (!state) return;
     state.spawnedIds = state.spawnedIds.filter((id) => {
         const u = units.find((x) => x.id === id);
@@ -23,9 +23,9 @@ function pruneSpawnedThornlingIds(nest: Unit, units: readonly Unit[]): void {
 }
 
 export function initializeThornlingNestSpawnState(nest: Unit, gameTime: number): void {
-    const cfg = nest.thornlingNestConfig;
+    const cfg = nest.thornlingState.nestConfig;
     if (!cfg) return;
-    nest.thornlingNestSpawnState = {
+    nest.thornlingState.nestSpawnState = {
         spawnedIds: [],
         nextSpawnAtGameTime: gameTime + Math.max(0.5, cfg.spawnIntervalSec),
     };
@@ -46,8 +46,8 @@ export function processThornlingNests(params: {
     for (const nest of params.units) {
         if (!nest.isAlive() || nest.characterId !== THORNLING_NEST_CHARACTER_ID) continue;
 
-        const cfg = nest.thornlingNestConfig;
-        const state = nest.thornlingNestSpawnState;
+        const cfg = nest.thornlingState.nestConfig;
+        const state = nest.thornlingState.nestSpawnState;
         if (!cfg || !state) continue;
 
         pruneSpawnedThornlingIds(nest, params.units);

@@ -22,13 +22,13 @@ export const lnet_assign_role: AINode<'lanterniteNetwork', LanterniteNetworkNode
         {
             targetNodeId: 'lnet_scout_travel',
             evaluate(unit: Unit): boolean {
-                return unit.lanterniteRole === 'scout' && unit.lanternPatrolFarWorld != null;
+                return unit.lanterniteState.role === 'scout' && unit.lanterniteState.patrolFarWorld != null;
             },
         },
         {
             targetNodeId: 'lnet_guard',
             evaluate(unit: Unit): boolean {
-                return unit.lanterniteRole === 'defender';
+                return unit.lanterniteState.role === 'defender';
             },
         },
     ],

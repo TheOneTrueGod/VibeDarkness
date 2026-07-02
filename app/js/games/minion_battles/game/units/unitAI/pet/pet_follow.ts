@@ -25,14 +25,14 @@ export const pet_follow: AINode<'pet', PetNodeId> = {
         execute(unit: Unit, context: AIContext): void {
             const ctx = unit.aiContext as PetAITreeContext;
 
-            const owner = unit.petOwnerUnitId ? context.getUnit(unit.petOwnerUnitId) : null;
+            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
             const ownerAlive = owner?.isAlive() ?? false;
 
             // Scan for enemies near the owner
             const lastScan = ctx.lastScanTime ?? -Infinity;
             if (context.gameTime - lastScan >= SCAN_INTERVAL_ROUNDS * ROUND_DURATION) {
                 ctx.lastScanTime = context.gameTime;
-                const petDef = unit.petDefId ? getPetDef(unit.petDefId) : null;
+                const petDef = unit.petState.defId ? getPetDef(unit.petState.defId) : null;
                 const engageRange = petDef?.engageLeashRange ?? 150;
 
                 if (ownerAlive && owner) {
@@ -72,7 +72,7 @@ export const pet_follow: AINode<'pet', PetNodeId> = {
         },
 
         onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const owner = unit.petOwnerUnitId ? context.getUnit(unit.petOwnerUnitId) : null;
+            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
             if (!owner?.isAlive() || !context.terrainManager) return;
             const dist = distance(unit.x, unit.y, owner.x, owner.y);
             if (dist <= GUARD_TETHER_RANGE) {

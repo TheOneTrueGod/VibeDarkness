@@ -68,13 +68,13 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             // --- Seek logic ---
 
             // If construction timer is already set, wait in place until processSwarmNests fires.
-            if (unit.swarmlingConstructionCompleteAtGameTime != null) {
+            if (unit.swarmState.constructionCompleteAtGameTime != null) {
                 queueWaitAndEndTurn(unit, context);
                 return;
             }
 
             // Resolve target POI world coords
-            const targetPoiId = unit.swarmlingTargetNestPoiId;
+            const targetPoiId = unit.swarmState.targetNestPoiId;
             const allPois = context.mapPOIs ?? [];
             const targetPoi = targetPoiId ? allPois.find((p) => p.id === targetPoiId) : null;
 
@@ -91,14 +91,14 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             }
 
             const poiWorld = grid.gridToWorld(targetPoi.col, targetPoi.row);
-            const orbitAngle = unit.swarmlingOrbitAngle ?? 0;
+            const orbitAngle = unit.swarmState.orbitAngle ?? 0;
             const standX = poiWorld.x + Math.cos(orbitAngle) * SEEK_STAND_RADIUS;
             const standY = poiWorld.y + Math.sin(orbitAngle) * SEEK_STAND_RADIUS;
 
             // If arrived at stand position, start construction timer
             if (distance(unit.x, unit.y, standX, standY) < ARRIVAL_THRESHOLD_PX) {
                 const constructionSec = SWARM_DEFAULT_CONSTRUCTION_SEC;
-                unit.swarmlingConstructionCompleteAtGameTime = context.gameTime + constructionSec;
+                unit.swarmState.constructionCompleteAtGameTime = context.gameTime + constructionSec;
                 queueWaitAndEndTurn(unit, context);
                 return;
             }
@@ -115,15 +115,15 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
         },
 
         onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            if (unit.swarmlingConstructionCompleteAtGameTime != null) return;
-            const targetPoiId = unit.swarmlingTargetNestPoiId;
+            if (unit.swarmState.constructionCompleteAtGameTime != null) return;
+            const targetPoiId = unit.swarmState.targetNestPoiId;
             const allPois = context.mapPOIs ?? [];
             const targetPoi = targetPoiId ? allPois.find((p) => p.id === targetPoiId) : null;
             if (!targetPoi) return;
             const grid = context.terrainManager?.grid;
             if (!grid) return;
             const poiWorld = grid.gridToWorld(targetPoi.col, targetPoi.row);
-            const orbitAngle = unit.swarmlingOrbitAngle ?? 0;
+            const orbitAngle = unit.swarmState.orbitAngle ?? 0;
             const standX = poiWorld.x + Math.cos(orbitAngle) * SEEK_STAND_RADIUS;
             const standY = poiWorld.y + Math.sin(orbitAngle) * SEEK_STAND_RADIUS;
             const from = grid.worldToGrid(unit.x, unit.y);

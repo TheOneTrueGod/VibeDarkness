@@ -15,8 +15,8 @@ export const lantern_patrol: AINode<'lanternitePatrol', LanternitePatrolNodeId> 
     nodeId: 'lantern_patrol',
     actions: {
         execute(unit: Unit, context: AIContext): void {
-            const nestId = unit.lanterniteNestOwnerUnitId;
-            const far = unit.lanternPatrolFarWorld;
+            const nestId = unit.lanterniteState.nestOwnerUnitId;
+            const far = unit.lanterniteState.patrolFarWorld;
             const ctxAi = unit.aiContext as LanternitePatrolAITreeContext;
             ctxAi.aiTree = 'lanternitePatrol';
             ctxAi.aiState = 'lantern_patrol';
@@ -32,12 +32,12 @@ export const lantern_patrol: AINode<'lanternitePatrol', LanternitePatrolNodeId> 
             }
 
             const tgt =
-                unit.lanternPatrolLeg === 'toFar' ? far : ({ x: nest.x, y: nest.y } as const);
+                unit.lanterniteState.patrolLeg === 'toFar' ? far : ({ x: nest.x, y: nest.y } as const);
             if (distance(unit.x, unit.y, tgt.x, tgt.y) < ARRIVAL_PX) {
-                unit.lanternPatrolLeg = unit.lanternPatrolLeg === 'toFar' ? 'toNest' : 'toFar';
+                unit.lanterniteState.patrolLeg = unit.lanterniteState.patrolLeg === 'toFar' ? 'toNest' : 'toFar';
             }
 
-            const dest = unit.lanternPatrolLeg === 'toFar' ? far : { x: nest.x, y: nest.y };
+            const dest = unit.lanterniteState.patrolLeg === 'toFar' ? far : { x: nest.x, y: nest.y };
 
             const grid = context.terrainManager?.grid;
             if (!grid) {

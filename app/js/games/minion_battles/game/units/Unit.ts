@@ -61,14 +61,12 @@ import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants
 import { CONTROLLED_SLINGSHOT, MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef, getUnitMaxPerTile, getUnitShovePriority, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
-import type { RecoveryChargeType } from '../../abilities/abilityUses';
 import { evaluateSwapTriggers } from '../../abilities/abilitySwap';
 import { UnitTag, parseUnitTagsFromJSON } from './unitTag';
 import type { EnrageDef } from './enrageDef';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import type { CcResistKey } from '../../crowdControl/ccTypes';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
-import type { LanterniteNestMissionConfig } from '../../storylines/types';
 import type { EngineContext } from '../EngineContext';
 import type { CellOccupancyManager } from '../managers/CellOccupancyManager';
 import { tickUnitActiveAbilities } from './unitAbilityTick';
@@ -76,6 +74,50 @@ import { initTelegraphCastPayload } from '../../abilities/telegraphTracking';
 import { DarknessLevel } from '../darknessLevels';
 import type { Plan, TacticalPlan, InterruptFlag, SerializedTacticalPlan } from './unitAI/plans/types';
 import { serializeTacticalPlan, deserializeTacticalPlan } from './unitAI/plans/planUtils';
+import type {
+    ActiveCastBehaviourRecord,
+    AISettings,
+    ApplyKnockbackParams,
+    DamageModifier,
+    KnockbackSource,
+    KnockbackState,
+    UnitAbilityRuntimeState,
+    UnitCombatSettings,
+    UnitConfig,
+    UnitMovement,
+} from './unitTypes';
+import { applyPetStateFromJSON, createPetState, petStateToJSON, type UnitPetState } from './unitPetState';
+import {
+    applyLanterniteStateFromJSON,
+    createLanterniteState,
+    lanterniteStateToJSONAfterSwarm,
+    lanterniteStateToJSONBeforeThornling,
+    lanterniteStateToJSONBeforeWall,
+    type UnitLanterniteState,
+} from './unitLanterniteState';
+import {
+    applyThornlingStateFromJSON,
+    createThornlingState,
+    thornlingStateToJSON,
+    type UnitThornlingState,
+} from './unitThornlingState';
+import {
+    applySwarmStateFromJSON,
+    createSwarmState,
+    swarmStateToJSON,
+    type UnitSwarmState,
+} from './unitSwarmState';
+
+export type {
+    AISettings,
+    ApplyKnockbackParams,
+    DamageModifier,
+    KnockbackSource,
+    KnockbackState,
+    UnitAbilityRuntimeState,
+    UnitCombatSettings,
+    UnitMovement,
+} from './unitTypes';
 
 /** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
 const WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID = 4;
@@ -126,78 +168,8 @@ const LEGACY_PLAYER_CHARACTER_IDS = new Set([
     'warrior', 'mage', 'ranger', 'healer', 'rogue', 'necromancer',
 ]);
 
-/** AI behavior settings for enemy units. */
-export interface AISettings {
-    /** Minimum desired distance (px) to target. AI backs away if closer. */
-    minRange: number;
-    /** Maximum desired distance (px) to target. AI approaches if farther. */
-    maxRange: number;
-}
-
-export type DamageModifier = { flatAmt: number; multiplier: number };
-
-export interface UnitCombatSettings {
-    damageModifier?: DamageModifier;
-}
-
 import type { UnitAIContext } from './unitAI/contextTypes';
 export type { UnitAIContext } from './unitAI/contextTypes';
-
-/** Movement state for a unit. */
-export interface UnitMovement {
-    /** Grid cells to traverse, each exactly 1 cell (cardinal or diagonal) from the previous. */
-    path: { col: number; row: number }[];
-    /** ID of the unit being pursued (undefined for ground-move orders). */
-    targetUnitId: string | undefined;
-    /** Exact world-pixel destination for the final step (overrides jittered tile centre). */
-    targetPixel?: { x: number; y: number };
-    /** The gameTick when pathfinding was last computed. */
-    pathfindingTick: number;
-}
-
-/** Source of knockback (for callbacks). Serializable. */
-export interface KnockbackSource {
-    /** Unit ID that applied the knockback. */
-    unitId: string;
-    /** Ability ID used. */
-    abilityId: string;
-}
-
-/** Knockback state on a unit. Serializable. */
-export interface KnockbackState {
-    /** Direction and magnitude (px) of the knockback. */
-    knockbackVector: { x: number; y: number };
-    /** Time (seconds) the unit is in the air and cannot move; full vector applied. */
-    knockbackAirTime: number;
-    /** Time (seconds) after air during which half the vector is applied (slide). */
-    knockbackSlideTime: number;
-    /** Who applied the knockback (for callbacks). */
-    knockbackSource: KnockbackSource;
-    /** Time (seconds) this knockback has been active. */
-    knockbackElapsed: number;
-    /** When true, terrain collision is bypassed so the unit can travel through walls. */
-    passThroughTerrain?: boolean;
-}
-
-/** Parameters for applying knockback to a unit. */
-export interface ApplyKnockbackParams {
-    knockbackVector: { x: number; y: number };
-    knockbackAirTime: number;
-    knockbackSlideTime: number;
-    knockbackSource: KnockbackSource;
-    /** When true, terrain collision is bypassed so the unit can travel through walls. */
-    passThroughTerrain?: boolean;
-}
-
-export interface UnitAbilityRuntimeState {
-    currentUses: number;
-    maxUses: number;
-    recoveryChargesByType: Partial<Record<RecoveryChargeType, number>>;
-    /** False when this ability is hidden by the swap network (not shown in UI, not usable). Defaults to true. */
-    active: boolean;
-    /** The ability ID this ability pushed aside when it activated. Null when not currently swapped in. */
-    replacedAbilityId: string | null;
-}
 
 export class Unit extends GameObject {
     hp: number;
@@ -381,64 +353,13 @@ export class Unit extends GameObject {
      */
     ephemeralDespawnAtGameTime: number | null = null;
 
-    /** Unit id of the player unit that owns this pet. Set on pet units only. */
-    petOwnerUnitId: string | undefined = undefined;
+    petState: UnitPetState = createPetState();
 
-    /** Unit ids of this unit's living pets. Maintained by spawn logic; never set on pets. */
-    petUnitIds: string[] = [];
+    lanterniteState: UnitLanterniteState = createLanterniteState();
 
-    /** Pet def id (from PET_DEFS) for pet units. Undefined on non-pet units. Def-based stats (leash ranges) resolve through getPetDef. */
-    petDefId: string | undefined = undefined;
+    thornlingState: UnitThornlingState = createThornlingState();
 
-    /** Set on Lanternites from a nest; skips global Lanternite corpse respawn. */
-    lanterniteNestOwnerUnitId: string | null = null;
-
-    /** Fixed far endpoint for nest-spawn Lanternite patrol legs. */
-    lanternPatrolFarWorld: { x: number; y: number } | null = null;
-
-    lanternPatrolLeg: 'toFar' | 'toNest' = 'toFar';
-
-    /** Runtime config for `lanternite_nest`. */
-    lanterniteNestConfig: LanterniteNestMissionConfig | null = null;
-
-    /** Spawn pacing + bookkeeping for Lanternites created by this nest. */
-    lanterniteNestSpawnState: { spawnedIds: string[]; nextSpawnAtGameTime: number } | null = null;
-
-    /** Runtime config for `thornling_nest`. */
-    thornlingNestConfig: import('../../storylines/types').ThornlingNestMissionConfig | null = null;
-
-    /** Spawn pacing + bookkeeping for thornlings created by this nest. */
-    thornlingNestSpawnState: { spawnedIds: string[]; nextSpawnAtGameTime: number } | null = null;
-
-    /** Runtime config for `swarm_nest`. */
-    swarmNestConfig: import('../../storylines/types').SwarmNestMissionConfig | null = null;
-
-    /** Spawn pacing + bookkeeping for swarmlings created by this swarm nest. */
-    swarmNestSpawnState: { spawnedIds: string[]; nextSpawnAtGameTime: number } | null = null;
-
-    /** Swarm nest: ID of the `nest` POI this swarm nest occupies. */
-    swarmNestHomePoiId: string | null = null;
-
-    /** Swarmling: golden-angle orbit slot (radians). Used for ring positioning around both nest POIs and hunt targets. */
-    swarmlingOrbitAngle: number | null = null;
-
-    /** Swarmling: ID of the target `nest` POI this swarmling is pathfinding toward to build a nest. */
-    swarmlingTargetNestPoiId: string | null = null;
-
-    /** Swarmling: unit ID of the swarm nest that spawned this swarmling. */
-    swarmlingNestOwnerUnitId: string | null = null;
-
-    /** Swarmling: game time when construction completes and a new swarm nest should spawn. */
-    swarmlingConstructionCompleteAtGameTime: number | null = null;
-
-    /** Role assigned by the nest at spawn for networked behavior. */
-    lanterniteRole: 'scout' | 'defender' | null = null;
-
-    /** Scout: ID of the target `nest` POI this scout is pathfinding toward. */
-    lanterniteTargetNestPoiId: string | null = null;
-
-    /** Nest unit: ID of the `nest` POI this nest occupies. */
-    lanterniteHomeNestPoiId: string | null = null;
+    swarmState: UnitSwarmState = createSwarmState();
 
     /**
      * Generational invulnerability counter. If > 0, this unit is invulnerable.
@@ -448,69 +369,13 @@ export class Unit extends GameObject {
      */
     invulnerabilityGenerations: number | null = null;
 
-    /** Scout: game time when construction completes and a new nest should spawn. */
-    lanterniteConstructionCompleteAtGameTime: number | null = null;
-
-    /** Stagger offset: unit is eligible to attack once gameTime reaches this value. */
-    lanterniteAttackReadyAtGameTime: number = 0;
-
-    /**
-     * Angle (radians) at which this scout stands relative to the nest build target.
-     * Assigned at spawn using golden-angle distribution so each scout has a unique offset.
-     * Serialized so the scout stays at the same position after a checkpoint restore.
-     */
-    lanterniteConstructionAngle: number | null = null;
-
-    /**
-     * Runtime-only: true once the construction particle emitter has been registered.
-     * Not serialized — the emitter is recreated next tick if needed after a restore.
-     */
-    lanterniteConstructionEmitterStarted: boolean = false;
-
     /** Active EffectEmitters created from declarative `emitterDef` on AbilityTimingInterval. Keyed by `intervalId`. Runtime-only. */
     activeTimingEmitters: Map<string, import('../effects/EffectEmitter').EffectEmitter> = new Map();
 
     /** Active sustained CastBehaviours for this unit's casts. Keyed by `${intervalId}_${behaviourIdx}`. Runtime-only. */
-    activeCastBehaviours: Map<string, {
-        entry: import('../../abilities/castBehaviourTypes').CastBehaviourEntry;
-        intervalStart: number;
-        intervalEnd: number;
-        caster: Unit;
-        active: ActiveAbility;
-        /** targetDef from the parent timing interval, for resolving targetsByLabel. */
-        targetDef?: import('../../abilities/timingTargetDef').TimingTargetDef;
-        /** Visual effects to fire at the first tick for instant abilities that don't launch a projectile. */
-        onProjectileHit?: import('../effects/visualEffectDef').VisualEffectDef[];
-        /** When true, fire onProjectileHit at the first sustained tick (instant abilities). */
-        fireOnHitAtFirstTick?: boolean;
-    }> = new Map();
+    activeCastBehaviours: Map<string, ActiveCastBehaviourRecord> = new Map();
 
-    constructor(config: {
-        id?: string;
-        x: number;
-        y: number;
-        hp: number;
-        maxHp?: number;
-        speed: number;
-        teamId: TeamId;
-        ownerId: string;
-        characterId: string;
-        portraitId?: string;
-        name: string;
-        abilities?: string[];
-        aiSettings?: AISettings | null;
-        /** UnitAITree ID for AI. Default 'default'. */
-        unitAITreeId?: string;
-        /** Visual/collision radius. Defaults to DEFAULT_UNIT_RADIUS. */
-        radius?: number;
-        /** Stamina stat. */
-        stamina?: number;
-        /** Optional per-unit combat tuning values. */
-        combatSettings?: UnitCombatSettings;
-        ephemeralDespawnAtGameTime?: number | null;
-        /** Number of units in this stack (default 1). */
-        stackSize?: number;
-    }) {
+    constructor(config: UnitConfig) {
         super(config.id ?? generateGameObjectId('unit'), config.x, config.y);
         this.hp = config.hp;
         this.maxHp = config.maxHp ?? config.hp;
@@ -1619,58 +1484,14 @@ export class Unit extends GameObject {
                 ? { ephemeralDespawnAtGameTime: this.ephemeralDespawnAtGameTime }
                 : {}),
             ...(this.tags.length > 0 ? { tags: [...this.tags] } : {}),
-            ...(this.lanterniteNestOwnerUnitId != null ? { lanterniteNestOwnerUnitId: this.lanterniteNestOwnerUnitId } : {}),
+            ...lanterniteStateToJSONBeforeWall(this),
             ...(this.wallEntryPoint != null ? { wallEntryPoint: { ...this.wallEntryPoint } } : {}),
-            ...(this.lanternPatrolFarWorld != null ? { lanternPatrolFarWorld: { ...this.lanternPatrolFarWorld } } : {}),
-            ...(this.lanternPatrolLeg !== 'toFar' ? { lanternPatrolLeg: this.lanternPatrolLeg } : {}),
-            ...(this.lanterniteNestConfig != null
-                ? { lanterniteNestConfig: JSON.parse(JSON.stringify(this.lanterniteNestConfig)) as LanterniteNestMissionConfig }
-                : {}),
-            ...(this.lanterniteNestSpawnState != null
-                ? {
-                      lanterniteNestSpawnState: {
-                          spawnedIds: [...this.lanterniteNestSpawnState.spawnedIds],
-                          nextSpawnAtGameTime: this.lanterniteNestSpawnState.nextSpawnAtGameTime,
-                      },
-                  }
-                : {}),
-            ...(this.thornlingNestConfig != null
-                ? { thornlingNestConfig: JSON.parse(JSON.stringify(this.thornlingNestConfig)) as import('../../storylines/types').ThornlingNestMissionConfig }
-                : {}),
-            ...(this.thornlingNestSpawnState != null
-                ? {
-                      thornlingNestSpawnState: {
-                          spawnedIds: [...this.thornlingNestSpawnState.spawnedIds],
-                          nextSpawnAtGameTime: this.thornlingNestSpawnState.nextSpawnAtGameTime,
-                      },
-                  }
-                : {}),
-            ...(this.swarmNestConfig != null
-                ? { swarmNestConfig: JSON.parse(JSON.stringify(this.swarmNestConfig)) as import('../../storylines/types').SwarmNestMissionConfig }
-                : {}),
-            ...(this.swarmNestSpawnState != null
-                ? {
-                      swarmNestSpawnState: {
-                          spawnedIds: [...this.swarmNestSpawnState.spawnedIds],
-                          nextSpawnAtGameTime: this.swarmNestSpawnState.nextSpawnAtGameTime,
-                      },
-                  }
-                : {}),
-            ...(this.swarmNestHomePoiId != null ? { swarmNestHomePoiId: this.swarmNestHomePoiId } : {}),
-            ...(this.swarmlingOrbitAngle != null ? { swarmlingOrbitAngle: this.swarmlingOrbitAngle } : {}),
-            ...(this.swarmlingTargetNestPoiId != null ? { swarmlingTargetNestPoiId: this.swarmlingTargetNestPoiId } : {}),
-            ...(this.swarmlingNestOwnerUnitId != null ? { swarmlingNestOwnerUnitId: this.swarmlingNestOwnerUnitId } : {}),
-            ...(this.swarmlingConstructionCompleteAtGameTime != null ? { swarmlingConstructionCompleteAtGameTime: this.swarmlingConstructionCompleteAtGameTime } : {}),
-            ...(this.lanterniteRole != null ? { lanterniteRole: this.lanterniteRole } : {}),
-            ...(this.lanterniteTargetNestPoiId != null ? { lanterniteTargetNestPoiId: this.lanterniteTargetNestPoiId } : {}),
-            ...(this.lanterniteHomeNestPoiId != null ? { lanterniteHomeNestPoiId: this.lanterniteHomeNestPoiId } : {}),
-            ...(this.lanterniteConstructionCompleteAtGameTime != null ? { lanterniteConstructionCompleteAtGameTime: this.lanterniteConstructionCompleteAtGameTime } : {}),
-            ...(this.lanterniteAttackReadyAtGameTime !== 0 ? { lanterniteAttackReadyAtGameTime: this.lanterniteAttackReadyAtGameTime } : {}),
-            ...(this.lanterniteConstructionAngle != null ? { lanterniteConstructionAngle: this.lanterniteConstructionAngle } : {}),
+            ...lanterniteStateToJSONBeforeThornling(this),
+            ...thornlingStateToJSON(this),
+            ...swarmStateToJSON(this),
+            ...lanterniteStateToJSONAfterSwarm(this),
             ...(this.invulnerabilityGenerations != null ? { invulnerabilityGenerations: this.invulnerabilityGenerations } : {}),
-            ...(this.petOwnerUnitId !== undefined ? { petOwnerUnitId: this.petOwnerUnitId } : {}),
-            ...(this.petUnitIds.length > 0 ? { petUnitIds: [...this.petUnitIds] } : {}),
-            ...(this.petDefId !== undefined ? { petDefId: this.petDefId } : {}),
+            ...petStateToJSON(this),
             tacticalPlan: this.tacticalPlan
                 ? serializeTacticalPlan(this.tacticalPlan, currentGameTick)
                 : null,
@@ -1709,97 +1530,13 @@ export class Unit extends GameObject {
         if (data.ephemeralDespawnAtGameTime != null) {
             unit.ephemeralDespawnAtGameTime = data.ephemeralDespawnAtGameTime as number;
         }
-        if (data.lanterniteNestOwnerUnitId != null) {
-            unit.lanterniteNestOwnerUnitId = data.lanterniteNestOwnerUnitId as string;
-        }
-        if (data.lanternPatrolFarWorld != null) {
-            const w = data.lanternPatrolFarWorld as { x?: number; y?: number };
-            if (typeof w.x === 'number' && typeof w.y === 'number') unit.lanternPatrolFarWorld = { x: w.x, y: w.y };
-        }
-        if (data.lanternPatrolLeg === 'toNest' || data.lanternPatrolLeg === 'toFar') {
-            unit.lanternPatrolLeg = data.lanternPatrolLeg;
-        }
-        if (data.lanterniteNestConfig != null) {
-            unit.lanterniteNestConfig = data.lanterniteNestConfig as LanterniteNestMissionConfig;
-        }
-        if (data.lanterniteNestSpawnState != null) {
-            const s = data.lanterniteNestSpawnState as { spawnedIds?: unknown; nextSpawnAtGameTime?: number };
-            const ids = Array.isArray(s.spawnedIds)
-                ? (s.spawnedIds as unknown[]).filter((x): x is string => typeof x === 'string')
-                : [];
-            if (typeof s.nextSpawnAtGameTime === 'number') {
-                unit.lanterniteNestSpawnState = { spawnedIds: ids, nextSpawnAtGameTime: s.nextSpawnAtGameTime };
-            }
-        }
-        if (data.thornlingNestConfig != null) {
-            unit.thornlingNestConfig = data.thornlingNestConfig as import('../../storylines/types').ThornlingNestMissionConfig;
-        }
-        if (data.thornlingNestSpawnState != null) {
-            const s = data.thornlingNestSpawnState as { spawnedIds?: unknown; nextSpawnAtGameTime?: number };
-            const ids = Array.isArray(s.spawnedIds)
-                ? (s.spawnedIds as unknown[]).filter((x): x is string => typeof x === 'string')
-                : [];
-            if (typeof s.nextSpawnAtGameTime === 'number') {
-                unit.thornlingNestSpawnState = { spawnedIds: ids, nextSpawnAtGameTime: s.nextSpawnAtGameTime };
-            }
-        }
-        if (data.swarmNestConfig != null) {
-            unit.swarmNestConfig = data.swarmNestConfig as import('../../storylines/types').SwarmNestMissionConfig;
-        }
-        if (data.swarmNestSpawnState != null) {
-            const s = data.swarmNestSpawnState as { spawnedIds?: unknown; nextSpawnAtGameTime?: number };
-            const ids = Array.isArray(s.spawnedIds)
-                ? (s.spawnedIds as unknown[]).filter((x): x is string => typeof x === 'string')
-                : [];
-            if (typeof s.nextSpawnAtGameTime === 'number') {
-                unit.swarmNestSpawnState = { spawnedIds: ids, nextSpawnAtGameTime: s.nextSpawnAtGameTime };
-            }
-        }
-        if (typeof data.swarmNestHomePoiId === 'string') {
-            unit.swarmNestHomePoiId = data.swarmNestHomePoiId;
-        }
-        if (typeof data.swarmlingOrbitAngle === 'number') {
-            unit.swarmlingOrbitAngle = data.swarmlingOrbitAngle;
-        }
-        if (typeof data.swarmlingTargetNestPoiId === 'string') {
-            unit.swarmlingTargetNestPoiId = data.swarmlingTargetNestPoiId;
-        }
-        if (typeof data.swarmlingNestOwnerUnitId === 'string') {
-            unit.swarmlingNestOwnerUnitId = data.swarmlingNestOwnerUnitId;
-        }
-        if (typeof data.swarmlingConstructionCompleteAtGameTime === 'number') {
-            unit.swarmlingConstructionCompleteAtGameTime = data.swarmlingConstructionCompleteAtGameTime;
-        }
-        if (data.lanterniteRole === 'scout' || data.lanterniteRole === 'defender') {
-            unit.lanterniteRole = data.lanterniteRole;
-        }
-        if (typeof data.lanterniteTargetNestPoiId === 'string') {
-            unit.lanterniteTargetNestPoiId = data.lanterniteTargetNestPoiId;
-        }
-        if (typeof data.lanterniteHomeNestPoiId === 'string') {
-            unit.lanterniteHomeNestPoiId = data.lanterniteHomeNestPoiId;
-        }
-        if (typeof data.lanterniteConstructionCompleteAtGameTime === 'number') {
-            unit.lanterniteConstructionCompleteAtGameTime = data.lanterniteConstructionCompleteAtGameTime;
-        }
-        if (typeof data.lanterniteAttackReadyAtGameTime === 'number') {
-            unit.lanterniteAttackReadyAtGameTime = data.lanterniteAttackReadyAtGameTime;
-        }
-        if (typeof data.lanterniteConstructionAngle === 'number') {
-            unit.lanterniteConstructionAngle = data.lanterniteConstructionAngle;
-        }
+        applyLanterniteStateFromJSON(unit, data);
+        applyThornlingStateFromJSON(unit, data);
+        applySwarmStateFromJSON(unit, data);
         if (typeof data.invulnerabilityGenerations === 'number') {
             unit.invulnerabilityGenerations = data.invulnerabilityGenerations;
         }
-        if (typeof data.petOwnerUnitId === 'string') {
-            unit.petOwnerUnitId = data.petOwnerUnitId;
-        }
-        unit.petUnitIds = Array.isArray(data.petUnitIds)
-            ? (data.petUnitIds as unknown[]).filter((x): x is string => typeof x === 'string')
-            : [];
-        if (typeof data.petDefId === 'string') {
-            unit.petDefId = data.petDefId;
-        }
+        applyPetStateFromJSON(unit, data);
 
         // Restore movement
         const movementData = data.movement as {

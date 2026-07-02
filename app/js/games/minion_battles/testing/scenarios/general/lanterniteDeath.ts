@@ -170,7 +170,7 @@ export const lanterniteNestOwnedNoRespawnScenario: ScenarioDefinition = {
             engine,
         );
         // Mark as nest-owned — sporeRebirth must skip this unit.
-        lanternite.lanterniteNestOwnerUnitId = 'fake_nest_id';
+        lanternite.lanterniteState.nestOwnerUnitId = 'fake_nest_id';
         engine.addUnit(lanternite, 'initialGameSpawn');
 
         engine.addLightSource(

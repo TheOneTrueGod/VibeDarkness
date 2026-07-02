@@ -184,13 +184,13 @@ export class LevelEventManager {
     /** Optional Lantern ecology fields from mission spawn / wave entries. */
     private applyLanterniteEcologySpawnFields(unit: Unit, entry: SpawnWaveEntry | EnemySpawnDef): void {
         if ('lanterniteNestOwnerUnitId' in entry && entry.lanterniteNestOwnerUnitId != null) {
-            unit.lanterniteNestOwnerUnitId = entry.lanterniteNestOwnerUnitId;
+            unit.lanterniteState.nestOwnerUnitId = entry.lanterniteNestOwnerUnitId;
         }
         if ('lanternPatrolFarWorld' in entry && entry.lanternPatrolFarWorld != null) {
-            unit.lanternPatrolFarWorld = { ...entry.lanternPatrolFarWorld };
+            unit.lanterniteState.patrolFarWorld = { ...entry.lanternPatrolFarWorld };
         }
         if ('lanternPatrolLeg' in entry && (entry.lanternPatrolLeg === 'toFar' || entry.lanternPatrolLeg === 'toNest')) {
-            unit.lanternPatrolLeg = entry.lanternPatrolLeg;
+            unit.lanterniteState.patrolLeg = entry.lanternPatrolLeg;
         }
     }
 

@@ -272,9 +272,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     params.eventBus,
                     engine,
                 );
-                pet.petDefId = petId;
-                pet.petOwnerUnitId = unit.id;
-                unit.petUnitIds.push(pet.id);
+                pet.petState.defId = petId;
+                pet.petState.ownerUnitId = unit.id;
+                unit.petState.unitIds.push(pet.id);
                 initializeAbilityRuntimeForUnit(pet);
                 engine.addUnit(pet, 'initialGameSpawn');
             }
@@ -306,22 +306,22 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 hydrateLanterniteNestFromMissionDef(unit, spawn.lanterniteNest);
             }
             if (spawn.thornlingNest != null && spawn.characterId === THORNLING_NEST_CHARACTER_ID) {
-                unit.thornlingNestConfig = spawn.thornlingNest;
+                unit.thornlingState.nestConfig = spawn.thornlingNest;
             }
             if (spawn.lanterniteNestOwnerUnitId != null) {
-                unit.lanterniteNestOwnerUnitId = spawn.lanterniteNestOwnerUnitId;
+                unit.lanterniteState.nestOwnerUnitId = spawn.lanterniteNestOwnerUnitId;
             }
             if (spawn.lanternPatrolFarWorld != null) {
-                unit.lanternPatrolFarWorld = { ...spawn.lanternPatrolFarWorld };
+                unit.lanterniteState.patrolFarWorld = { ...spawn.lanternPatrolFarWorld };
             }
             if (spawn.lanternPatrolLeg === 'toFar' || spawn.lanternPatrolLeg === 'toNest') {
-                unit.lanternPatrolLeg = spawn.lanternPatrolLeg;
+                unit.lanterniteState.patrolLeg = spawn.lanternPatrolLeg;
             }
             if (spawn.lanterniteRole != null) {
-                unit.lanterniteRole = spawn.lanterniteRole;
+                unit.lanterniteState.role = spawn.lanterniteRole;
             }
             if (spawn.lanterniteTargetNestPoiId != null) {
-                unit.lanterniteTargetNestPoiId = spawn.lanterniteTargetNestPoiId;
+                unit.lanterniteState.targetNestPoiId = spawn.lanterniteTargetNestPoiId;
             }
             if (spawn.invulnerabilityGenerations != null) {
                 unit.invulnerabilityGenerations = spawn.invulnerabilityGenerations;
@@ -332,7 +332,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         }
 
         for (const u of engine.units) {
-            if (u.characterId === LANTERNITE_NEST_CHARACTER_ID && u.lanterniteNestConfig != null) {
+            if (u.characterId === LANTERNITE_NEST_CHARACTER_ID && u.lanterniteState.nestConfig != null) {
                 prepareLanterniteNestForMissionStart(u, engine.gameTime);
                 // Register the light source immediately so applyInstantLightingPass() (called
                 // right after initializeGameState) snapshots full brightness from frame 0,
@@ -345,7 +345,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     });
                 }
             }
-            if (u.characterId === THORNLING_NEST_CHARACTER_ID && u.thornlingNestConfig != null) {
+            if (u.characterId === THORNLING_NEST_CHARACTER_ID && u.thornlingState.nestConfig != null) {
                 initializeThornlingNestSpawnState(u, engine.gameTime);
             }
         }

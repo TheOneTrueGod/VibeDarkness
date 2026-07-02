@@ -51,10 +51,10 @@ export function findUnoccupiedConnectedNestPoi(
             (u) =>
                 u.isAlive() &&
                 u.characterId === LANTERNITE_NEST_CHARACTER_ID &&
-                u.lanterniteHomeNestPoiId === connId,
+                u.lanterniteState.homeNestPoiId === connId,
         );
         const alreadyTargeted = allUnits.some(
-            (u) => u.isAlive() && u.lanterniteTargetNestPoiId === connId,
+            (u) => u.isAlive() && u.lanterniteState.targetNestPoiId === connId,
         );
         if (!alreadyClaimed && !alreadyTargeted) {
             const poi = allPois.find((p) => p.id === connId && p.type === 'nest');
@@ -73,6 +73,6 @@ export function countAliveChildrenByRole(
 ): number {
     return spawnedIds.filter((id) => {
         const u = allUnits.find((x) => x.id === id);
-        return u != null && u.isAlive() && u.lanterniteRole === role;
+        return u != null && u.isAlive() && u.lanterniteState.role === role;
     }).length;
 }

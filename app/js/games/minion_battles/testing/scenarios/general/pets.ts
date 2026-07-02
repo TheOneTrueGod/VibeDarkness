@@ -41,10 +41,10 @@ function spawnDog(
         engine.eventBus,
         engine,
     );
-    dog.petDefId = 'dog';
-    dog.petOwnerUnitId = owner.id;
+    dog.petState.defId = 'dog';
+    dog.petState.ownerUnitId = owner.id;
     if (opts.hp !== undefined) dog.hp = opts.hp;
-    owner.petUnitIds.push(dog.id);
+    owner.petState.unitIds.push(dog.id);
     initializeAbilityRuntimeForUnit(dog);
     engine.addUnit(dog, 'initialGameSpawn');
     return dog;

@@ -76,23 +76,23 @@ describe('Pet unit toJSON / fromJSON', () => {
     it('restores petOwnerUnitId, petUnitIds, petDefId', () => {
         const eb = new EventBus();
         const dog = makeUnit({ id: 'dog1' });
-        dog.petOwnerUnitId = 'owner1';
-        dog.petUnitIds = [];
-        dog.petDefId = 'dog';
+        dog.petState.ownerUnitId = 'owner1';
+        dog.petState.unitIds = [];
+        dog.petState.defId = 'dog';
 
         const owner = makeUnit({ id: 'owner1' });
-        owner.petUnitIds = ['dog1'];
+        owner.petState.unitIds = ['dog1'];
 
         const dogJson = dog.toJSON();
         const restoredDog = Unit.fromJSON(dogJson, eb);
 
-        expect(restoredDog.petOwnerUnitId).toBe('owner1');
-        expect(restoredDog.petDefId).toBe('dog');
-        expect(restoredDog.petUnitIds).toEqual([]);
+        expect(restoredDog.petState.ownerUnitId).toBe('owner1');
+        expect(restoredDog.petState.defId).toBe('dog');
+        expect(restoredDog.petState.unitIds).toEqual([]);
 
         const ownerJson = owner.toJSON();
         const restoredOwner = Unit.fromJSON(ownerJson, eb);
-        expect(restoredOwner.petUnitIds).toEqual(['dog1']);
+        expect(restoredOwner.petState.unitIds).toEqual(['dog1']);
     });
 
     it('backward-compatible: missing fields default correctly', () => {
@@ -107,9 +107,9 @@ describe('Pet unit toJSON / fromJSON', () => {
         delete data.petDefId;
 
         const restored = Unit.fromJSON(json, eb);
-        expect(restored.petOwnerUnitId).toBeUndefined();
-        expect(restored.petUnitIds).toEqual([]);
-        expect(restored.petDefId).toBeUndefined();
+        expect(restored.petState.ownerUnitId).toBeUndefined();
+        expect(restored.petState.unitIds).toEqual([]);
+        expect(restored.petState.defId).toBeUndefined();
     });
 });
 

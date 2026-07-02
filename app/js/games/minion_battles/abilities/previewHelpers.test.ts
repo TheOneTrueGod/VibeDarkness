@@ -56,7 +56,7 @@ describe('createPetSourcedMovementPreview', () => {
             y: 0,
             teamId: 'player',
             ownerId: 'p1',
-            petOwnerUnitId: 'player1',
+            petState: { ownerUnitId: 'player1' },
             radius: 12,
             isAlive: () => true,
         } as Unit;
@@ -66,7 +66,7 @@ describe('createPetSourcedMovementPreview', () => {
             y: 200,
             teamId: 'player',
             ownerId: 'p1',
-            petOwnerUnitId: 'player1',
+            petState: { ownerUnitId: 'player1' },
             radius: 12,
             isAlive: () => true,
         } as Unit;

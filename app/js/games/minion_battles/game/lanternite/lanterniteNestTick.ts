@@ -31,7 +31,7 @@ const GOLDEN_ANGLE = 2.399963229728653;
 const ROUND_DURATION_SEC = 8;
 
 function pruneSpawnedLanternIds(nest: Unit, units: readonly Unit[]): void {
-    const state = nest.lanterniteNestSpawnState;
+    const state = nest.lanterniteState.nestSpawnState;
     if (!state) return;
     state.spawnedIds = state.spawnedIds.filter((id) => {
         const u = units.find((x) => x.id === id);
@@ -40,7 +40,7 @@ function pruneSpawnedLanternIds(nest: Unit, units: readonly Unit[]): void {
 }
 
 function resolvePatrolFarWorld(nest: Unit, units: readonly Unit[]): { x: number; y: number } | null {
-    const cfg = nest.lanterniteNestConfig;
+    const cfg = nest.lanterniteState.nestConfig;
     if (!cfg) return null;
     const dest = cfg.patrolDestination;
     if (dest.kind === 'world') return { x: dest.x, y: dest.y };
@@ -78,19 +78,19 @@ export function processLanterniteNests(params: {
     for (const unit of params.units) {
         if (
             !unit.isAlive() ||
-            unit.lanterniteConstructionCompleteAtGameTime == null ||
-            params.gameTime < unit.lanterniteConstructionCompleteAtGameTime
+            unit.lanterniteState.constructionCompleteAtGameTime == null ||
+            params.gameTime < unit.lanterniteState.constructionCompleteAtGameTime
         ) {
             continue;
         }
 
         // Skip if another scout already built a nest at this POI
-        if (unit.lanterniteTargetNestPoiId != null) {
+        if (unit.lanterniteState.targetNestPoiId != null) {
             const alreadyOccupied = params.units.some(
                 (u) =>
                     u.characterId === LANTERNITE_NEST_CHARACTER_ID &&
                     u.isAlive() &&
-                    u.lanterniteHomeNestPoiId === unit.lanterniteTargetNestPoiId,
+                    u.lanterniteState.homeNestPoiId === unit.lanterniteState.targetNestPoiId,
             );
             if (alreadyOccupied) {
                 unit.hp = 0;
@@ -100,26 +100,26 @@ export function processLanterniteNests(params: {
             }
         }
 
-        const parentNestId = unit.lanterniteNestOwnerUnitId;
+        const parentNestId = unit.lanterniteState.nestOwnerUnitId;
         const parentNest = parentNestId
             ? params.units.find((u) => u.id === parentNestId)
             : null;
 
         // Remove scout from parent's spawn tracking
-        if (parentNest?.lanterniteNestSpawnState) {
-            parentNest.lanterniteNestSpawnState.spawnedIds =
-                parentNest.lanterniteNestSpawnState.spawnedIds.filter((id) => id !== unit.id);
+        if (parentNest?.lanterniteState.nestSpawnState) {
+            parentNest.lanterniteState.nestSpawnState.spawnedIds =
+                parentNest.lanterniteState.nestSpawnState.spawnedIds.filter((id) => id !== unit.id);
         }
 
-        const parentCfg = parentNest?.lanterniteNestConfig;
-        const nestPos = unit.lanternPatrolFarWorld ?? { x: unit.x, y: unit.y };
+        const parentCfg = parentNest?.lanterniteState.nestConfig;
+        const nestPos = unit.lanterniteState.patrolFarWorld ?? { x: unit.x, y: unit.y };
         const newNestCfg: LanterniteNestMissionConfig = {
             maxLanternites: parentCfg?.maxLanternites ?? 3,
             spawnIntervalSec: parentCfg?.spawnIntervalSec ?? 14,
             ...(parentCfg?.spawnCount != null ? { spawnCount: parentCfg.spawnCount } : {}),
             patrolDestination: { kind: 'world', x: nestPos.x, y: nestPos.y },
             networked: true,
-            nestPoiId: unit.lanterniteTargetNestPoiId ?? undefined,
+            nestPoiId: unit.lanterniteState.targetNestPoiId ?? undefined,
             scoutConstructionSec: parentCfg?.scoutConstructionSec ?? 10,
         };
 
@@ -140,8 +140,8 @@ export function processLanterniteNests(params: {
             params.eventBus,
             params.idSource,
         );
-        newNest.lanterniteNestConfig = newNestCfg;
-        newNest.lanterniteHomeNestPoiId = unit.lanterniteTargetNestPoiId ?? null;
+        newNest.lanterniteState.nestConfig = newNestCfg;
+        newNest.lanterniteState.homeNestPoiId = unit.lanterniteState.targetNestPoiId ?? null;
         if (unit.tags.includes(UnitTag.Invincible)) newNest.tags = [UnitTag.Invincible];
         if (unit.invulnerabilityGenerations != null) {
             newNest.invulnerabilityGenerations = Math.max(0, unit.invulnerabilityGenerations - 1);
@@ -156,7 +156,7 @@ export function processLanterniteNests(params: {
         // Claim the scout as owned by the new nest before killing it so the global
         // respawn manager (which only respawns ownerless lanternites) does not queue
         // a replacement. Pre-spawned scouts start with no owner.
-        unit.lanterniteNestOwnerUnitId = newNest.id;
+        unit.lanterniteState.nestOwnerUnitId = newNest.id;
         unit.hp = 0;
         unit.active = false;
         params.eventBus.emit('unit_died', { unitId: unit.id, killerUnitId: null });
@@ -166,8 +166,8 @@ export function processLanterniteNests(params: {
     for (const nest of params.units) {
         if (!nest.isAlive() || nest.characterId !== LANTERNITE_NEST_CHARACTER_ID) continue;
 
-        const cfg = nest.lanterniteNestConfig;
-        const state = nest.lanterniteNestSpawnState;
+        const cfg = nest.lanterniteState.nestConfig;
+        const state = nest.lanterniteState.nestSpawnState;
         if (!cfg || !state) continue;
 
         pruneSpawnedLanternIds(nest, params.units);
@@ -210,7 +210,7 @@ export function processLanterniteNests(params: {
                 params.eventBus,
                 params.idSource,
             );
-            lan.lanterniteNestOwnerUnitId = nest.id;
+            lan.lanterniteState.nestOwnerUnitId = nest.id;
 
             // aliveKids is the count before this unit is added.
             const aliveKids = state.spawnedIds.length;
@@ -219,7 +219,7 @@ export function processLanterniteNests(params: {
                 // Network mode: assign roles, resolve scout target, stagger attack offset
                 const defenderCount = countAliveChildrenByRole(state.spawnedIds, params.units, 'defender');
                 const targetDefenders = Math.floor(cfg.maxLanternites / 2);
-                const nestPoiId = nest.lanterniteHomeNestPoiId ?? cfg.nestPoiId;
+                const nestPoiId = nest.lanterniteState.homeNestPoiId ?? cfg.nestPoiId;
 
                 let role: 'scout' | 'defender' = 'defender';
                 let targetPoi: MapSegmentPOI | null = null;
@@ -231,31 +231,31 @@ export function processLanterniteNests(params: {
                     role = targetPoi ? 'scout' : 'defender';
                 }
 
-                lan.lanterniteRole = role;
+                lan.lanterniteState.role = role;
                 lan.unitAITreeId = 'lanterniteNetwork';
 
                 // Assign a unique stand angle using the golden angle so each scout
                 // in a nest stands at a distinct direction around the build site.
-                lan.lanterniteConstructionAngle = (aliveKids * GOLDEN_ANGLE) % (Math.PI * 2);
+                lan.lanterniteState.constructionAngle = (aliveKids * GOLDEN_ANGLE) % (Math.PI * 2);
 
                 if (role === 'scout' && targetPoi) {
                     const worldPos = params.terrainGrid
                         ? params.terrainGrid.gridToWorld(targetPoi.col, targetPoi.row)
                         : { x: targetPoi.col * CELL_SIZE + CELL_SIZE / 2, y: targetPoi.row * CELL_SIZE + CELL_SIZE / 2 };
-                    lan.lanternPatrolFarWorld = worldPos;
-                    lan.lanterniteTargetNestPoiId = targetPoi.id;
-                    lan.lanterniteNestConfig = cfg;
+                    lan.lanterniteState.patrolFarWorld = worldPos;
+                    lan.lanterniteState.targetNestPoiId = targetPoi.id;
+                    lan.lanterniteState.nestConfig = cfg;
                 }
 
                 const numPhases = Math.max(1, cfg.maxLanternites);
                 const phaseOffsetSec = (aliveKids % numPhases) * (ROUND_DURATION_SEC / numPhases);
-                lan.lanterniteAttackReadyAtGameTime = params.gameTime + phaseOffsetSec;
+                lan.lanterniteState.attackReadyAtGameTime = params.gameTime + phaseOffsetSec;
             } else {
                 // Legacy patrol behavior
                 const far = resolvePatrolFarWorld(nest, params.units);
                 if (!far) break;
-                lan.lanternPatrolFarWorld = { ...far };
-                lan.lanternPatrolLeg = 'toFar';
+                lan.lanterniteState.patrolFarWorld = { ...far };
+                lan.lanterniteState.patrolLeg = 'toFar';
             }
 
             if (nest.tags.includes(UnitTag.Invincible)) lan.tags = [UnitTag.Invincible];
@@ -273,18 +273,18 @@ export function processLanterniteNests(params: {
     if (params.addEffectEmitter) {
         for (const unit of params.units) {
             if (!unit.isAlive()) continue;
-            if (unit.lanterniteRole !== 'scout') continue;
-            if (unit.lanterniteConstructionCompleteAtGameTime == null) continue;
-            if (unit.lanterniteConstructionEmitterStarted) continue;
+            if (unit.lanterniteState.role !== 'scout') continue;
+            if (unit.lanterniteState.constructionCompleteAtGameTime == null) continue;
+            if (unit.lanterniteState.constructionEmitterStarted) continue;
 
-            unit.lanterniteConstructionEmitterStarted = true;
-            const targetPos = unit.lanternPatrolFarWorld;
+            unit.lanterniteState.constructionEmitterStarted = true;
+            const targetPos = unit.lanterniteState.patrolFarWorld;
             if (!targetPos) continue;
 
             const targetX = targetPos.x;
             const targetY = targetPos.y;
             const unitId = unit.id;
-            const remaining = Math.max(0, unit.lanterniteConstructionCompleteAtGameTime - params.gameTime);
+            const remaining = Math.max(0, unit.lanterniteState.constructionCompleteAtGameTime - params.gameTime);
 
             // Emit ~2-3 green arc particles per second for the remaining construction duration.
             const emitter = new IntervalEmitter({

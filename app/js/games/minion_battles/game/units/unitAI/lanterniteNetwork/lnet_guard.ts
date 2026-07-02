@@ -78,8 +78,8 @@ export const lnet_guard: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
                 return;
             }
 
-            const nest = unit.lanterniteNestOwnerUnitId
-                ? context.getUnit(unit.lanterniteNestOwnerUnitId)
+            const nest = unit.lanterniteState.nestOwnerUnitId
+                ? context.getUnit(unit.lanterniteState.nestOwnerUnitId)
                 : null;
             if (!nest?.isAlive()) {
                 queueWaitAndEndTurn(unit, context);

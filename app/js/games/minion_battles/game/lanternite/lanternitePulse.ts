@@ -140,15 +140,15 @@ export function processLanternitePulseMilestone(
 
 /** Initialise nest spawn pacing after the engine clock is ready. */
 export function prepareLanterniteNestForMissionStart(unit: Unit, gameTime: number): void {
-    if (unit.characterId !== LANTERNITE_NEST_CHARACTER_ID || !unit.lanterniteNestConfig) return;
-    const iv = Math.max(0.5, unit.lanterniteNestConfig.spawnIntervalSec);
-    unit.lanterniteNestSpawnState = {
+    if (unit.characterId !== LANTERNITE_NEST_CHARACTER_ID || !unit.lanterniteState.nestConfig) return;
+    const iv = Math.max(0.5, unit.lanterniteState.nestConfig.spawnIntervalSec);
+    unit.lanterniteState.nestSpawnState = {
         spawnedIds: [],
         nextSpawnAtGameTime: gameTime + iv,
     };
 }
 
 export function hydrateLanterniteNestFromMissionDef(unit: Unit, cfg: LanterniteNestMissionConfig): void {
-    unit.lanterniteNestConfig = cfg;
-    if (cfg.nestPoiId) unit.lanterniteHomeNestPoiId = cfg.nestPoiId;
+    unit.lanterniteState.nestConfig = cfg;
+    if (cfg.nestPoiId) unit.lanterniteState.homeNestPoiId = cfg.nestPoiId;
 }

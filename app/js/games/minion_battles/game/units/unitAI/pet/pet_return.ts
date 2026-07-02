@@ -23,7 +23,7 @@ export const pet_return: AINode<'pet', PetNodeId> = {
                 return;
             }
 
-            const owner = unit.petOwnerUnitId ? context.getUnit(unit.petOwnerUnitId) : null;
+            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
 
             if (!owner?.isAlive()) {
                 ctx.aiState = 'pet_follow';
@@ -51,7 +51,7 @@ export const pet_return: AINode<'pet', PetNodeId> = {
         },
 
         onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const owner = unit.petOwnerUnitId ? context.getUnit(unit.petOwnerUnitId) : null;
+            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
             if (!owner?.isAlive() || !context.terrainManager) return;
             const grid = context.terrainManager.grid;
             const from = grid.worldToGrid(unit.x, unit.y);
@@ -74,7 +74,7 @@ export const pet_return: AINode<'pet', PetNodeId> = {
         {
             targetNodeId: 'pet_follow',
             evaluate(unit: Unit, context: AIContext): boolean {
-                const owner = unit.petOwnerUnitId ? context.getUnit(unit.petOwnerUnitId) : null;
+                const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
                 if (!owner?.isAlive()) return true;
                 return distance(unit.x, unit.y, owner.x, owner.y) <= FOLLOW_DISTANCE;
             },

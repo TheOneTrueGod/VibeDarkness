@@ -38,7 +38,7 @@ interface TerrainGridLike {
 }
 
 function pruneSpawnedIds(nest: Unit, units: readonly Unit[]): void {
-    const state = nest.swarmNestSpawnState;
+    const state = nest.swarmState.nestSpawnState;
     if (!state) return;
     state.spawnedIds = state.spawnedIds.filter((id) => {
         const u = units.find((x) => x.id === id);
@@ -60,8 +60,8 @@ export function findUnclaimedNestPoi(
     const occupiedPoiIds = new Set<string>();
     for (const u of allUnits) {
         if (!u.isAlive()) continue;
-        if (u.swarmNestHomePoiId) occupiedPoiIds.add(u.swarmNestHomePoiId);
-        if (u.swarmlingTargetNestPoiId) occupiedPoiIds.add(u.swarmlingTargetNestPoiId);
+        if (u.swarmState.nestHomePoiId) occupiedPoiIds.add(u.swarmState.nestHomePoiId);
+        if (u.swarmState.targetNestPoiId) occupiedPoiIds.add(u.swarmState.targetNestPoiId);
     }
 
     let best: MapSegmentPOI | null = null;
@@ -84,9 +84,9 @@ export function findUnclaimedNestPoi(
 }
 
 export function initializeSwarmNestSpawnState(nest: Unit, gameTime: number): void {
-    const cfg = nest.swarmNestConfig;
+    const cfg = nest.swarmState.nestConfig;
     if (!cfg) return;
-    nest.swarmNestSpawnState = {
+    nest.swarmState.nestSpawnState = {
         spawnedIds: [],
         nextSpawnAtGameTime: gameTime + Math.max(0.5, cfg.spawnIntervalSec),
     };
@@ -118,23 +118,23 @@ export function processSwarmNests(params: {
         if (
             !unit.isAlive() ||
             unit.characterId !== SWARM_NEST_SWARMLING_CHARACTER_ID ||
-            unit.swarmlingConstructionCompleteAtGameTime == null ||
-            params.gameTime < unit.swarmlingConstructionCompleteAtGameTime
+            unit.swarmState.constructionCompleteAtGameTime == null ||
+            params.gameTime < unit.swarmState.constructionCompleteAtGameTime
         ) {
             continue;
         }
 
-        const targetPoiId = unit.swarmlingTargetNestPoiId;
+        const targetPoiId = unit.swarmState.targetNestPoiId;
         const targetPoi = targetPoiId ? allPois.find((p) => p.id === targetPoiId) : null;
 
         if (targetPoi && terrainGrid) {
             const world = terrainGrid.gridToWorld(targetPoi.col, targetPoi.row);
 
             // Resolve config from swarmling's parent nest
-            const parentNest = unit.swarmlingNestOwnerUnitId
-                ? params.units.find((u) => u.id === unit.swarmlingNestOwnerUnitId && u.isAlive())
+            const parentNest = unit.swarmState.nestOwnerUnitId
+                ? params.units.find((u) => u.id === unit.swarmState.nestOwnerUnitId && u.isAlive())
                 : null;
-            const cfg: SwarmNestMissionConfig = parentNest?.swarmNestConfig ?? {
+            const cfg: SwarmNestMissionConfig = parentNest?.swarmState.nestConfig ?? {
                 maxSwarmlings: 3,
                 spawnIntervalSec: 8,
             };
@@ -156,8 +156,8 @@ export function processSwarmNests(params: {
                 params.eventBus,
                 params.idSource,
             );
-            newNest.swarmNestConfig = { ...cfg };
-            newNest.swarmNestHomePoiId = targetPoiId ?? null;
+            newNest.swarmState.nestConfig = { ...cfg };
+            newNest.swarmState.nestHomePoiId = targetPoiId ?? null;
             initializeSwarmNestSpawnState(newNest, params.gameTime);
 
             params.addUnit(newNest);
@@ -172,8 +172,8 @@ export function processSwarmNests(params: {
     for (const nest of params.units) {
         if (!nest.isAlive() || nest.characterId !== SWARM_NEST_CHARACTER_ID) continue;
 
-        const cfg = nest.swarmNestConfig;
-        const state = nest.swarmNestSpawnState;
+        const cfg = nest.swarmState.nestConfig;
+        const state = nest.swarmState.nestSpawnState;
         if (!cfg || !state) continue;
 
         pruneSpawnedIds(nest, params.units);
@@ -210,16 +210,16 @@ export function processSwarmNests(params: {
                 params.idSource,
             );
 
-            child.swarmlingOrbitAngle = orbitAngle;
-            child.swarmlingNestOwnerUnitId = nest.id;
+            child.swarmState.orbitAngle = orbitAngle;
+            child.swarmState.nestOwnerUnitId = nest.id;
 
             // Assign target POI if available
             if (terrainGrid && allPois.length > 0) {
                 const targetPoi = findUnclaimedNestPoi(nest.x, nest.y, allPois, params.units, terrainGrid);
                 if (targetPoi) {
-                    child.swarmlingTargetNestPoiId = targetPoi.id;
+                    child.swarmState.targetNestPoiId = targetPoi.id;
                     // Pre-mark so subsequent spawns in this burst don't pick the same POI
-                    child.swarmlingTargetNestPoiId = targetPoi.id;
+                    child.swarmState.targetNestPoiId = targetPoi.id;
                 }
             }
 

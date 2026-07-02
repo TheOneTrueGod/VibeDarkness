@@ -21,7 +21,7 @@ export const pet_heel: AINode<'pet', PetNodeId> = {
                 return;
             }
 
-            const owner = unit.petOwnerUnitId ? context.getUnit(unit.petOwnerUnitId) : null;
+            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
             const tetherRange = ctx.heelTetherRange ?? 30;
 
             if (owner?.isAlive() && context.terrainManager) {

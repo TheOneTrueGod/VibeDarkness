@@ -73,7 +73,7 @@ function pathTowardGuardTarget(unit: Unit, context: AIContext, ctx: PetAITreeCon
 }
 
 function ownerIdOrUndefined(unit: Unit): string | undefined {
-    return unit.petOwnerUnitId ?? undefined;
+    return unit.petState.ownerUnitId ?? undefined;
 }
 
 /**
