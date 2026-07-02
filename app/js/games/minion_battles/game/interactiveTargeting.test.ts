@@ -19,6 +19,10 @@ import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import type { GameEngine } from './GameEngine';
 import type { Unit } from './units/Unit';
+import type { BattleOrder, ResolvedTarget } from './types';
+import {
+    buildFinalizedSequentialTargetingOrder,
+} from './interaction/InteractiveTargetingSession';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
@@ -27,6 +31,12 @@ import {
 import { createTargetDummyAtWorld } from '../testing/fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
 import { Light } from '../resources/Light';
+
+/** Double Punch ability id — matches `DoublePunchAbility.id` in `0116Ability.ts`. */
+const DOUBLE_PUNCH_ABILITY_ID = '0116';
+/** SelectTargetDef labels on Double Punch timings. */
+const DOUBLE_PUNCH_TARGET_1_LABEL = 'Target 1';
+const DOUBLE_PUNCH_TARGET_2_LABEL = 'Target 2';
 
 /** Matches `GameEngine` fixed timestep. */
 const FIXED_DT = 1 / 60;
@@ -117,6 +127,185 @@ function stepUntilEnemyDamaged(
         if (player.activeAbilities.length === 0) break;
     }
     return { damaged: false, elapsedAtDamage: null };
+}
+
+interface DoublePunchParityFixture {
+    engine: GameEngine;
+    player: Unit;
+    e1: Unit;
+    e2: Unit;
+}
+
+/** Identical Double Punch layout: player centre, e1 right, e2 below (Scenario B geometry). */
+function buildDoublePunchParityFixture(): DoublePunchParityFixture {
+    resetGameObjectIdCounter(1);
+
+    const engine = buildTinyBattleEngine({
+        gridW: 12,
+        gridH: 10,
+        localPlayerId: TINY_BATTLE_PLAYER_ID,
+        grass: true,
+    });
+
+    const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+    const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+    const player = spawnTinyPlayerUnit(engine, {
+        playerId: TINY_BATTLE_PLAYER_ID,
+        x: playerX,
+        y: playerY,
+        abilities: [DOUBLE_PUNCH_ABILITY_ID],
+    });
+
+    const e1 = createTargetDummyAtWorld(engine, playerX + 42, playerY, { id: 'enemy_1', hp: 100 });
+    initializeAbilityRuntimeForUnit(e1);
+    engine.addUnit(e1, 'initialGameSpawn');
+
+    const e2 = createTargetDummyAtWorld(engine, playerX, playerY + 45, { id: 'enemy_2', hp: 100 });
+    initializeAbilityRuntimeForUnit(e2);
+    engine.addUnit(e2, 'initialGameSpawn');
+
+    stepUntil(engine, () => engine.waitingForOrders != null);
+
+    return { engine, player, e1, e2 };
+}
+
+function doublePunchAbilityActive(player: Unit): boolean {
+    return player.activeAbilities.some((a) => a.abilityId === DOUBLE_PUNCH_ABILITY_ID);
+}
+
+function stepUntilDoublePunchComplete(engine: GameEngine, player: Unit): void {
+    const done = stepUntil(engine, () => !doublePunchAbilityActive(player), 300);
+    expect(done).toBe(true);
+}
+
+function stepEngineToGameTick(engine: GameEngine, targetTick: number): void {
+    const extra = targetTick - engine.gameTick;
+    expect(extra).toBeGreaterThanOrEqual(0);
+    if (extra > 0) {
+        engine.stepSimulationFixedTicks(extra);
+    }
+    expect(engine.gameTick).toBe(targetTick);
+}
+
+function alignEnginesToSameTick(engineA: GameEngine, engineB: GameEngine): number {
+    const targetTick = Math.max(engineA.gameTick, engineB.gameTick);
+    for (const engine of [engineA, engineB]) {
+        // Committed runs freeze at `waitingForOrders`; unfreeze so both can reach `targetTick`.
+        if (engine.waitingForOrders != null) {
+            engine.state.orderMgr.waitingForOrders = null;
+            engine.isPaused = false;
+        }
+        stepEngineToGameTick(engine, targetTick);
+    }
+    return targetTick;
+}
+
+function injectInteractiveTarget(
+    engine: GameEngine,
+    player: Unit,
+    label: string,
+    target: ResolvedTarget,
+): void {
+    const active = player.activeAbilities.find((a) => a.abilityId === DOUBLE_PUNCH_ABILITY_ID);
+    expect(active).toBeDefined();
+    if (!active!.targetsByLabel) active!.targetsByLabel = {};
+    active!.targetsByLabel[label] = target;
+    engine.waitingForTargetInput = null;
+    engine.isPaused = false;
+}
+
+function waitForTargetLabel(engine: GameEngine, label: string): void {
+    const paused = stepUntil(
+        engine,
+        () => engine.waitingForTargetInput?.label === label,
+        120,
+    );
+    expect(paused).toBe(true);
+}
+
+function assertRuntimeParity(committed: GameEngine, interactive: GameEngine): void {
+    expect(interactive.getRuntimeFingerprintHex()).toBe(committed.getRuntimeFingerprintHex());
+    for (const unitA of committed.units) {
+        const unitB = interactive.getUnit(unitA.id);
+        expect(unitB).toBeDefined();
+        expect(unitB!.hp).toBe(unitA.hp);
+        expect(Math.floor(unitB!.x)).toBe(Math.floor(unitA.x));
+        expect(Math.floor(unitB!.y)).toBe(Math.floor(unitA.y));
+    }
+}
+
+interface DoublePunchOrderExtras {
+    movePath?: { col: number; row: number }[];
+    movementByLabel?: Record<string, { movePath: { col: number; row: number }[] }>;
+}
+
+function runCommittedDoublePunch(
+    fixture: DoublePunchParityFixture,
+    extras: DoublePunchOrderExtras = {},
+): GameEngine {
+    const { engine, player, e1, e2 } = fixture;
+
+    engine.state.orderMgr.applyOrder({
+        unitId: player.id,
+        abilityId: DOUBLE_PUNCH_ABILITY_ID,
+        targets: [
+            { type: 'unit', unitId: e1.id },
+            { type: 'unit', unitId: e2.id },
+        ],
+        endTurn: true,
+        ...extras,
+    });
+
+    stepUntilDoublePunchComplete(engine, player);
+    return engine;
+}
+
+/** Engine-side in-place commit: clear preview flags and unpause (no BattleNet / no restore). */
+function simulateInPlaceCommitEngineStep(engine: GameEngine): void {
+    engine.isSequentialTargetingPreview = false;
+    engine.sequentialTargetingPreviewCast = null;
+    engine.waitingForTargetInput = null;
+    engine.isPaused = false;
+}
+
+function runInteractiveDoublePunch(
+    fixture: DoublePunchParityFixture,
+    extras: DoublePunchOrderExtras & {
+        movementByLabelAtTarget2Pause?: { movePath: { col: number; row: number }[] };
+    } = {},
+): GameEngine {
+    const { engine, player, e1, e2 } = fixture;
+
+    engine.isSequentialTargetingPreview = true;
+    engine.sequentialTargetingPreviewCast = {
+        unitId: player.id,
+        abilityId: DOUBLE_PUNCH_ABILITY_ID,
+        startRound: engine.roundNumber,
+    };
+
+    engine.state.orderMgr.applyOrder({
+        unitId: player.id,
+        abilityId: DOUBLE_PUNCH_ABILITY_ID,
+        targets: [],
+        targetsByLabel: {},
+        endTurn: true,
+        ...(extras.movePath ? { movePath: extras.movePath } : {}),
+    });
+
+    waitForTargetLabel(engine, DOUBLE_PUNCH_TARGET_1_LABEL);
+    injectInteractiveTarget(engine, player, DOUBLE_PUNCH_TARGET_1_LABEL, { type: 'unit', unitId: e1.id });
+
+    waitForTargetLabel(engine, DOUBLE_PUNCH_TARGET_2_LABEL);
+    if (extras.movementByLabelAtTarget2Pause) {
+        const active = player.activeAbilities.find((a) => a.abilityId === DOUBLE_PUNCH_ABILITY_ID);
+        expect(active).toBeDefined();
+        if (!active!.movementByLabel) active!.movementByLabel = {};
+        active!.movementByLabel[DOUBLE_PUNCH_TARGET_2_LABEL] = extras.movementByLabelAtTarget2Pause;
+    }
+    injectInteractiveTarget(engine, player, DOUBLE_PUNCH_TARGET_2_LABEL, { type: 'unit', unitId: e2.id });
+
+    stepUntilDoublePunchComplete(engine, player);
+    return engine;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -335,32 +524,21 @@ describe('interactive sequential targeting', () => {
         }
         expect(pausedForTarget2).toBe(true);
 
-        // Verify punch1 fired and e1 took damage (waitingForTargetIntervals for punch1 cleared).
-        expect(active!.waitingForTargetIntervals?.has('punch1')).toBeFalsy();
+        // Verify punch1 fired and e1 took damage before the Target 2 lookahead pause.
+        expect(e1.hp).toBeLessThan(e1InitialHp);
 
         // ── Resolve Target 2 ──
         active!.targetsByLabel!['Target 2'] = { type: 'unit', unitId: e2.id };
         engine.waitingForTargetInput = null;
         engine.isPaused = false;
 
-        // Verify punch2 is still in waitingForTargetIntervals (it was blocked in Pass A).
-        expect(active!.waitingForTargetIntervals?.has('punch2')).toBe(true);
-
         // ── Advance until the ability completes ──
-        // Step tick by tick so we can detect when punch2's interval has been cleared from waiting.
-        let punch2WaitCleared = false;
         for (let i = 0; i < 300; i++) {
             engine.stepSimulationFixedTicks(1);
-            // After Pass B fires for punch2, it's removed from waitingForTargetIntervals.
-            if (active!.waitingForTargetIntervals?.has('punch2') === false) {
-                punch2WaitCleared = true;
-            }
             if (player.activeAbilities.length === 0) break;
         }
 
         // Both enemies should have taken damage from their respective punches.
-        expect(e1.hp).toBeLessThan(e1InitialHp);
-        expect(punch2WaitCleared).toBe(true);
         expect(e2.hp).toBeLessThan(e2InitialHp);
 
         engine.destroy();
@@ -370,7 +548,7 @@ describe('interactive sequential targeting', () => {
      * Scenario C — non-interactive ability is completely unaffected.
      *
      * Submit a normal ability order for 0120 (PunchNEW) WITHOUT targetsByLabel set.
-     * Pass A is a no-op when targetsByLabel is undefined, so waitingForTargetInput
+     * Committed orders leave targetsByLabel undefined, so waitingForTargetInput
      * must remain null for the entire cast.
      */
     it('Scenario C: normal order without targetsByLabel never sets waitingForTargetInput', () => {
@@ -551,7 +729,7 @@ describe('interactive sequential targeting', () => {
         const moveColB = 8;
         const moveRowB = 3;
 
-        // Submit a normal (non-preview) order — no targetsByLabel means Pass A is a no-op.
+        // Submit a normal (non-preview) order — targetsByLabel omitted on committed path.
         // movePath = path toward A; movementByLabel['Target 2'] = path toward B.
         engine.state.orderMgr.applyOrder({
             unitId: player.id,
@@ -605,6 +783,107 @@ describe('interactive sequential targeting', () => {
         // Assert: both enemies took damage.
         expect(e1.hp).toBeLessThan(100);
         expect(e2.hp).toBeLessThan(100);
+
+        engine.destroy();
+    });
+
+    /**
+     * Scenario E-preview — interactive movement re-input defers path change until interval fires.
+     *
+     * Preview order with base movePath toward col A. At the Target 2 pause, write
+     * `active.movementByLabel['Target 2']` toward col B (same as resolveMovement). While
+     * paused, movement path must still point at A; after Target 2 resolves and punch2 fires,
+     * path switches to B.
+     */
+    it('Scenario E-preview: movementByLabel on preview cast applies at interval fire time, not while paused', () => {
+        resetGameObjectIdCounter(1);
+
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerX,
+            y: playerY,
+            abilities: ['0116'],
+        });
+
+        const e1 = createTargetDummyAtWorld(engine, playerX + 42, playerY, { id: 'enemy_1', hp: 100 });
+        initializeAbilityRuntimeForUnit(e1);
+        engine.addUnit(e1, 'initialGameSpawn');
+
+        const e2 = createTargetDummyAtWorld(engine, playerX, playerY + 45, { id: 'enemy_2', hp: 100 });
+        initializeAbilityRuntimeForUnit(e2);
+        engine.addUnit(e2, 'initialGameSpawn');
+
+        const moveColA = 2;
+        const moveRowA = 5;
+        const moveColB = 8;
+        const moveRowB = 3;
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0116',
+            targets: [],
+            targetsByLabel: {},
+            endTurn: true,
+            movePath: [{ col: moveColA, row: moveRowA }],
+        });
+
+        engine.stepSimulationFixedTicks(1);
+        expect(player.movement?.path[player.movement.path.length - 1]).toEqual({ col: moveColA, row: moveRowA });
+
+        const active = player.activeAbilities.find(a => a.abilityId === '0116');
+        expect(active).not.toBeUndefined();
+
+        // Resolve Target 1 and advance to Target 2 pause.
+        stepUntil(engine, () => engine.waitingForTargetInput?.label === 'Target 1');
+        active!.targetsByLabel!['Target 1'] = { type: 'unit', unitId: e1.id };
+        engine.waitingForTargetInput = null;
+        engine.isPaused = false;
+
+        let pausedForTarget2 = false;
+        for (let i = 0; i < 120; i++) {
+            engine.stepSimulationFixedTicks(1);
+            const wt = engine.waitingForTargetInput as GameEngine['waitingForTargetInput'];
+            if (wt?.label === 'Target 2') {
+                pausedForTarget2 = true;
+                break;
+            }
+        }
+        expect(pausedForTarget2).toBe(true);
+
+        // Movement re-input at Target 2 pause (resolveMovement writes here, not setMovement).
+        if (!active!.movementByLabel) active!.movementByLabel = {};
+        active!.movementByLabel['Target 2'] = { movePath: [{ col: moveColB, row: moveRowB }] };
+
+        // While paused, path must still be A — not applied until punch2 fires.
+        expect(player.movement?.path[player.movement.path.length - 1]).toEqual({ col: moveColA, row: moveRowA });
+
+        active!.targetsByLabel!['Target 2'] = { type: 'unit', unitId: e2.id };
+        engine.waitingForTargetInput = null;
+        engine.isPaused = false;
+
+        let pathSwitchedToB = false;
+        for (let i = 0; i < 120; i++) {
+            engine.stepSimulationFixedTicks(1);
+            const dest = player.movement?.path[player.movement.path.length - 1];
+            if (dest?.col === moveColB && dest.row === moveRowB) {
+                pathSwitchedToB = true;
+                break;
+            }
+        }
+
+        expect(pathSwitchedToB).toBe(true);
+        expect(player.movement?.path[player.movement.path.length - 1]).toEqual({ col: moveColB, row: moveRowB });
 
         engine.destroy();
     });
@@ -815,5 +1094,132 @@ describe('interactive sequential targeting', () => {
         expect(committedElapsed).not.toBeNull();
         expect(previewElapsed).not.toBeNull();
         expect(Math.abs(committedElapsed! - previewElapsed!)).toBeLessThanOrEqual(FIXED_DT);
+    });
+});
+
+describe('interactive sequential targeting in-place commit', () => {
+    /**
+     * In-place mode contract (engine-only): preview runs to the Step-5 stop pause, then
+     * clearing preview flags + unpausing reaches `waitingForOrders` without a mark restore
+     * (monotonic gameTick, damage preserved). Finalized order matches rollback construction.
+     */
+    it('preview stop pause then in-place commit reaches waitingForOrders without restore', () => {
+        const { engine, player, e1, e2 } = buildDoublePunchParityFixture();
+        const markTick = engine.gameTick;
+
+        const baseOrder: BattleOrder = {
+            unitId: player.id,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            targets: [],
+            endTurn: true,
+        };
+
+        const collectedTargets: Record<string, ResolvedTarget> = {
+            [DOUBLE_PUNCH_TARGET_1_LABEL]: { type: 'unit', unitId: e1.id },
+            [DOUBLE_PUNCH_TARGET_2_LABEL]: { type: 'unit', unitId: e2.id },
+        };
+        const selectLabels = [DOUBLE_PUNCH_TARGET_1_LABEL, DOUBLE_PUNCH_TARGET_2_LABEL];
+
+        engine.isSequentialTargetingPreview = true;
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            startRound: engine.roundNumber,
+        };
+
+        engine.state.orderMgr.applyOrder({
+            ...baseOrder,
+            targetsByLabel: {},
+        });
+
+        waitForTargetLabel(engine, DOUBLE_PUNCH_TARGET_1_LABEL);
+        injectInteractiveTarget(engine, player, DOUBLE_PUNCH_TARGET_1_LABEL, collectedTargets[DOUBLE_PUNCH_TARGET_1_LABEL]);
+
+        waitForTargetLabel(engine, DOUBLE_PUNCH_TARGET_2_LABEL);
+        injectInteractiveTarget(engine, player, DOUBLE_PUNCH_TARGET_2_LABEL, collectedTargets[DOUBLE_PUNCH_TARGET_2_LABEL]);
+
+        const stopPauseReached = stepUntil(
+            engine,
+            () => engine.isPaused
+                && !doublePunchAbilityActive(player)
+                && engine.waitingForOrders == null,
+            300,
+        );
+        expect(stopPauseReached).toBe(true);
+
+        const tickAtStopPause = engine.gameTick;
+        expect(tickAtStopPause).toBeGreaterThan(markTick);
+
+        const e1HpAfterPreview = e1.hp;
+        const e2HpAfterPreview = e2.hp;
+        expect(e1HpAfterPreview).toBeLessThan(e1.maxHp);
+        expect(e2HpAfterPreview).toBeLessThan(e2.maxHp);
+
+        const finalizedOrder = buildFinalizedSequentialTargetingOrder(
+            selectLabels,
+            collectedTargets,
+            baseOrder,
+        );
+        const rollbackPathOrder = buildFinalizedSequentialTargetingOrder(
+            selectLabels,
+            { ...collectedTargets },
+            { ...baseOrder },
+        );
+        expect(finalizedOrder).toEqual(rollbackPathOrder);
+        expect(finalizedOrder.targets).toEqual([
+            collectedTargets[DOUBLE_PUNCH_TARGET_1_LABEL],
+            collectedTargets[DOUBLE_PUNCH_TARGET_2_LABEL],
+        ]);
+
+        simulateInPlaceCommitEngineStep(engine);
+
+        const reachedOrderPause = stepUntil(engine, () => engine.waitingForOrders != null, 120);
+        expect(reachedOrderPause).toBe(true);
+        expect(engine.gameTick).toBeGreaterThanOrEqual(tickAtStopPause);
+        expect(e1.hp).toBe(e1HpAfterPreview);
+        expect(e2.hp).toBe(e2HpAfterPreview);
+
+        engine.destroy();
+    });
+});
+
+describe('interactive sequential targeting fingerprint parity', () => {
+    const PARITY_MOVE_COL_A = 2;
+    const PARITY_MOVE_ROW_A = 5;
+    const PARITY_MOVE_COL_B = 8;
+    const PARITY_MOVE_ROW_B = 3;
+
+    it('committed and interactive Double Punch runs match runtime fingerprint at the same gameTick', () => {
+        const committed = runCommittedDoublePunch(buildDoublePunchParityFixture());
+        const interactive = runInteractiveDoublePunch(buildDoublePunchParityFixture());
+        alignEnginesToSameTick(committed, interactive);
+
+        assertRuntimeParity(committed, interactive);
+
+        committed.destroy();
+        interactive.destroy();
+    });
+
+    it('committed and interactive Double Punch with movementByLabel match runtime fingerprint at the same gameTick', () => {
+        const movementExtras: DoublePunchOrderExtras = {
+            movePath: [{ col: PARITY_MOVE_COL_A, row: PARITY_MOVE_ROW_A }],
+            movementByLabel: {
+                [DOUBLE_PUNCH_TARGET_2_LABEL]: {
+                    movePath: [{ col: PARITY_MOVE_COL_B, row: PARITY_MOVE_ROW_B }],
+                },
+            },
+        };
+
+        const committed = runCommittedDoublePunch(buildDoublePunchParityFixture(), movementExtras);
+        const interactive = runInteractiveDoublePunch(buildDoublePunchParityFixture(), {
+            movePath: movementExtras.movePath,
+            movementByLabelAtTarget2Pause: movementExtras.movementByLabel![DOUBLE_PUNCH_TARGET_2_LABEL],
+        });
+        alignEnginesToSameTick(committed, interactive);
+
+        assertRuntimeParity(committed, interactive);
+
+        committed.destroy();
+        interactive.destroy();
     });
 });

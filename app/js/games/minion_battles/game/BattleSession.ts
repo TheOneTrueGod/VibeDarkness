@@ -130,6 +130,21 @@ export class BattleSession implements BattleSessionHandle {
         return this.interactionManager;
     }
 
+    /**
+     * True when this client is the lobby host and the only player slot in the lobby.
+     *
+     * Counts every key in `this.players` regardless of `PlayerState.isConnected` — a
+     * disconnected peer that has not been removed from lobby state still occupies a slot,
+     * so in-place commit stays disabled until the lobby shrinks to the host alone.
+     * There is no separate AI-player flag on `PlayerState`; co-op allies appear as
+     * additional player entries and also force rollback mode.
+     */
+    isSoloHost(): boolean {
+        if (!this.config.isHost) return false;
+        const playerIds = Object.keys(this.players);
+        return playerIds.length === 1 && playerIds[0] === this.config.playerId;
+    }
+
     private applyPlayerPortraitOverrides(engine: GameEngine, portraitIds: Record<string, string> | undefined): void {
         if (!portraitIds) return;
         for (const unit of engine.units) {
@@ -796,6 +811,34 @@ export class BattleSession implements BattleSessionHandle {
     /** Submit the confirmed order after interactive targeting commit (bypasses begin() routing). */
     async submitCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<void> {
         await this.netAdapter?.submitOrder(order, atTick);
+    }
+
+    /**
+     * In-place interactive commit: persist the finalized order without re-applying it locally.
+     * Registers the wire dedupe key in {@link appliedRemoteOrderKeys} on success.
+     */
+    async persistInPlaceCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<boolean> {
+        if (!this.config.isHost || !this.netAdapter) return false;
+        const idHash = hashOrderId(this.config.playerId, atTick, order);
+        const ok = await this.netAdapter.persistCommittedOrder(order, atTick);
+        if (ok) {
+            this.appliedRemoteOrderKeys.add(idHash);
+        }
+        return ok;
+    }
+
+    /**
+     * Re-fire victory/defeat UI callbacks when a terminal result latched during preview
+     * (`LevelEventManager.isTerminal`) but was swallowed by `isSequentialTargetingPreview` guards.
+     */
+    reemitSuppressedTerminalOutcome(engine: GameEngine): void {
+        const outcome = engine.state.levelEventManager.getTerminalOutcome();
+        if (!outcome) return;
+        if (outcome.kind === 'victory') {
+            this.config.onVictory?.(outcome.missionResult);
+        } else {
+            this.config.onDefeat?.();
+        }
     }
 
     /** Emit an order_submit_failed event to all session listeners. */

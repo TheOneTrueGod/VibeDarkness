@@ -20,14 +20,13 @@ Player clicks Double Punch card
   → submitOrder(abilityId, []) → BattleSession.submitPlayerOrder()
   → InteractiveTargetingSession.begin()
       • snapshot engine state → mark
-      • suppress onParallelBatchResolved (no-op during preview)
+      • choose rollback vs in-place mode (see below)
       • queue preview order { targetsByLabel: {} } → tryResumeParallel()
   ↓
 Engine plays locally (0–0.2 s windup)
   ↓
-punch1 interval enters → targetsByLabel has no "Target 1"
-  → Pass A in unitAbilityTick blocks the interval
-  → engine.signalWaitingForTarget("Target 1", ...)
+Pre-tick lookahead: impending punch1 select interval
+  → engine.signalWaitingForTarget("Target 1", ...) one tick before entry
   → engine.isPaused = true
   ↓
 UI: pill shows "Paused", targeting cursor appears for "Target 1"
@@ -36,18 +35,53 @@ Player clicks an enemy
   → active.targetsByLabel["Target 1"] = target
   → engine.waitingForTargetInput = null, engine.isPaused = false
   ↓
-Pass B on next tick fires the deferred punch1 interval
+punch1 interval enters inline on the resumed tick (same pipeline as committed run)
 Engine plays 0.2–0.5 s (punch hits + windup2)
   ↓
-punch2 interval enters → same pause flow for "Target 2"
+Lookahead pauses again for "Target 2"
   ↓
 All targets collected → UI: pill shows "Done"
 Player clicks Confirm
   → InteractiveTargetingSession.commit()
-      • restoreFromInMemorySnapshot(mark)   ← rewind engine
-      • apply any held remote orders
-      • submit real order via BattleNet (normal multiplayer flow)
+      • rollback: restoreFromInMemorySnapshot(mark) → submit via BattleNet (re-applies)
+      • in-place (solo host): keep state → persist order only → clear preview flags → unpause
 ```
+
+---
+
+## Select-target lookahead (replaces Pass A / Pass B)
+
+Older designs blocked select intervals **after** entry (Pass A) and fired them one tick late when the target arrived (Pass B). That broke parity with committed runs.
+
+The current mechanism runs **`findImpendingSelectTargetNeed`** at the top of `fixedUpdate` *before* `gameTime` advances. When an unresolved `SelectTargetDef` interval would enter on the next tick, the engine pauses via `signalWaitingForTarget` and sets `waitingForTargetInput`. While that signal is set, `fixedUpdate` returns early — the sim is frozen until the player picks.
+
+After `resolveTarget` injects the label into `active.targetsByLabel` and unpauses, the interval enters through the normal `entered` path in `unitAbilityTick.ts` on the **same tick** as a prefilled committed order. If a select interval ever enters during preview without a resolved label, `unitAbilityTick` logs `console.error` and skips firing (parity is already broken).
+
+Abilities whose first select interval starts at elapsed 0 defer queueing the preview order until that target is collected (`begin()` signals the pause up front).
+
+---
+
+## Solo in-place commit
+
+When the host is the **only player in the lobby** (`BattleSession.isSoloHost()`) **and** the parallel batch has exactly one waiter (the casting unit), `begin()` chooses **`inPlace`** mode instead of **`rollback`**.
+
+| | Rollback (multiplayer / multi-waiter) | In-place (solo single-waiter) |
+|---|---|---|
+| Auto-wait for other batch units | Yes | No (sole waiter) |
+| `onParallelBatchResolved` | Nulled during preview | Kept (flag-guarded) |
+| `commit()` | Restore mark → submit order (re-applies locally) | Keep preview state → `persistCommittedOrder` only |
+| Visible Continue | Rewinds and replays turn | No rewind — state at preview stop becomes real |
+
+**What persists on in-place commit:**
+
+1. `buildFinalizedSequentialTargetingOrder` builds positional `targets[]` + `movementByLabel` from collected input (same bytes as rollback).
+2. `BattleNet.persistCommittedOrder` appends the row and runs `mergeAppliedOrdersForBatch` **without** `applyLocalSubmitOrderAfterAppend` — the engine already ran the turn.
+3. Preview flags cleared; engine unpaused. The next `collectParallelWaiters` / checkpoint path runs with suppression lifted.
+4. Session dedupe key registered in `appliedRemoteOrderKeys`.
+
+**Accepted limitation:** refreshing mid-preview recovers to the **pre-turn** checkpoint (the mark snapshot), not the in-progress preview — same as rollback Reset.
+
+**Victory/defeat during preview:** `LevelEventManager` latches terminal state (`isTerminal`) when checks pass, but `BattleSession` wrappers skip `onVictory`/`onDefeat` while `isSequentialTargetingPreview` is set. In-place `commit()` calls `reemitSuppressedTerminalOutcome` so a one-shot result is not lost.
 
 ---
 
@@ -71,7 +105,7 @@ The **targeting cursor** (hitbox preview overlay) is only rendered when the stat
 |---|---|---|
 | **Reset** | Red | Restore engine to the pre-preview snapshot; discard all collected targets; abort the session |
 | **Replay** | Sky-blue | Restore to snapshot, re-queue the ability with all targets collected so far pre-filled, replay animation without pausing (for review) |
-| **Confirm** | Primary | Restore to snapshot, apply held remote orders, then submit the real order to BattleNet |
+| **Confirm** | Primary | Rollback: restore + submit. In-place: persist without rewind + clear preview flags |
 
 ---
 
@@ -87,7 +121,7 @@ Ghost plan broadcasts are suppressed while the preview is active so other player
 
 ## Sentinel: `targetsByLabel: {}`
 
-The `unitAbilityTick` blocking logic (Pass A) is only active when `active.targetsByLabel` is a defined object (`{}` or populated), **not** when it is `undefined`. Normal pre-filled orders leave `targetsByLabel` as `undefined`, so Pass A is a complete no-op for them and existing ability behaviour is unchanged. `InteractiveTargetingSession.begin()` deliberately queues the preview order with `targetsByLabel: {}` to opt into the blocking mechanism.
+Interactive preview orders set `targetsByLabel: {}` (empty object, not `undefined`) so `unitAbilityTick` can detect preview casts (`active.targetsByLabel !== undefined`). Normal pre-filled orders leave `targetsByLabel` undefined; committed runs use positional `targets[]` only.
 
 ---
 
@@ -96,11 +130,12 @@ The `unitAbilityTick` blocking logic (Pass A) is only active when `active.target
 | File | Role |
 |---|---|
 | `featureFlags.ts` | `USE_SEQUENTIAL_TARGETING` on/off switch |
-| `game/GameEngine.ts` | `waitingForTargetInput` field + `signalWaitingForTarget()` |
-| `game/types.ts` | `ActiveAbility.waitingForTargetIntervals` (ephemeral, not serialized) |
-| `game/units/unitAbilityTick.ts` | Pass A (block), Pass B (resume), `fireIntervalEntry` helper |
-| `game/interaction/InteractiveTargetingSession.ts` | Session lifecycle: begin / resolveTarget / reset / replay / commit |
-| `game/BattleSession.ts` | `restoreFromInMemorySnapshot`, routing in `applyRemoteOrders` + `submitPlayerOrder` |
+| `game/GameEngine.ts` | `waitingForTargetInput`, lookahead gate, preview stop condition, `isSequentialTargetingPreview` |
+| `game/interaction/selectTargetLookahead.ts` | Pre-tick impending select detection; t=0 first-select helper |
+| `game/units/unitAbilityTick.ts` | Entered-loop interval fire; `movementByLabel` at select entry; loud missing-label guard |
+| `game/interaction/InteractiveTargetingSession.ts` | Session lifecycle: begin / resolveTarget / reset / replay / commit; mode gate |
+| `game/BattleSession.ts` | `isSoloHost`, `restoreFromInMemorySnapshot`, `persistInPlaceCommittedTargetingOrder` |
+| `game/battlenet/BattleNet.ts` | `persistCommittedOrder` (append + merge, no local re-apply) |
 | `game/interaction/PlayerInteractionManager.ts` | `activateAbilityTargeting` skips `AbilityTargetingTool` when flag is on |
 | `ui/pages/BattlePhase.tsx` | Targeting cursor gating, status pill, Reset/Replay/Confirm buttons |
-| `game/interactiveTargeting.test.ts` | Unit tests: engine pause/resume, deferred interval fire, non-interactive bypass |
+| `game/interactiveTargeting.test.ts` | Engine pause/resume, fingerprint parity, preview stop condition |

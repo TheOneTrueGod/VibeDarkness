@@ -42,9 +42,6 @@ import {
 /**
  * Fire all entry-time side effects for a single timing interval:
  * creates the emitter (if any) and runs castBehaviour onSetup / activeCastBehaviours registration.
- *
- * Called both from the normal "entered" path and from the deferred-resume path (Pass B)
- * so that target-blocked intervals fire identically once their target is resolved.
  */
 function fireIntervalEntry(
     interval: AbilityTimingInterval,
@@ -214,58 +211,19 @@ export function tickUnitActiveAbilities(
         const entered = enteredTimingIds(prevTime, currentTime, intervals);
         const exited = exitedTimingIds(prevTime, currentTime, intervals);
 
-        // Pass B — resume waiting intervals whose target has since been resolved.
-        // Must run before the emitter loop so deferred entry fires in the same tick as resolution.
-        if (active.waitingForTargetIntervals?.size) {
-            for (const waitingId of [...active.waitingForTargetIntervals]) {
-                const interval = intervals.find(iv => iv.id === waitingId);
-                if (!interval?.targetDef || interval.targetDef.kind !== 'select') continue;
-                if (!active.targetsByLabel?.[interval.targetDef.label]) continue; // still waiting
-                active.waitingForTargetIntervals!.delete(waitingId);
-                // Apply per-label movement re-input if provided (fires once at interval entry).
-                const passBlabel = interval.targetDef.label;
-                const passBmov = active.movementByLabel?.[passBlabel];
-                if (passBmov && passBmov.movePath.length > 0) {
-                    unit.setMovement(passBmov.movePath, passBmov.moveTargetUnitId, engine.gameTick, passBmov.moveTargetPixel);
-                    delete active.movementByLabel![passBlabel];
-                }
-                fireIntervalEntry(interval, active, unit, ability, engine, dt);
-            }
-        }
-
-        // Pass A — detect newly-entered intervals that are blocked waiting for a SelectTargetDef target.
-        // Runs after Pass B (so a target resolved this tick doesn't also get blocked again) and
-        // before the emitter/castBehaviours loops so blocked intervals are never fired inline.
-        //
-        // Only runs when `active.targetsByLabel` is defined (non-undefined), which signals that
-        // this cast was submitted via the interactive preview path (InteractiveTargetingSession.begin()
-        // queues the order with `targetsByLabel: {}`). Normal pre-filled ability orders leave
-        // `active.targetsByLabel` as undefined, so Pass A is a no-op for them.
-        const newlyBlockedIntervals = new Set<string>();
-        if (active.targetsByLabel !== undefined) {
-            for (const interval of intervals) {
-                if (!entered.has(interval.id)) continue;
-                if (interval.targetDef?.kind !== 'select') continue;
-                const label = interval.targetDef.label;
-                const alreadyFired = active.setupFiredBehaviourKeys?.has(`${interval.id}_0`);
-                if (alreadyFired) continue;
-                // Target is resolved if it's in targetsByLabel (interactive path).
-                if (active.targetsByLabel[label] !== undefined) continue;
-                // Target not yet provided — block this interval.
-                newlyBlockedIntervals.add(interval.id);
-                if (!active.waitingForTargetIntervals) active.waitingForTargetIntervals = new Set();
-                active.waitingForTargetIntervals.add(interval.id);
-            }
-        }
-
         // Emitter entry/exit loop + castBehaviour entry (via fireIntervalEntry).
         for (const interval of intervals) {
-            // Guard: skip intervals that are waiting for a target selection (blocked by Pass A).
-            if (newlyBlockedIntervals.has(interval.id)) continue;
-
             if (entered.has(interval.id)) {
-                // Apply per-label movement re-input when a select interval fires normally
-                // (i.e. target was pre-filled in the committed order — not deferred by Pass A).
+                if (interval.targetDef?.kind === 'select' && active.targetsByLabel !== undefined) {
+                    const label = interval.targetDef.label;
+                    if (active.targetsByLabel[label] === undefined) {
+                        console.error(
+                            `[unitAbilityTick] Select-target interval "${interval.id}" entered without resolved label "${label}" during interactive preview (ability ${active.abilityId}). Lookahead invariant violated.`,
+                        );
+                        continue;
+                    }
+                }
+                // Apply per-label movement re-input when a select interval fires.
                 if (interval.targetDef?.kind === 'select' && active.movementByLabel) {
                     const enteredLabel = interval.targetDef.label;
                     const enteredMov = active.movementByLabel[enteredLabel];
@@ -274,12 +232,9 @@ export function tickUnitActiveAbilities(
                         delete active.movementByLabel[enteredLabel];
                     }
                 }
-                // fireIntervalEntry handles both emitter creation and castBehaviour onSetup.
                 fireIntervalEntry(interval, active, unit, ability, engine, dt);
             }
             if (interval.emitterDef && exited.has(interval.id)) {
-                // Guard: skip exit cleanup for intervals that never fully entered (waiting for target).
-                if (active.waitingForTargetIntervals?.has(interval.id)) continue;
                 const key = interval.id;
                 const emitter = unit.activeTimingEmitters.get(key);
                 if (emitter) {
@@ -296,8 +251,6 @@ export function tickUnitActiveAbilities(
             for (let bIdx = 0; bIdx < effectiveBehavioursExit.length; bIdx++) {
                 const entry = effectiveBehavioursExit[bIdx]!;
                 if (!exited.has(interval.id)) continue;
-                // Guard: skip exit for intervals that never entered (still waiting for target).
-                if (active.waitingForTargetIntervals?.has(interval.id)) continue;
                 const behaviourKey = `${interval.id}_${bIdx}`;
                 const rec = unit.activeCastBehaviours.get(behaviourKey);
                 if (!rec) continue;

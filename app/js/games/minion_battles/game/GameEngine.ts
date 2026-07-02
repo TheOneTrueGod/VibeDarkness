@@ -1431,8 +1431,8 @@ export class GameEngine implements EngineContext {
     }
 
     /**
-     * Called from unitAbilityTick (Pass A) when an interval with a SelectTargetDef is entered
-     * but no target is yet resolved. Pauses the simulation until the target is provided.
+     * Pause the simulation until the player provides a SelectTargetDef target.
+     * Called from the pre-tick lookahead in fixedUpdate.
      */
     signalWaitingForTarget(label: string, unitId: string, abilityId: string): void {
         this.waitingForTargetInput = { label, unitId, abilityId };

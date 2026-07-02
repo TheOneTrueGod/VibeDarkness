@@ -68,6 +68,8 @@ export class LevelEventManager {
     private defeated = false;
     private victoryFired = false;
     private victorious = false;
+    /** Set when victory fires; used to re-emit UI callbacks suppressed during sequential targeting preview. */
+    private lastMissionResult: string | null = null;
 
     private ctx: EngineContext;
 
@@ -78,6 +80,21 @@ export class LevelEventManager {
     /** True when the game has ended (victory or defeat). */
     get isTerminal(): boolean {
         return this.defeated || this.victorious;
+    }
+
+    /**
+     * Outcome latched by {@link runVictoryCheck} / {@link runDefeatCheck}.
+     * Interactive preview suppresses `onVictory`/`onDefeat` in {@link BattleSession}; in-place
+     * commit re-emits via this when `isTerminal` is already true.
+     */
+    getTerminalOutcome(): { kind: 'victory'; missionResult: string } | { kind: 'defeat' } | null {
+        if (this.victorious) {
+            return { kind: 'victory', missionResult: this.lastMissionResult ?? 'victory' };
+        }
+        if (this.defeated) {
+            return { kind: 'defeat' };
+        }
+        return null;
     }
 
     registerLevelEvents(events: LevelEvent[]): void {
@@ -107,6 +124,7 @@ export class LevelEventManager {
         this.defeated = false;
         this.victoryFired = false;
         this.victorious = false;
+        this.lastMissionResult = null;
     }
 
     private emitMessage(text: string, npcId?: string): void {
@@ -804,6 +822,7 @@ export class LevelEventManager {
             this.victoryFired = true;
             this.victorious = true;
             const missionResult = evt.missionResult ?? 'victory';
+            this.lastMissionResult = missionResult;
             this.onVictory?.(missionResult);
         }
     }

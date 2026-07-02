@@ -5,6 +5,7 @@
  * pause and collect input without missing entry-tick cast behaviour semantics.
  */
 
+import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import {
     enteredTimingIds,
@@ -14,6 +15,7 @@ import {
 import { isSelectTargetDef } from '../../abilities/timingTargetDef';
 import type { EngineContext } from '../EngineContext';
 import type { ActiveAbility } from '../types';
+import type { Unit } from '../units/Unit';
 
 export interface ImpendingSelectTargetNeed {
     label: string;
@@ -59,6 +61,25 @@ function findImpendingNeedForCast(
  * Returns the first unresolved SelectTargetDef interval that would enter on the
  * next fixed tick, or null when no interactive preview cast needs input.
  */
+/**
+ * Returns the label of the first SelectTargetDef interval (document order) when that
+ * interval starts at elapsed 0, or null when the first select fires later.
+ */
+export function findFirstSelectTargetLabelAtElapsedZero(
+    ability: AbilityStatic,
+    unit: Unit,
+    engine: EngineContext,
+): string | null {
+    const intervals = normalizeAbilityTimingsToIntervals(
+        resolveAbilityTimingEntries(ability, unit, engine),
+    );
+    for (const interval of intervals) {
+        if (!interval.targetDef || !isSelectTargetDef(interval.targetDef)) continue;
+        return interval.start === 0 ? interval.targetDef.label : null;
+    }
+    return null;
+}
+
 export function findImpendingSelectTargetNeed(
     engine: EngineContext,
     dt: number,

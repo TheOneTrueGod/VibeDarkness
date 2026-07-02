@@ -51,7 +51,7 @@ Save the file after every item so progress is never lost.
 
 ### 6. End-of-step verification
 
-After all items in the step are done, run the full sequence per the post-change hook: **`npm run lint`**, then **`npx vitest run --changed`**, then the **full suite** (`npm run test`). Everything must be green before you hand off — the next agent cannot tell inherited failures from their own.
+After all items in the step are done, run **`npm run lint`**, then **`npx vitest run --changed`**. Do **not** run the full suite here — `--changed` covers everything the step touched (per-step commits are off by default; if `commitPerStep: true`, run this verification **before** committing so the changes are still visible to `--changed`). Everything must be green before you hand off — the next agent cannot tell inherited failures from their own.
 
 ### 7. Pause on ambiguity
 
@@ -99,6 +99,7 @@ When no unchecked items remain across all steps:
 - **Never skip a step** — implement items in document order within a step, and steps in document order across the plan.
 - **Never modify checked items** — only uncheck → check transitions are allowed (adding a summary line beneath is fine).
 - **Lint before tests** — always run `npm run lint` before any Vitest run.
+- **Run targeted tests, not the full suite** — per-item and per-step verification uses `npx vitest run --changed` (or narrower paths); the full `npm run test` runs only at Completion (and as the orchestrator's one-time baseline).
 - **One step per agent** — each agent handles exactly one step, then hands off.
 - **Always update the plan file** before handing off so the next agent can pick up where you left off.
 - **The plan file is the chain's memory** — record anything surprising (workarounds, extra touches, deferred issues) in it, not just in your reply.

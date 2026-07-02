@@ -563,6 +563,23 @@ export class BattleNet implements BattleNetContext {
 		return this.snapshotPersistence.mergeAppliedOrdersForBatch(batchAtTick);
 	}
 
+	/**
+	 * Host-only: persist an order that already ran locally (in-place sequential targeting commit).
+	 * Appends to `pending_orders` and merges to applied without {@link applyLocalSubmitOrderAfterAppend}
+	 * — the engine state already reflects the turn.
+	 */
+	async persistCommittedOrder(order: BattleOrder, atTick: number): Promise<boolean> {
+		if (!this.isHost) return false;
+		if (this.isRecovering) return false;
+		if (this.syncStatusController.isAwaitingUserAck()) return false;
+
+		const idHash = hashOrderId(this.playerId, atTick, order);
+		const appended = await this.persistOrder(order, atTick, idHash, true);
+		if (!appended) return false;
+
+		return this.mergeAppliedOrdersForBatch(atTick);
+	}
+
 	/** Clears the post-recovery "Continue" UX gate (see {@link BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK} in `global_constants.js`). */
 	acknowledgeRecoveryContinue(): void {
 		this.syncStatusController.acknowledgeRecoveryContinue();

@@ -316,10 +316,4 @@ export interface ActiveAbility {
      * may choose as a replacement. Undefined means any ability is valid. Serialized.
      */
     conditionalCancelTagFilter?: readonly string[];
-    /**
-     * Interval IDs blocked waiting for a SelectTargetDef target during interactive preview.
-     * Populated by Pass A in unitAbilityTick; cleared as targets are resolved by Pass B.
-     * Ephemeral — not serialized.
-     */
-    waitingForTargetIntervals?: Set<string>;
 }
