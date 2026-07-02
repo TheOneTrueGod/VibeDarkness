@@ -220,11 +220,6 @@ export const bashRangeBoundaryMissScenario: ScenarioDefinition = {
     },
 };
 
-// ---------------------------------------------------------------------------
-// Double Punch (0116) two-target scenario
-// Validates that per-timing selectTarget routing sends each punch to a different dummy.
-// ---------------------------------------------------------------------------
-
 export const doublePunchTwoTargetsScenario: ScenarioDefinition = {
     id: 'double_punch_two_targets',
     title: 'Double Punch (0116) hits two separate dummies with separate target pixels',
@@ -264,5 +259,87 @@ export const doublePunchTwoTargetsScenario: ScenarioDefinition = {
         const d1 = e.getUnit('target_dummy_1');
         const d2 = e.getUnit('target_dummy_2');
         return `dummy1 lost ${d1 ? d1.maxHp - d1.hp : 0} hp, dummy2 lost ${d2 ? d2.maxHp - d2.hp : 0} hp; expected both to take damage`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Double Punch (0116) committed turn with movement re-plan
+// Validates movePath at turn start + movementByLabel at Target 2 interval fire time.
+// ---------------------------------------------------------------------------
+
+const DOUBLE_PUNCH_MOVE_COL_A = 1;
+const DOUBLE_PUNCH_MOVE_ROW_A = 4;
+const DOUBLE_PUNCH_MOVE_COL_B = 8;
+const DOUBLE_PUNCH_MOVE_ROW_B = 4;
+
+function gridCellWorldCenter(col: number, row: number): { x: number; y: number } {
+    return {
+        x: col * TEST_CELL_SIZE + TEST_CELL_SIZE / 2,
+        y: row * TEST_CELL_SIZE + TEST_CELL_SIZE / 2,
+    };
+}
+
+export const doublePunchMovementReplanScenario: ScenarioDefinition = {
+    id: 'double_punch_movement_replan',
+    title: 'Double Punch (0116): committed turn with movement re-plan at Target 2',
+    category: 'ability',
+    maxDurationMs: 10000,
+    buildEngine: () => {
+        const engine = buildTinyBattleEngine({ gridW: 10, gridH: 8, localPlayerId: P, grass: true });
+        const playerWorld = { x: 4 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2, y: 4 * TEST_CELL_SIZE + TEST_CELL_SIZE / 2 };
+        spawnTinyPlayerUnit(engine, { playerId: P, x: playerWorld.x, y: playerWorld.y, abilities: ['0116'] });
+        const dummy1 = createTargetDummyAtWorld(engine, playerWorld.x + 40, playerWorld.y - 15, { id: 'target_dummy_1' });
+        initializeAbilityRuntimeForUnit(dummy1);
+        engine.addUnit(dummy1, 'initialGameSpawn');
+        const dummy2 = createTargetDummyAtWorld(engine, playerWorld.x, playerWorld.y + 45, { id: 'target_dummy_2' });
+        initializeAbilityRuntimeForUnit(dummy2);
+        engine.addUnit(dummy2, 'initialGameSpawn');
+        return engine;
+    },
+    getInitialOrders: (e) => {
+        const u = e.getLocalPlayerUnit()!;
+        const d1 = e.getUnit('target_dummy_1')!;
+        const d2 = e.getUnit('target_dummy_2')!;
+        const t1 = { type: 'unit' as const, unitId: d1.id };
+        const t2 = { type: 'unit' as const, unitId: d2.id };
+        return [{
+            unitId: u.id,
+            abilityId: '0116',
+            targets: [t1, t2],
+            targetsByLabel: { 'Target 1': t1, 'Target 2': t2 },
+            endTurn: true,
+            movePath: [{ col: DOUBLE_PUNCH_MOVE_COL_A, row: DOUBLE_PUNCH_MOVE_ROW_A }],
+            movementByLabel: {
+                'Target 2': { movePath: [{ col: DOUBLE_PUNCH_MOVE_COL_B, row: DOUBLE_PUNCH_MOVE_ROW_B }] },
+            },
+        }];
+    },
+    assertPass: (e) => {
+        const d1 = e.getUnit('target_dummy_1');
+        const d2 = e.getUnit('target_dummy_2');
+        const u = e.getLocalPlayerUnit();
+        if (!d1 || !d2 || !u) return false;
+        if (d1.maxHp - d1.hp <= 0 || d2.maxHp - d2.hp <= 0) return false;
+        if (e.waitingForOrders == null) return false;
+        const destA = gridCellWorldCenter(DOUBLE_PUNCH_MOVE_COL_A, DOUBLE_PUNCH_MOVE_ROW_A);
+        const destB = gridCellWorldCenter(DOUBLE_PUNCH_MOVE_COL_B, DOUBLE_PUNCH_MOVE_ROW_B);
+        const distA = Math.hypot(u.x - destA.x, u.y - destA.y);
+        const distB = Math.hypot(u.x - destB.x, u.y - destB.y);
+        return distB < distA;
+    },
+    failureMessage: (e) => {
+        const d1 = e.getUnit('target_dummy_1');
+        const d2 = e.getUnit('target_dummy_2');
+        const u = e.getLocalPlayerUnit();
+        if (!d1 || !d2 || !u) return 'missing player or dummies';
+        const destA = gridCellWorldCenter(DOUBLE_PUNCH_MOVE_COL_A, DOUBLE_PUNCH_MOVE_ROW_A);
+        const destB = gridCellWorldCenter(DOUBLE_PUNCH_MOVE_COL_B, DOUBLE_PUNCH_MOVE_ROW_B);
+        const distA = Math.hypot(u.x - destA.x, u.y - destA.y);
+        const distB = Math.hypot(u.x - destB.x, u.y - destB.y);
+        return [
+            `dummy1 lost ${d1.maxHp - d1.hp} hp, dummy2 lost ${d2.maxHp - d2.hp} hp`,
+            `waitingForOrders=${e.waitingForOrders != null}`,
+            `dist to A=${distA.toFixed(0)} dist to B=${distB.toFixed(0)} (expected nearer B)`,
+        ].join('; ');
     },
 };

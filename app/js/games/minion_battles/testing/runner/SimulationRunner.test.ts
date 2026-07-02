@@ -11,6 +11,7 @@ import {
     bashRangeBoundaryHitScenario,
     bashRangeBoundaryMissScenario,
     doublePunchTwoTargetsScenario,
+    doublePunchMovementReplanScenario,
 } from '../scenarios/abilities/punchResearch';
 import { doublePunchDeathFallbackScenario } from '../scenarios/abilities/doublePunchScenario';
 import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordResearch';
@@ -113,6 +114,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes Double Punch two-targets scenario (each timing hits a different dummy)', () => {
         const r = runScenarioHeadless(doublePunchTwoTargetsScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Double Punch movement re-plan scenario (movePath + movementByLabel committed run)', () => {
+        const r = runScenarioHeadless(doublePunchMovementReplanScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

@@ -147,6 +147,12 @@ export interface SerializedGameState {
     worldModifiers?: import('../worldModifiers/types').SerializedWorldModifierInstance[];
     /** Serialized ninjutsu pool configs and runtime state (budget, delay). */
     ninjutsuPools?: import('./ninjutsu/NinjutsuPool').SerializedNinjutsuPool[];
+    /**
+     * Carried only by in-memory preview snapshots taken by InteractiveTargetingSession so
+     * restore does not reset the runtime fingerprint; server checkpoints pass it out-of-band
+     * via opts.
+     */
+    checkpointRuntimeFingerprintHex?: string;
 }
 
 /** Optional args when hydrating {@link GameEngine} from JSON (e.g. server checkpoint `synchash`). */
@@ -183,6 +189,18 @@ export interface BattleOrder {
      * Coexists with `targets[]` for backward compatibility.
      */
     targetsByLabel?: Record<string, ResolvedTarget>;
+    /**
+     * Per-label movement re-input collected during interactive preview.
+     * Keyed by `SelectTargetDef.label`. When present, the unit's movement is updated
+     * when the interval for that label fires — both during preview (pause moment) and
+     * in the committed run (the interval's natural fire time).
+     * NOT serialized into checkpoints — runtime only.
+     */
+    movementByLabel?: Record<string, {
+        movePath: { col: number; row: number }[];
+        moveTargetUnitId?: string;
+        moveTargetPixel?: { x: number; y: number };
+    }>;
     /** When true, this order ends the unit's turn and allows the parallel batch to resume. */
     endTurn?: boolean;
 }
@@ -193,6 +211,12 @@ export interface OrderAtTick {
     order: BattleOrder;
 }
 
+/** Re-broadcast interval for the sequential-targeting sentinel while ITS is active. */
+export const GHOST_PLAN_SEQUENTIAL_TARGETING_REBROADCAST_MS = 1000;
+
+/** Max age before a sequential-targeting sentinel is ignored by peers. */
+export const GHOST_PLAN_SEQUENTIAL_TARGETING_STALE_MS = 5000;
+
 /** A peer player's in-progress ability selection, shared via WebRTC for ghost preview rendering. */
 export interface GhostPlanData {
     unitId: string;
@@ -201,6 +225,26 @@ export interface GhostPlanData {
     mouseWorld: { x: number; y: number };
     /** When true, the player is in sequential targeting preview — suppress rendering and block peer order submission. */
     sequentialTargeting?: boolean;
+    /** Wall-clock ms when this plan was emitted; used to expire sequential-targeting sentinels. */
+    sentAtMs?: number;
+}
+
+/** True when a sequential-targeting sentinel should still block peer order submission. */
+export function isFreshSequentialTargetingSentinel(
+    plan: GhostPlanData | null | undefined,
+    firstSeenWithoutTimestampMs: number | undefined,
+    nowMs: number = Date.now(),
+): boolean {
+    if (plan?.sequentialTargeting !== true) {
+        return false;
+    }
+    if (plan.sentAtMs != null) {
+        return nowMs - plan.sentAtMs <= GHOST_PLAN_SEQUENTIAL_TARGETING_STALE_MS;
+    }
+    if (firstSeenWithoutTimestampMs == null) {
+        return true;
+    }
+    return nowMs - firstSeenWithoutTimestampMs <= GHOST_PLAN_SEQUENTIAL_TARGETING_STALE_MS;
 }
 
 /** A resolved target from the targeting system. */
@@ -240,6 +284,15 @@ export interface ActiveAbility {
      * NOT serialized.
      */
     targetsByLabel?: Record<string, ResolvedTarget>;
+    /**
+     * Per-label movement re-input from `BattleOrder.movementByLabel`, applied when
+     * the interval for that label fires. Serialized so mid-cast checkpoints preserve it.
+     */
+    movementByLabel?: Record<string, {
+        movePath: { col: number; row: number }[];
+        moveTargetUnitId?: string;
+        moveTargetPixel?: { x: number; y: number };
+    }>;
     /**
      * Guards legacy evade-break firing to once per cast. NOT serialized.
      * @legacy TODO: remove when all evade abilities use declarative evadeEffect intervals

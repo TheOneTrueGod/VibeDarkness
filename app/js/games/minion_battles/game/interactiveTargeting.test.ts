@@ -15,6 +15,7 @@
 import { describe, it, expect } from 'vitest';
 import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
+import type { GameEngine } from './GameEngine';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
@@ -200,7 +201,8 @@ describe('interactive sequential targeting', () => {
         let pausedForTarget2 = false;
         for (let i = 0; i < 120; i++) {
             engine.stepSimulationFixedTicks(1);
-            if (engine.waitingForTargetInput?.label === 'Target 2') {
+            const wt = engine.waitingForTargetInput as GameEngine['waitingForTargetInput'];
+            if (wt?.label === 'Target 2') {
                 pausedForTarget2 = true;
                 break;
             }
@@ -294,6 +296,283 @@ describe('interactive sequential targeting', () => {
 
         expect(targetInputWasSet).toBe(false);
         expect(engine.waitingForTargetInput).toBeNull();
+
+        engine.destroy();
+    });
+
+    /**
+     * Scenario D — movePath in preview order is carried through to the unit's movement state.
+     *
+     * Submit a preview order for Double Punch (0116) with targetsByLabel: {} AND a
+     * movePath pointing two cells to the left of the player's starting position.
+     * After the order fires (next tick), the unit should have an active movement path
+     * set toward the target cell. (Double Punch locks movement speed to 0 during the
+     * cast, so the unit won't physically translate, but the movement path is set and
+     * will execute after the cast completes — confirming movePath flows through.)
+     */
+    it('Scenario D: movePath in preview order is applied to unit movement state', () => {
+        resetGameObjectIdCounter(1);
+
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        // Place player in the middle of the grid.
+        const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerX,
+            y: playerY,
+            abilities: ['0116'],
+        });
+
+        // Two enemies within punch range so the ability can fire.
+        const e1 = createTargetDummyAtWorld(engine, playerX + 42, playerY, { id: 'enemy_1', hp: 100 });
+        initializeAbilityRuntimeForUnit(e1);
+        engine.addUnit(e1, 'initialGameSpawn');
+
+        const e2 = createTargetDummyAtWorld(engine, playerX, playerY + 45, { id: 'enemy_2', hp: 100 });
+        initializeAbilityRuntimeForUnit(e2);
+        engine.addUnit(e2, 'initialGameSpawn');
+
+        // Advance until the engine pauses waiting for player orders.
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        // Move target: two cells to the left (col 2, row 5).
+        const moveTargetCol = 2;
+        const moveTargetRow = 5;
+
+        // Submit a preview order with movePath AND targetsByLabel: {} sentinel.
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0116',
+            targets: [],
+            targetsByLabel: {},
+            endTurn: true,
+            movePath: [{ col: moveTargetCol, row: moveTargetRow }],
+        });
+
+        // Step one tick so applyOrderLogic fires (order scheduled at batch.atTick = gameTick + 1).
+        engine.stepSimulationFixedTicks(1);
+
+        // The unit's movement path should be set toward the target cell.
+        // (Double Punch locks movement speed to 0 during the cast, so no translation yet,
+        // but the path must be present so movement executes once the cast ends.)
+        expect(player.movement).not.toBeNull();
+        expect(player.movement?.path).toHaveLength(1);
+        expect(player.movement?.path[0]).toEqual({ col: moveTargetCol, row: moveTargetRow });
+
+        engine.destroy();
+    });
+
+    /**
+     * Scenario E — committed-run order with movementByLabel applies movement at interval fire time.
+     *
+     * Submit a normal (non-preview) order for Double Punch (0116) with:
+     * - movePath pointing toward column A (initial slide during windup)
+     * - movementByLabel for 'Target 2' pointing toward column B (applied when punch2 fires)
+     * - targets pre-filled positionally (no SelectTargetDef blocking)
+     *
+     * Assert:
+     * 1. After order application, unit.movement points toward col A.
+     * 2. After punch1 fires (label 'Target 1' has no movementByLabel entry), unit.movement
+     *    still points toward col A (unchanged).
+     * 3. After punch2 fires (at ~0.5 s), unit.movement switches to point toward col B.
+     *
+     * NOTE: Double Punch locks movement speed to 0 until 0.6 s, so the unit won't translate
+     * physically — but setMovement is called and the path changes as expected.
+     */
+    it('Scenario E: movementByLabel applies movement at the correct interval fire time (committed run)', () => {
+        resetGameObjectIdCounter(1);
+
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        // Player placed in the middle.
+        const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerX,
+            y: playerY,
+            abilities: ['0116'],
+        });
+
+        // Two enemies within punch range.
+        const e1 = createTargetDummyAtWorld(engine, playerX + 42, playerY, { id: 'enemy_1', hp: 100 });
+        initializeAbilityRuntimeForUnit(e1);
+        engine.addUnit(e1, 'initialGameSpawn');
+
+        const e2 = createTargetDummyAtWorld(engine, playerX, playerY + 45, { id: 'enemy_2', hp: 100 });
+        initializeAbilityRuntimeForUnit(e2);
+        engine.addUnit(e2, 'initialGameSpawn');
+
+        // Advance until the engine pauses waiting for player orders.
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        // Movement A: toward col 2 (left of player)
+        const moveColA = 2;
+        const moveRowA = 5;
+        // Movement B: toward col 8 (right of player, different row)
+        const moveColB = 8;
+        const moveRowB = 3;
+
+        // Submit a normal (non-preview) order — no targetsByLabel means Pass A is a no-op.
+        // movePath = path toward A; movementByLabel['Target 2'] = path toward B.
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0116',
+            // Pre-fill targets positionally (e1 for punch1, e2 for punch2).
+            targets: [
+                { type: 'unit', unitId: e1.id },
+                { type: 'unit', unitId: e2.id },
+            ],
+            endTurn: true,
+            movePath: [{ col: moveColA, row: moveRowA }],
+            movementByLabel: {
+                'Target 2': { movePath: [{ col: moveColB, row: moveRowB }] },
+            },
+        });
+
+        // Step one tick — applyOrderLogic fires.
+        engine.stepSimulationFixedTicks(1);
+
+        // Assert 1: unit.movement should point toward col A.
+        expect(player.movement).not.toBeNull();
+        expect(player.movement?.path[player.movement.path.length - 1]).toEqual({ col: moveColA, row: moveRowA });
+
+        const activeAbility = player.activeAbilities.find(a => a.abilityId === '0116');
+        expect(activeAbility).not.toBeUndefined();
+
+        // Step until just after punch1 fires (elapsed > 0.25 s) but before punch2 (0.5 s).
+        // After punch1, 'Target 1' has no movementByLabel entry, so movement path stays A.
+        let passedPunch1 = false;
+        let passedPunch2 = false;
+        for (let i = 0; i < 300; i++) {
+            engine.stepSimulationFixedTicks(1);
+            const elapsed = engine.gameTime - activeAbility!.startTime;
+            if (elapsed > 0.25 && !passedPunch1) {
+                passedPunch1 = true;
+                // Verify movement still points toward A (punch1 has no movementByLabel entry).
+                expect(player.movement?.path[player.movement.path.length - 1]).toEqual({ col: moveColA, row: moveRowA });
+            }
+            if (elapsed > 0.51 && !passedPunch2) {
+                passedPunch2 = true;
+                // Assert: after punch2 interval enters (0.5 s), movement path switches to B.
+                expect(player.movement?.path[player.movement.path.length - 1]).toEqual({ col: moveColB, row: moveRowB });
+            }
+            // Stop once the ability completes so we can check damage.
+            if (player.activeAbilities.length === 0) break;
+        }
+
+        expect(passedPunch1).toBe(true);
+        expect(passedPunch2).toBe(true);
+
+        // Assert: both enemies took damage.
+        expect(e1.hp).toBeLessThan(100);
+        expect(e2.hp).toBeLessThan(100);
+
+        engine.destroy();
+    });
+
+    /**
+     * Scenario F — Step-5 stop condition: final hit plays before engine pauses.
+     *
+     * Submit a preview order for Double Punch (0116) with targetsByLabel: {}.
+     * Inject Target 1 and Target 2 interactively. After injecting the final target
+     * the engine should:
+     *   - NOT be immediately paused (resolveTarget no longer sets isPaused = true for last target)
+     *   - run a few more ticks so the second punch interval fires (e2 takes damage)
+     *   - then settle into isPaused = true once the caster's activeAbility ends
+     *   - NOT advance to `waitingForOrders` (the round does not end in this preview)
+     */
+    it('Scenario F: after final target injected, engine runs final hit then pauses (not waitingForOrders)', () => {
+        resetGameObjectIdCounter(1);
+
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerX,
+            y: playerY,
+            abilities: ['0116'],
+        });
+
+        // e1 to the right (punch1 hits it), e2 below (punch2 hits it).
+        const e1 = createTargetDummyAtWorld(engine, playerX + 42, playerY, { id: 'enemy_1', hp: 100 });
+        initializeAbilityRuntimeForUnit(e1);
+        engine.addUnit(e1, 'initialGameSpawn');
+
+        const e2 = createTargetDummyAtWorld(engine, playerX, playerY + 45, { id: 'enemy_2', hp: 100 });
+        initializeAbilityRuntimeForUnit(e2);
+        engine.addUnit(e2, 'initialGameSpawn');
+
+        const e2InitialHp = e2.hp;
+
+        // Advance until waiting for orders, then queue preview order.
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        // Mark the preview cast so the Step-5 stop condition activates.
+        engine.isSequentialTargetingPreview = true;
+        engine.sequentialTargetingPreviewCast = { unitId: player.id, abilityId: '0116', startRound: engine.roundNumber };
+
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0116',
+            targets: [],
+            targetsByLabel: {},
+            endTurn: true,
+        });
+
+        // Wait for Target 1 pause.
+        stepUntil(engine, () => engine.waitingForTargetInput?.label === 'Target 1');
+        expect(engine.waitingForTargetInput?.label).toBe('Target 1');
+
+        // Inject Target 1 and unpause (simulating resolveTarget behaviour).
+        const active = player.activeAbilities.find(a => a.abilityId === '0116');
+        expect(active).not.toBeUndefined();
+        active!.targetsByLabel!['Target 1'] = { type: 'unit', unitId: e1.id };
+        engine.waitingForTargetInput = null;
+        engine.isPaused = false;
+
+        // Wait for Target 2 pause.
+        stepUntil(engine, () => engine.waitingForTargetInput?.label === 'Target 2');
+        expect((engine.waitingForTargetInput as GameEngine['waitingForTargetInput'])?.label).toBe('Target 2');
+
+        // Inject Target 2 and unpause — this simulates the new resolveTarget (Step 5):
+        // always unpause, never set isPaused = true on last target.
+        active!.targetsByLabel!['Target 2'] = { type: 'unit', unitId: e2.id };
+        engine.waitingForTargetInput = null;
+        engine.isPaused = false;  // New behaviour: always unpause, even on last target.
+
+        // Engine should NOT be immediately paused (final hit has not fired yet).
+        expect(engine.isPaused).toBe(false);
+
+        // Step forward: the second punch interval fires and e2 takes damage.
+        // Then the Step-5 stop condition detects the ability ended and sets isPaused = true.
+        const settled = stepUntil(engine, () => engine.isPaused, 300);
+        expect(settled).toBe(true);
+
+        // e2 must have taken damage (final hit played before the pause).
+        expect(e2.hp).toBeLessThan(e2InitialHp);
+
+        // The engine must not have reached a parallel-order pause (round did not end).
+        expect(engine.waitingForOrders).toBeNull();
 
         engine.destroy();
     });

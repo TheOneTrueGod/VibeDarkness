@@ -26,7 +26,7 @@ import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogS
 import { logUserState } from './battlenet/userStateLog';
 import { buildWorldModifiersFromSources } from '../worldModifiers/buildWorldModifiers';
 import { BUILTIN_WORLD_MODIFIERS } from '../worldModifiers/builtins/index';
-import { InteractiveTargetingSession } from './interaction/InteractiveTargetingSession';
+import { InteractiveTargetingSession, type HeldRemoteOrder } from './interaction/InteractiveTargetingSession';
 import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getSelectTargetDefsFromTimings } from '../abilities/targeting';
@@ -58,7 +58,8 @@ export type BattleSessionEvent =
     | { type: 'round_number'; roundNumber: number }
     | { type: 'round_progress'; progress: number }
     | { type: 'pause_state'; paused: boolean; waitingForOrders: WaitingForOrders | null }
-    | { type: 'card_state'; engine: GameEngine };
+    | { type: 'card_state'; engine: GameEngine }
+    | { type: 'order_submit_failed'; unitId: string; abilityId: string };
 
 export type BattleSessionListener = (event: BattleSessionEvent) => void;
 
@@ -641,6 +642,31 @@ export class BattleSession implements BattleSessionHandle {
         }
     }
 
+    /**
+     * Release held remote orders (from {@link InteractiveTargetingSession}) after a preview ends.
+     * For each row: skip if the key is already in `appliedRemoteOrderKeys`, queue the order,
+     * register the key, then call `tryResumeParallel` once if any row was queued.
+     */
+    applyHeldRemoteOrders(rows: HeldRemoteOrder[]): void {
+        const engine = this.engine;
+        if (!engine) return;
+        let anyQueued = false;
+        for (const { atTick, order, key } of rows) {
+            if (key != null && this.appliedRemoteOrderKeys.has(key)) {
+                // Already applied before or during the preview — skip to prevent double-application.
+                continue;
+            }
+            engine.state.orderMgr.queueOrder(atTick, order);
+            if (key != null) {
+                this.appliedRemoteOrderKeys.add(key);
+            }
+            anyQueued = true;
+        }
+        if (anyQueued) {
+            engine.tryResumeParallel();
+        }
+    }
+
     /** Apply orders delivered from the server for non-host (or late host) clients. */
     applyRemoteOrders(orders: RemoteOrderWireRow[]): ApplyRemoteOrdersResult {
         const newlyAppliedKeys: string[] = [];
@@ -652,7 +678,19 @@ export class BattleSession implements BattleSessionHandle {
             for (const row of orders) {
                 const atTick = row.atTick ?? row.gameTick;
                 if (typeof atTick !== 'number' || Number.isNaN(atTick)) continue;
-                this.interactiveTargeting.holdRemoteOrder(atTick, row.order as BattleOrder);
+                const order = row.order as BattleOrder;
+                const idWire = row.idHash;
+                const keyFromWire = typeof idWire === 'string' && idWire.length > 0 ? idWire : null;
+                const playerId = typeof row.playerId === 'string' && row.playerId.length > 0 ? row.playerId : null;
+                const key =
+                    keyFromWire ??
+                    (playerId != null ? hashOrderId(playerId, atTick, order) : null);
+                if (key != null && this.appliedRemoteOrderKeys.has(key)) {
+                    // Already applied before the preview started — skip entirely.
+                    skippedKeys.push(key);
+                    continue;
+                }
+                this.interactiveTargeting.holdRemoteOrder(atTick, order, key);
             }
             return { newlyAppliedKeys, skippedKeys };
         }
@@ -745,8 +783,9 @@ export class BattleSession implements BattleSessionHandle {
             const ability = getAbility(order.abilityId);
             const caster = engine?.getUnit(order.unitId);
             if (ability && caster && getSelectTargetDefsFromTimings(ability, caster, engine).length > 0) {
-                this.interactiveTargeting.begin(order.abilityId, order.unitId, this);
-                return;
+                if (this.interactiveTargeting.begin(order, this)) {
+                    return;
+                }
             }
         }
 
@@ -755,8 +794,13 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     /** Submit the confirmed order after interactive targeting commit (bypasses begin() routing). */
-    submitCommittedTargetingOrder(order: BattleOrder, atTick: number): void {
-        void this.netAdapter?.submitOrder(order, atTick);
+    async submitCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<void> {
+        await this.netAdapter?.submitOrder(order, atTick);
+    }
+
+    /** Emit an order_submit_failed event to all session listeners. */
+    emitOrderSubmitFailed(unitId: string, abilityId: string): void {
+        this.emit({ type: 'order_submit_failed', unitId, abilityId });
     }
 
     /** Host: force a wait order and persist checkpoint (skip turn). */

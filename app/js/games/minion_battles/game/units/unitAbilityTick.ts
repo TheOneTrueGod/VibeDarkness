@@ -212,6 +212,13 @@ export function tickUnitActiveAbilities(
                 if (!interval?.targetDef || interval.targetDef.kind !== 'select') continue;
                 if (!active.targetsByLabel?.[interval.targetDef.label]) continue; // still waiting
                 active.waitingForTargetIntervals!.delete(waitingId);
+                // Apply per-label movement re-input if provided (fires once at interval entry).
+                const passBlabel = interval.targetDef.label;
+                const passBmov = active.movementByLabel?.[passBlabel];
+                if (passBmov && passBmov.movePath.length > 0) {
+                    unit.setMovement(passBmov.movePath, passBmov.moveTargetUnitId, engine.gameTick, passBmov.moveTargetPixel);
+                    delete active.movementByLabel![passBlabel];
+                }
                 fireIntervalEntry(interval, active, unit, ability, engine, dt);
             }
         }
@@ -253,6 +260,16 @@ export function tickUnitActiveAbilities(
             if (newlyBlockedIntervals.has(interval.id)) continue;
 
             if (entered.has(interval.id)) {
+                // Apply per-label movement re-input when a select interval fires normally
+                // (i.e. target was pre-filled in the committed order — not deferred by Pass A).
+                if (interval.targetDef?.kind === 'select' && active.movementByLabel) {
+                    const enteredLabel = interval.targetDef.label;
+                    const enteredMov = active.movementByLabel[enteredLabel];
+                    if (enteredMov && enteredMov.movePath.length > 0) {
+                        unit.setMovement(enteredMov.movePath, enteredMov.moveTargetUnitId, engine.gameTick, enteredMov.moveTargetPixel);
+                        delete active.movementByLabel[enteredLabel];
+                    }
+                }
                 // fireIntervalEntry handles both emitter creation and castBehaviour onSetup.
                 fireIntervalEntry(interval, active, unit, ability, engine, dt);
             }

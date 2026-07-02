@@ -24,6 +24,7 @@ import {
     bashRangeBoundaryHitScenario,
     bashRangeBoundaryMissScenario,
     doublePunchTwoTargetsScenario,
+    doublePunchMovementReplanScenario,
 } from './abilities/punchResearch';
 import { doublePunchDeathFallbackScenario } from './abilities/doublePunchScenario';
 import {
@@ -98,6 +99,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     bashRangeBoundaryHitScenario,
     bashRangeBoundaryMissScenario,
     doublePunchTwoTargetsScenario,
+    doublePunchMovementReplanScenario,
     doublePunchDeathFallbackScenario,
     throwRockNoResearchScenario,
     throwRockMorePowerScenario,
@@ -251,7 +253,7 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('light_imbuement_') || id.startsWith('imbued_bat_')) return '0802';
     if (id.startsWith('throw_torch_')) return '0601';
     if (id === 'punch_research_strong') return '0117';
-    if (id === 'punch_research_double' || id === 'double_punch_two_targets' || id === 'double_punch_death_fallback') return '0116';
+    if (id === 'punch_research_double' || id === 'double_punch_two_targets' || id === 'double_punch_death_fallback' || id === 'double_punch_movement_replan') return '0116';
     if (id === 'punch_research_sneaky') return '0118';
     if (id === 'punch_research_charging') return '0119';
     if (id === 'punch_new_baseline' || id.startsWith('bash_')) return '0120';

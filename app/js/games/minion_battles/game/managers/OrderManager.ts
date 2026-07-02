@@ -259,17 +259,22 @@ export class OrderManager {
         // Re-map each value to the corresponding entry in active.targets (which are shallow
         // copies of order.targets), so that indexOf() in MeleeAttackBehaviour.onSetup returns
         // the correct index via reference equality rather than -1.
-        if (order.targetsByLabel) {
+        if (order.targetsByLabel || order.movementByLabel) {
             const active = unit.activeAbilities.find((a) => a.abilityId === ability.id);
             if (active) {
-                const remapped: Record<string, import('../types').ResolvedTarget> = {};
-                for (const [label, orderTarget] of Object.entries(order.targetsByLabel)) {
-                    const idx = order.targets.indexOf(orderTarget);
-                    remapped[label] = (idx >= 0 && active.targets[idx] !== undefined)
-                        ? active.targets[idx]!
-                        : orderTarget;
+                if (order.targetsByLabel) {
+                    const remapped: Record<string, import('../types').ResolvedTarget> = {};
+                    for (const [label, orderTarget] of Object.entries(order.targetsByLabel)) {
+                        const idx = order.targets.indexOf(orderTarget);
+                        remapped[label] = (idx >= 0 && active.targets[idx] !== undefined)
+                            ? active.targets[idx]!
+                            : orderTarget;
+                    }
+                    active.targetsByLabel = remapped;
                 }
-                active.targetsByLabel = remapped;
+                if (order.movementByLabel) {
+                    active.movementByLabel = JSON.parse(JSON.stringify(order.movementByLabel)) as typeof order.movementByLabel;
+                }
             }
         }
     }

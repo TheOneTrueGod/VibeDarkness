@@ -1555,6 +1555,9 @@ export class Unit extends GameObject {
                 ...(a.conditionalCancelTagFilter !== undefined
                     ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
                     : {}),
+                ...(a.movementByLabel !== undefined
+                    ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
+                    : {}),
             })),
             abilityNote: this.abilityNote,
             radius: this.radius,

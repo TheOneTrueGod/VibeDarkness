@@ -13,6 +13,10 @@ import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
 import type { OrderWaiter, WaitingForOrders, BattleOrder, GhostPlanData } from '../../game/types';
+import {
+    GHOST_PLAN_SEQUENTIAL_TARGETING_REBROADCAST_MS,
+    isFreshSequentialTargetingSentinel,
+} from '../../game/types';
 import { GhostPlanContext } from '../../../../contexts/GhostPlanContext';
 import { BattleSession } from '../../game/BattleSession';
 import {
@@ -49,6 +53,7 @@ import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 import { AUTO_END_TURN } from '../../game/gameConstants';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { resolveClick, getSelectTargetDefsFromTimings, filterSelectTargetCandidates } from '../../abilities/targeting';
+import { buildPlayerMovePathThroughWaypoints } from '../../terrain/playerMovePath';
 import { Play, Pause, Square } from 'lucide-react';
 
 declare global {
@@ -204,33 +209,44 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
         sending: 0,
     });
     const [hasReceivedInitialHeartbeat, setHasReceivedInitialHeartbeat] = useState(isHost);
+    /** Set when commit() detects a silent-drop from BattleNet; shown as a dismissible banner. */
+    const [orderSubmitFailed, setOrderSubmitFailed] = useState(false);
 
     const battleActionRow = useBattleActionRowHost();
 
     const dismissResyncInformAck = useCallback(() => setResyncInformAck(null), []);
 
     const lastSentGhostPlanRef = useRef<GhostPlanData | null>(null);
+    const lastSentSequentialTargetingMsRef = useRef(0);
+    /** First observation time for legacy sentinels missing sentAtMs (one grace period). */
+    const sequentialTargetingFirstSeenRef = useRef<Record<string, number>>({});
+    const [ghostPlanFreshnessClock, setGhostPlanFreshnessClock] = useState(0);
     useEffect(() => {
         const interval = setInterval(() => {
+            setGhostPlanFreshnessClock(Date.now());
             const its = sessionRef.current?.interactiveTargeting;
             if (its?.isActive) {
                 // Broadcast a "sequential targeting" signal so other players know not to submit
                 // their own orders yet. The preview animation is local-only, so we send a sentinel
                 // plan (with sequentialTargeting: true) rather than null, which would clear the signal.
+                const nowMs = Date.now();
+                if (nowMs - lastSentSequentialTargetingMsRef.current < GHOST_PLAN_SEQUENTIAL_TARGETING_REBROADCAST_MS) {
+                    return;
+                }
                 const signal: GhostPlanData = {
                     unitId: its.unitId ?? '',
                     abilityId: its.abilityId ?? '',
                     currentTargets: [],
                     mouseWorld: { x: 0, y: 0 },
                     sequentialTargeting: true,
+                    sentAtMs: nowMs,
                 };
-                const prev = lastSentGhostPlanRef.current;
-                if (!prev?.sequentialTargeting || prev.abilityId !== signal.abilityId) {
-                    lastSentGhostPlanRef.current = signal;
-                    sendGhostPlan(signal);
-                }
+                lastSentSequentialTargetingMsRef.current = nowMs;
+                lastSentGhostPlanRef.current = signal;
+                sendGhostPlan(signal);
                 return;
             }
+            lastSentSequentialTargetingMsRef.current = 0;
             const manager = sessionRef.current?.getInteractionManager();
             const uiState = manager?.getUIState();
             const newPlan: GhostPlanData | null =
@@ -276,7 +292,25 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     // True when any other connected player is in sequential targeting preview — block our own order
     // submission until they confirm, since their orders are being held on the host anyway.
     const anotherPlayerIsInSequentialTargeting = Object.entries(ghostPlans).some(
-        ([pid, plan]) => pid !== playerId && plan?.sequentialTargeting === true,
+        ([pid, plan]) => {
+            if (pid === playerId || plan?.sequentialTargeting !== true) {
+                if (plan == null) {
+                    delete sequentialTargetingFirstSeenRef.current[pid];
+                }
+                return false;
+            }
+            if (plan.sentAtMs == null && sequentialTargetingFirstSeenRef.current[pid] == null) {
+                sequentialTargetingFirstSeenRef.current[pid] = ghostPlanFreshnessClock || Date.now();
+            }
+            if (plan.sentAtMs != null) {
+                delete sequentialTargetingFirstSeenRef.current[pid];
+            }
+            return isFreshSequentialTargetingSentinel(
+                plan,
+                sequentialTargetingFirstSeenRef.current[pid],
+                ghostPlanFreshnessClock || Date.now(),
+            );
+        },
     );
     const anotherPlayerIsInSequentialTargetingRef = useRef(false);
     anotherPlayerIsInSequentialTargetingRef.current = anotherPlayerIsInSequentialTargeting;
@@ -577,6 +611,9 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 updateCardState(ev.engine);
                 setActiveLocalWaiter(ev.engine.state.orderMgr.getActiveOrderWaiterForPlayer(playerId));
                 setStoryPauseActive(ev.engine.storyPauseActive);
+            }
+            if (ev.type === 'order_submit_failed') {
+                setOrderSubmitFailed(true);
             }
         });
 
@@ -882,7 +919,11 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                     ? getSelectTargetDefsFromTimings(abilityDef, caster, eng).length
                     : 0;
                 const collected = Object.keys(its.collectedTargets).length;
-                nextState = totalDefs > 0 && collected >= totalDefs ? 'done' : 'playing';
+                // Report 'done' only when all targets are collected AND the preview engine has
+                // paused (final-hit animation has played and the Step-5 stop condition fired).
+                // This ensures Done/Continue does not appear before the last hit lands visually.
+                const allCollected = totalDefs > 0 && collected >= totalDefs;
+                nextState = allCollected && eng.isPaused ? 'done' : 'playing';
             }
             setInteractiveTargetingState(nextState);
             if (prevItsStateRef.current !== nextState) {
@@ -979,9 +1020,41 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     }, []);
 
     const handleCanvasRightClick = useCallback((screenX: number, screenY: number, shiftKey: boolean, ctrlKey: boolean) => {
-        if (sessionRef.current?.interactiveTargeting.isActive) return;
+        const session = sessionRef.current;
+        const its = session?.interactiveTargeting;
+        if (its?.isActive && session) {
+            // While paused for a SelectTargetDef label, route right-click to movement re-input.
+            const engine = session.getEngine();
+            const camera = session.getCamera();
+            const waitingSignal = engine?.waitingForTargetInput;
+            if (engine && camera && waitingSignal && engine.terrainManager) {
+                const label = waitingSignal.label;
+                const caster = engine.getUnit(waitingSignal.unitId);
+                if (caster) {
+                    const grid = engine.terrainManager.grid;
+                    const worldPos = camera.screenToWorld(screenX, screenY);
+                    const clampedX = Math.max(0, Math.min(worldPos.x, engine.getWorldWidth()));
+                    const clampedY = Math.max(0, Math.min(worldPos.y, engine.getWorldHeight()));
+                    const unitGrid = grid.worldToGrid(caster.x, caster.y);
+                    if (ctrlKey) {
+                        const destGrid = grid.worldToGrid(clampedX, clampedY);
+                        const fullPath = buildPlayerMovePathThroughWaypoints(engine.terrainManager, unitGrid.col, unitGrid.row, [destGrid]);
+                        if (fullPath !== null) {
+                            its.resolveMovement(label, { movePath: fullPath, moveTargetPixel: { x: clampedX, y: clampedY } }, session);
+                        }
+                    } else {
+                        const destGrid = grid.worldToGrid(clampedX, clampedY);
+                        const fullPath = buildPlayerMovePathThroughWaypoints(engine.terrainManager, unitGrid.col, unitGrid.row, [destGrid]);
+                        if (fullPath !== null) {
+                            its.resolveMovement(label, { movePath: fullPath }, session);
+                        }
+                    }
+                }
+            }
+            return;
+        }
         if (anotherPlayerIsInSequentialTargetingRef.current) return;
-        sessionRef.current?.getInteractionManager()?.onCanvasRightClick(screenX, screenY, shiftKey, ctrlKey);
+        session?.getInteractionManager()?.onCanvasRightClick(screenX, screenY, shiftKey, ctrlKey);
     }, []);
 
     const handleCanvasMouseMove = useCallback((screenX: number, screenY: number) => {
@@ -1135,6 +1208,18 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                             battleObjectives={MISSION_MAP[missionId]?.battleObjectives ?? []}
                         />
                         {!isHost && <BattleHostAnchorBanner phase={hostAnchorWaitPhase} />}
+                        {orderSubmitFailed && (
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg bg-red-950/90 px-4 py-2 text-sm text-red-200 shadow-lg ring-1 ring-red-700">
+                                <span>Your order was not accepted — please re-issue your turn.</span>
+                                <button
+                                    className="ml-2 text-red-400 hover:text-red-200"
+                                    onClick={() => setOrderSubmitFailed(false)}
+                                    aria-label="Dismiss"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        )}
                         {interactiveTargetingState !== 'inactive' && (
                             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50">
                                 <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border ${
@@ -1157,6 +1242,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                     <button
                                         className="px-3 py-1.5 rounded bg-red-900/60 text-red-300 text-sm hover:bg-red-800/60 border border-red-700"
                                         onClick={() => {
+                                            setOrderSubmitFailed(false);
                                             const session = sessionRef.current;
                                             if (session) session.interactiveTargeting.reset(session);
                                         }}
@@ -1166,6 +1252,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                     <button
                                         className="px-3 py-1.5 rounded bg-sky-900/60 text-sky-300 text-sm hover:bg-sky-800/60 border border-sky-700"
                                         onClick={() => {
+                                            setOrderSubmitFailed(false);
                                             const session = sessionRef.current;
                                             if (session) session.interactiveTargeting.replay(session);
                                         }}
@@ -1180,8 +1267,9 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                         }`}
                                         disabled={interactiveTargetingState !== 'done'}
                                         onClick={() => {
+                                            setOrderSubmitFailed(false);
                                             const session = sessionRef.current;
-                                            if (session) session.interactiveTargeting.commit(session);
+                                            if (session) void session.interactiveTargeting.commit(session);
                                         }}
                                     >
                                         Continue

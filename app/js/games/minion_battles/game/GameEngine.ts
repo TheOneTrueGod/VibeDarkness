@@ -158,6 +158,12 @@ export class GameEngine implements EngineContext {
     waitingForTargetInput: { label: string; unitId: string; abilityId: string } | null = null;
     /** True while an InteractiveTargetingSession preview is running. Suppresses host save/fingerprint. Ephemeral — not serialized. */
     isSequentialTargetingPreview: boolean = false;
+    /**
+     * Identifies the caster, ability, and starting round number being previewed in an interactive
+     * sequential targeting session. Set alongside `isSequentialTargetingPreview`; dies with the
+     * preview engine on restore. Ephemeral — not serialized.
+     */
+    sequentialTargetingPreviewCast: { unitId: string; abilityId: string; startRound: number } | null = null;
 
     constructor() {
         registerLateBuiltinHandlers(this.state.worldModifierManager, this);
@@ -965,11 +971,14 @@ export class GameEngine implements EngineContext {
         let stateChanged = false;
         while (this.accumulator >= FIXED_DT) {
             const hadWaitingOrders = this.waitingForOrders != null;
+            const wasPaused = this.isPaused;
             this.fixedUpdate(FIXED_DT);
             this.accumulator -= FIXED_DT;
             stateChanged = true;
             // Stop draining this frame once we enter a parallel-order pause; remainder stays for later frames.
             if (this.waitingForOrders != null && !hadWaitingOrders) break;
+            // Stop draining when fixedUpdate paused the engine (e.g. sequential target-input pause).
+            if (this.isPaused && !wasPaused) break;
         }
 
         if (stateChanged) {
@@ -1190,6 +1199,20 @@ export class GameEngine implements EngineContext {
                 aiCtx,
                 () => this.state.levelEventManager.runVictoryChecks(),
             );
+            // Preview stop condition (findings 4 & 5): pause the preview when the caster's
+            // ability is no longer running (natural completion, cancel, interrupt, death) or the
+            // round advances beyond the snapshot round. This covers teamwork cancel too — see
+            // cancelActiveAbility(), which splices the entry from activeAbilities before this runs.
+            if (this.isSequentialTargetingPreview && this.sequentialTargetingPreviewCast != null && !this.isPaused) {
+                const { unitId: casterId, abilityId: castAbilityId, startRound } = this.sequentialTargetingPreviewCast;
+                const caster = this.getUnit(casterId);
+                const abilityStillActive = caster?.isAlive() &&
+                    caster.activeAbilities.some((a) => a.abilityId === castAbilityId);
+                const roundAdvanced = this.roundNumber > startRound;
+                if (!abilityStillActive || roundAdvanced) {
+                    this.isPaused = true;
+                }
+            }
             if (this.waitingForOrders == null && !this.isSequentialTargetingPreview) {
                 const waiters = this.state.orderMgr.collectParallelWaiters();
                 if (waiters.length > 0) {

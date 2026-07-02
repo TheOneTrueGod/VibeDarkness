@@ -15,12 +15,20 @@ import type { BattleOrder, ResolvedTarget, SerializedGameState } from '../types'
 import type { BattleSession } from '../BattleSession';
 import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { AUTO_END_TURN } from '../gameConstants';
+
+/** Payload for a movement re-input collected during interactive preview. */
+export interface MovementReInput {
+    movePath: { col: number; row: number }[];
+    moveTargetUnitId?: string;
+    moveTargetPixel?: { x: number; y: number };
+}
 
 /** Minimal info held for one deferred remote order row. */
-interface HeldRemoteOrder {
+export interface HeldRemoteOrder {
     atTick: number;
     order: BattleOrder;
+    /** Dedupe key computed at hold time (mirrors BattleSession.appliedRemoteOrderKeys logic). */
+    key: string | null;
 }
 
 export class InteractiveTargetingSession {
@@ -28,12 +36,18 @@ export class InteractiveTargetingSession {
     private mark: SerializedGameState | null = null;
     private _abilityId: string | null = null;
     private _unitId: string | null = null;
+    /** The original full order that triggered the preview (carries movePath etc.). */
+    private originalOrder: BattleOrder | null = null;
     /** Targets collected so far, keyed by SelectTargetDef label. */
     readonly collectedTargets: Record<string, ResolvedTarget> = {};
+    /** Movement re-inputs collected via resolveMovement(), keyed by SelectTargetDef label. */
+    private collectedMovementByLabel: Record<string, MovementReInput> = {};
     /** Remote orders that arrived while preview is active; held until preview ends. */
     private heldRemoteOrders: Map<string, HeldRemoteOrder> = new Map();
     /** The label currently waiting for player input (set externally by UI). */
     private _currentLabel: string | null = null;
+    /** SelectTargetDef labels frozen at begin() — used for all-collected checks and commit mapping. */
+    private _selectLabels: readonly string[] = [];
     /** Saved onParallelBatchResolved callback, replaced with no-op during preview. */
     private savedOnParallelBatchResolved: ((batchAtTick: number) => void | Promise<void>) | null = null;
 
@@ -57,6 +71,17 @@ export class InteractiveTargetingSession {
         return this._unitId;
     }
 
+    /** Ordered SelectTargetDef labels captured when the preview started. */
+    get selectLabels(): readonly string[] {
+        return this._selectLabels;
+    }
+
+    /** True when every frozen label has a collected target. */
+    allTargetsCollected(): boolean {
+        return this._selectLabels.length > 0
+            && this._selectLabels.every((label) => label in this.collectedTargets);
+    }
+
     setCurrentLabel(label: string | null): void {
         this._currentLabel = label;
     }
@@ -75,15 +100,33 @@ export class InteractiveTargetingSession {
      *   enables Pass A blocking in unitAbilityTick).
      * - `tryResumeParallel` is triggered automatically by applyOrder.
      */
-    begin(abilityId: string, unitId: string, session: BattleSession): void {
+    begin(order: BattleOrder, session: BattleSession): boolean {
+        const abilityId = order.abilityId;
+        const unitId = order.unitId;
         const engine = session.getEngine();
-        if (!engine) return;
+        if (!engine) return false;
+
+        const batch = engine.state.orderMgr.waitingForOrders;
+        if (!batch) return false;
+        if (!batch.waiters.some((w) => w.unitId === unitId)) return false;
+        if (engine.state.orderMgr.hasPendingEndTurnOrderForUnit(unitId, batch.atTick)) return false;
+
+        const ability = getAbility(abilityId);
+        const caster = engine.getUnit(unitId);
+        if (!ability || !caster) return false;
+
+        const selectDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
+        if (selectDefs.length === 0) return false;
+
+        this._selectLabels = selectDefs.map((def) => def.label);
 
         this._isActive = true;
         this._abilityId = abilityId;
         this._unitId = unitId;
+        this.originalOrder = order;
         // Clear any leftover state from a previous session.
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
+        this.collectedMovementByLabel = {};
         this.heldRemoteOrders.clear();
         this._currentLabel = null;
 
@@ -95,36 +138,37 @@ export class InteractiveTargetingSession {
         // Flag the engine so host callbacks (checkpoint, fingerprint, batch-resolved) skip
         // during the preview run. This prevents the preview state from being persisted to the server.
         engine.isSequentialTargetingPreview = true;
+        engine.sequentialTargetingPreviewCast = { unitId, abilityId, startRound: engine.roundNumber };
         engine.setOnParallelBatchResolved(null);
 
         // In multiplayer, other players haven't submitted their orders yet.
         // Queue "wait" for every other waiter so the preview engine can advance
         // without blocking on remote input.
-        const batch = engine.state.orderMgr.waitingForOrders;
-        if (batch) {
-            for (const waiter of batch.waiters) {
-                if (waiter.unitId !== unitId) {
-                    engine.state.orderMgr.applyOrder({
-                        unitId: waiter.unitId,
-                        abilityId: 'wait',
-                        targets: [],
-                        endTurn: true,
-                    });
-                }
+        for (const waiter of batch.waiters) {
+            if (waiter.unitId !== unitId) {
+                engine.state.orderMgr.applyOrder({
+                    unitId: waiter.unitId,
+                    abilityId: 'wait',
+                    targets: [],
+                    endTurn: true,
+                });
             }
         }
 
         // Queue the preview order. `targetsByLabel: {}` is the sentinel that
         // tells Pass A in unitAbilityTick to activate blocking.
+        // Spread the original order so movePath/moveTargetUnitId/moveTargetPixel
+        // take effect during the preview windup — the caster slides toward the
+        // intended destination even before targets are confirmed.
         const previewOrder: BattleOrder = {
-            unitId,
-            abilityId,
+            ...order,
             targets: [],
             targetsByLabel: {},
             endTurn: true,
         };
         engine.state.orderMgr.applyOrder(previewOrder);
         // applyOrder → onAfterOrderQueued → tryResumeParallel → all ready → engine starts running.
+        return true;
     }
 
     /**
@@ -150,26 +194,43 @@ export class InteractiveTargetingSession {
             }
         }
 
-        // Clear the waiting signal; unpause only while more targets remain.
+        // Clear the waiting signal and always unpause — the Step-5 stop condition in
+        // fixedUpdate will pause the preview once the caster's ability naturally completes.
         engine.waitingForTargetInput = null;
-        const ability = getAbility(this._abilityId);
-        const totalDefs =
-            ability && caster
-                ? getSelectTargetDefsFromTimings(ability, caster, engine).length
-                : 0;
-        const allCollected = totalDefs > 0 && Object.keys(this.collectedTargets).length >= totalDefs;
-        engine.isPaused = allCollected;
-        if (allCollected && AUTO_END_TURN) {
-            this.commit(session);
+        engine.isPaused = false;
+    }
+
+    /**
+     * Called by the UI when the player right-clicks to re-plan movement while paused for `label`.
+     *
+     * Only valid while `engine.waitingForTargetInput` is set (i.e. the preview is paused).
+     * Stores the movement in `collectedMovementByLabel` and applies it immediately on the preview
+     * caster (the pause moment is the interval's fire time, so preview and committed run agree).
+     * `commit()` and `replay()` attach the collected map as `movementByLabel` on the outgoing order.
+     */
+    resolveMovement(label: string, payload: MovementReInput, session: BattleSession): void {
+        if (!this._isActive || !this._unitId) return;
+        const engine = session.getEngine();
+        if (!engine || !engine.waitingForTargetInput) return;
+
+        // Store for commit/replay.
+        this.collectedMovementByLabel[label] = { ...payload };
+
+        // Apply immediately on the preview caster so the committed run and preview agree.
+        const caster = engine.getUnit(this._unitId);
+        if (caster && payload.movePath.length > 0) {
+            caster.setMovement(payload.movePath, payload.moveTargetUnitId, engine.gameTick, payload.moveTargetPixel);
         }
     }
 
     /**
      * Hold a remote order that arrived while the preview is active.
      * Only the latest order per unitId is kept (replaces earlier ones).
+     * `key` is the dedupe key computed by the caller; stored so release can register it
+     * in `appliedRemoteOrderKeys` to prevent re-delivery.
      */
-    holdRemoteOrder(atTick: number, order: BattleOrder): void {
-        this.heldRemoteOrders.set(order.unitId, { atTick, order });
+    holdRemoteOrder(atTick: number, order: BattleOrder, key: string | null): void {
+        this.heldRemoteOrders.set(order.unitId, { atTick, order, key });
     }
 
     /**
@@ -178,6 +239,7 @@ export class InteractiveTargetingSession {
     reset(session: BattleSession): void {
         this._restoreToMark(session);
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
+        this.collectedMovementByLabel = {};
         this._clearActive();
     }
 
@@ -187,9 +249,10 @@ export class InteractiveTargetingSession {
      * already invalid, so there is nothing to restore.
      */
     abort(): void {
-        this._clearActive();
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
+        this.collectedMovementByLabel = {};
         this.heldRemoteOrders.clear();
+        this._clearActive();
     }
 
     /**
@@ -197,10 +260,13 @@ export class InteractiveTargetingSession {
      * pre-filled in `targetsByLabel`, so the engine runs without pausing again.
      */
     replay(session: BattleSession): void {
-        if (!this._abilityId || !this._unitId) return;
-        const abilityId = this._abilityId;
+        if (!this._abilityId || !this._unitId || !this.originalOrder) return;
         const unitId = this._unitId;
         const targets = { ...this.collectedTargets };
+        const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
+            ? { ...this.collectedMovementByLabel }
+            : undefined;
+        const baseOrder = this.originalOrder;
 
         this._restoreToMark(session);
 
@@ -211,6 +277,7 @@ export class InteractiveTargetingSession {
         // and onParallelBatchResolved re-bound to the real callback). Re-raise the flag and
         // suppress the batch callback so the replay run doesn't persist state to the server.
         engine.isSequentialTargetingPreview = true;
+        engine.sequentialTargetingPreviewCast = { unitId, abilityId: baseOrder.abilityId, startRound: engine.roundNumber };
         engine.setOnParallelBatchResolved(null);
 
         // Re-queue wait for other players' units (restore wiped the auto-queued waits from begin()).
@@ -229,38 +296,69 @@ export class InteractiveTargetingSession {
         }
 
         // Re-queue with targets pre-filled — no blocking will occur.
+        // Spread originalOrder so movement fields (movePath etc.) are preserved.
+        // Include movementByLabel so per-label movement fires at interval entry.
         const replayOrder: BattleOrder = {
-            unitId,
-            abilityId,
+            ...baseOrder,
             targets: [],
             targetsByLabel: targets,
             endTurn: true,
+            ...(movementByLabel ? { movementByLabel } : {}),
         };
         engine.state.orderMgr.applyOrder(replayOrder);
     }
 
     /**
      * Restore to mark, apply held remote orders, then submit the real order via BattleNet.
+     *
+     * All validation is done BEFORE any state change so the session stays active and the
+     * preview is left untouched if something is missing.  Only once everything checks out do
+     * we restore, clear, release held orders, and submit.
+     *
+     * After submitting, we verify the order actually landed in the engine's pending-orders
+     * list.  If it was silently dropped (BattleNet recovery / awaiting-ack / deferred paths)
+     * we emit `order_submit_failed` so the UI can surface an error without losing turn state
+     * (the engine is already back at the pause, so the player can re-issue the order).
      */
-    commit(session: BattleSession): void {
-        if (!this._abilityId || !this._unitId || !this.mark) return;
+    async commit(session: BattleSession): Promise<void> {
+        if (!this._abilityId || !this._unitId || !this.mark || !this.originalOrder) return;
+
+        // --- Phase 1: validate everything BEFORE touching engine or session state ---
+
         const abilityId = this._abilityId;
         const unitId = this._unitId;
-        const collected = { ...this.collectedTargets };
         const markSnapshot = this.mark;
+
+        // atTick must be present in the mark snapshot.
+        const atTick = markSnapshot.waitingForOrders?.atTick;
+        if (atTick == null) return;
+
+        // Ability def must exist (guard against a hot-reload removing it mid-preview).
+        const ability = getAbility(abilityId);
+        if (!ability) return;
+
+        // Caster must be alive in the mark snapshot's unit list.
+        const casterInSnapshot = markSnapshot.units.some(
+            (u) => (u as { id?: unknown }).id === unitId,
+        );
+        if (!casterInSnapshot) return;
+
+        // --- Phase 2: restore, clear, release, submit ---
+
+        const collected = { ...this.collectedTargets };
+        const selectLabels = [...this._selectLabels];
+        const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
+            ? { ...this.collectedMovementByLabel }
+            : undefined;
+        const baseOrder = this.originalOrder;
         const heldRows = [...this.heldRemoteOrders.values()];
         this.heldRemoteOrders.clear();
 
         this._restoreToMark(session, { applyHeldRemoteOrders: false });
         this._clearActive();
 
-        const atTick = markSnapshot.waitingForOrders?.atTick;
         const engine = session.getEngine();
-        if (atTick == null || !engine) return;
-
-        const caster = engine.getUnit(unitId);
-        const ability = getAbility(abilityId);
-        if (!caster || !ability) return;
+        if (!engine) return;
 
         // Drop any stale pending row for this unit at the batch tick before submitting.
         engine.pendingOrders = engine.pendingOrders.filter(
@@ -268,23 +366,32 @@ export class InteractiveTargetingSession {
         );
 
         // Peer orders that arrived during preview (apply before host submit per doc flow).
-        for (const { atTick: heldAtTick, order: heldOrder } of heldRows) {
-            engine.state.orderMgr.queueOrder(heldAtTick, heldOrder);
-        }
+        // applyHeldRemoteOrders skips already-applied keys and registers newly applied ones.
+        session.applyHeldRemoteOrders(heldRows);
 
-        const selectDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
-        const targets = selectDefs
-            .map((def) => collected[def.label])
+        const targets = selectLabels
+            .map((label) => collected[label])
             .filter((t): t is ResolvedTarget => t != null);
 
+        // Spread originalOrder so movement fields (movePath etc.) are preserved.
+        // targetsByLabel is intentionally omitted — committed run uses positional targets[].
+        // Include movementByLabel so per-label movement fires at the correct interval fire time.
         const realOrder: BattleOrder = {
-            unitId,
-            abilityId,
+            ...baseOrder,
             targets,
             endTurn: true,
+            ...(movementByLabel ? { movementByLabel } : {}),
         };
 
-        session.submitCommittedTargetingOrder(realOrder, atTick);
+        await session.submitCommittedTargetingOrder(realOrder, atTick);
+
+        // --- Phase 3: verify the order actually landed ---
+        // Silent-drop paths in BattleNet (recovering, awaiting ack, deferred) resolve the
+        // promise without queueing the order locally.  Detect this and surface an error.
+        const engineAfter = session.getEngine();
+        if (engineAfter && !engineAfter.state.orderMgr.hasPendingEndTurnOrderForUnit(unitId, atTick)) {
+            session.emitOrderSubmitFailed(unitId, abilityId);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -302,15 +409,10 @@ export class InteractiveTargetingSession {
         if (!this.mark) return;
         session.restoreFromInMemorySnapshot(this.mark);
         const applyHeld = opts?.applyHeldRemoteOrders !== false;
-        const engine = session.getEngine();
-        if (engine && applyHeld) {
-            for (const { atTick, order } of this.heldRemoteOrders.values()) {
-                engine.state.orderMgr.queueOrder(atTick, order);
-            }
-            if (this.heldRemoteOrders.size > 0) {
-                engine.tryResumeParallel();
-            }
+        if (applyHeld) {
+            const rows = [...this.heldRemoteOrders.values()];
             this.heldRemoteOrders.clear();
+            session.applyHeldRemoteOrders(rows);
         }
         // Re-bind the saved callback (was set to null; restoreFromInMemorySnapshot re-binds
         // via bindEngineCallbacks → setOnParallelBatchResolved, so nothing to do here).
@@ -321,6 +423,8 @@ export class InteractiveTargetingSession {
         this._abilityId = null;
         this._unitId = null;
         this._currentLabel = null;
+        this._selectLabels = [];
         this.mark = null;
+        this.originalOrder = null;
     }
 }
