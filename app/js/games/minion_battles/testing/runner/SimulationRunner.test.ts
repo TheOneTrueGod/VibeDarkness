@@ -43,6 +43,7 @@ import { aiReplanStaggerScenario } from '../scenarios/ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from '../scenarios/ai/ai_serialization_roundtrip';
 import { throwTorchHitsDummyScenario } from '../scenarios/abilities/throwTorchScenario';
 import { lightImbuementAndImbuedBatScenario } from '../scenarios/abilities/lightImbuementScenario';
+import { lightBlastCommittedScenario } from '../scenarios/abilities/lightBlastScenario';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -385,6 +386,11 @@ describe('runScenarioHeadless', () => {
 
     it('Light Imbuement (0802) + Imbued Bat (0803): full cast flow deals damage', () => {
         const r = runScenarioHeadless(lightImbuementAndImbuedBatScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Light Blast (0801): committed cast damages dummy and leaves torch light', () => {
+        const r = runScenarioHeadless(lightBlastCommittedScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

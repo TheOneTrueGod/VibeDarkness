@@ -26,6 +26,7 @@ import { AbilityEventType, abilityHasTag, type AbilityStatic } from '../../abili
 import {
     resolveBehaviourTimingRef,
     type CastBehaviourBaseContext,
+    type CastBehaviourEntry,
 } from '../../abilities/castBehaviourTypes';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 import type { ActiveAbility, ResolvedTarget } from '../types';
@@ -80,7 +81,16 @@ function fireIntervalEntry(
         // Apply declarative VisualEffectDefs at window-entry time.
         if (emitterDef.visualEffects?.length) {
             const useTarget = emitterDef.effectPosition === 'target';
-            const primaryTarget = active.targets[0];
+            const primaryTarget = useTarget
+                ? resolveCastBehaviourTarget(
+                    { targetIndex: 0 } as CastBehaviourEntry,
+                    interval,
+                    active,
+                    unit,
+                    ability,
+                    engine,
+                )
+                : active.targets[0];
             const targetUnit =
                 useTarget && primaryTarget?.type === 'unit'
                     ? engine.getUnit(primaryTarget.unitId!)
@@ -245,12 +255,6 @@ export function tickUnitActiveAbilities(
                 newlyBlockedIntervals.add(interval.id);
                 if (!active.waitingForTargetIntervals) active.waitingForTargetIntervals = new Set();
                 active.waitingForTargetIntervals.add(interval.id);
-            }
-            if (newlyBlockedIntervals.size > 0) {
-                const first = intervals.find(iv => newlyBlockedIntervals.has(iv.id));
-                if (first?.targetDef?.kind === 'select') {
-                    engine.signalWaitingForTarget(first.targetDef.label, unit.id, active.abilityId);
-                }
             }
         }
 
@@ -501,13 +505,12 @@ export function tickUnitActiveAbilities(
             };
             rec.entry.behaviour.onTick?.(tickCtx);
             if (rec.fireOnHitAtFirstTick && tickCtx.isFirstTick && rec.onProjectileHit?.length) {
-                const primaryTarget = active.targets[0];
                 const contextTargetUnit =
-                    primaryTarget?.type === 'unit' ? engine.getUnit(primaryTarget.unitId!) : undefined;
+                    target.type === 'unit' ? engine.getUnit(target.unitId!) : undefined;
                 const contextTarget: { x: number; y: number; radius: number } | undefined =
                     contextTargetUnit ??
-                    (primaryTarget?.type === 'pixel' && primaryTarget.position
-                        ? { x: primaryTarget.position.x, y: primaryTarget.position.y, radius: 0 }
+                    (target.type === 'pixel' && target.position
+                        ? { x: target.position.x, y: target.position.y, radius: 0 }
                         : undefined);
                 applyVisualEffectDefs(
                     rec.onProjectileHit,

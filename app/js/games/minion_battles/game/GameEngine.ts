@@ -71,6 +71,7 @@ import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
 import { NinjutsuManager, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
+import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -1154,6 +1155,17 @@ export class GameEngine implements EngineContext {
         // `loop()` may drain multiple FIXED_DT steps per rAF; without this guard, a second `fixedUpdate` in the
         // same frame could run the normal path after the deferred pause branch above committed this pause.
         if (this.waitingForOrders != null) return;
+
+        // Interactive select-target lookahead: pause before advancing time so entry-tick
+        // cast behaviour fires on the tick after the player picks (see select-target-lookahead plan).
+        if (this.waitingForTargetInput != null) return;
+
+        const impendingSelectTarget = findImpendingSelectTargetNeed(this, dt);
+        if (impendingSelectTarget != null) {
+            const { label, unitId, abilityId } = impendingSelectTarget;
+            this.signalWaitingForTarget(label, unitId, abilityId);
+            return;
+        }
 
         this.gameTime += dt;
         this.gameTick++;

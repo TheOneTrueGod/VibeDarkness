@@ -9,13 +9,16 @@
  * Scenario B: Engine resumes and fires the blocked interval after the target is
  *             injected into targetsByLabel, then pauses again for the second
  *             punch, and both enemies take damage.
- * Scenario C: A normal order (no targetsByLabel) never sets waitingForTargetInput.
+ * Scenario F: After final target injected, engine runs final hit then pauses (not waitingForOrders).
+ * Scenario G: Light Blast playahead pauses before active interval; inject damages enemy.
+ * Scenario H: Committed vs preview Light Blast damage timing matches within FIXED_DT.
  */
 
 import { describe, it, expect } from 'vitest';
 import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import type { GameEngine } from './GameEngine';
+import type { Unit } from './units/Unit';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
@@ -23,6 +26,15 @@ import {
 } from '../testing/harness/buildTinyBattleEngine';
 import { createTargetDummyAtWorld } from '../testing/fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
+import { Light } from '../resources/Light';
+
+/** Matches `GameEngine` fixed timestep. */
+const FIXED_DT = 1 / 60;
+/** Matches `0801Ability` `PREFIRE_TIME`. */
+const LIGHT_BLAST_ID = '0801';
+const LIGHT_BLAST_PREFIRE = 0.4;
+/** Matches `0801Ability` `resourceCost.amount`. */
+const LIGHT_BLAST_LIGHT_COST = 2;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -39,6 +51,72 @@ function stepUntil(
         engine.stepSimulationFixedTicks(1);
     }
     return predicate();
+}
+
+function getCastElapsed(engine: GameEngine, player: Unit, abilityId: string): number {
+    const active = player.activeAbilities.find(a => a.abilityId === abilityId);
+    if (!active) return -1;
+    return engine.gameTime - active.startTime;
+}
+
+interface LightBlastFixture {
+    engine: ReturnType<typeof buildTinyBattleEngine>;
+    player: Unit;
+    enemy: Unit;
+    blastPixel: { x: number; y: number };
+}
+
+/** Player with Light Blast + light resource; enemy dummy inside blast radius at `blastPixel`. */
+function buildLightBlastFixture(): LightBlastFixture {
+    resetGameObjectIdCounter(1);
+
+    const engine = buildTinyBattleEngine({
+        gridW: 12,
+        gridH: 10,
+        localPlayerId: TINY_BATTLE_PLAYER_ID,
+        grass: true,
+    });
+
+    const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+    const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+    const player = spawnTinyPlayerUnit(engine, {
+        playerId: TINY_BATTLE_PLAYER_ID,
+        x: playerX,
+        y: playerY,
+        abilities: [LIGHT_BLAST_ID],
+    });
+
+    const light = new Light();
+    player.attachResource(light, engine.eventBus);
+    light.add(LIGHT_BLAST_LIGHT_COST);
+
+    const blastPixel = { x: playerX + 30, y: playerY };
+    const enemy = createTargetDummyAtWorld(engine, blastPixel.x, blastPixel.y, {
+        id: 'enemy_1',
+        hp: 100,
+    });
+    initializeAbilityRuntimeForUnit(enemy);
+    engine.addUnit(enemy, 'initialGameSpawn');
+
+    return { engine, player, enemy, blastPixel };
+}
+
+function stepUntilEnemyDamaged(
+    engine: GameEngine,
+    player: Unit,
+    enemy: Unit,
+    abilityId: string,
+    initialHp: number,
+    maxTicks = 300,
+): { damaged: boolean; elapsedAtDamage: number | null } {
+    for (let i = 0; i < maxTicks; i++) {
+        engine.stepSimulationFixedTicks(1);
+        if (enemy.hp < initialHp) {
+            return { damaged: true, elapsedAtDamage: getCastElapsed(engine, player, abilityId) };
+        }
+        if (player.activeAbilities.length === 0) break;
+    }
+    return { damaged: false, elapsedAtDamage: null };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -114,6 +192,54 @@ describe('interactive sequential targeting', () => {
         expect(engine.waitingForTargetInput!.abilityId).toBe('0116');
         // The isPaused flag should be set (blocks the live loop).
         expect(engine.isPaused).toBe(true);
+
+        engine.destroy();
+    });
+
+    /**
+     * Pre-tick lookahead gate: while waitingForTargetInput is set, stepSimulationFixedTicks
+     * must not advance gameTime or gameTick (frozen until the player picks).
+     */
+    it('stepSimulationFixedTicks does not advance gameTime while waitingForTargetInput', () => {
+        resetGameObjectIdCounter(1);
+
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerX,
+            y: playerY,
+            abilities: ['0116'],
+        });
+
+        const e1 = createTargetDummyAtWorld(engine, playerX + 20, playerY, { id: 'enemy_1', hp: 100 });
+        initializeAbilityRuntimeForUnit(e1);
+        engine.addUnit(e1, 'initialGameSpawn');
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0116',
+            targets: [],
+            targetsByLabel: {},
+            endTurn: true,
+        });
+
+        stepUntil(engine, () => engine.waitingForTargetInput !== null);
+
+        const frozenTime = engine.gameTime;
+        const frozenTick = engine.gameTick;
+        engine.stepSimulationFixedTicks(5);
+        expect(engine.gameTime).toBe(frozenTime);
+        expect(engine.gameTick).toBe(frozenTick);
 
         engine.destroy();
     });
@@ -575,5 +701,119 @@ describe('interactive sequential targeting', () => {
         expect(engine.waitingForOrders).toBeNull();
 
         engine.destroy();
+    });
+
+    /**
+     * Scenario G — Light Blast playahead pauses before the active interval and damages on inject.
+     */
+    it('Scenario G: Light Blast playahead pauses before active interval and damages on target inject', () => {
+        const { engine, player, enemy, blastPixel } = buildLightBlastFixture();
+        const initialHp = enemy.hp;
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: LIGHT_BLAST_ID,
+            targets: [],
+            targetsByLabel: {},
+            endTurn: true,
+        });
+
+        const paused = stepUntil(
+            engine,
+            () => engine.waitingForTargetInput?.label === 'Target',
+            120,
+        );
+        expect(paused).toBe(true);
+        expect(engine.waitingForTargetInput!.label).toBe('Target');
+        expect(getCastElapsed(engine, player, LIGHT_BLAST_ID)).toBeLessThan(LIGHT_BLAST_PREFIRE);
+
+        const active = player.activeAbilities.find(a => a.abilityId === LIGHT_BLAST_ID);
+        expect(active).not.toBeUndefined();
+        active!.targetsByLabel!['Target'] = { type: 'pixel', position: blastPixel };
+        engine.waitingForTargetInput = null;
+        engine.isPaused = false;
+
+        const { damaged } = stepUntilEnemyDamaged(
+            engine,
+            player,
+            enemy,
+            LIGHT_BLAST_ID,
+            initialHp,
+        );
+        expect(damaged).toBe(true);
+        expect(enemy.hp).toBeLessThan(initialHp);
+
+        engine.destroy();
+    });
+
+    /**
+     * Scenario H — committed and preview Light Blast paths deal damage at the same cast elapsed.
+     */
+    it('Scenario H: Light Blast committed and preview paths match damage timing within FIXED_DT', () => {
+        const runCommitted = (): number | null => {
+            const { engine, player, enemy, blastPixel } = buildLightBlastFixture();
+            const initialHp = enemy.hp;
+
+            stepUntil(engine, () => engine.waitingForOrders != null);
+            engine.state.orderMgr.applyOrder({
+                unitId: player.id,
+                abilityId: LIGHT_BLAST_ID,
+                targets: [{ type: 'pixel', position: blastPixel }],
+                endTurn: true,
+            });
+
+            const { damaged, elapsedAtDamage } = stepUntilEnemyDamaged(
+                engine,
+                player,
+                enemy,
+                LIGHT_BLAST_ID,
+                initialHp,
+            );
+            engine.destroy();
+            expect(damaged).toBe(true);
+            return elapsedAtDamage;
+        };
+
+        const runPreview = (): number | null => {
+            const { engine, player, enemy, blastPixel } = buildLightBlastFixture();
+            const initialHp = enemy.hp;
+
+            stepUntil(engine, () => engine.waitingForOrders != null);
+            engine.state.orderMgr.applyOrder({
+                unitId: player.id,
+                abilityId: LIGHT_BLAST_ID,
+                targets: [],
+                targetsByLabel: {},
+                endTurn: true,
+            });
+
+            stepUntil(engine, () => engine.waitingForTargetInput?.label === 'Target', 120);
+
+            const active = player.activeAbilities.find(a => a.abilityId === LIGHT_BLAST_ID);
+            expect(active).not.toBeUndefined();
+            active!.targetsByLabel!['Target'] = { type: 'pixel', position: blastPixel };
+            engine.waitingForTargetInput = null;
+            engine.isPaused = false;
+
+            const { damaged, elapsedAtDamage } = stepUntilEnemyDamaged(
+                engine,
+                player,
+                enemy,
+                LIGHT_BLAST_ID,
+                initialHp,
+            );
+            engine.destroy();
+            expect(damaged).toBe(true);
+            return elapsedAtDamage;
+        };
+
+        const committedElapsed = runCommitted();
+        const previewElapsed = runPreview();
+
+        expect(committedElapsed).not.toBeNull();
+        expect(previewElapsed).not.toBeNull();
+        expect(Math.abs(committedElapsed! - previewElapsed!)).toBeLessThanOrEqual(FIXED_DT);
     });
 });
