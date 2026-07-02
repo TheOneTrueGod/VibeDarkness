@@ -7,9 +7,9 @@
 import { AbilityEventType } from '../../abilities/Ability';
 import type { AbilityRecoveryRule } from '../../abilities/Ability';
 import { defineDirectionalShield } from '../../abilities/archetypes/defineDirectionalShield';
+import { spawnBrightLight, type EngineWithLight } from '../../abilities/brightKeyword';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { createCrystalLightEffect } from '../../abilities/effectHelpers';
 import { getDirectionFromTo, pointInCone } from '../../abilities/targetHelpers';
 import { Effect } from '../../game/effects/Effect';
 import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
@@ -19,10 +19,10 @@ import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import type { AbilityEventRuntimeContext } from '../../abilities/events/AbilityEventRuntime';
 import type { Unit } from '../../game/units/Unit';
 import type { EventBus } from '../../game/EventBus';
-import type { LightSource } from '../../game/lightSources/LightSource';
 import { STANDARD_SHIELD_HALF_ARC_RAD } from '../../abilities/shieldHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}10` as '0110';
+const BRIGHT_MAGNITUDE = 2;
 const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
@@ -53,7 +53,6 @@ const SHINING_BLOCK_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.or
 interface RetalEngineCtx {
     units: Unit[];
     addEffect(effect: Effect): void;
-    addLightSource(ls: LightSource): void;
     eventBus: EventBus;
     gameTime: number;
     roundNumber: number;
@@ -98,7 +97,7 @@ function executeShiningBlockRetaliation(engine: unknown, defender: Unit, aimPos:
             outerR: RETALIATION_RANGE,
         },
     }));
-    eng.addLightSource(createCrystalLightEffect(defender.x, defender.y, { lightAmount: 4, radius: 3 }));
+    spawnBrightLight(eng as EngineWithLight, defender.x, defender.y, BRIGHT_MAGNITUDE);
 }
 
 function grantLightChargesToNearbyAllies(engine: unknown, defender: Unit): void {
@@ -111,7 +110,8 @@ function grantLightChargesToNearbyAllies(engine: unknown, defender: Unit): void 
     }
 }
 
-export const ShiningBlockAbility = defineDirectionalShield({
+export const ShiningBlockAbility = {
+    ...defineDirectionalShield({
     id: CARD_ID,
     name: 'Shining Block',
     image: SHINING_BLOCK_IMAGE,
@@ -127,6 +127,7 @@ export const ShiningBlockAbility = defineDirectionalShield({
         return [
             'Raise your crystal shield blocking all attacks from the front',
             `On Block: Deals {${RETALIATION_DAMAGE}} damage and stuns up to {${RETALIATION_MAX_TARGETS}} enemies for {${STUN_DURATION}} seconds.`,
+            'On Block: Leaves a {Bright 2} flash',
             'On Block: Gain {1} stamina charge. Nearby allies gain {2} stamina surges and {1} light charge',
         ];
     },
@@ -176,7 +177,9 @@ export const ShiningBlockAbility = defineDirectionalShield({
             executeShiningBlockRetaliation(c.engine, c.caster, aimPos);
         },
     },
-});
+    }),
+    bright: BRIGHT_MAGNITUDE,
+};
 
 export const ShiningBlockCard: CardDef = {
     abilityId: CARD_ID,

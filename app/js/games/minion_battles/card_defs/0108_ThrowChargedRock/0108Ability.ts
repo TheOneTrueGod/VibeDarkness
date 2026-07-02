@@ -8,7 +8,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
 import { Effect } from '../../game/effects/Effect';
-import { createCrystalLightEffect, deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
+import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { areEnemies } from '../../game/teams';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
@@ -29,7 +29,7 @@ import {
     TWO_PIXEL_TARGETS,
 } from '../throwSharedTimings';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
-import type { LightSource } from '../../game/lightSources/LightSource';
+import { spawnBrightLight, type EngineWithLight } from '../../abilities/brightKeyword';
 
 const THROW_CHARGED_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <path d="M20 4 L32 12 L36 24 L28 36 L12 34 L4 20 Z" fill="#6b6b6b" stroke="#5a5a5a" stroke-width="1"/>
@@ -58,6 +58,7 @@ const MORE_POWER_MAX_TARGETS = 6;
 
 const KNOCKBACK_TIER = 1;
 const PREVIEW_TEAL = 0x2dd4bf;
+const BRIGHT_MAGNITUDE = 2;
 
 const ENTOMBED_OPTS = {
     cancelIntervalId: 'active',
@@ -101,6 +102,7 @@ const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS = buildMoreRockTimings({
 export const ThrowChargedRock: AbilityStatic = {
     id: CARD_ID,
     name: 'Throw Charged Rock',
+    bright: BRIGHT_MAGNITUDE,
     image: THROW_CHARGED_ROCK_IMAGE,
     tags: ['RockThrow'],
     resourceCost: null,
@@ -152,6 +154,7 @@ export const ThrowChargedRock: AbilityStatic = {
         return [
             firstLine,
             `Explodes, dealing {${explosionDamage}} to up to {${maxTargets}} enemies.`,
+            'Leaves a {Bright 2} at the impact point',
             'Exhaust into {Throw Rock}',
         ];
     },
@@ -204,13 +207,7 @@ export const ThrowChargedRock: AbilityStatic = {
             }),
         );
 
-        (eng as AbilityEngineContext & { addLightSource(ls: LightSource): void }).addLightSource(
-            createCrystalLightEffect(proj.x, proj.y, {
-                color: PREVIEW_TEAL,
-                radius: 2,
-                decayInterval: 0.08,
-            }),
-        );
+        spawnBrightLight(eng as EngineWithLight, proj.x, proj.y, BRIGHT_MAGNITUDE, PREVIEW_TEAL);
 
         const units = (eng.units ?? [])
             .filter((u) => u.isAlive() && areEnemies(sourceUnit.teamId, u.teamId))

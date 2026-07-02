@@ -13,12 +13,11 @@ import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
 import { nullHitbox } from '../../../hitboxes';
 import type { Unit } from '../../../game/units/Unit';
-import { LightSource } from '../../../game/lightSources/LightSource';
+import { spawnBrightLight, type EngineWithLight } from '../../../abilities/brightKeyword';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
-import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}01`;
 const MAX_USES = 1;
@@ -27,9 +26,7 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 const PREFIRE_TIME = 0.2;
 const MAX_RANGE = 200;
-const TORCH_LIGHT_AMOUNT = 4;
-const TORCH_RADIUS = 2;
-const TORCH_ROUNDS = 3;
+const BRIGHT_MAGNITUDE = 3;
 const TORCH_PROJECTILE_SPEED = 400;
 
 const THROW_TORCH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -48,6 +45,7 @@ const THROW_TORCH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 export const ThrowTorchAbility = defineAbility({
     id: CARD_ID,
     name: 'Throw Torch',
+    bright: BRIGHT_MAGNITUDE,
     image: THROW_TORCH_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
@@ -85,24 +83,13 @@ export const ThrowTorchAbility = defineAbility({
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
 
     onProjectileExpired(engine, _caster, projectile): void {
-        const eng = engine as AbilityEngineContext & { addLightSource(ls: LightSource): void };
+        const eng = engine as EngineWithLight;
         const proj = projectile as { x: number; y: number };
-        eng.addLightSource(new LightSource({
-            x: proj.x,
-            y: proj.y,
-            lightAmount: TORCH_LIGHT_AMOUNT,
-            radius: TORCH_RADIUS,
-            decay: {
-                roundCreated: eng.roundNumber ?? 1,
-                initialLightAmount: TORCH_LIGHT_AMOUNT,
-                initialRadius: TORCH_RADIUS,
-                roundsTotal: TORCH_ROUNDS,
-            },
-        }));
+        spawnBrightLight(eng, proj.x, proj.y, BRIGHT_MAGNITUDE);
     },
 
     getTooltipText(_gameState?: unknown): string[] {
-        return [`Place a torch on the ground that emits light`, `Lasts ${TORCH_ROUNDS} rounds`];
+        return ['Leaves a {Bright 3} at the target point'];
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {

@@ -18,7 +18,7 @@ const MAX_USES = 1;
 const PREFIRE_TIME = 2.0;
 const ACTIVE_DURATION = 0.05;
 const COOLDOWN_DURATION = 0.5;
-const LIGHT_COST = 3;
+const LIGHT_COST = 1;
 
 const LIGHT_IMBUEMENT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>

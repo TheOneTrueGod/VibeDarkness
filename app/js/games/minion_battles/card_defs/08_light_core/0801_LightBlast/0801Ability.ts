@@ -7,7 +7,7 @@
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { nullHitbox } from '../../../hitboxes';
-import { LightSource } from '../../../game/lightSources/LightSource';
+import { spawnBrightLight, type EngineWithLight } from '../../../abilities/brightKeyword';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
@@ -15,7 +15,6 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
 import { createMovementPenaltyStates } from '../../../abilities/shieldHelpers';
 import { areEnemies } from '../../../game/teams';
-import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { Unit } from '../../../game/units/Unit';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}01`;
@@ -25,9 +24,7 @@ const MAX_RANGE = 200;
 const LIGHT_BLAST_RADIUS = 40;
 const LIGHT_BLAST_DAMAGE = 8;
 const LIGHT_BLAST_HEAL = 5;
-const TORCH_LIGHT_AMOUNT = 4;
-const TORCH_RADIUS = 2;
-const TORCH_ROUNDS = 3;
+const BRIGHT_MAGNITUDE = 3;
 
 const LIGHT_BLAST_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -48,11 +45,10 @@ const LIGHT_BLAST_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
   <line x1="18" y1="46" x2="10" y2="54" stroke="#ffe066" stroke-width="2" stroke-linecap="round"/>
 </svg>`;
 
-type EngineWithLight = AbilityEngineContext & { addLightSource(ls: LightSource): void };
-
 export const LightBlastAbility = defineAbility({
     id: CARD_ID,
     name: 'Light Blast',
+    bright: BRIGHT_MAGNITUDE,
     image: LIGHT_BLAST_IMAGE,
     resourceCost: { resourceId: 'light', amount: 2 },
     rechargeTurns: 1,
@@ -102,18 +98,7 @@ export const LightBlastAbility = defineAbility({
                     unit.hp = Math.min(unit.maxHp, unit.hp + LIGHT_BLAST_HEAL);
                 }
 
-                eng.addLightSource(new LightSource({
-                    x: pos.x,
-                    y: pos.y,
-                    lightAmount: TORCH_LIGHT_AMOUNT,
-                    radius: TORCH_RADIUS,
-                    decay: {
-                        roundCreated: eng.roundNumber ?? 1,
-                        initialLightAmount: TORCH_LIGHT_AMOUNT,
-                        initialRadius: TORCH_RADIUS,
-                        roundsTotal: TORCH_ROUNDS,
-                    },
-                }));
+                spawnBrightLight(eng, pos.x, pos.y, BRIGHT_MAGNITUDE);
             }),
         },
         {
@@ -137,7 +122,7 @@ export const LightBlastAbility = defineAbility({
             `Blast a point within ${MAX_RANGE}px with a burst of light`,
             `Deals ${LIGHT_BLAST_DAMAGE} damage to enemies in the blast`,
             `Heals allies in the blast for ${LIGHT_BLAST_HEAL}`,
-            `Leaves a torch at the target point (${TORCH_ROUNDS} rounds)`,
+            'Leaves a {Bright 3} at the target point',
         ];
     },
 

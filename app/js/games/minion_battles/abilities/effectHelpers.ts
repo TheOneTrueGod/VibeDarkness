@@ -8,7 +8,6 @@ import type { AttackBlockedInfo } from './Ability';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../game/forceMove';
 import { Effect } from '../game/effects/Effect';
-import { LightSource } from '../game/lightSources/LightSource';
 import { SPRITE_EFFECT_DEFS, type SpriteEffectDef } from '../game/effect_defs/spriteEffectDefs';
 
 /** Default slash trail color (light cyan). */
@@ -37,50 +36,6 @@ export function createSlashTrailEffect(
         effectRadius: thickness,
         effectData: { endX, endY, color },
         delay,
-    });
-}
-
-/** Options for CrystalLightEffect. Brief invisible light that decays over time. */
-export interface CrystalLightEffectOptions {
-    lightAmount?: number;
-    radius?: number;
-    decayRate?: number;
-    decayInterval?: number;
-    color?: number;
-}
-
-const DEFAULT_LIGHT_AMOUNT = 10;
-const DEFAULT_RADIUS = 4;
-const DEFAULT_DECAY_RATE = 1;
-const DEFAULT_DECAY_INTERVAL = 0.25;
-
-/**
- * Create a brief light source with no visuals (e.g. charged crystal, Shining Block retaliation).
- * Uses interval-based decay (decayRate/decayInterval) for gradual fade.
- */
-export function createCrystalLightEffect(
-    x: number,
-    y: number,
-    options: CrystalLightEffectOptions = {},
-): LightSource {
-    const lightAmount = options.lightAmount ?? DEFAULT_LIGHT_AMOUNT;
-    const radius = options.radius ?? DEFAULT_RADIUS;
-    const decayRate = options.decayRate ?? DEFAULT_DECAY_RATE;
-    const decayInterval = options.decayInterval ?? DEFAULT_DECAY_INTERVAL;
-    return new LightSource({
-        x,
-        y,
-        lightAmount,
-        radius,
-        color: options.color,
-        decay: {
-            roundCreated: 0,
-            initialLightAmount: lightAmount,
-            initialRadius: radius,
-            roundsTotal: 999,
-            decayRate,
-            decayInterval,
-        },
     });
 }
 

@@ -308,6 +308,8 @@ export interface AbilityStatic {
      * (`getTotalAbilityDuration` = `max(end)`), not from `prefireTime` alone.
      */
     readonly prefireTime: number;
+    /** Bright N tier for light-leaving abilities (see `brightKeyword.ts`). */
+    readonly bright?: number;
 
     /**
      * When true, the unit's movement path is cleared when this ability naturally completes.
